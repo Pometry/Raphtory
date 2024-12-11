@@ -1,5 +1,5 @@
 use super::locked_view::LockedView;
-use crate::core::entities::LayerIds;
+use crate::core::entities::{properties::tcell::TCell, LayerIds};
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -96,16 +96,7 @@ impl<T: AsTime> TimeIndex<T> {
         }
     }
 
-    // = note: see issue #65991 <https://github.com/rust-lang/rust/issues/65991> for more information
-    // = note: required when coercing `Box<dyn DoubleEndedIterator<Item = &i64> + Send>` into `Box<dyn Iterator<Item = &i64> + Send>`
-    pub(crate) fn range_iter_forward(
-        &self,
-        w: Range<T>,
-    ) -> Box<dyn Iterator<Item = T> + Send + '_> {
-        Box::new(self.range_iter(w))
-    }
-
-    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T> {
+    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T, Self> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
@@ -137,17 +128,43 @@ impl<T: AsTime> TimeIndex<T> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum TimeIndexWindow<'a, T: AsTime> {
-    Empty,
-    TimeIndexRange {
-        timeindex: &'a TimeIndex<T>,
-        range: Range<T>,
-    },
-    All(&'a TimeIndex<T>),
+impl<T: AsTime> TimeIndexLike for TimeIndex<T> {
+    fn range_iter(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(self.range_iter(w))
+    }
+
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.range_iter(w).next()
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.range_iter(w).next_back()
+    }
 }
 
-impl<'a, T: AsTime> TimeIndexWindow<'a, T> {
+#[derive(Clone, Debug)]
+pub enum TimeIndexWindow<'a, T: AsTime, TI> {
+    Empty,
+    TimeIndexRange { timeindex: &'a TI, range: Range<T> },
+    All(&'a TI),
+}
+
+impl<'a, A: Copy + Send + Sync> TimeIndexWindow<'a, TimeIndexEntry, TCell<A>> {
+    pub fn iter_values(self) -> Box<dyn Iterator<Item = (TimeIndexEntry, A)> + Send + 'a> {
+        match self {
+            TimeIndexWindow::Empty => Box::new(iter::empty()),
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                Box::new(timeindex.iter_window(range.clone()).map(|(t, v)| (*t, *v)))
+            }
+            TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter().map(|(t, v)| (*t, *v))),
+        }
+    }
+}
+
+impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'a, T, TI> {
     pub fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,
@@ -159,7 +176,9 @@ impl<'a, T: AsTime> TimeIndexWindow<'a, T> {
     }
 }
 
-impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
+impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
+    for TimeIndexWindow<'a, T, TI>
+{
     type IndexType = T;
     type RangeType = Self;
 
@@ -178,16 +197,35 @@ impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
                     }
                 }
             }
-            TimeIndexWindow::All(timeindex) => timeindex.range_inner(w),
+            TimeIndexWindow::All(ts) => {
+                if ts.len() == 0 {
+                    TimeIndexWindow::Empty
+                } else {
+                    if let Some(min_val) = ts.first() {
+                        if let Some(max_val) = ts.last() {
+                            if min_val >= w.start && max_val < w.end {
+                                TimeIndexWindow::All(ts)
+                            } else {
+                                TimeIndexWindow::TimeIndexRange {
+                                    timeindex: ts,
+                                    range: w,
+                                }
+                            }
+                        } else {
+                            TimeIndexWindow::Empty
+                        }
+                    } else {
+                        TimeIndexWindow::Empty
+                    }
+                }
+            }
         }
     }
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter_forward(range)
-            }
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex.range_iter(range),
             TimeIndexWindow::All(timeindex) => timeindex.iter(),
         }
     }
@@ -284,7 +322,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IndexType = T;
     type RangeType<'a>
-        = TimeIndexWindow<'a, T>
+        = TimeIndexWindow<'a, T, Self>
     where
         Self: 'a;
 
@@ -297,7 +335,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn range(&self, w: Range<T>) -> TimeIndexWindow<T> {
+    fn range(&self, w: Range<T>) -> TimeIndexWindow<T, Self> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
@@ -361,13 +399,13 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     }
 }
 
-impl<'b, T: AsTime> TimeIndexOps for TimeIndexWindow<'b, T>
+impl<'b, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexOps for TimeIndexWindow<'b, T, TI>
 where
     Self: 'b,
 {
     type IndexType = T;
     type RangeType<'a>
-        = TimeIndexWindow<'a, T>
+        = TimeIndexWindow<'a, T, TI>
     where
         Self: 'a;
 
@@ -399,7 +437,10 @@ where
                     }
                 }
             }
-            TimeIndexWindow::All(timeindex) => timeindex.range(w),
+            TimeIndexWindow::All(timeindex) => TimeIndexWindow::TimeIndexRange {
+                timeindex,
+                range: w,
+            },
         }
     }
 
@@ -407,7 +448,7 @@ where
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next()
+                timeindex.first_range(range.clone())
             }
             TimeIndexWindow::All(timeindex) => timeindex.first(),
         }
@@ -417,7 +458,7 @@ where
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next_back()
+                timeindex.last_range(range.clone())
             }
             TimeIndexWindow::All(timeindex) => timeindex.last(),
         }
@@ -427,7 +468,7 @@ where
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                Box::new(timeindex.range_iter_forward(range.clone()))
+                Box::new(timeindex.range_iter(range.clone()))
             }
             TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter()),
         }
@@ -436,17 +477,9 @@ where
     fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => match timeindex {
-                TimeIndex::Empty => 0,
-                TimeIndex::One(t) => {
-                    if range.contains(t) {
-                        1
-                    } else {
-                        0
-                    }
-                }
-                TimeIndex::Set(ts) => ts.range(range.clone()).count(),
-            },
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                timeindex.range_iter(range.clone()).count()
+            }
             TimeIndexWindow::All(ts) => ts.len(),
         }
     }

@@ -252,12 +252,32 @@ impl TimeSemantics for PersistentGraph {
         edge.active(layer_ids, w.clone()) || edge_alive_at_start(edge, w.start, layer_ids)
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         self.0.node_history(v)
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.0.node_history_window(v, w)
+    }
+
+    fn node_edge_history(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<TimeIndexEntry> {
+        self.0.node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        self.0.node_history_rows(v, w)
+    }
+
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.0.node_property_history(v, w)
     }
 
     fn edge_history<'a>(

@@ -210,16 +210,40 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .is_some()
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
         // separate timestamps from node property updates and edge additions currently
         self.graph.node_history(v)
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
         // separate timestamps from node property updates and edge additions currently
         self.graph.node_history_window(v, w)
+    }
+
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph.node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        self.graph.node_history_rows(v, w)
+    }
+
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph.node_property_history(v, w)
     }
 
     fn edge_history<'a>(

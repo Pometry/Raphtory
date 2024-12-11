@@ -53,11 +53,23 @@ pub trait TimeSemantics {
         layer_ids: &LayerIds,
     ) -> bool;
 
-    /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
-    fn node_history(&self, v: VID) -> Vec<i64>;
+    /// Get the timestamps at which a node `v` is active (i.e has an edge addition, or a property change)
+    fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry>;
 
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64>;
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<TimeIndexEntry>;
+
+    /// Get the timestamps associated with properties or node events only (Excluding edge events)
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
+
+    /// Get the timestamps associated with edge events only (Excluding node or property events)
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)>;
 
     fn edge_history<'a>(
         &'a self,
@@ -421,12 +433,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph().node_history(v)
     }
 
     #[inline]
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph().node_history_window(v, w)
     }
 
@@ -652,5 +664,21 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph().temporal_edge_prop_hist(e, prop_id, layer_ids)
+    }
+
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.graph().node_property_history(v, w)
+    }
+
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.graph().node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        self.graph().node_history_rows(v, w)
     }
 }

@@ -77,6 +77,12 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
     }
 }
 
+pub trait IndexedTPropOps<'a>: Sized + 'a + Send {
+    type PropT: 'a;
+
+    fn prop_at(&self, idx: usize) -> Self::PropT;
+}
+
 impl<'a> TPropOps<'a> for TPropRef<'a> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, tprop => tprop.last_before(t))
