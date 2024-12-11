@@ -43,6 +43,7 @@ use serde_json::json;
 use std::{collections::HashMap, iter, ops::Deref, sync::Arc};
 use tantivy::{
     collector::TopDocs,
+    query::QueryParser,
     schema::{
         Field, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing, Value, FAST, INDEXED,
         STORED, TEXT,
@@ -408,6 +409,36 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         Some(e_view)
     }
 
+    fn node_parser(&self) -> Result<QueryParser, GraphError> {
+        let temporal_properties = self
+            .node_index
+            .schema()
+            .get_field(fields::TEMPORAL_PROPERTIES)?;
+        let const_properties = self
+            .node_index
+            .schema()
+            .get_field(fields::CONSTANT_PROPERTIES)?;
+        Ok(QueryParser::for_index(
+            &self.node_index,
+            vec![temporal_properties, const_properties],
+        ))
+    }
+
+    fn edge_parser(&self) -> Result<QueryParser, GraphError> {
+        let temporal_properties = self
+            .edge_index
+            .schema()
+            .get_field(fields::TEMPORAL_PROPERTIES)?;
+        let const_properties = self
+            .edge_index
+            .schema()
+            .get_field(fields::CONSTANT_PROPERTIES)?;
+        Ok(QueryParser::for_index(
+            &self.edge_index,
+            vec![temporal_properties, const_properties],
+        ))
+    }
+
     pub fn search_nodes(
         &self,
         q: &str,
@@ -415,8 +446,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let searcher = self.node_reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.node_index, vec![]);
-
+        let query_parser = self.node_parser()?;
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit).and_offset(offset);
@@ -437,7 +467,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
     pub fn search_node_count(&self, q: &str) -> Result<usize, GraphError> {
         let searcher = self.node_reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.node_index, vec![]);
+        let query_parser = self.node_parser()?;
         let query = query_parser.parse_query(q)?;
 
         let count = searcher.search(&query, &tantivy::collector::Count)?;
@@ -447,7 +477,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
     pub fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
         let searcher = self.edge_reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        let query_parser = self.edge_parser()?;
         let query = query_parser.parse_query(q)?;
 
         let count = searcher.search(&query, &tantivy::collector::Count)?;
@@ -462,8 +492,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
-
+        let query_parser = self.edge_parser()?;
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit).and_offset(offset);
@@ -491,7 +520,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         levenshtein_distance: u8,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let searcher = self.node_reader.searcher();
-        let mut query_parser = tantivy::query::QueryParser::for_index(&self.node_index, vec![]);
+        let mut query_parser = self.node_parser()?;
 
         self.node_index
             .schema()
@@ -525,7 +554,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         levenshtein_distance: u8,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
-        let mut query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        let mut query_parser = self.edge_parser()?;
         self.edge_index
             .schema()
             .fields()
