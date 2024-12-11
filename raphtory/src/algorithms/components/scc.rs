@@ -1,14 +1,9 @@
-use std::{
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::entities::VID,
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::node::NodeView,
-    },
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     prelude::*,
 };
 
@@ -79,9 +74,7 @@ where
     result
 }
 
-pub fn strongly_connected_components<G>(
-    graph: &G,
-) -> AlgorithmResult<G, usize>
+pub fn strongly_connected_components<G>(graph: &G) -> AlgorithmResult<G, usize>
 where
     G: StaticGraphViewOps,
 {
