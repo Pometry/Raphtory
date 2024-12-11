@@ -1,7 +1,7 @@
 use opentelemetry::KeyValue;
-use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::{
-    trace,
+    runtime,
     trace::{Sampler, TracerProvider},
     Resource,
 };
@@ -36,29 +36,25 @@ impl Default for TracingConfig {
 impl TracingConfig {
     pub fn tracer_provider(&self) -> Option<TracerProvider> {
         if self.tracing_enabled {
-            match opentelemetry_otlp::new_pipeline()
-                .tracing()
-                .with_exporter(
-                    opentelemetry_otlp::new_exporter()
-                        .tonic()
-                        .with_endpoint(format!(
-                            "{}:{}",
-                            self.otlp_agent_host.clone(),
-                            self.otlp_agent_port.clone()
-                        ))
-                        .with_timeout(Duration::from_secs(3)),
-                )
-                .with_trace_config(
-                    trace::Config::default()
+            match SpanExporter::builder()
+                .with_tonic()
+                .with_endpoint(format!(
+                    "{}:{}",
+                    self.otlp_agent_host.clone(),
+                    self.otlp_agent_port.clone()
+                ))
+                .with_timeout(Duration::from_secs(3))
+                .build()
+            {
+                Ok(exporter) => {
+                    let tracer_provider = TracerProvider::builder()
+                        .with_batch_exporter(exporter, runtime::Tokio)
                         .with_sampler(Sampler::AlwaysOn)
                         .with_resource(Resource::new(vec![KeyValue::new(
                             "service.name",
                             self.otlp_tracing_service_name.clone(),
-                        )])),
-                )
-                .install_batch(opentelemetry_sdk::runtime::Tokio)
-            {
-                Ok(tracer_provider) => {
+                        )]))
+                        .build();
                     info!(
                         "Sending traces to {}:{}",
                         self.otlp_agent_host.clone(),
