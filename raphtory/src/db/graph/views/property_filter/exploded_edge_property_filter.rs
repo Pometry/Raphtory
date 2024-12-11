@@ -27,7 +27,7 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, EID, VID},
+    entities::{edges::edge_ref::EdgeRef, VID},
     storage::timeindex::TimeIndexEntry,
 };
 use std::ops::Range;
@@ -226,7 +226,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         &'a self,
         v: VID,
         w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph.node_edge_history(v, w)
     }
 

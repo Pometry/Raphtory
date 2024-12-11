@@ -1,14 +1,14 @@
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::{timeindex::AsTime, TPropColumn},
+        storage::timeindex::AsTime,
         utils::errors::GraphError,
     },
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{ConstPropertiesOps, TemporalPropertiesOps},
                 Properties,
             },
             storage::graph::{
@@ -245,9 +245,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 .get_mut()
                                 .update_t_prop_time(TimeIndexEntry::start(earliest), None)
                         }
-                        for (t, eid) in self.node_edge_history(node.node, None) {
-                            new_node.get_mut().update_time(t, eid);
-                        }
+                        // for (t, eid) in self.node_edge_history(node.node, None) {
+                        //     new_node.get_mut().update_time(t, eid);
+                        // }
 
                         let node_entry = self.core_node_entry(node.node);
 
@@ -255,28 +255,28 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         let start = self.view_start();
                         let end = self.view_end();
 
-                        let rows = if let Some(range) = start.zip(end).map(|(s, e)| s..e) {
-                            node_entry
-                                .as_ref()
-                                .temp_prop_rows_window(
-                                    props.clone(),
-                                    TimeIndexEntry::start(range.start)
-                                        ..TimeIndexEntry::start(range.end),
-                                )
-                                .into_dyn_boxed()
-                        } else {
-                            node_entry
-                                .as_ref()
-                                .temp_prop_rows(props.clone())
-                                .into_dyn_boxed()
-                        };
+                        // let rows = if let Some(range) = start.zip(end).map(|(s, e)| s..e) {
+                        //     node_entry
+                        //         .as_ref()
+                        //         .temp_prop_rows_window(
+                        //             props.clone(),
+                        //             TimeIndexEntry::start(range.start)
+                        //                 ..TimeIndexEntry::start(range.end),
+                        //         )
+                        //         .into_dyn_boxed()
+                        // } else {
+                        //     node_entry
+                        //         .as_ref()
+                        //         .temp_prop_rows(props.clone())
+                        //         .into_dyn_boxed()
+                        // };
 
-                        for (time, row) in rows {
-                            let prop_offset = new_node
-                                .t_props_log_mut()
-                                .push(row.into_iter().filter_map(|(id, prop)| Some((id, prop?))))?;
-                            new_node.get_mut().update_t_prop_time(time, prop_offset);
-                        }
+                        // for (time, row) in rows {
+                        //     let prop_offset = new_node
+                        //         .t_props_log_mut()
+                        //         .push(row.into_iter().filter_map(|(id, prop)| Some((id, prop?))))?;
+                        //     new_node.get_mut().update_t_prop_time(time, prop_offset);
+                        // }
 
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {
@@ -339,6 +339,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
                         for ee in edge.explode_layers() {
+                            todo!("Add timestamps updates here from edge");
+                            // self.edge_history(ee.edge, self.layer_ids())
                             src_node.add_edge(
                                 node_map[edge.edge.dst().index()],
                                 Direction::OUT,
@@ -349,6 +351,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
                         for ee in edge.explode_layers() {
+                            todo!("Add timestamps updates here from edge");
                             dst_node.add_edge(
                                 node_map[edge.edge.src().index()],
                                 Direction::IN,

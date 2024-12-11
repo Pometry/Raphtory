@@ -11,9 +11,7 @@ use crate::{
     },
     db::api::{
         storage::graph::{
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::{SparseTPropOps, TPropOps},
-            variants::storage_variants3::StorageVariants,
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps}, tprop_storage_ops::TPropOps, variants::storage_variants3::StorageVariants
         },
         view::{internal::NodeAdditions, BoxedLIter},
     },
@@ -116,7 +114,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().additions()
     }
 
-    fn tprop(self, prop_id: usize) -> impl SparseTPropOps<'a> {
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.as_ref().tprop(prop_id)
     }
 

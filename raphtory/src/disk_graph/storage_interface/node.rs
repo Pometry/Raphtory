@@ -5,7 +5,11 @@ use crate::{
     },
     db::api::{
         storage::graph::{
-            nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            nodes::{
+                node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+                row::DiskRow,
+                row::Row,
+            },
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
@@ -16,9 +20,10 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{
-    graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
+    graph::TemporalGraph, prelude::Chunked, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
 };
-use std::{borrow::Cow, iter, sync::Arc};
+use raphtory_api::core::storage::timeindex::{TimeIndexEntry, TimeIndexIntoOps};
+use std::{borrow::Cow, iter, ops::Range, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskNode<'a> {
@@ -27,6 +32,42 @@ pub struct DiskNode<'a> {
 }
 
 impl<'a> DiskNode<'a> {
+    pub fn into_rows(self) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
+        self.graph
+            .node_properties()
+            .temporal_props()
+            .into_iter()
+            .enumerate()
+            .flat_map(move |(layer, props)| {
+                let ts = props.timestamps::<TimeIndexEntry>(self.vid);
+                let range = ts.timestamps().range();
+                ts.into_iter().zip(range).map(move |(t, row)| {
+                    let row = DiskRow::new(self, props, row, layer);
+                    (t, Row::Disk(row))
+                })
+            })
+    }
+
+    pub fn into_rows_window(
+        self,
+        window: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
+        self.graph
+            .node_properties()
+            .temporal_props()
+            .into_iter()
+            .enumerate()
+            .flat_map(move |(layer, props)| {
+                let ts = props.timestamps::<TimeIndexEntry>(self.vid);
+                let ts = ts.into_range(window.clone());
+                let range = ts.timestamps().range();
+                ts.into_iter().zip(range).map(move |(t, row)| {
+                    let row = DiskRow::new(self, props, row, layer);
+                    (t, Row::Disk(row))
+                })
+            })
+    }
+
     pub fn constant_node_prop_ids(self) -> BoxedLIter<'a, usize> {
         match &self.graph.node_properties().const_props {
             None => Box::new(std::iter::empty()),
@@ -143,8 +184,12 @@ impl<'a> DiskNode<'a> {
             .merge_by(self.out_edges(layers), |e1, e2| e1.remote() <= e2.remote())
     }
 
-    pub fn additions_for_layers(&self, layer_ids: LayerIds) -> NodeAdditions<'a> {
+    pub fn additions_for_layers(self, layer_ids: LayerIds) -> NodeAdditions<'a> {
         NodeAdditions::Col(LayerAdditions::new(self.graph, self.vid, layer_ids, None))
+    }
+
+    pub fn graph(&self) -> &TemporalGraph {
+        self.graph
     }
 }
 

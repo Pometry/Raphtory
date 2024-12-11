@@ -35,7 +35,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    default,
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
     sync::Arc,

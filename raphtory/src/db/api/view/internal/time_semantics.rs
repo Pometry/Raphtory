@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::node_entry::Row,
         Prop,
     },
     db::api::{
@@ -10,7 +9,7 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
@@ -64,8 +63,7 @@ pub trait TimeSemantics {
     fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
 
     /// Get the timestamps associated with edge events only (Excluding node or property events)
-    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>)
-        -> BoxedLIter<(TimeIndexEntry, EID)>;
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
 
     fn node_history_rows(
         &self,
@@ -672,11 +670,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().node_property_history(v, w)
     }
 
-    fn node_edge_history(
-        &self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, EID)> {
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
         self.graph().node_edge_history(v, w)
     }
 

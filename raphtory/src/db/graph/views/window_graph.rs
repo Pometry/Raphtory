@@ -63,10 +63,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{
-    entities::EID,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-};
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     fmt::{Debug, Formatter},
     iter,
@@ -343,7 +340,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &'a self,
         v: VID,
         w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         if self.window_is_empty() {
             return Box::new(std::iter::empty());
         }

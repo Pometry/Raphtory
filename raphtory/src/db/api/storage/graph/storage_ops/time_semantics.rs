@@ -2,7 +2,7 @@ use std::{iter, ops::Range};
 
 use itertools::{kmerge, Itertools};
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, EID, VID},
+    entities::{edges::edge_ref::EdgeRef, VID},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::iter::ParallelIterator;
@@ -11,10 +11,7 @@ use super::GraphStorage;
 use crate::{
     core::{
         entities::LayerIds,
-        storage::{
-            node_entry::Row,
-            timeindex::{TimeIndexIntoOps, TimeIndexOps},
-        },
+        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
         utils::iter::GenLockedIter,
     },
     db::api::{
@@ -129,11 +126,9 @@ impl TimeSemantics for GraphStorage {
         GenLockedIter::from(self.node_entry(v), |node| match w {
             Some(w) => node
                 .additions()
-                .into_prop_events()
-                .into_range_t(w)
-                .into_iter()
-                .into_dyn_boxed(),
-            None => node.additions().into_iter().into_dyn_boxed(),
+                .into_range(TimeIndexEntry::range(w))
+                .into_prop_events(),
+            None => node.additions().into_prop_events(),
         })
         .into_dyn_boxed()
     }
@@ -142,19 +137,13 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         v: VID,
         w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         GenLockedIter::from(self.node_entry(v), |node| match w {
             Some(w) => node
                 .additions()
-                .into_edge_events()
-                .into_range_t(w)
-                .iter_values()
-                .into_dyn_boxed(),
-            None => node
-                .additions()
-                .into_edge_events()
-                .iter_values()
-                .into_dyn_boxed(),
+                .into_range(TimeIndexEntry::range(w))
+                .into_edge_events(),
+            None => node.additions().into_edge_events(),
         })
         .into_dyn_boxed()
     }
@@ -170,13 +159,13 @@ impl TimeSemantics for GraphStorage {
             Some(range) => {
                 let range = TimeIndexEntry::range(range);
                 node.as_ref()
-                    .temp_prop_rows_window(prop_ids, range)
+                    .temp_prop_rows_window(range)
                     .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect()))
                     .into_dyn_boxed()
             }
             None => node
                 .as_ref()
-                .temp_prop_rows(prop_ids)
+                .temp_prop_rows()
                 .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect()))
                 .into_dyn_boxed(),
         })

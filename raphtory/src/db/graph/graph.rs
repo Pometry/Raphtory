@@ -425,9 +425,6 @@ mod db_tests {
         db::{
             api::{
                 properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
-                storage::graph::{
-                    nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::SparseTPropOps,
-                },
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
@@ -1406,7 +1403,7 @@ mod db_tests {
             .core_graph()
             .nodes()
             .node(VID(0))
-            .temp_prop_rows(0..1)
+            .temp_prop_rows()
             .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1420,7 +1417,7 @@ mod db_tests {
             .core_graph()
             .nodes()
             .node(VID(0))
-            .temp_prop_rows(0..2)
+            .temp_prop_rows()
             .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1451,7 +1448,7 @@ mod db_tests {
             .core_graph()
             .nodes()
             .node(VID(0))
-            .temp_prop_rows(0..2)
+            .temp_prop_rows()
             .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1476,7 +1473,7 @@ mod db_tests {
             .core_graph()
             .nodes()
             .node(VID(0))
-            .temp_prop_rows(0..2)
+            .temp_prop_rows()
             .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1504,7 +1501,7 @@ mod db_tests {
                 .core_graph()
                 .nodes()
                 .node(VID(id))
-                .temp_prop_rows(0..1)
+                .temp_prop_rows()
                 .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>();
 
@@ -1535,7 +1532,7 @@ mod db_tests {
                 .core_graph()
                 .nodes()
                 .node(vid)
-                .temp_prop_rows_window(0..1, range)
+                .temp_prop_rows_window(range)
                 .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
@@ -2006,30 +2003,6 @@ mod db_tests {
         });
     }
 
-    #[test]
-    fn node_history_rows_no_props() {
-        let g = Graph::new();
-        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
-        let _ = g
-            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
-            .unwrap();
-
-        let nodes = g.core_graph().nodes();
-        let node = nodes.node(VID(0));
-
-        let col_prop = node.tprop(0).iter_all().collect::<Vec<_>>();
-        assert_eq!(col_prop, vec![(TimeIndexEntry::new(0, 0), None)]);
-
-        let props = node
-            .temp_prop_rows(0..1)
-            .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
-            .collect::<Vec<_>>();
-        assert_eq!(props, vec![(TimeIndexEntry::new(0, 0), vec![])]);
-
-        let actual = g_a.rows().collect::<Vec<_>>();
-        let expected = vec![(TimeIndexEntry::new(0, 0), vec![])];
-        assert_eq!(actual, expected);
-    }
     #[test]
     fn node_history_rows() {
         let graph = Graph::new();

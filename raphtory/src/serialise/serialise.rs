@@ -174,7 +174,7 @@ impl StableEncode for GraphStorage {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
 
-            for (time, row) in node.temp_prop_rows(0..self.node_meta().temporal_prop_meta().len()) {
+            for (time, row) in node.temp_prop_rows() {
                 graph.update_node_tprops(
                     node.vid(),
                     time,
@@ -548,10 +548,7 @@ mod proto_test {
     use crate::{
         core::{DocumentInput, Lifespan},
         db::{
-            api::{
-                mutation::DeletionOps,
-                properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
-            },
+            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,

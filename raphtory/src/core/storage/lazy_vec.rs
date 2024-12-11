@@ -1,5 +1,4 @@
 use crate::core::utils::errors::GraphError;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter};
 
@@ -157,16 +156,16 @@ impl<T> TupleCol<T> {
         (0..self.size).map(move |id| self.get(id))
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = Option<&mut T>> {
-        self.tuples.sort_by_key(|(id, _)| *id);
+    // pub fn iter_mut(&mut self) -> impl Iterator<Item = Option<&mut T>> {
+    //     self.tuples.sort_by_key(|(id, _)| *id);
 
-        (0..self.size)
-            .merge_join_by(self.tuples.iter_mut(), |a, (b, _)| a.cmp(b))
-            .map(|either| match either {
-                itertools::EitherOrBoth::Both(_, (_, t)) => Some(t),
-                _ => None,
-            })
-    }
+    //     (0..self.size)
+    //         .merge_join_by(self.tuples.iter_mut(), |a, (b, _)| a.cmp(b))
+    //         .map(|either| match either {
+    //             itertools::EitherOrBoth::Both(_, (_, t)) => Some(t),
+    //             _ => None,
+    //         })
+    // }
 
     pub fn into_iter(mut self) -> impl Iterator<Item = Option<T>>
     where
@@ -296,25 +295,8 @@ where
         }
     }
 
-    pub(crate) fn values_mut(&mut self) -> Box<dyn Iterator<Item = Option<(usize, &mut A)>> + '_> {
-        match self {
-            LazyVec::Empty => Box::new(iter::empty()),
-            LazyVec::LazyVec1(_, tuples) => Box::new(
-                tuples
-                    .iter_mut()
-                    .enumerate()
-                    .map(|(id, value)| value.map(|value| (id, value))),
-            ),
-            LazyVec::LazyVecN(_, vector) => Box::new(
-                vector
-                    .iter_mut()
-                    .enumerate()
-                    .map(|(id, value)| value.map(|value| (id, value))),
-            ),
-        }
-    }
-
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
+    #[cfg(test)]
+    fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(default, tuples) => {
@@ -326,7 +308,8 @@ where
         }
     }
 
-    pub(crate) fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
+    #[cfg(test)]
+    fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(_, tuples) => Box::new(tuples.iter()),
@@ -362,27 +345,6 @@ where
         }
     }
 
-    pub(crate) fn insert(&mut self, id: usize, value: Option<A>) {
-        match self {
-            LazyVec::Empty => {
-                if let Some(value) = value {
-                    *self = LazyVec::from(id, value);
-                } else {
-                    *self = LazyVec::LazyVec1(A::default(), TupleCol::default());
-                    self.insert(id, value);
-                }
-            }
-            LazyVec::LazyVec1(_, tuples) => {
-                tuples.upsert(id, value);
-                self.swap_lazy_types();
-            }
-
-            LazyVec::LazyVecN(_, vector) => {
-                vector.upsert(id, value);
-            }
-        }
-    }
-
     pub(crate) fn push(&mut self, value: Option<A>) {
         match self {
             LazyVec::Empty => {
@@ -403,34 +365,11 @@ where
         }
     }
 
-    pub(crate) fn upsert<F, B>(&mut self, id: usize, updater: F) -> B
-    where
-        F: FnOnce(&mut A) -> B,
-    {
-        match self.get_mut(id) {
-            Some(value) => updater(value),
-            None => {
-                let mut value = A::default();
-                let b = updater(&mut value);
-                self.insert(id, Some(value));
-                b
-            }
-        }
-    }
-
     pub(crate) fn len(&self) -> usize {
         match self {
             LazyVec::Empty => 0,
             LazyVec::LazyVec1(_, tuples) => tuples.len(),
             LazyVec::LazyVecN(_, vector) => vector.len(),
-        }
-    }
-
-    pub(crate) fn filled_len(&self) -> usize {
-        match self {
-            LazyVec::Empty => 0,
-            LazyVec::LazyVec1(_, tuples) => tuples.tuples.len(),
-            LazyVec::LazyVecN(_, vector) => vector.filled_len(),
         }
     }
 }
@@ -487,18 +426,18 @@ mod lazy_vec_tests {
         assert_eq!(vec.len(), 3);
     }
 
-    #[test]
-    fn lazy_vec_is_opt_vec_insert() {
-        proptest!(|(
-            v in Vec::<Option<u32>>::arbitrary(),
-        )| {
-            let mut lazy_vec = LazyVec::<u32>::Empty;
-            for (i, value) in v.iter().enumerate() {
-                lazy_vec.insert(i, *value);
-            }
-            check_lazy_vec(&lazy_vec, v);
-        });
-    }
+    // #[test]
+    // fn lazy_vec_is_opt_vec_insert() {
+    //     proptest!(|(
+    //         v in Vec::<Option<u32>>::arbitrary(),
+    //     )| {
+    //         let mut lazy_vec = LazyVec::<u32>::Empty;
+    //         for (i, value) in v.iter().enumerate() {
+    //             lazy_vec.insert(i, *value);
+    //         }
+    //         check_lazy_vec(&lazy_vec, v);
+    //     });
+    // }
 
     #[test]
     fn lazy_vec_is_opt_vec_push() {
@@ -513,13 +452,13 @@ mod lazy_vec_tests {
         });
     }
 
-    #[test]
-    fn none_1_lazy_vec() {
-        let mut vec = LazyVec::<u32>::Empty;
-        vec.insert(0, None);
+    // #[test]
+    // fn none_1_lazy_vec() {
+    //     let mut vec = LazyVec::<u32>::Empty;
+    //     vec.insert(0, None);
 
-        assert_eq!(vec.len(), 1);
-    }
+    //     assert_eq!(vec.len(), 1);
+    // }
 
     #[test]
     fn normal_operation() {

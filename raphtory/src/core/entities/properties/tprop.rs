@@ -6,7 +6,7 @@ use crate::{
         DocumentInput, Prop, PropType,
     },
     db::{
-        api::storage::graph::tprop_storage_ops::{SparseTPropOps, TPropOps},
+        api::storage::graph::tprop_storage_ops::TPropOps,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
 };
@@ -86,27 +86,6 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
 
     fn len(self) -> usize {
         self.log.map(|log| log.len()).unwrap_or(0)
-    }
-}
-
-impl<'a> SparseTPropOps<'a> for TPropCell<'a> {
-    fn iter_all(self) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a {
-        self.t_cell.into_iter().flat_map(move |t_cell| {
-            t_cell
-                .iter()
-                .map(move |(t, &id)| (*t, self.log.and_then(|log| log.get(id?))))
-        })
-    }
-
-    fn iter_window_all(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a {
-        self.t_cell.into_iter().flat_map(move |t_cell| {
-            t_cell
-                .iter_window(r.clone())
-                .map(move |(t, &id)| (*t, self.log.and_then(|log| log.get(id?))))
-        })
     }
 }
 

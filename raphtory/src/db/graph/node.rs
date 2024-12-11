@@ -3,7 +3,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        utils::{errors::GraphError, iter::GenLockedIter},
+        utils::errors::GraphError,
     },
     db::{
         api::{
@@ -33,10 +33,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{
-    entities::EID,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-};
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     fmt,
     fmt::Debug,
@@ -289,7 +286,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesRowView for NodeView
         self.graph.node_history_rows(self.node, None)
     }
 
-    fn edge_ts(&self) -> BoxedLIter<(TimeIndexEntry, EID)> {
+    fn edge_ts(&self) -> BoxedLIter<TimeIndexEntry> {
         self.graph.node_edge_history(self.node, None)
     }
 }

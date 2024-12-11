@@ -13,7 +13,7 @@ use crate::{
     },
     db::api::{
         storage::graph::{
-            nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::SparseTPropOps,
+            nodes::{node_storage_ops::NodeStorageOps, row::MemRow, row::Row}, tprop_storage_ops::TPropOps, 
         },
         view::internal::NodeAdditions,
     },
@@ -54,20 +54,13 @@ impl<'a> NodeEntry<'a> {
     }
 
     pub fn into_rows(self) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
-        println!(
-            "self.node.timestamps().props_ts: {:?}",
-            self.node.timestamps().props_ts
-        );
         self.node
             .timestamps()
             .props_ts
             .iter()
             .filter_map(move |(t, &row)| {
-                let row = Row {
-                    cols: self.t_props_log,
-                    row,
-                };
-                Some((*t, row))
+                let row = MemRow::new(self.t_props_log, row);
+                Some((*t, Row::Mem(row)))
             })
     }
 
@@ -77,33 +70,9 @@ impl<'a> NodeEntry<'a> {
     ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
         let tcell = &self.node.timestamps().props_ts;
         tcell.range(w).iter_values().filter_map(move |(t, row)| {
-            let row = Row {
-                cols: self.t_props_log,
-                row,
-            };
-            Some((t, row))
+            let row = MemRow::new(self.t_props_log, row);
+            Some((t, Row::Mem(row)))
         })
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Row<'a> {
-    cols: &'a TColumns,
-    row: Option<usize>,
-}
-
-impl<'a> IntoIterator for Row<'a> {
-    type Item = (usize, Option<Prop>);
-
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Box::new(
-            self.cols
-                .iter()
-                .enumerate()
-                .map(move |(i, col)| (i, self.row.and_then(|row| col.get(row)))),
-        )
     }
 }
 
@@ -116,7 +85,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntry<'a> {
         NodeAdditions::Mem(self.node.timestamps())
     }
 
-    fn tprop(self, prop_id: usize) -> impl SparseTPropOps<'a> {
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.t_prop(prop_id)
     }
 

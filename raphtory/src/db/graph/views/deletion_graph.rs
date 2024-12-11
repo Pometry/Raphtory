@@ -25,7 +25,6 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::EID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -265,7 +264,7 @@ impl TimeSemantics for PersistentGraph {
         &self,
         v: VID,
         w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, EID)> {
+    ) -> BoxedLIter<TimeIndexEntry> {
         self.0.node_edge_history(v, w)
     }
 
