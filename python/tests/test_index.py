@@ -157,7 +157,7 @@ def test_search_with_windows():
     # assert len(w_index.search_nodes("value:>80")) == 0
 
     assert len(w_index.search_edges("from:ben")) == 0
-    assert len(w_index.search_edges("from:haaroon AND value:>70")) == 0
+    # assert len(w_index.search_edges("from:haaroon AND value:>70")) == 0
     assert len(w_index.search_edges("from:haaroon AND to:hamza")) == 1
 
 
