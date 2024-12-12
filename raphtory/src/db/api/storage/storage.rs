@@ -21,10 +21,10 @@ use crate::{
     },
 };
 
+#[cfg(feature = "search")]
+use crate::search::{GraphIndex, Searcher};
 use crate::{
-    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    search::{GraphIndex, Searcher},
-    serialise::GraphFolder,
+    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps, serialise::GraphFolder,
 };
 #[cfg(feature = "proto")]
 use once_cell::sync::OnceCell;
@@ -140,6 +140,7 @@ impl Storage {
 
 impl InternalIndexSearch for Storage {
     #[inline]
+    #[cfg(feature = "search")]
     fn searcher(&self) -> Result<Searcher, GraphError> {
         let index = self.get_or_create_index()?;
         Ok(Searcher { index })

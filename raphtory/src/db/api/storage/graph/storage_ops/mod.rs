@@ -39,6 +39,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
 
+use crate::db::api::view::internal::InternalIndexSearch;
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -53,7 +54,9 @@ use crate::{
         DiskGraphStorage,
     },
 };
-use crate::{db::api::view::internal::InternalIndexSearch, search::Searcher};
+
+#[cfg(feature = "search")]
+use crate::search::Searcher;
 
 pub mod additions;
 pub mod const_props;
@@ -85,6 +88,7 @@ impl CoreGraphOps for GraphStorage {
 }
 
 impl InternalIndexSearch for GraphStorage {
+    #[cfg(feature = "search")]
     fn searcher(&self) -> Result<Searcher, GraphError> {
         Err(GraphError::NotSupported)
     }

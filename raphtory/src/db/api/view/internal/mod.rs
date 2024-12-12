@@ -23,7 +23,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::{core::utils::errors::GraphError, search::Searcher};
+use crate::core::utils::errors::GraphError;
+#[cfg(feature = "search")]
+use crate::search::Searcher;
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
@@ -94,6 +96,7 @@ impl<G: InheritViewOps> InheritPropertiesOps for G {}
 pub trait InheritIndexSearch: Base {}
 
 pub trait InternalIndexSearch {
+    #[cfg(feature = "search")]
     fn searcher(&self) -> Result<Searcher, GraphError>;
 }
 
@@ -102,6 +105,7 @@ where
     G::Base: InternalIndexSearch,
 {
     #[inline]
+    #[cfg(feature = "search")]
     fn searcher(&self) -> Result<Searcher, GraphError> {
         self.base().searcher()
     }

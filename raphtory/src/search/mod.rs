@@ -738,7 +738,7 @@ mod search_tests {
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
-    use tantivy::{doc, DocAddress, Order};
+    use tantivy::{doc, schema::TEXT, DocAddress, Order};
     use tracing::info;
 
     #[test]

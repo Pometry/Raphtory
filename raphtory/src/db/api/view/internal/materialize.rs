@@ -91,6 +91,7 @@ impl MaterializedGraph {
 }
 
 impl InternalIndexSearch for MaterializedGraph {
+    #[cfg(feature = "search")]
     fn searcher(&self) -> Result<Searcher, GraphError> {
         match self {
             MaterializedGraph::EventGraph(g) => g.searcher(),
