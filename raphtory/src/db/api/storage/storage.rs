@@ -24,7 +24,7 @@ use crate::{
 use crate::db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 #[cfg(feature = "search")]
 use crate::search::{GraphIndex, Searcher};
-#[cfg(feature = "search")]
+#[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
 #[cfg(feature = "proto")]
 use once_cell::sync::OnceCell;
