@@ -175,7 +175,7 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// Returns:
     ///
-    /// Option<Prop> - The property value if it exists.
+    /// `Option<Prop>` - The property value if it exists.
     fn constant_prop(&self, id: usize) -> Option<Prop> {
         self.graph_meta().get_constant(id)
     }
@@ -188,7 +188,7 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// Returns:
     ///
-    /// Option<LockedView<TProp>> - The history of property values if it exists.
+    /// `Option<LockedView<TProp>>` - The history of property values if it exists.
     fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
         self.graph_meta().get_temporal_prop(id)
     }
@@ -202,7 +202,7 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// Returns:
     ///
-    /// Option<Prop> - The property value if it exists.
+    /// `Option<Prop>` - The property value if it exists.
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node_entry(v);
         core_node_entry.prop(id)
