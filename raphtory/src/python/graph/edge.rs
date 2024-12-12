@@ -22,7 +22,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use numpy::{IntoPyArray, Ix1, PyArray};
-use pyo3::{prelude::*, pyclass::CompareOp};
+use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
@@ -41,6 +41,15 @@ pub struct PyEdge {
 #[pyclass(name="MutableEdge", extends=PyEdge, module="raphtory", frozen)]
 pub struct PyMutableEdge {
     edge: EdgeView<MaterializedGraph, MaterializedGraph>,
+}
+
+impl PyMutableEdge {
+    fn new_bound<G: Into<MaterializedGraph> + StaticGraphViewOps + Static>(
+        edge: EdgeView<G>,
+        py: Python,
+    ) -> PyResult<Bound<Self>> {
+        Bound::new(py, (PyMutableEdge::from(edge.clone()), PyEdge::from(edge)))
+    }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
@@ -72,9 +81,13 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic +
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<&DynamicGraph, &DynamicGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.cloned().into_py(py)
+impl<'py> IntoPyObject<'py> for EdgeView<&DynamicGraph> {
+    type Target = PyEdge;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.cloned().into_pyobject(py)
     }
 }
 
@@ -91,49 +104,47 @@ impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G, G>> for P
 }
 
 impl<
+        'py,
         G: StaticGraphViewOps + IntoDynamic + Immutable,
         GH: StaticGraphViewOps + IntoDynamic + Immutable,
-    > IntoPy<PyObject> for EdgeView<G, GH>
+    > IntoPyObject<'py> for EdgeView<G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let py_version: PyEdge = self.into();
-        py_version.into_py(py)
+    type Target = PyEdge;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyEdge::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<Graph, Graph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let graph: MaterializedGraph = self.graph.into();
-        let base_graph: MaterializedGraph = self.base_graph.into();
-        let edge = self.edge;
-        EdgeView {
-            graph,
-            base_graph,
-            edge,
-        }
-        .into_py(py)
+impl<'py> IntoPyObject<'py> for EdgeView<Graph, Graph> {
+    type Target = PyMutableEdge;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyMutableEdge::new_bound(self, py)
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<PersistentGraph, PersistentGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let graph: MaterializedGraph = self.graph.into();
-        let base_graph: MaterializedGraph = self.base_graph.into();
-        let edge = self.edge;
-        EdgeView {
-            graph,
-            base_graph,
-            edge,
-        }
-        .into_py(py)
+impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph, PersistentGraph> {
+    type Target = PyMutableEdge;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyMutableEdge::new_bound(self, py)
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<MaterializedGraph, MaterializedGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
-            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
-            .into_py(py)
+impl<'py> IntoPyObject<'py> for EdgeView<MaterializedGraph, MaterializedGraph> {
+    type Target = PyMutableEdge;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
     }
 }
 impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
@@ -143,13 +154,37 @@ impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
 #[pymethods]
 impl PyEdge {
     /// Rich Comparison for Node objects
-    pub fn __richcmp__(&self, other: PyRef<PyEdge>, op: CompareOp) -> Py<PyAny> {
-        let py = other.py();
-        match op {
-            CompareOp::Eq => (self.edge.id() == other.id()).into_py(py),
-            CompareOp::Ne => (self.edge.id() != other.id()).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    // pub fn __richcmp__(&self, other: Borrowed<PyEdge>, op: CompareOp) -> Borrowed<PyAny> {
+    //     let py = other.py();
+    //     match op {
+    //         CompareOp::Eq => (self.edge.id() == other.id()).into_py(py),
+    //         CompareOp::Ne => (self.edge.id() != other.id()).into_py(py),
+    //         _ => py.NotImplemented(),
+    //     }
+    // }
+
+    fn __eq__(&self, other: Bound<PyEdge>) -> bool {
+        self.edge.id() == other.get().edge.id()
+    }
+
+    fn __ne__(&self, other: Bound<PyEdge>) -> bool {
+        self.edge.id() != other.get().edge.id()
+    }
+
+    fn __lt__(&self, other: Bound<PyEdge>) -> bool {
+        self.edge.id() < other.get().edge.id()
+    }
+
+    fn __le__(&self, other: Bound<PyEdge>) -> bool {
+        self.edge.id() <= other.get().edge.id()
+    }
+
+    fn __gt__(&self, other: Bound<PyEdge>) -> bool {
+        self.edge.id() > other.get().edge.id()
+    }
+
+    fn __ge__(&self, other: Bound<PyEdge>) -> bool {
+        self.edge.id() >= other.get().edge.id()
     }
 
     /// Returns the hash of the edge and edge properties.
@@ -179,7 +214,7 @@ impl PyEdge {
     ///
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.edge.history();
-        history.into_pyarray_bound(py)
+        history.into_pyarray(py)
     }
 
     /// Returns the number of times an edge is added or change to an edge is made.

@@ -166,21 +166,35 @@ impl<P: Into<DynProperties>> From<P> for PyProperties {
     }
 }
 
-impl<P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPy<PyObject> for Properties<P> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyProperties::from(self).into_py(py)
+impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
+    for Properties<P>
+{
+    type Target = PyProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyProperties::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for Properties<DynamicGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyProperties::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for Properties<DynamicGraph> {
+    type Target = PyProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyProperties::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for DynProperties {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyProperties::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for DynProperties {
+    type Target = PyProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyProperties::from(self).into_pyobject(py)
     }
 }
 

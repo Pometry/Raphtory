@@ -175,7 +175,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 
     fn map_exploded<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,

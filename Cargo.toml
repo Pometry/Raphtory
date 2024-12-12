@@ -56,9 +56,9 @@ reqwest = { version = "0.12.8", default-features = false, features = [
 ] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
-pyo3 = { version = "0.22.6", features = ["multiple-pymethods", "chrono"] }
-pyo3-build-config = "0.22.6"
-numpy = "0.22.1"
+pyo3 = { version = "0.23.3", features = ["multiple-pymethods", "chrono"] }
+pyo3-build-config = "0.23.3"
+numpy = "0.23.0"
 itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
@@ -104,7 +104,7 @@ polars-arrow = "0.39.2"
 polars-parquet = "0.39.2"
 polars-core = "0.39.2"
 polars-io = "0.39.2"
-kdam = "0.6.0"
+kdam = "0.6.2"
 hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"

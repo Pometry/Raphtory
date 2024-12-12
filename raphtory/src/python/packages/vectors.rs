@@ -21,6 +21,7 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
+    IntoPyObjectExt,
 };
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
@@ -108,8 +109,8 @@ pub fn into_py_document(
     document: Document,
     graph: &DynamicVectorisedGraph,
     py: Python,
-) -> PyDocument {
-    match document {
+) -> PyResult<PyDocument> {
+    let doc = match document {
         Document::Graph {
             content,
             life,
@@ -117,7 +118,7 @@ pub fn into_py_document(
             ..
         } => PyDocument {
             content,
-            entity: Some(graph.source_graph.clone().into_py(py)),
+            entity: Some(graph.source_graph.clone().into_py_any(py)?),
             embedding: Some(PyEmbedding(embedding)),
             life,
         },
@@ -131,7 +132,7 @@ pub fn into_py_document(
 
             PyDocument {
                 content,
-                entity: Some(node.into_py(py)),
+                entity: Some(node.into_py_any(py)?),
                 embedding: Some(PyEmbedding(embedding)),
                 life,
             }
@@ -147,12 +148,13 @@ pub fn into_py_document(
 
             PyDocument {
                 content,
-                entity: Some(edge.into_py(py)),
+                entity: Some(edge.into_py_any(py)?),
                 embedding: Some(PyEmbedding(embedding)),
                 life,
             }
         }
-    }
+    };
+    Ok(doc)
 }
 
 #[pymethods]
@@ -220,15 +222,23 @@ impl From<VectorisedGraph<MaterializedGraph>> for PyVectorisedGraph {
     }
 }
 
-impl IntoPy<PyObject> for DynamicVectorisedGraph {
-    fn into_py(self, py: Python) -> PyObject {
-        Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
+impl<'py> IntoPyObject<'py> for DynamicVectorisedGraph {
+    type Target = PyVectorisedGraph;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyVectorisedGraph(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for DynamicVectorSelection {
-    fn into_py(self, py: Python) -> PyObject {
-        Py::new(py, PyVectorSelection(self)).unwrap().into_py(py)
+impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
+    type Target = PyVectorSelection;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyVectorSelection(self).into_pyobject(py)
     }
 }
 
@@ -361,19 +371,20 @@ impl PyVectorSelection {
     }
 
     /// Return the documents present in the current selection
-    fn get_documents(&self, py: Python) -> Vec<PyDocument> {
+    fn get_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
         // TODO: review if I can simplify this
-        self.get_documents_with_scores(py)
+        Ok(self
+            .get_documents_with_scores(py)?
             .into_iter()
             .map(|(doc, _)| doc)
-            .collect_vec()
+            .collect_vec())
     }
 
     /// Return the documents alongside their scores present in the current selection
-    fn get_documents_with_scores(&self, py: Python) -> Vec<(PyDocument, f32)> {
+    fn get_documents_with_scores(&self, py: Python) -> PyResult<Vec<(PyDocument, f32)>> {
         let docs = self.0.get_documents_with_scores();
         docs.into_iter()
-            .map(|(doc, score)| (into_py_document(doc, &self.0.graph, py), score))
+            .map(|(doc, score)| Ok((into_py_document(doc, &self.0.graph, py)?, score)))
             .collect()
     }
 
@@ -538,7 +549,7 @@ impl EmbeddingFunction for Py<PyFunction> {
         Box::pin(async move {
             Python::with_gil(|py| {
                 let embedding_function = embedding_function.bind(py);
-                let python_texts = PyList::new_bound(py, texts);
+                let python_texts = PyList::new(py, texts)?;
                 let result = embedding_function.call1((python_texts,))?;
                 let embeddings = result.downcast::<PyList>().map_err(|_| {
                     PyTypeError::new_err(

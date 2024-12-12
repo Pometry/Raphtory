@@ -20,9 +20,15 @@ use pyo3::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, sync::Arc};
 
-impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for ConstProperties<'static, P> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyConstProperties::from(self).into_py(py)
+impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
+    for ConstProperties<'static, P>
+{
+    type Target = PyConstProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyConstProperties::from(self).into_pyobject(py)
     }
 }
 
