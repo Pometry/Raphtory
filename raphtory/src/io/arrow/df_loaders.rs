@@ -12,7 +12,7 @@ use crate::{
         prop_handler::*,
     },
     prelude::*,
-    serialise::incremental::InternalCache,
+    serialise::incremental::InternalStorage,
 };
 use bytemuck::checked::cast_slice_mut;
 #[cfg(feature = "python")]
@@ -149,7 +149,7 @@ pub(crate) fn load_nodes_from_df<
 
 pub(crate) fn load_edges_from_df<
     'a,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalStorage,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
@@ -197,7 +197,7 @@ pub(crate) fn load_edges_from_df<
     let mut dst_col_resolved = vec![];
     let mut eid_col_resolved = vec![];
 
-    let cache = graph.get_cache();
+    let cache = graph.storage().get_cache();
     let mut write_locked_graph = graph.write_lock()?;
     let cache_shards = cache.map(|cache| {
         (0..write_locked_graph.num_shards())

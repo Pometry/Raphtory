@@ -129,6 +129,45 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn properties(&self) -> Properties<Self>;
 }
 
+#[cfg(feature = "search")]
+pub trait SearchableGraphOps<'graph>: GraphViewOps<'graph> {
+    fn search_nodes(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
+    fn search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn search_node_count(&self, q: &str) -> Result<usize, GraphError>;
+
+    fn search_edge_count(&self, q: &str) -> Result<usize, GraphError>;
+
+    fn fuzzy_search_nodes(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
+    fn fuzzy_search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+}
+
 impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
@@ -576,6 +615,59 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
+    }
+}
+
+#[cfg(feature = "search")]
+impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> SearchableGraphOps<'graph> for G {
+    fn search_nodes(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        self.searcher()?.search_nodes(self, q, limit, offset)
+    }
+
+    fn search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        self.searcher()?.search_edges(self, q, limit, offset)
+    }
+
+    fn search_node_count(&self, q: &str) -> Result<usize, GraphError> {
+        self.searcher()?.search_node_count(q)
+    }
+
+    fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
+        self.searcher()?.search_edge_count(q)
+    }
+
+    fn fuzzy_search_nodes(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        self.searcher()?
+            .fuzzy_search_nodes(self, q, limit, offset, prefix, levenshtein_distance)
+    }
+
+    fn fuzzy_search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        self.searcher()?
+            .fuzzy_search_edges(self, q, limit, offset, prefix, levenshtein_distance)
     }
 }
 

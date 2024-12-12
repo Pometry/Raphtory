@@ -708,6 +708,8 @@ impl TimeSemantics for PersistentGraph {
     }
 }
 
+impl InheritIndexSearch for PersistentGraph {}
+
 #[cfg(test)]
 mod test_deletions {
     use crate::{

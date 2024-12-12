@@ -22,7 +22,7 @@ use crate::{
         api::{
             mutation::internal::InheritMutationOps,
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
-            view::internal::{Base, InheritViewOps, Static},
+            view::internal::{Base, InheritIndexSearch, InheritViewOps, Static},
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
@@ -360,6 +360,8 @@ impl Base for Graph {
 impl InheritMutationOps for Graph {}
 
 impl InheritViewOps for Graph {}
+
+impl InheritIndexSearch for Graph {}
 
 impl Graph {
     /// Create a new graph

@@ -52,8 +52,9 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
+                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritIndexSearch,
+                    InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static,
+                    TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -126,6 +127,8 @@ impl<G> WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 

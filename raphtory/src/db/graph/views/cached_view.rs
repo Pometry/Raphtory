@@ -7,9 +7,9 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritTimeSemantics, InternalLayerOps,
-            NodeFilterOps, Static,
+            Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritIndexSearch,
+            InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
+            InternalLayerOps, NodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -52,6 +52,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for CachedView<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
