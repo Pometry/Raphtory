@@ -17,10 +17,7 @@ use crate::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
         storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{
-            internal::{InheritIndexSearch, InternalIndexSearch},
-            Base, InheritViewOps,
-        },
+        view::{internal::InternalIndexSearch, Base, InheritViewOps},
     },
 };
 
@@ -124,7 +121,7 @@ impl Storage {
     }
 
     /// Get the cache writer if it is initialised.
-    pub(crate) fn cache(&self) -> Option<&GraphWriter> {
+    pub(crate) fn get_cache(&self) -> Option<&GraphWriter> {
         self.cache.get()
     }
 }

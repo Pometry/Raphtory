@@ -2962,12 +2962,10 @@ def test_fuzzy_search():
 
     # @with_disk_graph # FIXME: Indexing doesn't seem to return layers and doesn't pass the layer id to the storage blowing up in the storage
     def check(g):
-        index = g.index()
-
-        assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
+        assert len(g.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
         assert (
             len(
-                index.fuzzy_search_nodes(
+                g.fuzzy_search_nodes(
                     "name:haa", levenshtein_distance=1, prefix=True
                 )
             )
@@ -2975,7 +2973,7 @@ def test_fuzzy_search():
         )
         assert (
             len(
-                index.fuzzy_search_nodes(
+                g.fuzzy_search_nodes(
                     "value_str:abc123", levenshtein_distance=2, prefix=True
                 )
             )
@@ -2983,23 +2981,23 @@ def test_fuzzy_search():
         )
         assert (
             len(
-                index.fuzzy_search_nodes(
+                g.fuzzy_search_nodes(
                     "value_str:dsss312", levenshtein_distance=2, prefix=False
                 )
             )
             == 1
         )
 
-        assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
+        assert len(g.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
         assert (
             len(
-                index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True)
+                g.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True)
             )
             == 2
         )
         assert (
             len(
-                index.fuzzy_search_edges(
+                g.fuzzy_search_edges(
                     "from:eon", levenshtein_distance=2, prefix=True
                 )
             )

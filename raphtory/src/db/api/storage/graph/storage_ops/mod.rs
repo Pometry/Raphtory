@@ -53,10 +53,7 @@ use crate::{
         DiskGraphStorage,
     },
 };
-use crate::{
-    db::api::view::internal::{InheritIndexSearch, InternalIndexSearch},
-    search::Searcher,
-};
+use crate::{db::api::view::internal::InternalIndexSearch, search::Searcher};
 
 pub mod additions;
 pub mod const_props;

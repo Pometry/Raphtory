@@ -1,44 +1,20 @@
 use crate::{
     core::{
-        entities::{
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            EID, VID,
-        },
-        storage::{
-            raw_edges::WriteLockedEdges,
-            timeindex::{AsTime, TimeIndexEntry},
-            WriteLockedNodes,
-        },
+        entities::{nodes::node_ref::NodeRef, EID, VID},
+        storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
-        PropType,
     },
     db::{
         api::{
-            mutation::internal::{
-                InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
-            },
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph,
-                storage_ops::GraphStorage,
-            },
-            view::{
-                internal::{
-                    core_ops::CoreGraphOps, DynamicGraph, InheritViewOps, IntoDynamic, Static,
-                },
-                Base, StaticGraphViewOps,
-            },
+            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
+            view::internal::core_ops::CoreGraphOps,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
 };
-use itertools::Itertools;
-use raphtory_api::core::{
-    entities::GidType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
-};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::HashMap,
@@ -52,10 +28,10 @@ use tantivy::{
     query::QueryParser,
     schema::{
         Field, IndexRecordOption, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing,
-        TextOptions, Value, FAST, INDEXED, STORED, TEXT,
+        TextOptions, Value, FAST, INDEXED, STORED,
     },
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
-    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
+    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
 #[derive(Copy, Clone)]

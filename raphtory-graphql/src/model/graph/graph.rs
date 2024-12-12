@@ -29,7 +29,6 @@ use raphtory::{
         graph::node::NodeView,
     },
     prelude::*,
-    search::GraphIndex,
 };
 use std::{collections::HashSet, convert::Into, sync::Arc};
 
@@ -37,13 +36,19 @@ use std::{collections::HashSet, convert::Into, sync::Arc};
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
+    is_index_available: bool,
 }
 
 impl GqlGraph {
-    pub fn new<G: StaticGraphViewOps + IntoDynamic>(path: ExistingGraphFolder, graph: G) -> Self {
+    pub fn new<G: StaticGraphViewOps + IntoDynamic>(
+        path: ExistingGraphFolder,
+        graph: G,
+        is_index_available: bool,
+    ) -> Self {
         Self {
             path,
             graph: graph.into_dynamic(),
+            is_index_available,
         }
     }
 
@@ -55,6 +60,18 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
+            is_index_available: self.is_index_available,
+        }
+    }
+
+    async fn execute_search<F, R>(&self, search_fn: F) -> Result<R, GraphError>
+    where
+        F: FnOnce() -> Result<R, GraphError>,
+    {
+        if self.is_index_available {
+            search_fn()
+        } else {
+            Err(GraphError::IndexMissing)
         }
     }
 }
@@ -390,6 +407,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -406,6 +424,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -422,6 +441,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -438,6 +458,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -454,6 +475,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -470,6 +492,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -483,6 +506,7 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
+                    self.is_index_available,
                 ))
             }
             Operator::IsSome => {
@@ -490,6 +514,7 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
+                    self.is_index_available,
                 ))
             }
             Operator::Any => {
@@ -501,6 +526,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -518,6 +544,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -543,6 +570,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -559,6 +587,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -575,6 +604,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -591,6 +621,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -607,6 +638,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -623,6 +655,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -636,6 +669,7 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
+                    self.is_index_available,
                 ))
             }
             Operator::IsSome => {
@@ -643,6 +677,7 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
+                    self.is_index_available,
                 ))
             }
             Operator::Any => {
@@ -654,6 +689,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -671,6 +707,7 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
+                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -691,13 +728,16 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Node>, GraphError> {
-        Ok(self
-            .graph
-            .search_nodes(&query, limit, offset)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
+        self.execute_search(|| {
+            Ok(self
+                .graph
+                .search_nodes(&query, limit, offset)
+                .into_iter()
+                .flatten()
+                .map(|vv| vv.into())
+                .collect())
+        })
+        .await
     }
 
     async fn search_edges(
@@ -706,21 +746,26 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Edge>, GraphError> {
-        Ok(self
-            .graph
-            .search_edges(&query, limit, offset)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
+        self.execute_search(|| {
+            Ok(self
+                .graph
+                .search_edges(&query, limit, offset)
+                .into_iter()
+                .flatten()
+                .map(|vv| vv.into())
+                .collect())
+        })
+        .await
     }
 
     async fn search_node_count(&self, query: String) -> Result<usize, GraphError> {
-        Ok(self.graph.search_node_count(&query).unwrap_or(0))
+        self.execute_search(|| Ok(self.graph.search_node_count(&query).unwrap_or(0)))
+            .await
     }
 
     async fn search_edge_count(&self, query: String) -> Result<usize, GraphError> {
-        Ok(self.graph.search_edge_count(&query).unwrap_or(0))
+        self.execute_search(|| Ok(self.graph.search_edge_count(&query).unwrap_or(0)))
+            .await
     }
 
     async fn fuzzy_search_nodes(
@@ -731,13 +776,16 @@ impl GqlGraph {
         prefix: bool,
         levenshtein_distance: u8,
     ) -> Result<Vec<Node>, GraphError> {
-        Ok(self
-            .graph
-            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
+        self.execute_search(|| {
+            Ok(self
+                .graph
+                .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
+                .into_iter()
+                .flatten()
+                .map(|vv| vv.into())
+                .collect())
+        })
+        .await
     }
 
     async fn fuzzy_search_edges(
@@ -748,12 +796,15 @@ impl GqlGraph {
         prefix: bool,
         levenshtein_distance: u8,
     ) -> Result<Vec<Edge>, GraphError> {
-        Ok(self
-            .graph
-            .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
+        self.execute_search(|| {
+            Ok(self
+                .graph
+                .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
+                .into_iter()
+                .flatten()
+                .map(|vv| vv.into())
+                .collect())
+        })
+        .await
     }
 }

@@ -102,7 +102,6 @@ impl GraphWithVectors {
 
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
-        index: bool,
         embedding: Arc<dyn EmbeddingFunction>,
         cache: Arc<Option<EmbeddingCache>>,
     ) -> Result<Self, GraphError> {

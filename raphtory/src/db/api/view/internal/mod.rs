@@ -93,7 +93,7 @@ impl<G: InheritViewOps> InheritPropertiesOps for G {}
 
 pub trait InheritIndexSearch: Base {}
 
-pub(crate) trait InternalIndexSearch {
+pub trait InternalIndexSearch {
     fn searcher(&self) -> Result<Searcher, GraphError>;
 }
 

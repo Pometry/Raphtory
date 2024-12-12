@@ -268,7 +268,7 @@ impl<G: InternalStorage + StableDecode + StableEncode> CacheOps for G {
     fn write_updates(&self) -> Result<(), GraphError> {
         let cache = self
             .storage()
-            .cache()
+            .get_cache()
             .ok_or(GraphError::CacheNotInnitialised)?;
         cache.write()
     }
