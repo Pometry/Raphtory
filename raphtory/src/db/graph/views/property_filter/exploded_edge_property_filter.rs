@@ -13,9 +13,9 @@ use crate::{
             },
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
-                    InheritMaterialize, InheritNodeFilterOps, InternalLayerOps, Static,
-                    TimeSemantics,
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritIndexSearch, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritNodeFilterOps, InternalLayerOps,
+                    Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
@@ -111,6 +111,7 @@ impl<'graph, G> Base for ExplodedEdgePropertyFilteredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ExplodedEdgePropertyFilteredGraph<G> {}

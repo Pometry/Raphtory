@@ -79,8 +79,7 @@ impl Data {
     ) -> Result<(), GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
         let vectors = self.vectorise(graph.clone(), &folder).await;
-        let index = self.index.then(|| graph.clone().into());
-        let graph = GraphWithVectors::new(graph, index, vectors);
+        let graph = GraphWithVectors::new(graph, vectors);
         self.insert_graph_with_vectors(path, graph)
     }
 

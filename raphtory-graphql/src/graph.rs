@@ -11,12 +11,14 @@ use raphtory::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
-            view::{internal::Static, Base, InheritViewOps, MaterializedGraph},
+            view::{
+                internal::{InheritIndexSearch, Static},
+                Base, InheritViewOps, MaterializedGraph,
+            },
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps},
-    search::IndexedGraph,
     serialise::GraphFolder,
     vectors::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
@@ -28,7 +30,6 @@ use crate::paths::ExistingGraphFolder;
 #[derive(Clone)]
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
-    pub index: Option<IndexedGraph<MaterializedGraph>>,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
     folder: OnceCell<GraphFolder>,
 }
@@ -36,12 +37,10 @@ pub struct GraphWithVectors {
 impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
-        index: Option<IndexedGraph<MaterializedGraph>>,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
     ) -> Self {
         Self {
             graph,
-            index,
             vectors,
             folder: Default::default(),
         }
@@ -124,7 +123,6 @@ impl GraphWithVectors {
         println!("Graph loaded = {}", folder.get_original_path_str());
         Ok(Self {
             graph: graph.clone(),
-            index: index.then(|| graph.into()),
             vectors,
             folder: OnceCell::with_value(folder.clone().into()),
         })
@@ -157,6 +155,8 @@ impl Static for GraphWithVectors {}
 
 impl InheritViewOps for GraphWithVectors {}
 impl InheritMutationOps for GraphWithVectors {}
+
+impl InheritIndexSearch for GraphWithVectors {}
 
 impl DeletionOps for GraphWithVectors {}
 

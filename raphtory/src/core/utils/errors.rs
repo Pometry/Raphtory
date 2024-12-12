@@ -287,6 +287,9 @@ pub enum GraphError {
 
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
+
+    #[error("Not supported")]
+    NotSupported,
 }
 
 impl GraphError {

@@ -1,9 +1,3 @@
-// search goes here
-
-pub mod into_indexed;
-#[cfg(feature = "proto")]
-mod serialise;
-
 use crate::{
     core::{
         entities::{
@@ -23,9 +17,14 @@ use crate::{
             mutation::internal::{
                 InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
             },
-            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph},
+            storage::graph::{
+                edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph,
+                storage_ops::GraphStorage,
+            },
             view::{
-                internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
+                internal::{
+                    core_ops::CoreGraphOps, DynamicGraph, InheritViewOps, IntoDynamic, Static,
+                },
                 Base, StaticGraphViewOps,
             },
         },
@@ -39,8 +38,15 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap, iter, ops::Deref, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    iter,
+    ops::Deref,
+    sync::Arc,
+};
 use tantivy::{
     collector::TopDocs,
     query::QueryParser,
@@ -52,30 +58,228 @@ use tantivy::{
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
+#[derive(Copy, Clone)]
+pub struct Searcher<'a> {
+    pub(crate) index: &'a GraphIndex,
+}
+
+impl<'a> Searcher<'a> {
+    fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        node_id: Field,
+        doc: TantivyDocument,
+    ) -> Option<NodeView<G>> {
+        let node_id: usize = doc
+            .get_first(node_id)
+            .and_then(|value| value.as_u64())?
+            .try_into()
+            .ok()?;
+        let node_id = NodeRef::Internal(node_id.into());
+        graph.node(node_id)
+    }
+
+    fn resolve_edge_from_search_result<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        edge_id: Field,
+        doc: TantivyDocument,
+    ) -> Option<EdgeView<G>> {
+        let edge_id: usize = doc
+            .get_first(edge_id)
+            .and_then(|value| value.as_u64())?
+            .try_into()
+            .ok()?;
+        let core_edge = graph.core_edge(EID(edge_id));
+        let layer_ids = graph.layer_ids();
+        if !graph.filter_edge(core_edge.as_ref(), layer_ids) {
+            return None;
+        }
+        if graph.nodes_filtered() {
+            if !graph.filter_node(graph.core_node_entry(core_edge.src()).as_ref(), layer_ids)
+                || !graph.filter_node(graph.core_node_entry(core_edge.dst()).as_ref(), layer_ids)
+            {
+                return None;
+            }
+        }
+        let e_view = EdgeView::new(graph.clone(), core_edge.out_ref());
+        Some(e_view)
+    }
+
+    // TODO: impl missing queries
+    // TODO: Fix filtering
+
+    // TODO: Fix time filtering
+    pub fn search_nodes<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let searcher = self.index.node_reader.searcher();
+        let query_parser = self.index.node_parser()?;
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let node_id = self
+            .index
+            .node_index
+            .schema()
+            .get_field(fields::VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn search_node_count(&self, q: &str) -> Result<usize, GraphError> {
+        let searcher = self.index.node_reader.searcher();
+        let query_parser = self.index.node_parser()?;
+        let query = query_parser.parse_query(q)?;
+
+        let count = searcher.search(&query, &tantivy::collector::Count)?;
+
+        Ok(count)
+    }
+
+    pub fn search_edges<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let searcher = self.index.edge_reader.searcher();
+        let query_parser = self.index.edge_parser()?;
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let edge_id = self.index.edge_index.schema().get_field(fields::EDGE_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
+        let searcher = self.index.edge_reader.searcher();
+        let query_parser = self.index.edge_parser()?;
+        let query = query_parser.parse_query(q)?;
+
+        let count = searcher.search(&query, &tantivy::collector::Count)?;
+
+        Ok(count)
+    }
+
+    pub fn fuzzy_search_nodes<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let searcher = self.index.node_reader.searcher();
+        let mut query_parser = self.index.node_parser()?;
+
+        self.index
+            .node_index
+            .schema()
+            .fields()
+            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
+
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let node_id = self
+            .index
+            .node_index
+            .schema()
+            .get_field(fields::VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn fuzzy_search_edges<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let searcher = self.index.edge_reader.searcher();
+        let mut query_parser = self.index.edge_parser()?;
+        self.index
+            .edge_index
+            .schema()
+            .fields()
+            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
+
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let edge_id = self.index.edge_index.schema().get_field(fields::EDGE_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+}
+
 #[derive(Clone)]
-pub struct IndexedGraph<G> {
-    pub graph: G,
+pub struct GraphIndex {
     pub(crate) node_index: Arc<Index>,
     pub(crate) edge_index: Arc<Index>,
     pub(crate) node_reader: IndexReader,
     pub(crate) edge_reader: IndexReader,
 }
 
-impl<G> Base for IndexedGraph<G> {
-    type Base = G;
-
-    #[inline]
-    fn base(&self) -> &Self::Base {
-        &self.graph
+impl Debug for GraphIndex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GraphIndex")
+            .field("node_index", &self.node_index)
+            .field("edge_index", &self.edge_index)
+            .finish()
     }
 }
-
-impl<G: StaticGraphViewOps> Static for IndexedGraph<G> {}
-
-impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
-
-//FIXME: should index constant properties on updates
-impl<G: StaticGraphViewOps> InheritPropertyAdditionOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -90,29 +294,23 @@ pub(in crate::search) mod fields {
     pub const TEMPORAL_PROPERTIES: &str = "temporal_properties";
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<G> for IndexedGraph<G> {
-    fn from(graph: G) -> Self {
-        Self::from_graph(&graph).expect("failed to generate index from graph")
+impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
+    type Error = GraphError;
+
+    fn try_from(graph: &GraphStorage) -> Result<Self, Self::Error> {
+        let (node_index, node_reader) = Self::index_nodes(graph)?;
+        let (edge_index, edge_reader) = Self::index_edges(graph)?;
+
+        Ok(GraphIndex {
+            node_index: Arc::new(node_index),
+            edge_index: Arc::new(edge_index),
+            node_reader,
+            edge_reader,
+        })
     }
 }
 
-impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
-    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
-        IndexedGraph {
-            graph: self.graph.into_dynamic(),
-            node_index: self.node_index,
-            edge_index: self.edge_index,
-            node_reader: self.node_reader,
-            edge_reader: self.edge_reader,
-        }
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
-    pub fn graph(&self) -> &G {
-        &self.graph
-    }
-
+impl GraphIndex {
     fn node_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
         schema.add_i64_field(fields::TIME, INDEXED | STORED);
@@ -203,7 +401,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     }
 
     fn index_node_view<W: Deref<Target = IndexWriter>>(
-        node: NodeView<G>,
+        node: NodeView<GraphStorage>,
         schema: &Schema,
         writer: &W,
     ) -> tantivy::Result<()> {
@@ -234,7 +432,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         Ok(())
     }
 
-    fn index_nodes(g: &G) -> tantivy::Result<(Index, IndexReader)> {
+    fn index_nodes(g: &GraphStorage) -> tantivy::Result<(Index, IndexReader)> {
         let schema = Self::node_schema_builder().build();
 
         let (index, reader) = Self::new_index(schema.clone(), Self::default_node_index_settings());
@@ -264,7 +462,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     }
 
     fn index_edge_view<W: Deref<Target = IndexWriter>>(
-        e_ref: EdgeView<G, G>,
+        e_ref: EdgeView<GraphStorage>,
         schema: &Schema,
         writer: &W,
     ) -> tantivy::Result<()> {
@@ -293,7 +491,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         Ok(())
     }
 
-    pub fn index_edges(g: &G) -> tantivy::Result<(Index, IndexReader)> {
+    pub fn index_edges(g: &GraphStorage) -> tantivy::Result<(Index, IndexReader)> {
         let schema = Self::edge_schema_builder().build();
 
         let (index, reader) = Self::new_index(schema.clone(), Self::default_edge_index_settings());
@@ -316,19 +514,6 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
-    }
-
-    pub fn from_graph(g: &G) -> tantivy::Result<Self> {
-        let (node_index, node_reader) = Self::index_nodes(g)?;
-        let (edge_index, edge_reader) = Self::index_edges(g)?;
-
-        Ok(IndexedGraph {
-            graph: g.clone(),
-            node_index: Arc::new(node_index),
-            edge_index: Arc::new(edge_index),
-            node_reader,
-            edge_reader,
-        })
     }
 
     fn default_node_index_settings() -> IndexSettings {
@@ -359,7 +544,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         (index, reader)
     }
 
-    pub fn new(graph: G) -> Self {
+    pub fn new() -> Self {
         let schema = Self::node_schema_builder().build();
         let (node_index, node_reader) =
             Self::new_index(schema, Self::default_node_index_settings());
@@ -368,8 +553,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         let (edge_index, edge_reader) =
             Self::new_index(schema, Self::default_edge_index_settings());
 
-        IndexedGraph {
-            graph,
+        GraphIndex {
             node_index: Arc::new(node_index),
             edge_index: Arc::new(edge_index),
             node_reader,
@@ -381,50 +565,6 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         self.node_reader.reload()?;
         self.edge_reader.reload()?;
         Ok(())
-    }
-
-    fn resolve_node_from_search_result(
-        &self,
-        node_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<NodeView<G>> {
-        let node_id: usize = doc
-            .get_first(node_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let node_id = NodeRef::Internal(node_id.into());
-        self.graph.node(node_id)
-    }
-
-    fn resolve_edge_from_search_result(
-        &self,
-        edge_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<EdgeView<G, G>> {
-        let edge_id: usize = doc
-            .get_first(edge_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let core_edge = self.graph.core_edge(EID(edge_id));
-        let layer_ids = self.graph.layer_ids();
-        if !self.graph.filter_edge(core_edge.as_ref(), layer_ids) {
-            return None;
-        }
-        if self.graph.nodes_filtered() {
-            if !self.graph.filter_node(
-                self.graph.core_node_entry(core_edge.src()).as_ref(),
-                layer_ids,
-            ) || !self.graph.filter_node(
-                self.graph.core_node_entry(core_edge.dst()).as_ref(),
-                layer_ids,
-            ) {
-                return None;
-            }
-        }
-        let e_view = EdgeView::new(self.graph.clone(), core_edge.out_ref());
-        Some(e_view)
     }
 
     fn node_parser(&self) -> Result<QueryParser, GraphError> {
@@ -457,251 +597,22 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         ))
     }
 
-    pub fn search_nodes(
+    pub(crate) fn add_node_update(
         &self,
-        q: &str,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let searcher = self.node_reader.searcher();
-        let query_parser = self.node_parser()?;
-        let query = query_parser.parse_query(q)?;
-
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
-
-        let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_node_from_search_result(node_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
-    }
-
-    pub fn search_node_count(&self, q: &str) -> Result<usize, GraphError> {
-        let searcher = self.node_reader.searcher();
-        let query_parser = self.node_parser()?;
-        let query = query_parser.parse_query(q)?;
-
-        let count = searcher.search(&query, &tantivy::collector::Count)?;
-
-        Ok(count)
-    }
-
-    pub fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
-        let searcher = self.edge_reader.searcher();
-        let query_parser = self.edge_parser()?;
-        let query = query_parser.parse_query(q)?;
-
-        let count = searcher.search(&query, &tantivy::collector::Count)?;
-
-        Ok(count)
-    }
-
-    pub fn search_edges(
-        &self,
-        q: &str,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
-        let searcher = self.edge_reader.searcher();
-        let query_parser = self.edge_parser()?;
-        let query = query_parser.parse_query(q)?;
-
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
-
-        let edge_id = self.edge_index.schema().get_field(fields::EDGE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_edge_from_search_result(edge_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
-    }
-
-    pub fn fuzzy_search_nodes(
-        &self,
-        q: &str,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let searcher = self.node_reader.searcher();
-        let mut query_parser = self.node_parser()?;
-
-        self.node_index
-            .schema()
-            .fields()
-            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
-
-        let query = query_parser.parse_query(q)?;
-
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
-
-        let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_node_from_search_result(node_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
-    }
-
-    pub fn fuzzy_search_edges(
-        &self,
-        q: &str,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let searcher = self.edge_reader.searcher();
-        let mut query_parser = self.edge_parser()?;
-        self.edge_index
-            .schema()
-            .fields()
-            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
-
-        let query = query_parser.parse_query(q)?;
-
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
-
-        let edge_id = self.edge_index.schema().get_field(fields::EDGE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_edge_from_search_result(edge_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
-    }
-}
-
-impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
-    #[inline]
-    fn id_type(&self) -> Option<GidType> {
-        self.graph.id_type()
-    }
-
-    #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
-        self.graph.write_lock()
-    }
-
-    #[inline]
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
-        self.graph.write_lock_nodes()
-    }
-
-    #[inline]
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
-        self.graph.write_lock_edges()
-    }
-
-    #[inline]
-    fn num_shards(&self) -> Result<usize, GraphError> {
-        self.graph.num_shards()
-    }
-
-    #[inline]
-    fn next_event_id(&self) -> Result<usize, GraphError> {
-        self.graph.next_event_id()
-    }
-
-    #[inline]
-    fn read_event_id(&self) -> usize {
-        self.graph.read_event_id()
-    }
-
-    #[inline]
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
-        self.graph.reserve_event_ids(num_ids)
-    }
-
-    #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
-        self.graph.resolve_layer(layer)
-    }
-
-    #[inline]
-    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
-        self.graph.resolve_node(n)
-    }
-
-    fn resolve_node_and_type<V: AsNodeRef>(
-        &self,
-        id: V,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
-        self.graph.resolve_node_and_type(id, node_type)
-    }
-
-    #[inline]
-    fn resolve_graph_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
-        self.graph.resolve_graph_property(prop, dtype, is_static)
-    }
-
-    #[inline]
-    fn resolve_node_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
-        self.graph.resolve_node_property(prop, dtype, is_static)
-    }
-
-    #[inline]
-    fn resolve_edge_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
-        self.graph.resolve_edge_property(prop, dtype, is_static)
-    }
-
-    fn internal_add_node(
-        &self,
+        graph: &GraphStorage,
         t: TimeIndexEntry,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let node_id = v.as_u64();
         let node_id_rev = u64::MAX - node_id;
-        let node_name = self.graph.node_name(v);
-        let node_type = self.graph.node_type(v).unwrap_or_else(|| ArcStr::from(""));
+        let node_name = graph.node_name(v);
+        let node_type = graph.node_type(v).unwrap_or_else(|| ArcStr::from(""));
         let constant_properties = iter::empty::<(ArcStr, Prop)>();
-        let temporal_properties: Box<dyn Iterator<Item = (i64, ArcStr, Prop)> + '_> =
-            Box::new(props.iter().filter_map(move |(prop_id, prop)| {
-                let prop_name = self.graph.node_meta().get_prop_name(*prop_id, false);
-                Some((t.t(), prop_name, prop.clone()))
-            }));
+        let temporal_properties = props.iter().filter_map(move |(prop_id, prop)| {
+            let prop_name = graph.node_meta().get_prop_name(*prop_id, false);
+            Some((t.t(), prop_name, prop.clone()))
+        });
 
         let schema = self.node_index.schema();
         let mut writer = self.node_index.writer(50_000_000)?;
@@ -718,32 +629,28 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         writer.add_document(document)?;
         writer.commit()?;
 
-        self.graph.internal_add_node(t, v, props)
+        Ok(())
     }
 
-    fn internal_add_edge(
+    pub(crate) fn add_edge_update(
         &self,
+        graph: &GraphStorage,
+        edge_id: EID,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
         props: &[(usize, Prop)],
         layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        let res = self.graph.internal_add_edge(t, src, dst, props, layer)?;
-
-        let edge_id = match res {
-            MaybeNew::New(idx) | MaybeNew::Existing(idx) => idx,
-        }
-        .as_u64();
-        let src_name = self.graph.node_name(src);
-        let dst_name = self.graph.node_name(dst);
+    ) -> Result<(), GraphError> {
+        let edge_id = edge_id.as_u64();
+        let src_name = graph.node_name(src);
+        let dst_name = graph.node_name(dst);
 
         let constant_properties = iter::empty::<(ArcStr, Prop)>();
-        let temporal_properties: Box<dyn Iterator<Item = (i64, ArcStr, Prop)> + '_> =
-            Box::new(props.iter().filter_map(move |(prop_id, prop)| {
-                let prop_name = self.graph.edge_meta().get_prop_name(*prop_id, false);
-                Some((t.t(), prop_name, prop.clone()))
-            }));
+        let temporal_properties = props.iter().filter_map(move |(prop_id, prop)| {
+            let prop_name = graph.edge_meta().get_prop_name(*prop_id, false);
+            Some((t.t(), prop_name, prop.clone()))
+        });
 
         let schema = self.edge_index.schema();
         let mut writer = self.edge_index.writer(50_000_000)?;
@@ -759,17 +666,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         writer.add_document(document)?;
         writer.commit()?;
 
-        Ok(res)
-    }
-
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_edge_update(t, edge, props, layer)
+        Ok(())
     }
 }
 
@@ -857,32 +754,12 @@ fn create_edge_document<'a>(
     Ok(document)
 }
 
-impl<G: InternalDeletionOps> InternalDeletionOps for IndexedGraph<G> {
-    fn internal_delete_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        self.graph.internal_delete_edge(t, src, dst, layer)
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: TimeIndexEntry,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_delete_existing_edge(t, eid, layer)
-    }
-}
-
-impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
-
 #[cfg(test)]
 mod search_tests {
     use super::*;
+    use crate::db::api::{
+        mutation::internal::DelegateDeletionOps, view::internal::InternalIndexSearch,
+    };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tantivy::{doc, DocAddress, Order};
@@ -979,10 +856,10 @@ mod search_tests {
             .add_constant_properties([("watertribe", Prop::Bool(true))])
             .unwrap();
 
-        let ig: IndexedGraph<Graph> = graph.into();
-
-        let mut results = ig
-            .search_nodes("node_type:collapsed", 5, 0)
+        let mut results = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "node_type:collapsed", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
@@ -996,8 +873,11 @@ mod search_tests {
             ]
         );
 
-        let mut results = ig
-            .search_nodes("balance:0.0", 5, 0)
+        let mut results = graph
+            .graph()
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "balance:0.0", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
@@ -1011,8 +891,12 @@ mod search_tests {
             ]
         );
 
-        let mut results = ig
+        let mut results = graph
+            .graph()
+            .searcher()
+            .unwrap()
             .search_nodes(
+                &graph,
                 "cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
@@ -1024,8 +908,16 @@ mod search_tests {
         results.sort();
         assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
 
-        let mut results = ig
-            .search_nodes("name:0x941900204497226bede1324742eb83af6b0b5eec", 5, 0)
+        let mut results = graph
+            .graph()
+            .searcher()
+            .unwrap()
+            .search_nodes(
+                &graph,
+                "name:0x941900204497226bede1324742eb83af6b0b5eec",
+                5,
+                0,
+            )
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
@@ -1033,8 +925,12 @@ mod search_tests {
         results.sort();
         assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
 
-        let results = ig
+        let results = graph
+            .graph()
+            .searcher()
+            .unwrap()
             .search_nodes(
+                &graph,
                 "node_type:collapsed AND cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
@@ -1045,8 +941,12 @@ mod search_tests {
             .collect::<Vec<_>>();
         assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
 
-        let mut results = ig
+        let mut results = graph
+            .graph()
+            .searcher()
+            .unwrap()
             .search_nodes(
+                &graph,
                 "node_type:collapsed OR cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
@@ -1077,10 +977,10 @@ mod search_tests {
             )
             .expect("failed to add node");
 
-        let ig: IndexedGraph<Graph> = graph.into();
-
-        let results = ig
-            .search_nodes("age:42", 5, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "age:42", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
@@ -1099,11 +999,13 @@ mod search_tests {
 
         let now = SystemTime::now();
 
-        let index_graph: IndexedGraph<Graph> = graph.into();
         let elapsed = now.elapsed().unwrap().as_secs();
         info!("indexing took: {:?}", elapsed);
 
-        let issues = index_graph.search_nodes("name:'DEV-1690'", 5, 0)?;
+        let issues = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
@@ -1149,12 +1051,10 @@ mod search_tests {
             .add_node(10, "Gollum", [("has_ring", Prop::str("no"))], None)
             .expect("add node failed");
 
-        let indexed_graph: IndexedGraph<Graph> =
-            IndexedGraph::from_graph(&graph).expect("failed to generate index from graph");
-        indexed_graph.reload().expect("failed to reload index");
-
-        let results = indexed_graph
-            .search_nodes("kind:Hobbit", 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "kind:Hobbit", 10, 0)
             .expect("search failed");
         let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Frodo", "Merry"];
@@ -1163,23 +1063,29 @@ mod search_tests {
         expected.sort();
         assert_eq!(actual, expected);
 
-        let results = indexed_graph
-            .search_nodes("kind:Wizard", 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "kind:Wizard", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
 
-        let results = indexed_graph
-            .search_nodes("kind:Creature", 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "kind:Creature", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
         assert_eq!(actual, expected);
 
         // search by name
-        let results = indexed_graph
-            .search_nodes("name:Gollum", 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, "name:Gollum", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -1188,15 +1094,15 @@ mod search_tests {
 
     #[test]
     fn add_node_search_by_name() {
-        let graph = IndexedGraph::new(Graph::new());
+        let graph = Graph::new();
         graph
             .add_node(1, "Gandalf", NO_PROPS, None)
             .expect("add node failed");
 
-        graph.reload().expect("reload failed");
-
         let nodes = graph
-            .search_nodes(r#"name:Gandalf"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"name:Gandalf"#, 10, 0)
             .expect("search failed");
 
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
@@ -1207,7 +1113,7 @@ mod search_tests {
 
     #[test]
     fn add_node_search_by_description() {
-        let graph = IndexedGraph::new(Graph::new());
+        let graph = Graph::new();
         graph
             .add_node(1, "Bilbo", [("description", Prop::str("A hobbit"))], None)
             .expect("add node failed");
@@ -1215,11 +1121,11 @@ mod search_tests {
             .add_node(2, "Gandalf", [("description", Prop::str("A wizard"))], None)
             .expect("add node failed");
 
-        graph.reload().expect("reload failed");
-
         // Find the Wizard
         let nodes = graph
-            .search_nodes(r#"description:"A wizard""#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"description:"A wizard""#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
@@ -1227,7 +1133,9 @@ mod search_tests {
 
         // Find the Hobbit
         let nodes = graph
-            .search_nodes(r#"description:'hobbit'"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"description:'hobbit'"#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
@@ -1236,20 +1144,18 @@ mod search_tests {
 
     #[test]
     fn add_node_search_by_node_type() {
-        let graph = IndexedGraph::new(Graph::new());
-
+        let graph = Graph::new();
         graph
             .add_node(1, "Gandalf", NO_PROPS, Some("wizard"))
             .expect("add node failed");
-
         graph
             .add_node(2, "Bilbo", NO_PROPS, None)
             .expect("add node failed");
 
-        graph.reload().expect("reload failed");
-
         let nodes = graph
-            .search_nodes(r#"node_type:wizard"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"node_type:wizard"#, 10, 0)
             .expect("search failed");
 
         let actual = nodes
@@ -1261,7 +1167,9 @@ mod search_tests {
         assert_eq!(actual, expected);
 
         let nodes = graph
-            .search_nodes(r#"node_type:''"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"node_type:''"#, 10, 0)
             .expect("search failed");
 
         let actual = nodes
@@ -1275,7 +1183,7 @@ mod search_tests {
 
     #[test]
     fn add_node_search_by_description_and_time() {
-        let graph = IndexedGraph::new(Graph::new());
+        let graph = Graph::new();
         graph
             .add_node(
                 1,
@@ -1293,11 +1201,11 @@ mod search_tests {
             )
             .expect("add node failed");
 
-        graph.reload().expect("reload failed");
-
         // Find Saruman
         let nodes = graph
-            .search_nodes(r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Saruman"];
@@ -1305,7 +1213,9 @@ mod search_tests {
 
         // Find Gandalf
         let nodes = graph
-            .search_nodes(r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
@@ -1313,7 +1223,9 @@ mod search_tests {
 
         // Find both wizards
         let nodes = graph
-            .search_nodes(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
+            .searcher()
+            .unwrap()
+            .search_nodes(&graph, r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
             .expect("search failed");
         let mut actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Gandalf", "Saruman"];
@@ -1327,28 +1239,34 @@ mod search_tests {
 
     #[test]
     fn search_by_edge_props_indexed_graph() {
-        let g = IndexedGraph::new(Graph::new());
-        g.add_edge(
-            1,
-            "Frodo",
-            "Gandalf",
-            [("type", Prop::str("friends"))],
-            None,
-        )
-        .expect("add edge failed");
-        g.add_edge(1, "Frodo", "Gollum", [("type", Prop::str("enemies"))], None)
+        let graph = Graph::new();
+        graph
+            .add_edge(
+                1,
+                "Frodo",
+                "Gandalf",
+                [("type", Prop::str("friends"))],
+                None,
+            )
+            .expect("add edge failed");
+        graph
+            .add_edge(1, "Frodo", "Gollum", [("type", Prop::str("enemies"))], None)
             .expect("add edge failed");
 
-        g.reload().unwrap();
-
-        let results = g.search_edges("from:Frodo", 5, 0).expect("search failed");
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, "from:Frodo", 5, 0)
+            .expect("search failed");
         let actual = results
             .into_iter()
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
 
-        let results = g
-            .search_edges(r#"type:'friends'"#, 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, r#"type:'friends'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1358,8 +1276,10 @@ mod search_tests {
 
         assert_eq!(actual, expected);
 
-        let results = g
-            .search_edges(r#"type:'enemies'"#, 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, r#"type:'enemies'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1372,28 +1292,34 @@ mod search_tests {
 
     #[test]
     fn search_by_edge_props_graph_indexed() {
-        let g = Graph::new();
-        g.add_edge(
-            1,
-            "Frodo",
-            "Gandalf",
-            [("type", Prop::str("friends"))],
-            None,
-        )
-        .expect("add edge failed");
-        g.add_edge(1, "Frodo", "Gollum", [("type", Prop::str("enemies"))], None)
+        let graph = Graph::new();
+        graph
+            .add_edge(
+                1,
+                "Frodo",
+                "Gandalf",
+                [("type", Prop::str("friends"))],
+                None,
+            )
+            .expect("add edge failed");
+        graph
+            .add_edge(1, "Frodo", "Gollum", [("type", Prop::str("enemies"))], None)
             .expect("add edge failed");
 
-        let g: IndexedGraph<Graph> = g.into();
-
-        let results = g.search_edges("from:Frodo", 5, 0).expect("search failed");
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, "from:Frodo", 5, 0)
+            .expect("search failed");
         let actual = results
             .into_iter()
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
 
-        let results = g
-            .search_edges(r#"type:'friends'"#, 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, r#"type:'friends'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1403,8 +1329,10 @@ mod search_tests {
 
         assert_eq!(actual, expected);
 
-        let results = g
-            .search_edges(r#"type:'enemies'"#, 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, r#"type:'enemies'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1417,16 +1345,18 @@ mod search_tests {
 
     #[test]
     fn search_by_edge_src_dst() {
-        let g = Graph::new();
-        g.add_edge(1, "Frodo", "Gandalf", NO_PROPS, None)
+        let graph = Graph::new();
+        graph
+            .add_edge(1, "Frodo", "Gandalf", NO_PROPS, None)
             .expect("add edge failed");
-        g.add_edge(1, "Frodo", "Gollum", NO_PROPS, None)
+        graph
+            .add_edge(1, "Frodo", "Gollum", NO_PROPS, None)
             .expect("add edge failed");
 
-        let ig: IndexedGraph<Graph> = g.into();
-
-        let results = ig
-            .search_edges(r#"from:Frodo"#, 10, 0)
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, r#"from:Frodo"#, 10, 0)
             .expect("search failed");
         let mut actual = results
             .into_iter()
@@ -1443,7 +1373,11 @@ mod search_tests {
         assert_eq!(actual, expected);
 
         // search by destination
-        let results = ig.search_edges("to:gollum", 10, 0).expect("search failed");
+        let results = graph
+            .searcher()
+            .unwrap()
+            .search_edges(&graph, "to:gollum", 10, 0)
+            .expect("search failed");
         let actual = results
             .into_iter()
             .map(|e| (e.src().name(), e.dst().name()))
@@ -1494,7 +1428,7 @@ mod search_tests {
 
         let searcher = reader.searcher();
 
-        let query_parser = tantivy::query::QueryParser::for_index(&index, vec![]);
+        let query_parser = QueryParser::for_index(&index, vec![]);
         let query = query_parser.parse_query(r#"name:"gandalf""#).unwrap();
 
         let ranking =
@@ -1502,12 +1436,5 @@ mod search_tests {
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());
-    }
-
-    #[test]
-    fn property_name_on_node_does_not_crash() {
-        let g = Graph::new();
-        g.add_node(0, "test", [("name", "test")], None).unwrap();
-        let _gi: IndexedGraph<_> = g.into();
     }
 }

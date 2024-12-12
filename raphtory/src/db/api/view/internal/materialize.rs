@@ -90,6 +90,15 @@ impl MaterializedGraph {
     }
 }
 
+impl InternalIndexSearch for MaterializedGraph {
+    fn searcher(&self) -> Result<Searcher, GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.searcher(),
+            MaterializedGraph::PersistentGraph(g) => g.searcher(),
+        }
+    }
+}
+
 impl InternalDeletionOps for MaterializedGraph {
     fn internal_delete_edge(
         &self,

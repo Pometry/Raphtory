@@ -232,81 +232,51 @@ impl GraphWriter {
     }
 }
 
-pub trait InternalCache {
-    /// Initialise the cache by pointing it at a proto file.
-    /// Future updates will be appended to the cache.
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError>;
-
-    /// Get the cache writer if it is initialised.
-    fn get_cache(&self) -> Option<&GraphWriter>;
+pub trait InternalStorage {
+    fn storage(&self) -> &Storage;
 }
 
-impl InternalCache for Storage {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache.get_or_try_init(|| {
-            let file = path.get_appendable_graph_file()?;
-            Ok::<_, GraphError>(GraphWriter::new(file))
-        })?;
-        Ok(())
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        self.cache.get()
+impl InternalStorage for Graph {
+    fn storage(&self) -> &Storage {
+        &self.inner
     }
 }
 
-impl InternalCache for Graph {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.inner.init_cache(path)
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        self.inner.get_cache()
+impl InternalStorage for PersistentGraph {
+    fn storage(&self) -> &Storage {
+        &self.0
     }
 }
 
-impl InternalCache for PersistentGraph {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.0.init_cache(path)
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        self.0.get_cache()
-    }
-}
-
-impl InternalCache for MaterializedGraph {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
+impl InternalStorage for MaterializedGraph {
+    fn storage(&self) -> &Storage {
         match self {
-            MaterializedGraph::EventGraph(g) => g.init_cache(path),
-            MaterializedGraph::PersistentGraph(g) => g.init_cache(path),
-        }
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.get_cache(),
-            MaterializedGraph::PersistentGraph(g) => g.get_cache(),
+            MaterializedGraph::PersistentGraph(graph) => graph.storage(),
+            MaterializedGraph::EventGraph(graph) => graph.storage(),
         }
     }
 }
 
-impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
+impl<G: InternalStorage + StableDecode + StableEncode> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;
-        self.init_cache(&folder)
+        self.storage().init_cache(&folder)
     }
+
     #[instrument(level = "debug", skip(self))]
     fn write_updates(&self) -> Result<(), GraphError> {
-        let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
+        let cache = self
+            .storage()
+            .cache()
+            .ok_or(GraphError::CacheNotInnitialised)?;
         cache.write()
     }
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
         let folder = path.into();
         let graph = Self::decode(&folder)?;
-        graph.init_cache(&folder)?;
+        graph.storage().init_cache(&folder)?;
         Ok(graph)
     }
 }

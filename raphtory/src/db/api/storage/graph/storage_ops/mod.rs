@@ -53,6 +53,10 @@ use crate::{
         DiskGraphStorage,
     },
 };
+use crate::{
+    db::api::view::internal::{InheritIndexSearch, InternalIndexSearch},
+    search::Searcher,
+};
 
 pub mod additions;
 pub mod const_props;
@@ -80,6 +84,12 @@ impl CoreGraphOps for GraphStorage {
     #[inline(always)]
     fn core_graph(&self) -> &GraphStorage {
         self
+    }
+}
+
+impl InternalIndexSearch for GraphStorage {
+    fn searcher(&self) -> Result<Searcher, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }
 
@@ -289,7 +299,7 @@ impl GraphStorage {
         }
     }
 
-    pub fn count_nodes<'graph, G: GraphViewOps<'graph>>(&self, view: &G) -> usize {
+    pub fn internal_count_nodes<'graph, G: GraphViewOps<'graph>>(&self, view: &G) -> usize {
         if view.node_list_trusted() {
             view.node_list().len()
         } else {

@@ -6,9 +6,9 @@ use crate::{
             storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             view::{
                 internal::{
-                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritTimeSemantics, NodeFilterOps,
-                    Static,
+                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritIndexSearch,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
+                    NodeFilterOps, Static,
                 },
                 node::NodeViewOps,
                 Base,
@@ -83,6 +83,7 @@ impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFilteredGraph<G> {}

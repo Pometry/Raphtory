@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 mod core_deletion_ops;
 pub mod core_ops;
 mod edge_filter_ops;
@@ -22,6 +23,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::{core::utils::errors::GraphError, search::Searcher};
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
@@ -46,6 +48,7 @@ pub trait BoxableGraphView:
     + InternalMaterialize
     + PropertiesOps
     + ConstPropertiesOps
+    + InternalIndexSearch
     + Send
     + Sync
 {
@@ -61,6 +64,7 @@ impl<
             + InternalMaterialize
             + PropertiesOps
             + ConstPropertiesOps
+            + InternalIndexSearch
             + Send
             + Sync,
     > BoxableGraphView for G
@@ -74,12 +78,34 @@ impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 impl<G: InheritViewOps> InheritListOps for G {}
 
 impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
+
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
+
 impl<G: InheritViewOps> InheritLayerOps for G {}
+
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
+
 impl<G: InheritViewOps> InheritCoreOps for G {}
+
 impl<G: InheritViewOps> InheritMaterialize for G {}
+
 impl<G: InheritViewOps> InheritPropertiesOps for G {}
+
+pub trait InheritIndexSearch: Base {}
+
+pub(crate) trait InternalIndexSearch {
+    fn searcher(&self) -> Result<Searcher, GraphError>;
+}
+
+impl<G: InheritIndexSearch> InternalIndexSearch for G
+where
+    G::Base: InternalIndexSearch,
+{
+    #[inline]
+    fn searcher(&self) -> Result<Searcher, GraphError> {
+        self.base().searcher()
+    }
+}
 
 /// Trait for marking a struct as not dynamically dispatched.
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
@@ -137,7 +163,11 @@ impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 
+impl InheritIndexSearch for DynamicGraph {}
+
 impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
+
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritIndexSearch for &'graph1 G {}
 
 #[cfg(test)]
 mod test {
