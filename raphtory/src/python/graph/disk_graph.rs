@@ -115,7 +115,7 @@ impl<'a> FromPyObject<'a> for PyParquetLayerCols {
             exclude_edge_props: match dict.get_item("exclude_edge_props")? {
                 None => Ok(vec![]),
                 Some(item) => item
-                    .iter()?
+                    .try_iter()?
                     .map(|v| v.and_then(|v| v.extract::<PyBackedStr>()))
                     .collect::<PyResult<Vec<_>>>(),
             }?,
