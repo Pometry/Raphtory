@@ -111,7 +111,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy"]
+search = ["dep:tantivy", "proto"]
 # vectors
 vectors = [
     "dep:futures-util",
