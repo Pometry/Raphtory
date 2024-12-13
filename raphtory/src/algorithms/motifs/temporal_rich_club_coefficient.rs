@@ -52,12 +52,12 @@ where
 /// - `graph`: the aggregate graph
 /// - `views`: sequence of graphs (can be obtained by calling g.rolling(..) on an aggregate graph g)
 /// - `k`: min degree of nodes to include in rich-club
-/// - `delta`: the number of consecutive snapshots over which the edges should persist
+/// - `window_size`: the number of consecutive snapshots over which the edges should persist
 ///
 /// # Returns
 /// the rich-club coefficient as a float.
 pub fn temporal_rich_club_coefficient<'a, I, G1, G2>(
-    agg_graph: &G2,
+    graph: &G2,
     views: I,
     k: usize,
     window_size: usize,
@@ -68,7 +68,7 @@ where
     G2: GraphViewOps<'a>,
 {
     // Extract the set of nodes with degree greater than or equal to k
-    let s_k: HashSet<VID> = agg_graph
+    let s_k: HashSet<VID> = graph
         .nodes()
         .into_iter()
         .filter(|v| v.degree() >= k)

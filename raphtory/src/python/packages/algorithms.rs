@@ -263,8 +263,8 @@ pub fn temporally_reachable_nodes(
 /// Returns:
 ///     float : the local clustering coefficient of node v in g.
 #[pyfunction]
-pub fn local_clustering_coefficient(g: &PyGraphView, v: PyNodeRef) -> Option<f32> {
-    local_clustering_coefficient_rs(&g.graph, v)
+pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option<f64> {
+    local_clustering_coefficient_rs(&graph.graph, v)
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -278,8 +278,8 @@ pub fn local_clustering_coefficient(g: &PyGraphView, v: PyNodeRef) -> Option<f32
 /// Returns:
 ///     float : Directed graph density of G.
 #[pyfunction]
-pub fn directed_graph_density(g: &PyGraphView) -> f32 {
-    directed_graph_density_rs(&g.graph)
+pub fn directed_graph_density(graph: &PyGraphView) -> f64 {
+    directed_graph_density_rs(&graph.graph)
 }
 
 /// The average (undirected) degree of all nodes in the graph.
@@ -732,7 +732,7 @@ pub fn label_propagation(
 ///
 /// Returns:
 ///     AlgorithmResult: Returns an `Infected` object for each infected node with attributes
-///     
+///
 ///     `infected`: the time stamp of the infection event
 ///
 ///     `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)

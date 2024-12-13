@@ -476,42 +476,90 @@ mod motifs_test {
         let ij_kj_ik = vec![(1, 1, 2), (2, 3, 2), (3, 1, 3)];
         let g = load_graph(ij_kj_ik);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
+            ]
+        );
 
         let ij_ki_jk = vec![(1, 1, 2), (2, 3, 1), (3, 2, 3)];
         let g = load_graph(ij_ki_jk);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
+            ]
+        );
 
         let ij_jk_ik = vec![(1, 1, 2), (2, 2, 3), (3, 1, 3)];
         let g = load_graph(ij_jk_ik);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
+            ]
+        );
 
         let ij_ik_jk = vec![(1, 1, 2), (2, 1, 3), (3, 2, 3)];
         let g = load_graph(ij_ik_jk);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
+            ]
+        );
 
         let ij_kj_ki = vec![(1, 1, 2), (2, 3, 2), (3, 3, 1)];
         let g = load_graph(ij_kj_ki);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0
+            ]
+        );
 
         let ij_ki_kj = vec![(1, 1, 2), (2, 3, 1), (3, 3, 2)];
         let g = load_graph(ij_ki_kj);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
+            ]
+        );
 
         let ij_jk_ki = vec![(1, 1, 2), (2, 2, 3), (3, 3, 1)];
         let g = load_graph(ij_jk_ki);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
+            ]
+        );
 
         let ij_ik_kj = vec![(1, 1, 2), (2, 1, 3), (3, 3, 2)];
         let g = load_graph(ij_ik_kj);
         let mc = temporal_three_node_motif(&g, vec![3], None);
-        info!("{:?}", mc.get(&3).unwrap());
+        assert_eq!(
+            *mc.get(&3).unwrap(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+            ]
+        );
     }
 
     #[test]

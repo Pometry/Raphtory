@@ -43,8 +43,8 @@ use crate::db::api::view::*;
 ///
 /// # Returns
 /// Directed graph density of G.
-pub fn directed_graph_density<'graph, G: GraphViewOps<'graph>>(graph: &G) -> f32 {
-    graph.count_edges() as f32 / (graph.count_nodes() as f32 * (graph.count_nodes() as f32 - 1.0))
+pub fn directed_graph_density<'graph, G: GraphViewOps<'graph>>(graph: &G) -> f64 {
+    graph.count_edges() as f64 / (graph.count_nodes() as f64 * (graph.count_nodes() as f64 - 1.0))
 }
 
 #[cfg(test)]

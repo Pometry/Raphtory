@@ -8,13 +8,6 @@ use num_traits::float::FloatCore;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use raphtory_api::core::entities::GID;
-use std::fmt::Display;
-
-impl<T: FloatCore + Display> Repr for [T; 2] {
-    fn repr(&self) -> String {
-        format!("[{}, {}]", self[0], self[1])
-    }
-}
 
 impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V, O> {
     fn repr(&self) -> String {

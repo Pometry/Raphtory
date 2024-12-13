@@ -58,7 +58,7 @@ use crate::{
 /// The proportion of pairs of neighbours of a node who are themselves connected.
 ///
 /// # Arguments
-/// - `g`: Raphtory graph, can be directed or undirected but will be treated as undirected.
+/// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
 /// - `v`: node id or name
 ///
 /// # Returns
@@ -66,12 +66,12 @@ use crate::{
 pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: V,
-) -> Option<f32> {
+) -> Option<f64> {
     let v = v.as_node_ref();
     if let Some(node) = graph.node(v) {
         if let Some(triangle_count) = local_triangle_count(graph, v) {
-            let triangle_count = triangle_count as f32;
-            let degree = node.degree() as f32;
+            let triangle_count = triangle_count as f64;
+            let degree = node.degree() as f64;
             if degree > 1.0 {
                 Some((2.0 * triangle_count) / (degree * (degree - 1.0)))
             } else {
