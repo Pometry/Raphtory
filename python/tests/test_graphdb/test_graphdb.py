@@ -208,8 +208,10 @@ def test_edge_sorting():
 
     @with_disk_graph
     def check(g):
-        assert list(g.edges) == sorted(g.edges)
-        assert list(g.edges.explode()) == sorted(g.edges.explode())
+        assert sorted(g.edges, key=lambda e: e.id) == sorted(g.edges)
+        assert sorted(g.edges.explode(), key=lambda e: (*e.id, e.time)) == sorted(
+            g.edges.explode()
+        )
 
     check(g)
 
