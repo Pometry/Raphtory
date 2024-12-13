@@ -33,7 +33,6 @@ use crate::{
     },
     prelude::*,
 };
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::GidType,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
@@ -46,10 +45,10 @@ use tantivy::{
     query::QueryParser,
     schema::{
         Field, IndexRecordOption, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing,
-        TextOptions, Value, FAST, INDEXED, STORED, TEXT,
+        TextOptions, Value, FAST, INDEXED, STORED,
     },
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
-    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
+    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
 #[derive(Clone)]
@@ -885,7 +884,7 @@ mod search_tests {
     use super::*;
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
-    use tantivy::{doc, DocAddress, Order};
+    use tantivy::{doc, schema::TEXT, DocAddress, Order};
     use tracing::info;
 
     #[test]
@@ -1341,12 +1340,6 @@ mod search_tests {
 
         g.reload().unwrap();
 
-        let results = g.search_edges("from:Frodo", 5, 0).expect("search failed");
-        let actual = results
-            .into_iter()
-            .map(|e| (e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
-
         let results = g
             .search_edges(r#"type:'friends'"#, 10, 0)
             .expect("search failed");
@@ -1355,7 +1348,6 @@ mod search_tests {
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
         let expected = vec![("Frodo".to_string(), "Gandalf".to_string())];
-
         assert_eq!(actual, expected);
 
         let results = g
@@ -1366,7 +1358,6 @@ mod search_tests {
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
         let expected = vec![("Frodo".to_string(), "Gollum".to_string())];
-
         assert_eq!(actual, expected);
     }
 
@@ -1385,12 +1376,6 @@ mod search_tests {
             .expect("add edge failed");
 
         let g: IndexedGraph<Graph> = g.into();
-
-        let results = g.search_edges("from:Frodo", 5, 0).expect("search failed");
-        let actual = results
-            .into_iter()
-            .map(|e| (e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
 
         let results = g
             .search_edges(r#"type:'friends'"#, 10, 0)
