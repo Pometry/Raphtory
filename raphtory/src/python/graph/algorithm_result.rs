@@ -8,11 +8,10 @@ use num_traits::float::FloatCore;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use raphtory_api::core::entities::GID;
-use std::fmt::Display;
 
-impl<T: FloatCore + Display> Repr for [T; 2] {
+impl<T: Repr + std::fmt::Debug, const N: usize> Repr for [T; N] {
     fn repr(&self) -> String {
-        format!("[{}, {}]", self[0], self[1])
+        format!("{:?}", self)
     }
 }
 

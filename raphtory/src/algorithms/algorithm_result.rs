@@ -389,8 +389,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use num_traits::float::FloatCore;
-use std::{fmt, fmt::Display};
-// use crate::python::types::repr::Repr;
+use std::fmt;
 
 impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

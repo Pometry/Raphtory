@@ -265,16 +265,10 @@ mod dijkstra_tests {
 
             let results = results.unwrap();
 
-            assert_eq!(
-                results.get("D").unwrap().0,
-                Prop::F32(7.0f32).as_f64().unwrap()
-            );
+            assert_eq!(results.get("D").unwrap().0, 7.0f64);
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
-            assert_eq!(
-                results.get("F").unwrap().0,
-                Prop::F32(8.0f32).as_f64().unwrap()
-            );
+            assert_eq!(results.get("F").unwrap().0, 8.0f64);
             assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
             let targets: Vec<&str> = vec!["D", "E", "F"];
@@ -286,18 +280,9 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                Prop::F32(5.0f32).as_f64().unwrap()
-            );
-            assert_eq!(
-                results.get("E").unwrap().0,
-                Prop::F32(3.0f32).as_f64().unwrap()
-            );
-            assert_eq!(
-                results.get("F").unwrap().0,
-                Prop::F32(6.0f32).as_f64().unwrap()
-            );
+            assert_eq!(results.get("D").unwrap().0, 5.0f64);
+            assert_eq!(results.get("E").unwrap().0, 3.0f64);
+            assert_eq!(results.get("F").unwrap().0, 6.0f64);
             assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
             assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
@@ -347,16 +332,10 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("4").unwrap().0,
-                Prop::U64(7u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("4").unwrap().0, 7f64);
             assert_eq!(results.get("4").unwrap().1, vec!["1", "3", "4"]);
 
-            assert_eq!(
-                results.get("6").unwrap().0,
-                Prop::U64(8u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("6").unwrap().0, 8f64);
             assert_eq!(results.get("6").unwrap().1, vec!["1", "3", "5", "6"]);
 
             let targets = vec![4, 5, 6];
@@ -368,18 +347,9 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("4").unwrap().0,
-                Prop::U64(5u64).as_f64().unwrap()
-            );
-            assert_eq!(
-                results.get("5").unwrap().0,
-                Prop::U64(3u64).as_f64().unwrap()
-            );
-            assert_eq!(
-                results.get("6").unwrap().0,
-                Prop::U64(6u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("4").unwrap().0, 5f64);
+            assert_eq!(results.get("5").unwrap().0, 3f64);
+            assert_eq!(results.get("6").unwrap().0, 6f64);
             assert_eq!(results.get("4").unwrap().1, vec!["2", "3", "4"]);
             assert_eq!(results.get("5").unwrap().1, vec!["2", "3", "5"]);
             assert_eq!(results.get("6").unwrap().1, vec!["2", "3", "5", "6"]);
@@ -415,16 +385,10 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                Prop::U64(7u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("D").unwrap().0, 7f64);
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
-            assert_eq!(
-                results.get("F").unwrap().0,
-                Prop::U64(8u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("F").unwrap().0, 8f64);
             assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
             let targets: Vec<&str> = vec!["D", "E", "F"];
@@ -436,18 +400,9 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                Prop::U64(5u64).as_f64().unwrap()
-            );
-            assert_eq!(
-                results.get("E").unwrap().0,
-                Prop::U64(3u64).as_f64().unwrap()
-            );
-            assert_eq!(
-                results.get("F").unwrap().0,
-                Prop::U64(6u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("D").unwrap().0, 5f64);
+            assert_eq!(results.get("E").unwrap().0, 3f64);
+            assert_eq!(results.get("F").unwrap().0, 6f64);
             assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
             assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
@@ -479,10 +434,7 @@ mod dijkstra_tests {
             );
 
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                Prop::U64(7u64).as_f64().unwrap()
-            );
+            assert_eq!(results.get("D").unwrap().0, 7f64);
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
         });
     }
