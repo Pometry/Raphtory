@@ -7,7 +7,7 @@ use crate::{
     db::{
         api::{
             storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
-            view::internal::core_ops::CoreGraphOps,
+            view::{internal::core_ops::CoreGraphOps, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
 };
 use tantivy::{
-    collector::TopDocs,
+    collector::{FilterCollector, TopDocs},
     query::QueryParser,
     schema::{
         Field, IndexRecordOption, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing,
@@ -40,6 +40,48 @@ pub struct Searcher<'a> {
 }
 
 impl<'a> Searcher<'a> {
+    fn node_filter_collector<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        limit: usize,
+        offset: usize,
+    ) -> FilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+        let graph = graph.clone();
+        FilterCollector::new(
+            fields::VERTEX_ID.to_string(),
+            move |node_id: u64| graph.has_node(VID(node_id as usize)),
+            ranking,
+        )
+    }
+
+    fn edge_filter_collector<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        limit: usize,
+        offset: usize,
+    ) -> FilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+        let graph = graph.clone();
+        FilterCollector::new(
+            fields::EDGE_ID.to_string(),
+            move |edge_id: u64| {
+                let core_edge = graph.core_edge(EID(edge_id as usize));
+                let layer_ids = graph.layer_ids();
+                graph.filter_edge(core_edge.as_ref(), layer_ids)
+                    && (!graph.nodes_filtered()
+                        || (graph.filter_node(
+                            graph.core_node_entry(core_edge.src()).as_ref(),
+                            layer_ids,
+                        ) && graph.filter_node(
+                            graph.core_node_entry(core_edge.dst()).as_ref(),
+                            layer_ids,
+                        )))
+            },
+            ranking,
+        )
+    }
+
     fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
@@ -82,11 +124,7 @@ impl<'a> Searcher<'a> {
         Some(e_view)
     }
 
-    // TODO: impl missing queries
-    // TODO: Fix filtering
-
-    // TODO: Fix time filtering
-    pub fn search_nodes<'graph, G: GraphViewOps<'graph>>(
+    pub fn search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         q: &str,
@@ -97,10 +135,8 @@ impl<'a> Searcher<'a> {
         let query_parser = self.index.node_parser()?;
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
-
+        let top_docs =
+            searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
         let node_id = self
             .index
             .node_index
@@ -127,7 +163,7 @@ impl<'a> Searcher<'a> {
         Ok(count)
     }
 
-    pub fn search_edges<'graph, G: GraphViewOps<'graph>>(
+    pub fn search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         q: &str,
@@ -138,10 +174,8 @@ impl<'a> Searcher<'a> {
         let query_parser = self.index.edge_parser()?;
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
-
+        let top_docs =
+            searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
         let edge_id = self.index.edge_index.schema().get_field(fields::EDGE_ID)?;
 
         let results = top_docs
@@ -164,7 +198,7 @@ impl<'a> Searcher<'a> {
         Ok(count)
     }
 
-    pub fn fuzzy_search_nodes<'graph, G: GraphViewOps<'graph>>(
+    pub fn fuzzy_search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         q: &str,
@@ -184,9 +218,8 @@ impl<'a> Searcher<'a> {
 
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
+        let top_docs =
+            searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
 
         let node_id = self
             .index
@@ -204,7 +237,7 @@ impl<'a> Searcher<'a> {
         Ok(results)
     }
 
-    pub fn fuzzy_search_edges<'graph, G: GraphViewOps<'graph>>(
+    pub fn fuzzy_search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         q: &str,
@@ -223,9 +256,8 @@ impl<'a> Searcher<'a> {
 
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-
-        let top_docs = searcher.search(&query, &ranking)?;
+        let top_docs =
+            searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
 
         let edge_id = self.index.edge_index.schema().get_field(fields::EDGE_ID)?;
 
@@ -733,8 +765,9 @@ fn create_edge_document<'a>(
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::db::api::{
-        mutation::internal::DelegateDeletionOps, view::internal::InternalIndexSearch,
+    use crate::{
+        core::entities::nodes::node_ref::AsNodeRef,
+        db::api::{mutation::internal::DelegateDeletionOps, view::internal::InternalIndexSearch},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;

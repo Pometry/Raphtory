@@ -130,7 +130,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 }
 
 #[cfg(feature = "search")]
-pub trait SearchableGraphOps<'graph>: GraphViewOps<'graph> {
+pub trait SearchableGraphOps: Sized {
     fn search_nodes(
         &self,
         q: &str,
@@ -619,7 +619,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 }
 
 #[cfg(feature = "search")]
-impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> SearchableGraphOps<'graph> for G {
+impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn search_nodes(
         &self,
         q: &str,
