@@ -2,6 +2,7 @@
 import ast
 import inspect
 import logging
+import sys
 import textwrap
 import types
 from importlib import import_module
@@ -17,10 +18,12 @@ from types import (
 import builtins
 from typing import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
+import argparse
 
 logger = logging.getLogger(__name__)
 fn_logger = logging.getLogger(__name__)
 cls_logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 TARGET_MODULES = ["raphtory", "builtins"]
@@ -202,7 +205,7 @@ def cls_signature(cls: type) -> Optional[inspect.Signature]:
         pass
 
 
-def from_raphtory(obj, name: str) -> bool:
+def from_module(obj, name: str) -> bool:
     module = inspect.getmodule(obj)
     if module:
         return module.__name__ == name or any(
@@ -379,13 +382,14 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
     path = path / name
     logger = logging.getLogger(log_path)
     for obj_name, obj in objs:
-        if isinstance(obj, type) and from_raphtory(obj, name):
-            stubs.append(gen_class(obj, obj_name))
-        elif isinstance(obj, BuiltinFunctionType):
-            fn_logger = logger.getChild(obj_name)
-            stubs.append(gen_fn(obj, obj_name))
-        elif isinstance(obj, ModuleType) and obj.__loader__ is None:
-            modules.append((obj, obj_name))
+        if not obj_name.startswith("_"):
+            if isinstance(obj, type) and from_module(obj, name):
+                stubs.append(gen_class(obj, obj_name))
+            elif isinstance(obj, BuiltinFunctionType):
+                fn_logger = logger.getChild(obj_name)
+                stubs.append(gen_fn(obj, obj_name))
+            elif isinstance(obj, ModuleType):
+                modules.append((obj, obj_name))
 
     stub_file = "\n".join([comment, imports, *sorted(stubs)])
     path.mkdir(parents=True, exist_ok=True)
@@ -399,8 +403,6 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("gen_stubs")
-    logging.basicConfig(level=logging.INFO)
     raphtory = import_module("raphtory")
     path = Path(__file__).parent.parent / "python"
     gen_module(raphtory, "raphtory", path, "raphtory")
