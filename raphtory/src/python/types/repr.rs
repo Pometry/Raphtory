@@ -79,6 +79,12 @@ pub trait Repr {
     fn repr(&self) -> String;
 }
 
+impl<T: Repr, const N: usize> Repr for [T; N] {
+    fn repr(&self) -> String {
+        self.as_slice().repr()
+    }
+}
+
 impl Repr for PyObject {
     fn repr(&self) -> String {
         Python::with_gil(|py| Repr::repr(self.bind(py)))

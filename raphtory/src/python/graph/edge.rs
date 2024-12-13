@@ -164,27 +164,27 @@ impl PyEdge {
     // }
 
     fn __eq__(&self, other: Bound<PyEdge>) -> bool {
-        self.edge.id() == other.get().edge.id()
+        self.edge == other.get().edge
     }
 
     fn __ne__(&self, other: Bound<PyEdge>) -> bool {
-        self.edge.id() != other.get().edge.id()
+        self.edge != other.get().edge
     }
 
     fn __lt__(&self, other: Bound<PyEdge>) -> bool {
-        self.edge.id() < other.get().edge.id()
+        self.edge < other.get().edge
     }
 
     fn __le__(&self, other: Bound<PyEdge>) -> bool {
-        self.edge.id() <= other.get().edge.id()
+        self.edge <= other.get().edge
     }
 
     fn __gt__(&self, other: Bound<PyEdge>) -> bool {
-        self.edge.id() > other.get().edge.id()
+        self.edge > other.get().edge
     }
 
     fn __ge__(&self, other: Bound<PyEdge>) -> bool {
-        self.edge.id() >= other.get().edge.id()
+        self.edge >= other.get().edge
     }
 
     /// Returns the hash of the edge and edge properties.
@@ -193,7 +193,7 @@ impl PyEdge {
     ///   int: A hash of the edge.
     pub fn __hash__(&self) -> u64 {
         let mut s = DefaultHasher::new();
-        self.edge.id().hash(&mut s);
+        self.edge.hash(&mut s);
         s.finish()
     }
 
