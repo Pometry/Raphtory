@@ -96,7 +96,7 @@ impl Props {
         self.constant_props.filled_ids()
     }
 
-    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + '_ {
+    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + Sync + '_ {
         self.temporal_props.filled_ids()
     }
 }

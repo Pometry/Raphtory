@@ -34,11 +34,6 @@ use crate::{
     },
     prelude::{DeletionOps, GraphViewOps},
 };
-use itertools::Itertools;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{iter, sync::Arc};
-
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -53,6 +48,11 @@ use crate::{
         DiskGraphStorage,
     },
 };
+use itertools::Itertools;
+use raphtory_api::iter::BoxedLIter;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::{iter, sync::Arc};
 
 pub mod additions;
 pub mod const_props;
@@ -316,7 +316,7 @@ impl GraphStorage {
         self,
         view: G,
         type_filter: Option<Arc<[bool]>>,
-    ) -> Box<dyn Iterator<Item = VID> + Send + 'graph> {
+    ) -> BoxedLIter<'graph, VID> {
         let iter = view.node_list().into_iter();
         match type_filter {
             None => {

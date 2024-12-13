@@ -10,7 +10,7 @@ use async_graphql::{
 use futures_util::{stream::BoxStream, TryFutureExt};
 use opentelemetry::{
     trace::{FutureExt, SpanKind, TraceContextExt, Tracer},
-    Context as OpenTelemetryContext, Key,
+    Context as OpenTelemetryContext, Key, KeyValue,
 };
 use std::sync::Arc;
 
@@ -99,8 +99,8 @@ where
         next: NextParseQuery<'_>,
     ) -> ServerResult<ExecutableDocument> {
         let attributes = vec![
-            KEY_SOURCE.string(query.to_string()),
-            KEY_VARIABLES.string(serde_json::to_string(variables).unwrap()),
+            KeyValue::new(KEY_SOURCE, query.to_string()),
+            KeyValue::new(KEY_VARIABLES, serde_json::to_string(variables).unwrap()),
         ];
         let span = self
             .tracer
@@ -114,7 +114,10 @@ where
             if let Ok(doc) = &res {
                 OpenTelemetryContext::current()
                     .span()
-                    .set_attribute(KEY_SOURCE.string(ctx.stringify_execute_doc(doc, variables)));
+                    .set_attribute(KeyValue::new(
+                        KEY_SOURCE,
+                        ctx.stringify_execute_doc(doc, variables),
+                    ));
             }
             res
         }
@@ -137,8 +140,8 @@ where
             .map_ok(|res| {
                 let current_cx = OpenTelemetryContext::current();
                 let span = current_cx.span();
-                span.set_attribute(KEY_COMPLEXITY.i64(res.complexity as i64));
-                span.set_attribute(KEY_DEPTH.i64(res.depth as i64));
+                span.set_attribute(KeyValue::new(KEY_COMPLEXITY, res.complexity as i64));
+                span.set_attribute(KeyValue::new(KEY_DEPTH, res.depth as i64));
                 res
             })
             .await
@@ -168,8 +171,8 @@ where
     ) -> ServerResult<Option<Value>> {
         let span = if !info.is_for_introspection {
             let attributes = vec![
-                KEY_PARENT_TYPE.string(info.parent_type.to_string()),
-                KEY_RETURN_TYPE.string(info.return_type.to_string()),
+                KeyValue::new(KEY_PARENT_TYPE, info.parent_type.to_string()),
+                KeyValue::new(KEY_RETURN_TYPE, info.return_type.to_string()),
             ];
             match info.path_node.segment {
                 QueryPathSegment::Index(_) => None,
@@ -187,9 +190,10 @@ where
 
         let fut = next.run(ctx, info).inspect_err(|err| {
             let current_cx = OpenTelemetryContext::current();
-            current_cx
-                .span()
-                .add_event("error".to_string(), vec![KEY_ERROR.string(err.to_string())]);
+            current_cx.span().add_event(
+                "error".to_string(),
+                vec![KeyValue::new(KEY_ERROR, err.to_string())],
+            );
         });
 
         match span {

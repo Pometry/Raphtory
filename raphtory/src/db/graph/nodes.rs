@@ -108,7 +108,7 @@ where
     }
 
     #[inline]
-    pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
+    pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
         g.into_nodes_iter(self.graph.clone(), node_types_filter)
@@ -216,7 +216,7 @@ where
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -240,7 +240,7 @@ where
     }
 
     fn hop<
-        I: Iterator<Item = VID> + Send + 'graph,
+        I: Iterator<Item = VID> + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,

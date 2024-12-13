@@ -1,20 +1,29 @@
 use crate::core::entities::GID;
 use pyo3::{exceptions::PyTypeError, prelude::*};
+use std::convert::Infallible;
 
-impl IntoPy<PyObject> for GID {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for GID {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            GID::U64(v) => v.into_py(py),
-            GID::Str(v) => v.into_py(py),
+            GID::U64(v) => Ok(v.into_pyobject(py)?.into_any()),
+            GID::Str(v) => Ok(v.into_pyobject(py)?.into_any()),
         }
     }
 }
 
-impl ToPyObject for GID {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
+impl<'a, 'py> IntoPyObject<'py> for &'a GID {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            GID::U64(v) => v.to_object(py),
-            GID::Str(v) => v.to_object(py),
+            GID::U64(v) => Ok(v.into_pyobject(py)?.into_any()),
+            GID::Str(v) => Ok(v.into_pyobject(py)?.into_any()),
         }
     }
 }

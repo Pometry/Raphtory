@@ -9,7 +9,10 @@ use crate::{
 use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::{
+    core::{entities::EID, storage::timeindex::TimeIndexEntry},
+    iter::BoxedLIter,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -278,10 +281,7 @@ impl<'a> EdgeRGuard<'a> {
         self.guard.props_iter(self.offset)
     }
 
-    pub(crate) fn temp_prop_ids(
-        &self,
-        layer_id: Option<usize>,
-    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
+    pub(crate) fn temp_prop_ids(&self, layer_id: Option<usize>) -> BoxedLIter<usize> {
         if let Some(layer_id) = layer_id {
             Box::new(
                 self.guard

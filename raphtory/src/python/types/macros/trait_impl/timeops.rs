@@ -4,7 +4,7 @@
 /// * obj: The struct the methods should be implemented for
 /// * field: The name of the struct field holding the rust struct implementing `TimeOps`
 /// * base_type: The rust type of `field` (note that `<$base_type as TimeOps<'static>>::WindowedViewType`
-///              and `WindowSet<$base_type>` should have an `IntoPy<PyObject>` implementation)
+///              and `WindowSet<$base_type>` should have an `IntoPyObject` implementation)
 /// * name: The name of the object that appears in the docstring
 macro_rules! impl_timeops {
     ($obj:ty, $field:ident, $base_type:ty, $name:literal) => {

@@ -37,7 +37,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     where
         'graph: 'a;
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph;
+    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph;
 
     fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph;
 

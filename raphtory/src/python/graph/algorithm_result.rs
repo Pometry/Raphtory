@@ -32,15 +32,19 @@ macro_rules! py_algorithm_result {
             >,
         );
 
-        impl pyo3::IntoPy<pyo3::PyObject>
+        impl<'py> pyo3::IntoPyObject<'py>
             for $crate::algorithms::algorithm_result::AlgorithmResult<
                 $rustGraph,
                 $rustValue,
                 $rustSortValue,
             >
         {
-            fn into_py(self, py: Python<'_>) -> pyo3::PyObject {
-                $objectName(self).into_py(py)
+            type Target = $objectName;
+            type Output = <Self::Target as pyo3::IntoPyObject<'py>>::Output;
+            type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                $objectName(self).into_pyobject(py)
             }
         }
     };
@@ -130,18 +134,15 @@ macro_rules! py_algorithm_result_base {
                             &self.0.graph,
                             VID(*key),
                         );
-                        keys.push(node.into_py(py));
-                        values.push(value.to_object(py));
+                        keys.push(node.into_pyobject(py)?.into_any().unbind());
+                        values.push(value.into_pyobject(py)?.into_any().unbind());
                     }
-                    let dict = pyo3::types::PyDict::new_bound(py);
-                    dict.set_item("Node", pyo3::types::PyList::new_bound(py, keys.as_slice()))?;
-                    dict.set_item(
-                        "Value",
-                        pyo3::types::PyList::new_bound(py, values.as_slice()),
-                    )?;
-                    let pandas = pyo3::types::PyModule::import_bound(py, "pandas")?;
+                    let dict = pyo3::types::PyDict::new(py);
+                    dict.set_item("Node", pyo3::types::PyList::new(py, keys.as_slice())?)?;
+                    dict.set_item("Value", pyo3::types::PyList::new(py, values.as_slice())?)?;
+                    let pandas = pyo3::types::PyModule::import(py, "pandas")?;
                     let df = pandas.getattr("DataFrame")?.call1((dict,))?;
-                    Ok(df.to_object(py))
+                    Ok(df.unbind())
                 })
             }
         }

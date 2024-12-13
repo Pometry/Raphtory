@@ -92,11 +92,13 @@ impl<'source> FromPyObject<'source> for MaterializedGraph {
     }
 }
 
-impl IntoPy<PyObject> for Graph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
-            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-            .into_py(py)
+impl<'py> IntoPyObject<'py> for Graph {
+    type Target = PyGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
     }
 }
 

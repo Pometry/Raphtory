@@ -1,7 +1,6 @@
 use crate::model::plugins::query_plugin::QueryPlugin;
-use pyo3::{pyclass, pymethods, Python};
+use pyo3::{pyclass, pymethods, PyResult, Python};
 use raphtory::{
-    core::utils::errors::GraphResult,
     python::{
         packages::vectors::{
             compute_embedding, into_py_document, translate_window, PyQuery, PyVectorisedGraph,
@@ -34,7 +33,7 @@ impl PyGlobalPlugins {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> GraphResult<Vec<PyDocument>> {
+    ) -> PyResult<Vec<PyDocument>> {
         self.search_graph_documents_with_scores(py, query, limit, window)
             .map(|docs| docs.into_iter().map(|(doc, _)| doc).collect())
     }
@@ -46,7 +45,7 @@ impl PyGlobalPlugins {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> GraphResult<Vec<(PyDocument, f32)>> {
+    ) -> PyResult<Vec<(PyDocument, f32)>> {
         let window = translate_window(window);
         let graphs = &self.0.graphs;
         let cluster = VectorisedCluster::new(&graphs);
@@ -55,15 +54,15 @@ impl PyGlobalPlugins {
             .expect("trying to search documents with no vectorised graphs on the server");
         let embedding = compute_embedding(first_graph, query)?;
         let documents = cluster.search_graph_documents_with_scores(&embedding, limit, window);
-        Ok(documents.into_iter().map(|(doc, score)| {
+        documents.into_iter().map(|(doc, score)| {
             let graph = match &doc {
                 Document::Graph { name, .. } => {
                     graphs.get(name.as_ref().unwrap()).unwrap()
                 }
                 _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
             };
-            (into_py_document(doc, &graph.clone().into_dynamic(), py), score)
-        }).collect())
+            Ok((into_py_document(doc, &graph.clone().into_dynamic(), py)?, score))
+        }).collect()
     }
 
     /// Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist
