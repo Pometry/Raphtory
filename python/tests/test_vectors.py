@@ -49,7 +49,7 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(4, "node3", "node4", {"name": "edge3"})
 
     vg = g.vectorise(
-        embedding, node_template="{{ name }}", edge_template="{{ props.name }}"
+        embedding, nodes="{{ name }}", edges="{{ props.name }}", graph=False
     )
 
     return vg
@@ -216,6 +216,24 @@ def test_filtering_by_entity_type():
     selection.expand_edges_by_similarity("edge3", 10)
     contents = [doc.content for doc in selection.get_documents()]
     assert contents == ["edge1", "edge2", "edge3"]
+
+def constant_embedding(texts):
+    return [[1, 0, 0] for text in texts]
+
+def test_default_template():
+    g = Graph()
+    g.add_node(1, "node1")
+    g.add_edge(2, "node1", "node1")
+
+    vg = g.vectorise(constant_embedding)
+
+    node_docs = vg.nodes_by_similarity(query="whatever", limit=10).get_documents()
+    assert len(node_docs) == 1
+    assert node_docs[0].content == "Node node1 has the following props:\n"
+
+    edge_docs = vg.edges_by_similarity(query="whatever", limit=10).get_documents()
+    assert len(edge_docs) == 1
+    assert edge_docs[0].content == "There is an edge from node1 to node1 with events at:\n- Jan 1 1970 00:00\n"
 
 
 ### MULTI-DOCUMENT VERSION TO BE RE-ENABLED
