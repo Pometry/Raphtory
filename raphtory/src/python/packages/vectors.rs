@@ -8,7 +8,9 @@ use crate::{
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
-        template::DocumentTemplate,
+        template::{
+            DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
+        },
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
@@ -18,9 +20,10 @@ use crate::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::PyTypeError,
+    exceptions::{PyAttributeError, PyTypeError},
+    ffi::Py_True,
     prelude::*,
-    types::{PyFunction, PyList},
+    types::{PyBool, PyFunction, PyList},
     IntoPyObjectExt,
 };
 
@@ -157,6 +160,51 @@ pub fn into_py_document(
     Ok(doc)
 }
 
+// fn extract_template(
+//     template: RustyEnum,
+//     default_template: &str,
+//     arg_name: &str,
+// ) -> PyResult<Option<String>> {
+//     match template {}
+
+//     if let Ok(vectorise) = template.extract::<bool>() {
+//         if vectorise {
+//             Ok(Some(default_template.to_owned()))
+//         } else {
+//             Ok(None)
+//         }
+//     } else if let Ok(custom_template) = template.extract::<String>() {
+//         Ok(Some(custom_template))
+//     } else {
+//         let msg = format!("{arg_name} needs to be either a bool or a str");
+//         Err(PyAttributeError::new_err(msg))
+//     }
+// }
+
+#[derive(FromPyObject)]
+enum TemplateConfig {
+    Bool(bool),
+    String(String),
+    // re-enable the code below to be able to customise the erro message
+    // #[pyo3(transparent)]
+    // CatchAll(Bound<'py, PyAny>), // This extraction never fails
+}
+
+impl TemplateConfig {
+    fn get_template_or(self, default: &str) -> Option<String> {
+        match self {
+            Self::Bool(vectorise) => {
+                if vectorise {
+                    Some(default.to_owned())
+                } else {
+                    None
+                }
+            }
+            Self::String(custom_template) => Some(custom_template),
+        }
+    }
+}
+
 #[pymethods]
 impl PyGraphView {
     /// Create a VectorisedGraph from the current graph
@@ -165,33 +213,33 @@ impl PyGraphView {
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
     ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
     ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-    ///   graph_template (str): the document template for the graphs (optional)
-    ///   node_template (str): the document template for the nodes (optional)
-    ///   edge_template (str): the document template for the edges (optional)
+    ///   graph (bool | str): if embeddings have to be created for the graph or not or the custom template to use if it's a str (defaults to True)
+    ///   nodes (bool | str): if embeddings have to be created for nodes or not or the custom template to use if it's a str (defaults to True)
+    ///   edges (bool | str): if embeddings have to be created for edges or not or the custom template to use if it's a str (defaults to True)
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, graph_name = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), graph_name = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: Bound<PyFunction>,
         cache: Option<String>,
         overwrite_cache: bool,
-        graph_template: Option<String>,
-        node_template: Option<String>,
-        edge_template: Option<String>,
+        graph: TemplateConfig,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
         graph_name: Option<String>,
         verbose: bool,
     ) -> PyResult<DynamicVectorisedGraph> {
-        let graph = self.graph.clone();
+        let template = DocumentTemplate {
+            graph_template: graph.get_template_or(DEFAULT_GRAPH_TEMPLATE),
+            node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
+            edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
+        };
         let embedding = embedding.unbind();
         let cache = cache.map(|cache| cache.into()).into();
-        let template = DocumentTemplate {
-            graph_template,
-            node_template,
-            edge_template,
-        };
+        let graph = self.graph.clone();
         execute_async_task(move || async move {
             Ok(graph
                 .vectorise(
