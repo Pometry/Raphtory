@@ -167,6 +167,7 @@ def cohesive_fruchterman_reingold(
     dt: float = 0.1,
 ) -> AlgorithmResult:
     """
+    Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
     Arguments:
         graph (GraphView): A reference to the graph
         iter_count (int): The number of iterations to run
@@ -203,7 +204,7 @@ def dijkstra_single_source_shortest_paths(
     targets: list[InputNode],
     direction: Direction = "both",
     weight: str = "weight",
-) -> dict:
+) -> AlgorithmResult:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -215,7 +216,7 @@ def dijkstra_single_source_shortest_paths(
         weight (str): The name of the weight property for the edges. Defaults to "weight".
 
     Returns:
-        dict: Returns a Dict where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
+        AlgorithmResult: Returns an AlgorithmResult where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 
     """
 
@@ -276,7 +277,7 @@ def fruchterman_reingold(
         dt (float | None): the time increment between iterations (default: 0.1)
 
     Returns:
-        AlgorithmResult: a dict with the position for each node as a list with two numbers [x, y]
+        AlgorithmResult: an AlgorithmResult with the position for each node as a list with two numbers [x, y]
     """
 
 def global_clustering_coefficient(graph: GraphView):
@@ -310,7 +311,9 @@ def global_reciprocity(graph: GraphView):
         float : reciprocity of the graph between 0 and 1.
     """
 
-def global_temporal_three_node_motif(graph: GraphView, delta: int, threads=None):
+def global_temporal_three_node_motif(
+    graph: GraphView, delta: int, threads: Optional[int] = None
+):
     """
     Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
     We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
@@ -349,6 +352,7 @@ def global_temporal_three_node_motif(graph: GraphView, delta: int, threads=None)
     Arguments:
         graph (GraphView) : A directed raphtory graph
         delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+        threads (int, optional): Number of threads to use
 
     Returns:
         list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
@@ -359,14 +363,15 @@ def global_temporal_three_node_motif(graph: GraphView, delta: int, threads=None)
     """
 
 def global_temporal_three_node_motif_multi(
-    graph: GraphView, deltas: list[int], threads=None
+    graph: GraphView, deltas: list[int], threads: Optional[int] = None
 ):
     """
     Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See global_temporal_three_node_motif for an interpretation of each row returned.
 
     Arguments:
         graph (GraphView) : A directed raphtory graph
-        deltas(list[int]): A list of delta values to use.
+        deltas (list[int]): A list of delta values to use.
+        threads (int, optional): Number of threads to use
 
     Returns:
         list[list[int]] : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.

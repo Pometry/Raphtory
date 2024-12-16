@@ -247,6 +247,12 @@ impl<
     }
 }
 
+impl<T: Repr + std::fmt::Debug, const N: usize> Repr for [T; N] {
+    fn repr(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[cfg(test)]
 mod repr_tests {
     use super::*;

@@ -9,12 +9,6 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use raphtory_api::core::entities::GID;
 
-impl<T: Repr + std::fmt::Debug, const N: usize> Repr for [T; N] {
-    fn repr(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
 impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V, O> {
     fn repr(&self) -> String {
         let algo_name = &self.algo_repr.algo_name;
