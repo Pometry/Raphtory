@@ -151,7 +151,6 @@ impl Data {
         match vectors {
             Ok(vectors) => Some(vectors),
             Err(error) => {
-                dbg!(&error);
                 let name = folder.get_original_path_str();
                 warn!("An error occurred when trying to vectorise graph {name}: {error}");
                 None
