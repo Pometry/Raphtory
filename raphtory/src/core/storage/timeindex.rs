@@ -1,5 +1,5 @@
 use super::locked_view::LockedView;
-use crate::core::entities::{properties::tcell::TCell, LayerIds};
+use crate::core::entities::LayerIds;
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -134,10 +134,6 @@ impl<T: AsTime> TimeIndexLike for TimeIndex<T> {
         Box::new(self.range_iter(w))
     }
 
-    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.range_iter(w).next()
-    }
-
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         self.range_iter(w).next_back()
     }
@@ -148,18 +144,6 @@ pub enum TimeIndexWindow<'a, T: AsTime, TI> {
     Empty,
     TimeIndexRange { timeindex: &'a TI, range: Range<T> },
     All(&'a TI),
-}
-
-impl<'a, A: Copy + Send + Sync> TimeIndexWindow<'a, TimeIndexEntry, TCell<A>> {
-    pub fn iter_values(self) -> Box<dyn Iterator<Item = (TimeIndexEntry, A)> + Send + Sync + 'a> {
-        match self {
-            TimeIndexWindow::Empty => Box::new(iter::empty()),
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                Box::new(timeindex.iter_window(range.clone()).map(|(t, v)| (*t, *v)))
-            }
-            TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter().map(|(t, v)| (*t, *v))),
-        }
-    }
 }
 
 impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'a, T, TI> {
@@ -199,8 +183,9 @@ impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
                 if ts.len() == 0 {
                     TimeIndexWindow::Empty
                 } else {
-                    if let Some(min_val) = ts.first() {
-                        if let Some(max_val) = ts.last() {
+                    ts.first()
+                        .zip(ts.last())
+                        .map(|(min_val, max_val)| {
                             if min_val >= w.start && max_val < w.end {
                                 TimeIndexWindow::All(ts)
                             } else {
@@ -209,12 +194,8 @@ impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
                                     range: w,
                                 }
                             }
-                        } else {
-                            TimeIndexWindow::Empty
-                        }
-                    } else {
-                        TimeIndexWindow::Empty
-                    }
+                        })
+                        .unwrap_or(TimeIndexWindow::Empty)
                 }
             }
         }

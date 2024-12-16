@@ -396,7 +396,7 @@ impl StableDecode for TemporalGraph {
                     };
                     if let Some(mut node_store) = shard.set(vid, gid) {
                         storage.logical_to_physical.set(gid, vid)?;
-                        node_store.get_mut().node_type = node.type_id as usize;
+                        node_store.node_store_mut().node_type = node.type_id as usize;
                     }
                 }
                 let edges = storage.storage.edges.read_lock();
@@ -446,10 +446,11 @@ impl StableDecode for TemporalGraph {
                                     }
 
                                     if props.is_empty() {
-                                        node.get_mut().update_t_prop_time(update.time(), None);
+                                        node.node_store_mut()
+                                            .update_t_prop_time(update.time(), None);
                                     } else {
                                         let prop_offset = node.t_props_log_mut().push(props)?;
-                                        node.get_mut()
+                                        node.node_store_mut()
                                             .update_t_prop_time(update.time(), prop_offset);
                                     }
 

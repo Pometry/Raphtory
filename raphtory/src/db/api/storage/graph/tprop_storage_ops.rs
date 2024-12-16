@@ -96,8 +96,4 @@ impl<'a> TPropOps<'a> for TPropRef<'a> {
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, tprop => tprop.at(ti))
     }
-
-    // fn len(self) -> usize {
-    //     for_all!(self, tprop => tprop.len())
-    // }
 }

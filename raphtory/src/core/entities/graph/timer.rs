@@ -19,7 +19,10 @@ pub(crate) trait TimeCounterTrait {
             }
         }
     }
-    fn get(&self) -> i64;
+    #[inline(always)]
+    fn get(&self) -> i64 {
+        self.counter().load(Ordering::Relaxed)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,13 +43,9 @@ impl TimeCounterTrait for MinCounter {
         new_value < current_value
     }
 
+    #[inline(always)]
     fn counter(&self) -> &AtomicI64 {
         &self.counter
-    }
-
-    #[inline]
-    fn get(&self) -> i64 {
-        self.counter.load(Ordering::Relaxed)
     }
 }
 
@@ -67,13 +66,9 @@ impl TimeCounterTrait for MaxCounter {
     fn cmp(a: i64, b: i64) -> bool {
         a > b
     }
+    #[inline(always)]
     fn counter(&self) -> &AtomicI64 {
         &self.counter
-    }
-
-    #[inline]
-    fn get(&self) -> i64 {
-        self.counter.load(Ordering::Relaxed)
     }
 }
 

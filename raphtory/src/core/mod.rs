@@ -721,12 +721,6 @@ impl From<Vec<Prop>> for Prop {
     }
 }
 
-impl<P: Into<Prop>> FromIterator<P> for Prop {
-    fn from_iter<I: IntoIterator<Item = P>>(iter: I) -> Self {
-        Prop::List(Arc::new(iter.into_iter().map(|v| v.into()).collect()))
-    }
-}
-
 impl From<&Prop> for Prop {
     fn from(value: &Prop) -> Self {
         value.clone()

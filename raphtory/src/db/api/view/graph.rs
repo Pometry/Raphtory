@@ -235,26 +235,26 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
-                            new_node.get_mut().node_type = new_type_id;
+                            new_node.node_store_mut().node_type = new_type_id;
                         }
                         g.logical_to_physical.set(gid.as_ref(), new_id)?;
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph
                             new_node
-                                .get_mut()
+                                .node_store_mut()
                                 .update_t_prop_time(TimeIndexEntry::start(earliest), None)
                         }
 
                         for (t, rows) in node.rows() {
                             let prop_offset = new_node.t_props_log_mut().push(rows)?;
-                            new_node.get_mut().update_t_prop_time(t, prop_offset);
+                            new_node.node_store_mut().update_t_prop_time(t, prop_offset);
                         }
 
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {
                                 new_node
-                                    .get_mut()
+                                    .node_store_mut()
                                     .add_constant_prop(c_prop_id, prop_value)?;
                             }
                         }
