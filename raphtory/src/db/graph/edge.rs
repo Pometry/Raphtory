@@ -277,7 +277,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ///
     /// # Arguments
     ///
-    /// * `props` - Property key-value pairs to add
+    /// * `properties` - Property key-value pairs to add
     /// * `layer` - The layer to which properties should be added. If the edge view is restricted to a
     ///             single layer, 'None' will add the properties to that layer and 'Some("name")'
     ///             fails unless the layer matches the edge view. If the edge view is not restricted
@@ -285,7 +285,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
-        props: C,
+        properties: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
@@ -300,7 +300,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 dst: self.dst().name(),
             });
         }
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
         })?;
 
