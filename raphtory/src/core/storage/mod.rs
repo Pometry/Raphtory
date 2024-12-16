@@ -441,25 +441,13 @@ where
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 
-    #[allow(unused)]
+    #[cfg(test)]
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry> {
         self.locks.into_iter().flat_map(|data| {
             (0..data.as_ref().len()).map(move |offset| ArcEntry {
                 guard: data.clone(),
                 i: offset,
             })
-        })
-    }
-
-    #[allow(unused)]
-    pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry> {
-        self.locks.into_par_iter().flat_map(|data| {
-            (0..data.as_ref().len())
-                .into_par_iter()
-                .map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
         })
     }
 }
@@ -862,7 +850,7 @@ impl<'a, NS: DerefMut<Target = NodeSlot> + 'a> EntryMut<'a, &'a mut NS> {
         &self.guard[self.i]
     }
 
-    pub fn get_mut(&mut self) -> &mut NodeStore {
+    pub fn node_store_mut(&mut self) -> &mut NodeStore {
         &mut self.guard[self.i]
     }
 

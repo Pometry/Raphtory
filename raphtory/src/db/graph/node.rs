@@ -277,10 +277,6 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesRowView for NodeView
     fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
         self.graph.node_history_rows(self.node, None)
     }
-
-    fn edge_ts(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.graph.node_edge_history(self.node, None)
-    }
 }
 
 impl<G: Send + Sync, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {

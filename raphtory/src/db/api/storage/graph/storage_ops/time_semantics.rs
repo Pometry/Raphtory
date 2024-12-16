@@ -513,11 +513,6 @@ impl TimeSemantics for GraphStorage {
         res
     }
 
-    // fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-    //     let entry = self.core_edge(e.pid());
-    //     (&entry).has_temporal_prop(&layer_ids.constrain_from_edge(e), prop_id)
-    // }
-
     fn temporal_edge_prop_hist<'a>(
         &'a self,
         e: EdgeRef,

@@ -67,15 +67,6 @@ impl<T: Default> MaskedCol<T> {
         self.mask.len()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = Option<&mut T>> {
-        let ts_len = self.ts.len();
-        self.ts
-            .iter_mut()
-            .zip(&self.mask[0..ts_len])
-            .map(|(t, &is_some)| is_some.then(|| t))
-            .chain(self.mask[ts_len..].iter().map(|_| None))
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = Option<&T>> {
         let ts_len = self.ts.len();
         self.ts
@@ -83,19 +74,6 @@ impl<T: Default> MaskedCol<T> {
             .zip(&self.mask[0..ts_len])
             .map(|(t, &is_some)| is_some.then(|| t))
             .chain(self.mask[ts_len..].iter().map(|_| None))
-    }
-
-    pub fn into_iter(self) -> impl Iterator<Item = Option<T>> {
-        let empty_tail = self.mask.len() - self.ts.len();
-        self.ts
-            .into_iter()
-            .zip(self.mask.into_iter())
-            .map(|(t, is_some)| is_some.then(|| t))
-            .chain(std::iter::from_fn(|| None).take(empty_tail))
-    }
-
-    pub fn filled_len(&self) -> usize {
-        self.mask.iter().filter(|v| **v).count()
     }
 }
 
@@ -416,19 +394,6 @@ mod lazy_vec_tests {
         assert_eq!(vec.len(), 3);
     }
 
-    // #[test]
-    // fn lazy_vec_is_opt_vec_insert() {
-    //     proptest!(|(
-    //         v in Vec::<Option<u32>>::arbitrary(),
-    //     )| {
-    //         let mut lazy_vec = LazyVec::<u32>::Empty;
-    //         for (i, value) in v.iter().enumerate() {
-    //             lazy_vec.insert(i, *value);
-    //         }
-    //         check_lazy_vec(&lazy_vec, v);
-    //     });
-    // }
-
     #[test]
     fn lazy_vec_is_opt_vec_push() {
         proptest!(|(
@@ -441,14 +406,6 @@ mod lazy_vec_tests {
             check_lazy_vec(&lazy_vec, v);
         });
     }
-
-    // #[test]
-    // fn none_1_lazy_vec() {
-    //     let mut vec = LazyVec::<u32>::Empty;
-    //     vec.insert(0, None);
-
-    //     assert_eq!(vec.len(), 1);
-    // }
 
     #[test]
     fn normal_operation() {

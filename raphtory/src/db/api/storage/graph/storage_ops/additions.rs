@@ -83,8 +83,8 @@ impl InternalAdditionOps for TemporalGraph {
         }
         let vid = self.resolve_node(id)?;
         let mut entry = self.storage.get_node_mut(vid.inner());
-        let mut a = entry.to_mut();
-        let node_store = a.get_mut();
+        let mut entry_ref = entry.to_mut();
+        let node_store = entry_ref.node_store_mut();
         if node_store.node_type == 0 {
             let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
             node_store.update_node_type(node_type_id.inner());
@@ -152,7 +152,7 @@ impl InternalAdditionOps for TemporalGraph {
                 (*prop_id, prop)
             }))?;
 
-        a.get_mut().update_t_prop_time(t, prop_i);
+        a.node_store_mut().update_t_prop_time(t, prop_i);
         Ok(())
     }
 

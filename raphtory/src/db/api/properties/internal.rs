@@ -42,7 +42,6 @@ pub trait TemporalPropertyViewOps {
 
 pub trait TemporalPropertiesRowView {
     fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
-    fn edge_ts(&self) -> BoxedLIter<TimeIndexEntry>;
 }
 
 #[enum_dispatch]

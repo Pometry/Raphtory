@@ -420,29 +420,6 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
         }
     }
-
-    // fn len(self) -> usize {
-    //     match self {
-    //         TProp::Empty => 0,
-    //         TProp::Str(v) => v.len(),
-    //         TProp::U8(v) => v.len(),
-    //         TProp::U16(v) => v.len(),
-    //         TProp::I32(v) => v.len(),
-    //         TProp::I64(v) => v.len(),
-    //         TProp::U32(v) => v.len(),
-    //         TProp::U64(v) => v.len(),
-    //         TProp::F32(v) => v.len(),
-    //         TProp::F64(v) => v.len(),
-    //         TProp::Bool(v) => v.len(),
-    //         TProp::DTime(v) => v.len(),
-    //         TProp::NDTime(v) => v.len(),
-    //         TProp::Graph(v) => v.len(),
-    //         TProp::PersistentGraph(v) => v.len(),
-    //         TProp::Document(v) => v.len(),
-    //         TProp::List(v) => v.len(),
-    //         TProp::Map(v) => v.len(),
-    //     }
-    // }
 }
 
 #[cfg(test)]

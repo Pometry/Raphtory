@@ -80,12 +80,7 @@ impl<A: Sync + Send> TCell<A> {
     }
 
     pub fn iter_t(&self) -> BoxedLIter<(i64, &A)> {
-        match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, value) => Box::new(std::iter::once((t.t(), value))),
-            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(ti, v)| (ti.t(), v))),
-            TCell::TCellN(btm) => Box::new(btm.iter().map(|(ti, v)| (ti.t(), v))),
-        }
+        Box::new(self.iter().map(|(t, a)| (t.t(), a)))
     }
 
     pub fn iter_window(
@@ -107,24 +102,10 @@ impl<A: Sync + Send> TCell<A> {
     }
 
     pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
-        match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, value) => {
-                if r.contains(&t.t()) {
-                    Box::new(std::iter::once((t.t(), value)))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TCell::TCellCap(svm) => Box::new(
-                svm.range(TimeIndexEntry::range(r))
-                    .map(|(ti, v)| (ti.t(), v)),
-            ),
-            TCell::TCellN(btm) => Box::new(
-                btm.range(TimeIndexEntry::range(r))
-                    .map(|(ti, v)| (ti.t(), v)),
-            ),
-        }
+        Box::new(
+            self.iter_window(TimeIndexEntry::range(r))
+                .map(|(t, a)| (t.t(), a)),
+        )
     }
 
     pub fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, &A)> {

@@ -2,7 +2,7 @@ use std::{borrow::Cow, ops::Range};
 
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, GidRef, VID},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::TimeIndexEntry,
     Direction,
 };
 
@@ -71,9 +71,9 @@ impl<'a> NodeEntry<'a> {
         w: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + Send + Sync {
         let tcell = &self.node.timestamps().props_ts;
-        tcell.range(w).iter_values().filter_map(move |(t, row)| {
-            let row = MemRow::new(self.t_props_log, row);
-            Some((t, Row::Mem(row)))
+        tcell.iter_window(w).filter_map(move |(t, row)| {
+            let row = MemRow::new(self.t_props_log, *row);
+            Some((*t, Row::Mem(row)))
         })
     }
 }
