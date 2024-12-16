@@ -60,6 +60,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
             nodes.collect()
         };
         nodes.sort();
+        nodes.dedup();
         let nodes = Index::new(nodes, graph.unfiltered_num_nodes());
         Self { graph, nodes }
     }
