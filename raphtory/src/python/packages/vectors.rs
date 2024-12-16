@@ -159,27 +159,6 @@ pub fn into_py_document(
     Ok(doc)
 }
 
-// fn extract_template(
-//     template: RustyEnum,
-//     default_template: &str,
-//     arg_name: &str,
-// ) -> PyResult<Option<String>> {
-//     match template {}
-
-//     if let Ok(vectorise) = template.extract::<bool>() {
-//         if vectorise {
-//             Ok(Some(default_template.to_owned()))
-//         } else {
-//             Ok(None)
-//         }
-//     } else if let Ok(custom_template) = template.extract::<String>() {
-//         Ok(Some(custom_template))
-//     } else {
-//         let msg = format!("{arg_name} needs to be either a bool or a str");
-//         Err(PyAttributeError::new_err(msg))
-//     }
-// }
-
 #[derive(FromPyObject)]
 enum TemplateConfig {
     Bool(bool),
@@ -212,9 +191,9 @@ impl PyGraphView {
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
     ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
     ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-    ///   graph (bool | str): if embeddings have to be created for the graph or not or the custom template to use if it's a str (defaults to True)
-    ///   nodes (bool | str): if embeddings have to be created for nodes or not or the custom template to use if it's a str (defaults to True)
-    ///   edges (bool | str): if embeddings have to be created for edges or not or the custom template to use if it's a str (defaults to True)
+    ///   graph (bool | str): if the graph has to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///
     /// Returns:
