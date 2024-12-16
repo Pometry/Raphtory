@@ -160,7 +160,7 @@ pub fn into_py_document(
 }
 
 #[derive(FromPyObject)]
-enum TemplateConfig {
+pub enum TemplateConfig {
     Bool(bool),
     String(String),
     // re-enable the code below to be able to customise the erro message
@@ -169,7 +169,7 @@ enum TemplateConfig {
 }
 
 impl TemplateConfig {
-    fn get_template_or(self, default: &str) -> Option<String> {
+    pub fn get_template_or(self, default: &str) -> Option<String> {
         match self {
             Self::Bool(vectorise) => {
                 if vectorise {
@@ -180,6 +180,10 @@ impl TemplateConfig {
             }
             Self::String(custom_template) => Some(custom_template),
         }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Bool(false))
     }
 }
 
