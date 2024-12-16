@@ -32,6 +32,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -754,6 +755,52 @@ pub trait IntoProp {
 impl<T: Into<Prop>> IntoProp for T {
     fn into_prop(self) -> Prop {
         self.into()
+    }
+}
+
+impl From<Prop> for Value {
+    fn from(prop: Prop) -> Self {
+        match prop {
+            Prop::Str(value) => Value::String(value.to_string()),
+            Prop::U8(value) => Value::Number(value.into()),
+            Prop::U16(value) => Value::Number(value.into()),
+            Prop::I32(value) => Value::Number(value.into()),
+            Prop::I64(value) => Value::Number(value.into()),
+            Prop::U32(value) => Value::Number(value.into()),
+            Prop::U64(value) => Value::Number(value.into()),
+            Prop::F32(value) => serde_json::Number::from_f64(value as f64)
+                .map(Value::Number)
+                .unwrap_or(Value::Null),
+            Prop::F64(value) => serde_json::Number::from_f64(value)
+                .map(Value::Number)
+                .unwrap_or(Value::Null),
+            Prop::Bool(value) => Value::Bool(value),
+            Prop::List(values) => Value::Array(values.iter().cloned().map(Value::from).collect()),
+            Prop::Map(map) => {
+                let json_map: serde_json::Map<String, Value> = map
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), Value::from(v.clone())))
+                    .collect();
+                Value::Object(json_map)
+            }
+            Prop::NDTime(value) => Value::String(value.to_string()),
+            Prop::DTime(value) => Value::String(value.to_string()),
+            Prop::Document(doc) => json!({
+                "content": doc.content,
+                "life": Value::from(doc.life),
+            }),
+            _ => Value::Null,
+        }
+    }
+}
+
+impl From<Lifespan> for Value {
+    fn from(lifespan: Lifespan) -> Self {
+        match lifespan {
+            Lifespan::Interval { start, end } => json!({ "start": start, "end": end }),
+            Lifespan::Event { time } => json!({ "time": time }),
+            Lifespan::Inherited => Value::String("inherited".to_string()),
+        }
     }
 }
 

@@ -49,9 +49,13 @@ impl From<PyDiskGraph> for DiskGraphStorage {
     }
 }
 
-impl IntoPy<PyObject> for DiskGraphStorage {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyDiskGraph::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for DiskGraphStorage {
+    type Target = PyDiskGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyDiskGraph::from(self).into_pyobject(py)
     }
 }
 
@@ -111,7 +115,7 @@ impl<'a> FromPyObject<'a> for PyParquetLayerCols {
             exclude_edge_props: match dict.get_item("exclude_edge_props")? {
                 None => Ok(vec![]),
                 Some(item) => item
-                    .iter()?
+                    .try_iter()?
                     .map(|v| v.and_then(|v| v.extract::<PyBackedStr>()))
                     .collect::<PyResult<Vec<_>>>(),
             }?,
@@ -218,7 +222,7 @@ impl PyDiskGraph {
 
     #[staticmethod]
     #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, num_threads, node_type_col)
+        signature = (graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10_000_000, t_props_chunk_size=10_000_000, num_threads=4, node_type_col=None, node_id_col=None)
     )]
     fn load_from_parquets(
         graph_dir: PathBuf,
@@ -228,6 +232,7 @@ impl PyDiskGraph {
         t_props_chunk_size: usize,
         num_threads: usize,
         node_type_col: Option<&str>,
+        node_id_col: Option<&str>,
     ) -> Result<DiskGraphStorage, GraphError> {
         let layer_cols = layer_parquet_cols
             .iter()
@@ -241,6 +246,7 @@ impl PyDiskGraph {
             t_props_chunk_size,
             num_threads,
             node_type_col,
+            node_id_col,
         )
         .map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph from parquet files: {err:?}"))

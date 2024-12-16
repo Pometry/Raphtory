@@ -10,54 +10,34 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool};
+use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
-impl ToPyObject for Prop {
-    fn to_object(&self, py: Python) -> PyObject {
-        match self {
-            Prop::Str(s) => s.clone().into_py(py),
-            Prop::Bool(bool) => bool.into_py(py),
-            Prop::U8(u8) => u8.into_py(py),
-            Prop::U16(u16) => u16.into_py(py),
-            Prop::I64(i64) => i64.into_py(py),
-            Prop::U64(u64) => u64.into_py(py),
-            Prop::F64(f64) => f64.into_py(py),
-            Prop::DTime(dtime) => dtime.into_py(py),
-            Prop::NDTime(ndtime) => ndtime.into_py(py),
-            Prop::Graph(g) => g.clone().into_py(py), // Need to find a better way
-            Prop::PersistentGraph(g) => g.clone().into_py(py), // Need to find a better way
-            Prop::Document(d) => PyDocument::from(d.clone()).into_py(py),
-            Prop::I32(v) => v.into_py(py),
-            Prop::U32(v) => v.into_py(py),
-            Prop::F32(v) => v.into_py(py),
-            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
-            Prop::Map(v) => v.deref().clone().into_py(py),
-        }
-    }
-}
+impl<'py> IntoPyObject<'py> for Prop {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
 
-impl IntoPy<PyObject> for Prop {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Prop::Str(s) => s.into_py(py),
-            Prop::Bool(bool) => bool.into_py(py),
-            Prop::U8(u8) => u8.into_py(py),
-            Prop::U16(u16) => u16.into_py(py),
-            Prop::I64(i64) => i64.into_py(py),
-            Prop::U64(u64) => u64.into_py(py),
-            Prop::F64(f64) => f64.into_py(py),
-            Prop::DTime(dtime) => dtime.into_py(py),
-            Prop::NDTime(ndtime) => ndtime.into_py(py),
-            Prop::Graph(g) => g.into_py(py), // Need to find a better way
-            Prop::PersistentGraph(g) => g.into_py(py), // Need to find a better way
-            Prop::Document(d) => PyDocument::from(d).into_py(py),
-            Prop::I32(v) => v.into_py(py),
-            Prop::U32(v) => v.into_py(py),
-            Prop::F32(v) => v.into_py(py),
-            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
-            Prop::Map(v) => v.deref().clone().into_py(py),
-        }
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Prop::Str(s) => s.into_pyobject(py)?.into_any(),
+            Prop::Bool(bool) => bool.into_pyobject(py)?.into_bound_py_any(py)?,
+            Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
+            Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
+            Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
+            Prop::U64(u64) => u64.into_pyobject(py)?.into_any(),
+            Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
+            Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
+            Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
+            Prop::Graph(g) => g.into_pyobject(py)?.into_any(),
+            Prop::PersistentGraph(g) => g.into_pyobject(py)?.into_any(),
+            Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
+            Prop::I32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::U32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::F32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+        })
     }
 }
 

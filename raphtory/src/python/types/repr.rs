@@ -5,8 +5,9 @@ use crate::{
 };
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
+use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
     let values: Vec<String> = iter.take(11).map(|v| v.repr()).collect();
@@ -76,6 +77,28 @@ impl StructReprBuilder {
 
 pub trait Repr {
     fn repr(&self) -> String;
+}
+
+impl<T: Repr, const N: usize> Repr for [T; N] {
+    fn repr(&self) -> String {
+        self.as_slice().repr()
+    }
+}
+
+impl Repr for PyObject {
+    fn repr(&self) -> String {
+        Python::with_gil(|py| Repr::repr(self.bind(py)))
+    }
+}
+
+impl<'py> Repr for Bound<'py, PyAny> {
+    fn repr(&self) -> String {
+        let repr = PyAnyMethods::repr(self);
+        match repr {
+            Ok(repr) => repr.to_string(),
+            Err(_) => "<unknown>".to_string(),
+        }
+    }
 }
 
 impl Repr for GID {
@@ -186,10 +209,22 @@ impl<T: Repr> Repr for Option<T> {
     }
 }
 
-impl<T: Repr> Repr for Vec<T> {
+impl<'a, T: Repr> Repr for &'a [T] {
     fn repr(&self) -> String {
         let repr = self.iter().map(|v| v.repr()).join(", ");
         format!("[{}]", repr)
+    }
+}
+
+impl<T: Repr> Repr for Vec<T> {
+    fn repr(&self) -> String {
+        self.deref().repr()
+    }
+}
+
+impl<T: Repr> Repr for Arc<[T]> {
+    fn repr(&self) -> String {
+        self.deref().repr()
     }
 }
 

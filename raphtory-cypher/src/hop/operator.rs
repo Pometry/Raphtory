@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use datafusion::{
     common::DFSchemaRef,
     logical_expr::{Expr, LogicalPlan, TableScan, UserDefinedLogicalNodeCore},
 };
-
 use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
+use std::{cmp::Ordering, sync::Arc};
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct HopPlan {
@@ -18,6 +16,16 @@ pub struct HopPlan {
     pub right_layers: Vec<String>, // what layers are we hopping onto
     pub expressions: Vec<(Expr, Expr)>, // [left.col == right.col]
     pub right_proj: Option<Vec<usize>>,
+}
+
+impl PartialOrd for HopPlan {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(
+            self.input
+                .partial_cmp(&other.input)?
+                .then(self.dir.partial_cmp(&other.dir)?),
+        )
+    }
 }
 
 #[derive(Clone)]

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
@@ -147,9 +147,7 @@ impl TProp {
         Ok(())
     }
 
-    pub(crate) fn iter_inner(
-        &self,
-    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+    pub(crate) fn iter_inner(&self) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => {
@@ -190,7 +188,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
+    pub(crate) fn iter_t(&self) -> BoxedLIter<(i64, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -238,7 +236,7 @@ impl TProp {
     pub(crate) fn iter_window_inner(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -342,14 +340,14 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_inner()
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_window_inner(r)
     }
 

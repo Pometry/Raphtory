@@ -154,7 +154,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
+    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter_refs()

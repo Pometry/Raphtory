@@ -26,6 +26,7 @@ use std::ops::Range;
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
+use raphtory_api::iter::BoxedLIter;
 
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
@@ -44,7 +45,7 @@ impl<'a> TimeIndexRef<'a> {
         }
     }
 
-    pub fn iter(self) -> impl Iterator<Item = TimeIndexEntry> + 'a {
+    pub fn iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
         match self {
             TimeIndexRef::Ref(t) => StorageVariants::Mem(t.iter()),
             TimeIndexRef::Range(t) => {
@@ -100,7 +101,7 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+    fn iter(&self) -> BoxedLIter<Self::IndexType> {
         match self {
             TimeIndexRef::Ref(t) => t.iter(),
             TimeIndexRef::Range(t) => t.iter(),
