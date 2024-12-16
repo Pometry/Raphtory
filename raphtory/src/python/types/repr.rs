@@ -247,8 +247,7 @@ impl<
     }
 }
 
-#[cfg(feature = "storage")]
-impl<T: Repr + std::fmt::Debug, const N: usize> Repr for [T; N] {
+impl<T: Repr + std::fmt::Debug> Repr for [T; 2] {
     fn repr(&self) -> String {
         format!("{:?}", self)
     }
