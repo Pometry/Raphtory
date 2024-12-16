@@ -251,7 +251,7 @@ def extract_param_annotation(param: DocstringParam) -> dict:
 
 
 def extract_types(
-    obj, docs_overwrite: Optional[str] = None
+    obj, docs_overwrite: Optional[str] = None, needs_return=True
 ) -> (dict[str, dict], Optional[str]):
     """
     Extract types from documentation
@@ -272,7 +272,8 @@ def extract_types(
                     fn_logger.error(f"Invalid return type {repr(return_type)}: {e}")
                     return_type = None
             else:
-                fn_logger.warning(f"Missing return type annotation")
+                if needs_return:
+                    fn_logger.warning(f"Missing return type annotation")
                 return_type = None
             return type_annotations, return_type
         else:
@@ -291,9 +292,11 @@ def gen_fn(
 ) -> str:
     init_tab = TAB if is_method else ""
     fn_tab = TAB * 2 if is_method else TAB
-    type_annotations, return_type = extract_types(function, docs_overwrite)
-    docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
     signature = signature_overwrite or inspect.signature(function)
+    type_annotations, return_type = extract_types(
+        function, docs_overwrite, signature.return_annotation is signature.empty
+    )
+    docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
     signature, decorator = clean_signature(
         signature,  # type: ignore
         is_method,
