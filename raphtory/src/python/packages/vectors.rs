@@ -20,10 +20,9 @@ use crate::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::{PyAttributeError, PyTypeError},
-    ffi::Py_True,
+    exceptions::PyTypeError,
     prelude::*,
-    types::{PyBool, PyFunction, PyList},
+    types::{PyFunction, PyList},
     IntoPyObjectExt,
 };
 
