@@ -7,6 +7,7 @@
 #                                                                             #
 ###############################################################################
 
+
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -67,7 +68,9 @@ def lotr_graph():
 def lotr_graph_with_props():
     """Same as `lotr_graph()` but with additional properties race and gender for some of the nodes"""
 
-def neo4j_movie_graph(uri, username, password, database=...): ...
+def neo4j_movie_graph(uri, username, password, database=...):
+    ...
+
 def reddit_hyperlink_graph(timeout_seconds: Any = 600):
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -107,5 +110,8 @@ def reddit_hyperlink_graph(timeout_seconds: Any = 600):
      A Graph containing the Reddit hyperlinks dataset
     """
 
-def reddit_hyperlink_graph_local(file_path): ...
-def stable_coin_graph(path=None, subset=None): ...
+def reddit_hyperlink_graph_local(file_path):
+    ...
+
+def stable_coin_graph(path=None, subset=None):
+    ...

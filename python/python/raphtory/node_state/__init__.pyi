@@ -7,6 +7,7 @@
 #                                                                             #
 ###############################################################################
 
+
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -17,7 +18,7 @@ from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 
-class DegreeView(object):
+class DegreeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -469,7 +470,7 @@ class DegreeView(object):
             Optional[int]
         """
 
-class EarliestDateTimeView(object):
+class EarliestDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -905,7 +906,7 @@ class EarliestDateTimeView(object):
             Optional[int]
         """
 
-class EarliestTimeView(object):
+class EarliestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1341,7 +1342,7 @@ class EarliestTimeView(object):
             Optional[int]
         """
 
-class HistoryDateTimeView(object):
+class HistoryDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1777,7 +1778,7 @@ class HistoryDateTimeView(object):
             Optional[int]
         """
 
-class HistoryView(object):
+class HistoryView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2213,7 +2214,7 @@ class HistoryView(object):
             Optional[int]
         """
 
-class IdView(object):
+class IdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2371,7 +2372,7 @@ class IdView(object):
              Iterator[GID]
         """
 
-class LatestDateTimeView(object):
+class LatestDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2807,7 +2808,7 @@ class LatestDateTimeView(object):
             Optional[int]
         """
 
-class LatestTimeView(object):
+class LatestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3243,7 +3244,7 @@ class LatestTimeView(object):
             Optional[int]
         """
 
-class NameView(object):
+class NameView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3401,7 +3402,8 @@ class NameView(object):
              Iterator[str]
         """
 
-class NodeStateGID(object):
+class NodeStateGID(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3541,7 +3543,8 @@ class NodeStateGID(object):
              Iterator[GID]
         """
 
-class NodeStateListDateTime(object):
+class NodeStateListDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3681,7 +3684,8 @@ class NodeStateListDateTime(object):
              Iterator[list[Datetime]]
         """
 
-class NodeStateListI64(object):
+class NodeStateListI64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3821,7 +3825,8 @@ class NodeStateListI64(object):
              Iterator[list[int]]
         """
 
-class NodeStateOptionDateTime(object):
+class NodeStateOptionDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3961,7 +3966,8 @@ class NodeStateOptionDateTime(object):
              Iterator[Optional[Datetime]]
         """
 
-class NodeStateOptionListDateTime(object):
+class NodeStateOptionListDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4101,7 +4107,8 @@ class NodeStateOptionListDateTime(object):
              Iterator[Optional[list[Datetime]]]
         """
 
-class NodeStateOptionStr(object):
+class NodeStateOptionStr(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4241,7 +4248,8 @@ class NodeStateOptionStr(object):
              Iterator[Optional[str]]
         """
 
-class NodeStateString(object):
+class NodeStateString(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4381,7 +4389,8 @@ class NodeStateString(object):
              Iterator[str]
         """
 
-class NodeStateU64(object):
+class NodeStateU64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4537,7 +4546,8 @@ class NodeStateU64(object):
              Iterator[int]
         """
 
-class NodeStateUsize(object):
+class NodeStateUsize(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4693,7 +4703,7 @@ class NodeStateUsize(object):
              Iterator[int]
         """
 
-class NodeTypeView(object):
+class NodeTypeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
