@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 import ast
+import builtins
 import inspect
 import logging
-import sys
 import textwrap
 import types
-from importlib import import_module
+from importlib.machinery import ExtensionFileLoader
 from logging import ERROR
 from pathlib import Path
 from types import (
@@ -15,10 +14,9 @@ from types import (
     MethodDescriptorType,
     ModuleType,
 )
-import builtins
 from typing import *
-from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
-import argparse
+
+from docstring_parser import parse, DocstringStyle, DocstringParam
 
 logger = logging.getLogger(__name__)
 fn_logger = logging.getLogger(__name__)
@@ -274,6 +272,7 @@ def extract_types(
                     fn_logger.error(f"Invalid return type {repr(return_type)}: {e}")
                     return_type = None
             else:
+                fn_logger.warning(f"Missing return type annotation")
                 return_type = None
             return type_annotations, return_type
         else:
@@ -389,7 +388,9 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
                 fn_logger = logger.getChild(obj_name)
                 stubs.append(gen_fn(obj, obj_name))
             elif isinstance(obj, ModuleType):
-                modules.append((obj, obj_name))
+                loader = getattr(module, "__loader__", None)
+                if loader is None or isinstance(loader, ExtensionFileLoader):
+                    modules.append((obj, obj_name))
 
     stub_file = "\n".join([comment, imports, *sorted(stubs)])
     path.mkdir(parents=True, exist_ok=True)
@@ -400,9 +401,3 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
         gen_module(module, name, path, f"{log_path}.{name}")
 
     return
-
-
-if __name__ == "__main__":
-    raphtory = import_module("raphtory")
-    path = Path(__file__).parent.parent / "python"
-    gen_module(raphtory, "raphtory", path, "raphtory")
