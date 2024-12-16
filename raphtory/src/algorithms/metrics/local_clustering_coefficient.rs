@@ -114,7 +114,7 @@ mod clustering_coefficient_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];
+            let expected = vec![0.3333333333333333, 1.0, 1.0, 0.0, 0.0];
             let windowed_graph = graph.window(0, 7);
             let actual = (1..=5)
                 .map(|v| local_clustering_coefficient(&windowed_graph, v).unwrap())
