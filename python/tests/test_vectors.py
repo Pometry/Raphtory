@@ -49,7 +49,7 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(4, "node3", "node4", {"name": "edge3"})
 
     vg = g.vectorise(
-        embedding, nodes="{{ name }}", edges="{{ props.name }}", graph=False
+        embedding, nodes="{{ name }}", edges="{{ properties.name }}", graph=False
     )
 
     return vg
@@ -229,7 +229,7 @@ def test_default_template():
 
     node_docs = vg.nodes_by_similarity(query="whatever", limit=10).get_documents()
     assert len(node_docs) == 1
-    assert node_docs[0].content == "Node node1 has the following props:\n"
+    assert node_docs[0].content == "Node node1 has the following properties:\n"
 
     edge_docs = vg.edges_by_similarity(query="whatever", limit=10).get_documents()
     assert len(edge_docs) == 1

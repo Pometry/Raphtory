@@ -67,9 +67,9 @@ impl Object for PropUpdate {
 struct NodeTemplateContext {
     name: String,
     node_type: Option<ArcStr>,
-    props: Value,
-    constant_props: Value,
-    temporal_props: Value,
+    properties: Value,
+    constant_properties: Value,
+    temporal_properties: Value,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
@@ -77,18 +77,18 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext 
         Self {
             name: value.name(),
             node_type: value.node_type(),
-            props: value
+            properties: value
                 .properties()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
-            constant_props: value
+            constant_properties: value
                 .properties()
                 .constant()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
-            temporal_props: value
+            temporal_properties: value
                 .properties()
                 .temporal()
                 .iter()
@@ -100,27 +100,27 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext 
 
 #[derive(Serialize)]
 struct GraphTemplateContext {
-    props: Value,
-    constant_props: Value,
-    temporal_props: Value,
+    properties: Value,
+    constant_properties: Value,
+    temporal_properties: Value,
 }
 
 // FIXME: boilerplate for the properties
 impl<'graph, G: GraphViewOps<'graph>> From<G> for GraphTemplateContext {
     fn from(value: G) -> Self {
         Self {
-            props: value
+            properties: value
                 .properties()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
-            constant_props: value
+            constant_properties: value
                 .properties()
                 .constant()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
-            temporal_props: value
+            temporal_properties: value
                 .properties()
                 .temporal()
                 .iter()
@@ -267,7 +267,7 @@ struct EdgeTemplateContext {
     dst: NodeTemplateContext,
     history: Vec<i64>,
     layers: Vec<String>,
-    props: Value,
+    properties: Value,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
@@ -281,7 +281,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
                 .into_iter()
                 .map(|name| name.into())
                 .collect(),
-            props: value // FIXME: boilerplate
+            properties: value // FIXME: boilerplate
                 .properties()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
@@ -290,12 +290,12 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
     }
 }
 
-pub const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type is none %} has the following props:{% else %} is a {{ node_type }} with the following props:{% endif %}
+pub const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type is none %} has the following properties:{% else %} is a {{ node_type }} with the following properties:{% endif %}
 
-{% for (key, value) in constant_props|items %}
+{% for (key, value) in constant_properties|items %}
 {{ key }}: {{ value }}
 {% endfor %}
-{% for (key, values) in temporal_props|items %}
+{% for (key, values) in temporal_properties|items %}
 {{ key }}:
 {% for (time, value) in values %}
  - changed to {{ value }} at {{ time|datetimeformat }}
@@ -308,11 +308,11 @@ pub const DEFAULT_EDGE_TEMPLATE: &str =
 - {{ time|datetimeformat }}
 {% endfor %}";
 
-pub const DEFAULT_GRAPH_TEMPLATE: &str = "Graph with the following props:
-{% for (key, value) in constant_props|items %}
+pub const DEFAULT_GRAPH_TEMPLATE: &str = "Graph with the following properties:
+{% for (key, value) in constant_properties|items %}
 {{ key }}: {{ value }}
 {% endfor %}
-{% for (key, values) in temporal_props|items %}
+{% for (key, values) in temporal_properties|items %}
 {{ key }}:
 {% for (time, value) in values %}
  - changed to {{ value }} at {{ time|datetimeformat }}
@@ -359,7 +359,7 @@ mod template_tests {
         let mut docs = template.node(graph.node("node1").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
-            Node node1 has the following props:
+            Node node1 has the following properties:
             key1: value1
             key2: value2
             temp_test:
@@ -380,7 +380,7 @@ mod template_tests {
         let mut docs = template.graph(graph);
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
-            Graph with the following props:
+            Graph with the following properties:
             name: test-name
         "};
         assert_eq!(&rendered, expected);
@@ -406,20 +406,20 @@ mod template_tests {
             .add_constant_properties([("const_test", "const_test_value")])
             .unwrap();
 
-        // I should be able to iterate over props without doing props|items, which would be solved by implementing Object for Properties
+        // I should be able to iterate over properties without doing properties|items, which would be solved by implementing Object for Properties
         let node_template = indoc! {"
-            node {{ name }} is {% if node_type is none %}an unknown entity{% else %}a {{ node_type }}{% endif %} with the following props:
-            {% if props.const_test is defined %}const_test: {{ props.const_test }} {% endif %}
-            {% if temporal_props.temp_test is defined and temporal_props.temp_test|length > 0 %}
+            node {{ name }} is {% if node_type is none %}an unknown entity{% else %}a {{ node_type }}{% endif %} with the following properties:
+            {% if properties.const_test is defined %}const_test: {{ properties.const_test }} {% endif %}
+            {% if temporal_properties.temp_test is defined and temporal_properties.temp_test|length > 0 %}
             temp_test:
-            {% for (time, value) in temporal_props.temp_test %}
+            {% for (time, value) in temporal_properties.temp_test %}
              - changed to {{ value }} at {{ time }}
             {% endfor %}
             {% endif %}
-            {% for (key, value) in props|items if key != \"temp_test\" and key != \"const_test\" %}
+            {% for (key, value) in properties|items if key != \"temp_test\" and key != \"const_test\" %}
             {{ key }}: {{ value }}
             {% endfor %}
-            {% for (key, value) in constant_props|items if key != \"const_test\" %}
+            {% for (key, value) in constant_properties|items if key != \"const_test\" %}
             {{ key }}: {{ value }}
             {% endfor %}
         "};
@@ -432,7 +432,7 @@ mod template_tests {
         let mut docs = template.node(graph.node("node1").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
-            node node1 is an unknown entity with the following props:
+            node node1 is an unknown entity with the following properties:
             temp_test:
              - changed to value_at_0 at 0
              - changed to value_at_1 at 1
@@ -446,7 +446,7 @@ mod template_tests {
         let mut docs = template.node(graph.node("node2").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
-            node node2 is a person with the following props:
+            node node2 is a person with the following properties:
             const_test: const_test_value"};
         assert_eq!(&rendered, expected);
     }
@@ -458,9 +458,9 @@ mod template_tests {
             .add_node("2024-09-09T09:08:01", "node1", [("temp", "value")], None)
             .unwrap();
 
-        // I should be able to iteate over props without doing props|items, which would be solved by implementing Object for Properties
+        // I should be able to iteate over properties without doing properties|items, which would be solved by implementing Object for Properties
         let node_template =
-            "{{ (temporal_props.temp|first).time|datetimeformat(format=\"long\") }}";
+            "{{ (temporal_properties.temp|first).time|datetimeformat(format=\"long\") }}";
         let template = DocumentTemplate {
             node_template: Some(node_template.to_owned()),
             graph_template: None,
