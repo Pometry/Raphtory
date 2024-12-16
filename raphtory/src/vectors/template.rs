@@ -290,7 +290,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
     }
 }
 
-pub(crate) const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type is none %} has the following props:{% else %} is a {{ node_type }} with the following props:{% endif %}
+pub const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type is none %} has the following props:{% else %} is a {{ node_type }} with the following props:{% endif %}
 
 {% for (key, value) in constant_props|items %}
 {{ key }}: {{ value }}
@@ -302,13 +302,13 @@ pub(crate) const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type 
 {% endfor %}
 {% endfor %}";
 
-pub(crate) const DEFAULT_EDGE_TEMPLATE: &str =
+pub const DEFAULT_EDGE_TEMPLATE: &str =
     "There is an edge from {{ src.name }} to {{ dst.name }} with events at:
 {% for time in history %}
 - {{ time|datetimeformat }}
 {% endfor %}";
 
-pub(crate) const DEFAULT_GRAPH_TEMPLATE: &str = "Graph {{ props.name }} has the following props:
+pub const DEFAULT_GRAPH_TEMPLATE: &str = "Graph with the following props:
 {% for (key, value) in constant_props|items %}
 {{ key }}: {{ value }}
 {% endfor %}
@@ -323,13 +323,16 @@ pub(crate) const DEFAULT_GRAPH_TEMPLATE: &str = "Graph {{ props.name }} has the 
 mod template_tests {
     use indoc::indoc;
 
-    use crate::prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS};
+    use crate::prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, NO_PROPS};
 
     use super::*;
 
     #[test]
     fn test_default_templates() {
         let graph = Graph::new();
+        graph
+            .add_constant_properties([("name", "test-name")])
+            .unwrap();
 
         let node1 = graph
             .add_node(0, "node1", [("temp_test", "value_at_0")], None)
@@ -349,7 +352,7 @@ mod template_tests {
 
         let template = DocumentTemplate {
             node_template: Some(DEFAULT_NODE_TEMPLATE.to_owned()),
-            graph_template: None,
+            graph_template: Some(DEFAULT_GRAPH_TEMPLATE.to_owned()),
             edge_template: Some(DEFAULT_EDGE_TEMPLATE.to_owned()),
         };
 
@@ -371,6 +374,14 @@ mod template_tests {
             There is an edge from node1 to node2 with events at:
             - Jan 1 1970 00:00
             - Jan 1 1970 00:01
+        "};
+        assert_eq!(&rendered, expected);
+
+        let mut docs = template.graph(graph);
+        let rendered = docs.next().unwrap().content;
+        let expected = indoc! {"
+            Graph with the following props:
+            name: test-name
         "};
         assert_eq!(&rendered, expected);
     }
