@@ -844,7 +844,6 @@ fn verify_optimum(
 /// use raphtory::core::entities::properties::props::Props;
 /// use raphtory::prelude::{AdditionOps, Prop};
 /// use raphtory::algorithms::bipartite::max_weight_matching::max_weight_matching;
-/// use raphtory_api::core::entities::GID;
 ///
 /// // Create a path graph
 /// let g = raphtory::prelude::Graph::new();

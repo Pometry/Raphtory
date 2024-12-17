@@ -136,40 +136,25 @@ pub fn hits<G: StaticGraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (hub_scores, auth_scores) = runner.run(
+    let results = runner.run(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
         |_, _, _, local| {
             let mut hubs = HashMap::new();
-            let mut auths = HashMap::new();
             let nodes = g.nodes();
             for node in nodes {
-                let v_gid = node.name();
                 let VID(v_id) = node.node;
                 let hit = &local[v_id];
-                hubs.insert(v_gid.clone(), hit.hub_score);
-                auths.insert(v_gid, hit.auth_score);
+                hubs.insert(v_id, (hit.hub_score, hit.auth_score));
             }
-            (hubs, auths)
+            hubs
         },
         threads,
         iter_count,
         None,
         None,
     );
-
-    let mut results: HashMap<usize, (f32, f32)> = HashMap::new();
-
-    hub_scores.into_iter().for_each(|(k, v)| {
-        results.insert(g.node(k).unwrap().node.0, (v, 0.0));
-    });
-
-    auth_scores.into_iter().for_each(|(k, v)| {
-        let vid = g.node(k).unwrap().node.0;
-        let (a, _) = results.get(&vid).unwrap();
-        results.insert(vid, (*a, v));
-    });
 
     let results_type = std::any::type_name::<(f32, f32)>();
 
