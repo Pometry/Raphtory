@@ -239,13 +239,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         }
                         g.logical_to_physical.set(gid.as_ref(), new_id)?;
 
-                        if let Some(earliest) = node.earliest_time() {
-                            // explicitly add node earliest_time to handle PersistentGraph
-                            new_node
-                                .node_store_mut()
-                                .update_t_prop_time(TimeIndexEntry::start(earliest), None)
-                        }
-
                         for (t, rows) in node.rows() {
                             let prop_offset = new_node.t_props_log_mut().push(rows)?;
                             new_node.node_store_mut().update_t_prop_time(t, prop_offset);

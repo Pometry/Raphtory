@@ -5,7 +5,7 @@ use crate::{
 };
 use pometry_storage::{
     chunked_array::{bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol},
-    prelude::{ArrayOps, BaseArrayOps},
+    prelude::ArrayOps,
     tprops::{DiskTProp, EmptyTProp, TPropColumn},
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;

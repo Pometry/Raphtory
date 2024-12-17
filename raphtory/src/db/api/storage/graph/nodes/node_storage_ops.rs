@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, VID},
-        storage::ArcEntry,
+        storage::ArcNodeEntry,
         Direction,
     },
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
@@ -47,7 +47,7 @@ pub trait NodeStorageIntoOps: Sized {
     }
 }
 
-impl NodeStorageIntoOps for ArcEntry {
+impl NodeStorageIntoOps for ArcNodeEntry {
     fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
         self.into_edges(&layers, dir)
     }

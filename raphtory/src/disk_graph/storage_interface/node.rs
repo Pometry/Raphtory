@@ -67,13 +67,15 @@ impl<'a> DiskNode<'a> {
 
     pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
         self.graph
-            .node_properties()
-            .temporal_props()
+            .prop_mapping()
+            .nodes()
             .into_iter()
             .enumerate()
-            .filter_map(|(layer, props)| {
-                let ts = props.timestamps::<TimeIndexEntry>(self.vid);
-                let idx = ts.last_before(t)?;
+            .filter_map(|(prop_id, &location)| {
+                let (layer, local_prop_id) = location?;
+                let layer = self.graph().node_properties().temporal_props().get(layer)?;
+                let t_prop = layer.prop::<TimeIndexEntry>(self.vid, local_prop_id);
+                t_prop.last_before(t).map(|(_, p)| (prop_id, p))
             })
             .collect()
     }
