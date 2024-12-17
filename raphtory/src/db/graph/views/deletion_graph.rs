@@ -268,7 +268,18 @@ impl TimeSemantics for PersistentGraph {
         v: VID,
         w: Option<Range<i64>>,
     ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        self.0.node_history_rows(v, w)
+        // if window exists, we need to add the first row before the window
+        if let Some(w) = w {
+            let t = TimeIndexEntry::start(w.start.saturating_add(1));
+            let first_row = self.core_node_entry(v).as_ref().last_before_row(t);
+            Box::new(
+                std::iter::once(first_row)
+                    .map(move |row| (TimeIndexEntry::start(w.start), row))
+                    .chain(self.0.node_history_rows(v, Some(w))),
+            )
+        } else {
+            self.0.node_history_rows(v, w)
+        }
     }
 
     fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
@@ -686,6 +697,7 @@ mod test_deletions {
             },
         },
         prelude::*,
+        test_storage,
     };
     use itertools::Itertools;
     use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
@@ -893,9 +905,11 @@ mod test_deletions {
         let g = PersistentGraph::new();
         g.add_node(0, 1, [("test", "test")], None).unwrap();
 
-        let wg = g.window(3, 5);
-        let mg = wg.materialize().unwrap();
-        assert_graph_equal(&wg, &mg);
+        test_storage!(&g, |g| {
+            let wg = g.window(3, 5);
+            let mg = wg.materialize().unwrap();
+            assert_graph_equal(&wg, &mg);
+        })
     }
 
     #[test]
