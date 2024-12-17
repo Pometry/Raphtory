@@ -13,10 +13,10 @@ use std::{iter, ops::Range};
 
 impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        let (props, timestamps) = self.into_inner();
-        let (t, t_index) = timestamps.last_before(t)?;
-        let v = props.get(t_index)?;
-        Some((t, v.into()))
+        self.iter_window_inner(TimeIndexEntry::MIN..t)
+            .filter_map(|(t, v)| v.map(|v| (t, v)))
+            .next_back()
+            .map(|(t, v)| (t, v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
@@ -31,13 +31,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        let (props, timestamps) = self.into_inner();
-        let start = timestamps.position(&r.start);
-        let end = timestamps.position(&r.end);
-        timestamps
-            .sliced(start..end)
-            .into_iter()
-            .zip(props.sliced(start..end))
+        self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
@@ -59,10 +53,10 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     for TPropColumn<'a, ChunkedPrimitiveCol<'a, T>, TimeIndexEntry>
 {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        let (props, timestamps) = self.into_inner();
-        let (t, t_index) = timestamps.last_before(t)?;
-        let v = props.get(t_index)?;
-        Some((t, v.into()))
+        self.iter_window_inner(TimeIndexEntry::MIN..t)
+            .filter_map(|(t, v)| v.map(|v| (t, v)))
+            .next_back()
+            .map(|(t, v)| (t, v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
@@ -77,13 +71,7 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        let (props, timestamps) = self.into_inner();
-        let start = timestamps.position(&r.start);
-        let end = timestamps.position(&r.end);
-        timestamps
-            .sliced(start..end)
-            .into_iter()
-            .zip(props.sliced(start..end))
+        self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
@@ -103,10 +91,10 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
 
 impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndexEntry> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        let (props, timestamps) = self.into_inner();
-        let (t, t_index) = timestamps.last_before(t)?;
-        let v = props.get(t_index)?;
-        Some((t, v.into()))
+        self.iter_window_inner(TimeIndexEntry::MIN..t)
+            .filter_map(|(t, v)| v.map(|v| (t, v)))
+            .next_back()
+            .map(|(t, v)| (t, v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
@@ -121,13 +109,7 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        let (props, timestamps) = self.into_inner();
-        let start = timestamps.position(&r.start);
-        let end = timestamps.position(&r.end);
-        timestamps
-            .sliced(start..end)
-            .into_iter()
-            .zip(props.sliced(start..end))
+        self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
