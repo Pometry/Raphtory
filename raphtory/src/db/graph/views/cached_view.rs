@@ -20,6 +20,7 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
+use crate::db::api::view::internal::InheritNodeHistoryFilter;
 
 #[derive(Clone)]
 pub struct CachedView<G> {
@@ -53,6 +54,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for CachedView<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
