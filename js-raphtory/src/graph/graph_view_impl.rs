@@ -1,6 +1,7 @@
 use super::{Graph, UnderGraph};
 use raphtory::db::api::view::{
-    internal::InheritIndexSearch, Base, BoxableGraphView, InheritViewOps,
+    internal::{InheritIndexSearch, InheritNodeHistoryFilter},
+    Base, BoxableGraphView, InheritViewOps,
 };
 
 impl Base for Graph {
@@ -17,3 +18,5 @@ impl Base for Graph {
 impl InheritViewOps for Graph {}
 
 impl InheritIndexSearch for Graph {}
+
+impl InheritNodeHistoryFilter for Graph {}

@@ -53,8 +53,8 @@ use crate::{
             view::{
                 internal::{
                     Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritIndexSearch,
-                    InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static,
-                    TimeSemantics,
+                    InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, ListOps,
+                    NodeFilterOps, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -129,6 +129,8 @@ impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 

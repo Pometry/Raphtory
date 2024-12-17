@@ -7,8 +7,8 @@ use crate::{
             view::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritIndexSearch,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
-                    NodeFilterOps, Static,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+                    InheritTimeSemantics, NodeFilterOps, Static,
                 },
                 node::NodeViewOps,
                 Base,
@@ -90,6 +90,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFiltere
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGraph<G> {
     fn nodes_filtered(&self) -> bool {

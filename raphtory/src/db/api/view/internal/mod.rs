@@ -51,6 +51,7 @@ pub trait BoxableGraphView:
     + PropertiesOps
     + ConstPropertiesOps
     + InternalIndexSearch
+    + NodeHistoryFilter
     + Send
     + Sync
 {
@@ -67,6 +68,7 @@ impl<
             + PropertiesOps
             + ConstPropertiesOps
             + InternalIndexSearch
+            + NodeHistoryFilter
             + Send
             + Sync,
     > BoxableGraphView for G
@@ -169,9 +171,13 @@ impl InheritViewOps for DynamicGraph {}
 
 impl InheritIndexSearch for DynamicGraph {}
 
+impl InheritNodeHistoryFilter for DynamicGraph {}
+
 impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
 
 impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritIndexSearch for &'graph1 G {}
+
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritNodeHistoryFilter for &'graph1 G {}
 
 #[cfg(test)]
 mod test {

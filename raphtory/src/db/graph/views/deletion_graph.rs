@@ -708,6 +708,41 @@ impl TimeSemantics for PersistentGraph {
     }
 }
 
+impl NodeHistoryFilter for PersistentGraph {
+    fn is_prop_update_available(
+        &self,
+        _node_id: VID,
+        _time: TimeIndexEntry,
+        _prop_id: usize,
+    ) -> bool {
+        true
+    }
+
+    fn is_prop_update_available_window(
+        &self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> bool {
+        if time.t() >= w.end {
+            false
+        } else if w.contains(&time.t()) {
+            true
+        } else {
+            let node = self.0.core_node_entry(node_id);
+            let res = node
+                .tprop(prop_id)
+                .last_before(TimeIndexEntry::start(w.start));
+            if let Some((t, _)) = res {
+                time.eq(&t)
+            } else {
+                false
+            }
+        }
+    }
+}
+
 impl InheritIndexSearch for PersistentGraph {}
 
 #[cfg(test)]

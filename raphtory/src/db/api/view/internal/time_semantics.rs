@@ -338,6 +338,41 @@ pub trait TimeSemantics {
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)>;
 }
 
+pub trait NodeHistoryFilter {
+    fn is_prop_update_available(&self, node_id: VID, time: TimeIndexEntry, prop_id: usize) -> bool;
+
+    fn is_prop_update_available_window(
+        &self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> bool;
+}
+
+pub trait InheritNodeHistoryFilter: Base {}
+
+impl<G: InheritNodeHistoryFilter> NodeHistoryFilter for G
+where
+    <G as Base>::Base: NodeHistoryFilter,
+{
+    #[inline]
+    fn is_prop_update_available(&self, node_id: VID, time: TimeIndexEntry, prop_id: usize) -> bool {
+        self.is_prop_update_available(node_id, time, prop_id)
+    }
+
+    #[inline]
+    fn is_prop_update_available_window(
+        &self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> bool {
+        self.is_prop_update_available_window(node_id, time, prop_id, w)
+    }
+}
+
 pub trait InheritTimeSemantics: Base {}
 
 impl<G: InheritTimeSemantics> DelegateTimeSemantics for G

@@ -12,7 +12,7 @@ use raphtory::{
         api::{
             mutation::internal::InheritMutationOps,
             view::{
-                internal::{InheritIndexSearch, Static},
+                internal::{InheritIndexSearch, InheritNodeHistoryFilter, Static},
                 Base, InheritViewOps, MaterializedGraph,
             },
         },
@@ -153,6 +153,9 @@ impl Base for GraphWithVectors {
 impl Static for GraphWithVectors {}
 
 impl InheritViewOps for GraphWithVectors {}
+
+impl InheritNodeHistoryFilter for GraphWithVectors {}
+
 impl InheritMutationOps for GraphWithVectors {}
 
 impl InheritIndexSearch for GraphWithVectors {}

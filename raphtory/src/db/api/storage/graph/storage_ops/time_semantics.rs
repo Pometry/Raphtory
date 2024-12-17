@@ -21,7 +21,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, TimeSemantics},
+            internal::{CoreGraphOps, NodeHistoryFilter, TimeSemantics},
             BoxedLIter, IntoDynBoxed,
         },
     },
@@ -489,5 +489,26 @@ impl TimeSemantics for GraphStorage {
             })
             .into_dyn_boxed(),
         }
+    }
+}
+
+impl NodeHistoryFilter for GraphStorage {
+    fn is_prop_update_available(
+        &self,
+        _node_id: VID,
+        _time: TimeIndexEntry,
+        _prop_id: usize,
+    ) -> bool {
+        true
+    }
+
+    fn is_prop_update_available_window(
+        &self,
+        _node_id: VID,
+        time: TimeIndexEntry,
+        _prop_id: usize,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&time.t())
     }
 }

@@ -1,3 +1,6 @@
+pub mod my_custom_filter_collector;
+pub mod node_filter_collector;
+
 use crate::{
     core::{
         entities::{nodes::node_ref::NodeRef, EID, VID},
@@ -12,6 +15,10 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
+    search::{
+        my_custom_filter_collector::MyCustomFilterCollector,
+        node_filter_collector::NodeFilterCollector,
+    },
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
@@ -40,6 +47,8 @@ pub struct Searcher<'a> {
 }
 
 impl<'a> Searcher<'a> {
+    // For persistent graph , we need 3 args: node id, time of the event, and the prop id
+    // Dedup: unique results returned from the query itself
     fn node_filter_collector<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -53,6 +62,32 @@ impl<'a> Searcher<'a> {
             move |node_id: u64| graph.has_node(VID(node_id as usize)),
             ranking,
         )
+    }
+
+    fn my_custom_filter_collector<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        limit: usize,
+        offset: usize,
+    ) -> MyCustomFilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+        let graph = graph.clone();
+        MyCustomFilterCollector::new(
+            fields::VERTEX_ID.to_string(),
+            move |node_id: u64| graph.has_node(VID(node_id as usize)),
+            ranking,
+        )
+    }
+
+    fn custom_node_filter_collector<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        limit: usize,
+        offset: usize,
+    ) -> NodeFilterCollector<TopDocs, G> {
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+        let graph = graph.clone();
+        NodeFilterCollector::new(fields::VERTEX_ID.to_string(), ranking, graph)
     }
 
     fn edge_filter_collector<G: StaticGraphViewOps>(
@@ -137,6 +172,66 @@ impl<'a> Searcher<'a> {
 
         let top_docs =
             searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
+        let node_id = self
+            .index
+            .node_index
+            .schema()
+            .get_field(fields::VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn my_custom_search_nodes<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let searcher = self.index.node_reader.searcher();
+        let query_parser = self.index.node_parser()?;
+        let query = query_parser.parse_query(q)?;
+
+        let top_docs =
+            searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
+        let node_id = self
+            .index
+            .node_index
+            .schema()
+            .get_field(fields::VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn custom_search_nodes<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let searcher = self.index.node_reader.searcher();
+        let query_parser = self.index.node_parser()?;
+        let query = query_parser.parse_query(q)?;
+
+        let top_docs = searcher.search(
+            &query,
+            &self.custom_node_filter_collector(graph, limit, offset),
+        )?;
         let node_id = self
             .index
             .node_index
@@ -765,14 +860,113 @@ fn create_edge_document<'a>(
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{
-        core::entities::nodes::node_ref::AsNodeRef,
-        db::api::{mutation::internal::DelegateDeletionOps, view::internal::InternalIndexSearch},
+    use crate::db::{
+        api::{
+            mutation::internal::DelegateDeletionOps,
+            view::{internal::InternalIndexSearch, SearchableGraphOps},
+        },
+        graph::views::deletion_graph::PersistentGraph,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tantivy::{doc, schema::TEXT, DocAddress, Order};
     use tracing::info;
+
+    #[test]
+    fn test_search_windowed_graph() {
+        let graph = Graph::new();
+        for t in 0..10 {
+            graph.add_node(t, 1, [("test", t)], None).unwrap();
+        }
+        let wg = graph.window(8, 12);
+        let results = wg
+            .search_nodes("test:1", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        println!("results = {:?}", results); // Should return "no results" as for window 8-12, node 1 has props 8-9
+    }
+
+    #[test]
+    fn test_search_windowed_persistent_graph() {
+        let graph = PersistentGraph::new();
+        for t in 0..10 {
+            graph.add_node(t, 1, [("test", t)], None).unwrap();
+        }
+        let wg = graph.window(8, 12);
+        let results = wg
+            .search_nodes("test:1", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        println!("results = {:?}", results); // Should return "no results" as for window 8-12, node 1 has props 8-9
+
+        let wg = graph.window(10, 12);
+        let results = wg
+            .search_nodes("test:1", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        println!("results = {:?}", results); // Should return "no results" as for window 10-12, node 1 has prop 9 as last prop update
+
+        let wg = graph.window(10, 12);
+        let results = wg
+            .search_nodes("test:9", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        println!("results = {:?}", results); // Should return "node 1" as for window 10-12, node 9 has props 9 as last prop update
+
+        // Edge case:
+        // let graph = PersistentGraph::new();
+        // graph.add_node(0, 1, [("test1", 0)], None).unwrap(); // Creates doc which has both props
+        // graph.add_node(0, 1, [("test2", 0)], None).unwrap(); // Creates doc which has both props
+        // graph.add_node(2, 1, [("test2", 1)], None).unwrap(); // Creates doc which has only test2 prop
+
+        // Edge case:
+        let graph = PersistentGraph::new();
+        graph
+            .add_node(0, 1, [("test1", 0), ("test2", 0)], None)
+            .unwrap(); // Creates doc which has both props
+        graph.add_node(2, 1, [("test2", 1)], None).unwrap(); // Creates doc which has only test2 prop
+
+        // Searching for test 2 in window 2-10 should return "no results"
+        let wg = graph.window(2, 10);
+        let results = wg
+            .search_nodes("test2:0", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        // Searching for test 2 in window 2-10 should return "node 1"
+        let wg = graph.window(2, 10);
+        let results = wg
+            .search_nodes("test2:1", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        // Searching for test 1 in window 2-10 should return "node 1"
+        let wg = graph.window(2, 10);
+        let results = wg
+            .search_nodes("test1:0", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        println!("results = {:?}", results); // Should return "node 1" as for window 10-12, node 9 has props 9 as last prop update
+    }
 
     #[test]
     fn test_custom_tokenizer() {
@@ -869,6 +1063,40 @@ mod search_tests {
             .searcher()
             .unwrap()
             .search_nodes(&graph, "node_type:collapsed", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        assert_eq!(
+            results,
+            vec![
+                "0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c",
+                "0x941900204497226bede1324742eb83af6b0b5eec",
+            ]
+        );
+
+        let mut results = graph
+            .searcher()
+            .unwrap()
+            .my_custom_search_nodes(&graph, "node_type:collapsed", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        assert_eq!(
+            results,
+            vec![
+                "0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c",
+                "0x941900204497226bede1324742eb83af6b0b5eec",
+            ]
+        );
+
+        let mut results = graph
+            .searcher()
+            .unwrap()
+            .custom_search_nodes(&graph, "node_type:collapsed", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
