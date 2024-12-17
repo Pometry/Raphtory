@@ -142,7 +142,9 @@ mod vector_tests {
     fn custom_template() -> DocumentTemplate {
         DocumentTemplate {
             graph_template: None,
-            node_template: Some("{{ name}} is a {{ node_type }} aged {{ props.age }}".to_owned()),
+            node_template: Some(
+                "{{ name}} is a {{ node_type }} aged {{ properties.age }}".to_owned(),
+            ),
             edge_template: Some(
                 "{{ src.name }} appeared with {{ dst.name}} in lines: {{ history|join(', ') }}"
                     .to_owned(),

@@ -10,7 +10,7 @@ use crate::{
     },
     python::{
         graph::properties::{
-            PyConstProperties, PyConstPropsList, PyConstPropsListList, PyTemporalPropsList,
+            PyConstPropsList, PyConstPropsListList, PyConstantProperties, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
@@ -39,7 +39,7 @@ impl PartialEq for PyPropsComp {
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstProperties>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyConstantProperties>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
@@ -51,8 +51,8 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
     }
 }
 
-impl From<&PyConstProperties> for PyPropsComp {
-    fn from(value: &PyConstProperties) -> Self {
+impl From<&PyConstantProperties> for PyPropsComp {
+    fn from(value: &PyConstantProperties) -> Self {
         Self(value.as_dict())
     }
 }

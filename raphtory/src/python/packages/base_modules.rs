@@ -14,7 +14,9 @@ use crate::{
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
-            properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -47,7 +49,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyEdges,
         PyMutableEdge,
         PyProperties,
-        PyConstProperties,
+        PyConstantProperties,
         PyTemporalProperties,
         PyTemporalProp,
         PyPropertyRef,

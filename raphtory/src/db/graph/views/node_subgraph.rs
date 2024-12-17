@@ -60,6 +60,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
             nodes.collect()
         };
         nodes.sort();
+        nodes.dedup();
         let nodes = Index::new(nodes, graph.unfiltered_num_nodes());
         Self { graph, nodes }
     }
@@ -132,7 +133,7 @@ mod subgraph_tests {
         graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
         test_storage!(&graph, |graph| {
-            let sg = graph.subgraph([1, 2]);
+            let sg = graph.subgraph([1, 2, 1]); // <- duplicated nodes should have no effect
 
             let actual = sg.materialize().unwrap().into_events().unwrap();
             assert_graph_equal(&actual, &sg);

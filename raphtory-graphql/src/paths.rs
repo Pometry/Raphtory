@@ -10,7 +10,7 @@ use raphtory::{
     serialise::GraphFolder,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ExistingGraphFolder {
     folder: ValidGraphFolder,
 }
