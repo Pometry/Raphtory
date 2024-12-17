@@ -4,7 +4,7 @@ use crate::{
 };
 use lazy_vec::LazyVec;
 use lock_api;
-use node_entry::NodeEntry;
+use node_entry::NodePtr;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{GidRef, VID},
@@ -87,11 +87,7 @@ impl TColumns {
             match self.t_props_log.get_mut(prop_id) {
                 Some(col) => col.push(prop)?,
                 None => {
-                    let mut col = TPropColumn::default();
-                    while col.len() < id {
-                        col.push_null()?;
-                    }
-                    col.push(prop)?;
+                    let col: TPropColumn = TPropColumn::new(self.num_rows, prop);
                     self.t_props_log
                         .resize_with(prop_id + 1, || TPropColumn::Empty(id));
                     self.t_props_log[prop_id] = col;
@@ -156,6 +152,37 @@ impl Default for TPropColumn {
 }
 
 impl TPropColumn {
+    pub(crate) fn new(idx: usize, prop: Prop) -> Self {
+        let mut col = TPropColumn::default();
+        col.set(idx, prop).unwrap();
+        col
+    }
+
+    pub(crate) fn set(&mut self, index: usize, prop: Prop) -> Result<(), GraphError> {
+        self.init_empty_col(&prop)?;
+        match (self, prop) {
+            (TPropColumn::Bool(col), Prop::Bool(v)) => col.set(index, v)?,
+            (TPropColumn::I64(col), Prop::I64(v)) => col.set(index, v)?,
+            (TPropColumn::U32(col), Prop::U32(v)) => col.set(index, v)?,
+            (TPropColumn::U64(col), Prop::U64(v)) => col.set(index, v)?,
+            (TPropColumn::F32(col), Prop::F32(v)) => col.set(index, v)?,
+            (TPropColumn::F64(col), Prop::F64(v)) => col.set(index, v)?,
+            (TPropColumn::Str(col), Prop::Str(v)) => col.set(index, v)?,
+            (TPropColumn::Graph(col), Prop::Graph(v)) => col.set(index, v)?,
+            (TPropColumn::PGraph(col), Prop::PersistentGraph(v)) => col.set(index, v)?,
+            (TPropColumn::U8(col), Prop::U8(v)) => col.set(index, v)?,
+            (TPropColumn::U16(col), Prop::U16(v)) => col.set(index, v)?,
+            (TPropColumn::I32(col), Prop::I32(v)) => col.set(index, v)?,
+            (TPropColumn::List(col), Prop::List(v)) => col.set(index, v)?,
+            (TPropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
+            (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
+            (TPropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
+            (TPropColumn::Document(col), Prop::Document(v)) => col.set(index, v)?,
+            _ => return Err(GraphError::IncorrectPropertyType),
+        }
+        Ok(())
+    }
+
     pub(crate) fn push(&mut self, prop: Prop) -> Result<(), GraphError> {
         self.init_empty_col(&prop)?;
         match (self, prop) {
@@ -297,16 +324,16 @@ impl NodeSlot {
         &mut self.t_props_log
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodeEntry> {
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr> {
         self.nodes
             .iter()
-            .map(|ns| NodeEntry::new(ns, &self.t_props_log))
+            .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeEntry> {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> {
         self.nodes
             .par_iter()
-            .map(|ns| NodeEntry::new(ns, &self.t_props_log))
+            .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 }
 
@@ -388,17 +415,13 @@ impl PartialEq for NodeStorage {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedStorage<Index = usize> {
+pub struct ReadLockedStorage {
     pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<NodeSlot>>>,
     len: usize,
-    _index: PhantomData<Index>,
 }
 
-impl<Index> ReadLockedStorage<Index>
-where
-    usize: From<Index>,
-{
-    fn resolve(&self, index: Index) -> (usize, usize) {
+impl ReadLockedStorage {
+    fn resolve(&self, index: VID) -> (usize, usize) {
         let index: usize = index.into();
         let n = self.locks.len();
         let bucket = index % n;
@@ -411,14 +434,14 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn get(&self, index: Index) -> &NodeStore {
+    pub(crate) fn get(&self, index: VID) -> &NodeStore {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
     }
 
     #[inline]
-    pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry {
+    pub(crate) fn arc_entry(&self, index: VID) -> ArcEntry {
         let (bucket, offset) = self.resolve(index);
         ArcEntry {
             guard: self.locks[bucket].clone(),
@@ -427,17 +450,17 @@ where
     }
 
     #[inline]
-    pub(crate) fn get_entry(&self, index: Index) -> NodeEntry {
+    pub(crate) fn get_entry(&self, index: VID) -> NodePtr {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
-        NodeEntry::new(&bucket[offset], &bucket.t_props_log)
+        NodePtr::new(&bucket[offset], &bucket.t_props_log)
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = NodeEntry> + '_ {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = NodePtr> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
 
-    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = NodeEntry> + '_ {
+    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 
@@ -453,7 +476,7 @@ where
 }
 
 impl NodeStorage {
-    pub fn count_with_filter<F: Fn(NodeEntry<'_>) -> bool + Send + Sync>(&self, f: F) -> usize {
+    pub fn count_with_filter<F: Fn(NodePtr<'_>) -> bool + Send + Sync>(&self, f: F) -> usize {
         self.read_lock().par_iter().filter(|x| f(*x)).count()
     }
 }
@@ -465,7 +488,7 @@ impl NodeStorage {
     }
 
     #[inline]
-    pub fn read_lock(&self) -> ReadLockedStorage<VID> {
+    pub fn read_lock(&self) -> ReadLockedStorage {
         let guards = self
             .data
             .iter()
@@ -474,7 +497,6 @@ impl NodeStorage {
         ReadLockedStorage {
             locks: guards,
             len: self.len(),
-            _index: PhantomData,
         }
     }
 
@@ -521,11 +543,11 @@ impl NodeStorage {
     }
 
     #[inline]
-    pub fn entry(&self, index: VID) -> Entry<'_> {
+    pub fn entry(&self, index: VID) -> NodeEntry<'_> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
-        Entry { offset, guard }
+        NodeEntry { offset, guard }
     }
 
     pub fn entry_arc(&self, index: VID) -> ArcEntry {
@@ -730,25 +752,15 @@ impl<'a> WriteLockedNodes<'a> {
 }
 
 #[derive(Debug)]
-pub struct Entry<'a> {
+pub struct NodeEntry<'a> {
     offset: usize,
     guard: RwLockReadGuard<'a, NodeSlot>,
 }
 
-impl Entry<'_> {
+impl NodeEntry<'_> {
     #[inline]
-    pub fn get(&self) -> &NodeStore {
-        &self.guard[self.offset]
-    }
-
-    #[inline]
-    pub fn get_entry(&self) -> NodeEntry<'_> {
-        NodeEntry::new(&self.guard[self.offset], &self.guard.t_props_log)
-    }
-
-    #[inline]
-    pub fn t_props_log(&self) -> &TColumns {
-        &self.guard.t_props_log
+    pub fn get_entry(&self) -> NodePtr<'_> {
+        NodePtr::new(&self.guard[self.offset], &self.guard.t_props_log)
     }
 }
 
@@ -760,13 +772,8 @@ pub struct ArcEntry {
 
 impl ArcEntry {
     #[inline]
-    pub fn get(&self) -> &NodeStore {
-        &self.guard[self.i]
-    }
-
-    #[inline]
-    pub fn t_props_log(&self) -> &TColumns {
-        &self.guard.t_props_log
+    pub fn get_entry(&self) -> NodePtr<'_> {
+        NodePtr::new(&self.guard[self.i], &self.guard.t_props_log)
     }
 }
 
@@ -846,16 +853,8 @@ impl<'a, NS: DerefMut<Target = NodeSlot>> AsMut<NodeStore> for EntryMut<'a, NS> 
 }
 
 impl<'a, NS: DerefMut<Target = NodeSlot> + 'a> EntryMut<'a, &'a mut NS> {
-    pub fn get(&self) -> &NodeStore {
-        &self.guard[self.i]
-    }
-
     pub fn node_store_mut(&mut self) -> &mut NodeStore {
         &mut self.guard[self.i]
-    }
-
-    pub fn t_props_log(&self) -> &TColumns {
-        &self.guard.t_props_log
     }
 
     pub fn t_props_log_mut(&mut self) -> &mut TColumns {
@@ -1009,12 +1008,14 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(entry.get().vid, VID(i));
+            assert_eq!(entry.get_entry().node().vid, VID(i));
         }
 
         let items_iter = storage.read_lock().into_iter();
 
-        let actual = items_iter.map(|s| s.get().vid.index()).collect::<Vec<_>>();
+        let actual = items_iter
+            .map(|s| s.get_entry().node().vid.index())
+            .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![0, 2, 4, 1, 3]);
     }
@@ -1053,7 +1054,7 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(*entry.get().global_id.to_str(), i.to_string());
+            assert_eq!(*entry.get_entry().node().global_id.to_str(), i.to_string());
         }
     }
 
