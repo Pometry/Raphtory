@@ -5,7 +5,7 @@ use crate::core::{
         properties::{props::Props, tcell::TCell},
         LayerIds, EID, GID, VID,
     },
-    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, NodeEntry},
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcNodeEntry, NodeEntry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -302,7 +302,7 @@ impl NodeStore {
     }
 }
 
-impl ArcEntry {
+impl ArcNodeEntry {
     pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
         GenLockedIter::from(self, |node| {
             node.get_entry().node().edge_tuples(layers, dir)
@@ -363,7 +363,7 @@ impl<'a> NodeEntry<'a> {
 }
 
 pub struct LockedLayers {
-    entry: ArcEntry,
+    entry: ArcNodeEntry,
     pos: usize,
     len: usize,
 }
@@ -390,7 +390,7 @@ impl Iterator for LockedLayers {
 }
 
 pub struct LockedLayer {
-    entry: ArcEntry,
+    entry: ArcNodeEntry,
     offset: usize,
 }
 

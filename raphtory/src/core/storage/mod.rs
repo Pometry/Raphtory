@@ -441,9 +441,9 @@ impl ReadLockedStorage {
     }
 
     #[inline]
-    pub(crate) fn arc_entry(&self, index: VID) -> ArcEntry {
+    pub(crate) fn arc_entry(&self, index: VID) -> ArcNodeEntry {
         let (bucket, offset) = self.resolve(index);
-        ArcEntry {
+        ArcNodeEntry {
             guard: self.locks[bucket].clone(),
             i: offset,
         }
@@ -465,9 +465,9 @@ impl ReadLockedStorage {
     }
 
     #[cfg(test)]
-    pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry> {
+    pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcNodeEntry> {
         self.locks.into_iter().flat_map(|data| {
-            (0..data.as_ref().len()).map(move |offset| ArcEntry {
+            (0..data.as_ref().len()).map(move |offset| ArcNodeEntry {
                 guard: data.clone(),
                 i: offset,
             })
@@ -550,12 +550,12 @@ impl NodeStorage {
         NodeEntry { offset, guard }
     }
 
-    pub fn entry_arc(&self, index: VID) -> ArcEntry {
+    pub fn entry_arc(&self, index: VID) -> ArcNodeEntry {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = &self.data[bucket].data;
         let arc_guard = RwLock::read_arc_recursive(guard);
-        ArcEntry {
+        ArcNodeEntry {
             i: offset,
             guard: Arc::new(arc_guard),
         }
@@ -765,19 +765,19 @@ impl NodeEntry<'_> {
 }
 
 #[derive(Debug)]
-pub struct ArcEntry {
+pub struct ArcNodeEntry {
     guard: Arc<ArcRwLockReadGuard<NodeSlot>>,
     i: usize,
 }
 
-impl ArcEntry {
+impl ArcNodeEntry {
     #[inline]
     pub fn get_entry(&self) -> NodePtr<'_> {
         NodePtr::new(&self.guard[self.i], &self.guard.t_props_log)
     }
 }
 
-impl Clone for ArcEntry {
+impl Clone for ArcNodeEntry {
     fn clone(&self) -> Self {
         Self {
             guard: self.guard.clone(),

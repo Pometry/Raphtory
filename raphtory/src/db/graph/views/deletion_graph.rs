@@ -902,14 +902,16 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_window_node_props() {
-        let g = PersistentGraph::new();
+        let g = Graph::new();
         g.add_node(0, 1, [("test", "test")], None).unwrap();
 
         test_storage!(&g, |g| {
+            let g = g.persistent_graph();
+
             let wg = g.window(3, 5);
             let mg = wg.materialize().unwrap();
             assert_graph_equal(&wg, &mg);
-        })
+        });
     }
 
     #[test]

@@ -344,9 +344,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         if self.window_is_empty() {
             return Box::new(std::iter::empty());
         }
-        let range = w
-            .map(|r| r.start..r.end)
-            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        let range = w.unwrap_or_else(|| self.start_bound()..self.end_bound());
         self.graph.node_edge_history(v, Some(range))
     }
 
@@ -359,9 +357,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
             return Box::new(std::iter::empty());
         }
 
-        let range = w
-            .map(|r| r.start..r.end)
-            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        let range = w.unwrap_or_else(|| self.start_bound()..self.end_bound());
         self.graph.node_property_history(v, Some(range))
     }
 
@@ -373,9 +369,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         if self.window_is_empty() {
             return Box::new(std::iter::empty());
         }
-        let range = w
-            .map(|r| r.start..r.end)
-            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        let range = w.unwrap_or_else(|| self.start_bound()..self.end_bound());
         self.graph.node_history_rows(v, Some(range))
     }
 

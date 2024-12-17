@@ -339,7 +339,7 @@ mod test {
     #[test]
     fn test_filter_is_none() {
         proptest!(|(
-            edges in build_edge_list(2, 10), nodes in build_node_props(50)
+            edges in build_edge_list(100, 100), nodes in build_node_props(100)
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
