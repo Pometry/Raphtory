@@ -1,7 +1,7 @@
 use crate::{
     core::Prop,
     db::api::properties::{
-        constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
+        constant_props::ConstantProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -69,8 +69,8 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Get a view of the constant properties (meta-data) only.
-    pub fn constant<'a>(&self) -> ConstProperties<'a, P> {
-        ConstProperties::new(self.props.clone())
+    pub fn constant<'a>(&self) -> ConstantProperties<'a, P> {
+        ConstantProperties::new(self.props.clone())
     }
 
     /// Collect properties into vector
