@@ -13,6 +13,7 @@ use std::{
 };
 
 pub use raphtory_api::core::storage::timeindex::*;
+use raphtory_api::iter::BoxedLIter;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
@@ -71,7 +72,7 @@ impl<T: AsTime> TimeIndex<T> {
         }
     }
 
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
+    pub(crate) fn iter(&self) -> BoxedLIter<T> {
         match self {
             TimeIndex::Empty => Box::new(iter::empty()),
             TimeIndex::One(t) => Box::new(iter::once(*t)),
@@ -82,7 +83,7 @@ impl<T: AsTime> TimeIndex<T> {
     pub(crate) fn range_iter(
         &self,
         w: Range<T>,
-    ) -> Box<dyn DoubleEndedIterator<Item = T> + Send + '_> {
+    ) -> Box<dyn DoubleEndedIterator<Item = T> + Send + Sync + '_> {
         match self {
             TimeIndex::Empty => Box::new(iter::empty()),
             TimeIndex::One(t) => {
@@ -98,10 +99,7 @@ impl<T: AsTime> TimeIndex<T> {
 
     // = note: see issue #65991 <https://github.com/rust-lang/rust/issues/65991> for more information
     // = note: required when coercing `Box<dyn DoubleEndedIterator<Item = &i64> + Send>` into `Box<dyn Iterator<Item = &i64> + Send>`
-    pub(crate) fn range_iter_forward(
-        &self,
-        w: Range<T>,
-    ) -> Box<dyn Iterator<Item = T> + Send + '_> {
+    pub(crate) fn range_iter_forward(&self, w: Range<T>) -> BoxedLIter<T> {
         Box::new(self.range_iter(w))
     }
 
@@ -182,7 +180,7 @@ impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
         }
     }
 
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync {
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -272,7 +270,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
             .max()
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
+    fn iter(&self) -> BoxedLIter<T> {
         Box::new(self.view.as_ref().iter().map(|t| t.iter()).kmerge().dedup())
     }
 
@@ -344,7 +342,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+    fn iter(&self) -> BoxedLIter<Self::IndexType> {
         match self {
             TimeIndex::Empty => Box::new(iter::empty()),
             TimeIndex::One(t) => Box::new(iter::once(*t)),
@@ -423,7 +421,7 @@ where
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
+    fn iter(&self) -> BoxedLIter<T> {
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -481,7 +479,7 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
         self.timeindex.iter().flat_map(|t| t.last()).max()
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+    fn iter(&self) -> BoxedLIter<Self::IndexType> {
         Box::new(self.timeindex.iter().map(|t| t.iter()).kmerge())
     }
 

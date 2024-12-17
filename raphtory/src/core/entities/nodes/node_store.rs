@@ -14,7 +14,7 @@ use crate::core::{
     Direction, Prop,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::GidRef;
+use raphtory_api::{core::entities::GidRef, iter::BoxedLIter};
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Deref};
 
@@ -151,9 +151,9 @@ impl NodeStore {
         &'a self,
         layers: &LayerIds,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+    ) -> BoxedLIter<'a, EdgeRef> {
         let self_id = self.vid;
-        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+        let iter: BoxedLIter<'a, EdgeRef> = match d {
             Direction::OUT => self.merge_layers(layers, Direction::OUT, self_id),
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
@@ -167,12 +167,7 @@ impl NodeStore {
         iter
     }
 
-    fn merge_layers(
-        &self,
-        layers: &LayerIds,
-        d: Direction,
-        self_id: VID,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+    fn merge_layers(&self, layers: &LayerIds, d: Direction, self_id: VID) -> BoxedLIter<EdgeRef> {
         match layers {
             LayerIds::All => Box::new(
                 self.layers
@@ -204,8 +199,8 @@ impl NodeStore {
         layer: &'a Adj,
         d: Direction,
         self_id: VID,
-    ) -> impl Iterator<Item = EdgeRef> + Send + 'a {
-        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a {
+        let iter: BoxedLIter<'a, EdgeRef> = match d {
             Direction::IN => Box::new(
                 layer
                     .iter(d)
@@ -251,11 +246,7 @@ impl NodeStore {
 
     // every neighbour apears once in the iterator
     // this is important because it calculates degree
-    pub(crate) fn neighbours<'a>(
-        &'a self,
-        layers: &LayerIds,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
+    pub(crate) fn neighbours<'a>(&'a self, layers: &LayerIds, d: Direction) -> BoxedLIter<'a, VID> {
         match layers {
             LayerIds::All => {
                 let iter = self
@@ -287,12 +278,8 @@ impl NodeStore {
         }
     }
 
-    fn neighbours_from_adj<'a>(
-        &'a self,
-        layer: &'a Adj,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
-        let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
+    fn neighbours_from_adj<'a>(&'a self, layer: &'a Adj, d: Direction) -> BoxedLIter<'a, VID> {
+        let iter: BoxedLIter<'a, VID> = match d {
             Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
             Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
             Direction::BOTH => Box::new(

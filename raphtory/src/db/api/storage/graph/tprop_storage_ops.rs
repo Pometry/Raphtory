@@ -48,24 +48,24 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
     }
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)>;
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a;
-    fn iter_t(self) -> impl Iterator<Item = (i64, Prop)> + Send + 'a {
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+    fn iter_t(self) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter().map(|(t, v)| (t.t(), v))
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a;
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
 
-    fn iter_window_t(self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + Send + 'a {
+    fn iter_window_t(self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(TimeIndexEntry::range(r))
             .map(|(t, v)| (t.t(), v))
     }
     fn iter_window_te(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (i64, Prop)> + Send + 'a {
+    ) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(r).map(|(t, v)| (t.t(), v))
     }
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop>;

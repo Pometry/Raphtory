@@ -1,7 +1,7 @@
-use std::{fmt, ops::Range};
-
+use crate::iter::BoxedLIter;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::{fmt, ops::Range};
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub struct TimeIndexEntry(pub i64, pub usize);
@@ -33,7 +33,7 @@ pub trait TimeIndexIntoOps: Sized {
         self.into_range(Self::IndexType::range(w))
     }
 
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send;
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync;
 
     fn into_iter_t(self) -> impl Iterator<Item = i64> + Send {
         self.into_iter().map(|time| time.t())
@@ -70,9 +70,9 @@ pub trait TimeIndexOps: Send + Sync {
 
     fn last(&self) -> Option<Self::IndexType>;
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_>;
+    fn iter(&self) -> BoxedLIter<Self::IndexType>;
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
+    fn iter_t(&self) -> BoxedLIter<i64> {
         Box::new(self.iter().map(|time| time.t()))
     }
 

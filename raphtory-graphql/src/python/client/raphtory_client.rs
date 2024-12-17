@@ -8,6 +8,7 @@ use crate::{
 use pyo3::{
     exceptions::{PyException, PyValueError},
     prelude::*,
+    types::PyDict,
 };
 use raphtory::{
     db::api::view::MaterializedGraph,
@@ -126,16 +127,16 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    The `data` field from the graphQL response.
     #[pyo3(signature = (query, variables = None))]
-    pub(crate) fn query(
+    pub(crate) fn query<'py>(
         &self,
-        py: Python,
+        py: Python<'py>,
         query: String,
-        variables: Option<HashMap<String, PyObject>>,
-    ) -> PyResult<HashMap<String, PyObject>> {
+        variables: Option<HashMap<String, Bound<'py, PyAny>>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
         let variables = variables.unwrap_or_else(|| HashMap::new());
         let mut json_variables = HashMap::new();
         for (key, value) in variables {
-            let json_value = translate_from_python(py, value)?;
+            let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
         }
 

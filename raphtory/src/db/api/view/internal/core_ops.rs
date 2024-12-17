@@ -381,7 +381,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
+    fn iter(&self) -> BoxedLIter<i64> {
         match self {
             NodeAdditions::Mem(index) => index.iter(),
             NodeAdditions::Locked(index) => Box::new(index.iter()),

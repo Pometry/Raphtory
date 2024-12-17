@@ -18,12 +18,16 @@ pub struct PyMatching {
     inner: Matching<DynamicGraph>,
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for Matching<G> {
-    fn into_py(self, py: Python) -> PyObject {
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Matching<G> {
+    type Target = PyMatching;
+    type Output = Bound<'py, PyMatching>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyMatching {
             inner: self.into_dyn(),
         }
-        .into_py(py)
+        .into_pyobject(py)
     }
 }
 

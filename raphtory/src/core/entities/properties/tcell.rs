@@ -2,6 +2,7 @@ use crate::core::storage::{
     sorted_vec_map::SVM,
     timeindex::{AsTime, TimeIndexEntry},
 };
+use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
@@ -67,7 +68,7 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
         }
     }
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
+    pub fn iter(&self) -> BoxedLIter<(&TimeIndexEntry, &A)> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
@@ -76,7 +77,7 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
         }
     }
 
-    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
+    pub fn iter_t(&self) -> BoxedLIter<(i64, &A)> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => Box::new(std::iter::once((t.t(), value))),
@@ -85,10 +86,7 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
         }
     }
 
-    pub fn iter_window(
-        &self,
-        r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
+    pub fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLIter<(&TimeIndexEntry, &A)> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {

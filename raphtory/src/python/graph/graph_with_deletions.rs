@@ -55,17 +55,19 @@ impl From<PersistentGraph> for PyPersistentGraph {
     }
 }
 
-impl IntoPy<PyObject> for PersistentGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(
+impl<'py> IntoPyObject<'py> for PersistentGraph {
+    type Target = PyPersistentGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(
             py,
             (
                 PyPersistentGraph::from(self.clone()),
                 PyGraphView::from(self),
             ),
         )
-        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-        .into_py(py)
     }
 }
 

@@ -20,6 +20,7 @@ use pyo3::{
     exceptions::{PyAttributeError, PyException},
     prelude::*,
     types::{IntoPyDict, PyFunction, PyList},
+    IntoPyObjectExt,
 };
 use raphtory::{
     python::types::wrappers::document::PyDocument,
@@ -31,9 +32,13 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
 #[pyclass(name = "GraphServer")]
 pub struct PyGraphServer(pub Option<GraphServer>);
 
-impl IntoPy<PyObject> for GraphServer {
-    fn into_py(self, py: Python) -> PyObject {
-        Py::new(py, PyGraphServer(Some(self))).unwrap().into_py(py)
+impl<'py> IntoPyObject<'py> for GraphServer {
+    type Target = PyGraphServer;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphServer::new(self).into_pyobject(py)
     }
 }
 
@@ -104,6 +109,7 @@ impl PyGraphServer {
             })
             .collect::<PyResult<Vec<InputValue>>>()?;
 
+        // FIXME: this should return a result!
         let register_function = |name: &str, registry: Registry, parent: Object| {
             let registry = registry.register::<GqlDocument>();
             let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
@@ -115,9 +121,9 @@ impl PyGraphServer {
                         .iter()
                         .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
                         .collect();
-                    let py_kw_args = kw_args.into_py_dict_bound(py);
+                    let py_kw_args = kw_args.into_py_dict(py).unwrap();
                     let result = function
-                        .call_bound(py, (entry_point,), Some(&py_kw_args))
+                        .call(py, (entry_point,), Some(&py_kw_args))
                         .unwrap();
                     let list = result.downcast_bound::<PyList>(py).unwrap();
                     let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
@@ -293,7 +299,9 @@ impl PyGraphServer {
         function: Py<PyFunction>,
     ) -> PyResult<GraphServer> {
         let adapter = |entry_point: &QueryPlugin, py: Python| {
-            PyGlobalPlugins(entry_point.clone()).into_py(py)
+            PyGlobalPlugins(entry_point.clone())
+                .into_py_any(py)
+                .unwrap()
         };
         PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }

@@ -1,16 +1,35 @@
 use crate::{
     core::{DocumentInput, Lifespan},
+    python::types::repr::{Repr, StructReprBuilder},
     vectors::Embedding,
 };
 use itertools::Itertools;
-use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyTuple};
+use pyo3::{
+    exceptions::PyAttributeError,
+    prelude::*,
+    types::{PyNone, PyTuple},
+};
 
-impl IntoPy<PyObject> for Lifespan {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for Lifespan {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Lifespan::Inherited => PyNone::get(py).to_owned().into_any(),
+            Lifespan::Event { time } => time.into_pyobject(py)?.into_any(),
+            Lifespan::Interval { start, end } => (start, end).into_pyobject(py)?.into_any(),
+        })
+    }
+}
+
+impl Repr for Lifespan {
+    fn repr(&self) -> String {
         match self {
-            Lifespan::Inherited => py.None(),
-            Lifespan::Event { time } => time.into_py(py),
-            Lifespan::Interval { start, end } => (start, end).into_py(py),
+            Lifespan::Interval { start, end } => (start, end).repr(),
+            Lifespan::Event { time } => time.repr(),
+            Lifespan::Inherited => "None".to_string(),
         }
     }
 }
@@ -42,6 +61,19 @@ impl Clone for PyDocument {
 #[derive(Clone)]
 pub struct PyEmbedding(pub Embedding);
 
+impl Repr for PyEmbedding {
+    fn repr(&self) -> String {
+        format!("Embedding({})", self.0.repr())
+    }
+}
+
+#[pymethods]
+impl PyEmbedding {
+    fn __repr__(&self) -> String {
+        self.repr()
+    }
+}
+
 impl PyEmbedding {
     pub fn embedding(&self) -> Embedding {
         self.0.clone()
@@ -56,6 +88,17 @@ impl From<DocumentInput> for PyDocument {
             embedding: None,
             life: value.life,
         }
+    }
+}
+
+impl Repr for PyDocument {
+    fn repr(&self) -> String {
+        StructReprBuilder::new("Document")
+            .add_field("content", &self.content)
+            .add_field("entity", &self.entity)
+            .add_field("embedding", &self.embedding)
+            .add_field("life", &self.life)
+            .finish()
     }
 }
 
@@ -94,35 +137,7 @@ impl PyDocument {
         })
     }
 
-    fn __repr__(&self, py: Python) -> String {
-        let entity_repr = match &self.entity {
-            None => "None".to_owned(),
-            Some(entity) => match entity.call_method0(py, "__repr__") {
-                Ok(repr) => repr.extract::<String>(py).unwrap_or("None".to_owned()),
-                Err(_) => "None".to_owned(),
-            },
-        };
-
-        let py_content = self.content.clone().into_py(py);
-        let content_repr = match py_content.call_method0(py, "__repr__") {
-            Ok(repr) => repr.extract::<String>(py).unwrap_or("''".to_owned()),
-            Err(_) => "''".to_owned(),
-        };
-
-        let py_embedding = self.content.clone().into_py(py);
-        let embedding_repr = match py_embedding.call_method0(py, "__repr__") {
-            Ok(repr) => repr.extract::<String>(py).unwrap_or("''".to_owned()),
-            Err(_) => "''".to_owned(),
-        };
-
-        let life_repr = match self.life {
-            Lifespan::Inherited => "None".to_owned(),
-            Lifespan::Event { time } => time.to_string(),
-            Lifespan::Interval { start, end } => format!("({start}, {end})"),
-        };
-
-        format!(
-            "Document(content={content_repr}, entity={entity_repr}, embedding={embedding_repr} life={life_repr})"
-        )
+    fn __repr__(&self) -> String {
+        self.repr()
     }
 }

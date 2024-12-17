@@ -1,4 +1,5 @@
 use crate::core::utils::errors::GraphError;
+use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter};
 
@@ -37,7 +38,7 @@ where
         LazyVec::LazyVec1(id, value)
     }
 
-    pub(crate) fn filled_ids(&self) -> Box<dyn Iterator<Item = usize> + Send + '_> {
+    pub(crate) fn filled_ids(&self) -> BoxedLIter<usize> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(id, _) => Box::new(iter::once(*id)),

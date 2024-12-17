@@ -1,15 +1,24 @@
 use crate::core::storage::arc_str::ArcStr;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyString};
+use std::convert::Infallible;
 
-impl IntoPy<PyObject> for ArcStr {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
+impl<'py> IntoPyObject<'py> for ArcStr {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.0.into_pyobject(py)
     }
 }
 
-impl ToPyObject for ArcStr {
-    fn to_object(&self, py: Python) -> PyObject {
-        self.0.to_string().to_object(py)
+impl<'py, 'a> IntoPyObject<'py> for &'a ArcStr {
+    type Target = PyString;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.0.into_pyobject(py)
     }
 }
 

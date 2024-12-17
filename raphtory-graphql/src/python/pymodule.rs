@@ -10,7 +10,7 @@ use crate::python::{
 use pyo3::prelude::*;
 
 pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
-    let graphql_module = PyModule::new_bound(py, "graphql")?;
+    let graphql_module = PyModule::new(py, "graphql")?;
     graphql_module.add_class::<PyGlobalPlugins>()?;
     graphql_module.add_class::<PyGraphServer>()?;
     graphql_module.add_class::<PyRunningGraphServer>()?;

@@ -1,4 +1,5 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
+use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
@@ -85,7 +86,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         }
     }
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = (K, V)> + Send + '_> {
+    pub fn iter(&self) -> BoxedLIter<(K, V)> {
         match self {
             AdjSet::Empty => Box::new(std::iter::empty()),
             AdjSet::One(v, e) => Box::new(std::iter::once((*v, *e))),

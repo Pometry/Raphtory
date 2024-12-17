@@ -207,11 +207,11 @@ impl TemporalGraph {
         &self,
         e: EdgeRef,
         layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
+    ) -> BoxedLIter<usize> {
         let entry = self.storage.edge_entry(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, |entry| {
-            let iter: Box<dyn Iterator<Item = usize> + Send> = match layer_ids.as_ref() {
+            let iter: BoxedLIter<usize> = match layer_ids.as_ref() {
                 LayerIds::None => Box::new(iter::empty()),
                 LayerIds::All => entry.temp_prop_ids(None),
                 LayerIds::One(id) => entry.temp_prop_ids(Some(*id)),

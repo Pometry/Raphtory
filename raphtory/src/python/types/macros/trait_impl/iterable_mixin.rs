@@ -3,7 +3,7 @@
 /// # Arguments
 /// * obj: The struct the methods should be implemented for
 /// * field: The name of the struct field holding the rust struct implementing rust methods `iter`, `len`, `is_empty`, `collect`
-/// * collect_return_type: The return type of the `collect` method (needs to implement `IntoPy<PyObject>`)
+/// * collect_return_type: The return type of the `collect` method (needs to implement `IntoPyObject`)
 /// * collect_py_return_type: The python return type (as a string) used for documentation
 /// * element_name: The python element name (as a string) used for documentation
 macro_rules! impl_iterable_mixin {

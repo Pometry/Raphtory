@@ -46,18 +46,26 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
-impl IntoPy<PyObject> for MaterializedGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for MaterializedGraph {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            MaterializedGraph::EventGraph(g) => g.into_py(py),
-            MaterializedGraph::PersistentGraph(g) => g.into_py(py),
+            MaterializedGraph::EventGraph(g) => g.into_pyobject(py).map(|b| b.into_any()),
+            MaterializedGraph::PersistentGraph(g) => g.into_pyobject(py).map(|b| b.into_any()),
         }
     }
 }
 
-impl IntoPy<PyObject> for DynamicGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for DynamicGraph {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
@@ -89,53 +97,85 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for WindowedGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for LayeredGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeSubgraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for CachedView<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for CachedView<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgraph<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for TypeFilteredSubgraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgePropertyFilteredGraph<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for EdgePropertyFilteredGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodePropertyFilteredGraph<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropertyFilteredGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
     for ExplodedEdgePropertyFilteredGraph<G>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraphView::from(self).into_py(py)
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
     }
 }
 

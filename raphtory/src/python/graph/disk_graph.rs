@@ -49,9 +49,13 @@ impl From<PyDiskGraph> for DiskGraphStorage {
     }
 }
 
-impl IntoPy<PyObject> for DiskGraphStorage {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyDiskGraph::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for DiskGraphStorage {
+    type Target = PyDiskGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyDiskGraph::from(self).into_pyobject(py)
     }
 }
 
@@ -111,7 +115,7 @@ impl<'a> FromPyObject<'a> for PyParquetLayerCols {
             exclude_edge_props: match dict.get_item("exclude_edge_props")? {
                 None => Ok(vec![]),
                 Some(item) => item
-                    .iter()?
+                    .try_iter()?
                     .map(|v| v.and_then(|v| v.extract::<PyBackedStr>()))
                     .collect::<PyResult<Vec<_>>>(),
             }?,

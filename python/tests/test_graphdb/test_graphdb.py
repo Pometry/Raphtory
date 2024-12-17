@@ -203,6 +203,19 @@ def test_windowed_graph_get_node():
     check(g)
 
 
+def test_edge_sorting():
+    g = create_graph()
+
+    @with_disk_graph
+    def check(g):
+        assert sorted(g.edges, key=lambda e: e.id) == sorted(g.edges)
+        assert sorted(g.edges.explode(), key=lambda e: (*e.id, e.time)) == sorted(
+            g.edges.explode()
+        )
+
+    check(g)
+
+
 def test_windowed_graph_degree():
     g = create_graph()
 
