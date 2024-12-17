@@ -65,6 +65,19 @@ impl<'a> DiskNode<'a> {
             })
     }
 
+    pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
+        self.graph
+            .node_properties()
+            .temporal_props()
+            .into_iter()
+            .enumerate()
+            .filter_map(|(layer, props)| {
+                let ts = props.timestamps::<TimeIndexEntry>(self.vid);
+                let idx = ts.last_before(t)?;
+            })
+            .collect()
+    }
+
     pub fn constant_node_prop_ids(self) -> BoxedLIter<'a, usize> {
         match &self.graph.node_properties().const_props {
             None => Box::new(std::iter::empty()),
