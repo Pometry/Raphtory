@@ -1,7 +1,7 @@
 use crate::{
     core::Prop,
     db::api::properties::{
-        dyn_props::DynConstProperties, internal::PropertiesOps, ConstProperties,
+        dyn_props::DynConstProperties, internal::PropertiesOps, ConstantProperties,
     },
     python::{
         graph::properties::{
@@ -21,33 +21,33 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, sync::Arc};
 
 impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
-    for ConstProperties<'static, P>
+    for ConstantProperties<'static, P>
 {
-    type Target = PyConstProperties;
+    type Target = PyConstantProperties;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyConstProperties::from(self).into_pyobject(py)
+        PyConstantProperties::from(self).into_pyobject(py)
     }
 }
 
-impl<'a, P: PropertiesOps> Repr for ConstProperties<'a, P> {
+impl<'a, P: PropertiesOps> Repr for ConstantProperties<'a, P> {
     fn repr(&self) -> String {
         format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 
 /// A view of constant properties of an entity
-#[pyclass(name = "ConstProperties", module = "raphtory", frozen)]
-pub struct PyConstProperties {
+#[pyclass(name = "ConstantProperties", module = "raphtory", frozen)]
+pub struct PyConstantProperties {
     props: DynConstProperties,
 }
 
-py_eq!(PyConstProperties, PyPropsComp);
+py_eq!(PyConstantProperties, PyPropsComp);
 
 #[pymethods]
-impl PyConstProperties {
+impl PyConstantProperties {
     /// keys() -> list[str]
     ///
     /// lists the available property keys
@@ -125,23 +125,23 @@ impl PyConstProperties {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<ConstProperties<'static, P>>
-    for PyConstProperties
+impl<P: PropertiesOps + Send + Sync + 'static> From<ConstantProperties<'static, P>>
+    for PyConstantProperties
 {
-    fn from(value: ConstProperties<P>) -> Self {
-        PyConstProperties {
-            props: ConstProperties::new(Arc::new(value.props)),
+    fn from(value: ConstantProperties<P>) -> Self {
+        PyConstantProperties {
+            props: ConstantProperties::new(Arc::new(value.props)),
         }
     }
 }
 
-impl Repr for PyConstProperties {
+impl Repr for PyConstantProperties {
     fn repr(&self) -> String {
         self.props.repr()
     }
 }
 
-py_iterable_base!(PyConstPropsList, DynConstProperties, PyConstProperties);
+py_iterable_base!(PyConstPropsList, DynConstProperties, PyConstantProperties);
 py_eq!(PyConstPropsList, PyPropsListCmp);
 
 #[pymethods]
@@ -196,7 +196,11 @@ impl PyConstPropsList {
     }
 }
 
-py_nested_iterable_base!(PyConstPropsListList, DynConstProperties, PyConstProperties);
+py_nested_iterable_base!(
+    PyConstPropsListList,
+    DynConstProperties,
+    PyConstantProperties
+);
 py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
 
 #[pymethods]

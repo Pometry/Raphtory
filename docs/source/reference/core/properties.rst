@@ -9,7 +9,7 @@ Properties
    :private-members:
    :inherited-members:
 
-.. autoclass:: raphtory.ConstProperties
+.. autoclass:: raphtory.ConstantProperties
    :autosummary:
    :members:
    :undoc-members:
