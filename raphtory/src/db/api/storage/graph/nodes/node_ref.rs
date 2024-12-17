@@ -49,6 +49,14 @@ impl<'a> NodeStorageRef<'a> {
             NodeStorageRef::Disk(disk_node) => disk_node.into_rows_window(window).into_dyn_boxed(),
         }
     }
+
+    pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
+        match self {
+            NodeStorageRef::Mem(node_entry) => node_entry.last_before_row(t),
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(disk_node) => disk_node.last_before_row(t),
+        }
+    }
 }
 
 impl<'a> From<NodePtr<'a>> for NodeStorageRef<'a> {

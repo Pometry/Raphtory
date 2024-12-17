@@ -66,6 +66,17 @@ impl<'a> NodePtr<'a> {
             })
     }
 
+    pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
+        self.t_props_log
+            .iter()
+            .enumerate()
+            .filter_map(|(prop_id, _)| {
+                let t_prop = self.t_prop(prop_id);
+                t_prop.last_before(t).map(|(_, v)| (prop_id, v))
+            })
+            .collect()
+    }
+
     pub fn into_rows_window(
         self,
         w: Range<TimeIndexEntry>,

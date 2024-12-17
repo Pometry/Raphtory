@@ -51,13 +51,22 @@ impl<'a> TPropCell<'a> {
             log,
         }
     }
+
+    fn iter_window_inner(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter_window(r.clone())
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
 }
 
 impl<'a> TPropOps<'a> for TPropCell<'a> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        self.t_cell?
-            .last_before(t)
-            .and_then(|(t, &id)| self.log?.get(id?).map(|prop| (t, prop))) // FIXME: is this correct?
+        self.iter_window_inner(TimeIndexEntry::MIN..t).next_back()
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
@@ -72,11 +81,7 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.t_cell.into_iter().flat_map(move |t_cell| {
-            t_cell
-                .iter_window(r.clone())
-                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
-        })
+        self.iter_window_inner(r)
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
