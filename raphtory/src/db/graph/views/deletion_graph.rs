@@ -890,6 +890,16 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_materialize_window_node_props() {
+        let g = PersistentGraph::new();
+        g.add_node(0, 1, [("test", "test")], None).unwrap();
+
+        let wg = g.window(3, 5);
+        let mg = wg.materialize().unwrap();
+        assert_graph_equal(&wg, &mg);
+    }
+
+    #[test]
     fn test_exploded_latest_time() {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
