@@ -3,7 +3,7 @@ use crate::core::{
     storage::{
         self,
         raw_edges::{EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge},
-        Entry, EntryMut, NodeSlot, NodeStorage, PairEntryMut, UninitialisedEntry,
+        EntryMut, NodeEntry, NodeSlot, NodeStorage, PairEntryMut, UninitialisedEntry,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -26,7 +26,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<VID> {
+    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage {
         self.nodes.read_lock()
     }
 
@@ -65,7 +65,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node(&self, id: VID) -> Entry<'_> {
+    pub(crate) fn get_node(&self, id: VID) -> NodeEntry<'_> {
         self.nodes.entry(id)
     }
 

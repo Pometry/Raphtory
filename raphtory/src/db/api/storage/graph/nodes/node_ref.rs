@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::node_entry::NodeEntry,
+        storage::node_entry::NodePtr,
         Direction,
     },
     db::api::{
@@ -25,7 +25,7 @@ use super::row::Row;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
-    Mem(NodeEntry<'a>),
+    Mem(NodePtr<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
@@ -51,8 +51,8 @@ impl<'a> NodeStorageRef<'a> {
     }
 }
 
-impl<'a> From<NodeEntry<'a>> for NodeStorageRef<'a> {
-    fn from(value: NodeEntry<'a>) -> Self {
+impl<'a> From<NodePtr<'a>> for NodeStorageRef<'a> {
+    fn from(value: NodePtr<'a>) -> Self {
         NodeStorageRef::Mem(value)
     }
 }

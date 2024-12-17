@@ -26,17 +26,17 @@ use crate::{
 use super::TColumns;
 
 #[derive(Debug, Copy, Clone)]
-pub struct NodeEntry<'a> {
+pub struct NodePtr<'a> {
     node: &'a NodeStore,
     t_props_log: &'a TColumns,
 }
 
-impl<'a> NodeEntry<'a> {
+impl<'a> NodePtr<'a> {
     pub fn new(node: &'a NodeStore, t_props_log: &'a TColumns) -> Self {
         Self { node, t_props_log }
     }
 
-    pub fn node(&self) -> &'a NodeStore {
+    pub fn node(self) -> &'a NodeStore {
         self.node
     }
 
@@ -78,7 +78,7 @@ impl<'a> NodeEntry<'a> {
     }
 }
 
-impl<'a> NodeStorageOps<'a> for NodeEntry<'a> {
+impl<'a> NodeStorageOps<'a> for NodePtr<'a> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.node.degree(layers, dir)
     }

@@ -5,7 +5,7 @@ use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, VID},
-        storage::{node_entry::NodeEntry, Entry},
+        storage::{node_entry::NodePtr, NodeEntry},
         utils::iter::GenLockedIter,
         Direction,
     },
@@ -21,20 +21,20 @@ use crate::{
 };
 
 pub enum NodeStorageEntry<'a> {
-    Mem(NodeEntry<'a>),
-    Unlocked(Entry<'a>),
+    Mem(NodePtr<'a>),
+    Unlocked(NodeEntry<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
 
-impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
-    fn from(value: NodeEntry<'a>) -> Self {
+impl<'a> From<NodePtr<'a>> for NodeStorageEntry<'a> {
+    fn from(value: NodePtr<'a>) -> Self {
         NodeStorageEntry::Mem(value)
     }
 }
 
-impl<'a> From<Entry<'a>> for NodeStorageEntry<'a> {
-    fn from(value: Entry<'a>) -> Self {
+impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
+    fn from(value: NodeEntry<'a>) -> Self {
         NodeStorageEntry::Unlocked(value)
     }
 }
@@ -88,7 +88,7 @@ impl<'b> NodeStorageEntry<'b> {
         match self {
             NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
             NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.get().const_prop_ids())
+                Box::new(e.get_entry().node().const_prop_ids())
             })),
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),

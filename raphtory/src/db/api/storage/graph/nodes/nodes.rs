@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 
 pub enum NodesStorage {
-    Mem(Arc<ReadLockedStorage<VID>>),
+    Mem(Arc<ReadLockedStorage>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesOwned),
 }

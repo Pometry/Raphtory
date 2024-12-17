@@ -12,8 +12,8 @@ use either::Either;
 
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a> {
-    Mem(&'a ReadLockedStorage<VID>),
-    Unlocked(ReadLockedStorage<VID>),
+    Mem(&'a ReadLockedStorage),
+    Unlocked(ReadLockedStorage),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }

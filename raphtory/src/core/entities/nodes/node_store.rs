@@ -5,7 +5,7 @@ use crate::core::{
         properties::{props::Props, tcell::TCell},
         LayerIds, EID, GID, VID,
     },
-    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, Entry},
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, NodeEntry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -304,15 +304,19 @@ impl NodeStore {
 
 impl ArcEntry {
     pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().edge_tuples(layers, dir)
+        })
     }
 
     pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |node| node.get().neighbours(layers, dir).into())
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().neighbours(layers, dir).into()
+        })
     }
 
     pub fn into_layers(self) -> LockedLayers {
-        let len = self.get().layers.len();
+        let len = self.get_entry().node().layers.len();
         LockedLayers {
             entry: self,
             pos: 0,
@@ -321,20 +325,20 @@ impl ArcEntry {
     }
 
     pub fn into_layer(self, offset: usize) -> Option<LockedLayer> {
-        (offset < self.get().layers.len()).then_some(LockedLayer {
+        (offset < self.get_entry().node().layers.len()).then_some(LockedLayer {
             entry: self,
             offset,
         })
     }
 }
 
-impl<'a> Entry<'a> {
+impl<'a> NodeEntry<'a> {
     pub fn into_neighbours(
         self,
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from(self, |node| node.get().neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.get_entry().node().neighbours(layers, dir))
     }
 
     pub fn into_edges(
@@ -342,7 +346,9 @@ impl<'a> Entry<'a> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().edge_tuples(layers, dir)
+        })
     }
 
     pub fn into_edges_iter(
@@ -350,7 +356,9 @@ impl<'a> Entry<'a> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().edge_tuples(layers, dir)
+        })
     }
 }
 
@@ -391,7 +399,7 @@ impl Deref for LockedLayer {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.entry.get().layers[self.offset]
+        &self.entry.get_entry().node().layers[self.offset]
     }
 }
 
