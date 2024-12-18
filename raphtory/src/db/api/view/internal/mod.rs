@@ -168,6 +168,6 @@ mod test {
                 .filter_map(|v| v.as_u64())
                 .collect_vec(),
             vec![1]
-        )
+        );
     }
 }

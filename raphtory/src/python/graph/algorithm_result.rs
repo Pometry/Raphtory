@@ -246,6 +246,9 @@ macro_rules! py_algorithm_result_partial_ord {
             }
 
             /// Returns a tuple of the median result with its key
+            ///
+            /// Returns:
+            /// Optional[Tuple[Node, Any]]: The node with median value or `None` if there are no nodes.
             fn median(
                 &self,
             ) -> Option<(
@@ -267,8 +270,8 @@ macro_rules! py_algorithm_result_new_ord_hash_eq {
             /// Groups the `AlgorithmResult` by its values.
             ///
             /// Returns:
-            ///     A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
-            ///     containing keys of type `H` that share the same value.
+            ///     dict[Any, list[str]]: A mapping where keys are unique values from the `AlgorithmResult` and values are lists of nodes
+            ///                           that share the same value.
             fn group_by(&self) -> std::collections::HashMap<$rustValue, Vec<String>> {
                 self.0.group_by()
             }

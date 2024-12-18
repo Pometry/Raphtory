@@ -61,13 +61,13 @@ class AlgorithmResult(object):
             dict[str, Any]: a dict with node names and values
         """
 
-    def group_by(self):
+    def group_by(self) -> dict[Any, list[str]]:
         """
         Groups the `AlgorithmResult` by its values.
 
         Returns:
-            A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
-            containing keys of type `H` that share the same value.
+            dict[Any, list[str]]: A mapping where keys are unique values from the `AlgorithmResult` and values are lists of nodes
+                                  that share the same value.
         """
 
     def max(self) -> Tuple[Node, Any]:
@@ -79,7 +79,12 @@ class AlgorithmResult(object):
         """
 
     def median(self):
-        """Returns a tuple of the median result with its key"""
+        """
+        Returns a tuple of the median result with its key
+
+        Returns:
+        Optional[Tuple[Node, Any]]: The node with median value or `None` if there are no nodes.
+        """
 
     def min(self) -> Tuple[Node, Any]:
         """
@@ -185,42 +190,49 @@ class ConstProperties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def as_dict(self):
+    def as_dict(self) -> dict[str, PropValue]:
         """
         as_dict() -> dict[str, Any]
 
         convert the properties view to a python dict
+
+        Returns:
+            dict[str, PropValue]:
         """
 
-    def get(self, key: Any):
+    def get(self, key: str):
         """
-        get(key: str) -> Any | None
+        get property value by key
 
         Arguments:
-            key: the name of the property
+            key (str): the name of the property
 
-        get property value by key (returns `None` if key does not exist)
+        Returns:
+            PropValue | None: the property value or `None` if value for `key` does not exist
         """
 
-    def items(self):
+    def items(self) -> list[Tuple[str, PropValue]]:
         """
-        items() -> list[tuple[str, Any]]
-
         lists the property keys together with the corresponding value
+
+        Returns:
+            list[Tuple[str, PropValue]]: the property keys with corresponding values
         """
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """
-        keys() -> list[str]
-
         lists the available property keys
+
+        Returns:
+            list[str]: the property keys
         """
 
     def values(self):
         """
-        values() -> list[Any]
-
         lists the property values
+
+        Returns:
+            list | Array: the property values
         """
 
 class DiskGraphStorage(object): 
