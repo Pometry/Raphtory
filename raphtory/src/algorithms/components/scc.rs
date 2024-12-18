@@ -1,23 +1,9 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Debug,
-};
-
-use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{entities::VID, state::compute_state::ComputeStateVec},
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::node::NodeView,
-        task::{
-            context::Context,
-            node::eval_node::EvalNodeView,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
-    },
+    core::entities::VID,
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     prelude::*,
 };
 
@@ -88,13 +74,12 @@ where
     result
 }
 
-pub fn strongly_connected_components<G>(
-    graph: &G,
-    threads: Option<usize>,
-) -> AlgorithmResult<G, usize>
+pub fn strongly_connected_components<G>(graph: &G) -> AlgorithmResult<G, usize>
 where
     G: StaticGraphViewOps,
 {
+    // TODO: evaluate/improve this early-culling code
+    /*
     #[derive(Clone, Debug, Default)]
     struct SCCNode {
         is_scc_node: bool,
@@ -147,20 +132,15 @@ where
             .filter(|(_, state)| state.is_scc_node)
             .map(|(vid, _)| VID(vid)),
     );
-    let results_type = std::any::type_name::<usize>();
-    let groups = tarjan_scc(&sub_graph);
+     */
 
-    let mut id = groups.len();
+    let results_type = std::any::type_name::<usize>();
+    let groups = tarjan_scc(graph);
+
     let mut res = HashMap::new();
     for (id, group) in groups.into_iter().enumerate() {
         for VID(node) in group {
             res.insert(node, id);
-        }
-    }
-    for (node, state) in local.into_iter().enumerate() {
-        if !state.is_scc_node {
-            res.insert(node, id);
-            id += 1;
         }
     }
 
@@ -202,7 +182,7 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
@@ -246,7 +226,7 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
@@ -273,7 +253,7 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
@@ -308,7 +288,7 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
