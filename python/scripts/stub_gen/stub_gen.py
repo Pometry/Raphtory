@@ -329,7 +329,7 @@ def gen_bases(cls: type) -> str:
 
 def gen_class(cls: type, name) -> str:
     contents = list(vars(cls).items())
-    contents.sort(key=lambda x: x[0])
+    # contents.sort(key=lambda x: x[0])
     entities: list[str] = []
     global cls_logger
     global fn_logger
@@ -377,8 +377,11 @@ def gen_class(cls: type, name) -> str:
 def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
     global logger
     global fn_logger
-    objs = list(vars(module).items())
-    objs.sort(key=lambda x: x[0])
+    objs = vars(module)
+    # objs = list(vars(module).items())
+    all_names = module.__all__
+    objs = [(name, objs[name]) for name in all_names]
+    # objs.sort(key=lambda x: x[0])
     stubs: List[str] = []
     modules: List[(ModuleType, str)] = []
     path = path / name
@@ -391,11 +394,11 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
                 fn_logger = logger.getChild(obj_name)
                 stubs.append(gen_fn(obj, obj_name))
             elif isinstance(obj, ModuleType):
-                loader = getattr(module, "__loader__", None)
+                loader = getattr(obj, "__loader__", None)
                 if loader is None or isinstance(loader, ExtensionFileLoader):
                     modules.append((obj, obj_name))
 
-    stub_file = "\n".join([comment, imports, *sorted(stubs)])
+    stub_file = "\n".join([comment, imports, *stubs])
     path.mkdir(parents=True, exist_ok=True)
     file = path / "__init__.pyi"
     file.write_text(stub_file)
