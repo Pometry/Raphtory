@@ -52,7 +52,7 @@ impl NodeSchema {
         let schema: SchemaAggregate = filtered_nodes
             .map(collect_node_schema)
             .reduce(merge_schemas)
-            .unwrap_or_else(|| FxHashMap::default());
+            .unwrap_or_default();
 
         schema.into_iter().map(|prop| prop.into()).collect_vec()
     }
