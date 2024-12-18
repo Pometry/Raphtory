@@ -4996,7 +4996,6 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "reqwest 0.12.9",
- "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "tempfile",

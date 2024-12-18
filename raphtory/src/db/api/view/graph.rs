@@ -329,6 +329,19 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             );
                         }
                     }
+
+                    if self.include_deletions() {
+                        for t in self.edge_deletion_history(edge.edge, self.layer_ids()) {
+                            if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
+                            {
+                                src_node.update_time(t, edge.edge.pid());
+                            }
+                            if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()])
+                            {
+                                dst_node.update_time(t, edge.edge.pid());
+                            }
+                        }
+                    }
                 }
 
                 Ok::<(), GraphError>(())
