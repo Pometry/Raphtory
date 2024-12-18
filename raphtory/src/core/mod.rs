@@ -24,10 +24,6 @@
 //!    * `macOS`
 //!
 
-use crate::{
-    db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
-    prelude::GraphViewOps,
-};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -90,8 +86,7 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    Graph(Graph),
-    PersistentGraph(PersistentGraph),
+    Blob(Vec<u8>),
     Document(DocumentInput),
 }
 
@@ -115,6 +110,7 @@ impl Hash for Prop {
             }
             Prop::Bool(b) => b.hash(state),
             Prop::NDTime(dt) => dt.hash(state),
+            Prop::Blob(b) => b.hash(state),
             Prop::DTime(dt) => dt.hash(state),
             Prop::List(v) => {
                 for prop in v.iter() {
@@ -125,22 +121,6 @@ impl Hash for Prop {
                 for (key, prop) in m.iter() {
                     key.hash(state);
                     prop.hash(state);
-                }
-            }
-            Prop::Graph(g) => {
-                for node in g.nodes() {
-                    node.node.hash(state);
-                }
-                for edge in g.edges() {
-                    edge.edge.pid().hash(state);
-                }
-            }
-            Prop::PersistentGraph(pg) => {
-                for node in pg.nodes() {
-                    node.node.hash(state);
-                }
-                for edge in pg.edges() {
-                    edge.edge.pid().hash(state);
                 }
             }
             Prop::Document(d) => d.hash(state),
@@ -186,8 +166,7 @@ impl Prop {
             Prop::List(_) => PropType::List,
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
-            Prop::Graph(_) => PropType::Graph,
-            Prop::PersistentGraph(_) => PropType::PersistentGraph,
+            Prop::Blob(_) => PropType::Blob,
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -323,17 +302,14 @@ pub trait PropUnwrap: Sized {
         self.into_ndtime().unwrap()
     }
 
-    fn into_graph(self) -> Option<Graph>;
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph>;
-
-    fn unwrap_graph(self) -> Graph {
-        self.into_graph().unwrap()
-    }
-
     fn into_document(self) -> Option<DocumentInput>;
     fn unwrap_document(self) -> DocumentInput {
         self.into_document().unwrap()
+    }
+
+    fn into_blob(self) -> Option<Vec<u8>>;
+    fn unwrap_blob(self) -> Vec<u8> {
+        self.into_blob().unwrap()
     }
 }
 
@@ -390,16 +366,12 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_ndtime())
     }
 
-    fn into_graph(self) -> Option<Graph> {
-        self.and_then(|p| p.into_graph())
-    }
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph> {
-        self.and_then(|p| p.into_persistent_graph())
-    }
-
     fn into_document(self) -> Option<DocumentInput> {
         self.and_then(|p| p.into_document())
+    }
+
+    fn into_blob(self) -> Option<Vec<u8>> {
+        self.and_then(|p| p.into_blob())
     }
 }
 
@@ -508,25 +480,17 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_graph(self) -> Option<Graph> {
-        if let Prop::Graph(g) = self {
-            Some(g)
-        } else {
-            None
-        }
-    }
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph> {
-        if let Prop::PersistentGraph(g) = self {
-            Some(g)
-        } else {
-            None
-        }
-    }
-
     fn into_document(self) -> Option<DocumentInput> {
         if let Prop::Document(d) = self {
             Some(d)
+        } else {
+            None
+        }
+    }
+
+    fn into_blob(self) -> Option<Vec<u8>> {
+        if let Prop::Blob(v) = self {
+            Some(v)
         } else {
             None
         }
@@ -548,18 +512,7 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            Prop::Graph(value) => write!(
-                f,
-                "Graph(num_nodes={}, num_edges={})",
-                value.count_nodes(),
-                value.count_edges()
-            ),
-            Prop::PersistentGraph(value) => write!(
-                f,
-                "Graph(num_nodes={}, num_edges={})",
-                value.count_nodes(),
-                value.count_edges()
-            ),
+            Prop::Blob(value) => write!(f, "{:?}", value),
             Prop::List(value) => {
                 write!(
                     f,

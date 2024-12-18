@@ -33,8 +33,7 @@ pub enum PropType {
     List,
     Map,
     NDTime,
-    Graph,
-    PersistentGraph,
+    Blob,
     Document,
     DTime,
 }
@@ -56,8 +55,7 @@ impl Display for PropType {
             PropType::List => "List",
             PropType::Map => "Map",
             PropType::NDTime => "NDTime",
-            PropType::Graph => "Graph",
-            PropType::PersistentGraph => "PersistentGraph",
+            PropType::Blob => "Blob",
             PropType::Document => "Document",
             PropType::DTime => "DTime",
         };

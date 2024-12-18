@@ -12,7 +12,10 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
 ]
-default-members = ["raphtory", "raphtory-graphql"]
+default-members = [
+    "raphtory", 
+    "raphtory-graphql"
+]
 resolver = "2"
 
 [workspace.package]
@@ -40,9 +43,9 @@ debug = 0
 
 [workspace.dependencies]
 #[public-storage]
-pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
+# pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
-# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "7.0.12", features = [
     "dynamic-schema",
 ] }
@@ -136,6 +139,7 @@ memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
 strum = { version = "0.26.1", features = ["derive"] }
 bytemuck = { version = "1.18.0", features = ["derive"] }
+bytes = {version = "1.9", features = ["serde"]}
 ouroboros = "0.18.3"
 url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
