@@ -125,7 +125,7 @@ pub fn weakly_connected_components(
 pub fn strongly_connected_components(
     g: &PyGraphView,
 ) -> AlgorithmResult<DynamicGraph, usize, usize> {
-    components::strongly_connected_components(&g.graph, None)
+    components::strongly_connected_components(&g.graph)
 }
 
 #[cfg(feature = "storage")]
