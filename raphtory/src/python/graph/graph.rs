@@ -592,11 +592,11 @@ impl PyGraph {
     ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -638,11 +638,11 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -685,11 +685,11 @@ impl PyGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -734,11 +734,11 @@ impl PyGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -781,10 +781,10 @@ impl PyGraph {
     /// Arguments:
     ///     df (DataFrame): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -820,10 +820,10 @@ impl PyGraph {
     /// Arguments:
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -860,10 +860,10 @@ impl PyGraph {
     ///     df (DataFrame): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -902,10 +902,10 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.

@@ -193,15 +193,16 @@ impl PyGraphView {
     ///
     /// Args:
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
-    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-    ///   graph (bool | str): if the graph has to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   verbose (bool): whether or not to print logs reporting the progress
+    ///   cache (str, optional): the file to be used as a cache to avoid calling the embedding function
+    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings. Defaults to False.
+    ///   graph (bool | str): if the graph has to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   graph_name (str, optional): the name of the graph
+    ///   verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
     ///
     /// Returns:
-    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
+    ///   VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), graph_name = None, verbose = false))]
     fn vectorise(
         &self,

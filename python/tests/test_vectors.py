@@ -217,8 +217,10 @@ def test_filtering_by_entity_type():
     contents = [doc.content for doc in selection.get_documents()]
     assert contents == ["edge1", "edge2", "edge3"]
 
+
 def constant_embedding(texts):
     return [[1, 0, 0] for text in texts]
+
 
 def test_default_template():
     g = Graph()
@@ -233,7 +235,10 @@ def test_default_template():
 
     edge_docs = vg.edges_by_similarity(query="whatever", limit=10).get_documents()
     assert len(edge_docs) == 1
-    assert edge_docs[0].content == "There is an edge from node1 to node1 with events at:\n- Jan 1 1970 00:00\n"
+    assert (
+        edge_docs[0].content
+        == "There is an edge from node1 to node1 with events at:\n- Jan 1 1970 00:00\n"
+    )
 
 
 ### MULTI-DOCUMENT VERSION TO BE RE-ENABLED

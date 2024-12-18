@@ -38,10 +38,10 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
     add_classes!(
         m,
-        PyGraph,
         PyGraphView,
-        PyGraphEncoder,
+        PyGraph,
         PyPersistentGraph,
+        PyGraphEncoder,
         PyNode,
         PyNodes,
         PyMutableNode,
