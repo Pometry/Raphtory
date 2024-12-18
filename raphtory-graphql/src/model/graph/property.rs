@@ -76,8 +76,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         ),
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::NDTime(t) => GqlValue::Number(t.and_utc().timestamp_millis().into()),
-        Prop::Graph(g) => GqlValue::String(g.to_string()),
-        Prop::PersistentGraph(g) => GqlValue::String(g.to_string()),
+        Prop::Array(a) => GqlValue::Binary(a.clone().into()),
         Prop::Document(d) => GqlValue::String(d.content.to_owned()), // TODO: return GqlValue::Object ??
     }
 }

@@ -108,8 +108,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
         | PropType::List
         | PropType::Map
         | PropType::NDTime
-        | PropType::Graph
-        | PropType::PersistentGraph
+        | PropType::Array(_)
         | PropType::Document
         | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
     }
@@ -165,8 +164,7 @@ pub fn arrow_array_from_props(
         | PropType::List
         | PropType::Map
         | PropType::NDTime
-        | PropType::Graph
-        | PropType::PersistentGraph
+        | PropType::Array(_)
         | PropType::Document
         | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
     }
@@ -212,8 +210,7 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
             | PropType::List
             | PropType::Map
             | PropType::NDTime
-            | PropType::Graph
-            | PropType::PersistentGraph
+            | PropType::Array(_)
             | PropType::Document
             | PropType::DTime) => panic!("{:?} not supported as disk_graph property", prop_type),
         }

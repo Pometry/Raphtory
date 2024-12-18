@@ -16,6 +16,11 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.14.0" }
+arrow-ipc = {workspace = true}
+arrow-array = {workspace = true}
+arrow-schema = {workspace = true}
+arrow-buffer = {workspace = true}
+base64 = {workspace = true}
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -76,6 +81,7 @@ polars-parquet = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
+pyo3-arrow = {workspace = true, optional = true}
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
@@ -100,7 +106,7 @@ indoc = { workspace = true }
 prost-build = { workspace = true, optional = true }
 
 [features]
-default = []
+default = ["proto"]
 # Enables the graph loader io module
 io = [
     "dep:zip",
@@ -137,10 +143,10 @@ python = [
     "dep:num",
     "dep:display-error-chain",
     "polars-arrow?/compute",
+    "pyo3-arrow",
     "raphtory-api/python",
     "kdam/notebook",
 ]
-
 # storage
 storage = [
     "arrow",

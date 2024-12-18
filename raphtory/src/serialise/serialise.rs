@@ -540,6 +540,9 @@ impl StableDecode for PersistentGraph {
 
 #[cfg(test)]
 mod proto_test {
+    use std::path::PathBuf;
+
+    use arrow_array::types::Int32Type;
     use tempfile::TempDir;
 
     use super::*;
@@ -556,6 +559,17 @@ mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
     use proptest::proptest;
     use raphtory_api::core::storage::arc_str::ArcStr;
+
+    #[test]
+    fn can_read_previous_proto() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("raphtory/resources/test/graph_proto.bin"))
+            .unwrap();
+
+        let graph = Graph::decode(path).unwrap();
+        assert!(graph.nodes().len() > 0);
+    }
 
     #[test]
     fn node_no_props() {
@@ -668,6 +682,9 @@ mod proto_test {
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
+            .unwrap();
+
+        g1.add_edge(3, "Alice", "Bob", [("image", Prop::from_arr::<_, Int32Type>(vec![3i32, 5]))], None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -1095,13 +1112,5 @@ mod proto_test {
                 },
             }),
         ));
-        let graph = Graph::new();
-        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        props.push(("graph", Prop::Graph(graph)));
-
-        let graph = Graph::new().persistent_graph();
-        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        graph.delete_edge(2, "a", "b", None).unwrap();
-        props.push(("p_graph", Prop::PersistentGraph(graph)));
     }
 }

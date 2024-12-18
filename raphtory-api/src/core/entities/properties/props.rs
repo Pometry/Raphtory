@@ -223,7 +223,7 @@ impl PropMapper {
                 } else {
                     Err(PropError::PropertyTypeError {
                         name: prop.to_owned(),
-                        expected: *old_type,
+                        expected: old_type.clone(),
                         actual: dtype,
                     })
                 };
@@ -231,8 +231,8 @@ impl PropMapper {
         }
         drop(dtype_read); // drop the read lock and wait for write lock as type did not exist yet
         let mut dtype_write = self.dtypes.write();
-        match dtype_write.get(id) {
-            Some(&old_type) => {
+        match dtype_write.get(id).cloned() {
+            Some(old_type) => {
                 if matches!(old_type, PropType::Empty) {
                     // vector already resized but this id is not filled yet, set the dtype and return id
                     dtype_write[id] = dtype;
@@ -259,17 +259,19 @@ impl PropMapper {
         }
     }
 
-    pub fn set_id_and_dtype(&self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
-        let mut dtypes = self.dtypes.write();
-        self.set_id(key, id);
-        if dtypes.len() <= id {
-            dtypes.resize(id + 1, PropType::Empty);
+    pub fn set_id_and_dtype(&self, key: impl Into<ArcStr>, id: usize, dtype: Option<PropType>) {
+        if let Some(dtype) = dtype {
+            let mut dtypes = self.dtypes.write();
+            self.set_id(key, id);
+            if dtypes.len() <= id {
+                dtypes.resize(id + 1, PropType::Empty);
+            }
+            dtypes[id] = dtype;
         }
-        dtypes[id] = dtype;
     }
 
     pub fn get_dtype(&self, prop_id: usize) -> Option<PropType> {
-        self.dtypes.read_recursive().get(prop_id).copied()
+        self.dtypes.read_recursive().get(prop_id).cloned()
     }
 
     pub fn dtypes(&self) -> impl Deref<Target = Vec<PropType>> + '_ {

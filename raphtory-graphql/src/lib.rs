@@ -292,12 +292,7 @@ mod graphql_test {
     async fn query_nodefilter() {
         let graph = Graph::new();
         graph
-            .add_node(
-                0,
-                1,
-                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
-                None,
-            )
+            .add_node(0, 1, [("pgraph", Prop::Array(vec![3u8]))], None)
             .unwrap();
         let graph: MaterializedGraph = graph.into();
 
@@ -757,12 +752,7 @@ mod graphql_test {
     async fn query_properties() {
         let graph = Graph::new();
         graph
-            .add_node(
-                0,
-                1,
-                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
-                None,
-            )
+            .add_node(0, 1, [("pgraph", Prop::Array(vec![3u8]))], None)
             .unwrap();
 
         let graph = graph.into();

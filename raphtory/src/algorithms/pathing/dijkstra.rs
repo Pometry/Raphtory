@@ -92,7 +92,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
 
     // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
     // after the calc is done
-    let cost_val = match weight_type.unwrap() {
+    let cost_val = match weight_type.as_ref().unwrap() {
         PropType::Empty => return Err("Weight type: Empty, not supported"),
         PropType::Str => return Err("Weight type: Str, not supported"),
         PropType::F32 => Prop::F32(0f32),
@@ -107,9 +107,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         PropType::List => return Err("Weight type: List, not supported"),
         PropType::Map => return Err("Weight type: Map, not supported"),
         PropType::DTime => return Err("Weight type: DTime, not supported"),
+        PropType::Array(_) => return Err("Weight type: Blob, not supported"),
         PropType::NDTime => return Err("Weight type: NDTime, not supported"),
-        PropType::Graph => return Err("Weight type: Graph, not supported"),
-        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let max_val = match weight_type.unwrap() {
@@ -128,8 +127,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         PropType::Map => return Err("Weight type: Map, not supported"),
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::NDTime => return Err("Weight type: NDTime, not supported"),
-        PropType::Graph => return Err("Weight type: Graph, not supported"),
-        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
+        PropType::Array(_) => return Err("Weight type: Blob, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let mut heap = BinaryHeap::new();
