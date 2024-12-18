@@ -647,7 +647,7 @@ impl GraphIndex {
         ))
     }
 
-    fn delete_document(
+    fn delete_node_document(
         &self,
         schema: &Schema,
         writer: &IndexWriter,
@@ -713,9 +713,9 @@ impl GraphIndex {
         let schema = self.node_index.schema();
         let mut writer = self.node_index.writer(50_000_000)?;
 
-        // Delete document identified by node_id and time before creating new document
+        // Delete document identified by node_id and time before creating a new document
         // with all property updates for a given timestamp
-        self.delete_document(&schema, &writer, node_id, t.t());
+        self.delete_node_document(&schema, &writer, node_id, t.t());
 
         let document = create_node_document(
             node_id,
@@ -822,7 +822,7 @@ fn create_node_document<'a>(
     });
 
     let document = TantivyDocument::parse_json(schema, &doc.to_string())?;
-    // println!("doc as json = {}", &document.to_json(schema));
+    // println!("Node doc as json = {}", &document.to_json(schema));
 
     Ok(document)
 }
@@ -848,7 +848,7 @@ fn create_edge_document<'a>(
     });
 
     let document = TantivyDocument::parse_json(schema, &doc.to_string())?;
-    // println!("doc as json = {}", &document.to_json(schema));
+    // println!("Edge doc as json = {}", &document.to_json(schema));
     Ok(document)
 }
 
@@ -968,6 +968,7 @@ mod search_tests {
     fn test_node_update_index() {
         let graph = Graph::new();
         graph.add_node(0, 1, [("t_prop1", 1), ("t_prop2", 2)], Some("fire_nation")).unwrap();
+        graph.add_node(1, 1, [("t_prop1", 5)], Some("fire_nation")).unwrap();
         graph.add_node(0, 2, [("t_prop1", 2)], Some("air_nomads")).unwrap();
         graph.add_node(0, 3, [("t_prop1", 3)], Some("water_tribe")).unwrap();
         graph.add_node(0, 4, [("t_prop1", 4)], Some("earth_kingdom")).unwrap();
@@ -999,6 +1000,16 @@ mod search_tests {
 
         let mut results = graph
             .search_nodes("t_prop1:1 AND t_prop3:3", 5, 0)
+            .expect("Failed to search for nodes")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+
+        assert_eq!(results, vec!["1"]);
+
+        let mut results = graph
+            .search_nodes("t_prop1:5 AND c_prop1:true", 5, 0)
             .expect("Failed to search for nodes")
             .into_iter()
             .map(|v| v.name())
