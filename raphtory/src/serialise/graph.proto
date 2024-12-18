@@ -40,32 +40,36 @@ message NewMeta {
   message NewGraphTProp {
     string name = 1;
     uint64 id = 2;
-    PropType.PropType p_type = 3;
-
+    optional PropType.PropType p_type = 3 [deprecated=true];
+    PropType.PType p_type2 = 4;
   }
 
   message NewNodeCProp {
     string name = 1;
     uint64 id = 2;
-    PropType.PropType p_type = 3;
+    optional PropType.PropType p_type = 3 [deprecated=true];
+    PropType.PType p_type2 = 4;
   }
 
   message NewNodeTProp {
     string name = 1;
     uint64 id = 2;
-    PropType.PropType p_type = 3;
+    optional PropType.PropType p_type = 3[deprecated=true];
+    PropType.PType p_type2 = 4;
   }
 
   message NewEdgeCProp {
     string name = 1;
     uint64 id = 2;
-    PropType.PropType p_type = 3;
+    optional PropType.PropType p_type = 3[deprecated=true];
+    PropType.PType p_type2 = 4;
   }
 
   message NewEdgeTProp {
     string name = 1;
     uint64 id = 2;
-    PropType.PropType p_type = 3;
+    optional PropType.PropType p_type = 3 [deprecated=true];
+    PropType.PType p_type2 = 4;
   }
 
   message NewLayer {
@@ -173,11 +177,23 @@ message PropType {
     List = 10;
     Map = 11;
     NDTime = 12;
-    Graph = 13;
-    PersistentGraph = 14;
+    Graph = 13 [deprecated=true];
+    PersistentGraph = 14 [deprecated=true];
     Document = 15;
     DTime = 16;
   }
+
+  message Array {
+    PropType p_type = 1;
+  }
+
+message PType{
+oneof kind {
+ PropType scalar = 1;
+ Array array = 2;
+}
+}
+  
 }
 
 message Prop {
@@ -194,11 +210,16 @@ message Prop {
     bool bool_value = 10;
     Props prop = 11;
     Dict map = 12;
-    Graph graph = 13; // Assuming Data can be represented as bytes.
-    Graph persistentGraph = 14; // Assuming Data can be represented as bytes.
+    Graph graph = 13 [deprecated=true]; // Assuming Data can be represented as bytes.
+    Graph persistentGraph = 14 [deprecated=true]; // Assuming Data can be represented as bytes.
     NDTime ndTime = 15;
     string dTime = 16;
     DocumentInput documentInput = 17;
+    Array blob = 18;
+  }
+
+  message Array {
+    bytes data = 1;
   }
 
   message NDTime{
@@ -241,8 +262,3 @@ message Prop {
     }
   }
 }
-
-
-
-
-
