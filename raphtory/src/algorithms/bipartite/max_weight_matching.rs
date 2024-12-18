@@ -20,14 +20,15 @@
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
-        api::{
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
-        },
+        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::IntoDynBoxed},
         graph::{edge::EdgeView, edges::Edges, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, Prop, PropUnwrap},
 };
+
+#[cfg(feature = "python")]
+use crate::db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps};
+
 use hashbrown::HashMap;
 use raphtory_api::core::entities::{EID, VID};
 use std::{
@@ -1389,6 +1390,7 @@ pub struct Matching<G> {
     reverse_map: Arc<HashMap<VID, (VID, EID)>>,
 }
 
+#[cfg(feature = "python")]
 impl<G: StaticGraphViewOps + IntoDynamic> Matching<G> {
     pub(crate) fn into_dyn(self) -> Matching<DynamicGraph> {
         Matching {
@@ -1558,7 +1560,6 @@ mod test {
         let maxc_res = max_weight_matching(&g, Some("weight"), true, true);
 
         let matching = res;
-        println!("{}", matching);
         let maxc_matching = maxc_res;
         // Check output
         assert_eq!(matching.len(), 1);

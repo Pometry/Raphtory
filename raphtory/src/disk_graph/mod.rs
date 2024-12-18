@@ -10,7 +10,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds,
         },
-        utils::{errors::GraphError, iter::GenLockedIter},
+        utils::errors::GraphError,
     },
     db::{
         api::{storage::graph::storage_ops, view::internal::CoreGraphOps},
@@ -19,7 +19,6 @@ use crate::{
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
-use itertools::Itertools;
 use polars_arrow::{
     array::{PrimitiveArray, StructArray},
     datatypes::{ArrowDataType as DataType, Field},
@@ -28,7 +27,6 @@ use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
     merge::merge_graph::merge_graphs, RAError,
 };
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -178,26 +176,6 @@ impl DiskGraphStorage {
 
     pub fn into_persistent_graph(self) -> PersistentGraph {
         PersistentGraph::from_internal_graph(storage_ops::GraphStorage::Disk(Arc::new(self)))
-    }
-
-    pub(crate) fn core_temporal_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        match layer_ids.constrain_from_edge(e).as_ref() {
-            LayerIds::None => Box::new(std::iter::empty()),
-            LayerIds::All => Box::new(0..self.edge_meta().temporal_prop_meta().len()),
-            LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(*id)),
-            LayerIds::Multiple(arc) => Box::new(GenLockedIter::from(self, |dg| {
-                Box::new(
-                    arc.into_iter()
-                        .map(|layer_id| dg.inner().edge_global_mapping(layer_id))
-                        .kmerge()
-                        .dedup(),
-                )
-            })),
-        }
     }
 
     pub fn make_simple_graph(

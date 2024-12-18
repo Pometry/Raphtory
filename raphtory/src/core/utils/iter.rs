@@ -16,6 +16,14 @@ impl<'a, O, OUT> Iterator for GenLockedIter<'a, O, OUT> {
     fn next(&mut self) -> Option<Self::Item> {
         self.with_iter_mut(|iter| iter.next())
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.with_iter(|iter| iter.size_hint())
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.nth(n))
+    }
 }
 
 impl<'a, O, OUT> GenLockedIter<'a, O, OUT> {

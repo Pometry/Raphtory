@@ -23,6 +23,16 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn new(t: i64, s: usize) -> Self;
 }
 
+pub trait TimeIndexLike: TimeIndexOps {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType>;
+
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.range_iter(w).next()
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType>;
+}
+
 pub trait TimeIndexIntoOps: Sized {
     type IndexType: AsTime;
     type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;
