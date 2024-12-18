@@ -27,19 +27,19 @@ struct WccState {
 /// * `iter_count` - The number of iterations to run
 /// * `threads` - Number of threads to use
 ///
-/// Returns:
+/// # Returns
 ///
-/// An AlgorithmResult containing the mapping from the node to its component ID
+/// An [AlgorithmResult] containing the mapping from each node to its component ID
 ///
 pub fn weakly_connected_components<G>(
-    graph: &G,
+    g: &G,
     iter_count: usize,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, GID, GID>
 where
     G: StaticGraphViewOps,
 {
-    let ctx: Context<G, ComputeStateVec> = graph.into();
+    let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv| {
         let min_neighbour_id = vv.neighbours().iter().map(|n| n.node.0).min();
         let id = vv.node.0;
@@ -73,12 +73,11 @@ where
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local: Vec<WccState>| {
-            graph
-                .nodes()
+            g.nodes()
                 .par_iter()
                 .map(|node| {
                     let VID(id) = node.node;
-                    let comp = graph.node_id(VID(local[id].component));
+                    let comp = g.node_id(VID(local[id].component));
                     (id, comp)
                 })
                 .collect()
@@ -89,7 +88,7 @@ where
         None,
     );
 
-    AlgorithmResult::new(graph.clone(), "Connected Components", results_type, res)
+    AlgorithmResult::new(g.clone(), "Connected Components", results_type, res)
 }
 
 #[cfg(test)]

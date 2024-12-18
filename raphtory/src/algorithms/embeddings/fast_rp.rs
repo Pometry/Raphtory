@@ -25,19 +25,19 @@ struct FastRPState {
 ///
 /// # Arguments
 ///
-/// * `graph` - A reference to the graph
-/// * `embedding_dim` - The size of the generated embeddings
-/// * `normalization_strength` - The extent to which high-degree vertices should be discounted (range: 1-0)
-/// * `iter_weights` - The scalar weights to apply to the results of each iteration
-/// * `seed` - The seed for initialisation of random vectors
-/// * `threads` - Number of threads to use
+/// - `g` - A reference to the graph
+/// - `embedding_dim` - The size of the generated embeddings
+/// - `normalization_strength` - The extent to which high-degree vertices should be discounted (range: 1-0)
+/// - `iter_weights` - The scalar weights to apply to the results of each iteration
+/// - `seed` - The seed for initialisation of random vectors
+/// - `threads` - Number of threads to use
 ///
-/// # Returns:
+/// # Returns
 ///
-/// An AlgorithmResult containing the mapping from the node to its embedding
+/// An [AlgorithmResult] containing the mapping from the node to its embedding
 ///
 pub fn fast_rp<G>(
-    graph: &G,
+    g: &G,
     embedding_dim: usize,
     normalization_strength: f64,
     iter_weights: Vec<f64>,
@@ -47,8 +47,8 @@ pub fn fast_rp<G>(
 where
     G: StaticGraphViewOps,
 {
-    let ctx: Context<G, ComputeStateVec> = graph.into();
-    let m = graph.count_nodes() as f64;
+    let ctx: Context<G, ComputeStateVec> = g.into();
+    let m = g.count_nodes() as f64;
     let s = m.sqrt();
     let beta = normalization_strength - 1.0;
     let num_iters = iter_weights.len() - 1;
@@ -94,15 +94,13 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<u64>();
 
     let res = runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local: Vec<FastRPState>| {
-            graph
-                .nodes()
+            g.nodes()
                 .par_iter()
                 .map(|node| {
                     let VID(id) = node.node;
@@ -118,8 +116,8 @@ where
     );
 
     // TODO: add flag to optionally normalize results
-
-    AlgorithmResult::new(graph.clone(), "Fast RP", results_type, res)
+    let results_type = std::any::type_name::<Vec<f64>>();
+    AlgorithmResult::new(g.clone(), "Fast RP", results_type, res)
 }
 
 #[cfg(test)]

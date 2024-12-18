@@ -88,10 +88,21 @@ where
     result
 }
 
-pub fn strongly_connected_components<G>(
-    graph: &G,
-    threads: Option<usize>,
-) -> AlgorithmResult<G, usize>
+/// Computes the strongly connected components of a graph using Tarjan's Strongly Connected Components algorithm
+///
+/// Original Paper:
+/// https://web.archive.org/web/20170829214726id_/http://www.cs.ucsb.edu/~gilbert/cs240a/old/cs240aSpr2011/slides/TarjanDFS.pdf
+///
+/// # Arguments
+///
+/// - `g` - A reference to the graph
+/// - `threads` - Number of threads to use
+///
+/// # Returns
+///
+/// An [AlgorithmResult] containing the mapping from each node to its component ID
+///
+pub fn strongly_connected_components<G>(g: &G, threads: Option<usize>) -> AlgorithmResult<G, usize>
 where
     G: StaticGraphViewOps,
 {
@@ -100,19 +111,21 @@ where
         is_scc_node: bool,
     }
 
-    let ctx: Context<G, ComputeStateVec> = graph.into();
+    let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, SCCNode>| {
         let id = vv.node;
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
+        // get all neighbours
         vv.out_neighbours().iter().for_each(|node| {
             let id = node.node;
             out_components.insert(id);
             to_check_stack.push(id);
         });
-
+        // iterate over neighbors
         while let Some(neighbour_id) = to_check_stack.pop() {
             if let Some(neighbour) = vv.graph().node(neighbour_id) {
+                // for each neighbour's neighbour, if the node is visitable from itself, it's part of an SCC
                 neighbour.out_neighbours().iter().for_each(|node| {
                     let id = node.node;
                     if !out_components.contains(&id) {
@@ -140,7 +153,7 @@ where
         None,
         None,
     );
-    let sub_graph = graph.subgraph(
+    let sub_graph = g.subgraph(
         local
             .iter()
             .enumerate()
@@ -165,7 +178,7 @@ where
     }
 
     AlgorithmResult::new(
-        graph.clone(),
+        g.clone(),
         "Strongly-connected Components",
         results_type,
         res,

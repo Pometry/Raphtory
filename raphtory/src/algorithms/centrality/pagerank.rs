@@ -39,18 +39,18 @@ impl PageRankState {
 /// PageRank Algorithm:
 /// PageRank shows how important a node is in a graph.
 ///
-/// Arguments:
+/// # Arguments
 ///
-/// * `g`: A GraphView object
-/// * `iter_count`: Number of iterations to run the algorithm for
-/// * `threads`: Number of threads to use for parallel execution
-/// * `tol`: The tolerance value for convergence
-/// * `use_l2_norm`: Whether to use L2 norm for convergence
-/// * `damping_factor`: Probability of likelihood the spread will continue
+/// - `g`: A GraphView object
+/// - `iter_count`: Number of iterations to run the algorithm for
+/// - `threads`: Number of threads to use for parallel execution
+/// - `tol`: The tolerance value for convergence
+/// - `use_l2_norm`: Whether to use L2 norm for convergence
+/// - `damping_factor`: Probability of likelihood the spread will continue
 ///
-/// Result:
+/// # Returns
 ///
-/// * An AlgorithmResult object containing the mapping from node ID to the PageRank score of the node
+/// An [AlgorithmResult] object containing the mapping from node ID to the PageRank score of the node
 ///
 pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     g: &G,

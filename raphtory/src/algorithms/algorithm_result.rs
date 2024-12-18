@@ -27,6 +27,18 @@ impl<T: FloatCore> AsOrd<OrderedFloat<T>> for T {
     }
 }
 
+impl<T: FloatCore> AsOrd<[OrderedFloat<T>; 2]> for [T; 2] {
+    fn as_ord(&self) -> &[OrderedFloat<T>; 2] {
+        unsafe { &*(self as *const [T; 2] as *const [OrderedFloat<T>; 2]) }
+    }
+}
+
+impl<T: FloatCore> AsOrd<(OrderedFloat<T>, Vec<String>)> for (T, Vec<String>) {
+    fn as_ord(&self) -> &(OrderedFloat<T>, Vec<String>) {
+        unsafe { &*(self as *const (T, Vec<String>) as *const (OrderedFloat<T>, Vec<String>)) }
+    }
+}
+
 impl<T: FloatCore> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
     fn as_ord(&self) -> &(OrderedFloat<T>, OrderedFloat<T>) {
         // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values, i.e. there is no physical difference between OrderedFloat and Float.

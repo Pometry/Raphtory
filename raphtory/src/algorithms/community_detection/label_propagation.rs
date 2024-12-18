@@ -11,22 +11,22 @@ use crate::{
 ///
 /// # Arguments
 ///
-/// * `g` - A reference to the graph
-/// * `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
+/// - `g` - A reference to the graph
+/// - `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
 ///
-/// Returns:
+/// # Returns
 ///
 /// A vector of hashsets each containing nodes
 ///
 pub fn label_propagation<G>(
-    graph: &G,
+    g: &G,
     seed: Option<[u8; 32]>,
 ) -> Result<Vec<HashSet<NodeView<G>>>, &'static str>
 where
     G: StaticGraphViewOps,
 {
     let mut labels: HashMap<NodeView<&G>, GID> = HashMap::new();
-    let nodes = &graph.nodes();
+    let nodes = &g.nodes();
     for node in nodes.iter() {
         labels.insert(node, node.id());
     }

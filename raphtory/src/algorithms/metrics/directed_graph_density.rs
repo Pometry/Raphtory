@@ -33,9 +33,18 @@
 //!
 use crate::db::api::view::*;
 
-/// Measures how dense or sparse a graph is
-pub fn directed_graph_density<'graph, G: GraphViewOps<'graph>>(graph: &G) -> f32 {
-    graph.count_edges() as f32 / (graph.count_nodes() as f32 * (graph.count_nodes() as f32 - 1.0))
+/// Graph density - measures how dense or sparse a graph is.
+///
+/// The ratio of the number of directed edges in the graph to the total number of possible directed
+/// edges (given by N * (N-1) where N is the number of nodes).
+///
+/// # Arguments
+/// - `g`: a directed Raphtory graph
+///
+/// # Returns
+/// Directed graph density of G.
+pub fn directed_graph_density<'graph, G: GraphViewOps<'graph>>(graph: &G) -> f64 {
+    graph.count_edges() as f64 / (graph.count_nodes() as f64 * (graph.count_nodes() as f64 - 1.0))
 }
 
 #[cfg(test)]
