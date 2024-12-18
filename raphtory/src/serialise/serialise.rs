@@ -1083,13 +1083,5 @@ mod proto_test {
                 },
             }),
         ));
-        let graph = Graph::new();
-        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        props.push(("graph", Prop::Graph(graph)));
-
-        let graph = Graph::new().persistent_graph();
-        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        graph.delete_edge(2, "a", "b", None).unwrap();
-        props.push(("p_graph", Prop::PersistentGraph(graph)));
     }
 }

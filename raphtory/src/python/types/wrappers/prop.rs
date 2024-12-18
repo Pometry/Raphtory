@@ -29,8 +29,7 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            Prop::Graph(g) => g.into_pyobject(py)?.into_any(),
-            Prop::PersistentGraph(g) => g.into_pyobject(py)?.into_any(),
+            Prop::Blob(blob) => blob.into_pyobject(py)?.into_any(),
             Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
@@ -62,12 +61,6 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
-        if let Ok(g) = ob.extract() {
-            return Ok(Prop::Graph(g));
-        }
-        if let Ok(g) = ob.extract::<PersistentGraph>() {
-            return Ok(Prop::PersistentGraph(g));
-        }
         if let Ok(d) = ob.extract::<PyDocument>() {
             return Ok(Prop::Document(DocumentInput {
                 content: d.content,
@@ -96,8 +89,7 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::NDTime(v) => v.repr(),
-            Prop::Graph(g) => PyGraphView::from(g.clone()).repr(),
-            Prop::PersistentGraph(g) => PyGraphView::from(g.clone()).repr(),
+            Prop::Blob(v) => v.repr(),
             Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
