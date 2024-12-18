@@ -7,7 +7,6 @@ use raphtory::{
     db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
     prelude::{EdgeViewOps, GraphViewOps},
 };
-use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
@@ -52,7 +51,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         let schema: SchemaAggregate = filtered_edges
             .map(collect_edge_schema)
             .reduce(merge_schemas)
-            .unwrap_or_else(|| FxHashMap::default());
+            .unwrap_or_default();
 
         schema.into_iter().map(|prop| prop.into()).collect_vec()
     }
