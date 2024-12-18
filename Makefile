@@ -50,7 +50,7 @@ install-stub-gen:
 	python -mpip install ./python/scripts/stub_gen
 
 stubs: install-stub-gen
-	cd python && ./scripts/gen-stubs.py && mypy python/raphtory/**/*.pyi
+	cd python && ./scripts/gen-stubs.py && mypy -m raphtory
 
 python-fmt:
 	cd python && black .
