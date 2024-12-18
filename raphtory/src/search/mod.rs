@@ -1,4 +1,3 @@
-pub mod my_custom_filter_collector;
 pub mod node_filter_collector;
 
 use crate::{
@@ -15,10 +14,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
-    search::{
-        my_custom_filter_collector::MyCustomFilterCollector,
-        node_filter_collector::NodeFilterCollector,
-    },
+    search::node_filter_collector::NodeFilterCollector,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
@@ -30,16 +26,12 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use tantivy::{
-    collector::{FilterCollector, TopDocs},
-    query::QueryParser,
-    schema::{
-        Field, IndexRecordOption, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing,
-        TextOptions, Value, FAST, INDEXED, STORED,
-    },
-    tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
-    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
-};
+use itertools::Itertools;
+use tantivy::{collector::{FilterCollector, TopDocs}, query::QueryParser, schema::{
+    Field, IndexRecordOption, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing,
+    TextOptions, Value, FAST, INDEXED, STORED,
+}, tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer}, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Document, Term};
+use tantivy::query::{BooleanQuery, TermQuery};
 
 #[derive(Copy, Clone)]
 pub struct Searcher<'a> {
@@ -64,21 +56,6 @@ impl<'a> Searcher<'a> {
         )
     }
 
-    fn my_custom_filter_collector<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        limit: usize,
-        offset: usize,
-    ) -> MyCustomFilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-        let graph = graph.clone();
-        MyCustomFilterCollector::new(
-            fields::VERTEX_ID.to_string(),
-            move |node_id: u64| graph.has_node(VID(node_id as usize)),
-            ranking,
-        )
-    }
-
     fn custom_node_filter_collector<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -87,7 +64,11 @@ impl<'a> Searcher<'a> {
     ) -> NodeFilterCollector<TopDocs, G> {
         let ranking = TopDocs::with_limit(limit).and_offset(offset);
         let graph = graph.clone();
-        NodeFilterCollector::new(fields::VERTEX_ID.to_string(), ranking, graph)
+        NodeFilterCollector::new(
+            fields::VERTEX_ID.to_string(),
+            ranking,
+            graph,
+        )
     }
 
     fn edge_filter_collector<G: StaticGraphViewOps>(
@@ -105,13 +86,13 @@ impl<'a> Searcher<'a> {
                 let layer_ids = graph.layer_ids();
                 graph.filter_edge(core_edge.as_ref(), layer_ids)
                     && (!graph.nodes_filtered()
-                        || (graph.filter_node(
-                            graph.core_node_entry(core_edge.src()).as_ref(),
-                            layer_ids,
-                        ) && graph.filter_node(
-                            graph.core_node_entry(core_edge.dst()).as_ref(),
-                            layer_ids,
-                        )))
+                    || (graph.filter_node(
+                    graph.core_node_entry(core_edge.src()).as_ref(),
+                    layer_ids,
+                ) && graph.filter_node(
+                    graph.core_node_entry(core_edge.dst()).as_ref(),
+                    layer_ids,
+                )))
             },
             ranking,
         )
@@ -188,35 +169,6 @@ impl<'a> Searcher<'a> {
         Ok(results)
     }
 
-    pub fn my_custom_search_nodes<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        q: &str,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let searcher = self.index.node_reader.searcher();
-        let query_parser = self.index.node_parser()?;
-        let query = query_parser.parse_query(q)?;
-
-        let top_docs =
-            searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
-        let node_id = self
-            .index
-            .node_index
-            .schema()
-            .get_field(fields::VERTEX_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
-    }
-
     pub fn custom_search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -232,6 +184,7 @@ impl<'a> Searcher<'a> {
             &query,
             &self.custom_node_filter_collector(graph, limit, offset),
         )?;
+
         let node_id = self
             .index
             .node_index
@@ -387,7 +340,6 @@ impl Debug for GraphIndex {
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
     pub const VERTEX_ID: &str = "node_id";
-    pub const VERTEX_ID_REV: &str = "node_id_rev";
     pub const NAME: &str = "name";
     pub const NODE_TYPE: &str = "node_type";
     pub const EDGE_ID: &str = "edge_id";
@@ -416,9 +368,8 @@ impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
 impl GraphIndex {
     fn node_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
-        schema.add_i64_field(fields::TIME, INDEXED | STORED);
-        schema.add_u64_field(fields::VERTEX_ID, FAST | STORED);
-        schema.add_u64_field(fields::VERTEX_ID_REV, FAST | STORED);
+        schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+        schema.add_u64_field(fields::VERTEX_ID, INDEXED | FAST | STORED);
         schema.add_text_field(
             fields::NAME,
             TextOptions::default()
@@ -426,8 +377,7 @@ impl GraphIndex {
                     TextFieldIndexing::default()
                         .set_tokenizer("custom_default")
                         .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
-                .set_stored(),
+                ),
         );
         schema.add_text_field(
             fields::NODE_TYPE,
@@ -436,24 +386,25 @@ impl GraphIndex {
                     TextFieldIndexing::default()
                         .set_tokenizer("custom_default")
                         .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
-                .set_stored(),
+                ),
         );
         schema.add_json_field(
             fields::CONSTANT_PROPERTIES,
-            JsonObjectOptions::default().set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer("custom_default")
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            ),
+            JsonObjectOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer("custom_default")
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                ),
         );
         schema.add_json_field(
             fields::TEMPORAL_PROPERTIES,
-            JsonObjectOptions::default().set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer("custom_default")
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            ),
+            JsonObjectOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer("custom_default")
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                ),
         );
 
         schema
@@ -470,8 +421,7 @@ impl GraphIndex {
                     TextFieldIndexing::default()
                         .set_tokenizer("custom_default")
                         .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
-                .set_stored(),
+                ),
         );
         schema.add_text_field(
             fields::DESTINATION,
@@ -480,8 +430,7 @@ impl GraphIndex {
                     TextFieldIndexing::default()
                         .set_tokenizer("custom_default")
                         .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
-                .set_stored(),
+                ),
         );
         schema.add_json_field(
             fields::CONSTANT_PROPERTIES,
@@ -503,13 +452,12 @@ impl GraphIndex {
         schema
     }
 
-    fn index_node_view<W: Deref<Target = IndexWriter>>(
+    fn index_node_view<W: Deref<Target=IndexWriter>>(
         node: NodeView<GraphStorage>,
         schema: &Schema,
         writer: &W,
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
-        let node_id_rev = u64::MAX - node_id;
         let node_name = node.name();
         let node_type = node.node_type().unwrap_or_else(|| ArcStr::from(""));
 
@@ -523,7 +471,6 @@ impl GraphIndex {
 
         let document = create_node_document(
             node_id,
-            node_id_rev,
             node_name,
             node_type,
             constant_properties,
@@ -564,7 +511,7 @@ impl GraphIndex {
         Ok((index, reader))
     }
 
-    fn index_edge_view<W: Deref<Target = IndexWriter>>(
+    fn index_edge_view<W: Deref<Target=IndexWriter>>(
         e_ref: EdgeView<GraphStorage>,
         schema: &Schema,
         writer: &W,
@@ -700,29 +647,78 @@ impl GraphIndex {
         ))
     }
 
+    fn delete_document(
+        &self,
+        schema: &Schema,
+        writer: &IndexWriter,
+        node_id: u64,
+        time: i64
+    ) {
+        let node_id_field = schema.get_field(fields::VERTEX_ID).unwrap();
+        let time_field = schema.get_field(fields::TIME).unwrap();
+
+        let query_term_node_id = TermQuery::new(
+            Term::from_field_u64(node_id_field, node_id),
+            IndexRecordOption::Basic,
+        );
+
+        let query_term_time = TermQuery::new(
+            Term::from_field_i64(time_field, time),
+            IndexRecordOption::Basic,
+        );
+
+        let delete_query = BooleanQuery::new(vec![
+            (tantivy::query::Occur::Must, Box::new(query_term_node_id)),
+            (tantivy::query::Occur::Must, Box::new(query_term_time)),
+        ]);
+
+        let searcher = self.node_reader.searcher();
+
+        let docs_to_delete = searcher
+            .search(&delete_query, &TopDocs::with_limit(100))
+            .unwrap();
+
+        docs_to_delete
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .for_each(|doc: TantivyDocument| {
+                if let Some(id_value) = doc.get_first(node_id_field).and_then(|f| f.as_u64()) {
+                    writer.delete_term(Term::from_field_u64(node_id_field, id_value));
+                }
+            });
+    }
+
     pub(crate) fn add_node_update(
         &self,
         graph: &GraphStorage,
         t: TimeIndexEntry,
         v: VID,
-        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let node_id = v.as_u64();
-        let node_id_rev = u64::MAX - node_id;
         let node_name = graph.node_name(v);
         let node_type = graph.node_type(v).unwrap_or_else(|| ArcStr::from(""));
-        let constant_properties = iter::empty::<(ArcStr, Prop)>();
-        let temporal_properties = props.iter().filter_map(move |(prop_id, prop)| {
-            let prop_name = graph.node_meta().get_prop_name(*prop_id, false);
-            Some((t.t(), prop_name, prop.clone()))
-        });
+
+        let node = graph.node(VID(node_id as usize))
+            .expect("Node for internal id should exist.");
+        let temporal_properties: Vec<(ArcStr, (i64, Prop))> = node.properties().temporal().histories();
+        let temporal_properties = temporal_properties
+            .iter()
+            .map(|(key, (timestamp, prop))| {
+                (*timestamp, key.clone(), prop.clone())
+            });
+
+        let constant_properties = node.properties().constant().into_iter();
 
         let schema = self.node_index.schema();
         let mut writer = self.node_index.writer(50_000_000)?;
 
+        // Delete document identified by node_id and time before creating new document
+        // with all property updates for a given timestamp
+        self.delete_document(&schema, &writer, node_id, t.t());
+
         let document = create_node_document(
             node_id,
-            node_id_rev,
             node_name,
             node_type,
             Box::new(constant_properties),
@@ -732,6 +728,7 @@ impl GraphIndex {
         writer.add_document(document)?;
         writer.commit()?;
 
+        self.reload()?;
         Ok(())
     }
 
@@ -774,13 +771,13 @@ impl GraphIndex {
 }
 
 fn collect_constant_properties<'a>(
-    properties: impl Iterator<Item = (ArcStr, Prop)> + 'a,
+    properties: impl Iterator<Item=(ArcStr, Prop)> + 'a,
 ) -> serde_json::Map<String, serde_json::Value> {
     properties.map(|(k, v)| (k.to_string(), v.into())).collect()
 }
 
 fn collect_temporal_properties<'a>(
-    properties: impl Iterator<Item = (i64, ArcStr, Prop)> + 'a,
+    properties: impl Iterator<Item=(i64, ArcStr, Prop)> + 'a,
 ) -> (Vec<i64>, serde_json::Value) {
     let mut temporal_properties_map: HashMap<i64, serde_json::Map<String, serde_json::Value>> =
         HashMap::new();
@@ -806,11 +803,10 @@ fn collect_temporal_properties<'a>(
 
 fn create_node_document<'a>(
     node_id: u64,
-    node_id_rev: u64,
     node_name: String,
     node_type: ArcStr,
-    constant_properties: impl Iterator<Item = (ArcStr, Prop)> + 'a,
-    temporal_properties: impl Iterator<Item = (i64, ArcStr, Prop)> + 'a,
+    constant_properties: impl Iterator<Item=(ArcStr, Prop)> + 'a,
+    temporal_properties: impl Iterator<Item=(i64, ArcStr, Prop)> + 'a,
     schema: &Schema,
 ) -> tantivy::Result<TantivyDocument> {
     let constant_properties = collect_constant_properties(constant_properties);
@@ -819,7 +815,6 @@ fn create_node_document<'a>(
     let doc = json!({
         "time": time,
         "node_id": node_id,
-        "node_id_rev": node_id_rev,
         "name": node_name,
         "node_type": node_type,
         "constant_properties": constant_properties,
@@ -836,8 +831,8 @@ fn create_edge_document<'a>(
     edge_id: u64,
     src: String,
     dst: String,
-    constant_properties: impl Iterator<Item = (ArcStr, Prop)> + 'a,
-    temporal_properties: impl Iterator<Item = (i64, ArcStr, Prop)> + 'a,
+    constant_properties: impl Iterator<Item=(ArcStr, Prop)> + 'a,
+    temporal_properties: impl Iterator<Item=(i64, ArcStr, Prop)> + 'a,
     schema: &Schema,
 ) -> tantivy::Result<TantivyDocument> {
     let constant_properties = collect_constant_properties(constant_properties);
@@ -870,6 +865,7 @@ mod search_tests {
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tantivy::{doc, schema::TEXT, DocAddress, Order};
+    use tantivy::query::AllQuery;
     use tracing::info;
 
     #[test]
@@ -969,6 +965,50 @@ mod search_tests {
     }
 
     #[test]
+    fn test_node_update_index() {
+        let graph = Graph::new();
+        graph.add_node(0, 1, [("t_prop1", 1), ("t_prop2", 2)], Some("fire_nation")).unwrap();
+        graph.add_node(0, 2, [("t_prop1", 2)], Some("air_nomads")).unwrap();
+        graph.add_node(0, 3, [("t_prop1", 3)], Some("water_tribe")).unwrap();
+        graph.add_node(0, 4, [("t_prop1", 4)], Some("earth_kingdom")).unwrap();
+        graph
+            .node(1)
+            .unwrap()
+            .add_constant_properties([("c_prop1", Prop::Bool(true))])
+            .unwrap();
+
+        // Create index from graph
+        let _ = graph.searcher().unwrap();
+
+        // Delayed graph node update
+        graph.add_node(0, 1, [("t_prop3", 3)], Some("fire_nation")).unwrap();
+
+        // let query = AllQuery;
+        //
+        // let searcher = graph.searcher().unwrap().index.node_reader.searcher();
+        // let top_docs = searcher
+        //     .search(&AllQuery, &TopDocs::with_limit(100))
+        //     .unwrap();
+        //
+        // println!("Total doc count: {}", top_docs.len());
+        //
+        // for (_score, doc_address) in top_docs {
+        //     let doc: TantivyDocument = searcher.doc(doc_address).unwrap();
+        //     println!("Document: {:?}", doc.to_json(searcher.schema()));
+        // }
+
+        let mut results = graph
+            .search_nodes("t_prop1:1 AND t_prop3:3", 5, 0)
+            .expect("Failed to search for nodes")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+
+        assert_eq!(results, vec!["1"]);
+    }
+
+    #[test]
     fn test_custom_tokenizer() {
         let graph = Graph::new();
         graph
@@ -1063,23 +1103,6 @@ mod search_tests {
             .searcher()
             .unwrap()
             .search_nodes(&graph, "node_type:collapsed", 5, 0)
-            .expect("failed to search for node")
-            .into_iter()
-            .map(|v| v.name())
-            .collect::<Vec<_>>();
-        results.sort();
-        assert_eq!(
-            results,
-            vec![
-                "0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c",
-                "0x941900204497226bede1324742eb83af6b0b5eec",
-            ]
-        );
-
-        let mut results = graph
-            .searcher()
-            .unwrap()
-            .my_custom_search_nodes(&graph, "node_type:collapsed", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())

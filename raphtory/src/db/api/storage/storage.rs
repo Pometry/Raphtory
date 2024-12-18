@@ -288,7 +288,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, v, props))?;
+        self.if_index(|index| index.add_node_update(&self.graph, t, v))?;
 
         Ok(())
     }
