@@ -20,7 +20,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use ordered_float::OrderedFloat;
 
@@ -58,7 +58,7 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, C
                 prop.temporal().get(name).map(|val| {
                     val.values()
                         .into_iter()
-                        .map(|valval| valval.into_f64().unwrap_or(0.0f64))
+                        .map(|valval| valval.as_f64().unwrap_or(0.0f64))
                         .sum::<f64>()
                 })
             })
@@ -70,7 +70,7 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, C
                 prop.temporal().get(name).map(|val| {
                     val.values()
                         .into_iter()
-                        .map(|valval| valval.into_f64().unwrap_or(0.0f64))
+                        .map(|valval| valval.as_f64().unwrap_or(0.0f64))
                         .sum::<f64>()
                 })
             })
@@ -144,14 +144,14 @@ mod sum_weight_test {
         let graph = Graph::new();
 
         let vs = vec![
-            ("1", "2", 10.0, 1),
-            ("1", "4", 20.0, 2),
-            ("2", "3", 5.0, 3),
-            ("3", "2", 2.0, 4),
-            ("3", "1", 1.0, 5),
-            ("4", "3", 10.0, 6),
-            ("4", "1", 5.0, 7),
-            ("1", "5", 2.0, 8),
+            ("1", "2", 10, 1),
+            ("1", "4", 20, 2),
+            ("2", "3", 5, 3),
+            ("3", "2", 2, 4),
+            ("3", "1", 1, 5),
+            ("4", "3", 10, 6),
+            ("4", "1", 5, 7),
+            ("1", "5", 2, 8),
         ];
 
         for (src, dst, val, time) in &vs {
@@ -160,7 +160,7 @@ mod sum_weight_test {
                     *time,
                     *src,
                     *dst,
-                    [("value_dec".to_string(), Prop::F64(*val))],
+                    [("value_dec".to_string(), Prop::I32(*val))],
                     None,
                 )
                 .expect("Couldnt add edge");
