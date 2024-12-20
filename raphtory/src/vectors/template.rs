@@ -146,7 +146,7 @@ impl From<Prop> for Value {
             Prop::Str(value) => Value::from(value.0.to_owned()),
             Prop::DTime(value) => Value::from(value.timestamp_millis()),
             Prop::NDTime(value) => Value::from(value.and_utc().timestamp_millis()),
-            Prop::Blob(value) => Value::from(value),
+            Prop::Array(value) => Value::from(value),
             Prop::List(value) => value.iter().cloned().collect(),
             Prop::Map(value) => value
                 .iter()

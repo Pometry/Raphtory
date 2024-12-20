@@ -528,6 +528,8 @@ impl StableDecode for PersistentGraph {
 
 #[cfg(test)]
 mod proto_test {
+    use std::path::PathBuf;
+
     use tempfile::TempDir;
 
     use super::*;
@@ -544,6 +546,17 @@ mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
     use proptest::proptest;
     use raphtory_api::core::storage::arc_str::ArcStr;
+
+    #[test]
+    fn can_read_previous_proto() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("raphtory/resources/test/graph_proto.bin"))
+            .unwrap();
+
+        let graph = Graph::decode(path).unwrap();
+        assert!(graph.nodes().len() > 0);
+    }
 
     #[test]
     fn node_no_props() {
@@ -656,6 +669,9 @@ mod proto_test {
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
+            .unwrap();
+
+        g1.add_edge(3, "Alice", "Bob", [("image", vec![3u8, 5u8])], None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();

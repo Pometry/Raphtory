@@ -14,7 +14,7 @@ use crate::{
                 NewNodeCProp, NewNodeTProp, NewNodeType,
             },
             new_node, prop,
-            prop_type::PropType as SPropType,
+            prop_type::{PType, PropType as SPropType},
             GraphUpdate, NewEdge, NewMeta, NewNode,
         },
     },
@@ -29,8 +29,10 @@ use raphtory_api::core::{
 };
 use std::{borrow::Borrow, sync::Arc};
 
-fn as_proto_prop_type(p_type: &PropType) -> SPropType {
-    match p_type {
+use super::proto::{prop::Array, prop_type::Array as ArrayType};
+
+fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
+    let val = match p_type {
         PropType::Str => SPropType::Str,
         PropType::U8 => SPropType::U8,
         PropType::U16 => SPropType::U16,
@@ -44,10 +46,30 @@ fn as_proto_prop_type(p_type: &PropType) -> SPropType {
         PropType::List => SPropType::List,
         PropType::Map => SPropType::Map,
         PropType::NDTime => SPropType::NdTime,
-        PropType::Blob => SPropType::Blob,
         PropType::DTime => SPropType::DTime,
         PropType::Document => SPropType::Document,
-        _ => unimplemented!("Empty prop types not supported!"),
+        _ => {
+            return None;
+        }
+    };
+    Some(val)
+}
+
+fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
+    match p_type {
+        PropType::Array(tpe) => {
+            let prop_type = as_proto_prop_type(&tpe)?;
+            Some(PType {
+                kind: Some(proto::prop_type::p_type::Kind::Array(ArrayType {
+                    p_type: prop_type.into(),
+                })),
+            })
+        }
+        _ => Some(PType {
+            kind: Some(proto::prop_type::p_type::Kind::Scalar(
+                as_proto_prop_type(p_type)?.into(),
+            )),
+        }),
     }
 }
 
@@ -69,8 +91,8 @@ pub fn as_prop_type(p_type: SPropType) -> Option<PropType> {
         SPropType::NdTime => Some(PropType::NDTime),
         SPropType::DTime => Some(PropType::DTime),
         SPropType::Document => Some(PropType::Document),
-        SPropType::Blob => Some(PropType::Blob),
-        _ => None,
+        SPropType::Graph => None,
+        SPropType::PersistentGraph => None,
     }
 }
 
@@ -203,7 +225,7 @@ impl NewMeta {
         let mut inner = NewGraphTProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewGraphTprop(inner))
     }
 
@@ -211,7 +233,7 @@ impl NewMeta {
         let mut inner = NewNodeCProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewNodeCprop(inner))
     }
 
@@ -219,7 +241,7 @@ impl NewMeta {
         let mut inner = NewNodeTProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewNodeTprop(inner))
     }
 
@@ -227,7 +249,7 @@ impl NewMeta {
         let mut inner = NewEdgeCProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewEdgeCprop(inner))
     }
 
@@ -235,7 +257,7 @@ impl NewMeta {
         let mut inner = NewEdgeTProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewEdgeTprop(inner))
     }
 
@@ -584,7 +606,7 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
                 })
                 .unwrap_or(Lifespan::Inherited),
         })),
-        prop::Value::Blob(blob) => Some(Prop::Blob(blob)),
+        prop::Value::Blob(blob) => Some(Prop::Array(blob.data.clone())),
         _ => None,
     };
     Ok(value)
@@ -653,7 +675,7 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
-        Prop::Blob(blob) => prop::Value::Blob(blob.clone()),
+        Prop::Array(blob) => prop::Value::Blob(Array { data: blob.clone() }),
         Prop::Document(doc) => {
             let life = match doc.life {
                 Lifespan::Interval { start, end } => {

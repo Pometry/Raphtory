@@ -86,7 +86,7 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    Blob(Vec<u8>),
+    Array(Vec<u8>),
     Document(DocumentInput),
 }
 
@@ -110,7 +110,7 @@ impl Hash for Prop {
             }
             Prop::Bool(b) => b.hash(state),
             Prop::NDTime(dt) => dt.hash(state),
-            Prop::Blob(b) => b.hash(state),
+            Prop::Array(b) => b.hash(state),
             Prop::DTime(dt) => dt.hash(state),
             Prop::List(v) => {
                 for prop in v.iter() {
@@ -166,7 +166,7 @@ impl Prop {
             Prop::List(_) => PropType::List,
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
-            Prop::Blob(_) => PropType::Blob,
+            Prop::Array(_) => PropType::Array(Box::new(PropType::U8)),
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -489,7 +489,7 @@ impl PropUnwrap for Prop {
     }
 
     fn into_blob(self) -> Option<Vec<u8>> {
-        if let Prop::Blob(v) = self {
+        if let Prop::Array(v) = self {
             Some(v)
         } else {
             None
@@ -512,7 +512,7 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            Prop::Blob(value) => write!(f, "{:?}", value),
+            Prop::Array(value) => write!(f, "{:?}", value),
             Prop::List(value) => {
                 write!(
                     f,
@@ -668,6 +668,12 @@ impl From<HashMap<ArcStr, Prop>> for Prop {
 impl From<Vec<Prop>> for Prop {
     fn from(value: Vec<Prop>) -> Self {
         Prop::List(Arc::new(value))
+    }
+}
+
+impl From<Vec<u8>> for Prop {
+    fn from(value: Vec<u8>) -> Self {
+        Prop::Array(value)
     }
 }
 

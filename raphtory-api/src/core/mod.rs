@@ -16,7 +16,7 @@ pub enum Direction {
     BOTH,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub enum PropType {
     #[default]
     Empty,
@@ -33,9 +33,9 @@ pub enum PropType {
     List,
     Map,
     NDTime,
-    Blob,
     Document,
     DTime,
+    Array(Box<PropType>),
 }
 
 impl Display for PropType {
@@ -55,9 +55,9 @@ impl Display for PropType {
             PropType::List => "List",
             PropType::Map => "Map",
             PropType::NDTime => "NDTime",
-            PropType::Blob => "Blob",
             PropType::Document => "Document",
             PropType::DTime => "DTime",
+            PropType::Array(p_type) => return write!(f, "Array<{}>", p_type),
         };
 
         write!(f, "{}", type_str)
