@@ -48,29 +48,30 @@ py_eq!(PyConstantProperties, PyPropsComp);
 
 #[pymethods]
 impl PyConstantProperties {
-    /// keys() -> list[str]
-    ///
     /// lists the available property keys
+    ///
+    /// Returns:
+    ///     list[str]: the property keys
     pub fn keys(&self) -> Vec<ArcStr> {
         self.props.keys().collect()
     }
 
-    /// values() -> list[Any]
-    ///
     /// lists the property values
+    ///
+    /// Returns:
+    ///     list | Array: the property values
     pub fn values(&self) -> NumpyArray {
         self.props.values().collect()
     }
 
-    /// items() -> list[tuple[str, Any]]
-    ///
     /// lists the property keys together with the corresponding value
+    ///
+    /// Returns:
+    ///     list[Tuple[str, PropValue]]: the property keys with corresponding values
     pub fn items(&self) -> Vec<(ArcStr, Prop)> {
         self.props.iter().collect()
     }
 
-    /// __getitem__(key: str) -> Any
-    ///
     /// get property value by key
     ///
     /// Raises:
@@ -81,12 +82,13 @@ impl PyConstantProperties {
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// get(key: str) -> Any | None
+    /// get property value by key
     ///
     /// Arguments:
-    ///     key: the name of the property
+    ///     key (str): the name of the property
     ///
-    /// get property value by key (returns `None` if key does not exist)
+    /// Returns:
+    ///     PropValue | None: the property value or `None` if value for `key` does not exist
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)
@@ -95,13 +97,17 @@ impl PyConstantProperties {
     /// as_dict() -> dict[str, Any]
     ///
     /// convert the properties view to a python dict
+    ///
+    /// Returns:
+    ///     dict[str, PropValue]:
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
     }
 
-    /// __iter__() -> Iterator[str]
-    ///
     /// iterate over property keys
+    ///
+    /// Returns:
+    ///     Iterator[str]: keys iterator
     pub fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }

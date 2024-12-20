@@ -58,7 +58,7 @@ macro_rules! py_algorithm_result_base {
             /// Returns a Dict containing all the nodes (as keys) and their corresponding values (values) or none.
             ///
             /// Returns:
-            ///     A dict of nodes and their values
+            ///     dict[Node, Any]: A dict of nodes and their values
             fn get_all(
                 &self,
             ) -> std::collections::HashMap<
@@ -68,20 +68,21 @@ macro_rules! py_algorithm_result_base {
                 self.0.get_all()
             }
 
-            /// Returns a a list of all values
+            /// Get all values
+            ///
+            /// Returns:
+            ///     list[Any]: the values for each node as a list
             fn get_all_values(&self) -> std::vec::Vec<$rustValue> {
                 self.0.get_all_values().clone()
-            }
-
-            /// Returns a formatted string representation of the algorithm.
-            fn to_string(&self) -> String {
-                self.0.repr()
             }
 
             /// Returns the value corresponding to the provided key
             ///
             /// Arguments:
-            ///     key: The key of type `H` for which the value is to be retrieved.
+            ///     key (InputNode): The node for which the value is to be retrieved.
+            ///
+            /// Returns:
+            ///     Optional[Any]: The value for the node or `None` if the value does not exist.
             fn get(&self, key: $crate::python::utils::PyNodeRef) -> Option<$rustValue> {
                 self.0.get(key).cloned()
             }
@@ -89,7 +90,7 @@ macro_rules! py_algorithm_result_base {
             /// Returns a dict with node names and values
             ///
             /// Returns:
-            ///     a dict with node names and values
+            ///     dict[str, Any]: a dict with node names and values
             fn get_all_with_names(&self) -> std::collections::HashMap<String, $rustValue> {
                 self.0.get_all_with_names()
             }
@@ -97,10 +98,10 @@ macro_rules! py_algorithm_result_base {
             /// Sorts by node id in ascending or descending order.
             ///
             /// Arguments:
-            ///     reverse: If `true`, sorts the result in descending order; otherwise, sorts in ascending order. Defaults to True.
+            ///     reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order. Defaults to True.
             ///
             /// Returns:
-            ///     A sorted list of tuples containing node names and values.
+            ///     list[Tuple[Node, Any]]: A sorted list of tuples containing nodes and values.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_node(
                 &self,
@@ -160,7 +161,7 @@ macro_rules! py_algorithm_result_partial_ord {
             ///     reverse (bool): If `true`, sorts the result in descending order, otherwise, sorts in ascending order. Defaults to True.
             ///
             /// Returns:
-            ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
+            ///     list[Tuple[Node, Any]]: A sorted vector of tuples containing Nodes and values.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_value(
                 &self,
@@ -181,7 +182,7 @@ macro_rules! py_algorithm_result_partial_ord {
             ///         ascending order.
             ///
             /// Returns:
-            ///     The function sort_by_node_name returns a vector of tuples. Each tuple contains a Node and value
+            ///     list[Tuple[Node, Any]]: The function sort_by_node_name returns a vector of tuples. Each tuple contains a Node and value
             #[pyo3(signature = (reverse=true))]
             fn sort_by_node_name(
                 &self,
@@ -201,7 +202,7 @@ macro_rules! py_algorithm_result_partial_ord {
             ///     reverse (bool): If `True`, retrieves the elements in descending order, otherwise, in ascending order. Defaults to True.
             ///
             /// Returns:
-            ///     An Option containing a vector of tuples with keys of type `H` and values of type `Y`.
+            ///     list[Tuple[Node, Any]]: List of tuples with keys of nodes and values of type `Y`.
             ///     If percentage is true, the returned vector contains the top `k` percentage of elements.
             ///     If percentage is false, the returned vector contains the top `k` elements.
             ///     Returns None if the result is empty or if `k` is 0.
@@ -218,7 +219,10 @@ macro_rules! py_algorithm_result_partial_ord {
                 self.0.top_k(k, percentage, reverse)
             }
 
-            /// Returns a tuple of the min result with its key
+            /// Find node with minimum value
+            ///
+            /// Returns:
+            ///     Tuple[Node, Any]: The node and minimum value.
             fn min(
                 &self,
             ) -> Option<(
@@ -228,7 +232,10 @@ macro_rules! py_algorithm_result_partial_ord {
                 self.0.min()
             }
 
-            /// Returns a tuple of the max result with its key
+            /// Find node with maximum value
+            ///
+            /// Returns:
+            ///     Tuple[Node, Any]: The node and maximum value.
             fn max(
                 &self,
             ) -> Option<(
@@ -239,6 +246,9 @@ macro_rules! py_algorithm_result_partial_ord {
             }
 
             /// Returns a tuple of the median result with its key
+            ///
+            /// Returns:
+            /// Optional[Tuple[Node, Any]]: The node with median value or `None` if there are no nodes.
             fn median(
                 &self,
             ) -> Option<(
@@ -260,8 +270,8 @@ macro_rules! py_algorithm_result_new_ord_hash_eq {
             /// Groups the `AlgorithmResult` by its values.
             ///
             /// Returns:
-            ///     A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
-            ///     containing keys of type `H` that share the same value.
+            ///     dict[Any, list[str]]: A mapping where keys are unique values from the `AlgorithmResult` and values are lists of nodes
+            ///                           that share the same value.
             fn group_by(&self) -> std::collections::HashMap<$rustValue, Vec<String>> {
                 self.0.group_by()
             }
