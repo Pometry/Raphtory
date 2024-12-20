@@ -2,6 +2,7 @@ use crate::{
     core::{DocumentInput, Prop, PropType, PropUnwrap},
     db::api::{properties::internal::PropertiesOps, view::BoxedLIter},
 };
+use arrow_array::ArrayRef;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
@@ -236,7 +237,7 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_ndtime()
     }
 
-    fn into_blob(self) -> Option<Vec<u8>> {
+    fn into_blob(self) -> Option<ArrayRef> {
         self.latest().into_blob()
     }
 

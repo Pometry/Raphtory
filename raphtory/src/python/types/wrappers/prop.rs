@@ -1,14 +1,11 @@
 use super::document::PyDocument;
 use crate::{
     core::{utils::errors::GraphError, DocumentInput, Prop},
-    db::graph::views::{
-        deletion_graph::PersistentGraph,
-        property_filter::internal::{
-            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
-        },
+    db::graph::views::property_filter::internal::{
+        InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
-    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
+    python::types::repr::Repr,
 };
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
 use std::{collections::HashSet, ops::Deref, sync::Arc};
@@ -29,7 +26,9 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            Prop::Array(blob) => blob.into_pyobject(py)?.into_any(),
+            Prop::Array(blob) => pyo3_arrow::PyArray::from_array_ref(blob.0)
+                .to_pyarrow(py)?
+                .into_bound(py),
             Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
@@ -89,7 +88,7 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::NDTime(v) => v.repr(),
-            Prop::Array(v) => v.repr(),
+            Prop::Array(v) => format!("{:?}", v),
             Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),

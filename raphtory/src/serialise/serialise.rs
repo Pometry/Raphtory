@@ -530,6 +530,7 @@ impl StableDecode for PersistentGraph {
 mod proto_test {
     use std::path::PathBuf;
 
+    use arrow_array::types::Int32Type;
     use tempfile::TempDir;
 
     use super::*;
@@ -671,7 +672,7 @@ mod proto_test {
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
 
-        g1.add_edge(3, "Alice", "Bob", [("image", vec![3u8, 5u8])], None)
+        g1.add_edge(3, "Alice", "Bob", [("image", Prop::from_arr::<_, Int32Type>(vec![3i32, 5]))], None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();

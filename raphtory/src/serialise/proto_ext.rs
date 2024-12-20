@@ -1,23 +1,14 @@
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType},
+    core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropArray, PropType},
     db::graph::views::deletion_graph::PersistentGraph,
     prelude::{Graph, StableDecode, StableEncode},
-    serialise::{
-        proto,
-        proto::{
-            graph_update::{
+    serialise::proto::{self, graph_update::{
                 DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
                 UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
-            },
-            new_meta::{
+            }, new_meta::{
                 Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer,
                 NewNodeCProp, NewNodeTProp, NewNodeType,
-            },
-            new_node, prop,
-            prop_type::{PType, PropType as SPropType},
-            GraphUpdate, NewEdge, NewMeta, NewNode,
-        },
-    },
+            }, new_node, prop, prop_type::{PType, PropType as SPropType}, GraphUpdate, NewEdge, NewMeta, NewNode},
 };
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use raphtory_api::core::{
@@ -606,7 +597,7 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
                 })
                 .unwrap_or(Lifespan::Inherited),
         })),
-        prop::Value::Blob(blob) => Some(Prop::Array(blob.data.clone())),
+        prop::Value::Blob(blob) => Some(Prop::Array(PropArray::from_vec_u8(&blob.data)?)),
         _ => None,
     };
     Ok(value)
@@ -675,7 +666,7 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
-        Prop::Array(blob) => prop::Value::Blob(Array { data: blob.clone() }),
+        Prop::Array(blob) => prop::Value::Blob(Array { data: blob.to_vec_u8() }),
         Prop::Document(doc) => {
             let life = match doc.life {
                 Lifespan::Interval { start, end } => {

@@ -54,7 +54,7 @@ impl From<JsProp> for JsValue {
             )
             .into(),
             Prop::Array(v) => {
-                let v: Array = v.iter().map(|v| JsValue::from(*v)).collect();
+                let v: Array = v.to_vec_u8().iter().map(|v| JsValue::from(*v)).collect();
                 v.into()
             }
             Prop::List(v) => {

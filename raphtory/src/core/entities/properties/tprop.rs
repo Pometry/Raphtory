@@ -1,7 +1,6 @@
 use crate::{
     core::{
-        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, DocumentInput, Prop, PropType,
+        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry, utils::errors::GraphError, DocumentInput, Prop, PropArray, PropType
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
@@ -26,7 +25,7 @@ pub enum TProp {
     F64(TCell<f64>),
     Bool(TCell<bool>),
     DTime(TCell<DateTime<Utc>>),
-    Blob(TCell<Vec<u8>>),
+    Blob(TCell<PropArray>),
     NDTime(TCell<NaiveDateTime>),
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),

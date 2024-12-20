@@ -24,11 +24,14 @@
 //!    * `macOS`
 //!
 
+use arrow_array::{types::Int64Type, ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch};
+use arrow_buffer::{ArrowNativeType, ScalarBuffer};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
+use utils::errors::GraphError;
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -37,6 +40,10 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+
+use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
+use arrow_schema::{Field, Schema};
+use base64::{prelude::BASE64_STANDARD, Engine};
 
 #[cfg(test)]
 extern crate core;
@@ -86,8 +93,93 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    Array(Vec<u8>),
+    Array(PropArray),
     Document(DocumentInput),
+}
+
+#[derive(Debug, Clone)]
+pub struct PropArray(pub(crate) ArrayRef);
+
+impl PropArray {
+    pub fn to_vec_u8(&self) -> Vec<u8> { // assuming we can allocate this can't fail
+        let mut bytes = vec![];
+        let schema = Schema::new(vec![Field::new("data", self.0.data_type().clone(), true)]);
+        let mut writer =
+            StreamWriter::try_new(&mut bytes, &schema).unwrap();
+        let rb = RecordBatch::try_new(schema.into(), vec![self.0.clone()]).unwrap();
+        writer.write(&rb).unwrap();
+        writer.finish().unwrap();
+        bytes
+    }
+
+    pub fn from_vec_u8(bytes: &[u8]) -> Result<Self, GraphError> {
+        let mut reader = StreamReader::try_new(bytes, None)?;
+        let rb = reader.next().ok_or(GraphError::DeserialisationError("failed to deserialize ArrayRef".to_string()))??;
+        Ok(PropArray(rb.column(0).clone()))
+    }
+
+    pub fn iter_prop(&self) -> Option<impl Iterator<Item = Prop> + '_> {
+        self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int32Type>>().map(|arr| {
+            arr.into_iter().map(|v| Prop::I32(v.unwrap_or_default()))
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float64Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::F64(v.unwrap_or_default()))
+            })
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float32Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::F32(v.unwrap_or_default()))
+            })
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt64Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U64(v.unwrap_or_default()))
+            })
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt32Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U32(v.unwrap_or_default()))
+            })
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int64Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::I64(v.unwrap_or_default()))
+            })
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt16Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U16(v.unwrap_or_default()))
+            })
+        }).or_else(|| {
+            self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt8Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U8(v.unwrap_or_default()))
+            })
+        })
+    }
+}
+
+impl Serialize for PropArray {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes = self.to_vec_u8();
+        serializer.serialize_str(&BASE64_STANDARD.encode(&bytes))
+    }
+}
+
+impl<'de> Deserialize<'de> for PropArray {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let base64_str = String::deserialize(deserializer)?;
+        let bytes = BASE64_STANDARD
+            .decode(&base64_str)
+            .map_err(serde::de::Error::custom)?;
+        PropArray::from_vec_u8(&bytes).map_err(serde::de::Error::custom)
+    }
+}
+
+impl PartialEq for PropArray {
+    fn eq(&self, other: &Self) -> bool {
+        &self.0 == &other.0
+    }
 }
 
 impl Hash for Prop {
@@ -110,7 +202,7 @@ impl Hash for Prop {
             }
             Prop::Bool(b) => b.hash(state),
             Prop::NDTime(dt) => dt.hash(state),
-            Prop::Array(b) => b.hash(state),
+            Prop::Array(b) => hash_array(&b.0, state),
             Prop::DTime(dt) => dt.hash(state),
             Prop::List(v) => {
                 for prop in v.iter() {
@@ -125,6 +217,18 @@ impl Hash for Prop {
             }
             Prop::Document(d) => d.hash(state),
         }
+    }
+}
+
+fn hash_array<H: Hasher>(array: &ArrayRef, state: &mut H) {
+    // FIXME check this is sane
+    let data = array.to_data();
+    let dtype = array.data_type();
+    dtype.hash(state);
+    data.offset().hash(state);
+    data.len().hash(state);
+    for buffer in data.buffers() {
+        buffer.hash(state);
     }
 }
 
@@ -151,6 +255,13 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn from_arr<T: ArrowNativeType, TT: ArrowPrimitiveType<Native = T>>(vals: Vec<T>) -> Self {
+        let buf: ScalarBuffer<T> = vals.into();
+        let arr: PrimitiveArray<TT> = PrimitiveArray::new(buf, None);
+        let arr: ArrayRef = Arc::new(arr);
+        Prop::Array(PropArray(arr))
+    }
+
     pub fn dtype(&self) -> PropType {
         match self {
             Prop::Str(_) => PropType::Str,
@@ -166,7 +277,7 @@ impl Prop {
             Prop::List(_) => PropType::List,
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
-            Prop::Array(_) => PropType::Array(Box::new(PropType::U8)),
+            Prop::Array(_) => PropType::Array(Box::new(PropType::U8)), // TODO
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -307,8 +418,8 @@ pub trait PropUnwrap: Sized {
         self.into_document().unwrap()
     }
 
-    fn into_blob(self) -> Option<Vec<u8>>;
-    fn unwrap_blob(self) -> Vec<u8> {
+    fn into_blob(self) -> Option<ArrayRef>;
+    fn unwrap_blob(self) -> ArrayRef {
         self.into_blob().unwrap()
     }
 }
@@ -370,7 +481,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_document())
     }
 
-    fn into_blob(self) -> Option<Vec<u8>> {
+    fn into_blob(self) -> Option<ArrayRef> {
         self.and_then(|p| p.into_blob())
     }
 }
@@ -488,9 +599,9 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_blob(self) -> Option<Vec<u8>> {
+    fn into_blob(self) -> Option<ArrayRef> {
         if let Prop::Array(v) = self {
-            Some(v)
+            Some(v.0)
         } else {
             None
         }
@@ -668,12 +779,6 @@ impl From<HashMap<ArcStr, Prop>> for Prop {
 impl From<Vec<Prop>> for Prop {
     fn from(value: Vec<Prop>) -> Self {
         Prop::List(Arc::new(value))
-    }
-}
-
-impl From<Vec<u8>> for Prop {
-    fn from(value: Vec<u8>) -> Self {
-        Prop::Array(value)
     }
 }
 
