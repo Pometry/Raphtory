@@ -1,11 +1,14 @@
-use crate::prelude::NodeStateOps;
+use crate::{
+    db::{api::state::Index, graph::nodes::Nodes},
+    prelude::NodeStateOps,
+};
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G, GH = G> {
-    groups: Arc<HashMap<V, Arc<[VID]>>>,
+    groups: Arc<HashMap<V, Index<VID>>>,
     base_graph: G,
     graph: GH,
 }
@@ -22,6 +25,20 @@ impl<V: Hash + Eq, G, GH> NodeGroups<V, G, GH> {
             base_graph,
             graph,
         }
+    }
+
+    fn groups(&self) -> impl Iterator<Item = (&V, Nodes<G, GH>)> {
+        self.groups.iter().map(|(v, nodes)| {
+            (
+                v,
+                Nodes::new_filtered(
+                    self.base_graph.clone(),
+                    self.graph.clone(),
+                    Some(nodes.clone()),
+                    None,
+                ),
+            )
+        })
     }
 }
 pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {

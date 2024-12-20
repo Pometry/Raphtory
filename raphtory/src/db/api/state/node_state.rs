@@ -12,34 +12,35 @@ use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Index<K> {
+    pub(crate) list: Arc<[K]>,
     pub(crate) set: Arc<RoaringTreemap>,
-    len: usize, // cache the len for the set as it is recomputed every time
     _phantom: PhantomData<K>,
 }
 
-impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
+impl<K: Copy + Eq + Ord + Into<usize> + From<usize> + Send + Sync> Index<K> {
     pub fn new(keys: impl IntoIterator<Item = K>) -> Self {
-        let set: Arc<RoaringTreemap> =
-            Arc::new(keys.into_iter().map(|k| k.into() as u64).collect());
-        let len = set.len() as usize;
+        let mut list: Vec<_> = keys.into_iter().collect();
+        list.sort_unstable();
+        list.dedup();
+        let set: Arc<RoaringTreemap> = Arc::new(
+            RoaringTreemap::from_sorted_iter(list.iter().map(|&k| k.into() as u64)).unwrap(),
+        );
         Self {
             set,
-            len,
+            list: list.into(),
             _phantom: PhantomData,
         }
     }
     pub fn iter(&self) -> impl Iterator<Item = K> + '_ {
-        self.set.iter().map(|k| K::from(k as usize))
+        self.list.iter().copied()
     }
 
     pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = K> {
-        (0..self.len())
-            .into_par_iter()
-            .map(move |i| self.key(i).unwrap())
+        (0..self.len()).into_par_iter().map(move |i| self.list[i])
     }
 
     pub fn into_iter(self) -> impl Iterator<Item = K> {
-        (0..self.len()).map(move |i| self.key(i).unwrap())
+        (0..self.len()).map(move |i| self.list[i])
     }
 
     pub fn index(&self, key: &K) -> Option<usize> {
@@ -52,11 +53,11 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     }
 
     pub fn key(&self, index: usize) -> Option<K> {
-        self.set.select(index as u64).map(|k| K::from(k as usize))
+        self.list.get(index).copied()
     }
 
     pub fn len(&self) -> usize {
-        self.len
+        self.list.len()
     }
 
     pub fn contains(&self, key: &K) -> bool {
@@ -64,9 +65,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     }
 
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = K> + '_ {
-        (0..self.len())
-            .into_par_iter()
-            .map(move |i| self.key(i).unwrap())
+        self.list.par_iter().copied()
     }
 }
 
