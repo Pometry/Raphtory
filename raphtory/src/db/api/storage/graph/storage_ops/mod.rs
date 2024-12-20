@@ -305,7 +305,7 @@ impl GraphStorage {
                     let nodes_storage = self.nodes();
                     nodes
                         .par_iter()
-                        .filter(|vid| view.filter_node(nodes_storage.node(**vid), layer_ids))
+                        .filter(|&vid| view.filter_node(nodes_storage.node(vid), layer_ids))
                         .count()
                 }
             }

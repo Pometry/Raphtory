@@ -54,14 +54,11 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
         let nodes = nodes
             .into_iter()
             .flat_map(|v| graph.internalise_node(v.as_node_ref()));
-        let mut nodes: Vec<_> = if graph.nodes_filtered() {
-            nodes.filter(|n| graph.has_node(*n)).collect()
+        let nodes = if graph.nodes_filtered() {
+            Index::new(nodes.filter(|n| graph.has_node(*n)))
         } else {
-            nodes.collect()
+            Index::new(nodes)
         };
-        nodes.sort();
-        nodes.dedup();
-        let nodes = Index::new(nodes, graph.unfiltered_num_nodes());
         Self { graph, nodes }
     }
 }

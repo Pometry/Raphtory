@@ -403,7 +403,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .count(),
                 NodeList::List { nodes } => nodes
                     .par_iter()
-                    .filter(move |&&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
+                    .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
                     .count(),
             }
         } else {

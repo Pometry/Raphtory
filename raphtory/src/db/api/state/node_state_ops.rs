@@ -113,7 +113,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
                 self.base_graph().clone(),
                 self.graph().clone(),
                 values,
-                Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+                Some(Index::new(keys)),
             )
         }
     }
@@ -137,7 +137,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+            Some(Index::new(keys)),
         )
     }
 
@@ -174,7 +174,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+            Some(Index::new(keys)),
         )
     }
 
