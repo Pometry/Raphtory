@@ -97,10 +97,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
                 values,
-                Some(Index::new(
-                    keys,
-                    self.nodes.base_graph.unfiltered_num_nodes(),
-                )),
+                Some(Index::new(keys)),
             )
         } else {
             let values = self.collect_vec();

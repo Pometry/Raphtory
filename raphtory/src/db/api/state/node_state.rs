@@ -7,63 +7,66 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::{iter::Either, prelude::*};
+use roaring::RoaringTreemap;
 use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Index<K> {
-    keys: Arc<[K]>,
-    map: Arc<[bool]>,
+    pub(crate) set: Arc<RoaringTreemap>,
+    len: usize, // cache the len for the set as it is recomputed every time
+    _phantom: PhantomData<K>,
 }
 
-impl<K: Copy + Into<usize>> Index<K> {
-    pub fn new(keys: impl Into<Arc<[K]>>, n: usize) -> Self {
-        let keys = keys.into();
-        let mut map = vec![false; n];
-        for k in keys.iter().copied() {
-            map[k.into()] = true;
-        }
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
+    pub fn new(keys: impl IntoIterator<Item = K>) -> Self {
+        let set: Arc<RoaringTreemap> =
+            Arc::new(keys.into_iter().map(|k| k.into() as u64).collect());
+        let len = set.len() as usize;
         Self {
-            keys,
-            map: map.into(),
+            set,
+            len,
+            _phantom: PhantomData,
         }
     }
-}
-
-impl<K: Copy + Ord + Into<usize> + Send + Sync> Index<K> {
-    pub fn iter(&self) -> impl Iterator<Item = &K> + '_ {
-        self.keys.iter()
+    pub fn iter(&self) -> impl Iterator<Item = K> + '_ {
+        self.set.iter().map(|k| K::from(k as usize))
     }
 
     pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = K> {
-        let keys = self.keys;
-        (0..keys.len()).into_par_iter().map(move |i| keys[i])
+        (0..self.len())
+            .into_par_iter()
+            .map(move |i| self.key(i).unwrap())
     }
 
     pub fn into_iter(self) -> impl Iterator<Item = K> {
-        let keys = self.keys;
-        (0..keys.len()).map(move |i| keys[i])
+        (0..self.len()).map(move |i| self.key(i).unwrap())
     }
 
     pub fn index(&self, key: &K) -> Option<usize> {
-        self.keys.binary_search(key).ok()
+        let rank = self.set.rank((*key).into() as u64) as usize;
+        if rank < self.len() {
+            Some(rank)
+        } else {
+            None
+        }
     }
 
     pub fn key(&self, index: usize) -> Option<K> {
-        self.keys.get(index).copied()
+        self.set.select(index as u64).map(|k| K::from(k as usize))
     }
 
     pub fn len(&self) -> usize {
-        self.keys.len()
+        self.len
     }
 
     pub fn contains(&self, key: &K) -> bool {
-        self.map.get((*key).into()).copied().unwrap_or(false)
+        self.set.contains((*key).into() as u64)
     }
-}
 
-impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = &K> + '_ {
-        self.keys.par_iter()
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = K> + '_ {
+        (0..self.len())
+            .into_par_iter()
+            .map(move |i| self.key(i).unwrap())
     }
 }
 
@@ -160,12 +163,11 @@ impl<
     {
         match &self.keys {
             Some(index) => index
-                .keys
                 .iter()
                 .zip(self.values.iter())
                 .map(|(n, v)| {
                     (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, *n),
+                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
                         v,
                     )
                 })
@@ -199,14 +201,14 @@ impl<
         'graph: 'a,
     {
         match &self.keys {
-            Some(index) => Either::Left(index.keys.par_iter().zip(self.values.par_iter()).map(
-                |(n, v)| {
+            Some(index) => {
+                Either::Left(index.par_iter().zip(self.values.par_iter()).map(|(n, v)| {
                     (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, *n),
+                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
                         v,
                     )
-                },
-            )),
+                }))
+            }
             None => Either::Right(self.values.par_iter().enumerate().map(|(i, v)| {
                 (
                     NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(i)),
@@ -221,9 +223,9 @@ impl<
         index: usize,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
         match &self.keys {
-            Some(node_index) => node_index.keys.get(index).map(|n| {
+            Some(node_index) => node_index.key(index).map(|n| {
                 (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, *n),
+                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
                     &self.values[index],
                 )
             }),
