@@ -13,13 +13,18 @@ pub struct NodeGroups<V, G, GH = G> {
     graph: GH,
 }
 
-impl<V: Hash + Eq, G, GH> NodeGroups<V, G, GH> {
+impl<V: Hash + Eq, G: Clone, GH> NodeGroups<V, G, GH> {
     pub(crate) fn new(values: impl Iterator<Item = (VID, V)>, base_graph: G, graph: GH) -> Self {
         let mut groups: HashMap<V, Vec<VID>> = HashMap::new();
         for (node, v) in values {
             groups.entry(v).or_insert_with(Vec::new).push(node);
         }
-        let groups = Arc::new(groups.into_iter().map(|(k, v)| (k, v.into())).collect());
+        let groups = Arc::new(
+            groups
+                .into_iter()
+                .map(|(k, v)| (k, Index::new(v)))
+                .collect(),
+        );
         Self {
             groups,
             base_graph,
@@ -27,19 +32,19 @@ impl<V: Hash + Eq, G, GH> NodeGroups<V, G, GH> {
         }
     }
 
-    fn groups(&self) -> impl Iterator<Item = (&V, Nodes<G, GH>)> {
-        self.groups.iter().map(|(v, nodes)| {
-            (
-                v,
-                Nodes::new_filtered(
-                    self.base_graph.clone(),
-                    self.graph.clone(),
-                    Some(nodes.clone()),
-                    None,
-                ),
-            )
-        })
-    }
+    // fn groups(&self) -> impl Iterator<Item = (&V, Nodes<G, GH>)> {
+    //     self.groups.iter().map(|(v, nodes)| {
+    //         (
+    //             v,
+    //             Nodes::new_filtered(
+    //                 self.base_graph.clone(),
+    //                 self.graph.clone(),
+    //                 Some(nodes.clone()),
+    //                 None,
+    //             ),
+    //         )
+    //     })
+    // }
 }
 pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
     fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::BaseGraph, Self::Graph>;

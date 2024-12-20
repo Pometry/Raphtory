@@ -46,9 +46,7 @@ impl NodeList {
         match self {
             NodeList::All { num_nodes } => Either::Left((0..num_nodes).into_par_iter().map(VID)),
             NodeList::List { nodes } => Either::Right(
-                (0..nodes.len())
-                    .into_par_iter()
-                    .map(move |i| nodes.key(i).unwrap()),
+                nodes.into_par_iter(),
             ),
         }
     }
