@@ -22,7 +22,7 @@ use crate::{
     },
     serialise::{StableDecode, StableEncode},
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr};
+use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
@@ -193,20 +193,25 @@ impl PyGraph {
         &self,
         timestamp: PyTime,
         id: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
+        let props = properties
+            .into_iter()
+            .flat_map(|map| {
+                map.into_iter().map(|(k, v)| {
+                    k.extract::<String>()
+                        .and_then(|k| v.extract::<Prop>().map(move |v| (k, v)))
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         match secondary_index {
-            None => self
-                .graph
-                .add_node(timestamp, id, properties.unwrap_or_default(), node_type),
-            Some(secondary_index) => self.graph.add_node(
-                (timestamp, secondary_index),
-                id,
-                properties.unwrap_or_default(),
-                node_type,
-            ),
+            None => self.graph.add_node(timestamp, id, props, node_type),
+            Some(secondary_index) => {
+                self.graph
+                    .add_node((timestamp, secondary_index), id, props, node_type)
+            }
         }
     }
 

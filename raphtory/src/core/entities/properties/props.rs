@@ -31,8 +31,8 @@ enum PropId {
 impl Props {
     pub fn new() -> Self {
         Self {
-            constant_props: LazyVec::Empty,
-            temporal_props: LazyVec::Empty,
+            constant_props: Default::default(),
+            temporal_props: Default::default(),
         }
     }
 
