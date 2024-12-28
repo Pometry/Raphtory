@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{
     core::entities::LayerIds,
     db::api::{
@@ -19,6 +21,10 @@ pub trait NodeFilterOps {
 
     /// If `true`, node is included in the graph
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
+
+    fn filter_window(&self) -> Option<Range<i64>> {
+        None
+    }
 }
 
 pub trait InheritNodeFilterOps: Base {}

@@ -436,7 +436,7 @@ mod db_tests {
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
-        test_utils::test_graph,
+        test_utils::{test_disk_graph, test_graph},
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
@@ -1521,6 +1521,21 @@ mod db_tests {
                 )];
                 assert_eq!(actual, expected);
             }
+        });
+    }
+
+    #[test]
+    fn window_graph_nodes() {
+        let graph = Graph::new();
+        for n in 0u64..1000 {
+            let t = n as i64;
+            graph.add_edge(t, n,n, NO_PROPS, None).unwrap();
+        }
+
+        test_disk_graph(&graph, |g|{
+            let wg = g.window(0, 100);
+            let num_nodes = wg.nodes().into_iter().count();
+            assert_eq!(num_nodes, 100);
         });
     }
 

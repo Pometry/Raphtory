@@ -180,6 +180,14 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
                 .graph
                 .include_node_window(node, self.start_bound()..self.end_bound(), layer_ids)
     }
+
+    #[inline]
+    fn filter_window(&self) -> Option<Range<i64>> {
+        if self.window_is_empty() {
+            return None;
+        }
+        Some(self.start_bound()..self.end_bound()) // what about window of window?
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<G> {

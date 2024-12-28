@@ -11,7 +11,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
-        utils::errors::GraphError,
+        utils::{errors::GraphError, iter::GenLockedIter},
         Direction,
     },
     db::api::{
@@ -49,10 +49,10 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::iter::BoxedLIter;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{iter, sync::Arc};
+use std::{iter, ops::Range, sync::Arc};
 
 pub mod additions;
 pub mod const_props;
@@ -317,7 +317,21 @@ impl GraphStorage {
         view: G,
         type_filter: Option<Arc<[bool]>>,
     ) -> BoxedLIter<'graph, VID> {
-        let iter = view.node_list().into_iter();
+        let iter = if let Some(range) = view.filter_window() {
+            match &self {
+                GraphStorage::Mem(_) => view.node_list().into_iter(),
+                GraphStorage::Unlocked(_) => view.node_list().into_iter(),
+                GraphStorage::Disk(disk_graph_storage) => {
+                    GenLockedIter::from(disk_graph_storage.clone(), |graph| {
+                        let tg = graph.as_ref().as_ref();
+                        tg.nodes_iter(range).into_dyn_boxed()
+                    })
+                    .into_dyn_boxed()
+                }
+            }
+        } else {
+            view.node_list().into_iter()
+        };
         match type_filter {
             None => {
                 if view.node_list_trusted() {

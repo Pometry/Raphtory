@@ -1044,6 +1044,31 @@ mod proto_test {
         })
     }
 
+    #[test]
+    fn encode_graph_for_back_compat() {
+        let g = Graph::new();
+
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        g.add_constant_properties(props.clone()).unwrap();
+
+        g.add_properties(1, (&props[0..props.len()/2]).to_vec()).unwrap();
+        g.add_properties(2, (&props[props.len()/2..props.len()]).to_vec()).unwrap();
+
+        g.add_edge(1, 0, 1, props.clone(), None).unwrap();
+        g.add_edge(2, 1, 2, props.clone(), Some("layer")).unwrap();
+
+        g.node(0).unwrap().update_constant_properties(props.clone()).unwrap();
+
+        g.add_node(3, 1, props.clone(), None);
+
+        g.node(2).unwrap().add_constant_properties(props.clone()).unwrap();
+
+        let path = "/home/murariuf/Source/raphtory/graph_proto.bin";
+        g.encode(&path).unwrap();
+    }
+
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {
         props.push(("name", Prop::Str("Alice".into())));
         props.push(("age", Prop::U32(47)));
