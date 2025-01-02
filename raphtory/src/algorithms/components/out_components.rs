@@ -19,7 +19,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::entities::GID;
 use rayon::prelude::*;
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
 #[derive(Clone, Debug, Default)]
 struct OutState {
@@ -114,20 +114,20 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>>(
     node: NodeView<G>,
 ) -> NodeState<'graph, usize, G> {
     let mut out_components = HashMap::new();
-    let mut to_check_stack = Vec::new();
+    let mut to_check_stack = VecDeque::new();
     node.out_neighbours().iter().for_each(|node| {
         let id = node.node;
         out_components.insert(id, 1usize);
-        to_check_stack.push((id, 1usize));
+        to_check_stack.push_back((id, 1usize));
     });
-    while let Some((neighbour_id, d)) = to_check_stack.pop() {
+    while let Some((neighbour_id, d)) = to_check_stack.pop_front() {
         let d = d + 1;
         if let Some(neighbour) = &node.graph.node(neighbour_id) {
             neighbour.out_neighbours().iter().for_each(|node| {
                 let id = node.node;
                 if let Entry::Vacant(entry) = out_components.entry(id) {
                     entry.insert(d);
-                    to_check_stack.push((id, d));
+                    to_check_stack.push_back((id, d));
                 }
             });
         }
