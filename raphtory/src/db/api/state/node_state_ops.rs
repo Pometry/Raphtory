@@ -219,11 +219,10 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     fn group_by<V: Hash + Eq, F: Fn(&Self::OwnedValue) -> V + Sync>(
         &self,
         group_fn: F,
-    ) -> NodeGroups<V, Self::BaseGraph, Self::Graph> {
+    ) -> NodeGroups<V, Self::Graph> {
         NodeGroups::new(
             self.iter()
                 .map(|(node, v)| (node.node, group_fn(v.borrow()))),
-            self.base_graph().clone(),
             self.graph().clone(),
         )
     }

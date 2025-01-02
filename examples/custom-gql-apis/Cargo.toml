@@ -7,7 +7,6 @@ authors = ["Pometry"]
 rust-version = "1.75.0"
 edition = "2021"
 
-doc = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html[lib]
 [lib]
 name = "raphtory"
