@@ -109,11 +109,7 @@ pub fn balance<G: StaticGraphViewOps>(
     ctx.agg(min);
 
     let mut weight_type = Some(PropType::U8);
-    weight_type = match graph
-        .edge_meta()
-        .temporal_prop_meta()
-        .get_id(&name)
-    {
+    weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
         Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
         None => graph
             .edge_meta()
@@ -132,7 +128,7 @@ pub fn balance<G: StaticGraphViewOps>(
     } else if weight_type.unwrap().is_numeric() == false {
         return Err("Weight property is not numeric");
     }
-    
+
     let step1 = ATask::new(move |evv| {
         let res = balance_per_node(evv, &name, direction);
         evv.update(&min, res);
@@ -151,7 +147,12 @@ pub fn balance<G: StaticGraphViewOps>(
     );
 
     let results_type = std::any::type_name::<f64>();
-    Ok(AlgorithmResult::new(graph.clone(), "Balance", results_type, runner_result))
+    Ok(AlgorithmResult::new(
+        graph.clone(),
+        "Balance",
+        results_type,
+        runner_result,
+    ))
 }
 
 #[cfg(test)]
