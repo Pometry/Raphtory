@@ -2,7 +2,7 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            state::{node_state::NodeState, node_state_ord_ops, Index},
+            state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
             view::internal::CoreGraphOps,
         },
         graph::node::NodeView,
@@ -14,7 +14,7 @@ use rayon::{
     iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
     prelude::ParallelSliceMut,
 };
-use std::{borrow::Borrow, iter::Sum};
+use std::{borrow::Borrow, hash::Hash, iter::Sum};
 
 pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     type Graph: GraphViewOps<'graph>;
@@ -113,7 +113,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
                 self.base_graph().clone(),
                 self.graph().clone(),
                 values,
-                Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+                Some(Index::new(keys)),
             )
         }
     }
@@ -137,7 +137,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+            Some(Index::new(keys)),
         )
     }
 
@@ -174,7 +174,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+            Some(Index::new(keys)),
         )
     }
 
@@ -214,6 +214,17 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         values.par_sort_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()));
         let median_index = len / 2;
         values.into_iter().nth(median_index)
+    }
+
+    fn group_by<V: Hash + Eq, F: Fn(&Self::OwnedValue) -> V + Sync>(
+        &self,
+        group_fn: F,
+    ) -> NodeGroups<V, Self::Graph> {
+        NodeGroups::new(
+            self.iter()
+                .map(|(node, v)| (node.node, group_fn(v.borrow()))),
+            self.graph().clone(),
+        )
     }
 
     fn sum<'a, S>(&'a self) -> S

@@ -38,25 +38,21 @@ impl NodeList {
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = VID> + '_ {
         match self {
             NodeList::All { num_nodes } => Either::Left((0..*num_nodes).into_par_iter().map(VID)),
-            NodeList::List { nodes } => Either::Right(nodes.par_iter().copied()),
+            NodeList::List { nodes } => Either::Right(nodes.par_iter()),
         }
     }
 
     pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = VID> {
         match self {
             NodeList::All { num_nodes } => Either::Left((0..num_nodes).into_par_iter().map(VID)),
-            NodeList::List { nodes } => Either::Right(
-                (0..nodes.len())
-                    .into_par_iter()
-                    .map(move |i| nodes.key(i).unwrap()),
-            ),
+            NodeList::List { nodes } => Either::Right(nodes.into_par_iter()),
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
         match self {
             NodeList::All { num_nodes } => Either::Left((0..*num_nodes).map(VID)),
-            NodeList::List { nodes } => Either::Right(nodes.iter().copied()),
+            NodeList::List { nodes } => Either::Right(nodes.iter()),
         }
     }
 
