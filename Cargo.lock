@@ -72,6 +72,7 @@ dependencies = [
  "const-random",
  "getrandom",
  "once_cell",
+ "serde",
  "version_check",
  "zerocopy",
 ]
@@ -4823,6 +4824,7 @@ dependencies = [
 name = "raphtory"
 version = "0.14.0"
 dependencies = [
+ "ahash",
  "async-openai",
  "async-trait",
  "bincode",
@@ -4839,6 +4841,7 @@ dependencies = [
  "futures-util",
  "glam",
  "hashbrown 0.15.2",
+ "indexmap 2.7.0",
  "indoc",
  "itertools 0.13.0",
  "kdam",

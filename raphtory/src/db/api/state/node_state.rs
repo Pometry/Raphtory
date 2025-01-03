@@ -6,66 +6,62 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
-use roaring::RoaringTreemap;
 use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Index<K> {
-    pub(crate) list: Arc<[K]>,
-    pub(crate) set: Arc<RoaringTreemap>,
-    _phantom: PhantomData<K>,
+    index: Arc<IndexSet<K, ahash::RandomState>>,
 }
 
-impl<K: Copy + Eq + Ord + Into<usize> + From<usize> + Send + Sync> Index<K> {
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     pub fn new(keys: impl IntoIterator<Item = K>) -> Self {
-        let mut list: Vec<_> = keys.into_iter().collect();
-        list.sort_unstable();
-        list.dedup();
-        let set: Arc<RoaringTreemap> = Arc::new(
-            RoaringTreemap::from_sorted_iter(list.iter().map(|&k| k.into() as u64)).unwrap(),
-        );
         Self {
-            set,
-            list: list.into(),
-            _phantom: PhantomData,
+            index: Arc::new(IndexSet::from_iter(keys)),
         }
     }
+
+    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = K> + '_ {
-        self.list.iter().copied()
+        self.index.iter().copied()
     }
 
+    #[inline]
     pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = K> {
-        (0..self.len()).into_par_iter().map(move |i| self.list[i])
+        (0..self.len())
+            .into_par_iter()
+            .map(move |i| *self.index.get_index(i).unwrap())
     }
 
     pub fn into_iter(self) -> impl Iterator<Item = K> {
-        (0..self.len()).map(move |i| self.list[i])
+        (0..self.len()).map(move |i| *self.index.get_index(i).unwrap())
     }
 
+    #[inline]
     pub fn index(&self, key: &K) -> Option<usize> {
-        let rank = self.set.rank((*key).into() as u64) as usize;
-        if rank < self.len() {
-            Some(rank)
-        } else {
-            None
-        }
+        self.index.get_index_of(key)
     }
 
+    #[inline]
     pub fn key(&self, index: usize) -> Option<K> {
-        self.list.get(index).copied()
+        self.index.get_index(index).copied()
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
-        self.list.len()
+        self.index.len()
     }
 
+    #[inline]
     pub fn contains(&self, key: &K) -> bool {
-        self.set.contains((*key).into() as u64)
+        self.index.contains(key)
     }
 
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = K> + '_ {
-        self.list.par_iter().copied()
+        (0..self.len())
+            .into_par_iter()
+            .map(move |i| *self.index.get_index(i).unwrap())
     }
 }
 
