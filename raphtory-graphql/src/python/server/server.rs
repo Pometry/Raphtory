@@ -20,10 +20,17 @@ use pyo3::{
     exceptions::{PyAttributeError, PyException},
     prelude::*,
     types::{IntoPyDict, PyFunction, PyList},
+    IntoPyObjectExt,
 };
 use raphtory::{
-    python::types::wrappers::document::PyDocument,
-    vectors::{embeddings::openai_embedding, template::DocumentTemplate, EmbeddingFunction},
+    python::{packages::vectors::TemplateConfig, types::wrappers::document::PyDocument},
+    vectors::{
+        embeddings::openai_embedding,
+        template::{
+            DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
+        },
+        EmbeddingFunction,
+    },
 };
 use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
 
@@ -31,24 +38,28 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
 #[pyclass(name = "GraphServer")]
 pub struct PyGraphServer(pub Option<GraphServer>);
 
-impl IntoPy<PyObject> for GraphServer {
-    fn into_py(self, py: Python) -> PyObject {
-        Py::new(py, PyGraphServer(Some(self))).unwrap().into_py(py)
+impl<'py> IntoPyObject<'py> for GraphServer {
+    type Target = PyGraphServer;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphServer::new(self).into_pyobject(py)
     }
 }
 
 fn template_from_python(
-    graph_template: Option<String>,
-    node_template: Option<String>,
-    edge_template: Option<String>,
+    graphs: TemplateConfig,
+    nodes: TemplateConfig,
+    edges: TemplateConfig,
 ) -> Option<DocumentTemplate> {
-    if graph_template.is_none() && node_template.is_none() && edge_template.is_none() {
+    if graphs.is_disabled() && nodes.is_disabled() && edges.is_disabled() {
         None
     } else {
         Some(DocumentTemplate {
-            graph_template,
-            node_template,
-            edge_template,
+            graph_template: graphs.get_template_or(DEFAULT_GRAPH_TEMPLATE),
+            node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
+            edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         })
     }
 }
@@ -62,11 +73,11 @@ impl PyGraphServer {
         slf: PyRefMut<Self>,
         cache: String,
         embedding: F,
-        graph_template: Option<String>,
-        node_template: Option<String>,
-        edge_template: Option<String>,
+        graphs: TemplateConfig,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
-        let global_template = template_from_python(graph_template, node_template, edge_template);
+        let global_template = template_from_python(graphs, nodes, edges);
         let server = take_server_ownership(slf)?;
         let cache = PathBuf::from(cache);
         Ok(server.set_embeddings(embedding, &cache, global_template))
@@ -104,6 +115,7 @@ impl PyGraphServer {
             })
             .collect::<PyResult<Vec<InputValue>>>()?;
 
+        // FIXME: this should return a result!
         let register_function = |name: &str, registry: Registry, parent: Object| {
             let registry = registry.register::<GqlDocument>();
             let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
@@ -115,9 +127,9 @@ impl PyGraphServer {
                         .iter()
                         .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
                         .collect();
-                    let py_kw_args = kw_args.into_py_dict_bound(py);
+                    let py_kw_args = kw_args.into_py_dict(py).unwrap();
                     let result = function
-                        .call_bound(py, (entry_point,), Some(&py_kw_args))
+                        .call(py, (entry_point,), Some(&py_kw_args))
                         .unwrap();
                     let list = result.downcast_bound::<PyList>(py).unwrap();
                     let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
@@ -202,43 +214,31 @@ impl PyGraphServer {
     /// Arguments:
     ///   cache (str):  the directory to use as cache for the embeddings.
     ///   embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-    ///   graph_template (str, optional):  the template to use for graphs.
-    ///   node_template (str, optional):  the template to use for nodes.
-    ///   edge_template (str, optional):  the template to use for edges.
+    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
     ///
     /// Returns:
     ///    GraphServer: A new server object with embeddings setup.
     #[pyo3(
-        signature = (cache, embedding = None, graph_template = None, node_template = None, edge_template = None)
+        signature = (cache, embedding = None, graphs = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
     fn set_embeddings(
         slf: PyRefMut<Self>,
         cache: String,
         embedding: Option<Py<PyFunction>>,
-        graph_template: Option<String>,
-        node_template: Option<String>,
-        edge_template: Option<String>,
+        graphs: TemplateConfig,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
         match embedding {
             Some(embedding) => {
                 let embedding: Arc<dyn EmbeddingFunction> = Arc::new(embedding);
-                Self::set_generic_embeddings(
-                    slf,
-                    cache,
-                    embedding,
-                    graph_template,
-                    node_template,
-                    edge_template,
-                )
+                Self::set_generic_embeddings(slf, cache, embedding, graphs, nodes, edges)
             }
-            None => Self::set_generic_embeddings(
-                slf,
-                cache,
-                openai_embedding,
-                graph_template,
-                node_template,
-                edge_template,
-            ),
+            None => {
+                Self::set_generic_embeddings(slf, cache, openai_embedding, graphs, nodes, edges)
+            }
         }
     }
 
@@ -246,28 +246,27 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///   graph_names (list[str]): the names of the graphs to vectorise. All by default.
-    ///   graph_template (str, optional):  the template to use for graphs.
-    ///   node_template (str, optional):  the template to use for nodes.
-    ///   edge_template (str, optional):  the template to use for edges.
+    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
-        signature = (graph_names, graph_template = None, node_template = None, edge_template = None)
+        signature = (graph_names, graphs = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
     fn with_vectorised_graphs(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
-        graph_template: Option<String>,
-        node_template: Option<String>,
-        edge_template: Option<String>,
+        graphs: TemplateConfig,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
-        let template = template_from_python(graph_template, node_template, edge_template).ok_or(
-            PyAttributeError::new_err(
+        let template =
+            template_from_python(graphs, nodes, edges).ok_or(PyAttributeError::new_err(
                 "some of graph_template, node_template, edge_template has to be set",
-            ),
-        )?;
+            ))?;
         let server = take_server_ownership(slf)?;
         Ok(server.with_vectorised_graphs(graph_names, template))
     }
@@ -293,7 +292,9 @@ impl PyGraphServer {
         function: Py<PyFunction>,
     ) -> PyResult<GraphServer> {
         let adapter = |entry_point: &QueryPlugin, py: Python| {
-            PyGlobalPlugins(entry_point.clone()).into_py(py)
+            PyGlobalPlugins(entry_point.clone())
+                .into_py_any(py)
+                .unwrap()
         };
         PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }

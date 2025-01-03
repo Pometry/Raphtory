@@ -14,7 +14,9 @@ use crate::{
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
-            properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -36,10 +38,10 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
     add_classes!(
         m,
-        PyGraph,
         PyGraphView,
-        PyGraphEncoder,
+        PyGraph,
         PyPersistentGraph,
+        PyGraphEncoder,
         PyNode,
         PyNodes,
         PyMutableNode,
@@ -47,7 +49,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyEdges,
         PyMutableEdge,
         PyProperties,
-        PyConstProperties,
+        PyConstantProperties,
         PyTemporalProperties,
         PyTemporalProp,
         PyPropertyRef,
@@ -63,7 +65,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 }
 
 pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
-    let algorithm_module = PyModule::new_bound(py, "algorithms")?;
+    let algorithm_module = PyModule::new(py, "algorithms")?;
     add_functions!(
         &algorithm_module,
         dijkstra_single_source_shortest_paths,
@@ -114,7 +116,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
-    let graph_loader_module = PyModule::new_bound(py, "graph_loader")?;
+    let graph_loader_module = PyModule::new(py, "graph_loader")?;
     add_functions!(
         &graph_loader_module,
         lotr_graph,
@@ -129,7 +131,7 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr
 }
 
 pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
-    let graph_gen_module = PyModule::new_bound(py, "graph_gen")?;
+    let graph_gen_module = PyModule::new(py, "graph_gen")?;
     add_functions!(
         &graph_gen_module,
         random_attachment,
@@ -139,7 +141,7 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
-    let vectors_module = PyModule::new_bound(py, "vectors")?;
+    let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
     vectors_module.add_class::<PyVectorSelection>()?;

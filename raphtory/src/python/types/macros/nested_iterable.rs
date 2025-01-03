@@ -15,10 +15,11 @@ macro_rules! py_nested_iterable_base {
             }
         }
 
-        impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F> for $name
+        impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + Sync + 'static> From<F>
+            for $name
         where
-            It::Item: Iterator + Send,
-            <It::Item as Iterator>::Item: Into<$item> + Send,
+            It::Item: Iterator + Send + Sync,
+            <It::Item as Iterator>::Item: Into<$item> + Send + Sync,
         {
             fn from(value: F) -> Self {
                 Self($crate::python::types::iterable::NestedIterable::new(

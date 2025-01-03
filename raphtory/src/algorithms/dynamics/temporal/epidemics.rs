@@ -29,7 +29,7 @@ impl Probability {
 
 pub struct Number(pub usize);
 
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Infected {
     pub infected: i64,
     pub active: i64,

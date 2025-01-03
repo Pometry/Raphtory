@@ -328,7 +328,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -350,7 +350,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     }
 
     fn hop<
-        I: Iterator<Item = VID> + Send + 'graph,
+        I: Iterator<Item = VID> + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -368,9 +368,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> NodeView<G, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
-        props: C,
+        properties: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
         })?;
         self.graph

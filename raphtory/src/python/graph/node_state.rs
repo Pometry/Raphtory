@@ -200,25 +200,25 @@ macro_rules! impl_node_state_ord_ops {
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
             }
 
-            fn __eq__<'py>(&self, other: &Bound<'py, PyAny>, py: Python<'py>) -> PyObject {
-                if let Ok(other) = other.downcast::<Self>() {
+            fn __eq__<'py>(
+                &self,
+                other: &Bound<'py, PyAny>,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+                let res = if let Ok(other) = other.downcast::<Self>() {
                     let other = Bound::borrow(other);
-                    return self.inner.values().eq(other.inner.values()).into_py(py);
+                    self.inner.values().eq(other.inner.values())
                 } else if let Ok(other) = other.extract::<Vec<$value>>() {
-                    return self
-                        .inner
-                        .values()
-                        .map($to_owned)
-                        .eq(other.into_iter())
-                        .into_py(py);
+                    self.inner.values().map($to_owned).eq(other.into_iter())
                 } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
-                    return (self.inner.len() == other.len()
+                    (self.inner.len() == other.len()
                         && other.into_iter().all(|(node, value)| {
                             self.inner.get_by_node(node).map($to_owned) == Some(value)
                         }))
-                    .into_py(py);
-                }
-                PyNotImplemented::get_bound(py).into_py(py)
+                } else {
+                    return Ok(PyNotImplemented::get(py).to_owned().into_any());
+                };
+                Ok(res.into_pyobject(py)?.to_owned().into_any())
             }
         }
     };
@@ -297,9 +297,15 @@ macro_rules! impl_lazy_node_state {
             }
         }
 
-        impl pyo3::IntoPy<PyObject> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                $name::from(self).into_py(py)
+        impl<'py> pyo3::IntoPyObject<'py>
+            for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>
+        {
+            type Target = $name;
+            type Output = Bound<'py, Self::Target>;
+            type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                $name::from(self).into_pyobject(py)
             }
         }
     };
@@ -313,8 +319,8 @@ macro_rules! impl_node_state {
         }
 
         impl $name {
-            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph, DynamicGraph> {
-                self.inner.as_ref()
+            pub fn inner(&self) -> &Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>> {
+                &self.inner
             }
         }
 
@@ -335,9 +341,21 @@ macro_rules! impl_node_state {
             }
         }
 
-        impl pyo3::IntoPy<PyObject> for NodeState<'static, $value, DynamicGraph, DynamicGraph> {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                $name::from(self).into_py(py)
+        impl From<Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>> for $name {
+            fn from(inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>) -> Self {
+                $name { inner }
+            }
+        }
+
+        impl<'py> pyo3::IntoPyObject<'py>
+            for NodeState<'static, $value, DynamicGraph, DynamicGraph>
+        {
+            type Target = $name;
+            type Output = Bound<'py, Self::Target>;
+            type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                $name::from(self).into_pyobject(py)
             }
         }
     };
@@ -379,11 +397,15 @@ macro_rules! impl_node_state_num {
 
 macro_rules! impl_one_hop {
         ($name:ident<$($path:ident)::+>, $py_name:literal) => {
-            impl<G: StaticGraphViewOps + IntoDynamic + Static> IntoPy<PyObject>
+            impl<'py, G: StaticGraphViewOps + IntoDynamic + Static> pyo3::IntoPyObject<'py>
                 for LazyNodeState<'static, $($path)::+<G>, DynamicGraph, DynamicGraph>
             {
-                fn into_py(self, py: Python<'_>) -> PyObject {
-                    self.into_dyn_hop().into_py(py)
+                type Target = $name;
+                type Output = Bound<'py, Self::Target>;
+                type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                    self.into_dyn_hop().into_pyobject(py)
                 }
             }
 
@@ -490,7 +512,7 @@ impl_node_state_ord!(
 );
 
 pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
-    let m = PyModule::new_bound(py, "node_state")?;
+    let m = PyModule::new(py, "node_state")?;
     add_classes!(
         &m,
         DegreeView,

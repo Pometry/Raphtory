@@ -72,8 +72,9 @@ def setup_server(work_dir):
     server = server.set_embeddings(
         cache="/tmp/graph-cache",
         embedding=embedding,
-        node_template="{{ name }}",
-        graph_template="{{ props.name }}",
+        nodes="{{ name }}",
+        graphs="{{ properties.name }}",
+        edges=False,
     )
     return server
 

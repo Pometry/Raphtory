@@ -43,11 +43,9 @@ use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
     pybacked::PyBackedStr,
-    pyclass,
-    pyclass::CompareOp,
-    pymethods,
+    pyclass, pymethods,
     types::PyDict,
-    PyAny, PyObject, PyRef, PyResult, Python,
+    PyObject, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -97,20 +95,6 @@ impl AsNodeRef for PyNode {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyNode {
-    /// Rich Comparison for Node objects
-    pub fn __richcmp__(&self, other: PyRef<PyNode>, op: CompareOp) -> Py<PyAny> {
-        let py = other.py();
-        match op {
-            CompareOp::Eq => (self.node.id() == other.id()).into_py(py),
-            CompareOp::Ne => (self.node.id() != other.id()).into_py(py),
-            CompareOp::Lt => (self.node.id() < other.id()).into_py(py),
-            CompareOp::Le => (self.node.id() <= other.id()).into_py(py),
-            CompareOp::Gt => (self.node.id() > other.id()).into_py(py),
-            CompareOp::Ge => (self.node.id() >= other.id()).into_py(py),
-        }
-    }
-
-    /// TODO: uncomment when we update to py03 0.2
     /// checks if a node is equal to another by their id (ids are unqiue)
     ///
     /// Arguments:
@@ -118,9 +102,29 @@ impl PyNode {
     ///
     /// Returns:
     ///   True if the nodes are equal, false otherwise.
-    // pub fn __eq__(&self, other: &PyNode) -> bool {
-    //     self.node.id() == other.node.id()
-    // }
+    fn __eq__(&self, other: Bound<PyNode>) -> bool {
+        self.node.id() == other.get().node.id()
+    }
+
+    fn __ne__(&self, other: Bound<PyNode>) -> bool {
+        self.node.id() != other.get().node.id()
+    }
+
+    fn __lt__(&self, other: Bound<PyNode>) -> bool {
+        self.node.id() < other.get().node.id()
+    }
+
+    fn __le__(&self, other: Bound<PyNode>) -> bool {
+        self.node.id() <= other.get().node.id()
+    }
+
+    fn __gt__(&self, other: Bound<PyNode>) -> bool {
+        self.node.id() > other.get().node.id()
+    }
+
+    fn __ge__(&self, other: Bound<PyNode>) -> bool {
+        self.node.id() >= other.get().node.id()
+    }
 
     /// Returns the hash of the node.
     ///
@@ -233,7 +237,7 @@ impl PyNode {
     ///     List[int]: A list of unix timestamps of the event history of node.
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.node.history();
-        history.into_pyarray_bound(py)
+        history.into_pyarray(py)
     }
 
     /// Returns the history of a node, including node additions and changes made to node.
@@ -300,59 +304,70 @@ pub struct PyMutableNode {
     node: NodeView<MaterializedGraph, MaterializedGraph>,
 }
 
+impl PyMutableNode {
+    fn new_bound<G: StaticGraphViewOps + IntoDynamic + Into<MaterializedGraph>>(
+        node: NodeView<G>,
+        py: Python,
+    ) -> PyResult<Bound<PyMutableNode>> {
+        Bound::new(py, (PyMutableNode::from(node.clone()), PyNode::from(node)))
+    }
+}
+
 impl Repr for PyMutableNode {
     fn repr(&self) -> String {
         self.node.repr()
     }
 }
-
-impl From<NodeView<MaterializedGraph, MaterializedGraph>> for PyMutableNode {
-    fn from(node: NodeView<MaterializedGraph, MaterializedGraph>) -> Self {
-        Self { node }
-    }
-}
-
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Immutable>
-    IntoPy<PyObject> for NodeView<G, GH>
+impl<
+        'py,
+        G: StaticGraphViewOps + IntoDynamic,
+        GH: StaticGraphViewOps + IntoDynamic + Immutable,
+    > IntoPyObject<'py> for NodeView<G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyNode::from(self).into_py(py)
+    type Target = PyNode;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyNode::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for NodeView<Graph, Graph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let graph: MaterializedGraph = self.graph.into();
-        let base_graph = graph.clone();
-        let node = self.node;
-        let node = NodeView {
-            base_graph,
-            graph,
-            node,
-        };
-        node.into_py(py)
+impl<G: Into<MaterializedGraph>> From<NodeView<G>> for PyMutableNode {
+    fn from(value: NodeView<G>) -> Self {
+        let graph = value.graph.into();
+        let node = NodeView::new_internal(graph, value.node);
+        PyMutableNode { node }
     }
 }
 
-impl IntoPy<PyObject> for NodeView<PersistentGraph, PersistentGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let graph: MaterializedGraph = self.graph.into();
-        let base_graph = graph.clone();
-        let node = self.node;
-        let node = NodeView {
-            base_graph,
-            graph,
-            node,
-        };
-        node.into_py(py)
+impl<'py> IntoPyObject<'py> for NodeView<Graph, Graph> {
+    type Target = PyMutableNode;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyMutableNode::new_bound(self, py)
     }
 }
 
-impl IntoPy<PyObject> for NodeView<MaterializedGraph, MaterializedGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, (PyMutableNode::from(self.clone()), PyNode::from(self)))
-            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
-            .into_py(py)
+impl<'py> IntoPyObject<'py> for NodeView<PersistentGraph, PersistentGraph> {
+    type Target = PyMutableNode;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyMutableNode::new_bound(self, py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for NodeView<MaterializedGraph, MaterializedGraph> {
+    type Target = PyMutableNode;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyMutableNode::new_bound(self, py)
     }
 }
 
@@ -372,7 +387,10 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///    t (TimeInput): The timestamp at which the updates should be applied.
-    ///    properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+    ///    properties (PropInput, optional): A dictionary of properties to update. Each key is a
+    ///                                      string representing the property name, and each value
+    ///                                      is of type Prop representing the property value.
+    ///                                      If None, no properties are updated.
     ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
@@ -482,11 +500,15 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for Nodes<'static, G, GH>
+impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    IntoPyObject<'py> for Nodes<'static, G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyNodes::from(self).into_py(py)
+    type Target = PyNodes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyNodes::from(self).into_pyobject(py)
     }
 }
 
@@ -700,11 +722,11 @@ impl PyNodes {
             .collect();
 
         Python::with_gil(|py| {
-            let kwargs = PyDict::new_bound(py);
+            let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names.clone())?;
-            let pandas = PyModule::import_bound(py, "pandas")?;
+            let pandas = PyModule::import(py, "pandas")?;
             let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(&kwargs))?;
-            Ok(df_data.to_object(py))
+            Ok(df_data.unbind())
         })
     }
 
@@ -853,11 +875,15 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for PathFromGraph<'static, G, GH>
+impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    IntoPyObject<'py> for PathFromGraph<'static, G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyPathFromGraph::from(self).into_py(py)
+    type Target = PyPathFromGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyPathFromGraph::from(self).into_pyobject(py)
     }
 }
 
@@ -899,11 +925,15 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for PathFromNode<'static, G, GH>
+impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    IntoPyObject<'py> for PathFromNode<'static, G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyPathFromNode::from(self).into_py(py)
+    type Target = PyPathFromNode;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyPathFromNode::from(self).into_pyobject(py)
     }
 }
 

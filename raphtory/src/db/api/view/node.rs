@@ -31,7 +31,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn map<F: NodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>;
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -39,7 +39,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ) -> Self::Edges;
 
     fn hop<
-        I: Iterator<Item = VID> + Send + 'graph,
+        I: Iterator<Item = VID> + Send + Sync + 'graph,
         F: for<'a> Fn(&GraphStorage, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,

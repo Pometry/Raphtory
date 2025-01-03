@@ -20,7 +20,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
 #[derive(Clone, Debug, Default)]
 struct InState {
@@ -111,20 +111,20 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(
     node: NodeView<G>,
 ) -> NodeState<'graph, usize, G> {
     let mut in_components = HashMap::new();
-    let mut to_check_stack = Vec::new();
+    let mut to_check_stack = VecDeque::new();
     node.in_neighbours().iter().for_each(|node| {
         let id = node.node;
         in_components.insert(id, 1usize);
-        to_check_stack.push((id, 1usize));
+        to_check_stack.push_back((id, 1usize));
     });
-    while let Some((neighbour_id, d)) = to_check_stack.pop() {
+    while let Some((neighbour_id, d)) = to_check_stack.pop_front() {
         let d = d + 1;
         if let Some(neighbour) = &node.graph.node(neighbour_id) {
             neighbour.in_neighbours().iter().for_each(|node| {
                 let id = node.node;
                 if let Entry::Vacant(entry) = in_components.entry(id) {
                     entry.insert(d);
-                    to_check_stack.push((id, d));
+                    to_check_stack.push_back((id, d));
                 }
             });
         }
@@ -145,6 +145,16 @@ mod components_test {
     use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use std::collections::HashMap;
 
+    fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
+        let mut results: Vec<_> = in_component(graph.node(node_id).unwrap())
+            .iter()
+            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .collect();
+        results.sort();
+        correct.sort();
+        assert_eq!(results, correct);
+    }
+
     #[test]
     fn in_component_test() {
         let graph = Graph::new();
@@ -163,16 +173,6 @@ mod components_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
-            let mut results: Vec<_> = in_component(graph.node(node_id).unwrap())
-                .iter()
-                .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
-                .collect();
-            results.sort();
-            correct.sort();
-            assert_eq!(results, correct);
-        }
-
         check_node(&graph, 1, vec![]);
         check_node(&graph, 2, vec![(1, 1)]);
         check_node(&graph, 3, vec![(1, 1)]);
@@ -181,6 +181,18 @@ mod components_test {
         check_node(&graph, 6, vec![(1, 3), (2, 2), (4, 1), (5, 2)]);
         check_node(&graph, 7, vec![(1, 3), (2, 2), (4, 1), (5, 2)]);
         check_node(&graph, 8, vec![(1, 3), (2, 2), (5, 1)]);
+    }
+
+    #[test]
+    fn test_distances() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 4, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 4, 5, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 5, 3, NO_PROPS, None).unwrap();
+
+        check_node(&graph, 3, vec![(1, 2), (2, 1), (4, 2), (5, 1)]);
     }
 
     #[test]

@@ -36,7 +36,9 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Formatter},
+    hash::{Hash, Hasher},
     sync::Arc,
 };
 
@@ -132,7 +134,49 @@ impl<
     > PartialEq<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
 {
     fn eq(&self, other: &EdgeView<G2, GH2>) -> bool {
-        self.id() == other.id()
+        self.id() == other.id() && self.edge.time() == other.edge.time()
+    }
+}
+
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Eq
+    for EdgeView<G1, GH1>
+{
+}
+
+impl<
+        'graph_1,
+        'graph_2,
+        G1: GraphViewOps<'graph_1>,
+        GH1: GraphViewOps<'graph_1>,
+        G2: GraphViewOps<'graph_2>,
+        GH2: GraphViewOps<'graph_2>,
+    > PartialOrd<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
+{
+    fn partial_cmp(&self, other: &EdgeView<G2, GH2>) -> Option<Ordering> {
+        Some(
+            self.id()
+                .cmp(&other.id())
+                .then(self.edge.time().cmp(&other.edge.time())),
+        )
+    }
+}
+
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord
+    for EdgeView<G1, GH1>
+{
+    fn cmp(&self, other: &EdgeView<G1, GH1>) -> Ordering {
+        self.id()
+            .cmp(&other.id())
+            .then(self.edge.time().cmp(&other.edge.time()))
+    }
+}
+
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Hash
+    for EdgeView<G1, GH1>
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+        self.edge.time().hash(state);
     }
 }
 
@@ -175,7 +219,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 
     fn map_exploded<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -233,7 +277,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ///
     /// # Arguments
     ///
-    /// * `props` - Property key-value pairs to add
+    /// * `properties` - Property key-value pairs to add
     /// * `layer` - The layer to which properties should be added. If the edge view is restricted to a
     ///             single layer, 'None' will add the properties to that layer and 'Some("name")'
     ///             fails unless the layer matches the edge view. If the edge view is not restricted
@@ -241,7 +285,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
-        props: C,
+        properties: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
@@ -256,7 +300,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 dst: self.dst().name(),
             });
         }
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
         })?;
 

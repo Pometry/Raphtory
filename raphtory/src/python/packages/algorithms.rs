@@ -125,7 +125,7 @@ pub fn weakly_connected_components(
 pub fn strongly_connected_components(
     g: &PyGraphView,
 ) -> AlgorithmResult<DynamicGraph, usize, usize> {
-    components::strongly_connected_components(&g.graph, None)
+    components::strongly_connected_components(&g.graph)
 }
 
 #[cfg(feature = "storage")]
@@ -862,7 +862,7 @@ pub fn temporal_rich_club_coefficient(
     k: usize,
     delta: usize,
 ) -> PyResult<f64> {
-    let py_iterator = views.iter()?;
+    let py_iterator = views.try_iter()?;
     let views = py_iterator
         .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;

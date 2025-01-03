@@ -27,7 +27,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for WindowedGraph<
                 .into_dynamic(),
             node_index: self.graph.node_index,
             edge_index: self.graph.edge_index,
-            reader: self.graph.reader,
+            node_reader: self.graph.node_reader,
             edge_reader: self.graph.edge_reader,
         }
     }
@@ -43,7 +43,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for LayeredGraph<I
             graph: l.into_dynamic(),
             node_index: self.graph.node_index,
             edge_index: self.graph.edge_index,
-            reader: self.graph.reader,
+            node_reader: self.graph.node_reader,
             edge_reader: self.graph.edge_reader,
         }
     }
@@ -56,7 +56,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for NodeSubgraph<I
             graph: g.into_dynamic(),
             node_index: self.graph.node_index,
             edge_index: self.graph.edge_index,
-            reader: self.graph.reader,
+            node_reader: self.graph.node_reader,
             edge_reader: self.graph.edge_reader,
         }
     }
@@ -71,7 +71,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph
             graph: g.into_dynamic(),
             node_index: self.graph.node_index,
             edge_index: self.graph.edge_index,
-            reader: self.graph.reader,
+            node_reader: self.graph.node_reader,
             edge_reader: self.graph.edge_reader,
         }
     }
@@ -83,7 +83,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for IndexedGraph<G
             graph: self.graph.into_dynamic(),
             node_index: self.node_index,
             edge_index: self.edge_index,
-            reader: self.reader,
+            node_reader: self.node_reader,
             edge_reader: self.edge_reader,
         }
     }
