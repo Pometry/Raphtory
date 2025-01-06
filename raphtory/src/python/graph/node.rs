@@ -12,7 +12,10 @@ use crate::{
             properties::Properties,
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
-                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{
+                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, Immutable, IntoDynamic,
+                    IntoDynamicOrMutable, MaterializedGraph,
+                },
                 *,
             },
         },
@@ -45,7 +48,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     pyclass, pymethods,
     types::PyDict,
-    PyObject, PyResult, Python,
+    IntoPyObjectExt, PyObject, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -320,16 +323,36 @@ impl Repr for PyMutableNode {
 }
 impl<
         'py,
-        G: StaticGraphViewOps + IntoDynamic,
-        GH: StaticGraphViewOps + IntoDynamic + Immutable,
+        G: StaticGraphViewOps + IntoDynamicOrMutable,
+        GH: StaticGraphViewOps + IntoDynamicOrMutable,
     > IntoPyObject<'py> for NodeView<G, GH>
 {
-    type Target = PyNode;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+    type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyNode::from(self).into_pyobject(py)
+        let graph = self.graph.into_dynamic_or_mutable();
+        match graph {
+            DynOrMutableGraph::Dyn(graph) => {
+                let base_graph = self.base_graph.into_dynamic();
+                PyNode::from(NodeView::new_one_hop_filtered(base_graph, graph, self.node))
+                    .into_bound_py_any(py)
+            }
+            DynOrMutableGraph::Mutable(graph) => {
+                let base_graph = self.base_graph.into_dynamic_or_mutable();
+                match base_graph {
+                    DynOrMutableGraph::Dyn(_) => {
+                        unreachable!()
+                    }
+                    DynOrMutableGraph::Mutable(base_graph) => PyMutableNode::new_bound(
+                        NodeView::new_one_hop_filtered(base_graph, graph, self.node),
+                        py,
+                    )?
+                    .into_bound_py_any(py),
+                }
+            }
+        }
     }
 }
 
@@ -338,36 +361,6 @@ impl<G: Into<MaterializedGraph>> From<NodeView<G>> for PyMutableNode {
         let graph = value.graph.into();
         let node = NodeView::new_internal(graph, value.node);
         PyMutableNode { node }
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<Graph, Graph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<PersistentGraph, PersistentGraph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<MaterializedGraph, MaterializedGraph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
     }
 }
 
