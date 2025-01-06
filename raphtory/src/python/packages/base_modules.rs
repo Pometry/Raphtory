@@ -87,6 +87,8 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         temporally_reachable_nodes,
         temporal_bipartite_graph_projection,
         local_clustering_coefficient,
+        local_clustering_coefficient_batch_intersection,
+        local_clustering_coefficient_batch_path,
         weakly_connected_components,
         strongly_connected_components,
         in_components,

@@ -36,9 +36,10 @@
 //!
 //! println!("local_triangle_count: {:?}", result);
 //! ```
-//!
+
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::*};
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
 pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
@@ -47,6 +48,7 @@ pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V
             let len = node
                 .neighbours()
                 .iter()
+                .filter(|n| n.node != node.node)
                 .combinations(2)
                 .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
                     true => Some(1),
@@ -76,6 +78,7 @@ mod triangle_count_tests {
         prelude::NO_PROPS,
         test_storage,
     };
+    use tracing::info;
 
     #[test]
     fn counts_triangles() {
@@ -93,7 +96,6 @@ mod triangle_count_tests {
             let actual = (1..=3)
                 .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
                 .collect::<Vec<_>>();
-
             assert_eq!(actual, expected);
         });
     }

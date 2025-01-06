@@ -418,6 +418,8 @@ def local_clustering_coefficient(g: GraphView, v: InputNode):
         float : the local clustering coefficient of node v in g.
     """
 
+def local_clustering_coefficient_batch_intersection(graph, v): ...
+def local_clustering_coefficient_batch_path(graph, v): ...
 def local_temporal_three_node_motifs(g: GraphView, delta: int):
     """
     Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.

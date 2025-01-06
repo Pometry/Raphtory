@@ -26,6 +26,9 @@
 //! println!("average_degree: {:?}", average_degree(&g));
 //! ```
 
+use crate::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::VID;
+
 pub mod algorithm_result;
 pub mod centrality;
 pub mod community_detection;

@@ -7,6 +7,18 @@ from raphtory import algorithms
 from raphtory import graph_loader
 
 
+def test_lcc():
+    g = gen_graph()
+    print(algorithms.local_clustering_coefficient(g, g.node(4)))
+    print(algorithms.local_clustering_coefficient(g, g.node(5)))
+    print(
+        algorithms.local_clustering_coefficient_batch_intersection(
+            g, [g.node(4), g.node(5)]
+        )
+    )
+    print(algorithms.local_clustering_coefficient_batch_path(g, [g.node(4), g.node(5)]))
+
+
 def gen_graph():
     g = Graph()
     g.add_edge(10, 1, 3, {})
@@ -20,6 +32,7 @@ def gen_graph():
     g.add_edge(5, 4, 6, {})
     g.add_edge(15, 4, 7, {})
     g.add_edge(10, 4, 7, {})
+    g.add_edge(11, 4, 7, {})
     g.add_edge(10, 5, 8, {})
     return g
 
