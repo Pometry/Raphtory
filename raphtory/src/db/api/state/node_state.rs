@@ -84,10 +84,11 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     }
 }
 
+#[derive(Clone)]
 pub struct NodeState<'graph, V, G, GH = G> {
     base_graph: G,
     graph: GH,
-    values: Vec<V>,
+    values: Arc<[V]>,
     keys: Option<Index<VID>>,
     _marker: PhantomData<&'graph ()>,
 }
@@ -122,7 +123,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .map(|vid| values[vid.index()].clone())
                 .collect(),
         };
-        Self::new(graph.clone(), graph, values, index)
+        Self::new(graph.clone(), graph, values.into(), index)
     }
 
     /// Construct a node state from an eval result, mapping values
@@ -147,7 +148,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
 }
 
 impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
-    pub fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
+    pub fn new(base_graph: G, graph: GH, values: Arc<[V]>, keys: Option<Index<VID>>) -> Self {
         Self {
             base_graph,
             graph,
@@ -157,7 +158,7 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
         }
     }
 
-    pub fn into_inner(self) -> (Vec<V>, Option<Index<VID>>) {
+    pub fn into_inner(self) -> (Arc<[V]>, Option<Index<VID>>) {
         (self.values, self.keys)
     }
 }
@@ -219,11 +220,13 @@ impl<
     }
 
     fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
-        self.values.into_iter()
+        (0..self.values.len()).map(move |i| self.values[i].clone())
     }
 
     fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
-        self.values.into_par_iter()
+        (0..self.values.len())
+            .into_par_iter()
+            .map(move |i| self.values[i].clone())
     }
 
     fn iter<'a>(
@@ -350,7 +353,7 @@ mod test {
         let float_state = NodeState {
             base_graph: g.clone(),
             graph: g.clone(),
-            values: vec![0.0f64],
+            values: [0.0f64].into(),
             keys: None,
             _marker: Default::default(),
         };
@@ -358,7 +361,7 @@ mod test {
         let int_state = NodeState {
             base_graph: g.clone(),
             graph: g.clone(),
-            values: vec![1i64],
+            values: [1i64].into(),
             keys: None,
             _marker: Default::default(),
         };

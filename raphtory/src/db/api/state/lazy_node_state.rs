@@ -16,7 +16,10 @@ use crate::{
     prelude::*,
 };
 use rayon::prelude::*;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
@@ -100,7 +103,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             NodeState::new(
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
-                values,
+                values.into(),
                 Some(Index::new(keys)),
             )
         } else {
@@ -108,7 +111,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             NodeState::new(
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
-                values,
+                values.into(),
                 None,
             )
         }

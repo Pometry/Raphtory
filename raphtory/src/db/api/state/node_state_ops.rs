@@ -107,7 +107,7 @@ pub trait NodeStateOps<'graph>:
             NodeState::new(
                 self.base_graph().clone(),
                 self.graph().clone(),
-                values,
+                values.into(),
                 Some(Index::new(keys)),
             )
         }
@@ -131,7 +131,7 @@ pub trait NodeStateOps<'graph>:
         NodeState::new(
             self.base_graph().clone(),
             self.graph().clone(),
-            values,
+            values.into(),
             Some(Index::new(keys)),
         )
     }
@@ -168,7 +168,7 @@ pub trait NodeStateOps<'graph>:
         NodeState::new(
             self.base_graph().clone(),
             self.graph().clone(),
-            values,
+            values.into(),
             Some(Index::new(keys)),
         )
     }

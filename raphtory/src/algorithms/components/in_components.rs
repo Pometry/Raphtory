@@ -134,7 +134,7 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(
     NodeState::new(
         node.graph.clone(),
         node.graph.clone(),
-        distances,
+        distances.into(),
         Some(Index::new(nodes)),
     )
 }
