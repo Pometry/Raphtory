@@ -5,7 +5,7 @@ use crate::{
             state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
             view::internal::CoreGraphOps,
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
@@ -16,7 +16,9 @@ use rayon::{
 };
 use std::{borrow::Borrow, hash::Hash, iter::Sum};
 
-pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
+pub trait NodeStateOps<'graph>:
+    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)> + 'graph
+{
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
     type Value<'a>: Send + Sync + Borrow<Self::OwnedValue>
@@ -52,14 +54,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     where
         'graph: 'a;
 
-    fn nodes<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = NodeView<&'a Self::BaseGraph, &'a Self::Graph>> + 'a
-    where
-        'graph: 'a,
-    {
-        self.iter().map(|(n, _)| n)
-    }
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph>;
 
     fn par_iter<'a>(
         &'a self,

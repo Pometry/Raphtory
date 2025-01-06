@@ -64,11 +64,15 @@ impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
 impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for LazyNodeState<'graph, Op, G, GH>
 {
-    type Item = Op::Output;
+    type Item = (NodeView<G, GH>, Op::Output);
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.into_values().into_dyn_boxed()
+        self.nodes
+            .clone()
+            .into_iter()
+            .zip(self.into_values())
+            .into_dyn_boxed()
     }
 }
 
@@ -180,6 +184,10 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         self.nodes
             .iter()
             .map(move |node| (node, self.op.apply(&storage, node.node)))
+    }
+
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
+        self.nodes.clone()
     }
 
     fn par_iter<'a>(

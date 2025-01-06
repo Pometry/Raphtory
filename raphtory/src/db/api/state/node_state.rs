@@ -1,8 +1,11 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::{state::node_state_ops::NodeStateOps, view::IntoDynBoxed},
-        graph::node::NodeView,
+        api::{
+            state::node_state_ops::NodeStateOps,
+            view::{internal::NodeList, DynamicGraph, IntoDynBoxed, IntoDynamic},
+        },
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::GraphViewOps,
 };
@@ -13,6 +16,23 @@ use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
 #[derive(Clone, Debug)]
 pub struct Index<K> {
     index: Arc<IndexSet<K, ahash::RandomState>>,
+}
+
+impl Index<VID> {
+    pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Option<Self> {
+        if graph.nodes_filtered() {
+            if graph.node_list_trusted() {
+                match graph.node_list() {
+                    NodeList::All { .. } => None,
+                    NodeList::List { nodes } => Some(nodes),
+                }
+            } else {
+                Some(Self::new(graph.nodes().iter().map(|node| node.node)))
+            }
+        } else {
+            None
+        }
+    }
 }
 
 impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
@@ -27,7 +47,6 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         self.index.iter().copied()
     }
 
-    #[inline]
     pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = K> {
         (0..self.len())
             .into_par_iter()
@@ -73,6 +92,60 @@ pub struct NodeState<'graph, V, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
+impl<'graph, V, G: IntoDynamic, GH: IntoDynamic> NodeState<'graph, V, G, GH> {
+    pub fn into_dyn(self) -> NodeState<'graph, V, DynamicGraph> {
+        NodeState::new(
+            self.base_graph.into_dynamic(),
+            self.graph.into_dynamic(),
+            self.values,
+            self.keys,
+        )
+    }
+}
+
+impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
+    /// Construct a node state from an eval result
+    ///
+    /// # Arguments
+    ///     - graph: the graph view
+    ///     - values: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`).
+    ///         This method handles the filtering.
+    pub fn new_from_eval(graph: G, values: Vec<V>) -> Self
+    where
+        V: Clone,
+    {
+        let index = Index::for_graph(graph.clone());
+        let values = match &index {
+            None => values,
+            Some(index) => index
+                .iter()
+                .map(|vid| values[vid.index()].clone())
+                .collect(),
+        };
+        Self::new(graph.clone(), graph, values, index)
+    }
+
+    /// Construct a node state from an eval result, mapping values
+    ///
+    /// # Arguments
+    ///     - graph: the graph view
+    ///     - values: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`).
+    ///         This method handles the filtering.
+    ///     - map: Closure mapping input to output values
+    pub fn new_from_eval_mapped<R>(graph: G, values: Vec<R>, map: impl Fn(R) -> V) -> Self {
+        let index = Index::for_graph(graph.clone());
+        let values = match &index {
+            None => values.into_iter().map(map).collect(),
+            Some(index) => values
+                .into_iter()
+                .enumerate()
+                .filter_map(|(i, v)| index.contains(&VID(i)).then(|| map(v)))
+                .collect(),
+        };
+        Self::new(graph.clone(), graph, values, index)
+    }
+}
+
 impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
     pub fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
         Self {
@@ -89,14 +162,22 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
     }
 }
 
-impl<'graph, V: Send + Sync + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    IntoIterator for NodeState<'graph, V, G, GH>
+impl<
+        'graph,
+        V: Send + Sync + Clone + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+    > IntoIterator for NodeState<'graph, V, G, GH>
 {
-    type Item = V;
-    type IntoIter = std::vec::IntoIter<V>;
+    type Item = (NodeView<G, GH>, V);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.values.into_iter()
+        self.nodes()
+            .clone()
+            .into_iter()
+            .zip(self.into_values())
+            .into_dyn_boxed()
     }
 }
 
@@ -179,6 +260,15 @@ impl<
                 })
                 .into_dyn_boxed(),
         }
+    }
+
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
+        Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            self.keys.clone(),
+            None,
+        )
     }
 
     fn par_iter<'a>(

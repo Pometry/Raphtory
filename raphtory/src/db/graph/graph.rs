@@ -2619,7 +2619,7 @@ mod db_tests {
         }
         g.nodes()
             .name()
-            .into_iter()
+            .into_values()
             .map(|name| g.node(name))
             .all(|v| v.is_some())
     }
@@ -2633,7 +2633,7 @@ mod db_tests {
         assert!(g
             .nodes()
             .name()
-            .into_iter()
+            .into_values()
             .map(|name| g.node(name))
             .all(|v| v.is_some()))
     }
@@ -2913,7 +2913,7 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["wallet"])
                 .name()
-                .into_iter()
+                .into_values()
                 .collect_vec(),
             vec!["1", "4"]
         );
@@ -3084,7 +3084,7 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["a"])
                 .name()
-                .into_iter()
+                .into_values()
                 .collect_vec(),
             vec!["1", "4"]
         );
@@ -3092,7 +3092,7 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["a", "c"])
                 .name()
-                .into_iter()
+                .into_values()
                 .collect_vec(),
             vec!["1", "4", "5"]
         );

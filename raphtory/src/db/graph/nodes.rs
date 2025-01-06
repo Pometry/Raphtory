@@ -43,6 +43,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
     }
 }
 
+impl<'graph, G: IntoDynamic, GH: IntoDynamic> Nodes<'graph, G, GH> {
+    pub fn into_dyn(self) -> Nodes<'graph, DynamicGraph> {
+        Nodes {
+            base_graph: self.base_graph.into_dynamic(),
+            graph: self.graph.into_dynamic(),
+            nodes: self.nodes,
+            node_types_filter: self.node_types_filter,
+            _marker: Default::default(),
+        }
+    }
+}
+
 impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
 where
     G: GraphViewOps<'graph> + IntoDynamic,
