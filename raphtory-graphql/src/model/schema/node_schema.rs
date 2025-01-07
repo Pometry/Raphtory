@@ -61,7 +61,8 @@ impl NodeSchema {
 fn collect_node_schema(node: NodeView<DynamicGraph>) -> SchemaAggregate {
     let mut stable_hash = FxHashMap::default();
     let properties = node.properties();
-    let iter = properties.iter().map(|(key, value)| {
+    let iter = properties.iter().filter_map(|(key, value)| {
+        let value = value?;
         let temporal_prop = node
             .base_graph
             .node_meta()
@@ -88,8 +89,7 @@ fn collect_node_schema(node: NodeView<DynamicGraph>) -> SchemaAggregate {
         } else {
             (key.to_string(), "NONE".to_string())
         };
-
-        (key_with_prop_type, HashSet::from([value.to_string()]))
+        Some((key_with_prop_type, HashSet::from([value.to_string()])))
     });
 
     for (key, value) in iter {
@@ -178,7 +178,6 @@ mod test {
                 ],
             ),
         ];
-
         assert_eq!(actual, expected);
     }
 }

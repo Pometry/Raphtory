@@ -692,7 +692,7 @@ mod test_deletions {
             api::view::time::internal::InternalTimeOps,
             graph::{
                 edge::EdgeView,
-                graph::{assert_edges_equal, assert_graph_equal},
+                graph::assert_graph_equal,
                 views::deletion_graph::{PersistentGraph, TimeSemantics},
             },
         },

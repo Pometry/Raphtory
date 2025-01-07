@@ -8,7 +8,6 @@ members = [
     "examples/netflow",
     "examples/custom-gql-apis",
     "python",
-    "js-raphtory",
     "raphtory-graphql",
     "raphtory-api",
 ]
@@ -125,11 +124,8 @@ uuid = { version = "1.0", features = ["v4"] }
 config = "0.14.0"
 either = "=1.11.0"
 clap = { version = "4.5.21", features = ["derive", "env"] }
-wasm-bindgen = "0.2.91"
-serde-wasm-bindgen = "0.6.4"
 js-sys = "0.3.68"
 console_error_panic_hook = "0.1.7"
-wasm-bindgen-test = "0.3.41"
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
 strum = { version = "0.26.1", features = ["derive"] }

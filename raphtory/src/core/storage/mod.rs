@@ -99,9 +99,7 @@ impl TColumns {
         if has_props {
             self.num_rows += 1;
             for col in self.t_props_log.iter_mut() {
-                while col.len() < self.num_rows {
-                    col.push_null()?;
-                }
+                col.grow(self.num_rows);
             }
             Ok(Some(id))
         } else {
@@ -156,6 +154,12 @@ impl TPropColumn {
         let mut col = TPropColumn::default();
         col.set(idx, prop).unwrap();
         col
+    }
+
+    pub(crate) fn grow(&mut self, new_len: usize) {
+        while self.len() < new_len {
+            self.push_null();
+        }
     }
 
     pub(crate) fn set(&mut self, index: usize, prop: Prop) -> Result<(), GraphError> {
@@ -238,7 +242,7 @@ impl TPropColumn {
         matches!(self, TPropColumn::Empty(_))
     }
 
-    pub(crate) fn push_null(&mut self) -> Result<(), GraphError> {
+    pub(crate) fn push_null(&mut self) {
         match self {
             TPropColumn::Bool(col) => col.push(None),
             TPropColumn::I64(col) => col.push(None),
@@ -261,7 +265,6 @@ impl TPropColumn {
                 *count += 1;
             }
         }
-        Ok(())
     }
 
     pub(crate) fn get(&self, index: usize) -> Option<Prop> {

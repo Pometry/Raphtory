@@ -1317,7 +1317,7 @@ mod test_materialize {
         let props = edge_ab
             .properties()
             .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .filter_map(|(k, v)| v.map(move |v| (k.to_string(), v.to_string())))
             .collect::<Vec<_>>();
         assert_eq!(props, vec![("greeting".to_string(), "namaste".to_string())]);
     }

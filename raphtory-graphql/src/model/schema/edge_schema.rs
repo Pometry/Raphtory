@@ -88,7 +88,13 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
                 (key.to_string(), "NONE".to_string())
             };
 
-            (key_with_prop_type, HashSet::from([value.to_string()]))
+            (
+                key_with_prop_type,
+                value
+                    .into_iter()
+                    .map(|p| p.to_string())
+                    .collect::<HashSet<_>>(),
+            )
         })
         .collect()
 }

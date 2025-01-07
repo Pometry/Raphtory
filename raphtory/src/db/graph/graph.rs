@@ -2053,7 +2053,7 @@ mod db_tests {
         let node_1_props = n1
             .properties()
             .iter()
-            .map(|(k, v)| (k.to_string(), v))
+            .filter_map(|(k, v)| v.map(move |v| (k.to_string(), v)))
             .collect::<Vec<_>>();
         assert_eq!(
             node_1_props,

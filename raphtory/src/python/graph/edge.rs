@@ -372,7 +372,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
         let properties: String = self
             .properties()
             .iter()
-            .map(|(k, v)| format!("{}: {}", k.deref(), v))
+            .map(|(k, v)| format!("{}: {}", k.deref(), v.repr()))
             .join(", ");
 
         let source = self.src().name();
