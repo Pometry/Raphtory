@@ -1,15 +1,15 @@
 use crate::model::graph::edge::Edge;
-use dynamic_graphql::{Enum, InputObject};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{Enum, InputObject, ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::api::view::internal::OneHopFilter;
 use raphtory::{
-    db::{api::view::DynamicGraph, graph::edges::Edges},
+    db::{
+        api::view::{internal::OneHopFilter, DynamicGraph},
+        graph::edges::Edges,
+    },
     prelude::{EdgeViewOps, LayerOps, TimeOps},
 };
 use raphtory_api::iter::IntoDynBoxed;
-use std::cmp::Ordering;
-use std::sync::Arc;
+use std::{cmp::Ordering, sync::Arc};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlEdges {
