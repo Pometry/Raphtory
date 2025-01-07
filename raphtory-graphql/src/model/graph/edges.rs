@@ -36,12 +36,12 @@ impl GqlEdges {
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
     pub reverse: Option<bool>,
-    pub time: Option<SortByTime>,
+    pub time: Option<EdgeSortByTime>,
     pub property: Option<String>,
 }
 
 #[derive(Enum, Clone, Debug, Eq, PartialEq)]
-pub enum SortByTime {
+pub enum EdgeSortByTime {
     Latest,
     Earliest,
 }
@@ -122,26 +122,35 @@ impl GqlEdges {
                 sort_bys
                     .clone()
                     .into_iter()
-                    .fold(Ordering::Equal, |cmp, sort_by| {
-                        cmp.then_with(|| {
+                    .fold(Ordering::Equal, |current_ordering, sort_by| {
+                        current_ordering.then_with(|| {
                             let ordering = if let Some(sort_by_time) = sort_by.time {
-                                match sort_by_time {
-                                    SortByTime::Latest => {
-                                        first_edge.latest_time().cmp(&second_edge.latest_time())
+                                let (first_time, second_time) = match sort_by_time {
+                                    EdgeSortByTime::Latest => {
+                                        (first_edge.latest_time(), second_edge.latest_time())
                                     }
-                                    SortByTime::Earliest => {
-                                        first_edge.earliest_time().cmp(&second_edge.earliest_time())
+                                    EdgeSortByTime::Earliest => {
+                                        (first_edge.earliest_time(), second_edge.earliest_time())
                                     }
-                                }
+                                };
+                                first_time.partial_cmp(&second_time)
                             } else if let Some(sort_by_property) = sort_by.property {
-                                todo!("To be done in the future")
+                                let first_prop_maybe =
+                                    first_edge.properties().get(&*sort_by_property);
+                                let second_prop_maybe =
+                                    second_edge.properties().get(&*sort_by_property);
+                                first_prop_maybe.partial_cmp(&second_prop_maybe)
+                            } else {
+                                None
+                            };
+                            if let Some(ordering) = ordering {
+                                if sort_by.reverse == Some(true) {
+                                    ordering.reverse()
+                                } else {
+                                    ordering
+                                }
                             } else {
                                 Ordering::Equal
-                            };
-                            if sort_by.reverse == Some(true) {
-                                ordering.reverse()
-                            } else {
-                                ordering
                             }
                         })
                     })
