@@ -798,6 +798,7 @@ def test_node_properties():
         }
 
         assert g.at(2).node(1).properties.temporal == {
+            "prop 3": [],
             "prop 2": [(2, 0.6)],
             "prop 4": [(2, False)],
             "prop 1": [(2, 2)],
@@ -912,6 +913,7 @@ def test_edge_properties():
             "prop 4": [(1, True)],
             "prop 1": [(1, 1)],
             "prop 3": [(1, "hi")],
+            "prop 2": [],
         }
 
         assert g.edge(1, 2).properties.temporal.latest() == {
@@ -933,12 +935,14 @@ def test_edge_properties():
             "prop 2": [(2, 0.6)],
             "prop 4": [(2, False)],
             "prop 1": [(2, 2)],
+            "prop 3": [],
         }
 
         assert g.after(2).edge(1, 2).properties.temporal == {
             "prop 2": [(3, 0.9)],
             "prop 3": [(3, "hello")],
             "prop 4": [(3, True)],
+            "prop 1": [],
         }
 
         assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(
@@ -1141,6 +1145,7 @@ def test_save_load_graph():
 
         v = view.node(11)
         assert v.properties.temporal == {
+            "cost": [],
             "type": [(1, "wallet")],
             "balance": [(1, 99.5)],
         }

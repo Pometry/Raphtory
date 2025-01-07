@@ -60,7 +60,8 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
 fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> SchemaAggregate {
     edge.properties()
         .iter()
-        .map(|(key, value)| {
+        .filter_map(|(key, value)| {
+            let value = value?;
             let temporal_prop = edge
                 .base_graph
                 .edge_meta()
@@ -88,13 +89,7 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
                 (key.to_string(), "NONE".to_string())
             };
 
-            (
-                key_with_prop_type,
-                value
-                    .into_iter()
-                    .map(|p| p.to_string())
-                    .collect::<HashSet<_>>(),
-            )
+            Some((key_with_prop_type, HashSet::from([value.to_string()])))
         })
         .collect()
 }
