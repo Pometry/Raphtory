@@ -1,9 +1,15 @@
 use crate::model::graph::edge::Edge;
+use dynamic_graphql::{Enum, InputObject};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use itertools::Itertools;
+use raphtory::db::api::view::internal::OneHopFilter;
 use raphtory::{
     db::{api::view::DynamicGraph, graph::edges::Edges},
     prelude::{EdgeViewOps, LayerOps, TimeOps},
 };
+use raphtory_api::iter::IntoDynBoxed;
+use std::cmp::Ordering;
+use std::sync::Arc;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlEdges {
@@ -25,6 +31,19 @@ impl GqlEdges {
         let iter = self.ee.iter().map(Edge::from_ref);
         Box::new(iter)
     }
+}
+
+#[derive(InputObject, Clone, Debug, Eq, PartialEq)]
+pub struct EdgeSortBy {
+    pub reverse: Option<bool>,
+    pub time: Option<SortByTime>,
+    pub property: Option<String>,
+}
+
+#[derive(Enum, Clone, Debug, Eq, PartialEq)]
+pub enum SortByTime {
+    Latest,
+    Earliest,
 }
 
 #[ResolvedObjectFields]
@@ -93,6 +112,50 @@ impl GqlEdges {
 
     async fn explode_layers(&self) -> Self {
         self.update(self.ee.explode_layers())
+    }
+
+    async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
+        let sorted: Arc<[_]> = self
+            .ee
+            .iter()
+            .sorted_by(|first_edge, second_edge| {
+                sort_bys
+                    .clone()
+                    .into_iter()
+                    .fold(Ordering::Equal, |cmp, sort_by| {
+                        cmp.then_with(|| {
+                            let ordering = if let Some(sort_by_time) = sort_by.time {
+                                match sort_by_time {
+                                    SortByTime::Latest => {
+                                        first_edge.latest_time().cmp(&second_edge.latest_time())
+                                    }
+                                    SortByTime::Earliest => {
+                                        first_edge.earliest_time().cmp(&second_edge.earliest_time())
+                                    }
+                                }
+                            } else if let Some(sort_by_property) = sort_by.property {
+                                todo!("To be done in the future")
+                            } else {
+                                Ordering::Equal
+                            };
+                            if sort_by.reverse == Some(true) {
+                                ordering.reverse()
+                            } else {
+                                ordering
+                            }
+                        })
+                    })
+            })
+            .map(|edge_view| edge_view.edge)
+            .collect();
+        self.update(Edges::new(
+            self.ee.current_filter().clone(),
+            self.ee.base_graph().clone(),
+            Arc::new(move || {
+                let sorted = sorted.clone();
+                (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
+            }),
+        ))
     }
 
     ////////////////////////
