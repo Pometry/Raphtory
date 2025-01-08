@@ -1093,7 +1093,7 @@ def test_algorithms():
             lotr_graph, "Frodo"
         )
         lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, "Frodo")
-        assert lotr_clustering_coefficient == 0.1984313726425171
+        assert lotr_clustering_coefficient == 0.1984313725490196
         assert lotr_local_triangle_count == 253
 
     check(g)
