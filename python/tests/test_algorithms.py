@@ -7,18 +7,6 @@ from raphtory import algorithms
 from raphtory import graph_loader
 
 
-def test_lcc():
-    g = gen_graph()
-    print(algorithms.local_clustering_coefficient(g, g.node(4)))
-    print(algorithms.local_clustering_coefficient(g, g.node(5)))
-    print(
-        algorithms.local_clustering_coefficient_batch_intersection(
-            g, [g.node(4), g.node(5)]
-        )
-    )
-    print(algorithms.local_clustering_coefficient_batch_path(g, [g.node(4), g.node(5)]))
-
-
 def gen_graph():
     g = Graph()
     g.add_edge(10, 1, 3, {})
@@ -35,6 +23,29 @@ def gen_graph():
     g.add_edge(11, 4, 7, {})
     g.add_edge(10, 5, 8, {})
     return g
+
+
+def test_local_clustering_coefficient():
+    g = gen_graph()
+    expected = {
+        "1": 0.0,
+        "2": 0.3333333333333333,
+        "3": 0.0,
+        "4": 0.16666666666666666,
+        "5": 0.3333333333333333,
+        "6": 0.0,
+        "7": 0.0,
+        "8": 0.0,
+    }
+    actual = {
+        str(i): algorithms.local_clustering_coefficient(g, g.node(i))
+        for i in range(1, 9)
+    }
+    assert actual == expected
+    actual = algorithms.local_clustering_coefficient_batch_intersection(g, None)
+    assert actual.get_all_with_names() == expected
+    actual = algorithms.local_clustering_coefficient_batch_path(g, None)
+    assert actual.get_all_with_names() == expected
 
 
 def test_connected_components():

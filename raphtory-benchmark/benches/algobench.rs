@@ -3,9 +3,8 @@ use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank,
         components::weakly_connected_components,
-        metrics::{
-            clustering_coefficient::clustering_coefficient,
-            local_clustering_coefficient::local_clustering_coefficient,
+        metrics::clustering_coefficient::{
+            clustering_coefficient, local_clustering_coefficient::local_clustering_coefficient,
         },
         motifs::{
             global_temporal_three_node_motifs::global_temporal_three_node_motif,

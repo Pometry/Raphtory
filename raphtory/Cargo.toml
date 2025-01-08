@@ -44,6 +44,9 @@ kdam = { workspace = true, optional = true}
 bytemuck = { workspace = true }
 tracing = { workspace = true }
 
+# algorithms
+hyperloglog = { workspace = true }
+
 # io optional dependencies
 csv = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }

@@ -886,6 +886,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
+name = "bytecount"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
+
+[[package]]
 name = "bytemuck"
 version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2744,6 +2750,17 @@ dependencies = [
  "tokio",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "hyperloglog"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b48034ab5d3a9461c667ec7e1dcfb2b0586de33d9b493b2c8592e6caab9145d"
+dependencies = [
+ "bytecount",
+ "rand",
+ "siphasher",
 ]
 
 [[package]]
@@ -4857,6 +4874,7 @@ dependencies = [
  "futures-util",
  "glam",
  "hashbrown 0.15.2",
+ "hyperloglog",
  "indoc",
  "itertools 0.13.0",
  "kdam",

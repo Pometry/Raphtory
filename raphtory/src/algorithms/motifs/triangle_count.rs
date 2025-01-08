@@ -15,7 +15,6 @@ use crate::{
         },
     },
 };
-use hashbrown::HashSet;
 use rustc_hash::FxHashSet;
 
 /// Computes the number of triangles in a graph using a fast algorithm

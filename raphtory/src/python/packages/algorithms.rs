@@ -22,6 +22,12 @@ use crate::{
         },
         metrics::{
             balance::balance as balance_rs,
+            clustering_coefficient::{
+                global_clustering_coefficient::global_clustering_coefficient as global_clustering_coefficient_rs,
+                local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+                local_clustering_coefficient_batch_intersection::local_clustering_coefficient_batch_intersection as local_clustering_coefficient_batch_intersection_rs,
+                local_clustering_coefficient_batch_path::local_clustering_coefficient_batch_path as local_clustering_coefficient_batch_path_rs,
+            },
             degree::{
                 average_degree as average_degree_rs, max_degree as max_degree_rs,
                 max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
@@ -29,11 +35,6 @@ use crate::{
                 min_out_degree as min_out_degree_rs,
             },
             directed_graph_density::directed_graph_density as directed_graph_density_rs,
-            local_clustering_coefficient::{
-                local_clustering_coefficient as local_clustering_coefficient_rs,
-                local_clustering_coefficient_batch_intersection as local_clustering_coefficient_batch_intersection_rs,
-                local_clustering_coefficient_batch_path as local_clustering_coefficient_batch_path_rs,
-            },
             reciprocity::{
                 all_local_reciprocity as all_local_reciprocity_rs,
                 global_reciprocity as global_reciprocity_rs,
@@ -70,13 +71,11 @@ use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
-use crate::{
-    algorithms::bipartite::max_weight_matching::Matching,
-    core::entities::nodes::node_ref::AsNodeRef, db::api::state::NodeState,
-};
+use crate::{algorithms::bipartite::max_weight_matching::Matching, db::api::state::NodeState};
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
+/// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
     // Handle None case
     if param.is_none() {
@@ -103,28 +102,6 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
     Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
         "Expected None, a number, or a list of numbers",
     ))
-}
-
-#[pyfunction]
-#[pyo3(signature = (graph, v))]
-pub fn local_clustering_coefficient_batch_intersection(
-    graph: &PyGraphView,
-    v: &Bound<PyAny>,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    local_clustering_coefficient_batch_intersection_rs(
-        &graph.graph,
-        process_node_param(v).unwrap(),
-        None,
-    )
-}
-
-#[pyfunction]
-#[pyo3(signature = (graph, v))]
-pub fn local_clustering_coefficient_batch_path(
-    graph: &PyGraphView,
-    v: &Bound<PyAny>,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    local_clustering_coefficient_batch_path_rs(&graph.graph, process_node_param(v).unwrap(), None)
 }
 
 /// Implementations of various graph algorithms that can be run on a graph.
@@ -320,6 +297,48 @@ pub fn local_clustering_coefficient(g: &PyGraphView, v: PyNodeRef) -> Option<f64
     local_clustering_coefficient_rs(&g.graph, v)
 }
 
+/// Local clustering coefficient (batch, intersection) - measures the degree to which nodes in a graph tend to cluster together.
+/// Uses cached sets of neighbours to handle triangle-counting.
+/// The proportion of pairs of neighbours of a node who are themselves connected.
+///
+/// Arguments:
+///     g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v (List[InputNode] | InputNode | None): list of node ids or names, if empty, calculates LCC of all nodes
+///
+/// Returns:
+///     AlgorithmResult : AlgorithmResult mapping vertices to local clustering coefficient.
+#[pyfunction]
+#[pyo3(signature = (graph, v))]
+pub fn local_clustering_coefficient_batch_intersection(
+    graph: &PyGraphView,
+    v: &Bound<PyAny>,
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
+    local_clustering_coefficient_batch_intersection_rs(
+        &graph.graph,
+        process_node_param(v).unwrap(),
+        None,
+    )
+}
+
+/// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
+/// Uses path-counting for its triangle-counting step.
+/// The proportion of pairs of neighbours of a node who are themselves connected.
+///
+/// Arguments:
+///     g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v (List[InputNode] | InputNode | None): list of node ids or names, if empty, calculates LCC of all nodes
+///
+/// Returns:
+///     AlgorithmResult : AlgorithmResult mapping vertices to local clustering coefficient.
+#[pyfunction]
+#[pyo3(signature = (graph, v))]
+pub fn local_clustering_coefficient_batch_path(
+    graph: &PyGraphView,
+    v: &Bound<PyAny>,
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
+    local_clustering_coefficient_batch_path_rs(&graph.graph, process_node_param(v).unwrap(), None)
+}
+
 /// Graph density - measures how dense or sparse a graph is.
 ///
 /// The ratio of the number of directed edges in the graph to the total number of possible directed
@@ -461,7 +480,7 @@ pub fn triplet_count(g: &PyGraphView) -> usize {
 ///     [`Triplet Count`](triplet_count)
 #[pyfunction]
 pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
-    crate::algorithms::metrics::clustering_coefficient::clustering_coefficient(&g.graph)
+    global_clustering_coefficient_rs(&g.graph)
 }
 
 /// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).

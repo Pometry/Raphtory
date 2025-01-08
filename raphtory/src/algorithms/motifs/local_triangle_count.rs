@@ -39,7 +39,6 @@
 
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::*};
 use itertools::Itertools;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
 pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
