@@ -4,7 +4,8 @@ use raphtory::{
         centrality::pagerank::unweighted_page_rank,
         components::weakly_connected_components,
         metrics::clustering_coefficient::{
-            clustering_coefficient, local_clustering_coefficient::local_clustering_coefficient,
+            global_clustering_coefficient::global_clustering_coefficient,
+            local_clustering_coefficient::local_clustering_coefficient,
         },
         motifs::{
             global_temporal_three_node_motifs::global_temporal_three_node_motif,
@@ -63,7 +64,7 @@ pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
         &graph,
         |b, graph| {
             b.iter(|| {
-                let result = clustering_coefficient(graph);
+                let result = global_clustering_coefficient(graph);
                 black_box(result);
             });
         },
