@@ -362,6 +362,7 @@ pub(crate) mod data_tests {
         }
     }
 
+    #[cfg(feature = "storage")]
     fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
         let mut entries_vec = Vec::new();
         let entries = fs::read_dir(path)?;

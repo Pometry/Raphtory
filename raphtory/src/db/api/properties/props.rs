@@ -54,12 +54,12 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Iterate over all property values
-    pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
-        self.keys().filter_map(move |k| self.get(&k))
+    pub fn values(&self) -> impl Iterator<Item = Option<Prop>> + '_ {
+        self.keys().map(move |k| self.get(&k))
     }
 
     /// Iterate over all property key-value pairs
-    pub fn iter(&self) -> impl Iterator<Item = (ArcStr, Prop)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (ArcStr, Option<Prop>)> + '_ {
         self.keys().zip(self.values())
     }
 
@@ -75,12 +75,16 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 
     /// Collect properties into vector
     pub fn as_vec(&self) -> Vec<(ArcStr, Prop)> {
-        self.iter().collect()
+        self.iter()
+            .filter_map(|(k, v)| v.map(move |v| (k, v)))
+            .collect()
     }
 
     /// Collect properties into map
     pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
-        self.iter().map(|(k, v)| (k.clone(), v)).collect()
+        self.iter()
+            .filter_map(|(k, v)| v.map(move |v| (k, v)))
+            .collect()
     }
 
     /// Number of properties
@@ -95,7 +99,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 }
 
 impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
-    type Item = (ArcStr, Prop);
+    type Item = (ArcStr, Option<Prop>);
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -106,8 +110,8 @@ impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
 }
 
 impl<'a, P: PropertiesOps + Clone + 'a> IntoIterator for &'a Properties<P> {
-    type Item = (ArcStr, Prop);
-    type IntoIter = Box<dyn Iterator<Item = (ArcStr, Prop)> + 'a>;
+    type Item = (ArcStr, Option<Prop>);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter())

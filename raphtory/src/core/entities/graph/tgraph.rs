@@ -2,12 +2,12 @@ use super::logical_to_physical::Mapping;
 use crate::{
     core::{
         entities::{
-            edges::edge_store::{EdgeDataLike, EdgeStore},
+            edges::edge_store::EdgeStore,
             graph::{
                 tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
@@ -16,17 +16,13 @@ use crate::{
             timeindex::{AsTime, TimeIndexEntry},
             PairEntryMut,
         },
-        utils::{errors::GraphError, iter::GenLockedIter},
+        utils::errors::GraphError,
         Direction, Prop,
     },
-    db::api::{
-        storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-        view::{BoxedLIter, IntoDynBoxed, Layer},
-    },
+    db::api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
 };
 use dashmap::DashSet;
 use either::Either;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, GidRef},
     input::input_node::InputNode,
@@ -35,7 +31,7 @@ use raphtory_api::core::{
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Borrow, collections::HashMap, fmt::Debug, hash::BuildHasherDefault, iter,
+    borrow::Borrow, collections::HashMap, fmt::Debug, hash::BuildHasherDefault,
     sync::atomic::AtomicUsize,
 };
 
@@ -195,67 +191,14 @@ impl TemporalGraph {
         self.edge_meta.get_layer_name_by_id(layer)
     }
 
+    #[inline]
     pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
         Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
     }
 
+    #[inline]
     pub(crate) fn graph_latest_time(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
-    }
-
-    pub(crate) fn core_temporal_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> BoxedLIter<usize> {
-        let entry = self.storage.edge_entry(e.pid());
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        GenLockedIter::from(entry, |entry| {
-            let iter: BoxedLIter<usize> = match layer_ids.as_ref() {
-                LayerIds::None => Box::new(iter::empty()),
-                LayerIds::All => entry.temp_prop_ids(None),
-                LayerIds::One(id) => entry.temp_prop_ids(Some(*id)),
-                LayerIds::Multiple(ids) => Box::new(
-                    ids.into_iter()
-                        .map(|id| entry.temp_prop_ids(Some(id)))
-                        .kmerge()
-                        .dedup(),
-                ),
-            };
-            iter
-        })
-        .into_dyn_boxed()
-    }
-
-    pub(crate) fn core_const_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> BoxedLIter<usize> {
-        let entry = self.storage.edge_entry(e.pid());
-        GenLockedIter::from(entry, |entry| {
-            let layer_ids = layer_ids.constrain_from_edge(e);
-            match layer_ids.as_ref() {
-                LayerIds::None => Box::new(iter::empty()),
-                LayerIds::All => entry
-                    .layer_iter()
-                    .map(|(_, data)| data.const_prop_ids())
-                    .kmerge()
-                    .dedup()
-                    .into_dyn_boxed(),
-                LayerIds::One(id) => match entry.layer(*id) {
-                    Some(l) => l.const_prop_ids().into_dyn_boxed(),
-                    None => Box::new(iter::empty()),
-                },
-                LayerIds::Multiple(ids) => ids
-                    .into_iter()
-                    .flat_map(|id| entry.layer(id).map(|l| l.const_prop_ids()))
-                    .kmerge()
-                    .dedup()
-                    .into_dyn_boxed(),
-            }
-        })
-        .into_dyn_boxed()
     }
 
     pub(crate) fn core_get_const_edge_prop(
@@ -326,7 +269,7 @@ impl TemporalGraph {
 
     pub(crate) fn link_nodes_inner(
         &self,
-        node_pair: &mut PairEntryMut<NodeStore>,
+        node_pair: &mut PairEntryMut,
         edge_id: EID,
         t: TimeIndexEntry,
         layer: usize,
@@ -336,10 +279,10 @@ impl TemporalGraph {
         let dst_id = node_pair.get_j().vid;
         let src = node_pair.get_mut_i();
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-        src.update_time(t);
+        src.update_time(t, edge_id);
         let dst = node_pair.get_mut_j();
         dst.add_edge(src_id, Direction::IN, layer, edge_id);
-        dst.update_time(t);
+        dst.update_time(t, edge_id);
         Ok(())
     }
 
@@ -400,6 +343,7 @@ impl TemporalGraph {
         }
     }
 
+    #[inline]
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),

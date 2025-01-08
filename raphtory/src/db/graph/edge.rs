@@ -365,8 +365,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
     }
 
     fn const_prop_ids(&self) -> BoxedLIter<usize> {
-        self.graph
-            .const_edge_prop_ids(self.edge, self.graph.layer_ids().clone())
+        Box::new(0..self.graph.edge_meta().const_prop_meta().len())
     }
 
     fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
@@ -439,15 +438,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        let layer_ids = self.layer_ids();
-        self.graph
-            .edge_meta()
-            .temporal_prop_meta()
-            .get_id(name)
-            .filter(move |id| {
-                self.graph
-                    .has_temporal_edge_prop(self.edge, *id, &layer_ids)
-            })
+        self.graph.edge_meta().temporal_prop_meta().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
@@ -459,15 +450,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_ids = self.layer_ids();
-        Box::new(
-            self.graph
-                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
-                .filter(move |id| {
-                    self.graph
-                        .has_temporal_edge_prop(self.edge, *id, &layer_ids)
-                }),
-        )
+        Box::new(0..self.graph.edge_meta().temporal_prop_meta().len())
     }
 
     fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
