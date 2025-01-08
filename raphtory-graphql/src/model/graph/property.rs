@@ -76,7 +76,12 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         ),
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::NDTime(t) => GqlValue::Number(t.and_utc().timestamp_millis().into()),
-        Prop::Array(a) => GqlValue::Binary(a.clone().into()),
+        Prop::Array(a) => GqlValue::List(
+            a.iter_prop()
+                .into_iter()
+                .flat_map(|p_iter| p_iter.map(|p| prop_to_gql(&p)))
+                .collect(),
+        ),
         Prop::Document(d) => GqlValue::String(d.content.to_owned()), // TODO: return GqlValue::Object ??
     }
 }
