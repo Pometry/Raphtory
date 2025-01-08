@@ -28,7 +28,7 @@ use arrow_array::{ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch};
 use arrow_buffer::{ArrowNativeType, ScalarBuffer};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::{core::storage::arc_str::ArcStr, iter::{BoxedLIter, IntoDynBoxed}};
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
 use std::{
@@ -159,39 +159,50 @@ impl PropArray {
         }
     }
 
-    // pub fn iter_prop(&self) -> Option<BoxedLIter<Prop>> {
-    //     self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int32Type>>().map(|arr| {
-    //         arr.into_iter().map(|v| Prop::I32(v.unwrap_or_default())).into_dyn_boxed()
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float64Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::F64(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float32Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::F32(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt64Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::U64(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt32Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::U32(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int64Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::I64(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt16Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::U16(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     }).or_else(|| {
-    //         self.0.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt8Type>>().map(|arr| {
-    //             arr.into_iter().map(|v| Prop::U8(v.unwrap_or_default())).into_dyn_boxed()
-    //         })
-    //     })
-    // }
+    pub fn as_array_ref(&self) -> Option<&ArrayRef> {
+        match self {
+            PropArray::Array(arr) => Some(arr),
+            _ => None,
+        }
+    }
+
+    pub fn iter_prop(&self) -> Option<BoxedLIter<Prop>> {
+
+        let arr = self.as_array_ref()?;
+
+        arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int32Type>>().map(|arr| {
+            arr.into_iter().map(|v| Prop::I32(v.unwrap_or_default())).into_dyn_boxed()
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float64Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::F64(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float32Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::F32(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt64Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U64(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt32Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U32(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int64Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::I64(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt16Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U16(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        }).or_else(|| {
+            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt8Type>>().map(|arr| {
+                arr.into_iter().map(|v| Prop::U8(v.unwrap_or_default())).into_dyn_boxed()
+            })
+        })
+
+    }
 }
 
 impl Serialize for PropArray {
