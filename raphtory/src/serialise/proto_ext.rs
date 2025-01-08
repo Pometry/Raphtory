@@ -1,7 +1,5 @@
 use crate::{
     core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropArray, PropType},
-    db::graph::views::deletion_graph::PersistentGraph,
-    prelude::{Graph, StableDecode, StableEncode},
     serialise::proto::{self, graph_update::{
                 DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
                 UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,

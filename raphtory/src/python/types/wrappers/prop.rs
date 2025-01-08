@@ -26,9 +26,15 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            Prop::Array(blob) => pyo3_arrow::PyArray::from_array_ref(blob.0)
-                .to_pyarrow(py)?
-                .into_bound(py),
+            Prop::Array(blob) => {
+                if let Some(arr_ref) = blob.into_array_ref() {
+                    pyo3_arrow::PyArray::from_array_ref(arr_ref)
+                        .to_pyarrow(py)?
+                        .into_bound(py)
+                } else {
+                    py.None().into_bound(py)
+                }
+            }
             Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
