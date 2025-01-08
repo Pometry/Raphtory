@@ -142,6 +142,80 @@ def test_graph_edge_sort_by_nothing(graph):
     run_graphql_test(query, expected_output, graph())
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_graph_edge_sort_by_src(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          sorted(sortBys: [{ src: true }]) {
+            list {
+              src {
+                id
+              }
+              dst {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "sorted": {
+                    "list": [
+                        {"src": { "id": "a" }, "dst": { "id": "d" } },
+                        {"src": { "id": "a" }, "dst": { "id": "b" } },
+                        {"src": { "id": "b" }, "dst": { "id": "d" } },
+                        {"src": { "id": "b" }, "dst": { "id": "c" } },
+                        {"src": { "id": "c" }, "dst": { "id": "d" } },
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph())
+
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_graph_edge_sort_by_dst(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          sorted(sortBys: [{ dst: true }]) {
+            list {
+              src {
+                id
+              }
+              dst {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "sorted": {
+                    "list": [
+                        {"src": { "id": "a" }, "dst": { "id": "b" } },
+                        {"src": { "id": "b" }, "dst": { "id": "c" } },
+                        {"src": { "id": "a" }, "dst": { "id": "d" } },
+                        {"src": { "id": "b" }, "dst": { "id": "d" } },
+                        {"src": { "id": "c" }, "dst": { "id": "d" } },
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph())
+
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
 def test_graph_edge_sort_by_earliest_time(graph):
     query = """
     query {
@@ -477,6 +551,43 @@ def test_graph_edge_sort_by_eprop5(graph):
     run_graphql_test(query, expected_output, graph())
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_graph_edge_sort_by_nonexistent_prop(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          sorted(sortBys: [{ property: "i_dont_exist" }, { property: "eprop2", reverse: true }]) {
+            list {
+              src {
+                id
+              }
+              dst {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "sorted": {
+                    "list": [
+                        {"src": { "id": "c" }, "dst": { "id": "d" } },
+                        {"src": { "id": "a" }, "dst": { "id": "b" } },
+                        {"src": { "id": "b" }, "dst": { "id": "d" } },
+                        {"src": { "id": "a" }, "dst": { "id": "d" } },
+                        {"src": { "id": "b" }, "dst": { "id": "c" } },
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph())
+
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
 def test_graph_edge_sort_by_combined(graph):
     query = """
     query {
@@ -514,12 +625,12 @@ def test_graph_edge_sort_by_combined(graph):
     run_graphql_test(query, expected_output, graph())
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_sort_by_nonexistent_prop(graph):
+def test_graph_edge_sort_by_combined_2(graph):
     query = """
     query {
       graph(path: "g") {
         edges {
-          sorted(sortBys: [{ property: "i_dont_exist" }, { property: "eprop2", reverse: true }]) {
+          sorted(sortBys: [{ dst: true }, { time: EARLIEST }, { property: "eprop3" }, { time: LATEST, reverse: true }]) {
             list {
               src {
                 id
@@ -538,11 +649,11 @@ def test_graph_edge_sort_by_nonexistent_prop(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": { "id": "c" }, "dst": { "id": "d" } },
                         {"src": { "id": "a" }, "dst": { "id": "b" } },
+                        {"src": { "id": "b" }, "dst": { "id": "c" } },
+                        {"src": { "id": "c" }, "dst": { "id": "d" } },
                         {"src": { "id": "b" }, "dst": { "id": "d" } },
                         {"src": { "id": "a" }, "dst": { "id": "d" } },
-                        {"src": { "id": "b" }, "dst": { "id": "c" } },
                     ]
                 }
             }

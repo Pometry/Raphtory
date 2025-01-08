@@ -6,7 +6,7 @@ use raphtory::{
         api::view::{internal::OneHopFilter, DynamicGraph},
         graph::edges::Edges,
     },
-    prelude::{EdgeViewOps, LayerOps, TimeOps},
+    prelude::{EdgeViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
@@ -36,6 +36,8 @@ impl GqlEdges {
 #[derive(InputObject, Clone, Debug, Eq, PartialEq)]
 pub struct EdgeSortBy {
     pub reverse: Option<bool>,
+    pub src: Option<bool>,
+    pub dst: Option<bool>,
     pub time: Option<EdgeSortByTime>,
     pub property: Option<String>,
 }
@@ -124,7 +126,11 @@ impl GqlEdges {
                     .into_iter()
                     .fold(Ordering::Equal, |current_ordering, sort_by| {
                         current_ordering.then_with(|| {
-                            let ordering = if let Some(sort_by_time) = sort_by.time {
+                            let ordering = if sort_by.src == Some(true) {
+                                first_edge.src().id().partial_cmp(&second_edge.src().id())
+                            } else if sort_by.dst == Some(true) {
+                                first_edge.dst().id().partial_cmp(&second_edge.dst().id())
+                            } else if let Some(sort_by_time) = sort_by.time {
                                 let (first_time, second_time) = match sort_by_time {
                                     EdgeSortByTime::Latest => {
                                         (first_edge.latest_time(), second_edge.latest_time())
