@@ -1,16 +1,14 @@
-use itertools::Itertools;
 use minijinja::{Environment, Value};
 use pyo3::{pyclass, pymethods};
 use raphtory::{
     core::{
         utils::{errors::GraphError, time::IntoTime},
-        DocumentInput, Prop,
+        Prop,
     },
     python::utils::PyTime,
 };
 use raphtory_api::core::entities::GID;
 use serde::{ser::SerializeStruct, Serialize, Serializer};
-use serde_json::json;
 use std::collections::HashMap;
 
 pub mod raphtory_client;
