@@ -949,8 +949,13 @@ def test_edge_properties():
             ["prop 4", "prop 1", "prop 2", "prop 3"]
         )
 
-        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == ["prop 1", "prop 2", "prop 3", "prop 4"]
-        
+        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == [
+            "prop 1",
+            "prop 2",
+            "prop 3",
+            "prop 4",
+        ]
+
         # find all edges that match properties
         [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
         assert e == g.edge(1, 2)
@@ -2144,7 +2149,7 @@ def test_materialize_graph():
             assert g.has_edge(1, 2)
             assert mg.has_edge(2, 1)
             assert g.has_edge(2, 1)
-        
+
         check_g_inner(g)
 
         mg = g.materialize()
