@@ -256,7 +256,7 @@ impl PyGraphView {
     /// Returns true if the graph contains the specified node
     ///
     /// Arguments:
-    ///    id (str or int): the node id
+    ///    id (InputNode): the node id
     ///
     /// Returns:
     ///   bool: true if the graph contains the specified node, false otherwise
@@ -267,8 +267,8 @@ impl PyGraphView {
     /// Returns true if the graph contains the specified edge
     ///
     /// Arguments:
-    ///   src (str or int): the source node id
-    ///   dst (str or int): the destination node id
+    ///   src (InputNode): the source node id
+    ///   dst (InputNode): the destination node id
     ///
     /// Returns:
     ///     bool: true if the graph contains the specified edge, false otherwise
@@ -282,7 +282,7 @@ impl PyGraphView {
     /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str or int): the node id
+    ///   id (InputNode): the node id
     ///
     /// Returns:
     ///     Optional[Node]: the node with the specified id, or None if the node does not exist
@@ -327,8 +327,8 @@ impl PyGraphView {
     /// Gets the edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str or int): the source node id
-    ///     dst (str or int): the destination node id
+    ///     src (InputNode): the source node id
+    ///     dst (InputNode): the destination node id
     ///
     /// Returns:
     ///     Optional[Edge]: the edge with the specified source and destination nodes, or None if the edge does not exist

@@ -1,12 +1,12 @@
-import sys
+import sys as _sys
 from .raphtory import *
 
-sys.modules["raphtory.node_state"] = node_state
-sys.modules["raphtory.algorithms"] = algorithms
-sys.modules["raphtory.graph_gen"] = graph_gen
-sys.modules["raphtory.graph_loader"] = graph_loader
-sys.modules["raphtory.vectors"] = vectors
-sys.modules["raphtory.graphql"] = graphql
+_sys.modules["raphtory.node_state"] = node_state
+_sys.modules["raphtory.algorithms"] = algorithms
+_sys.modules["raphtory.graph_gen"] = graph_gen
+_sys.modules["raphtory.graph_loader"] = graph_loader
+_sys.modules["raphtory.vectors"] = vectors
+_sys.modules["raphtory.graphql"] = graphql
 
 __doc__ = raphtory.__doc__
 if hasattr(raphtory, "__all__"):

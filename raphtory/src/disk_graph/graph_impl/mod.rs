@@ -393,6 +393,7 @@ mod test {
             .temporal()
             .into_iter()
             .map(|(key, t_view)| (key.to_string(), t_view.into_iter().collect::<Vec<_>>()))
+            .filter(|(_, v)| v.len() > 0)
             .collect::<Vec<_>>();
 
         let expected = vec![

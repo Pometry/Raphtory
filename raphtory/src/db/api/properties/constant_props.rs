@@ -5,12 +5,12 @@ use crate::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 
-pub struct ConstProperties<'a, P: ConstPropertiesOps> {
+pub struct ConstantProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
     pub(crate) fn new(props: P) -> Self {
         Self {
             props,
@@ -47,7 +47,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<'a, P> {
     type Item = (ArcStr, Prop);
     type IntoIter = BoxedLIter<'a, Self::Item>;
 
@@ -60,7 +60,7 @@ impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstProperties<'a,
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'a, P> {
     type Item = (ArcStr, Prop);
     type IntoIter = Box<dyn Iterator<Item = (ArcStr, Prop)> + 'a>;
 
@@ -71,7 +71,7 @@ impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstProperties<'a, 
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> PartialEq for ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync> PartialEq for ConstantProperties<'a, P> {
     fn eq(&self, other: &Self) -> bool {
         self.as_map() == other.as_map()
     }

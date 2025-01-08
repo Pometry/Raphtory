@@ -319,8 +319,8 @@ macro_rules! impl_node_state {
         }
 
         impl $name {
-            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph, DynamicGraph> {
-                self.inner.as_ref()
+            pub fn inner(&self) -> &Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>> {
+                &self.inner
             }
         }
 
@@ -338,6 +338,12 @@ macro_rules! impl_node_state {
                 $name {
                     inner: inner.into(),
                 }
+            }
+        }
+
+        impl From<Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>> for $name {
+            fn from(inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>) -> Self {
+                $name { inner }
             }
         }
 

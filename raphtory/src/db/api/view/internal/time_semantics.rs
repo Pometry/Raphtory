@@ -53,11 +53,23 @@ pub trait TimeSemantics {
         layer_ids: &LayerIds,
     ) -> bool;
 
-    /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
-    fn node_history(&self, v: VID) -> Vec<i64>;
+    /// Get the timestamps at which a node `v` is active (i.e has an edge addition, or a property change)
+    fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry>;
 
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64>;
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<TimeIndexEntry>;
+
+    /// Get the timestamps associated with properties or node events only (Excluding edge events)
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
+
+    /// Get the timestamps associated with edge events only (Excluding node or property events)
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
 
     fn edge_history<'a>(
         &'a self,
@@ -208,14 +220,6 @@ pub trait TimeSemantics {
         )
     }
 
-    /// Check if node has temporal property with the given id
-    ///
-    /// # Arguments
-    ///
-    /// * `v` - The id of the node
-    /// * `prop_id` - The id of the property to retrieve.
-    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool;
-
     /// Returns a vector of all temporal values of the node property with the given name for the
     /// given node
     ///
@@ -230,15 +234,6 @@ pub trait TimeSemantics {
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
     fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
-
-    /// Check if node has temporal property with the given id in the window
-    ///
-    /// # Arguments
-    ///
-    /// * `v` - the id of the node
-    /// * `prop_id` - The id of the property to retrieve.
-    /// * `w` - time window
-    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool;
 
     /// Returns a vector of all temporal values of the node property with the given name for the given node
     /// that fall within the specified time window.
@@ -262,21 +257,6 @@ pub trait TimeSemantics {
         start: i64,
         end: i64,
     ) -> BoxedLIter<(TimeIndexEntry, Prop)>;
-
-    /// Check if edge has temporal property with the given id in the window
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - the id of the edge
-    /// * `prop_id` - The id of the property to retrieve.
-    /// * `w` - time window
-    fn has_temporal_edge_prop_window(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference within the specified time window.
@@ -310,14 +290,6 @@ pub trait TimeSemantics {
         t: TimeIndexEntry,
         layer_ids: &LayerIds,
     ) -> Option<Prop>;
-
-    /// Check if edge has temporal property with the given id
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The id of the edge
-    /// * `prop_id` - The id of the property to retrieve.
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference.
@@ -421,12 +393,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph().node_history(v)
     }
 
     #[inline]
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph().node_history_window(v, w)
     }
 
@@ -574,22 +546,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        self.graph().has_temporal_node_prop(v, prop_id)
-    }
-
-    #[inline]
     fn temporal_node_prop_hist(
         &self,
         v: VID,
         prop_id: usize,
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph().temporal_node_prop_hist(v, prop_id)
-    }
-
-    #[inline]
-    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph().has_temporal_node_prop_window(v, prop_id, w)
     }
 
     #[inline]
@@ -602,17 +564,6 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph()
             .temporal_node_prop_hist_window(v, prop_id, start, end)
-    }
-
-    fn has_temporal_edge_prop_window(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph()
-            .has_temporal_edge_prop_window(e, prop_id, w, layer_ids)
     }
 
     #[inline]
@@ -640,11 +591,6 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        self.graph().has_temporal_edge_prop(e, prop_id, layer_ids)
-    }
-
-    #[inline]
     fn temporal_edge_prop_hist<'a>(
         &'a self,
         e: EdgeRef,
@@ -652,5 +598,21 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph().temporal_edge_prop_hist(e, prop_id, layer_ids)
+    }
+
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.graph().node_property_history(v, w)
+    }
+
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.graph().node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
+        self.graph().node_history_rows(v, w)
     }
 }

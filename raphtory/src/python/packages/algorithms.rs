@@ -159,7 +159,7 @@ pub fn weakly_connected_components(
 pub fn strongly_connected_components(
     g: &PyGraphView,
 ) -> AlgorithmResult<DynamicGraph, usize, usize> {
-    components::strongly_connected_components(&g.graph, None)
+    components::strongly_connected_components(&g.graph)
 }
 
 #[cfg(feature = "storage")]
@@ -638,8 +638,11 @@ pub fn balance(
     name: String,
     direction: Direction,
     threads: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    balance_rs(&g.graph, name.clone(), direction, threads)
+) -> PyResult<AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>>> {
+    match balance_rs(&g.graph, name.clone(), direction, threads) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized

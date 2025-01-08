@@ -12,7 +12,8 @@ use crate::{
                 time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
+                TemporalPropertyViewOps,
             },
             view::{
                 internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
@@ -32,7 +33,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     fmt,
     fmt::Debug,
@@ -190,11 +191,7 @@ impl<G, GH: CoreGraphOps> Hash for NodeView<G, GH> {
 
 impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, GH> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph
-            .node_meta()
-            .temporal_prop_meta()
-            .get_id(name)
-            .filter(|id| self.graph.has_temporal_node_prop(self.node, *id))
+        self.graph.node_meta().temporal_prop_meta().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
@@ -206,11 +203,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, 
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(
-            self.graph
-                .temporal_node_prop_ids(self.node)
-                .filter(|id| self.graph.has_temporal_node_prop(self.node, *id)),
-        )
+        Box::new(0..self.graph.node_meta().temporal_prop_meta().len())
     }
 }
 
@@ -277,6 +270,12 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             Ok(index) => Some(self.temporal_values(id)[index].clone()),
             Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
         }
+    }
+}
+
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesRowView for NodeView<G, GH> {
+    fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
+        self.graph.node_history_rows(self.node, None)
     }
 }
 
@@ -368,9 +367,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> NodeView<G, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
-        props: C,
+        properties: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
         })?;
         self.graph

@@ -387,7 +387,10 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///    t (TimeInput): The timestamp at which the updates should be applied.
-    ///    properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+    ///    properties (PropInput, optional): A dictionary of properties to update. Each key is a
+    ///                                      string representing the property name, and each value
+    ///                                      is of type Prop representing the property value.
+    ///                                      If None, no properties are updated.
     ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:

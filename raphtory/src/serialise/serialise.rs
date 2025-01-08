@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},
-        storage::timeindex::TimeIndexOps,
         utils::errors::GraphError,
         Prop,
     },
@@ -173,18 +172,21 @@ impl StableEncode for GraphStorage {
         for node_id in 0..nodes.len() {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
+
             for (t, group) in
                 zip_tprop_updates!((0..n_temporal_meta.len()).map(|id| (id, node.tprop(id))))
             {
                 graph.update_node_tprops(node.vid(), t, group.map(|(_, v)| v));
             }
-            for t in node.additions().iter() {
+
+            for (time, row) in node.temp_prop_rows() {
                 graph.update_node_tprops(
                     node.vid(),
-                    TimeIndexEntry::start(t),
-                    iter::empty::<(usize, Prop)>(),
+                    time,
+                    row.into_iter().filter_map(|(id, prop)| Some((id, prop?))),
                 );
             }
+
             graph.update_node_cprops(
                 node.vid(),
                 (0..n_const_meta.len()).flat_map(|i| node.prop(i).map(|v| (i, v))),
@@ -392,9 +394,9 @@ impl StableDecode for TemporalGraph {
                         Gid::GidStr(name) => GidRef::Str(name),
                         Gid::GidU64(gid) => GidRef::U64(*gid),
                     };
-                    if let Some(node_store) = shard.set(vid, gid) {
+                    if let Some(mut node_store) = shard.set(vid, gid) {
                         storage.logical_to_physical.set(gid, vid)?;
-                        node_store.node_type = node.type_id as usize;
+                        node_store.node_store_mut().node_type = node.type_id as usize;
                     }
                 }
                 let edges = storage.storage.edges.read_lock();
@@ -403,10 +405,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t);
+                                src.update_time(t, edge.eid());
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t)
+                                src.update_time(t, edge.eid());
                             }
                         }
                     }
@@ -414,10 +416,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t);
+                                dst.update_time(t, edge.eid());
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t)
+                                dst.update_time(t, edge.eid());
                             }
                         }
                     }
@@ -435,13 +437,23 @@ impl StableDecode for TemporalGraph {
                                 }
                             }
                             Update::UpdateNodeTprops(update) => {
-                                if let Some(node) = shard.get_mut(update.vid()) {
-                                    node.update_time(update.time());
+                                if let Some(mut node) = shard.get_mut_entry(update.vid()) {
+                                    let mut props = vec![];
                                     for prop_update in update.props() {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);
-                                        node.add_prop(update.time(), id, prop)?;
+                                        props.push((id, prop));
                                     }
+
+                                    if props.is_empty() {
+                                        node.node_store_mut()
+                                            .update_t_prop_time(update.time(), None);
+                                    } else {
+                                        let prop_offset = node.t_props_log_mut().push(props)?;
+                                        node.node_store_mut()
+                                            .update_t_prop_time(update.time(), prop_offset);
+                                    }
+
                                     storage.update_time(update.time())
                                 }
                             }
@@ -911,9 +923,9 @@ mod proto_test {
 
         let proto = g.encode_to_proto();
         let g2 = Graph::decode_from_proto(&proto).unwrap();
-        let values = g2
-            .node(1)
-            .unwrap()
+        let node_view = g2.node(1).unwrap();
+
+        let values = node_view
             .properties()
             .temporal()
             .get("test")

@@ -3,7 +3,7 @@ use crate::python::{
         raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge, remote_graph::PyRemoteGraph,
         remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition, PyUpdate,
     },
-    encode_graph,
+    decode_graph, encode_graph,
     global_plugins::PyGlobalPlugins,
     server::{running_server::PyRunningGraphServer, server::PyGraphServer},
 };
@@ -23,6 +23,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     graphql_module.add_class::<PyEdgeAddition>()?;
 
     graphql_module.add_function(wrap_pyfunction!(encode_graph, &graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;
 
     Ok(graphql_module)
 }

@@ -116,7 +116,7 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[(int, Any)]]: the mapping of property keys to histories
+    ///     dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
     fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
         self.props
             .iter()
@@ -127,7 +127,7 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[(datetime, Any)]]: the mapping of property keys to histories
+    ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
     fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
         self.props
             .iter()

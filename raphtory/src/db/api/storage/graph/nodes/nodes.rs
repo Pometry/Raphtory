@@ -1,9 +1,6 @@
 use super::node_ref::NodeStorageRef;
 use crate::{
-    core::{
-        entities::{nodes::node_store::NodeStore, VID},
-        storage::ReadLockedStorage,
-    },
+    core::{entities::VID, storage::ReadLockedStorage},
     db::api::storage::graph::nodes::nodes_ref::NodesStorageEntry,
 };
 use std::sync::Arc;
@@ -12,12 +9,13 @@ use std::sync::Arc;
 use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 
 pub enum NodesStorage {
-    Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
+    Mem(Arc<ReadLockedStorage>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesOwned),
 }
 
 impl NodesStorage {
+    #[inline]
     pub fn as_ref(&self) -> NodesStorageEntry {
         match self {
             NodesStorage::Mem(storage) => NodesStorageEntry::Mem(storage),
@@ -26,9 +24,10 @@ impl NodesStorage {
         }
     }
 
+    #[inline]
     pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
         match self {
-            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
+            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get_entry(vid)),
             #[cfg(feature = "storage")]
             NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
         }

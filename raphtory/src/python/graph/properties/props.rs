@@ -10,14 +10,14 @@ use crate::{
     },
     python::{
         graph::properties::{
-            PyConstProperties, PyConstPropsList, PyConstPropsListList, PyTemporalPropsList,
+            PyConstPropsList, PyConstPropsListList, PyConstantProperties, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
             repr::{iterator_dict_repr, Repr},
             wrappers::prop::PropValue,
         },
-        utils::{NumpyArray, PyGenericIterator},
+        utils::PyGenericIterator,
     },
 };
 use itertools::Itertools;
@@ -39,7 +39,7 @@ impl PartialEq for PyPropsComp {
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstProperties>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyConstantProperties>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
@@ -51,8 +51,8 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
     }
 }
 
-impl From<&PyConstProperties> for PyPropsComp {
-    fn from(value: &PyConstProperties) -> Self {
+impl From<&PyConstantProperties> for PyPropsComp {
+    fn from(value: &PyConstantProperties) -> Self {
         Self(value.as_dict())
     }
 }
@@ -124,7 +124,7 @@ impl PyProperties {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> NumpyArray {
+    pub fn values(&self) -> Vec<Option<Prop>> {
         self.props.values().collect()
     }
 
