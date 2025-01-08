@@ -425,6 +425,24 @@ class DegreeView(object):
         """
 
     @property
+    def start(self):
+        """
+         Gets the start time for rolling and expanding windows for this DegreeView
+
+        Returns:
+            Optional[int]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
+        """
+
+    @property
+    def window_size(self):
+        """
+         Get the window size (difference between start and end) for this DegreeView
+
+        Returns:
+            Optional[int]
+        """
+
+    @property
     def end_date_time(self):
         """
          Gets the latest datetime that this DegreeView is valid
@@ -443,30 +461,12 @@ class DegreeView(object):
         """
 
     @property
-    def start(self):
-        """
-         Gets the start time for rolling and expanding windows for this DegreeView
-
-        Returns:
-            Optional[int]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
     def end(self):
         """
          Gets the latest time that this DegreeView is valid.
 
         Returns:
            Optional[int]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
-    def window_size(self):
-        """
-         Get the window size (difference between start and end) for this DegreeView
-
-        Returns:
-            Optional[int]
         """
 
 class NodeStateUsize(object):
@@ -1471,30 +1471,21 @@ class EarliestTimeView(object):
         """
 
     @property
-    def start_date_time(self):
-        """
-         Gets the earliest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[Datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self):
-        """
-         Gets the latest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[Datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
     def window_size(self):
         """
          Get the window size (difference between start and end) for this EarliestTimeView
 
         Returns:
             Optional[int]
+        """
+
+    @property
+    def end(self):
+        """
+         Gets the latest time that this EarliestTimeView is valid.
+
+        Returns:
+           Optional[int]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     @property
@@ -1507,12 +1498,21 @@ class EarliestTimeView(object):
         """
 
     @property
-    def end(self):
+    def end_date_time(self):
         """
-         Gets the latest time that this EarliestTimeView is valid.
+         Gets the latest datetime that this EarliestTimeView is valid
 
         Returns:
-           Optional[int]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+             Optional[Datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+        """
+
+    @property
+    def start_date_time(self):
+        """
+         Gets the earliest datetime that this EarliestTimeView is valid
+
+        Returns:
+             Optional[Datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
 class LatestTimeView(object):
@@ -1907,21 +1907,21 @@ class LatestTimeView(object):
         """
 
     @property
-    def end(self):
-        """
-         Gets the latest time that this LatestTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    @property
     def window_size(self):
         """
          Get the window size (difference between start and end) for this LatestTimeView
 
         Returns:
             Optional[int]
+        """
+
+    @property
+    def start_date_time(self):
+        """
+         Gets the earliest datetime that this LatestTimeView is valid
+
+        Returns:
+             Optional[Datetime]: The earliest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     @property
@@ -1943,12 +1943,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def start_date_time(self):
+    def end(self):
         """
-         Gets the earliest datetime that this LatestTimeView is valid
+         Gets the latest time that this LatestTimeView is valid.
 
         Returns:
-             Optional[Datetime]: The earliest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
+           Optional[int]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
 class NameView(object):
@@ -2641,24 +2641,6 @@ class EarliestDateTimeView(object):
         """
 
     @property
-    def end_date_time(self):
-        """
-         Gets the latest datetime that this EarliestDateTimeView is valid
-
-        Returns:
-             Optional[Datetime]: The latest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
-    def start(self):
-        """
-         Gets the start time for rolling and expanding windows for this EarliestDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
     def window_size(self):
         """
          Get the window size (difference between start and end) for this EarliestDateTimeView
@@ -2677,12 +2659,30 @@ class EarliestDateTimeView(object):
         """
 
     @property
+    def start(self):
+        """
+         Gets the start time for rolling and expanding windows for this EarliestDateTimeView
+
+        Returns:
+            Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
+        """
+
+    @property
     def start_date_time(self):
         """
          Gets the earliest datetime that this EarliestDateTimeView is valid
 
         Returns:
              Optional[Datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
+        """
+
+    @property
+    def end_date_time(self):
+        """
+         Gets the latest datetime that this EarliestDateTimeView is valid
+
+        Returns:
+             Optional[Datetime]: The latest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
 
 class LatestDateTimeView(object):
@@ -3077,6 +3077,24 @@ class LatestDateTimeView(object):
         """
 
     @property
+    def end(self):
+        """
+         Gets the latest time that this LatestDateTimeView is valid.
+
+        Returns:
+           Optional[int]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
+        """
+
+    @property
+    def start(self):
+        """
+         Gets the start time for rolling and expanding windows for this LatestDateTimeView
+
+        Returns:
+            Optional[int]: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
+        """
+
+    @property
     def start_date_time(self):
         """
          Gets the earliest datetime that this LatestDateTimeView is valid
@@ -3101,24 +3119,6 @@ class LatestDateTimeView(object):
 
         Returns:
             Optional[int]
-        """
-
-    @property
-    def start(self):
-        """
-         Gets the start time for rolling and expanding windows for this LatestDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    @property
-    def end(self):
-        """
-         Gets the latest time that this LatestDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
 
 class NodeStateOptionDateTime(object):
@@ -3653,6 +3653,24 @@ class HistoryView(object):
         """
 
     @property
+    def window_size(self):
+        """
+         Get the window size (difference between start and end) for this HistoryView
+
+        Returns:
+            Optional[int]
+        """
+
+    @property
+    def end_date_time(self):
+        """
+         Gets the latest datetime that this HistoryView is valid
+
+        Returns:
+             Optional[Datetime]: The latest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
+        """
+
+    @property
     def end(self):
         """
          Gets the latest time that this HistoryView is valid.
@@ -3671,30 +3689,12 @@ class HistoryView(object):
         """
 
     @property
-    def window_size(self):
-        """
-         Get the window size (difference between start and end) for this HistoryView
-
-        Returns:
-            Optional[int]
-        """
-
-    @property
     def start_date_time(self):
         """
          Gets the earliest datetime that this HistoryView is valid
 
         Returns:
              Optional[Datetime]: The earliest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self):
-        """
-         Gets the latest datetime that this HistoryView is valid
-
-        Returns:
-             Optional[Datetime]: The latest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
 class NodeStateListI64(object):
@@ -4238,15 +4238,6 @@ class HistoryDateTimeView(object):
         """
 
     @property
-    def start(self):
-        """
-         Gets the start time for rolling and expanding windows for this HistoryDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    @property
     def end(self):
         """
          Gets the latest time that this HistoryDateTimeView is valid.
@@ -4262,6 +4253,15 @@ class HistoryDateTimeView(object):
 
         Returns:
             Optional[int]
+        """
+
+    @property
+    def start(self):
+        """
+         Gets the start time for rolling and expanding windows for this HistoryDateTimeView
+
+        Returns:
+            Optional[int]: The earliest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
 
     @property

@@ -337,6 +337,38 @@ def local_clustering_coefficient(g: GraphView, v: InputNode):
         float : the local clustering coefficient of node v in g.
     """
 
+def local_clustering_coefficient_batch_intersection(
+    graph, v: List[InputNode] | InputNode | None
+):
+    """
+    Local clustering coefficient (batch, intersection) - measures the degree to which nodes in a graph tend to cluster together.
+    Uses cached sets of neighbours to handle triangle-counting.
+    The proportion of pairs of neighbours of a node who are themselves connected.
+
+    Arguments:
+        g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+        v (List[InputNode] | InputNode | None): list of node ids or names, if empty, calculates LCC of all nodes
+
+    Returns:
+        AlgorithmResult : AlgorithmResult mapping vertices to local clustering coefficient.
+    """
+
+def local_clustering_coefficient_batch_path(
+    graph, v: List[InputNode] | InputNode | None
+):
+    """
+    Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
+    Uses path-counting for its triangle-counting step.
+    The proportion of pairs of neighbours of a node who are themselves connected.
+
+    Arguments:
+        g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+        v (List[InputNode] | InputNode | None): list of node ids or names, if empty, calculates LCC of all nodes
+
+    Returns:
+        AlgorithmResult : AlgorithmResult mapping vertices to local clustering coefficient.
+    """
+
 def weakly_connected_components(g: GraphView, iter_count: int = 9223372036854775807):
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path

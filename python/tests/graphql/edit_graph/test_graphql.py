@@ -3,7 +3,13 @@ import tempfile
 
 import pytest
 
-from raphtory.graphql import GraphServer, RaphtoryClient, encode_graph, decode_graph, RemoteGraph
+from raphtory.graphql import (
+    GraphServer,
+    RaphtoryClient,
+    encode_graph,
+    decode_graph,
+    RemoteGraph,
+)
 from raphtory import graph_loader
 from raphtory import Graph
 import json

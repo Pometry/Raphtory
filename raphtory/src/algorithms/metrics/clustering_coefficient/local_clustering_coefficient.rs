@@ -23,7 +23,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::metrics::local_clustering_coefficient::local_clustering_coefficient;
+//! use raphtory::algorithms::metrics::clustering_coefficient::local_clustering_coefficient::local_clustering_coefficient;
 //! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();
@@ -53,16 +53,27 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef, db::api::view::*,
 };
 
-/// measures the degree to which nodes in a graph tend to cluster together
+/// Local clustering coefficient - measures the degree to which a single node in a graph tend to cluster together.
+///
+///
+/// # Arguments
+/// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
+/// - `v`: node id or name
+///
+/// # Returns
+/// the local clustering coefficient of node v in g.
 pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: V,
-) -> Option<f32> {
+) -> Option<f64> {
     let v = v.as_node_ref();
     if let Some(node) = graph.node(v) {
         if let Some(triangle_count) = local_triangle_count(graph, v) {
-            let triangle_count = triangle_count as f32;
-            let degree = node.degree() as f32;
+            let triangle_count = triangle_count as f64;
+            let mut degree = node.degree() as f64;
+            if graph.has_edge(node.node, node.node) {
+                degree -= 1.0;
+            }
             if degree > 1.0 {
                 Some((2.0 * triangle_count) / (degree * (degree - 1.0)))
             } else {
@@ -98,6 +109,7 @@ mod clustering_coefficient_tests {
             (4, 3, 2),
             (5, 1, 4),
             (6, 4, 5),
+            (6, 1, 1),
         ];
 
         for (t, src, dst) in &vs {
@@ -105,12 +117,11 @@ mod clustering_coefficient_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];
+            let expected = vec![0.3333333333333333, 1.0, 1.0, 0.0, 0.0];
             let windowed_graph = graph.window(0, 7);
             let actual = (1..=5)
                 .map(|v| local_clustering_coefficient(&windowed_graph, v).unwrap())
                 .collect::<Vec<_>>();
-
             assert_eq!(actual, expected);
         });
     }
