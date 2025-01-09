@@ -1,10 +1,7 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{
-            state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
-            view::internal::CoreGraphOps,
-        },
+        api::state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::{GraphViewOps, NodeViewOps},

@@ -1,15 +1,12 @@
 use crate::{
-    db::{
-        api::{
-            state::NodeGroups,
-            view::{internal::IntoDynamicOrMutable, DynamicGraph, IntoDynamic, StaticGraphViewOps},
-        },
-        graph::{nodes::Nodes, views::node_subgraph::NodeSubgraph},
+    db::api::{
+        state::NodeGroups,
+        view::{internal::IntoDynamicOrMutable, DynamicGraph, IntoDynamic, StaticGraphViewOps},
     },
     python::utils::PyGenericIterator,
 };
 use pyo3::{exceptions::PyIndexError, prelude::*, IntoPyObjectExt};
-use std::{hash::Hash, sync::Arc};
+use std::hash::Hash;
 
 trait PyNodeGroupOps: Send + Sync + 'static {
     fn iter(&self) -> PyGenericIterator;

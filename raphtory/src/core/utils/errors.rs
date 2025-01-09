@@ -125,6 +125,9 @@ pub enum GraphError {
     #[error("PropertyType Error: {0}")]
     PropertyTypeError(#[from] PropError),
 
+    #[error("{reason}")]
+    InvalidProperty { reason: String },
+
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
     ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },
 

@@ -13,7 +13,7 @@ use crate::{
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
-                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, Immutable, IntoDynamic,
+                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynamic,
                     IntoDynamicOrMutable, MaterializedGraph,
                 },
                 *,
@@ -23,10 +23,9 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::{deletion_graph::PersistentGraph, property_filter::internal::*},
+            views::property_filter::internal::*,
         },
     },
-    prelude::Graph,
     python::{
         graph::{
             node::internal::OneHopFilter,

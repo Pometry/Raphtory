@@ -12,14 +12,14 @@ use crate::{
                 StaticGraphViewOps,
             },
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
     py_borrowing_iter,
     python::{
         graph::node_state::group_by::PyNodeGroups,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
-        utils::{PyGenericIterator, PyNodeRef},
+        utils::PyNodeRef,
     },
 };
 use chrono::{DateTime, Utc};
@@ -48,9 +48,9 @@ macro_rules! impl_node_state_ops {
             /// Iterate over nodes
             ///
             /// Returns:
-            ///     Iterator[Node]
-            fn nodes(&self) -> PyGenericIterator {
-                self.inner.nodes().into_iter().into()
+            ///     Nodes: The nodes
+            fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+                self.inner.nodes()
             }
 
             fn __iter__(&self) -> PyBorrowingIterator {
@@ -81,7 +81,7 @@ macro_rules! impl_node_state_ops {
             }
 
             /// Returns:
-            #[doc = concat!("     Iterator[Tuple[Node, ", $py_value, "]]")]
+            #[doc = concat!("     Iterator[Tuple[Node, ", $py_value, "]]: Iterator over items")]
             fn items(&self) -> PyBorrowingIterator {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
                     .iter()
@@ -89,7 +89,7 @@ macro_rules! impl_node_state_ops {
             }
 
             /// Returns:
-            #[doc = concat!("     Iterator[",$py_value, "]")]
+            #[doc = concat!("     Iterator[",$py_value, "]: Iterator over values")]
             fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
             }
@@ -97,7 +97,7 @@ macro_rules! impl_node_state_ops {
             /// Sort results by node id
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": The sorted node state")]
             fn sorted_by_id(&self) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.sort_by_id()
             }
@@ -134,7 +134,7 @@ macro_rules! impl_node_state_ord_ops {
             ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": Sorted node state")]
             #[pyo3(signature = (reverse = false))]
             fn sorted(&self, reverse: bool) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.sort_by_values(reverse)
@@ -146,7 +146,7 @@ macro_rules! impl_node_state_ord_ops {
             ///     k (int): The number of values to return
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": The k largest values as a node state")]
             fn top_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.top_k(k)
             }
@@ -157,7 +157,7 @@ macro_rules! impl_node_state_ord_ops {
             ///     k (int): The number of values to return
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": The k smallest values as a node state")]
             fn bottom_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.bottom_k(k)
             }
@@ -165,7 +165,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return smallest value and corresponding node
             ///
             /// Returns:
-            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]")]
+            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and minimum value or `None` if empty")]
             fn min_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
                 self.inner
                     .min_item()
@@ -175,7 +175,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the minimum value
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]")]
+            #[doc = concat!("     Optional[", $py_value, "]: The minimum value or `None` if empty")]
             fn min(&self) -> Option<$value> {
                 self.inner.min().map($to_owned)
             }
@@ -183,7 +183,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return largest value and corresponding node
             ///
             /// Returns:
-            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]")]
+            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and maximum value or `None` if empty")]
             fn max_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
                 self.inner
                     .max_item()
@@ -193,7 +193,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the maximum value
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]")]
+            #[doc = concat!("     Optional[", $py_value, "]: The maximum value or `None` if empty")]
             fn max(&self) -> Option<$value> {
                 self.inner.max().map($to_owned)
             }
@@ -206,10 +206,10 @@ macro_rules! impl_node_state_ord_ops {
                 self.inner.median().map($to_owned)
             }
 
-            /// Return medain value and corresponding node
+            /// Return median value and corresponding node
             ///
             /// Returns:
-            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]")]
+            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The median value or `None` if empty")]
             fn median_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
                 self.inner
                     .median_item()
@@ -247,7 +247,7 @@ macro_rules! impl_node_state_num_ops {
             /// sum of values over all nodes
             ///
             /// Returns:
-            #[doc= concat!("        ", $py_value)]
+            #[doc= concat!("        ", $py_value, ": the sum")]
             fn sum(&self) -> $value {
                 self.inner.sum()
             }
@@ -255,7 +255,7 @@ macro_rules! impl_node_state_num_ops {
             /// mean of values over all nodes
             ///
             /// Returns:
-            ///     float
+            ///     float: mean value
             fn mean(&self) -> f64 {
                 self.inner.mean()
             }
@@ -292,7 +292,7 @@ macro_rules! impl_lazy_node_state {
             /// Compute all values and return the result as a list
             ///
             /// Returns
-            #[doc = concat!("     list[", $py_value, "]")]
+            #[doc = concat!("     list[", $py_value, "]", ": all values as a list")]
             fn collect(&self) -> Vec<<$op as NodeOp>::Output> {
                 self.inner.collect()
             }

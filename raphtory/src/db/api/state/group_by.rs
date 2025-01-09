@@ -5,8 +5,7 @@ use crate::{
     },
     prelude::{GraphViewOps, NodeStateOps},
 };
-use raphtory_api::{core::entities::VID, iter::BoxedLIter};
-use rayon::prelude::*;
+use raphtory_api::core::entities::VID;
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 #[derive(Clone, Debug)]

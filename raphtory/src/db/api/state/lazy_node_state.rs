@@ -16,10 +16,7 @@ use crate::{
     prelude::*,
 };
 use rayon::prelude::*;
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
