@@ -50,6 +50,14 @@ class DegreeView(object):
     def __getitem__(self, key):
         """Return self[key]."""
 
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
+
     def default_layer(self) -> DegreeView:
         """
          Return a view of DegreeView containing only the default edge layer
@@ -425,15 +433,6 @@ class DegreeView(object):
         """
 
     @property
-    def end_date_time(self):
-        """
-         Gets the latest datetime that this DegreeView is valid
-
-        Returns:
-             Optional[Datetime]: The latest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
     def start_date_time(self):
         """
          Gets the earliest datetime that this DegreeView is valid
@@ -458,6 +457,15 @@ class DegreeView(object):
 
         Returns:
            Optional[int]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
+        """
+
+    @property
+    def end_date_time(self):
+        """
+         Gets the latest datetime that this DegreeView is valid
+
+        Returns:
+             Optional[Datetime]: The latest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
     @property
@@ -499,6 +507,14 @@ class NodeStateUsize(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def sum(self):
         """
@@ -1112,6 +1128,14 @@ class EarliestTimeView(object):
     def __getitem__(self, key):
         """Return self[key]."""
 
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
+
     def default_layer(self) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing only the default edge layer
@@ -1471,21 +1495,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def start_date_time(self):
+    def start(self):
         """
-         Gets the earliest datetime that this EarliestTimeView is valid
+         Gets the start time for rolling and expanding windows for this EarliestTimeView
 
         Returns:
-             Optional[Datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self):
-        """
-         Gets the latest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[Datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+            Optional[int]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     @property
@@ -1498,12 +1513,21 @@ class EarliestTimeView(object):
         """
 
     @property
-    def start(self):
+    def end_date_time(self):
         """
-         Gets the start time for rolling and expanding windows for this EarliestTimeView
+         Gets the latest datetime that this EarliestTimeView is valid
 
         Returns:
-            Optional[int]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+             Optional[Datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+        """
+
+    @property
+    def start_date_time(self):
+        """
+         Gets the earliest datetime that this EarliestTimeView is valid
+
+        Returns:
+             Optional[Datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     @property
@@ -1547,6 +1571,14 @@ class LatestTimeView(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def default_layer(self) -> LatestTimeView:
         """
@@ -1907,6 +1939,15 @@ class LatestTimeView(object):
         """
 
     @property
+    def start(self):
+        """
+         Gets the start time for rolling and expanding windows for this LatestTimeView
+
+        Returns:
+            Optional[int]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
+        """
+
+    @property
     def end(self):
         """
          Gets the latest time that this LatestTimeView is valid.
@@ -1931,15 +1972,6 @@ class LatestTimeView(object):
 
         Returns:
              Optional[Datetime]: The latest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    @property
-    def start(self):
-        """
-         Gets the start time for rolling and expanding windows for this LatestTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     @property
@@ -1983,6 +2015,14 @@ class NameView(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def sorted(self, reverse: bool = False):
         """
@@ -2140,6 +2180,14 @@ class NodeStateString(object):
     def __getitem__(self, key):
         """Return self[key]."""
 
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
+
     def sorted(self, reverse: bool = False):
         """
         Sort by value
@@ -2281,6 +2329,14 @@ class EarliestDateTimeView(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def default_layer(self) -> EarliestDateTimeView:
         """
@@ -2650,21 +2706,12 @@ class EarliestDateTimeView(object):
         """
 
     @property
-    def start(self):
+    def start_date_time(self):
         """
-         Gets the start time for rolling and expanding windows for this EarliestDateTimeView
+         Gets the earliest datetime that this EarliestDateTimeView is valid
 
         Returns:
-            Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
-    def window_size(self):
-        """
-         Get the window size (difference between start and end) for this EarliestDateTimeView
-
-        Returns:
-            Optional[int]
+             Optional[Datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
 
     @property
@@ -2677,12 +2724,21 @@ class EarliestDateTimeView(object):
         """
 
     @property
-    def start_date_time(self):
+    def window_size(self):
         """
-         Gets the earliest datetime that this EarliestDateTimeView is valid
+         Get the window size (difference between start and end) for this EarliestDateTimeView
 
         Returns:
-             Optional[Datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
+            Optional[int]
+        """
+
+    @property
+    def start(self):
+        """
+         Gets the start time for rolling and expanding windows for this EarliestDateTimeView
+
+        Returns:
+            Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
 
 class LatestDateTimeView(object):
@@ -2717,6 +2773,14 @@ class LatestDateTimeView(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def default_layer(self) -> LatestDateTimeView:
         """
@@ -3077,15 +3141,6 @@ class LatestDateTimeView(object):
         """
 
     @property
-    def start_date_time(self):
-        """
-         Gets the earliest datetime that this LatestDateTimeView is valid
-
-        Returns:
-             Optional[Datetime]: The earliest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    @property
     def end_date_time(self):
         """
          Gets the latest datetime that this LatestDateTimeView is valid
@@ -3095,12 +3150,12 @@ class LatestDateTimeView(object):
         """
 
     @property
-    def window_size(self):
+    def start_date_time(self):
         """
-         Get the window size (difference between start and end) for this LatestDateTimeView
+         Gets the earliest datetime that this LatestDateTimeView is valid
 
         Returns:
-            Optional[int]
+             Optional[Datetime]: The earliest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
 
     @property
@@ -3119,6 +3174,15 @@ class LatestDateTimeView(object):
 
         Returns:
            Optional[int]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
+        """
+
+    @property
+    def window_size(self):
+        """
+         Get the window size (difference between start and end) for this LatestDateTimeView
+
+        Returns:
+            Optional[int]
         """
 
 class NodeStateOptionDateTime(object):
@@ -3151,6 +3215,14 @@ class NodeStateOptionDateTime(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def sorted(self, reverse: bool = False):
         """
@@ -3653,15 +3725,6 @@ class HistoryView(object):
         """
 
     @property
-    def end(self):
-        """
-         Gets the latest time that this HistoryView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    @property
     def start(self):
         """
          Gets the start time for rolling and expanding windows for this HistoryView
@@ -3677,6 +3740,15 @@ class HistoryView(object):
 
         Returns:
             Optional[int]
+        """
+
+    @property
+    def end(self):
+        """
+         Gets the latest time that this HistoryView is valid.
+
+        Returns:
+           Optional[int]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
     @property
@@ -4229,12 +4301,12 @@ class HistoryDateTimeView(object):
         """
 
     @property
-    def start_date_time(self):
+    def window_size(self):
         """
-         Gets the earliest datetime that this HistoryDateTimeView is valid
+         Get the window size (difference between start and end) for this HistoryDateTimeView
 
         Returns:
-             Optional[Datetime]: The earliest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
+            Optional[int]
         """
 
     @property
@@ -4247,21 +4319,21 @@ class HistoryDateTimeView(object):
         """
 
     @property
+    def start_date_time(self):
+        """
+         Gets the earliest datetime that this HistoryDateTimeView is valid
+
+        Returns:
+             Optional[Datetime]: The earliest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
+        """
+
+    @property
     def end(self):
         """
          Gets the latest time that this HistoryDateTimeView is valid.
 
         Returns:
            Optional[int]: The latest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    @property
-    def window_size(self):
-        """
-         Get the window size (difference between start and end) for this HistoryDateTimeView
-
-        Returns:
-            Optional[int]
         """
 
     @property
@@ -4446,6 +4518,14 @@ class NodeTypeView(object):
     def __getitem__(self, key):
         """Return self[key]."""
 
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
+
     def sorted(self, reverse: bool = False):
         """
         Sort by value
@@ -4601,6 +4681,14 @@ class NodeStateOptionStr(object):
 
     def __getitem__(self, key):
         """Return self[key]."""
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def sorted(self, reverse: bool = False):
         """
