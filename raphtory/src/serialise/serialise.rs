@@ -32,7 +32,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use std::{iter, sync::Arc};
 
-use super::GraphFolder;
+use super::{proto_ext::PropTypeExt, GraphFolder};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -287,14 +287,14 @@ impl StableDecode for TemporalGraph {
                         storage.node_meta.const_prop_meta().set_id_and_dtype(
                             node_cprop.name.as_str(),
                             node_cprop.id as usize,
-                            proto_ext::as_prop_type(node_cprop.p_type()),
+                            node_cprop.prop_type(),
                         )
                     }
                     Meta::NewNodeTprop(node_tprop) => {
                         storage.node_meta.temporal_prop_meta().set_id_and_dtype(
                             node_tprop.name.as_str(),
                             node_tprop.id as usize,
-                            proto_ext::as_prop_type(node_tprop.p_type()),
+                            node_tprop.prop_type(),
                         )
                     }
                     Meta::NewGraphCprop(graph_cprop) => storage
@@ -305,7 +305,7 @@ impl StableDecode for TemporalGraph {
                         storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
                             graph_tprop.name.as_str(),
                             graph_tprop.id as usize,
-                            proto_ext::as_prop_type(graph_tprop.p_type()),
+                            graph_tprop.prop_type(),
                         )
                     }
                     Meta::NewLayer(new_layer) => storage
@@ -316,19 +316,20 @@ impl StableDecode for TemporalGraph {
                         storage.edge_meta.const_prop_meta().set_id_and_dtype(
                             edge_cprop.name.as_str(),
                             edge_cprop.id as usize,
-                            proto_ext::as_prop_type(edge_cprop.p_type()),
+                            edge_cprop.prop_type(),
                         )
                     }
                     Meta::NewEdgeTprop(edge_tprop) => {
                         storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
                             edge_tprop.name.as_str(),
                             edge_tprop.id as usize,
-                            proto_ext::as_prop_type(edge_tprop.p_type()),
+                            edge_tprop.prop_type(),
                         )
                     }
                 }
             }
         });
+
         storage
             .write_lock_edges()?
             .into_par_iter_mut()
@@ -684,8 +685,14 @@ mod proto_test {
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
 
-        g1.add_edge(3, "Alice", "Bob", [("image", Prop::from_arr::<_, Int32Type>(vec![3i32, 5]))], None)
-            .unwrap();
+        g1.add_edge(
+            3,
+            "Alice",
+            "Bob",
+            [("image", Prop::from_arr::<Int32Type>(vec![3i32, 5]))],
+            None,
+        )
+        .unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);

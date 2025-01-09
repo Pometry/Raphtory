@@ -92,28 +92,6 @@ pub fn make_node_properties_from_graph(
     Ok(props)
 }
 
-pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
-    match prop_type {
-        PropType::Str => DataType::LargeUtf8,
-        PropType::U8 => DataType::UInt8,
-        PropType::U16 => DataType::UInt16,
-        PropType::I32 => DataType::Int32,
-        PropType::I64 => DataType::Int64,
-        PropType::U32 => DataType::UInt32,
-        PropType::U64 => DataType::UInt64,
-        PropType::F32 => DataType::Float32,
-        PropType::F64 => DataType::Float64,
-        PropType::Bool => DataType::Boolean,
-        PropType::Empty
-        | PropType::List
-        | PropType::Map
-        | PropType::NDTime
-        | PropType::Array(_)
-        | PropType::Document
-        | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
-    }
-}
-
 /// Map iterator of prop values to array (returns None if all the props are None)
 pub fn arrow_array_from_props(
     props: impl Iterator<Item = Option<Prop>>,

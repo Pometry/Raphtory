@@ -60,6 +60,7 @@ clap = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+arrow-array = { workspace = true }
 
 [features]
 storage = ["raphtory/storage"]

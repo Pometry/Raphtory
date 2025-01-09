@@ -20,6 +20,7 @@ mod graphql_test {
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
     };
+    use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
     use serde_json::Value;
 
@@ -28,7 +29,7 @@ mod graphql_test {
     use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
-            api::view::{IntoDynamic, MaterializedGraph},
+            api::view::{internal::CoreGraphOps, IntoDynamic, MaterializedGraph},
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::*,
@@ -283,16 +284,18 @@ mod graphql_test {
             assert_eq!(edge_properties[2]["propertyType"].as_str().unwrap(), "Str");
             assert_eq!(edge_properties[3]["propertyType"].as_str().unwrap(), "Str");
         }
-
-        // let pretty_data = serde_json::to_string_pretty(&data).unwrap();
-        // println!("data = {}", pretty_data);
     }
 
     #[tokio::test]
     async fn query_nodefilter() {
         let graph = Graph::new();
         graph
-            .add_node(0, 1, [("pgraph", Prop::Array(vec![3u8]))], None)
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::from_arr::<UInt8Type>(vec![3u8]))],
+                None,
+            )
             .unwrap();
         let graph: MaterializedGraph = graph.into();
 
@@ -752,7 +755,12 @@ mod graphql_test {
     async fn query_properties() {
         let graph = Graph::new();
         graph
-            .add_node(0, 1, [("pgraph", Prop::Array(vec![3u8]))], None)
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::from_arr::<UInt8Type>(vec![3u8]))],
+                None,
+            )
             .unwrap();
 
         let graph = graph.into();
