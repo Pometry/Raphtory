@@ -56,7 +56,7 @@ use crate::{
 };
 
 #[cfg(feature = "search")]
-use crate::search::Searcher;
+use crate::search::searcher::Searcher;
 
 pub mod additions;
 pub mod const_props;

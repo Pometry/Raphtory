@@ -14,7 +14,7 @@ pub trait NodeFilterOps {
 
     /// Check if node list can be trusted. (if false, nodes in `self.node_list` need further filtering,
     /// if true, the result of `self.node_list` can be trusted, in particular, its len is the number
-    /// of nodes in the graph)
+    /// of nodes in the graph).
     fn node_list_trusted(&self) -> bool;
 
     /// If `true`, node is included in the graph

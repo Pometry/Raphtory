@@ -25,7 +25,7 @@ use std::{
 
 use crate::core::utils::errors::GraphError;
 #[cfg(feature = "search")]
-use crate::search::Searcher;
+use crate::search::searcher::Searcher;
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;

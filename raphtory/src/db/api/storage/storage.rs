@@ -26,7 +26,10 @@ use crate::db::api::{
     view::internal::InheritNodeHistoryFilter,
 };
 #[cfg(feature = "search")]
-use crate::search::{GraphIndex, Searcher};
+use crate::search::{
+    graph_index::GraphIndex,
+    searcher::Searcher
+};
 #[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
 #[cfg(feature = "proto")]
@@ -40,6 +43,7 @@ use std::{
     fmt::{Display, Formatter},
     sync::Arc,
 };
+
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -311,7 +315,7 @@ impl InternalAdditionOps for Storage {
 
         #[cfg(feature = "search")]
         self.if_index(|index| {
-            index.add_edge_update(&self.graph, id.inner(), t, src, dst, props, layer)
+            index.add_edge_update(&self.graph, id.inner(), t, src, dst, layer)
         })?;
 
         Ok(id)
@@ -334,7 +338,7 @@ impl InternalAdditionOps for Storage {
             let ee = self.graph.edge_entry(edge);
             let src = ee.src();
             let dst = ee.dst();
-            index.add_edge_update(&self.graph, edge, t, src, dst, props, layer)
+            index.add_edge_update(&self.graph, edge, t, src, dst, layer)
         })?;
 
         Ok(())

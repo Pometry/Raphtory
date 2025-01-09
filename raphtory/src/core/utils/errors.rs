@@ -290,6 +290,9 @@ pub enum GraphError {
 
     #[error("Not supported")]
     NotSupported,
+
+    #[error("Failed to acquire read lock")]
+    LockError
 }
 
 impl GraphError {
