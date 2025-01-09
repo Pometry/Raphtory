@@ -17,7 +17,7 @@ use crate::{
             repr::{iterator_dict_repr, Repr},
             wrappers::prop::PropValue,
         },
-        utils::{NumpyArray, PyGenericIterator},
+        utils::PyGenericIterator,
     },
 };
 use itertools::Itertools;
@@ -124,7 +124,7 @@ impl PyProperties {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> NumpyArray {
+    pub fn values(&self) -> Vec<Option<Prop>> {
         self.props.values().collect()
     }
 

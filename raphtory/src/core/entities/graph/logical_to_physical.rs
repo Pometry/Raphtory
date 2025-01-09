@@ -1,6 +1,6 @@
 use crate::core::{
     entities::nodes::node_store::NodeStore,
-    storage::UninitialisedEntry,
+    storage::{NodeSlot, UninitialisedEntry},
     utils::errors::{GraphError, MutateGraphError},
 };
 use dashmap::mapref::entry::Entry;
@@ -115,7 +115,7 @@ impl Mapping {
     pub fn get_or_init_node<'a>(
         &self,
         gid: GidRef,
-        f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore>,
+        f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
     ) -> Result<MaybeNew<VID>, GraphError> {
         let map = self.map.get_or_init(|| match &gid {
             GidRef::U64(_) => Map::U64(FxDashMap::default()),
@@ -130,11 +130,13 @@ impl Mapping {
         })
     }
 
+    #[inline]
     pub fn get_str(&self, gid: &str) -> Option<VID> {
         let map = self.map.get()?;
         map.as_str().and_then(|m| m.get(gid).map(|id| *id))
     }
 
+    #[inline]
     pub fn get_u64(&self, gid: u64) -> Option<VID> {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
@@ -145,7 +147,7 @@ impl Mapping {
 fn optim_get_or_insert<'a>(
     m: &FxDashMap<String, VID>,
     id: &str,
-    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore>,
+    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
 ) -> MaybeNew<VID> {
     m.get(id)
         .map(|vid| MaybeNew::Existing(*vid))
@@ -156,7 +158,7 @@ fn optim_get_or_insert<'a>(
 fn get_or_new<'a, K: Eq + Hash>(
     m: &FxDashMap<K, VID>,
     id: K,
-    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore>,
+    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
 ) -> MaybeNew<VID> {
     let entry = match m.entry(id) {
         Entry::Occupied(entry) => Either::Left(*entry.get()),

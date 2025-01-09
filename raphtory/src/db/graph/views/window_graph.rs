@@ -111,14 +111,17 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 }
 
 impl<G> WindowedGraph<G> {
+    #[inline(always)]
     fn start_bound(&self) -> i64 {
         self.start.unwrap_or(i64::MIN)
     }
 
+    #[inline(always)]
     fn end_bound(&self) -> i64 {
         self.end.unwrap_or(i64::MAX)
     }
 
+    #[inline(always)]
     fn window_is_empty(&self) -> bool {
         self.start_bound() >= self.end_bound()
     }
@@ -321,16 +324,53 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         !self.window_is_empty() && self.graph.include_edge_window(edge, w, layer_ids)
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         if self.window_is_empty() {
-            return vec![];
+            return Box::new(std::iter::empty());
         }
         self.graph
             .node_history_window(v, self.start_bound()..self.end_bound())
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph.node_history_window(v, w.start..w.end)
+    }
+
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+        let range = w.unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_edge_history(v, Some(range))
+    }
+
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+
+        let range = w.unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_property_history(v, Some(range))
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+        let range = w.unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_history_rows(v, Some(range))
     }
 
     fn edge_history<'a>(
@@ -514,15 +554,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
-
-    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        if self.window_is_empty() {
-            return false;
-        }
-        self.graph
-            .has_temporal_node_prop_window(v, prop_id, self.start_bound()..self.end_bound())
-    }
-
     fn temporal_node_prop_hist(
         &self,
         v: VID,
@@ -534,12 +565,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         self.graph
             .temporal_node_prop_hist_window(v, prop_id, self.start_bound(), self.end_bound())
     }
-
-    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph
-            .has_temporal_node_prop_window(v, prop_id, w.start..w.end)
-    }
-
     fn temporal_node_prop_hist_window(
         &self,
         v: VID,
@@ -549,17 +574,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph
             .temporal_node_prop_hist_window(v, prop_id, start, end)
-    }
-
-    fn has_temporal_edge_prop_window(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph
-            .has_temporal_edge_prop_window(e, prop_id, w.start..w.end, layer_ids)
     }
 
     fn temporal_edge_prop_hist_window<'a>(
@@ -582,18 +596,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         layer_ids: &LayerIds,
     ) -> Option<Prop> {
         self.graph.temporal_edge_prop_at(e, id, t, layer_ids)
-    }
-
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        if self.window_is_empty() {
-            return false;
-        }
-        self.graph.has_temporal_edge_prop_window(
-            e,
-            prop_id,
-            self.start_bound()..self.end_bound(),
-            layer_ids,
-        )
     }
 
     fn temporal_edge_prop_hist<'a>(

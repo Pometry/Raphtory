@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from raphtory.graphql import GraphServer, RaphtoryClient, encode_graph, RemoteGraph
+from raphtory.graphql import GraphServer, RaphtoryClient, encode_graph, decode_graph, RemoteGraph
 from raphtory import graph_loader
 from raphtory import Graph
 import json
@@ -20,10 +20,9 @@ def test_encode_graph():
     g.add_edge(3, "ben", "haaroon")
 
     encoded = encode_graph(g)
-    assert (
-        encoded
-        == "EgxaCgoIX2RlZmF1bHQSDBIKCghfZGVmYXVsdBoFCgNiZW4aCQoFaGFtemEYARoLCgdoYWFyb29uGAIiAhABIgYIAhABGAEiBBACGAIqAhoAKgQSAhABKgQSAhADKgIKACoGEgQIARABKgYSBAgBEAIqBAoCCAEqBhIECAIQAioGEgQIAhADKgQKAggCKgQ6AhABKgIyACoIOgYIARACGAEqBDICCAEqCDoGCAIQAxgCKgQyAggC"
-    )
+    decoded_g = decode_graph(encoded)
+
+    assert g == decoded_g
 
 
 def test_failed_server_start_in_time():

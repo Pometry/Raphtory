@@ -270,7 +270,7 @@ impl GqlProperties {
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
-                        Some((key, p).into())
+                        p.map(|prop| (key, prop).into())
                     } else {
                         None
                     }
@@ -279,7 +279,7 @@ impl GqlProperties {
             None => self
                 .props
                 .iter()
-                .map(|(k, p)| (k.to_string(), p).into())
+                .filter_map(|(k, p)| p.map(|prop| (k.to_string(), prop).into()))
                 .collect(),
         }
     }

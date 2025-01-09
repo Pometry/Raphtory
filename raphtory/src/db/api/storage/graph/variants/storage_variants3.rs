@@ -293,12 +293,4 @@ impl<
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
     }
-
-    fn len(self) -> usize {
-        for_all!(self, props=> props.len())
-    }
-
-    fn is_empty(self) -> bool {
-        for_all!(self, props => props.is_empty())
-    }
 }
