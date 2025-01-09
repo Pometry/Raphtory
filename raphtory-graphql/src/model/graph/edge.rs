@@ -1,4 +1,4 @@
-use crate::model::graph::{node::Node, property::GqlProperties};
+use crate::model::graph::{edges::GqlEdges, node::Node, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
@@ -159,20 +159,12 @@ impl Edge {
         self.ee.layer_name().map(|x| x.into())
     }
 
-    async fn explode(&self) -> Vec<Edge> {
-        self.ee
-            .explode()
-            .into_iter()
-            .map(|ee| ee.into())
-            .collect_vec()
+    async fn explode(&self) -> GqlEdges {
+        GqlEdges::new(self.ee.explode())
     }
 
-    async fn explode_layers(&self) -> Vec<Edge> {
-        self.ee
-            .explode_layers()
-            .into_iter()
-            .map(|ee| ee.into())
-            .collect_vec()
+    async fn explode_layers(&self) -> GqlEdges {
+        GqlEdges::new(self.ee.explode_layers())
     }
 
     async fn history(&self) -> Vec<i64> {
