@@ -1,11 +1,12 @@
-use pyo3::prelude::*;
-
 use crate::{
     add_classes,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{ops, LazyNodeState, NodeOp, NodeState, NodeStateOps, OrderedNodeStateOps},
+            state::{
+                ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
+                OrderedNodeStateOps,
+            },
             view::{
                 internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
                 StaticGraphViewOps,
@@ -16,13 +17,15 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
+        graph::node_state::group_by::PyNodeGroups,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
-        utils::PyNodeRef,
+        utils::{PyGenericIterator, PyNodeRef},
     },
 };
 use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
     types::PyNotImplemented,
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
@@ -46,10 +49,8 @@ macro_rules! impl_node_state_ops {
             ///
             /// Returns:
             ///     Iterator[Node]
-            fn nodes(&self) -> PyBorrowingIterator {
-                py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| {
-                    inner.nodes().map(|n| n.cloned())
-                })
+            fn nodes(&self) -> PyGenericIterator {
+                self.inner.nodes().into_iter().into()
             }
 
             fn __iter__(&self) -> PyBorrowingIterator {
@@ -103,6 +104,21 @@ macro_rules! impl_node_state_ops {
 
             fn __repr__(&self) -> String {
                 self.inner.repr()
+            }
+        }
+    };
+}
+
+macro_rules! impl_node_state_group_by_ops {
+    ($name:ident, $value:ty) => {
+        #[pymethods]
+        impl $name {
+            /// Group by value
+            ///
+            /// Returns:
+            ///     NodeGroups: The grouped nodes
+            fn groups(&self) -> NodeGroups<$value, DynamicGraph> {
+                self.inner.groups()
             }
         }
     };
@@ -420,8 +436,10 @@ impl_lazy_node_state_num!(
     "int"
 );
 impl_one_hop!(DegreeView<ops::Degree>, "DegreeView");
+impl_node_state_group_by_ops!(DegreeView, usize);
 
 impl_node_state_num!(NodeStateUsize<usize>, "NodeStateUsize", "int");
+impl_node_state_group_by_ops!(NodeStateUsize, usize);
 
 impl_node_state_num!(NodeStateU64<u64>, "NodeStateU64", "int");
 
@@ -434,20 +452,25 @@ impl_lazy_node_state_ord!(
     "Optional[int]"
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
+impl_node_state_group_by_ops!(EarliestTimeView, Option<i64>);
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
 impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
+impl_node_state_group_by_ops!(LatestTimeView, Option<i64>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
+impl_node_state_group_by_ops!(NodeStateOptionI64, Option<i64>);
 
 impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
+impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
+impl_node_state_group_by_ops!(NodeStateString, String);
 
 type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
@@ -459,6 +482,7 @@ impl_one_hop!(
     EarliestDateTimeView<EarliestDateTime>,
     "EarliestDateTimeView"
 );
+impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
 
 type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
@@ -467,11 +491,13 @@ impl_lazy_node_state_ord!(
     "Optional[Datetime]"
 );
 impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");
+impl_node_state_group_by_ops!(LatestDateTimeView, Option<DateTime<Utc>>);
 impl_node_state_ord!(
     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
     "NodeStateOptionDateTime",
     "Optional[Datetime]"
 );
+impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 impl_lazy_node_state_ord!(
     HistoryView<ops::History<DynamicGraph>>,
@@ -499,11 +525,13 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionStr",
     "Optional[str]"
 );
+impl_node_state_group_by_ops!(NodeTypeView, Option<ArcStr>);
 impl_node_state_ord!(
     NodeStateOptionStr<Option<ArcStr>>,
     "NodeStateOptionStr",
     "Optional[str]"
 );
+impl_node_state_group_by_ops!(NodeStateOptionStr, Option<ArcStr>);
 
 impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
@@ -533,7 +561,8 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateOptionListDateTime,
         NodeTypeView,
         NodeStateOptionStr,
-        NodeStateListDateTime
+        NodeStateListDateTime,
+        PyNodeGroups
     );
     Ok(m)
 }

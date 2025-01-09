@@ -5,7 +5,7 @@ use crate::{
     },
     prelude::{GraphViewOps, NodeStateOps},
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::{core::entities::VID, iter::BoxedLIter};
 use rayon::prelude::*;
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
@@ -39,6 +39,26 @@ impl<'graph, V: Hash + Eq, G: GraphViewOps<'graph>> NodeGroups<V, G> {
                     None,
                 ),
             )
+        })
+    }
+
+    pub fn into_iter_groups(self) -> impl Iterator<Item = (V, Nodes<'graph, G>)>
+    where
+        V: Clone,
+    {
+        (0..self.len()).map(move |i| {
+            let (v, nodes) = self.group(i).unwrap();
+            (v.clone(), nodes)
+        })
+    }
+
+    pub fn into_iter_subgraphs(self) -> impl Iterator<Item = (V, NodeSubgraph<G>)>
+    where
+        V: Clone,
+    {
+        (0..self.len()).map(move |i| {
+            let (v, graph) = self.group_subgraph(i).unwrap();
+            (v.clone(), graph)
         })
     }
 
@@ -88,6 +108,7 @@ impl<'graph, V: Hash + Eq, G: GraphViewOps<'graph>> NodeGroups<V, G> {
         self.groups.is_empty()
     }
 }
+
 pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
     fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
 }
