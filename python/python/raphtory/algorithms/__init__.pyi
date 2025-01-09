@@ -692,32 +692,20 @@ def max_weight_matching(
 class Matching(object):
     """A Matching (i.e., a set of edges that do not share any nodes)"""
 
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
     def __bool__(self):
         """True if self else False"""
-
-    def __len__(self):
-        """Return len(self)."""
 
     def __contains__(self, key):
         """Return bool(key in self)."""
 
-    def src(self, dst: InputNode) -> Optional[Node]:
-        """
-        Get the matched source node for a destination node
+    def __iter__(self):
+        """Implement iter(self)."""
 
-        Arguments:
-            dst (InputNode): The destination node
+    def __len__(self):
+        """Return len(self)."""
 
-        Returns:
-            Optional[Node]: The matched source node if it exists
-
-        """
+    def __repr__(self):
+        """Return repr(self)."""
 
     def dst(self, src: InputNode) -> Optional[Node]:
         """
@@ -731,12 +719,15 @@ class Matching(object):
 
         """
 
-    def edges(self) -> Edges:
+    def edge_for_dst(self, dst: InputNode) -> Optional[Edge]:
         """
-        Get a view of the matched edges
+        Get the matched edge for a destination node
+
+        Arguments:
+            dst (InputNode): The source node
 
         Returns:
-            Edges: The edges in the matching
+            Optional[Edge]: The matched edge if it exists
         """
 
     def edge_for_src(self, src: InputNode) -> Optional[Edge]:
@@ -750,15 +741,24 @@ class Matching(object):
             Optional[Edge]: The matched edge if it exists
         """
 
-    def edge_for_dst(self, dst: InputNode) -> Optional[Edge]:
+    def edges(self) -> Edges:
         """
-        Get the matched edge for a destination node
-
-        Arguments:
-            dst (InputNode): The source node
+        Get a view of the matched edges
 
         Returns:
-            Optional[Edge]: The matched edge if it exists
+            Edges: The edges in the matching
+        """
+
+    def src(self, dst: InputNode) -> Optional[Node]:
+        """
+        Get the matched source node for a destination node
+
+        Arguments:
+            dst (InputNode): The destination node
+
+        Returns:
+            Optional[Node]: The matched source node if it exists
+
         """
 
 def connected_components(g): ...

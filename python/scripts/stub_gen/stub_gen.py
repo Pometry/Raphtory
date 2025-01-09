@@ -329,7 +329,7 @@ def gen_bases(cls: type) -> str:
 
 def gen_class(cls: type, name) -> str:
     contents = list(vars(cls).items())
-    # contents.sort(key=lambda x: x[0])
+    contents.sort(key=lambda x: x[0])
     entities: list[str] = []
     global cls_logger
     global fn_logger
