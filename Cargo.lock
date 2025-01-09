@@ -4817,6 +4817,7 @@ dependencies = [
  "ahash",
  "arrow-array",
  "arrow-buffer",
+ "arrow-data",
  "arrow-ipc",
  "arrow-schema",
  "async-openai",
@@ -4968,6 +4969,7 @@ dependencies = [
 name = "raphtory-graphql"
 version = "0.14.0"
 dependencies = [
+ "arrow-array",
  "async-graphql",
  "async-graphql-poem",
  "base64 0.22.1",

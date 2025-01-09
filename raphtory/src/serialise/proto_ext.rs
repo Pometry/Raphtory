@@ -1,12 +1,19 @@
 use crate::{
     core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropArray, PropType},
-    serialise::proto::{self, graph_update::{
-                DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
-                UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
-            }, new_meta::{
-                Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer,
-                NewNodeCProp, NewNodeTProp, NewNodeType,
-            }, new_node, prop, prop_type::{PType, PropType as SPropType}, GraphUpdate, NewEdge, NewMeta, NewNode},
+    serialise::proto::{
+        self,
+        graph_update::{
+            DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
+            UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
+        },
+        new_meta::{
+            Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer, NewNodeCProp,
+            NewNodeTProp, NewNodeType,
+        },
+        new_node, prop,
+        prop_type::{PType, PropType as SPropType},
+        GraphUpdate, NewEdge, NewMeta, NewNode,
+    },
 };
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use raphtory_api::core::{
@@ -59,6 +66,37 @@ fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
                 as_proto_prop_type(p_type)?.into(),
             )),
         }),
+    }
+}
+
+fn prop_type_from_i32(i: i32) -> Option<SPropType> {
+    match i {
+        0 => Some(SPropType::Str),
+        1 => Some(SPropType::U8),
+        2 => Some(SPropType::U16),
+        3 => Some(SPropType::I32),
+        4 => Some(SPropType::I64),
+        5 => Some(SPropType::U32),
+        6 => Some(SPropType::U64),
+        7 => Some(SPropType::F32),
+        8 => Some(SPropType::F64),
+        9 => Some(SPropType::Bool),
+        10 => Some(SPropType::List),
+        11 => Some(SPropType::Map),
+        12 => Some(SPropType::NdTime),
+        16 => Some(SPropType::DTime),
+        15 => Some(SPropType::Document),
+        _ => None,
+    }
+}
+
+fn as_prop_type2(p_type: PType) -> Option<PropType> {
+    match p_type.kind? {
+        proto::prop_type::p_type::Kind::Scalar(p_type) => as_prop_type(prop_type_from_i32(p_type)?),
+        proto::prop_type::p_type::Kind::Array(array) => {
+            let p_type = as_prop_type(prop_type_from_i32(array.p_type)?)?;
+            Some(PropType::Array(Box::new(p_type)))
+        }
     }
 }
 
@@ -192,6 +230,76 @@ impl UpdateNodeTProps {
             .iter()
             .map(as_prop)
             .filter_map(|r| r.transpose())
+    }
+}
+
+pub(crate) trait PropTypeExt {
+    fn p_type(&self) -> Option<i32>;
+    fn p_type2(&self) -> Option<&PType>;
+
+    fn prop_type(&self) -> Option<PropType> {
+        self.p_type2()
+            .and_then(|p_type| as_prop_type2(*p_type))
+            .or_else(|| {
+                self.p_type()
+                    .as_ref()
+                    .and_then(|p_type| as_prop_type(prop_type_from_i32(*p_type)?))
+            })
+    }
+}
+
+impl PropTypeExt for NewNodeCProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewNodeTProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewEdgeCProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewEdgeTProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewGraphTProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
     }
 }
 
@@ -664,7 +772,9 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
-        Prop::Array(blob) => prop::Value::Blob(Array { data: blob.to_vec_u8() }),
+        Prop::Array(blob) => prop::Value::Blob(Array {
+            data: blob.to_vec_u8(),
+        }),
         Prop::Document(doc) => {
             let life = match doc.life {
                 Lifespan::Interval { start, end } => {

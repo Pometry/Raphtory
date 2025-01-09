@@ -25,10 +25,12 @@
 //!
 
 use arrow_array::{ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch};
-use arrow_buffer::{ArrowNativeType, ScalarBuffer};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::{core::storage::arc_str::ArcStr, iter::{BoxedLIter, IntoDynBoxed}};
+use raphtory_api::{
+    core::storage::arc_str::ArcStr,
+    iter::{BoxedLIter, IntoDynBoxed},
+};
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
 use std::{
@@ -41,7 +43,7 @@ use std::{
 use utils::errors::GraphError;
 
 use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
-use arrow_schema::{Field, Schema};
+use arrow_schema::{DataType, Field, Schema};
 use base64::{prelude::BASE64_STANDARD, Engine};
 
 #[cfg(test)]
@@ -167,41 +169,78 @@ impl PropArray {
     }
 
     pub fn iter_prop(&self) -> Option<BoxedLIter<Prop>> {
-
         let arr = self.as_array_ref()?;
 
-        arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int32Type>>().map(|arr| {
-            arr.into_iter().map(|v| Prop::I32(v.unwrap_or_default())).into_dyn_boxed()
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float64Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::F64(v.unwrap_or_default())).into_dyn_boxed()
+        arr.as_any()
+            .downcast_ref::<PrimitiveArray<arrow_array::types::Int32Type>>()
+            .map(|arr| {
+                arr.into_iter()
+                    .map(|v| Prop::I32(v.unwrap_or_default()))
+                    .into_dyn_boxed()
             })
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Float32Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::F32(v.unwrap_or_default())).into_dyn_boxed()
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::Float64Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::F64(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
             })
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt64Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::U64(v.unwrap_or_default())).into_dyn_boxed()
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::Float32Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::F32(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
             })
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt32Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::U32(v.unwrap_or_default())).into_dyn_boxed()
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt64Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::U64(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
             })
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::Int64Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::I64(v.unwrap_or_default())).into_dyn_boxed()
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt32Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::U32(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
             })
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt16Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::U16(v.unwrap_or_default())).into_dyn_boxed()
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::Int64Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::I64(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
             })
-        }).or_else(|| {
-            arr.as_any().downcast_ref::<PrimitiveArray<arrow_array::types::UInt8Type>>().map(|arr| {
-                arr.into_iter().map(|v| Prop::U8(v.unwrap_or_default())).into_dyn_boxed()
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt16Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::U16(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
             })
-        })
-
+            .or_else(|| {
+                arr.as_any()
+                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt8Type>>()
+                    .map(|arr| {
+                        arr.into_iter()
+                            .map(|v| Prop::U8(v.unwrap_or_default()))
+                            .into_dyn_boxed()
+                    })
+            })
     }
 }
 
@@ -300,11 +339,13 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
-    pub fn from_arr<T: ArrowNativeType, TT: ArrowPrimitiveType<Native = T>>(vals: Vec<T>) -> Self {
-        let buf: ScalarBuffer<T> = vals.into();
-        let arr: PrimitiveArray<TT> = PrimitiveArray::new(buf, None);
-        let arr: ArrayRef = Arc::new(arr);
-        Prop::Array(PropArray::Array(arr))
+    pub fn from_arr<TT: ArrowPrimitiveType>(vals: Vec<TT::Native>) -> Self {
+        let array_data = arrow_data::ArrayData::builder(TT::DATA_TYPE)
+            .len(vals.len())
+            .add_buffer(arrow_buffer::Buffer::from_vec(vals));
+        let array_data = unsafe { array_data.build_unchecked() };
+        let array = arrow_array::PrimitiveArray::<TT>::from(array_data);
+        Prop::Array(PropArray::Array(Arc::new(array)))
     }
 
     pub fn dtype(&self) -> PropType {
@@ -322,7 +363,10 @@ impl Prop {
             Prop::List(_) => PropType::List,
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
-            Prop::Array(arr) => PropType::Array(Box::new(PropType::U8)), // TODO
+            Prop::Array(arr) => {
+                let arrow_dtype = arr.as_array_ref().expect("Should not call dtype on empty PropArray").data_type();
+                PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
+             },
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -389,6 +433,52 @@ impl Prop {
             Prop::F64(v) => Some(*v),
             _ => None,
         }
+    }
+}
+
+pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType{
+    match prop_type {
+        PropType::Str => DataType::LargeUtf8,
+        PropType::U8 => DataType::UInt8,
+        PropType::U16 => DataType::UInt16,
+        PropType::I32 => DataType::Int32,
+        PropType::I64 => DataType::Int64,
+        PropType::U32 => DataType::UInt32,
+        PropType::U64 => DataType::UInt64,
+        PropType::F32 => DataType::Float32,
+        PropType::F64 => DataType::Float64,
+        PropType::Bool => DataType::Boolean,
+        PropType::Array(d_type) => DataType::List(Field::new(
+            "data",
+            arrow_dtype_from_prop_type(&d_type),
+            true,
+        ).into()),
+        PropType::Empty
+        | PropType::List
+        | PropType::Map
+        | PropType::NDTime
+        | PropType::Document
+        | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
+    }
+}
+
+pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
+    match arrow_dtype {
+        DataType::LargeUtf8 | DataType::Utf8 => PropType::Str,
+        DataType::UInt8 => PropType::U8,
+        DataType::UInt16 => PropType::U16,
+        DataType::Int32 => PropType::I32,
+        DataType::Int64 => PropType::I64,
+        DataType::UInt32 => PropType::U32,
+        DataType::UInt64 => PropType::U64,
+        DataType::Float32 => PropType::F32,
+        DataType::Float64 => PropType::F64,
+        DataType::Boolean => PropType::Bool,
+        DataType::List(field) => {
+            let d_type = field.data_type();
+            PropType::Array(Box::new(prop_type_from_arrow_dtype(&d_type)))
+        }
+        _ => panic!("{:?} not supported as disk_graph property", arrow_dtype),
     }
 }
 

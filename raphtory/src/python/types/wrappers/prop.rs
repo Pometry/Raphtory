@@ -8,6 +8,7 @@ use crate::{
     python::types::repr::Repr,
 };
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
+use pyo3_arrow::PyArray;
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl<'py> IntoPyObject<'py> for Prop {
@@ -77,6 +78,10 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));
+        }
+        if let Ok(arrow) = ob.extract::<PyArray>() {
+            let (arr, _) = arrow.into_inner();
+            return Ok(Prop::Array(crate::core::PropArray::Array(arr)));
         }
         Err(PyTypeError::new_err("Not a valid property type"))
     }

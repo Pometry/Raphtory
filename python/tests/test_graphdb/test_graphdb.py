@@ -7,6 +7,7 @@ import re
 import pandas as pd
 import pandas.core.frame
 import pytest
+import pyarrow as pa
 from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
@@ -1030,11 +1031,12 @@ def create_graph_edge_properties():
     return g
 
 
-def test_graph_as_property():
+def test_arrow_array_properties():
     g = Graph()
-    g.add_edge(0, 1, 2, {"graph": g})
-    assert "graph" in g.edge(1, 2).properties
-    assert g.edge(1, 2).properties["graph"].has_edge(1, 2)
+    days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
+    g.add_edge(1, 1, 2, {"prop1": 1, "prop2": 2, "prop3": days})
+    e = g.edge(1, 2)
+    assert e.properties["prop3"] == days
 
 
 def test_map_and_list_property():
