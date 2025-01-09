@@ -3,7 +3,7 @@ use crate::{
         entities::properties::tcell::TCell,
         storage::{timeindex::TimeIndexEntry, TPropColumn},
         utils::errors::GraphError,
-        DocumentInput, Prop, PropType, PropArray,
+        DocumentInput, Prop, PropArray, PropType,
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };

@@ -364,9 +364,12 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
             Prop::Array(arr) => {
-                let arrow_dtype = arr.as_array_ref().expect("Should not call dtype on empty PropArray").data_type();
+                let arrow_dtype = arr
+                    .as_array_ref()
+                    .expect("Should not call dtype on empty PropArray")
+                    .data_type();
                 PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
-             },
+            }
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -436,7 +439,7 @@ impl Prop {
     }
 }
 
-pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType{
+pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
     match prop_type {
         PropType::Str => DataType::LargeUtf8,
         PropType::U8 => DataType::UInt8,
@@ -448,11 +451,9 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType{
         PropType::F32 => DataType::Float32,
         PropType::F64 => DataType::Float64,
         PropType::Bool => DataType::Boolean,
-        PropType::Array(d_type) => DataType::List(Field::new(
-            "data",
-            arrow_dtype_from_prop_type(&d_type),
-            true,
-        ).into()),
+        PropType::Array(d_type) => {
+            DataType::List(Field::new("data", arrow_dtype_from_prop_type(&d_type), true).into())
+        }
         PropType::Empty
         | PropType::List
         | PropType::Map
