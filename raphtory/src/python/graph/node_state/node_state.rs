@@ -476,7 +476,7 @@ type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>
 impl_lazy_node_state_ord!(
     EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
-    "Optional[Datetime]"
+    "Optional[datetime]"
 );
 impl_one_hop!(
     EarliestDateTimeView<EarliestDateTime>,
@@ -488,14 +488,14 @@ type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
     LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>,
     "NodeStateOptionDateTime",
-    "Optional[Datetime]"
+    "Optional[datetime]"
 );
 impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");
 impl_node_state_group_by_ops!(LatestDateTimeView, Option<DateTime<Utc>>);
 impl_node_state_ord!(
     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
     "NodeStateOptionDateTime",
-    "Optional[Datetime]"
+    "Optional[datetime]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
@@ -511,13 +511,13 @@ type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
     "NodeStateOptionListDateTime",
-    "Optional[list[Datetime]]"
+    "Optional[list[datetime]]"
 );
 impl_one_hop!(HistoryDateTimeView<HistoryDateTime>, "HistoryDateTimeView");
 impl_node_state_ord!(
     NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>,
     "NodeStateOptionListDateTime",
-    "Optional[list[Datetime]]"
+    "Optional[list[datetime]]"
 );
 
 impl_lazy_node_state_ord!(
@@ -536,7 +536,7 @@ impl_node_state_group_by_ops!(NodeStateOptionStr, Option<ArcStr>);
 impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
     "NodeStateListDateTime",
-    "list[Datetime]"
+    "list[datetime]"
 );
 
 pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
@@ -546,6 +546,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         DegreeView,
         NodeStateUsize,
         NodeStateU64,
+        NodeStateOptionI64,
         IdView,
         NodeStateGID,
         EarliestTimeView,

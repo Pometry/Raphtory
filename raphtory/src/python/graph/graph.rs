@@ -451,7 +451,7 @@ impl PyGraph {
     ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///     Edge: An Edge object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -474,7 +474,7 @@ impl PyGraph {
     ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///     Edge: An Edge object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -511,13 +511,13 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
+    ///     new_ids (List[Tuple[int, int]]): The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
     ///     merge (bool): An optional boolean flag.
     ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
     ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.

@@ -356,7 +356,7 @@ impl PyPersistentGraph {
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///     Node: A Node object if the node was successfully imported, and an error otherwise.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -380,7 +380,7 @@ impl PyPersistentGraph {
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///     Node: A Node object if the node was successfully imported, and an error otherwise.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
