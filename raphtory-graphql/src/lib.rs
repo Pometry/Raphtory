@@ -29,7 +29,7 @@ mod graphql_test {
     use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
-            api::view::{internal::CoreGraphOps, IntoDynamic, MaterializedGraph},
+            api::view::{IntoDynamic, MaterializedGraph},
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::*,
