@@ -554,9 +554,9 @@ pub trait PropUnwrap: Sized {
         self.into_document().unwrap()
     }
 
-    fn into_blob(self) -> Option<ArrayRef>;
-    fn unwrap_blob(self) -> ArrayRef {
-        self.into_blob().unwrap()
+    fn into_array(self) -> Option<ArrayRef>;
+    fn unwrap_array(self) -> ArrayRef {
+        self.into_array().unwrap()
     }
 }
 
@@ -617,8 +617,8 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_document())
     }
 
-    fn into_blob(self) -> Option<ArrayRef> {
-        self.and_then(|p| p.into_blob())
+    fn into_array(self) -> Option<ArrayRef> {
+        self.and_then(|p| p.into_array())
     }
 }
 
@@ -735,7 +735,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_blob(self) -> Option<ArrayRef> {
+    fn into_array(self) -> Option<ArrayRef> {
         if let Prop::Array(v) = self {
             v.into_array_ref()
         } else {

@@ -237,8 +237,8 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_ndtime()
     }
 
-    fn into_blob(self) -> Option<ArrayRef> {
-        self.latest().into_blob()
+    fn into_array(self) -> Option<ArrayRef> {
+        self.latest().into_array()
     }
 
     fn into_document(self) -> Option<DocumentInput> {

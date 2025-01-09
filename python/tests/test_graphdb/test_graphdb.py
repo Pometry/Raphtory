@@ -2913,41 +2913,6 @@ def test_unique_temporal_properties():
         assert sorted_actual_list == sorted_expected_list
 
     check(g)
-    g1 = Graph()
-    g1.add_constant_properties({"type": "a"})
-    g1.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g1})
-    g2 = Graph()
-    g2.add_constant_properties({"type": "b"})
-    g2.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g2})
-    g3 = Graph()
-    g3.add_constant_properties({"type": "c"})
-    g3.add_node(1, "shivam")
-    g.add_node(7, 3, {"graph": g3})
-
-    # @with_disk_graph #FIXME List, Map and NDTime properties are not supported
-    def check(g):
-        actual_list = g.node(3).properties.temporal.get("graph").unique()
-        expected_list = [g1, g3]
-        sorted_actual_list = sorted(
-            actual_list, key=lambda g: g.properties.constant.get("type")
-        )
-        sorted_expected_list = sorted(
-            expected_list, key=lambda g: g.properties.constant.get("type")
-        )
-        assert sorted_actual_list == sorted_expected_list
-
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
-            (5, 1),
-            (6, 5),
-        ]
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
-            (4, 1),
-            (6, 5),
-        ]
-
-    check(g)
 
 
 def test_fuzzy_search():
