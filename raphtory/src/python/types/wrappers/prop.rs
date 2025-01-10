@@ -1,6 +1,6 @@
 use super::document::PyDocument;
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Prop},
+    core::{prop_array::PropArray, utils::errors::GraphError, DocumentInput, Prop},
     db::graph::views::property_filter::internal::{
         InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
     },
@@ -81,7 +81,7 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(arrow) = ob.extract::<PyArray>() {
             let (arr, _) = arrow.into_inner();
-            return Ok(Prop::Array(crate::core::PropArray::Array(arr)));
+            return Ok(Prop::Array(PropArray::Array(arr)));
         }
         Err(PyTypeError::new_err(format!(
             "Could not convert {:?} to Prop",
