@@ -83,7 +83,10 @@ impl<'source> FromPyObject<'source> for Prop {
             let (arr, _) = arrow.into_inner();
             return Ok(Prop::Array(crate::core::PropArray::Array(arr)));
         }
-        Err(PyTypeError::new_err(format!("Could not convert {:?} to Prop", ob)))
+        Err(PyTypeError::new_err(format!(
+            "Could not convert {:?} to Prop",
+            ob
+        )))
     }
 }
 
