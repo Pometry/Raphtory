@@ -288,7 +288,7 @@ def get_decorator(method):
     if inspect.isgetsetdescriptor(method):
         return "@property"
 
-    if inspect.isfunction(method):
+    if inspect.isfunction(method) or isinstance(method, BuiltinFunctionType):
         return "@staticmethod"
 
     return None
