@@ -97,7 +97,7 @@ impl AsNodeRef for PyNode {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyNode {
-    /// checks if a node is equal to another by their id (ids are unqiue)
+    /// checks if a node is equal to another by their id (ids are unique)
     ///
     /// Arguments:
     ///    other: The other node to compare to.

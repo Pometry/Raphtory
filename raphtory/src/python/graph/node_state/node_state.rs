@@ -1,5 +1,4 @@
 use crate::{
-    add_classes,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -17,7 +16,6 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
-        graph::node_state::group_by::PyNodeGroups,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -542,32 +540,3 @@ impl_node_state_ord!(
     "NodeStateListDateTime",
     "list[datetime]"
 );
-
-pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
-    let m = PyModule::new(py, "node_state")?;
-    add_classes!(
-        &m,
-        DegreeView,
-        NodeStateUsize,
-        NodeStateU64,
-        NodeStateOptionI64,
-        IdView,
-        NodeStateGID,
-        EarliestTimeView,
-        LatestTimeView,
-        NameView,
-        NodeStateString,
-        EarliestDateTimeView,
-        LatestDateTimeView,
-        NodeStateOptionDateTime,
-        HistoryView,
-        NodeStateListI64,
-        HistoryDateTimeView,
-        NodeStateOptionListDateTime,
-        NodeTypeView,
-        NodeStateOptionStr,
-        NodeStateListDateTime,
-        PyNodeGroups
-    );
-    Ok(m)
-}

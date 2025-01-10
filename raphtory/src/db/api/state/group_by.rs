@@ -122,4 +122,78 @@ where
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use crate::{prelude::*, test_storage};
+    use std::collections::HashMap;
+
+    #[test]
+    fn test() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        g.add_edge(0, 4, 5, NO_PROPS, None).unwrap();
+
+        test_storage!(&g, |g| {
+            let groups_from_lazy = g.nodes().out_degree().groups();
+            let groups_from_eager = g.nodes().out_degree().compute().groups();
+
+            let expected = HashMap::from([
+                (0, vec![GID::U64(3), GID::U64(5)]),
+                (1, vec![GID::U64(1), GID::U64(2), GID::U64(4)]),
+            ]);
+
+            assert_eq!(
+                groups_from_lazy
+                    .iter()
+                    .map(|(v, nodes)| (*v, nodes.id().collect_vec()))
+                    .collect::<HashMap<_, _>>(),
+                expected
+            );
+
+            assert_eq!(
+                groups_from_lazy
+                    .clone()
+                    .into_iter_groups()
+                    .map(|(v, nodes)| (v, nodes.id().collect_vec()))
+                    .collect::<HashMap<_, _>>(),
+                expected
+            );
+
+            assert_eq!(
+                groups_from_lazy
+                    .iter_subgraphs()
+                    .map(|(v, graph)| (*v, graph.nodes().id().collect_vec()))
+                    .collect::<HashMap<_, _>>(),
+                expected
+            );
+
+            assert_eq!(
+                groups_from_lazy
+                    .clone()
+                    .into_iter_subgraphs()
+                    .map(|(v, graph)| (v, graph.nodes().id().collect_vec()))
+                    .collect::<HashMap<_, _>>(),
+                expected
+            );
+
+            assert_eq!(
+                groups_from_eager
+                    .iter()
+                    .map(|(v, nodes)| (*v, nodes.id().collect_vec()))
+                    .collect::<HashMap<_, _>>(),
+                expected
+            );
+
+            assert_eq!(groups_from_lazy.len(), expected.len());
+
+            for (i, (v, nodes)) in groups_from_eager.iter().enumerate() {
+                let (v2, nodes2) = groups_from_eager.group(i).unwrap();
+                assert_eq!(v, v2);
+                assert!(nodes.iter().eq(nodes2.iter()));
+                let (v3, graph) = groups_from_eager.group_subgraph(i).unwrap();
+                assert_eq!(v, v3);
+                assert!(nodes.iter().eq(graph.nodes().iter()));
+            }
+        });
+    }
+}

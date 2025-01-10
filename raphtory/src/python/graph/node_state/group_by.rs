@@ -17,13 +17,13 @@ trait PyNodeGroupOps: Send + Sync + 'static {
         &self,
         index: usize,
         py: Python<'py>,
-    ) -> PyResult<Option<(Bound<'py, PyAny>, Bound<'py, PyAny>)>>;
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)>;
 
     fn group_subgraph<'py>(
         &self,
         index: usize,
         py: Python<'py>,
-    ) -> PyResult<Option<(Bound<'py, PyAny>, DynamicGraph)>>;
+    ) -> PyResult<(Bound<'py, PyAny>, DynamicGraph)>;
 
     fn len(&self) -> usize;
 
@@ -47,27 +47,25 @@ impl<
         &self,
         index: usize,
         py: Python<'py>,
-    ) -> PyResult<Option<(Bound<'py, PyAny>, Bound<'py, PyAny>)>> {
-        let res = match self.group(index) {
-            Some((v, nodes)) => Some((
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
+        match self.group(index) {
+            Some((v, nodes)) => Ok((
                 v.clone().into_bound_py_any(py)?,
                 nodes.into_bound_py_any(py)?,
             )),
-            None => None,
-        };
-        Ok(res)
+            None => Err(PyIndexError::new_err("Index for group out of bounds")),
+        }
     }
 
     fn group_subgraph<'py>(
         &self,
         index: usize,
         py: Python<'py>,
-    ) -> PyResult<Option<(Bound<'py, PyAny>, DynamicGraph)>> {
-        let res = match self.group_subgraph(index) {
-            None => None,
-            Some((v, graph)) => Some((v.clone().into_bound_py_any(py)?, graph.into_dynamic())),
-        };
-        Ok(res)
+    ) -> PyResult<(Bound<'py, PyAny>, DynamicGraph)> {
+        match self.group_subgraph(index) {
+            None => Err(PyIndexError::new_err("Index for group out of bounds")),
+            Some((v, graph)) => Ok((v.clone().into_bound_py_any(py)?, graph.into_dynamic())),
+        }
     }
 
     fn len(&self) -> usize {
@@ -79,7 +77,7 @@ impl<
     }
 }
 
-#[pyclass(name = "NodeGroups", module = "node_state", frozen)]
+#[pyclass(name = "NodeGroups", module = "raphtory.node_state", frozen)]
 pub struct PyNodeGroups {
     inner: Box<dyn PyNodeGroupOps>,
 }
@@ -103,27 +101,43 @@ impl PyNodeGroups {
         index: usize,
         py: Python<'py>,
     ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
-        self.inner
-            .group(index, py)?
-            .ok_or_else(|| PyIndexError::new_err("group not found"))
+        self.inner.group(index, py)
     }
 
+    /// Get group nodes and value
+    ///
+    /// Arguments:
+    ///     index (int): the group index
+    ///
+    /// Returns:
+    ///     Tuple[Any, Nodes]: Nodes and corresponding value
     fn group<'py>(
         &self,
         index: usize,
         py: Python<'py>,
-    ) -> PyResult<Option<(Bound<'py, PyAny>, Bound<'py, PyAny>)>> {
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>)> {
         self.inner.group(index, py)
     }
 
+    /// Get group as subgraph
+    ///
+    /// Arguments:
+    ///     index (int): the group index
+    ///
+    /// Returns:
+    ///     Tuple[Any, GraphView]: The group as a subgraph and corresponding value
     fn group_subgraph<'py>(
         &self,
         index: usize,
         py: Python<'py>,
-    ) -> PyResult<Option<(Bound<'py, PyAny>, DynamicGraph)>> {
+    ) -> PyResult<(Bound<'py, PyAny>, DynamicGraph)> {
         self.inner.group_subgraph(index, py)
     }
 
+    /// Iterate over group subgraphs
+    ///
+    /// Returns:
+    ///     Iterator[Tuple[Any, GraphView]]: Iterator over subgraphs with corresponding value
     fn iter_subgraphs(&self) -> PyGenericIterator {
         self.inner.iter_subgraphs()
     }
