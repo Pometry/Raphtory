@@ -21,7 +21,6 @@ arrow-array = {workspace = true}
 arrow-schema = {workspace = true}
 arrow-buffer = {workspace = true}
 arrow-data ={ workspace = true }
-base64 = {workspace = true}
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -36,7 +35,6 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true }
-sorted_vector_map = { workspace = true }
 thiserror = { workspace = true }
 lock_api = { workspace = true }
 dashmap = { workspace = true }
@@ -107,7 +105,7 @@ indoc = { workspace = true }
 prost-build = { workspace = true, optional = true }
 
 [features]
-default = ["proto"]
+default = []
 # Enables the graph loader io module
 io = [
     "dep:zip",

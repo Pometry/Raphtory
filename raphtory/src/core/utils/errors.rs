@@ -265,7 +265,6 @@ pub enum GraphError {
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
 
-    #[cfg(feature = "proto")]
     #[error("Failed to deserialise graph: {0}")]
     DeserialisationError(String),
 
