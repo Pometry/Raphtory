@@ -3,12 +3,13 @@ use pyo3::{pyclass, pymethods};
 use raphtory::{
     core::{
         utils::{errors::GraphError, time::IntoTime},
-        Prop,
+        DocumentInput, Prop,
     },
     python::utils::PyTime,
 };
 use raphtory_api::core::entities::GID;
 use serde::{ser::SerializeStruct, Serialize, Serializer};
+use serde_json::json;
 use std::collections::HashMap;
 
 pub mod raphtory_client;
@@ -38,10 +39,15 @@ impl Serialize for PyUpdate {
         let time = time.clone().into_time();
         state.serialize_field("time", &time)?;
         if let Some(ref properties) = self.properties {
-            let properties_list = properties
+            let properties_list: Vec<serde_json::Value> = properties
                 .iter()
-                .filter_map(|(key, value)| to_json_value(key, value).ok())
-                .collect::<Vec<_>>();
+                .map(|(key, value)| {
+                    json!({
+                        "key": key,
+                        "value": inner_collection(value),
+                    })
+                })
+                .collect();
             state.serialize_field("properties", &properties_list)?;
         }
 
@@ -92,7 +98,12 @@ impl Serialize for PyNodeAddition {
         if let Some(ref constant_properties) = self.constant_properties {
             let properties_list: Vec<serde_json::Value> = constant_properties
                 .iter()
-                .filter_map(|(key, value)| to_json_value(key, value).ok())
+                .map(|(key, value)| {
+                    json!({
+                        "key": key,
+                        "value": inner_collection(value),
+                    })
+                })
                 .collect();
             state.serialize_field("constant_properties", &properties_list)?;
         }
@@ -159,7 +170,12 @@ impl Serialize for PyEdgeAddition {
         if let Some(ref constant_properties) = self.constant_properties {
             let properties_list: Vec<serde_json::Value> = constant_properties
                 .iter()
-                .filter_map(|(key, value)| to_json_value(key, value).ok())
+                .map(|(key, value)| {
+                    json!({
+                        "key": key,
+                        "value": inner_collection(value),
+                    })
+                })
                 .collect();
             state.serialize_field("constant_properties", &properties_list)?;
         }
@@ -191,18 +207,78 @@ impl PyEdgeAddition {
     }
 }
 
-#[derive(Serialize)]
-struct Pair<'a> {
-    key: &'a str,
-    value: &'a Prop,
-}
-
-fn to_json_value(key: &str, value: &Prop) -> Result<serde_json::Value, serde_json::Error> {
-    serde_json::to_value(Pair { key, value })
+fn inner_collection(value: &Prop) -> String {
+    match value {
+        Prop::Str(value) => format!("\"{}\"", value.to_string()),
+        Prop::U8(value) => value.to_string(),
+        Prop::U16(value) => value.to_string(),
+        Prop::I32(value) => value.to_string(),
+        Prop::I64(value) => value.to_string(),
+        Prop::U32(value) => value.to_string(),
+        Prop::U64(value) => value.to_string(),
+        Prop::F32(value) => value.to_string(),
+        Prop::F64(value) => value.to_string(),
+        Prop::Bool(value) => value.to_string(),
+        Prop::List(value) => {
+            let vec: Vec<String> = value.iter().map(|v| inner_collection(v)).collect();
+            format!("[{}]", vec.join(", "))
+        }
+        Prop::Array(value) => {
+            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            format!("[{}]", vec.join(", "))
+        }
+        Prop::Map(value) => {
+            let properties_array: Vec<String> = value
+                .iter()
+                .map(|(k, v)| format!("{}:{}", k, inner_collection(v)))
+                .collect();
+            format!("{}{}{}", "{", properties_array.join(" "), "}")
+        }
+        Prop::DTime(value) => format!("\"{}\"", value.to_string()),
+        Prop::NDTime(value) => format!("\"{}\"", value.to_string()),
+        Prop::Document(DocumentInput { content, .. }) => content.to_owned().to_string(), // TODO: return Value::Object ??
+    }
 }
 
 fn to_graphql_valid(key: &String, value: &Prop) -> String {
-    serde_json::to_string(&Pair { key, value }).unwrap()
+    match value {
+        Prop::Str(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
+        Prop::U8(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::U16(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::I32(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::I64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::U32(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::U64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::F32(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::F64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::Bool(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::List(value) => {
+            let vec: Vec<_> = value.iter().map(|v| inner_collection(v)).collect();
+            format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
+        }
+        Prop::Array(value) => {
+            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
+        }
+        Prop::Map(value) => {
+            let properties_array: Vec<String> = value
+                .iter()
+                .map(|(k, v)| format!("{}:{}", k, inner_collection(v)))
+                .collect();
+            format!(
+                "{}key:\"{}\",value:{}{}{}{}",
+                "{",
+                key,
+                "{",
+                properties_array.join(" "),
+                "}",
+                "}"
+            )
+        }
+        Prop::DTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
+        Prop::NDTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
+        Prop::Document(_) => "Document cannot be converted to JSON".to_string(), // TODO: return Value::Object ??
+    }
 }
 
 pub(crate) fn build_property_string(properties: HashMap<String, Prop>) -> String {

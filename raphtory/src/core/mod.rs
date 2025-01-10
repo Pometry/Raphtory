@@ -130,6 +130,13 @@ impl Hash for PropArray {
 }
 
 impl PropArray {
+    pub fn len(&self) -> usize {
+        match self {
+            PropArray::Array(arr) => arr.len(),
+            PropArray::Empty => 0,
+        }
+    }
+
     pub fn to_vec_u8(&self) -> Vec<u8> {
         // assuming we can allocate this can't fail
         let mut bytes = vec![];
@@ -168,7 +175,11 @@ impl PropArray {
         }
     }
 
-    pub fn iter_prop(&self) -> Option<BoxedLIter<Prop>> {
+    pub fn iter_prop(&self) -> impl Iterator<Item = Prop> + '_ {
+        self.iter_prop_inner().into_iter().flatten()
+    }
+
+    fn iter_prop_inner(&self) -> Option<BoxedLIter<Prop>> {
         let arr = self.as_array_ref()?;
 
         arr.as_any()
