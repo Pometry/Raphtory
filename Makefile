@@ -47,7 +47,7 @@ pull-storage: activate-storage
 	git submodule update --init --recursive
 
 install-stub-gen:
-	python -mpip install ./python/scripts/stub_gen
+	python -mpip install -e stub_gen
 
 stubs: install-stub-gen
 	cd python && ./scripts/gen-stubs.py && mypy -m raphtory
