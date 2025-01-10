@@ -66,7 +66,7 @@ macro_rules! impl_layerops {
             ///     name (str): the name of the layer to check
             ///
             /// Returns:
-            ///     bool
+            ///     bool:
             fn has_layer(
                 &self,
                 name: &str,

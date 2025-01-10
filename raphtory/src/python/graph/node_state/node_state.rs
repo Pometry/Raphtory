@@ -80,6 +80,8 @@ macro_rules! impl_node_state_ops {
                     })
             }
 
+            /// Iterate over items
+            ///
             /// Returns:
             #[doc = concat!("     Iterator[Tuple[Node, ", $py_value, "]]: Iterator over items")]
             fn items(&self) -> PyBorrowingIterator {
@@ -88,6 +90,8 @@ macro_rules! impl_node_state_ops {
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v))))
             }
 
+            /// Iterate over values
+            ///
             /// Returns:
             #[doc = concat!("     Iterator[",$py_value, "]: Iterator over values")]
             fn values(&self) -> PyBorrowingIterator {
@@ -201,7 +205,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the median value
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]")]
+            #[doc = concat!("     Optional[", $py_value, "]:")]
             fn median(&self) -> Option<$value> {
                 self.inner.median().map($to_owned)
             }
@@ -282,7 +286,7 @@ macro_rules! impl_lazy_node_state {
             /// Compute all values and return the result as a node view
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": the computed `NodeState`")]
             fn compute(
                 &self,
             ) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph, DynamicGraph> {
@@ -291,7 +295,7 @@ macro_rules! impl_lazy_node_state {
 
             /// Compute all values and return the result as a list
             ///
-            /// Returns
+            /// Returns:
             #[doc = concat!("     list[", $py_value, "]", ": all values as a list")]
             fn collect(&self) -> Vec<<$op as NodeOp>::Output> {
                 self.inner.collect()

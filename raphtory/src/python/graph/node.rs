@@ -184,11 +184,8 @@ impl PyNode {
 
     /// Returns the latest datetime that the node exists.
     ///
-    /// Arguments:
-    ///    None
-    ///
     /// Returns:
-    ///     Datetime: The latest datetime that the node exists as a Datetime.
+    ///     datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.latest_date_time()
