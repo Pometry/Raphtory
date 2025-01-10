@@ -89,8 +89,7 @@ where
         let mut properties: Vec<(usize, Prop)> = Vec::new();
         for (key, value) in self {
             let value: Prop = value.into();
-            let (key, d_type) = (key.as_ref(), value.dtype());
-            let prop_id = id_resolver(key, d_type)?;
+            let prop_id = id_resolver(key.as_ref(), value.dtype())?;
             properties.push((prop_id, value));
         }
         Ok(properties)

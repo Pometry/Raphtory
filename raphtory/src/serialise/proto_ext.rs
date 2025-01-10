@@ -1,5 +1,8 @@
+use super::proto::{prop::Array, prop_type::Array as ArrayType};
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropArray, PropType},
+    core::{
+        prop_array::PropArray, utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType,
+    },
     serialise::proto::{
         self,
         graph_update::{
@@ -24,8 +27,6 @@ use raphtory_api::core::{
     },
 };
 use std::{borrow::Borrow, sync::Arc};
-
-use super::proto::{prop::Array, prop_type::Array as ArrayType};
 
 fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
     let val = match p_type {
@@ -703,7 +704,7 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
                 })
                 .unwrap_or(Lifespan::Inherited),
         })),
-        prop::Value::Blob(blob) => Some(Prop::Array(PropArray::from_vec_u8(&blob.data)?)),
+        prop::Value::Array(blob) => Some(Prop::Array(PropArray::from_vec_u8(&blob.data)?)),
         _ => None,
     };
     Ok(value)
@@ -772,7 +773,7 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
-        Prop::Array(blob) => prop::Value::Blob(Array {
+        Prop::Array(blob) => prop::Value::Array(Array {
             data: blob.to_vec_u8(),
         }),
         Prop::Document(doc) => {

@@ -541,7 +541,7 @@ impl StableDecode for PersistentGraph {
 
 #[cfg(test)]
 mod proto_test {
-    use std::path::PathBuf;
+    use std::{collections::HashMap, path::PathBuf};
 
     use arrow_array::types::Int32Type;
     use tempfile::TempDir;
@@ -550,7 +550,10 @@ mod proto_test {
     use crate::{
         core::{DocumentInput, Lifespan},
         db::{
-            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            api::{
+                mutation::DeletionOps,
+                properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
+            },
             graph::graph::assert_graph_equal,
         },
         prelude::*,
@@ -569,7 +572,214 @@ mod proto_test {
             .unwrap();
 
         let graph = Graph::decode(path).unwrap();
-        assert!(graph.nodes().len() > 0);
+
+        let actual: HashMap<_, _> = graph
+            .const_prop_keys()
+            .into_iter()
+            .map(|key| {
+                let props = graph
+                    .nodes()
+                    .properties()
+                    .into_iter()
+                    .map(|prop| prop.get(&key))
+                    .collect::<Vec<_>>();
+                (key, props)
+            })
+            .collect();
+
+        let expected: HashMap<ArcStr, Vec<Option<Prop>>> = [
+            ("name".into(), vec![None, None, None]),
+            (
+                "age".into(),
+                vec![
+                    Some(Prop::U32(47)),
+                    Some(Prop::U32(47)),
+                    Some(Prop::U32(47)),
+                ],
+            ),
+            (
+                "doc".into(),
+                vec![
+                    Some(Prop::Document(DocumentInput {
+                        content: "Hello, World!".to_string(),
+                        life: Lifespan::Interval {
+                            start: -11,
+                            end: 100,
+                        },
+                    })),
+                    Some(Prop::Document(DocumentInput {
+                        content: "Hello, World!".to_string(),
+                        life: Lifespan::Interval {
+                            start: -11,
+                            end: 100,
+                        },
+                    })),
+                    Some(Prop::Document(DocumentInput {
+                        content: "Hello, World!".to_string(),
+                        life: Lifespan::Interval {
+                            start: -11,
+                            end: 100,
+                        },
+                    })),
+                ],
+            ),
+            (
+                "dtime".into(),
+                vec![
+                    Some(Prop::DTime(
+                        DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                            .unwrap()
+                            .into(),
+                    )),
+                    Some(Prop::DTime(
+                        DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                            .unwrap()
+                            .into(),
+                    )),
+                    Some(Prop::DTime(
+                        DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                            .unwrap()
+                            .into(),
+                    )),
+                ],
+            ),
+            (
+                "score".into(),
+                vec![
+                    Some(Prop::I32(27)),
+                    Some(Prop::I32(27)),
+                    Some(Prop::I32(27)),
+                ],
+            ),
+            ("graph".into(), vec![None, None, None]),
+            ("p_graph".into(), vec![None, None, None]),
+            (
+                "time".into(),
+                vec![
+                    Some(Prop::NDTime(
+                        NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", "%Y-%m-%d %H:%M:%S")
+                            .expect("Failed to parse time"),
+                    )),
+                    Some(Prop::NDTime(
+                        NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", "%Y-%m-%d %H:%M:%S")
+                            .expect("Failed to parse time"),
+                    )),
+                    Some(Prop::NDTime(
+                        NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", "%Y-%m-%d %H:%M:%S")
+                            .expect("Failed to parse time"),
+                    )),
+                ],
+            ),
+            (
+                "is_adult".into(),
+                vec![
+                    Some(Prop::Bool(true)),
+                    Some(Prop::Bool(true)),
+                    Some(Prop::Bool(true)),
+                ],
+            ),
+            (
+                "height".into(),
+                vec![
+                    Some(Prop::F32(1.75)),
+                    Some(Prop::F32(1.75)),
+                    Some(Prop::F32(1.75)),
+                ],
+            ),
+            (
+                "weight".into(),
+                vec![
+                    Some(Prop::F64(75.5)),
+                    Some(Prop::F64(75.5)),
+                    Some(Prop::F64(75.5)),
+                ],
+            ),
+            (
+                "children".into(),
+                vec![
+                    Some(Prop::List(
+                        vec![Prop::str("Bob"), Prop::str("Charlie")].into(),
+                    )),
+                    Some(Prop::List(
+                        vec![Prop::str("Bob"), Prop::str("Charlie")].into(),
+                    )),
+                    Some(Prop::List(
+                        vec![Prop::str("Bob"), Prop::str("Charlie")].into(),
+                    )),
+                ],
+            ),
+            (
+                "properties".into(),
+                vec![
+                    Some(Prop::Map(
+                        vec![
+                            ("is_adult", Prop::Bool(true)),
+                            ("weight", Prop::F64(75.5)),
+                            (
+                                "children",
+                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                            ),
+                            ("height", Prop::F32(1.75)),
+                            ("name", Prop::str("Alice")),
+                            ("age", Prop::U32(47)),
+                            ("score", Prop::I32(27)),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v))
+                        .collect::<HashMap<_, _>>()
+                        .into(),
+                    )),
+                    Some(Prop::Map(
+                        vec![
+                            ("is_adult", Prop::Bool(true)),
+                            ("age", Prop::U32(47)),
+                            ("name", Prop::str("Alice")),
+                            ("score", Prop::I32(27)),
+                            ("height", Prop::F32(1.75)),
+                            (
+                                "children",
+                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                            ),
+                            ("weight", Prop::F64(75.5)),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v))
+                        .collect::<HashMap<_, _>>()
+                        .into(),
+                    )),
+                    Some(Prop::Map(
+                        vec![
+                            ("weight", Prop::F64(75.5)),
+                            ("name", Prop::str("Alice")),
+                            ("age", Prop::U32(47)),
+                            ("height", Prop::F32(1.75)),
+                            ("score", Prop::I32(27)),
+                            (
+                                "children",
+                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                            ),
+                            ("is_adult", Prop::Bool(true)),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v))
+                        .collect::<HashMap<_, _>>()
+                        .into(),
+                    )),
+                ],
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        let mut vec1 = actual.keys().into_iter().collect::<Vec<_>>();
+        let mut vec2 = expected.keys().into_iter().collect::<Vec<_>>();
+        vec1.sort();
+        vec2.sort();
+        assert_eq!(vec1, vec2);
+        for (key, actual_props) in actual.iter() {
+            let expected_props = expected.get(key).unwrap();
+            assert_eq!(actual_props, expected_props, "Key: {}", key);
+        }
     }
 
     #[test]

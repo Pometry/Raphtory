@@ -214,7 +214,7 @@ message Prop {
     NDTime ndTime = 15;
     string dTime = 16;
     DocumentInput documentInput = 17;
-    Array blob = 18;
+    Array array = 18;
   }
 
   message Array {
