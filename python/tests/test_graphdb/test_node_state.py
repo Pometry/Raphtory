@@ -51,6 +51,6 @@ def test_group_by():
     assert len(groups_from_lazy) == len(expected)
 
     for i, (v, nodes) in enumerate(groups_from_lazy):
-        (v2, nodes2) = groups_from_eager[i]
+        (v2, nodes2) = groups_from_lazy[i]
         assert v == v2
         assert nodes.id == nodes2.id
