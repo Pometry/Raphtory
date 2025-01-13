@@ -223,6 +223,10 @@ fn inner_collection(value: &Prop) -> String {
             let vec: Vec<String> = value.iter().map(|v| inner_collection(v)).collect();
             format!("[{}]", vec.join(", "))
         }
+        Prop::Array(value) => {
+            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            format!("[{}]", vec.join(", "))
+        }
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
@@ -232,8 +236,6 @@ fn inner_collection(value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("\"{}\"", value.to_string()),
         Prop::NDTime(value) => format!("\"{}\"", value.to_string()),
-        Prop::Graph(_) => "Graph cannot be converted to JSON".to_string(),
-        Prop::PersistentGraph(_) => "Persistent Graph cannot be converted to JSON".to_string(),
         Prop::Document(DocumentInput { content, .. }) => content.to_owned().to_string(), // TODO: return Value::Object ??
     }
 }
@@ -251,7 +253,11 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         Prop::F64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
         Prop::Bool(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
         Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|v| inner_collection(v)).collect();
+            let vec: Vec<_> = value.iter().map(|v| inner_collection(v)).collect();
+            format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
+        }
+        Prop::Array(value) => {
+            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
             format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
         }
         Prop::Map(value) => {
@@ -271,8 +277,6 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
-        Prop::Graph(_) => "Graph cannot be converted to JSON".to_string(),
-        Prop::PersistentGraph(_) => "Persistent Graph cannot be converted to JSON".to_string(),
         Prop::Document(_) => "Document cannot be converted to JSON".to_string(), // TODO: return Value::Object ??
     }
 }

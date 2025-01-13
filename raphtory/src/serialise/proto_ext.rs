@@ -1,22 +1,21 @@
+use super::proto::{prop::Array, prop_type::Array as ArrayType};
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType},
-    db::graph::views::deletion_graph::PersistentGraph,
-    prelude::{Graph, StableDecode, StableEncode},
-    serialise::{
-        proto,
-        proto::{
-            graph_update::{
-                DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
-                UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
-            },
-            new_meta::{
-                Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer,
-                NewNodeCProp, NewNodeTProp, NewNodeType,
-            },
-            new_node, prop,
-            prop_type::PropType as SPropType,
-            GraphUpdate, NewEdge, NewMeta, NewNode,
+    core::{
+        prop_array::PropArray, utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType,
+    },
+    serialise::proto::{
+        self,
+        graph_update::{
+            DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
+            UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
         },
+        new_meta::{
+            Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer, NewNodeCProp,
+            NewNodeTProp, NewNodeType,
+        },
+        new_node, prop,
+        prop_type::{PType, PropType as SPropType},
+        GraphUpdate, NewEdge, NewMeta, NewNode,
     },
 };
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
@@ -29,8 +28,8 @@ use raphtory_api::core::{
 };
 use std::{borrow::Borrow, sync::Arc};
 
-fn as_proto_prop_type(p_type: &PropType) -> SPropType {
-    match p_type {
+fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
+    let val = match p_type {
         PropType::Str => SPropType::Str,
         PropType::U8 => SPropType::U8,
         PropType::U16 => SPropType::U16,
@@ -45,32 +44,83 @@ fn as_proto_prop_type(p_type: &PropType) -> SPropType {
         PropType::Map => SPropType::Map,
         PropType::NDTime => SPropType::NdTime,
         PropType::DTime => SPropType::DTime,
-        PropType::Graph => SPropType::Graph,
-        PropType::PersistentGraph => SPropType::PersistentGraph,
         PropType::Document => SPropType::Document,
-        _ => unimplemented!("Empty prop types not supported!"),
+        _ => {
+            return None;
+        }
+    };
+    Some(val)
+}
+
+fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
+    match p_type {
+        PropType::Array(tpe) => {
+            let prop_type = as_proto_prop_type(&tpe)?;
+            Some(PType {
+                kind: Some(proto::prop_type::p_type::Kind::Array(ArrayType {
+                    p_type: prop_type.into(),
+                })),
+            })
+        }
+        _ => Some(PType {
+            kind: Some(proto::prop_type::p_type::Kind::Scalar(
+                as_proto_prop_type(p_type)?.into(),
+            )),
+        }),
     }
 }
 
-pub fn as_prop_type(p_type: SPropType) -> PropType {
+fn prop_type_from_i32(i: i32) -> Option<SPropType> {
+    match i {
+        0 => Some(SPropType::Str),
+        1 => Some(SPropType::U8),
+        2 => Some(SPropType::U16),
+        3 => Some(SPropType::I32),
+        4 => Some(SPropType::I64),
+        5 => Some(SPropType::U32),
+        6 => Some(SPropType::U64),
+        7 => Some(SPropType::F32),
+        8 => Some(SPropType::F64),
+        9 => Some(SPropType::Bool),
+        10 => Some(SPropType::List),
+        11 => Some(SPropType::Map),
+        12 => Some(SPropType::NdTime),
+        16 => Some(SPropType::DTime),
+        15 => Some(SPropType::Document),
+        _ => None,
+    }
+}
+
+fn as_prop_type2(p_type: PType) -> Option<PropType> {
+    match p_type.kind? {
+        proto::prop_type::p_type::Kind::Scalar(p_type) => as_prop_type(prop_type_from_i32(p_type)?),
+        proto::prop_type::p_type::Kind::Array(array) => {
+            let p_type = as_prop_type(prop_type_from_i32(array.p_type)?)?;
+            Some(PropType::Array(Box::new(p_type)))
+        }
+    }
+}
+
+pub fn as_prop_type(p_type: SPropType) -> Option<PropType> {
+    // for backwards compatibility we may skip some types
     match p_type {
-        SPropType::Str => PropType::Str,
-        SPropType::U8 => PropType::U8,
-        SPropType::U16 => PropType::U16,
-        SPropType::U32 => PropType::U32,
-        SPropType::I32 => PropType::I32,
-        SPropType::I64 => PropType::I64,
-        SPropType::U64 => PropType::U64,
-        SPropType::F32 => PropType::F32,
-        SPropType::F64 => PropType::F64,
-        SPropType::Bool => PropType::Bool,
-        SPropType::List => PropType::List,
-        SPropType::Map => PropType::Map,
-        SPropType::NdTime => PropType::NDTime,
-        SPropType::DTime => PropType::DTime,
-        SPropType::Graph => PropType::Graph,
-        SPropType::PersistentGraph => PropType::PersistentGraph,
-        SPropType::Document => PropType::Document,
+        SPropType::Str => Some(PropType::Str),
+        SPropType::U8 => Some(PropType::U8),
+        SPropType::U16 => Some(PropType::U16),
+        SPropType::U32 => Some(PropType::U32),
+        SPropType::I32 => Some(PropType::I32),
+        SPropType::I64 => Some(PropType::I64),
+        SPropType::U64 => Some(PropType::U64),
+        SPropType::F32 => Some(PropType::F32),
+        SPropType::F64 => Some(PropType::F64),
+        SPropType::Bool => Some(PropType::Bool),
+        SPropType::List => Some(PropType::List),
+        SPropType::Map => Some(PropType::Map),
+        SPropType::NdTime => Some(PropType::NDTime),
+        SPropType::DTime => Some(PropType::DTime),
+        SPropType::Document => Some(PropType::Document),
+        SPropType::Graph => None,
+        SPropType::PersistentGraph => None,
     }
 }
 
@@ -112,7 +162,10 @@ impl UpdateEdgeCProps {
     }
 
     pub fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
-        self.properties.iter().map(as_prop)
+        self.properties
+            .iter()
+            .map(as_prop)
+            .filter_map(|r| r.transpose())
     }
 }
 
@@ -134,7 +187,10 @@ impl UpdateEdgeTProps {
     }
 
     pub fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
-        self.properties.iter().map(as_prop)
+        self.properties
+            .iter()
+            .map(as_prop)
+            .filter_map(|r| r.transpose())
     }
 }
 
@@ -154,7 +210,10 @@ impl UpdateNodeCProps {
     }
 
     pub fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
-        self.properties.iter().map(as_prop)
+        self.properties
+            .iter()
+            .map(as_prop)
+            .filter_map(|r| r.transpose())
     }
 }
 
@@ -168,7 +227,80 @@ impl UpdateNodeTProps {
     }
 
     pub fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
-        self.properties.iter().map(as_prop)
+        self.properties
+            .iter()
+            .map(as_prop)
+            .filter_map(|r| r.transpose())
+    }
+}
+
+pub(crate) trait PropTypeExt {
+    fn p_type(&self) -> Option<i32>;
+    fn p_type2(&self) -> Option<&PType>;
+
+    fn prop_type(&self) -> Option<PropType> {
+        self.p_type2()
+            .and_then(|p_type| as_prop_type2(*p_type))
+            .or_else(|| {
+                self.p_type()
+                    .as_ref()
+                    .and_then(|p_type| as_prop_type(prop_type_from_i32(*p_type)?))
+            })
+    }
+}
+
+impl PropTypeExt for NewNodeCProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewNodeTProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewEdgeCProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewEdgeTProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
+    }
+}
+
+impl PropTypeExt for NewGraphTProp {
+    #[allow(deprecated)]
+    fn p_type(&self) -> Option<i32> {
+        self.p_type
+    }
+
+    fn p_type2(&self) -> Option<&PType> {
+        self.p_type2.as_ref()
     }
 }
 
@@ -191,7 +323,7 @@ impl NewMeta {
         let mut inner = NewGraphTProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewGraphTprop(inner))
     }
 
@@ -199,7 +331,7 @@ impl NewMeta {
         let mut inner = NewNodeCProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewNodeCprop(inner))
     }
 
@@ -207,7 +339,7 @@ impl NewMeta {
         let mut inner = NewNodeTProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewNodeTprop(inner))
     }
 
@@ -215,7 +347,7 @@ impl NewMeta {
         let mut inner = NewEdgeCProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewEdgeCprop(inner))
     }
 
@@ -223,7 +355,7 @@ impl NewMeta {
         let mut inner = NewEdgeTProp::default();
         inner.name = key.to_string();
         inner.id = id as u64;
-        inner.set_p_type(as_proto_prop_type(dtype));
+        inner.p_type2 = as_proto_prop_type2(dtype);
         Self::new(Meta::NewEdgeTprop(inner))
     }
 
@@ -492,40 +624,44 @@ impl proto::Graph {
     }
 }
 
-fn as_prop(prop_pair: &PropPair) -> Result<(usize, Prop), GraphError> {
+fn as_prop(prop_pair: &PropPair) -> Result<Option<(usize, Prop)>, GraphError> {
     let PropPair { key, value } = prop_pair;
     let value = value.as_ref().expect("Missing prop value");
     let value = value.value.as_ref();
     let value = as_prop_value(value)?;
 
-    Ok((*key as usize, value))
+    Ok(value.map(|value| (*key as usize, value)))
 }
 
-fn as_prop_value(value: Option<&prop::Value>) -> Result<Prop, GraphError> {
+fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError> {
     let value = match value.expect("Missing prop value") {
-        prop::Value::BoolValue(b) => Prop::Bool(*b),
-        prop::Value::U8(u) => Prop::U8((*u).try_into().unwrap()),
-        prop::Value::U16(u) => Prop::U16((*u).try_into().unwrap()),
-        prop::Value::U32(u) => Prop::U32(*u),
-        prop::Value::I32(i) => Prop::I32(*i),
-        prop::Value::I64(i) => Prop::I64(*i),
-        prop::Value::U64(u) => Prop::U64(*u),
-        prop::Value::F32(f) => Prop::F32(*f),
-        prop::Value::F64(f) => Prop::F64(*f),
-        prop::Value::Str(s) => Prop::Str(ArcStr::from(s.as_str())),
-        prop::Value::Prop(props) => Prop::List(Arc::new(
+        prop::Value::BoolValue(b) => Some(Prop::Bool(*b)),
+        prop::Value::U8(u) => Some(Prop::U8((*u).try_into().unwrap())),
+        prop::Value::U16(u) => Some(Prop::U16((*u).try_into().unwrap())),
+        prop::Value::U32(u) => Some(Prop::U32(*u)),
+        prop::Value::I32(i) => Some(Prop::I32(*i)),
+        prop::Value::I64(i) => Some(Prop::I64(*i)),
+        prop::Value::U64(u) => Some(Prop::U64(*u)),
+        prop::Value::F32(f) => Some(Prop::F32(*f)),
+        prop::Value::F64(f) => Some(Prop::F64(*f)),
+        prop::Value::Str(s) => Some(Prop::Str(ArcStr::from(s.as_str()))),
+        prop::Value::Prop(props) => Some(Prop::List(Arc::new(
             props
                 .properties
                 .iter()
-                .map(|prop| as_prop_value(prop.value.as_ref()))
+                .filter_map(|prop| as_prop_value(prop.value.as_ref()).transpose())
                 .collect::<Result<Vec<_>, _>>()?,
-        )),
-        prop::Value::Map(dict) => Prop::Map(Arc::new(
+        ))),
+        prop::Value::Map(dict) => Some(Prop::Map(Arc::new(
             dict.map
                 .iter()
-                .map(|(k, v)| Ok((ArcStr::from(k.as_str()), as_prop_value(v.value.as_ref())?)))
+                .filter_map(|(k, v)| {
+                    as_prop_value(v.value.as_ref())
+                        .map(|v| v.map(|v| (ArcStr::from(k.as_str()), v)))
+                        .transpose()
+                })
                 .collect::<Result<_, GraphError>>()?,
-        )),
+        ))),
         prop::Value::NdTime(ndt) => {
             let prop::NdTime {
                 year,
@@ -546,14 +682,12 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Prop, GraphError> {
                 )
                 .unwrap(),
             );
-            Prop::NDTime(ndt)
+            Some(Prop::NDTime(ndt))
         }
-        prop::Value::DTime(dt) => Prop::DTime(DateTime::parse_from_rfc3339(dt).unwrap().into()),
-        prop::Value::Graph(graph_proto) => Prop::Graph(Graph::decode_from_proto(graph_proto)?),
-        prop::Value::PersistentGraph(graph_proto) => {
-            Prop::PersistentGraph(PersistentGraph::decode_from_proto(graph_proto)?)
-        }
-        prop::Value::DocumentInput(doc) => Prop::Document(DocumentInput {
+        prop::Value::DTime(dt) => Some(Prop::DTime(
+            DateTime::parse_from_rfc3339(dt).unwrap().into(),
+        )),
+        prop::Value::DocumentInput(doc) => Some(Prop::Document(DocumentInput {
             content: doc.content.clone(),
             life: doc
                 .life
@@ -569,7 +703,9 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Prop, GraphError> {
                     None => Lifespan::Inherited,
                 })
                 .unwrap_or(Lifespan::Inherited),
-        }),
+        })),
+        prop::Value::Array(blob) => Some(Prop::Array(PropArray::from_vec_u8(&blob.data)?)),
+        _ => None,
     };
     Ok(value)
 }
@@ -585,7 +721,10 @@ fn collect_proto_props(
 pub fn collect_props<'a>(
     iter: impl IntoIterator<Item = &'a PropPair>,
 ) -> Result<Vec<(usize, Prop)>, GraphError> {
-    iter.into_iter().map(as_prop).collect()
+    iter.into_iter()
+        .map(as_prop)
+        .filter_map(|r| r.transpose())
+        .collect()
 }
 
 fn as_proto_prop(prop: &Prop) -> proto::Prop {
@@ -634,8 +773,9 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
-        Prop::Graph(g) => prop::Value::Graph(g.encode_to_proto()),
-        Prop::PersistentGraph(g) => prop::Value::PersistentGraph(g.encode_to_proto()),
+        Prop::Array(blob) => prop::Value::Array(Array {
+            data: blob.to_vec_u8(),
+        }),
         Prop::Document(doc) => {
             let life = match doc.life {
                 Lifespan::Interval { start, end } => {

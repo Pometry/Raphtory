@@ -23,7 +23,6 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use ordered_float::OrderedFloat;
-use raphtory_api::core::PropType;
 
 /// Computes the net sum of weights for a given node based on edge direction.
 ///
@@ -108,8 +107,7 @@ pub fn balance<G: StaticGraphViewOps>(
     let min = sum(0);
     ctx.agg(min);
 
-    let mut weight_type = Some(PropType::U8);
-    weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
+    let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
         Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
         None => graph
             .edge_meta()

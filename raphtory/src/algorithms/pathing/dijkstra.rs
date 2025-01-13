@@ -52,10 +52,10 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     targets: Vec<T>,
     weight: Option<String>,
     direction: Direction,
-) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
+) -> Result<HashMap<String, (Prop, Vec<String>)>, String> {
     let source_node = match graph.node(source) {
         Some(src) => src,
-        None => return Err("Source node not found"),
+        None => return Err("Source node not found".to_string()),
     };
     let mut weight_type = Some(PropType::U8);
     if weight.is_some() {
@@ -78,7 +78,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
                 }),
         };
         if weight_type.is_none() {
-            return Err("Weight property not found on edges");
+            return Err("Weight property not found on edges".to_string());
         }
     }
 
@@ -92,9 +92,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
 
     // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
     // after the calc is done
-    let cost_val = match weight_type.unwrap() {
-        PropType::Empty => return Err("Weight type: Empty, not supported"),
-        PropType::Str => return Err("Weight type: Str, not supported"),
+    let cost_val = match weight_type.as_ref().unwrap() {
         PropType::F32 => Prop::F32(0f32),
         PropType::F64 => Prop::F64(0f64),
         PropType::U8 => Prop::U8(0u8),
@@ -103,18 +101,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         PropType::U64 => Prop::U64(0u64),
         PropType::I32 => Prop::I32(0i32),
         PropType::I64 => Prop::I64(0i64),
-        PropType::Bool => return Err("Weight type: Bool, not supported"),
-        PropType::List => return Err("Weight type: List, not supported"),
-        PropType::Map => return Err("Weight type: Map, not supported"),
-        PropType::DTime => return Err("Weight type: DTime, not supported"),
-        PropType::NDTime => return Err("Weight type: NDTime, not supported"),
-        PropType::Graph => return Err("Weight type: Graph, not supported"),
-        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
-        PropType::Document => return Err("Weight type: Document, not supported"),
+        p_type => return Err(format!("Weight type: {:?}, not supported", p_type)),
     };
     let max_val = match weight_type.unwrap() {
-        PropType::Empty => return Err("Weight type: Empty, not supported"),
-        PropType::Str => return Err("Weight type: Str, not supported"),
         PropType::F32 => Prop::F32(f32::MAX),
         PropType::F64 => Prop::F64(f64::MAX),
         PropType::U8 => Prop::U8(u8::MAX),
@@ -123,14 +112,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         PropType::U64 => Prop::U64(u64::MAX),
         PropType::I32 => Prop::I32(i32::MAX),
         PropType::I64 => Prop::I64(i64::MAX),
-        PropType::Bool => return Err("Weight type: Bool, not supported"),
-        PropType::List => return Err("Weight type: List, not supported"),
-        PropType::Map => return Err("Weight type: Map, not supported"),
-        PropType::DTime => return Err("Weight type: DTime, not supported"),
-        PropType::NDTime => return Err("Weight type: NDTime, not supported"),
-        PropType::Graph => return Err("Weight type: Graph, not supported"),
-        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
-        PropType::Document => return Err("Weight type: Document, not supported"),
+        p_type => return Err(format!("Weight type: {:?}, not supported", p_type)),
     };
     let mut heap = BinaryHeap::new();
     heap.push(State {
