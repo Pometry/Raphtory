@@ -259,15 +259,13 @@ impl PropMapper {
         }
     }
 
-    pub fn set_id_and_dtype(&self, key: impl Into<ArcStr>, id: usize, dtype: Option<PropType>) {
-        if let Some(dtype) = dtype {
-            let mut dtypes = self.dtypes.write();
-            self.set_id(key, id);
-            if dtypes.len() <= id {
-                dtypes.resize(id + 1, PropType::Empty);
-            }
-            dtypes[id] = dtype;
+    pub fn set_id_and_dtype(&self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
+        let mut dtypes = self.dtypes.write();
+        self.set_id(key, id);
+        if dtypes.len() <= id {
+            dtypes.resize(id + 1, PropType::Empty);
         }
+        dtypes[id] = dtype;
     }
 
     pub fn get_dtype(&self, prop_id: usize) -> Option<PropType> {
