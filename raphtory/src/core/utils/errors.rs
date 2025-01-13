@@ -10,6 +10,7 @@ use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
     entities::{properties::PropError, GID},
     storage::arc_str::ArcStr,
+    PropType,
 };
 use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 #[cfg(feature = "search")]
@@ -291,6 +292,9 @@ pub enum GraphError {
 
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
+
+    #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
+    UnsupportedArrowDataType(PropType),
 }
 
 impl GraphError {

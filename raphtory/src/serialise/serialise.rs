@@ -17,8 +17,7 @@ use crate::{
     },
     prelude::Graph,
     serialise::{
-        proto,
-        proto::{graph_update::*, new_meta::*, new_node::Gid},
+        proto::{self, graph_update::*, new_meta::*, new_node::Gid},
         proto_ext,
     },
 };
@@ -284,47 +283,57 @@ impl StableDecode for TemporalGraph {
                             .set_id(node_type.name.as_str(), node_type.id as usize);
                     }
                     Meta::NewNodeCprop(node_cprop) => {
-                        storage.node_meta.const_prop_meta().set_id_and_dtype(
-                            node_cprop.name.as_str(),
-                            node_cprop.id as usize,
-                            node_cprop.prop_type(),
-                        )
+                        if let Some(p_type) = node_cprop.prop_type() {
+                            storage.node_meta.const_prop_meta().set_id_and_dtype(
+                                node_cprop.name.as_str(),
+                                node_cprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewNodeTprop(node_tprop) => {
-                        storage.node_meta.temporal_prop_meta().set_id_and_dtype(
-                            node_tprop.name.as_str(),
-                            node_tprop.id as usize,
-                            node_tprop.prop_type(),
-                        )
+                        if let Some(p_type) = node_tprop.prop_type() {
+                            storage.node_meta.temporal_prop_meta().set_id_and_dtype(
+                                node_tprop.name.as_str(),
+                                node_tprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewGraphCprop(graph_cprop) => storage
                         .graph_meta
                         .const_prop_meta()
                         .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
                     Meta::NewGraphTprop(graph_tprop) => {
-                        storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
-                            graph_tprop.name.as_str(),
-                            graph_tprop.id as usize,
-                            graph_tprop.prop_type(),
-                        )
+                        if let Some(p_type) = graph_tprop.prop_type() {
+                            storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
+                                graph_tprop.name.as_str(),
+                                graph_tprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewLayer(new_layer) => storage
                         .edge_meta
                         .layer_meta()
                         .set_id(new_layer.name.as_str(), new_layer.id as usize),
                     Meta::NewEdgeCprop(edge_cprop) => {
-                        storage.edge_meta.const_prop_meta().set_id_and_dtype(
-                            edge_cprop.name.as_str(),
-                            edge_cprop.id as usize,
-                            edge_cprop.prop_type(),
-                        )
+                        if let Some(p_type) = edge_cprop.prop_type() {
+                            storage.edge_meta.const_prop_meta().set_id_and_dtype(
+                                edge_cprop.name.as_str(),
+                                edge_cprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewEdgeTprop(edge_tprop) => {
-                        storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
-                            edge_tprop.name.as_str(),
-                            edge_tprop.id as usize,
-                            edge_tprop.prop_type(),
-                        )
+                        if let Some(p_type) = edge_tprop.prop_type() {
+                            storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
+                                edge_tprop.name.as_str(),
+                                edge_tprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                 }
             }
@@ -550,10 +559,7 @@ mod proto_test {
     use crate::{
         core::{DocumentInput, Lifespan},
         db::{
-            api::{
-                mutation::DeletionOps,
-                properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
-            },
+            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
@@ -568,7 +574,7 @@ mod proto_test {
     fn can_read_previous_proto() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("raphtory/resources/test/graph_proto.bin"))
+            .map(|p| p.join("raphtory/resources/test/old_graph_proto.bin"))
             .unwrap();
 
         let graph = Graph::decode(path).unwrap();

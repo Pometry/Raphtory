@@ -37,6 +37,7 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use utils::errors::GraphError;
 
 use arrow_schema::{DataType, Field};
 
@@ -162,12 +163,11 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
-    pub fn from_arr<TT: ArrowPrimitiveType>(vals: Vec<TT::Native>) -> Self {
-        let array_data = arrow_data::ArrayData::builder(TT::DATA_TYPE)
-            .len(vals.len())
-            .add_buffer(arrow_buffer::Buffer::from_vec(vals));
-        let array_data = unsafe { array_data.build_unchecked() };
-        let array = arrow_array::PrimitiveArray::<TT>::from(array_data);
+    pub fn from_arr<TT: ArrowPrimitiveType>(vals: Vec<TT::Native>) -> Self
+    where
+        arrow_array::PrimitiveArray<TT>: From<Vec<TT::Native>>,
+    {
+        let array = arrow_array::PrimitiveArray::<TT>::from(vals);
         Prop::Array(PropArray::Array(Arc::new(array)))
     }
 
@@ -262,27 +262,27 @@ impl Prop {
     }
 }
 
-pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
+pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, GraphError> {
     match prop_type {
-        PropType::Str => DataType::LargeUtf8,
-        PropType::U8 => DataType::UInt8,
-        PropType::U16 => DataType::UInt16,
-        PropType::I32 => DataType::Int32,
-        PropType::I64 => DataType::Int64,
-        PropType::U32 => DataType::UInt32,
-        PropType::U64 => DataType::UInt64,
-        PropType::F32 => DataType::Float32,
-        PropType::F64 => DataType::Float64,
-        PropType::Bool => DataType::Boolean,
-        PropType::Array(d_type) => {
-            DataType::List(Field::new("data", arrow_dtype_from_prop_type(&d_type), true).into())
-        }
+        PropType::Str => Ok(DataType::LargeUtf8),
+        PropType::U8 => Ok(DataType::UInt8),
+        PropType::U16 => Ok(DataType::UInt16),
+        PropType::I32 => Ok(DataType::Int32),
+        PropType::I64 => Ok(DataType::Int64),
+        PropType::U32 => Ok(DataType::UInt32),
+        PropType::U64 => Ok(DataType::UInt64),
+        PropType::F32 => Ok(DataType::Float32),
+        PropType::F64 => Ok(DataType::Float64),
+        PropType::Bool => Ok(DataType::Boolean),
+        PropType::Array(d_type) => Ok(DataType::List(
+            Field::new("data", arrow_dtype_from_prop_type(&d_type)?, true).into(),
+        )),
         PropType::Empty
         | PropType::List
         | PropType::Map
         | PropType::NDTime
         | PropType::Document
-        | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
+        | PropType::DTime => Err(GraphError::UnsupportedArrowDataType(prop_type.clone())), //panic!("{prop_type:?} not supported as disk_graph property"),
     }
 }
 

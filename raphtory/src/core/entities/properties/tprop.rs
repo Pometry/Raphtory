@@ -3,7 +3,7 @@ use crate::{
         entities::properties::tcell::TCell,
         storage::{timeindex::TimeIndexEntry, TPropColumn},
         utils::errors::GraphError,
-        DocumentInput, Prop, PropArray, PropType,
+        DocumentInput, Prop, PropArray,
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
@@ -86,28 +86,6 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
 }
 
 impl TProp {
-    pub fn dtype(&self) -> PropType {
-        match self {
-            TProp::Empty => PropType::Empty,
-            TProp::Str(_) => PropType::Str,
-            TProp::U8(_) => PropType::U8,
-            TProp::U16(_) => PropType::U16,
-            TProp::I32(_) => PropType::I32,
-            TProp::I64(_) => PropType::I64,
-            TProp::U32(_) => PropType::U32,
-            TProp::U64(_) => PropType::U64,
-            TProp::F32(_) => PropType::F32,
-            TProp::F64(_) => PropType::F64,
-            TProp::Bool(_) => PropType::Bool,
-            TProp::NDTime(_) => PropType::NDTime,
-            TProp::Document(_) => PropType::Document,
-            TProp::List(_) => PropType::List,
-            TProp::Map(_) => PropType::Map,
-            TProp::DTime(_) => PropType::DTime,
-            TProp::Array(_) => PropType::Bool,
-        }
-    }
-
     pub(crate) fn from(t: TimeIndexEntry, prop: Prop) -> Self {
         match prop {
             Prop::Str(value) => TProp::Str(TCell::new(t, value)),
