@@ -5,8 +5,10 @@ use crate::{
     },
     prelude::{GraphViewOps, NodeStateOps},
 };
+use dashmap::DashMap;
 use raphtory_api::core::entities::VID;
-use std::{collections::HashMap, hash::Hash, sync::Arc};
+use rayon::prelude::*;
+use std::{hash::Hash, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G> {
@@ -14,14 +16,15 @@ pub struct NodeGroups<V, G> {
     graph: G,
 }
 
-impl<'graph, V: Hash + Eq, G: GraphViewOps<'graph>> NodeGroups<V, G> {
-    pub(crate) fn new(values: impl Iterator<Item = (VID, V)>, graph: G) -> Self {
-        let mut groups: HashMap<V, Vec<VID>> = HashMap::new();
-        for (node, v) in values {
+impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGroups<V, G> {
+    pub(crate) fn new(values: impl ParallelIterator<Item = (VID, V)>, graph: G) -> Self {
+        let groups: DashMap<V, Vec<VID>, ahash::RandomState> = DashMap::default();
+        values.for_each(|(node, v)| {
             groups.entry(v).or_insert_with(Vec::new).push(node);
-        }
+        });
+
         let groups = groups
-            .into_iter()
+            .into_par_iter()
             .map(|(k, v)| (k, Index::new(v)))
             .collect();
         Self { groups, graph }

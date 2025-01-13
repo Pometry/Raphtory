@@ -208,12 +208,12 @@ pub trait NodeStateOps<'graph>:
         values.into_iter().nth(median_index)
     }
 
-    fn group_by<V: Hash + Eq, F: Fn(&Self::OwnedValue) -> V + Sync>(
+    fn group_by<V: Hash + Eq + Send + Sync + Clone, F: Fn(&Self::OwnedValue) -> V + Sync>(
         &self,
         group_fn: F,
     ) -> NodeGroups<V, Self::Graph> {
         NodeGroups::new(
-            self.iter()
+            self.par_iter()
                 .map(|(node, v)| (node.node, group_fn(v.borrow()))),
             self.graph().clone(),
         )
