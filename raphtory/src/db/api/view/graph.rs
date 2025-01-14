@@ -44,6 +44,8 @@ use std::{
     borrow::Borrow,
     sync::{atomic::Ordering, Arc},
 };
+use crate::db::graph::views::property_filter::CompositeFilter;
+use crate::prelude::PropertyFilter;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -133,7 +135,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn search_nodes(
         &self,
-        q: &str,
+        // q: &str,
+        filter: &CompositeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
@@ -622,11 +625,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn search_nodes(
         &self,
-        q: &str,
+        // q: &str,
+        filter: &CompositeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
-        self.searcher()?.search_nodes(self, q, limit, offset)
+        self.searcher()?.search_nodes(self, filter, limit, offset)
     }
 
     fn search_edges(

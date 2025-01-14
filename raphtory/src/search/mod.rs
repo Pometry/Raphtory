@@ -10,7 +10,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{storage::arc_str::ArcStr, PropType};
 use std::{
     collections::BTreeMap,
     ops::{Deref, DerefMut},
@@ -32,6 +32,8 @@ pub mod latest_value_collector;
 pub mod node_filter_collector;
 pub mod node_index;
 pub mod property_index;
+mod query_builder;
+mod query_executor;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -108,4 +110,26 @@ where
     }
 
     Ok(())
+}
+
+fn create_tantivy_term(
+    prop_field: tantivy::schema::Field,
+    prop_value: &Option<Prop>,
+) -> Result<tantivy::Term, GraphError> {
+    match prop_value {
+        Some(Prop::Str(value)) => Ok(tantivy::Term::from_field_text(prop_field, value.as_ref())),
+        Some(Prop::I32(value)) => Ok(tantivy::Term::from_field_i64(prop_field, *value as i64)),
+        Some(Prop::I64(value)) => Ok(tantivy::Term::from_field_i64(prop_field, *value)),
+        Some(Prop::U64(value)) => Ok(tantivy::Term::from_field_u64(prop_field, *value)),
+        Some(Prop::F64(value)) => Ok(tantivy::Term::from_field_f64(prop_field, *value)),
+        Some(Prop::Bool(value)) => Ok(tantivy::Term::from_field_bool(prop_field, *value)),
+        Some(v) => {
+            println!("Unsupported value: {:?}", v);
+            Err(GraphError::NotSupported)
+        }
+        None => {
+            println!("Property value is None");
+            Err(GraphError::NotSupported)
+        }
+    }
 }

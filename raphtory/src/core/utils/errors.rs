@@ -16,6 +16,7 @@ use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
+use crate::db::graph::views::property_filter::ComparisonOperator;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -292,7 +293,16 @@ pub enum GraphError {
     NotSupported,
 
     #[error("Failed to acquire read lock")]
-    LockError
+    LockError,
+
+    #[error("Operator {0} requires a property value, but none was provided.")]
+    InvalidFilter(ComparisonOperator),
+
+    #[error("Property {0} not found in temporal or constant metadata")]
+    PropertyNotFound(String),
+
+    #[error("PropertyIndex not found for property {0}")]
+    PropertyIndexNotFound(String)
 }
 
 impl GraphError {

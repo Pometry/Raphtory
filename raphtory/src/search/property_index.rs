@@ -8,7 +8,7 @@ use std::{fmt::Debug, sync::Arc};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
-    schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
+    schema::{Field, Schema, SchemaBuilder, Type, FAST, INDEXED, STORED, TEXT},
     Document, Index, IndexReader, IndexSettings, TantivyDocument,
 };
 
@@ -87,6 +87,19 @@ impl PropertyIndex {
         }
 
         schema
+    }
+
+    pub fn get_prop_field(&self, prop_name: &str) -> tantivy::Result<Field> {
+        self.index.schema().get_field(prop_name)
+    }
+
+    pub fn get_prop_field_type(&self, prop_name: &str) -> tantivy::Result<Type> {
+        Ok(self
+            .index
+            .schema()
+            .get_field_entry(self.index.schema().get_field(prop_name)?)
+            .field_type()
+            .value_type())
     }
 
     pub(crate) fn create_document<'a>(

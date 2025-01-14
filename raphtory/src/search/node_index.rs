@@ -14,7 +14,7 @@ use crate::{
     prelude::*,
     search::{fields, index_properties, new_index, property_index::PropertyIndex, TOKENIZER},
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
 use std::{
@@ -108,6 +108,32 @@ impl NodeIndex {
         schema
     }
 
+    pub fn get_property_index(
+        &self,
+        meta: &Meta,
+        prop_name: &str,
+    ) -> Result<Arc<PropertyIndex>, GraphError> {
+        fn get_prop_id(meta: &Meta, prop_name: &str) -> Result<usize, GraphError> {
+            meta.temporal_prop_meta()
+                .get_id(prop_name)
+                .or_else(|| meta.const_prop_meta().get_id(prop_name))
+                .ok_or_else(|| GraphError::PropertyNotFound(prop_name.to_string()))
+        }
+
+        let property_indexes = self
+            .property_indexes
+            .read()
+            .map_err(|_| GraphError::LockError)?;
+
+        let prop_id = get_prop_id(meta, prop_name)?;
+
+        if let Some(Some(property_index)) = property_indexes.get(prop_id) {
+            Ok(Arc::from(property_index.clone()))
+        } else {
+            Err(GraphError::PropertyIndexNotFound(prop_name.to_string()))
+        }
+    }
+
     fn create_document<'a>(
         &self,
         node_id: u64,
@@ -189,7 +215,7 @@ impl NodeIndex {
                 self.property_indexes.write()?,
                 *time,
                 fields::NODE_ID,
-                node_id
+                node_id,
             )?;
         }
 

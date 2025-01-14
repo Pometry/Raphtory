@@ -32,6 +32,7 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+    use crate::db::api::view::internal::InternalIndexSearch;
 
     #[test]
     fn test_node_property_filter_on_nodes() {
@@ -351,5 +352,29 @@ mod test {
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
         })
+    }
+
+    #[test]
+    fn test_filter_is_none_simple_graph() {
+        let graph = Graph::new();
+        graph
+            .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(2, 1,[("p6", 6)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
+            .unwrap();
+
+        assert_eq!(graph.count_nodes(), 3);
+
+        let filtered = graph.filter_nodes(PropertyFilter::is_none("p2")).unwrap();
+        let ids = filtered.nodes().name().collect_vec();
+
+        assert_eq!(ids, vec!["2"]);
     }
 }
