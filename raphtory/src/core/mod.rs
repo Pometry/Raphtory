@@ -170,6 +170,7 @@ impl PartialOrd for Prop {
             (Prop::Bool(a), Prop::Bool(b)) => a.partial_cmp(b),
             (Prop::NDTime(a), Prop::NDTime(b)) => a.partial_cmp(b),
             (Prop::DTime(a), Prop::DTime(b)) => a.partial_cmp(b),
+            (Prop::List(a), Prop::List(b)) => a.partial_cmp(b),
             _ => None,
         }
     }
