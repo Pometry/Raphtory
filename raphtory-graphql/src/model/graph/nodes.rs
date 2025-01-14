@@ -1,6 +1,6 @@
 use crate::model::{
     graph::{node::Node, FilterCondition, Operator},
-    sorting::{EdgeSortBy, NodeSortBy, SortByTime},
+    sorting::{NodeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -9,14 +9,14 @@ use raphtory::{
     db::{
         api::{
             state::Index,
-            view::{internal::OneHopFilter, DynamicGraph},
+            view::DynamicGraph,
         },
-        graph::{edges::Edges, nodes::Nodes},
+        graph::nodes::Nodes,
     },
     prelude::*,
 };
-use raphtory_api::{core::entities::VID, iter::IntoDynBoxed};
-use std::{cmp::Ordering, sync::Arc};
+use raphtory_api::core::entities::VID;
+use std::cmp::Ordering;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
