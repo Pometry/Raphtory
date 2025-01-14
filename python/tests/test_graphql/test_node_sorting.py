@@ -1,13 +1,7 @@
-import tempfile
-
 import pytest
-
-from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
-import json
-import re
 
-PORT = 1737
+from utils import run_graphql_test
 
 
 def create_test_graph(g):
@@ -67,21 +61,12 @@ def create_test_graph(g):
     return g
 
 
-def run_graphql_test(query, expected_output, graph):
-    create_test_graph(graph)
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
+EVENT_GRAPH = create_test_graph(Graph())
 
-        response = client.query(query)
-
-        # Convert response to a dictionary if needed and compare
-        response_dict = json.loads(response) if isinstance(response, str) else response
-        assert response_dict == expected_output
+PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_node_sort_by_nothing(graph):
     query = """
         {
@@ -103,10 +88,10 @@ def test_graph_node_sort_by_nothing(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_node_sort_by_id(graph):
     query = """
         {
@@ -128,10 +113,10 @@ def test_graph_node_sort_by_id(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_earliest_time(graph):
     query = """
         {
@@ -154,10 +139,10 @@ def test_graph_nodes_sort_by_earliest_time(graph):
         }
     }
 
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_earliest_time_reversed(graph):
     query = """
         {
@@ -179,10 +164,10 @@ def test_graph_nodes_sort_by_earliest_time_reversed(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_nodes_sort_by_latest_time(graph):
     query = """
         {
@@ -204,10 +189,10 @@ def test_graph_nodes_sort_by_latest_time(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [PersistentGraph])
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_latest_time(graph):
     query = """
         {
@@ -230,10 +215,10 @@ def test_graph_nodes_sort_by_latest_time(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_prop1(graph):
     query = """
         {
@@ -255,10 +240,10 @@ def test_graph_nodes_sort_by_prop1(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_prop2(graph):
     query = """
         {
@@ -280,10 +265,10 @@ def test_graph_nodes_sort_by_prop2(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_prop3(graph):
     query = """
         {
@@ -305,10 +290,10 @@ def test_graph_nodes_sort_by_prop3(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_prop4(graph):
     query = """
         {
@@ -330,10 +315,10 @@ def test_graph_nodes_sort_by_prop4(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_prop5(graph):
     query = """
         {
@@ -355,10 +340,10 @@ def test_graph_nodes_sort_by_prop5(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_nonexistent_prop(graph):
     query = """
         {
@@ -380,10 +365,10 @@ def test_graph_nodes_sort_by_nonexistent_prop(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_combined(graph):
     query = """
         {
@@ -407,10 +392,10 @@ def test_graph_nodes_sort_by_combined(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_node_sort_by_combined_2(graph):
     query = """
         {
@@ -434,4 +419,4 @@ def test_graph_node_sort_by_combined_2(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph())
+    run_graphql_test(query, expected_output, graph)

@@ -6,10 +6,11 @@ from typing import TypeVar, Callable
 
 import pytest
 
-from graphql.test_edge_sorting import create_test_graph, PORT
 from raphtory.graphql import GraphServer
 
 B = TypeVar("B")
+
+PORT = 1737
 
 
 def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) -> B:
@@ -34,7 +35,6 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 
 def run_graphql_test(query, expected_output, graph):
-    create_test_graph(graph)
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:
         client = server.get_client()
@@ -48,7 +48,6 @@ def run_graphql_test(query, expected_output, graph):
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
-    create_test_graph(graph)
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:
         client = server.get_client()
