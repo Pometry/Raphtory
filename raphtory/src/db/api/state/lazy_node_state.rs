@@ -30,7 +30,7 @@ where
     Op::Output: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.values()).finish()
+        f.debug_list().entries(self.iter_values()).finish()
     }
 }
 
@@ -71,7 +71,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         self.nodes
             .clone()
             .into_iter()
-            .zip(self.into_values())
+            .zip(self.into_iter_values())
             .into_dyn_boxed()
     }
 }
@@ -84,7 +84,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     }
 
     pub fn collect<C: FromParallelIterator<Op::Output>>(&self) -> C {
-        self.par_values().collect()
+        self.par_iter_values().collect()
     }
 
     pub fn collect_vec(&self) -> Vec<Op::Output> {
@@ -135,7 +135,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &self.nodes.base_graph
     }
 
-    fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a,
     {
@@ -145,7 +145,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a,
     {
@@ -155,14 +155,14 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
+    fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter_refs()
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
+    fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .par_iter_refs()
@@ -280,7 +280,7 @@ mod test {
             op: arc_deg.clone(),
         };
 
-        let dyn_deg: Vec<_> = node_state_dyn.values().collect();
+        let dyn_deg: Vec<_> = node_state_dyn.iter_values().collect();
         assert_eq!(dyn_deg, [1, 1]);
         assert_eq!(arc_deg.apply(g.core_graph(), VID(0)), 1);
 

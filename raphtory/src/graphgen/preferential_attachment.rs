@@ -65,8 +65,8 @@ pub fn ba_preferential_attachment(
     }
     let mut latest_time = graph.latest_time().unwrap_or(0);
     let view = graph;
-    let mut ids = graph.nodes().id().values().collect::<Vec<_>>();
-    let mut degrees: Vec<usize> = view.nodes().degree().values().collect();
+    let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
+    let mut degrees: Vec<usize> = view.nodes().degree().iter_values().collect();
     let mut edge_count: usize = degrees.iter().sum();
 
     let mut max_id = next_id(view, ids.iter().max().cloned());

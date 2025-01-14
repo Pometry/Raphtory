@@ -30,7 +30,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn node_names(&self) -> impl Iterator<Item = String> {
-        self.nodes().name().into_values()
+        self.nodes().name().into_iter_values()
     }
 
     fn node_type_ids(&self) -> Option<impl Iterator<Item = usize>> {

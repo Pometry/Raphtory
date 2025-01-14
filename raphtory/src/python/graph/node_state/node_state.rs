@@ -33,7 +33,7 @@ macro_rules! impl_node_state_ops {
     ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         impl $name {
             pub fn iter(&self) -> impl Iterator<Item = $value> + '_ {
-                self.inner.values().map($to_owned)
+                self.inner.iter_values().map($to_owned)
             }
         }
 
@@ -53,7 +53,7 @@ macro_rules! impl_node_state_ops {
 
             fn __iter__(&self) -> PyBorrowingIterator {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
-                    .values()
+                    .iter_values()
                     .map($to_owned))
             }
 
@@ -225,9 +225,9 @@ macro_rules! impl_node_state_ord_ops {
             ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
                 let res = if let Ok(other) = other.downcast::<Self>() {
                     let other = Bound::borrow(other);
-                    self.inner.values().eq(other.inner.values())
+                    self.inner.iter_values().eq(other.inner.iter_values())
                 } else if let Ok(other) = other.extract::<Vec<$value>>() {
-                    self.inner.values().map($to_owned).eq(other.into_iter())
+                    self.inner.iter_values().map($to_owned).eq(other.into_iter())
                 } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
                     (self.inner.len() == other.len()
                         && other.into_iter().all(|(node, value)| {

@@ -614,7 +614,7 @@ impl PyNodes {
     #[getter]
     fn properties(&self) -> PyPropsList {
         let nodes = self.nodes.clone();
-        (move || nodes.properties().into_values()).into()
+        (move || nodes.properties().into_iter_values()).into()
     }
 
     /// Returns the number of edges of the nodes

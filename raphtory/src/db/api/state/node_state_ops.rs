@@ -29,16 +29,16 @@ pub trait NodeStateOps<'graph>:
 
     fn base_graph(&self) -> &Self::BaseGraph;
 
-    fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;
-    fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph;
+    fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph;
 
-    fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph;
+    fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph;
 
     fn iter<'a>(
         &'a self,
@@ -224,7 +224,7 @@ pub trait NodeStateOps<'graph>:
         'graph: 'a,
         S: Send + Sum<Self::Value<'a>> + Sum<S>,
     {
-        self.par_values().sum()
+        self.par_iter_values().sum()
     }
 
     fn mean<'a>(&'a self) -> f64

@@ -93,6 +93,14 @@ pub struct NodeState<'graph, V, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync, G, GH> PartialEq<Vec<RHS>>
+    for NodeState<'graph, V, G, GH>
+{
+    fn eq(&self, other: &Vec<RHS>) -> bool {
+        self.values.par_iter().eq(other)
+    }
+}
+
 impl<'graph, V, G: IntoDynamic, GH: IntoDynamic> NodeState<'graph, V, G, GH> {
     pub fn into_dyn(self) -> NodeState<'graph, V, DynamicGraph> {
         NodeState::new(
@@ -161,6 +169,10 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
     pub fn into_inner(self) -> (Arc<[V]>, Option<Index<VID>>) {
         (self.values, self.keys)
     }
+
+    pub fn values(&self) -> &Arc<[V]> {
+        &self.values
+    }
 }
 
 impl<
@@ -177,7 +189,7 @@ impl<
         self.nodes()
             .clone()
             .into_iter()
-            .zip(self.into_values())
+            .zip(self.into_iter_values())
             .into_dyn_boxed()
     }
 }
@@ -205,25 +217,25 @@ impl<
         &self.base_graph
     }
 
-    fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a,
     {
         self.values.iter()
     }
 
-    fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a,
     {
         self.values.par_iter()
     }
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
+    fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
         (0..self.values.len()).map(move |i| self.values[i].clone())
     }
 
-    fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
+    fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         (0..self.values.len())
             .into_par_iter()
             .map(move |i| self.values[i].clone())

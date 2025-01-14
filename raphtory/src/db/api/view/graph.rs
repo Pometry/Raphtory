@@ -1158,7 +1158,7 @@ mod test_materialize {
 
         assert_graph_equal(&g, &gm);
         assert_eq!(
-            gm.nodes().name().values().collect::<Vec<String>>(),
+            gm.nodes().name().iter_values().collect::<Vec<String>>(),
             vec!["1", "2"]
         );
 
@@ -1227,7 +1227,7 @@ mod test_materialize {
             nodes_subgraph
                 .nodes()
                 .name()
-                .values()
+                .iter_values()
                 .collect::<Vec<String>>(),
             vec!["4", "5"]
         );
@@ -1249,7 +1249,7 @@ mod test_materialize {
             exclude_nodes_subgraph
                 .nodes()
                 .name()
-                .values()
+                .iter_values()
                 .collect::<Vec<String>>(),
             vec!["1", "2", "3"]
         );
