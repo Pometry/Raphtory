@@ -149,4 +149,4 @@ arrow-buffer = { version = "53.2.0" }
 arrow-schema = { version = "53.2.0" }
 arrow-array = { version = "53.2.0" }
 moka = { version = "0.12.7", features = ["sync"] }
-indexmap = "2.7.0"
+indexmap = { version = "2.7.0", features = ["rayon"] }

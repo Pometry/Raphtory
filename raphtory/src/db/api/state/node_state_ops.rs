@@ -1,16 +1,16 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
+        api::{
+            state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
+        },
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
+use indexmap::IndexSet;
 use num_traits::AsPrimitive;
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    prelude::ParallelSliceMut,
-};
+use rayon::prelude::*;
 use std::{borrow::Borrow, hash::Hash, iter::Sum};
 
 pub trait NodeStateOps<'graph>:
@@ -73,6 +73,40 @@ pub trait NodeStateOps<'graph>:
 
     fn len(&self) -> usize;
 
+    fn sort_by<
+        F: Fn(
+                (NodeView<&Self::BaseGraph, &Self::Graph>, &Self::OwnedValue),
+                (NodeView<&Self::BaseGraph, &Self::Graph>, &Self::OwnedValue),
+            ) -> std::cmp::Ordering
+            + Sync,
+    >(
+        &self,
+        cmp: F,
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+        let mut state: Vec<_> = self
+            .par_iter()
+            .map(|(n, v)| (n.node, v.borrow().clone()))
+            .collect();
+        let graph = self.graph();
+        let base_graph = self.base_graph();
+        state.par_sort_by(|(n1, v1), (n2, v2)| {
+            cmp(
+                (NodeView::new_one_hop_filtered(base_graph, graph, *n1), v1),
+                (NodeView::new_one_hop_filtered(base_graph, graph, *n2), v2),
+            )
+        });
+
+        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) =
+            state.into_par_iter().unzip();
+
+        NodeState::new(
+            self.base_graph().clone(),
+            self.graph().clone(),
+            values.into(),
+            Some(Index::new(keys)),
+        )
+    }
+
     /// Sorts the by its values in ascending or descending order.
     ///
     /// Arguments:
@@ -88,49 +122,12 @@ pub trait NodeStateOps<'graph>:
         &self,
         cmp: F,
     ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
-        {
-            let mut state: Vec<_> = self
-                .par_iter()
-                .map(|(n, v)| (n.node, v.borrow().clone()))
-                .collect();
-            state.par_sort_by(|(_, v1), (_, v2)| cmp(v1, v2));
-
-            let mut keys = Vec::with_capacity(state.len());
-            let mut values = Vec::with_capacity(state.len());
-            state
-                .into_par_iter()
-                .unzip_into_vecs(&mut keys, &mut values);
-
-            NodeState::new(
-                self.base_graph().clone(),
-                self.graph().clone(),
-                values.into(),
-                Some(Index::new(keys)),
-            )
-        }
+        self.sort_by(|(_, v1), (_, v2)| cmp(v1, v2))
     }
 
     /// Sort the results by global node id
     fn sort_by_id(&self) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
-        let mut state: Vec<_> = self
-            .par_iter()
-            .map(|(n, v)| (n.id(), n.node, v.borrow().clone()))
-            .collect();
-        state.par_sort_by(|(l_id, l_n, _), (r_id, r_n, _)| (l_id, l_n).cmp(&(r_id, r_n)));
-
-        let mut keys = Vec::with_capacity(state.len());
-        let mut values = Vec::with_capacity(state.len());
-        state
-            .into_par_iter()
-            .map(|(_, n, v)| (n, v))
-            .unzip_into_vecs(&mut keys, &mut values);
-
-        NodeState::new(
-            self.base_graph().clone(),
-            self.graph().clone(),
-            values.into(),
-            Some(Index::new(keys)),
-        )
+        self.sort_by(|(n1, _), (n2, _)| n1.id().cmp(&n2.id()))
     }
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
@@ -157,7 +154,7 @@ pub trait NodeStateOps<'graph>:
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
             k,
         );
-        let (keys, values): (Vec<_>, Vec<_>) = values
+        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = values
             .into_iter()
             .map(|(n, v)| (n.node, v.borrow().clone()))
             .unzip();

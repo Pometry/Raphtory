@@ -15,6 +15,7 @@ use crate::{
     },
     prelude::*,
 };
+use indexmap::IndexSet;
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 
@@ -93,7 +94,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
 
     pub fn compute(&self) -> NodeState<'graph, Op::Output, G, GH> {
         if self.nodes.is_filtered() {
-            let (keys, values): (Vec<_>, Vec<_>) = self
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = self
                 .par_iter()
                 .map(|(node, value)| (node.node, value))
                 .unzip();

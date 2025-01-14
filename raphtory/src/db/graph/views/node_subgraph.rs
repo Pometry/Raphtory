@@ -55,9 +55,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
             .into_iter()
             .flat_map(|v| graph.internalise_node(v.as_node_ref()));
         let nodes = if graph.nodes_filtered() {
-            Index::new(nodes.filter(|n| graph.has_node(*n)))
+            Index::from_iter(nodes.filter(|n| graph.has_node(*n)))
         } else {
-            Index::new(nodes)
+            Index::from_iter(nodes)
         };
         Self { graph, nodes }
     }

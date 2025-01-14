@@ -13,9 +13,17 @@ use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
 use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Index<K> {
     index: Arc<IndexSet<K, ahash::RandomState>>,
+}
+
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator<K> for Index<K> {
+    fn from_iter<T: IntoIterator<Item = K>>(iter: T) -> Self {
+        Self {
+            index: Arc::new(IndexSet::from_iter(iter)),
+        }
+    }
 }
 
 impl Index<VID> {
@@ -27,7 +35,7 @@ impl Index<VID> {
                     NodeList::List { nodes } => Some(nodes),
                 }
             } else {
-                Some(Self::new(graph.nodes().iter().map(|node| node.node)))
+                Some(Self::from_iter(graph.nodes().iter().map(|node| node.node)))
             }
         } else {
             None
@@ -36,10 +44,8 @@ impl Index<VID> {
 }
 
 impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
-    pub fn new(keys: impl IntoIterator<Item = K>) -> Self {
-        Self {
-            index: Arc::new(IndexSet::from_iter(keys)),
-        }
+    pub fn new(keys: impl Into<Arc<IndexSet<K, ahash::RandomState>>>) -> Self {
+        Self { index: keys.into() }
     }
 
     #[inline]

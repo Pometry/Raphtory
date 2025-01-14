@@ -19,6 +19,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use indexmap::IndexSet;
 use itertools::Itertools;
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
@@ -130,7 +131,8 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    let (nodes, distances): (Vec<_>, Vec<_>) = in_components.into_iter().sorted().unzip();
+    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
+        in_components.into_iter().sorted().unzip();
     NodeState::new(
         node.graph.clone(),
         node.graph.clone(),
