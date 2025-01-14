@@ -143,6 +143,7 @@ mod test_utils {
     use crate::prelude::*;
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::Strategy};
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -180,6 +181,54 @@ mod test_utils {
                 i64::MIN..i64::MAX,
                 any::<String>(),
                 any::<i64>(),
+            ),
+            0..=len,
+        )
+    }
+
+    pub(crate) fn prop(depth: usize) -> impl Strategy<Value = Prop> {
+        let mut strats = vec![
+            any::<String>().prop_map(|s| Prop::str(s)).boxed(),
+            any::<i64>().prop_map(|i| Prop::I64(i)).boxed(),
+            any::<f64>().prop_map(Prop::F64).boxed(),
+            any::<u8>().prop_map(Prop::U8).boxed(),
+            any::<bool>().prop_map(Prop::Bool).boxed(),
+        ];
+
+        if depth > 0 {
+            strats.push(
+                proptest::collection::vec(prop(depth - 1), 0..10)
+                    .prop_map(|props| Prop::List(props.into()))
+                    .boxed(),
+            );
+            strats.push(
+                proptest::collection::hash_map(
+                    any::<String>().prop_map(|s| ArcStr::from(s)),
+                    prop(depth - 1),
+                    (0..10),
+                )
+                .prop_map(|props| Prop::Map(props.into()))
+                .boxed(),
+            );
+        }
+
+        proptest::strategy::Union::new(strats)
+    }
+
+    pub(crate) fn build_edge_list_dyn(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64, Vec<(String, Prop)>)>> {
+        proptest::collection::vec(
+            (
+                0..num_nodes,
+                0..num_nodes,
+                i64::MIN..i64::MAX,
+                proptest::collection::vec(
+                    any::<String>()
+                        .prop_flat_map(|name| prop(2).prop_map(move |p| (name.clone(), p))),
+                    0..10,
+                ),
             ),
             0..=len,
         )

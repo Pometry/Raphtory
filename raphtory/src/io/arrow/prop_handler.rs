@@ -43,7 +43,7 @@ impl PropCols {
 }
 
 pub(crate) fn combine_properties(
-    props: &[&str],
+    props: &[impl AsRef<str>],
     indices: &[usize],
     df: &DFChunk,
     prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
@@ -59,7 +59,7 @@ pub(crate) fn combine_properties(
     let prop_ids = props
         .iter()
         .zip(dtypes.into_iter())
-        .map(|(name, dtype)| Ok(prop_id_resolver(name, dtype)?.inner()))
+        .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
         .collect::<Result<Vec<_>, GraphError>>()?;
 
     Ok(PropCols {

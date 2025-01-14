@@ -76,16 +76,28 @@ pub fn load_edges_from_parquet<
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: Option<impl IntoIterator<Item = impl AsRef<str>>>,
+    constant_properties: Option<impl IntoIterator<Item = impl AsRef<str>>>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    let properties = properties
+        .map(|props| props.into_iter().map(|s| s.as_ref().to_owned()).collect())
+        .unwrap_or(Vec::new());
+
+    for prop in &properties {
+        cols_to_check.push(&prop);
+    }
+    let constant_properties = constant_properties
+        .map(|props| props.into_iter().map(|s| s.as_ref().to_owned()).collect())
+        .unwrap_or(Vec::new());
+
+    for prop in &constant_properties {
+        cols_to_check.push(&prop);
+    }
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
@@ -98,8 +110,8 @@ pub fn load_edges_from_parquet<
             time,
             src,
             dst,
-            properties,
-            constant_properties,
+            Some(&properties),
+            Some(&constant_properties),
             shared_constant_properties,
             layer,
             layer_col,

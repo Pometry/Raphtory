@@ -147,23 +147,32 @@ pub(crate) fn load_nodes_from_df<
     Ok(())
 }
 
+pub const NO_COLS: Option<&[&str]> = None;
+
 pub(crate) fn load_edges_from_df<
-    'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: Option<impl IntoIterator<Item = impl AsRef<str>>>,
+    constant_properties: Option<impl IntoIterator<Item = impl AsRef<str>>>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
+    let properties = properties
+        .into_iter()
+        .flatten()
+        .map(|s| s.as_ref().to_owned())
+        .collect::<Vec<_>>();
+    let constant_properties = constant_properties
+        .into_iter()
+        .flatten()
+        .map(|s| s.as_ref().to_owned())
+        .collect::<Vec<_>>();
 
     let properties_indices = properties
         .iter()
@@ -207,11 +216,11 @@ pub(crate) fn load_edges_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
+        let prop_cols = combine_properties(&properties, &properties_indices, &df, |key, dtype| {
             graph.resolve_edge_property(key, dtype, false)
         })?;
         let const_prop_cols = combine_properties(
-            constant_properties,
+            &constant_properties,
             &constant_properties_indices,
             &df,
             |key, dtype| graph.resolve_edge_property(key, dtype, true),
@@ -617,7 +626,7 @@ mod tests {
         db::graph::graph::assert_graph_equal,
         io::arrow::{
             dataframe::{DFChunk, DFView},
-            df_loaders::load_edges_from_df,
+            df_loaders::{load_edges_from_df, NO_COLS},
         },
         prelude::*,
         test_utils::build_edge_list,
@@ -843,7 +852,7 @@ mod tests {
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), NO_COLS, None, None, None, &g).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
@@ -863,7 +872,7 @@ mod tests {
             let cache_file = TempDir::new().unwrap();
             g.cache(cache_file.path()).unwrap();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), NO_COLS, None, None, None, &g).unwrap();
             let g = Graph::load_cached(cache_file.path()).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {

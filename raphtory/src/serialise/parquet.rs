@@ -3,7 +3,11 @@ use std::{fs::File, path::Path, sync::Arc};
 use arrow_json::ReaderBuilder;
 use arrow_schema::{DataType, Field, Schema};
 use itertools::Itertools;
-use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
+use parquet::{
+    arrow::{arrow_reader::ArrowReaderMetadata, ArrowWriter},
+    basic::Compression,
+    file::properties::WriterProperties,
+};
 use raphtory_api::core::entities::{properties::props::PropMapper, GidType};
 use serde::{
     ser::{SerializeMap, SerializeSeq},
@@ -16,7 +20,7 @@ use crate::{
         api::{mutation::internal::InternalAdditionOps, view::StaticGraphViewOps},
         graph::edge::EdgeView,
     },
-    io::parquet_loaders::load_edges_from_parquet,
+    io::{arrow::df_loaders::NO_COLS, parquet_loaders::load_edges_from_parquet},
     prelude::*,
 };
 
@@ -119,6 +123,7 @@ impl<G: StaticGraphViewOps> Serialize for ParquetEdge<G> {
 
 impl<G: StaticGraphViewOps + InternalAdditionOps + std::fmt::Debug> ParquetEncoder for G {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        let row_group_size = 100_000;
         let props = WriterProperties::builder()
             .set_compression(Compression::SNAPPY)
             .build();
@@ -146,8 +151,6 @@ impl<G: StaticGraphViewOps + InternalAdditionOps + std::fmt::Debug> ParquetEncod
         )
         .into();
 
-        println!("{:?}", schema);
-
         let edge_file = File::create(path.as_ref().join(T_EDGE_FILE))?;
 
         let mut writer = ArrowWriter::try_new(edge_file, schema.clone(), Some(props))?;
@@ -158,14 +161,9 @@ impl<G: StaticGraphViewOps + InternalAdditionOps + std::fmt::Debug> ParquetEncod
             .edges()
             .explode()
             .into_iter()
-            .chunks(100_000)
+            .chunks(row_group_size)
             .into_iter()
-            .map(|chunk| {
-                chunk
-                    .map(|edge| ParquetEdge(edge))
-                    .inspect(|e| println!("{:?}", serde_json::to_value(e)))
-                    .collect_vec()
-            })
+            .map(|chunk| chunk.map(|edge| ParquetEdge(edge)).collect_vec())
         {
             decoder.serialize(&edge_rows)?;
             if let Some(rb) = decoder.flush()? {
@@ -188,7 +186,6 @@ fn arrow_fields(meta: &PropMapper) -> Result<Vec<Field>, GraphError> {
             meta.get_dtype(prop_id)
                 .map(move |prop_type| (name, prop_type))
         })
-        .inspect(|pair| println!("{:?}", pair))
         .map(|(name, prop_type)| {
             arrow_dtype_from_prop_type(&prop_type).map(|d_type| Field::new(name, d_type, true))
         })
@@ -200,15 +197,32 @@ impl ParquetDecoder for Graph {
     where
         Self: Sized,
     {
+        let t_edge_path = path.as_ref().join(T_EDGE_FILE);
+        let t_prop_colums = {
+            let reader = ArrowReaderMetadata::load(&File::open(&t_edge_path)?, Default::default())?;
+            reader
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .filter(|f_name| {
+                    f_name != TIME_COL
+                        && f_name != SRC_COL
+                        && f_name != DST_COL
+                        && f_name != LAYER_COL
+                })
+                .collect_vec()
+        };
+
         let g = Graph::new();
         load_edges_from_parquet(
             &g,
-            path.as_ref(),
+            &t_edge_path,
             TIME_COL,
             SRC_COL,
             DST_COL,
-            Some(&["str_prop", "int_prop"]),
-            None,
+            Some(&t_prop_colums),
+            NO_COLS,
             None,
             None,
             Some(LAYER_COL),
@@ -220,7 +234,8 @@ impl ParquetDecoder for Graph {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{db::graph::graph::assert_graph_equal, test_utils::build_graph_from_edge_list};
+    use proptest::prelude::*;
+    use crate::{db::graph::graph::assert_graph_equal, test_utils::{build_edge_list_dyn, build_graph_from_edge_list}};
 
     #[test]
     fn write_edges_to_parquet() {
@@ -232,5 +247,20 @@ mod test {
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = g.decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);
+    }
+
+    // proptest
+
+    #[test]
+    fn write_any_edges_any_props_to_parquet() {
+
+        fn test(edges: Vec<(u64, u64, i64, Vec<(String, Prop)>)>) {
+
+            println!("Edges: {:?}", edges);
+        }
+
+        proptest!(|(edges in build_edge_list_dyn(10, 10))| {
+            test(edges);
+        });
     }
 }
