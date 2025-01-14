@@ -1,5 +1,8 @@
-use crate::model::graph::edge::Edge;
-use dynamic_graphql::{Enum, InputObject, ResolvedObject, ResolvedObjectFields};
+use crate::model::{
+    graph::edge::Edge,
+    sorting::{EdgeSortBy, SortByTime},
+};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
@@ -31,21 +34,6 @@ impl GqlEdges {
         let iter = self.ee.iter().map(Edge::from_ref);
         Box::new(iter)
     }
-}
-
-#[derive(InputObject, Clone, Debug, Eq, PartialEq)]
-pub struct EdgeSortBy {
-    pub reverse: Option<bool>,
-    pub src: Option<bool>,
-    pub dst: Option<bool>,
-    pub time: Option<EdgeSortByTime>,
-    pub property: Option<String>,
-}
-
-#[derive(Enum, Clone, Debug, Eq, PartialEq)]
-pub enum EdgeSortByTime {
-    Latest,
-    Earliest,
 }
 
 #[ResolvedObjectFields]
@@ -132,10 +120,10 @@ impl GqlEdges {
                                 first_edge.dst().id().partial_cmp(&second_edge.dst().id())
                             } else if let Some(sort_by_time) = sort_by.time {
                                 let (first_time, second_time) = match sort_by_time {
-                                    EdgeSortByTime::Latest => {
+                                    SortByTime::Latest => {
                                         (first_edge.latest_time(), second_edge.latest_time())
                                     }
-                                    EdgeSortByTime::Earliest => {
+                                    SortByTime::Earliest => {
                                         (first_edge.earliest_time(), second_edge.earliest_time())
                                     }
                                 };

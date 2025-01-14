@@ -141,6 +141,15 @@ where
         }
     }
 
+    pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH> {
+        Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            Some(index),
+            self.node_types_filter.clone(),
+        )
+    }
+
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.graph.core_graph().lock();
