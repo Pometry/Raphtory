@@ -35,7 +35,7 @@ def create_test_graph(g):
             "prop2": 6.4,
             "prop3": "xyz123",
             "prop4": False,
-            "prop5": [10],
+            "prop5": [50, 30],
         },
     )
     g.add_node(
@@ -336,7 +336,7 @@ def test_graph_nodes_sort_by_prop5(graph):
     expected_output = {
         "graph": {
             "nodes": {
-                "sorted": {"list": [{"id": "a"}, {"id": "b"}, {"id": "d"}, {"id": "c"}]}
+                "sorted": {"list": [{"id": "a"}, {"id": "b"}, {"id": "c"}, {"id": "d"}]}
             }
         }
     }
