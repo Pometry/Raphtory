@@ -12,7 +12,10 @@ use crate::{
             properties::Properties,
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
-                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{
+                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynamic,
+                    IntoDynamicOrMutable, MaterializedGraph,
+                },
                 *,
             },
         },
@@ -20,10 +23,9 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::{deletion_graph::PersistentGraph, property_filter::internal::*},
+            views::property_filter::internal::*,
         },
     },
-    prelude::Graph,
     python::{
         graph::{
             node::internal::OneHopFilter,
@@ -45,7 +47,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     pyclass, pymethods,
     types::PyDict,
-    PyObject, PyResult, Python,
+    IntoPyObjectExt, PyObject, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -95,7 +97,7 @@ impl AsNodeRef for PyNode {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyNode {
-    /// checks if a node is equal to another by their id (ids are unqiue)
+    /// checks if a node is equal to another by their id (ids are unique)
     ///
     /// Arguments:
     ///    other: The other node to compare to.
@@ -182,11 +184,8 @@ impl PyNode {
 
     /// Returns the latest datetime that the node exists.
     ///
-    /// Arguments:
-    ///    None
-    ///
     /// Returns:
-    ///     Datetime: The latest datetime that the node exists as a Datetime.
+    ///     datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.latest_date_time()
@@ -320,16 +319,36 @@ impl Repr for PyMutableNode {
 }
 impl<
         'py,
-        G: StaticGraphViewOps + IntoDynamic,
-        GH: StaticGraphViewOps + IntoDynamic + Immutable,
+        G: StaticGraphViewOps + IntoDynamicOrMutable,
+        GH: StaticGraphViewOps + IntoDynamicOrMutable,
     > IntoPyObject<'py> for NodeView<G, GH>
 {
-    type Target = PyNode;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+    type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyNode::from(self).into_pyobject(py)
+        let graph = self.graph.into_dynamic_or_mutable();
+        match graph {
+            DynOrMutableGraph::Dyn(graph) => {
+                let base_graph = self.base_graph.into_dynamic();
+                PyNode::from(NodeView::new_one_hop_filtered(base_graph, graph, self.node))
+                    .into_bound_py_any(py)
+            }
+            DynOrMutableGraph::Mutable(graph) => {
+                let base_graph = self.base_graph.into_dynamic_or_mutable();
+                match base_graph {
+                    DynOrMutableGraph::Dyn(_) => {
+                        unreachable!()
+                    }
+                    DynOrMutableGraph::Mutable(base_graph) => PyMutableNode::new_bound(
+                        NodeView::new_one_hop_filtered(base_graph, graph, self.node),
+                        py,
+                    )?
+                    .into_bound_py_any(py),
+                }
+            }
+        }
     }
 }
 
@@ -338,36 +357,6 @@ impl<G: Into<MaterializedGraph>> From<NodeView<G>> for PyMutableNode {
         let graph = value.graph.into();
         let node = NodeView::new_internal(graph, value.node);
         PyMutableNode { node }
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<Graph, Graph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<PersistentGraph, PersistentGraph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<MaterializedGraph, MaterializedGraph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
     }
 }
 
@@ -495,7 +484,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
         let graph = value.graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
-            nodes: Nodes::new_filtered(base_graph, graph, value.node_types_filter),
+            nodes: Nodes::new_filtered(base_graph, graph, value.nodes, value.node_types_filter),
         }
     }
 }
@@ -625,7 +614,7 @@ impl PyNodes {
     #[getter]
     fn properties(&self) -> PyPropsList {
         let nodes = self.nodes.clone();
-        (move || nodes.properties().into_values()).into()
+        (move || nodes.properties().into_iter_values()).into()
     }
 
     /// Returns the number of edges of the nodes

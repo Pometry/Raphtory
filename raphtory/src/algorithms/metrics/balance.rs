@@ -9,6 +9,7 @@ use crate::{
             accumulator_id::accumulators::sum,
             compute_state::{ComputeState, ComputeStateVec},
         },
+        utils::errors::GraphError,
         Direction,
     },
     db::{
@@ -23,7 +24,6 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use ordered_float::OrderedFloat;
-use raphtory_api::core::PropType;
 
 /// Computes the net sum of weights for a given node based on edge direction.
 ///
@@ -103,13 +103,12 @@ pub fn balance<G: StaticGraphViewOps>(
     name: String,
     direction: Direction,
     threads: Option<usize>,
-) -> Result<AlgorithmResult<G, f64, OrderedFloat<f64>>, &'static str> {
+) -> Result<AlgorithmResult<G, f64, OrderedFloat<f64>>, GraphError> {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let min = sum(0);
     ctx.agg(min);
 
-    let mut weight_type = Some(PropType::U8);
-    weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
+    let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
         Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
         None => graph
             .edge_meta()
@@ -123,10 +122,19 @@ pub fn balance<G: StaticGraphViewOps>(
                     .unwrap()
             }),
     };
-    if weight_type.is_none() {
-        return Err("Weight property not found on edges");
-    } else if weight_type.unwrap().is_numeric() == false {
-        return Err("Weight property is not numeric");
+    match weight_type {
+        None => {
+            return Err(GraphError::InvalidProperty {
+                reason: "Edge property {name} does not exist".to_string(),
+            })
+        }
+        Some(weight_type) => {
+            if !weight_type.is_numeric() {
+                return Err(GraphError::InvalidProperty {
+                    reason: "Edge property {name} is not numeric".to_string(),
+                });
+            }
+        }
     }
 
     let step1 = ATask::new(move |evv| {

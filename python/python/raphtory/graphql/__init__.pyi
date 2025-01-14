@@ -23,6 +23,9 @@ class GraphqlGraphs(object):
     graph documents
     """
 
+    def get(self, name):
+        """Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist"""
+
     def search_graph_documents(self, query, limit, window):
         """
         Return the top documents with the smallest cosine distance to `query`
@@ -38,9 +41,6 @@ class GraphqlGraphs(object):
 
     def search_graph_documents_with_scores(self, query, limit, window):
         """Same as `search_graph_documents` but it also returns the scores alongside the documents"""
-
-    def get(self, name):
-        """Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist"""
 
 class GraphServer(object):
     """A class for defining and running a Raphtory GraphQL server"""
@@ -59,8 +59,14 @@ class GraphServer(object):
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def turn_off_index(self):
-        """Turn off index for all graphs"""
+    def run(self, port: int = 1736, timeout_ms: int = 180000):
+        """
+        Run the server until completion.
+
+        Arguments:
+          port (int): The port to use. Defaults to 1736.
+          timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
+        """
 
     def set_embeddings(
         self,
@@ -84,25 +90,21 @@ class GraphServer(object):
            GraphServer: A new server object with embeddings setup.
         """
 
-    def with_vectorised_graphs(
-        self,
-        graph_names: list[str],
-        graphs: bool | str = ...,
-        nodes: bool | str = ...,
-        edges: bool | str = ...,
-    ) -> GraphServer:
+    def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
         """
-        Vectorise a subset of the graphs of the server.
+        Start the server and return a handle to it.
 
         Arguments:
-          graph_names (list[str]): the names of the graphs to vectorise. All by default.
-          graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-          nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-          edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+          port (int):  the port to use. Defaults to 1736.
+          timeout_ms (int): wait for server to be online. Defaults to 5000.
+            The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
 
         Returns:
-           GraphServer: A new server object containing the vectorised graphs.
+          RunningGraphServer: The running server
         """
+
+    def turn_off_index(self):
+        """Turn off index for all graphs"""
 
     def with_global_search_function(
         self, name: str, input: dict, function: Callable
@@ -124,37 +126,34 @@ class GraphServer(object):
            GraphServer: A new server object with the function registered
         """
 
-    def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
+    def with_vectorised_graphs(
+        self,
+        graph_names: list[str],
+        graphs: bool | str = ...,
+        nodes: bool | str = ...,
+        edges: bool | str = ...,
+    ) -> GraphServer:
         """
-        Start the server and return a handle to it.
+        Vectorise a subset of the graphs of the server.
 
         Arguments:
-          port (int):  the port to use. Defaults to 1736.
-          timeout_ms (int): wait for server to be online. Defaults to 5000.
-            The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+          graph_names (list[str]): the names of the graphs to vectorise. All by default.
+          graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+          nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+          edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
 
         Returns:
-          RunningGraphServer: The running server
-        """
-
-    def run(self, port: int = 1736, timeout_ms: int = 180000):
-        """
-        Run the server until completion.
-
-        Arguments:
-          port (int): The port to use. Defaults to 1736.
-          timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
+           GraphServer: A new server object containing the vectorised graphs.
         """
 
 class RunningGraphServer(object):
     """A Raphtory server handler that also enables querying the server"""
 
+    def __enter__(self): ...
+    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
     def get_client(self): ...
     def stop(self):
         """Stop the server and wait for it to finish"""
-
-    def __enter__(self): ...
-    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
 
 class RaphtoryClient(object):
     """A client for handling GraphQL operations in the context of Raphtory."""
@@ -162,12 +161,60 @@ class RaphtoryClient(object):
     def __new__(cls, url) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
+    def copy_graph(self, path, new_path):
+        """
+        Copy graph from a path `path` on the server to a `new_path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be copied
+          * `new_path`: the new path of the copied graph
+
+        Returns:
+           Copy status as boolean
+        """
+
+    def delete_graph(self, path):
+        """
+        Delete graph from a path `path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be deleted
+
+        Returns:
+           Delete status as boolean
+        """
+
     def is_server_online(self):
         """
         Check if the server is online.
 
         Returns:
            Returns true if server is online otherwise false.
+        """
+
+    def move_graph(self, path, new_path):
+        """
+        Move graph from a path `path` on the server to a `new_path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be moved
+          * `new_path`: the new path of the moved graph
+
+        Returns:
+           Move status as boolean
+        """
+
+    def new_graph(self, path, graph_type):
+        """
+        Create a new Graph on the server at `path`
+
+        Arguments:
+          * `path`: the path of the graph to be created
+          * `graph_type`: the type of graph that should be created - this can be EVENT or PERSISTENT
+
+        Returns:
+           None
+
         """
 
     def query(self, query, variables=None):
@@ -180,6 +227,29 @@ class RaphtoryClient(object):
 
         Returns:
            The `data` field from the graphQL response.
+        """
+
+    def receive_graph(self, path):
+        """
+        Receive graph from a path `path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be received
+
+        Returns:
+           Graph as string
+        """
+
+    def remote_graph(self, path):
+        """
+        Get a RemoteGraph reference to a graph on the server at `path`
+
+        Arguments:
+          * `path`: the path of the graph to be created
+
+        Returns:
+           RemoteGraph
+
         """
 
     def send_graph(self, path, graph, overwrite=False):
@@ -208,107 +278,35 @@ class RaphtoryClient(object):
            The `data` field from the graphQL response after executing the mutation.
         """
 
-    def copy_graph(self, path, new_path):
-        """
-        Copy graph from a path `path` on the server to a `new_path` on the server
-
-        Arguments:
-          * `path`: the path of the graph to be copied
-          * `new_path`: the new path of the copied graph
-
-        Returns:
-           Copy status as boolean
-        """
-
-    def move_graph(self, path, new_path):
-        """
-        Move graph from a path `path` on the server to a `new_path` on the server
-
-        Arguments:
-          * `path`: the path of the graph to be moved
-          * `new_path`: the new path of the moved graph
-
-        Returns:
-           Move status as boolean
-        """
-
-    def delete_graph(self, path):
-        """
-        Delete graph from a path `path` on the server
-
-        Arguments:
-          * `path`: the path of the graph to be deleted
-
-        Returns:
-           Delete status as boolean
-        """
-
-    def receive_graph(self, path):
-        """
-        Receive graph from a path `path` on the server
-
-        Arguments:
-          * `path`: the path of the graph to be received
-
-        Returns:
-           Graph as string
-        """
-
-    def new_graph(self, path, graph_type):
-        """
-        Create a new Graph on the server at `path`
-
-        Arguments:
-          * `path`: the path of the graph to be created
-          * `graph_type`: the type of graph that should be created - this can be EVENT or PERSISTENT
-
-        Returns:
-           None
-
-        """
-
-    def remote_graph(self, path):
-        """
-        Get a RemoteGraph reference to a graph on the server at `path`
-
-        Arguments:
-          * `path`: the path of the graph to be created
-
-        Returns:
-           RemoteGraph
-
-        """
-
 class RemoteGraph(object):
-    def node(self, id: str | int):
+    def add_constant_properties(self, properties: dict):
         """
-        Gets a remote node with the specified id
+        Adds constant properties to the remote graph.
 
         Arguments:
-          id (str|int): the node id
+            properties (dict): The constant properties of the graph.
+        """
+
+    def add_edge(
+        self,
+        timestamp: int | str | datetime,
+        src: str | int,
+        dst: str | int,
+        properties: Optional[dict] = None,
+        layer: Optional[str] = None,
+    ):
+        """
+        Adds a new edge with the given source and destination nodes and properties to the remote graph.
+
+        Arguments:
+           timestamp (int |str | datetime): The timestamp of the edge.
+           src (str | int): The id of the source node.
+           dst (str | int): The id of the destination node.
+           properties (dict, optional): The properties of the edge, as a dict of string and properties.
+           layer (str, optional): The layer of the edge.
 
         Returns:
-          RemoteNode
-        """
-
-    def edge(self, src: str | int, dst: str | int):
-        """
-        Gets a remote edge with the specified source and destination nodes
-
-        Arguments:
-            src (str|int): the source node id
-            dst (str|int): the destination node id
-
-        Returns:
-            RemoteEdge
-        """
-
-    def add_nodes(self, updates: List[RemoteNodeAddition]):
-        """
-        Batch add node updates to the remote graph
-
-        Arguments:
-          updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+          RemoteEdge
         """
 
     def add_edges(self, updates: List[RemoteEdgeAddition]):
@@ -338,6 +336,23 @@ class RemoteGraph(object):
           RemoteNode
         """
 
+    def add_nodes(self, updates: List[RemoteNodeAddition]):
+        """
+        Batch add node updates to the remote graph
+
+        Arguments:
+          updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+        """
+
+    def add_property(self, timestamp: int | str | datetime, properties: dict):
+        """
+        Adds properties to the remote graph.
+
+        Arguments:
+           timestamp (int|str|datetime): The timestamp of the temporal property.
+           properties (dict): The temporal properties of the graph.
+        """
+
     def create_node(
         self,
         timestamp: int | str | datetime,
@@ -355,53 +370,6 @@ class RemoteGraph(object):
            node_type (str, optional): The optional string which will be used as a node type
         Returns:
           RemoteNode
-        """
-
-    def add_property(self, timestamp: int | str | datetime, properties: dict):
-        """
-        Adds properties to the remote graph.
-
-        Arguments:
-           timestamp (int|str|datetime): The timestamp of the temporal property.
-           properties (dict): The temporal properties of the graph.
-        """
-
-    def add_constant_properties(self, properties: dict):
-        """
-        Adds constant properties to the remote graph.
-
-        Arguments:
-            properties (dict): The constant properties of the graph.
-        """
-
-    def update_constant_properties(self, properties: dict):
-        """
-        Updates constant properties on the remote graph.
-
-        Arguments:
-            properties (dict): The constant properties of the graph.
-        """
-
-    def add_edge(
-        self,
-        timestamp: int | str | datetime,
-        src: str | int,
-        dst: str | int,
-        properties: Optional[dict] = None,
-        layer: Optional[str] = None,
-    ):
-        """
-        Adds a new edge with the given source and destination nodes and properties to the remote graph.
-
-        Arguments:
-           timestamp (int |str | datetime): The timestamp of the edge.
-           src (str | int): The id of the source node.
-           dst (str | int): The id of the destination node.
-           properties (dict, optional): The properties of the edge, as a dict of string and properties.
-           layer (str, optional): The layer of the edge.
-
-        Returns:
-          RemoteEdge
         """
 
     def delete_edge(
@@ -424,9 +392,53 @@ class RemoteGraph(object):
           RemoteEdge
         """
 
+    def edge(self, src: str | int, dst: str | int):
+        """
+        Gets a remote edge with the specified source and destination nodes
+
+        Arguments:
+            src (str|int): the source node id
+            dst (str|int): the destination node id
+
+        Returns:
+            RemoteEdge
+        """
+
+    def node(self, id: str | int):
+        """
+        Gets a remote node with the specified id
+
+        Arguments:
+          id (str|int): the node id
+
+        Returns:
+          RemoteNode
+        """
+
+    def update_constant_properties(self, properties: dict):
+        """
+        Updates constant properties on the remote graph.
+
+        Arguments:
+            properties (dict): The constant properties of the graph.
+        """
+
 class RemoteEdge(object):
     def __new__(cls, path, client, src, dst) -> RemoteEdge:
         """Create and return a new object.  See help(type) for accurate signature."""
+
+    def add_constant_properties(
+        self, properties: Dict[str, Prop], layer: Optional[str] = None
+    ):
+        """
+        Add constant properties to the edge within the remote graph.
+        This function is used to add properties to an edge that remain constant and do not
+        change over time. These properties are fundamental attributes of the edge.
+
+        Parameters:
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+            layer (str, optional): The layer you want these properties to be added on to.
+        """
 
     def add_updates(
         self,
@@ -453,19 +465,6 @@ class RemoteEdge(object):
             layer (str, optional): The layer you want the deletion applied to.
         """
 
-    def add_constant_properties(
-        self, properties: Dict[str, Prop], layer: Optional[str] = None
-    ):
-        """
-        Add constant properties to the edge within the remote graph.
-        This function is used to add properties to an edge that remain constant and do not
-        change over time. These properties are fundamental attributes of the edge.
-
-        Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-            layer (str, optional): The layer you want these properties to be added on to.
-        """
-
     def update_constant_properties(
         self, properties: Dict[str, Prop], layer: Optional[str] = None
     ):
@@ -483,13 +482,14 @@ class RemoteNode(object):
     def __new__(cls, path, client, id) -> RemoteNode:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def set_node_type(self, new_type: str):
+    def add_constant_properties(self, properties: Dict[str, Prop]):
         """
-        Set the type on the node. This only works if the type has not been previously set, otherwise will
-        throw an error
+        Add constant properties to a node in the remote graph.
+        This function is used to add properties to a node that remain constant and does not
+        change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            new_type (str): The new type to be set
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
         """
 
     def add_updates(
@@ -504,14 +504,13 @@ class RemoteNode(object):
             properties (Dict[str, Prop], optional): A dictionary of properties to update.
         """
 
-    def add_constant_properties(self, properties: Dict[str, Prop]):
+    def set_node_type(self, new_type: str):
         """
-        Add constant properties to a node in the remote graph.
-        This function is used to add properties to a node that remain constant and does not
-        change over time. These properties are fundamental attributes of the node.
+        Set the type on the node. This only works if the type has not been previously set, otherwise will
+        throw an error
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+            new_type (str): The new type to be set
         """
 
     def update_constant_properties(self, properties: Dict[str, Prop]):
@@ -541,3 +540,4 @@ class RemoteEdgeAddition(object):
         """Create and return a new object.  See help(type) for accurate signature."""
 
 def encode_graph(graph): ...
+def decode_graph(graph): ...

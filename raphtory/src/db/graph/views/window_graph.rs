@@ -140,7 +140,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn node_list(&self) -> NodeList {
         if self.window_is_empty() {
             NodeList::List {
-                nodes: Index::new(vec![], self.graph.unfiltered_num_nodes()),
+                nodes: Index::default(),
             }
         } else {
             self.graph.node_list()
@@ -1076,7 +1076,7 @@ mod views_test {
                     let mut e = wg
                         .nodes()
                         .id()
-                        .values()
+                        .iter_values()
                         .filter_map(|id| id.to_u64())
                         .collect::<Vec<_>>();
                     e.sort();
@@ -1098,7 +1098,7 @@ mod views_test {
                     let mut e = wg
                         .nodes()
                         .id()
-                        .values()
+                        .iter_values()
                         .filter_map(|id| id.to_u64())
                         .collect::<Vec<_>>();
                     e.sort();
@@ -1160,7 +1160,7 @@ mod views_test {
             let actual = wg
                 .nodes()
                 .id()
-                .values()
+                .iter_values()
                 .filter_map(|id| id.to_u64())
                 .collect::<Vec<_>>();
 
@@ -1274,14 +1274,19 @@ mod views_test {
                 graph
                     .nodes()
                     .earliest_time()
-                    .values()
+                    .iter_values()
                     .flatten()
                     .collect_vec(),
                 [0, 0, 0, 4,]
             );
 
             assert_eq!(
-                graph.nodes().latest_time().values().flatten().collect_vec(),
+                graph
+                    .nodes()
+                    .latest_time()
+                    .iter_values()
+                    .flatten()
+                    .collect_vec(),
                 [3, 7, 3, 7]
             );
 

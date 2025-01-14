@@ -28,6 +28,7 @@ rand_distr = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
+indexmap = { workspace = true }
 serde = { workspace = true }
 sorted_vector_map = { workspace = true }
 thiserror = { workspace = true }
@@ -40,9 +41,10 @@ quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
-kdam = { workspace = true, optional = true}
+kdam = { workspace = true, optional = true }
 bytemuck = { workspace = true }
 tracing = { workspace = true }
+ahash = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -77,7 +79,8 @@ pometry-storage = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
-roaring ={ workspace = true }
+roaring = { workspace = true }
+
 
 [dev-dependencies]
 csv = { workspace = true }

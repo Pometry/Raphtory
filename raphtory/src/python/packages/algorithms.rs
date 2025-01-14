@@ -66,7 +66,10 @@ use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
-use crate::{algorithms::bipartite::max_weight_matching::Matching, db::api::state::NodeState};
+use crate::{
+    algorithms::bipartite::max_weight_matching::Matching, core::utils::errors::GraphError,
+    db::api::state::NodeState,
+};
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
@@ -562,11 +565,8 @@ pub fn balance(
     name: String,
     direction: Direction,
     threads: Option<usize>,
-) -> PyResult<AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>>> {
-    match balance_rs(&g.graph, name.clone(), direction, threads) {
-        Ok(result) => Ok(result),
-        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
-    }
+) -> Result<AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>>, GraphError> {
+    balance_rs(&g.graph, name.clone(), direction, threads)
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized

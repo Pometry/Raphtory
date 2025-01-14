@@ -315,7 +315,7 @@ mod tests {
             .expect("Unable to add node to graph");
         assert_eq!(g.count_nodes(), 3);
         assert_eq!(g.count_edges(), 0);
-        let mut names = g.nodes().name().values().collect::<Vec<_>>();
+        let mut names = g.nodes().name().iter_values().collect::<Vec<_>>();
         names.sort();
         assert_eq!(names, vec!["test", "testbz", "testgz"]);
     }

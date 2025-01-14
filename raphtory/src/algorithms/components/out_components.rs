@@ -16,6 +16,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use indexmap::IndexSet;
 use itertools::Itertools;
 use raphtory_api::core::entities::GID;
 use rayon::prelude::*;
@@ -133,12 +134,13 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    let (nodes, distances): (Vec<_>, Vec<_>) = out_components.into_iter().sorted().unzip();
+    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
+        out_components.into_iter().sorted().unzip();
     NodeState::new(
         node.graph.clone(),
         node.graph.clone(),
-        distances,
-        Some(Index::new(nodes, node.graph.unfiltered_num_nodes())),
+        distances.into(),
+        Some(Index::new(nodes)),
     )
 }
 
@@ -164,6 +166,7 @@ mod components_test {
         let edges = vec![
             (1, 1, 2),
             (1, 1, 3),
+            (1, 2, 3),
             (1, 2, 4),
             (1, 2, 5),
             (1, 5, 4),
@@ -181,7 +184,11 @@ mod components_test {
             1,
             vec![(2, 1), (3, 1), (4, 2), (5, 2), (6, 3), (7, 3), (8, 3)],
         );
-        check_node(&graph, 2, vec![(4, 1), (5, 1), (6, 2), (7, 2), (8, 2)]);
+        check_node(
+            &graph,
+            2,
+            vec![(3, 1), (4, 1), (5, 1), (6, 2), (7, 2), (8, 2)],
+        );
         check_node(&graph, 3, vec![]);
         check_node(&graph, 4, vec![(6, 1), (7, 1)]);
         check_node(&graph, 5, vec![(4, 1), (6, 2), (7, 2), (8, 1)]);

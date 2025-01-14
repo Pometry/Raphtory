@@ -401,7 +401,7 @@ impl PyGraphView {
     /// creates bitsets per layer for nodes and edges
     ///
     /// Returns:
-    ///   MaskedGraph: Returns the masked graph
+    ///   GraphView: Returns the masked graph
     fn cache_view(&self) -> CachedView<DynamicGraph> {
         self.graph.cache_view()
     }

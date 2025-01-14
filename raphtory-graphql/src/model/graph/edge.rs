@@ -1,6 +1,5 @@
 use crate::model::graph::{edges::GqlEdges, node::Node, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::{
     core::utils::errors::GraphError,
     db::{

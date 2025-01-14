@@ -13,6 +13,7 @@ from types import (
     GetSetDescriptorType,
     MethodDescriptorType,
     ModuleType,
+    ClassMethodDescriptorType,
 )
 from typing import *
 
@@ -163,17 +164,9 @@ def clean_parameter(
 
 def clean_signature(
     sig: inspect.Signature,
-    is_method: bool,
     type_annotations: dict[str, dict[str, Any]],
     return_type: Optional[str] = None,
-) -> Tuple[str, Optional[str]]:
-    decorator = None
-    if is_method:
-        decorator = "@staticmethod"
-        if "cls" in sig.parameters:
-            decorator = "@classmethod"
-        if "self" in sig.parameters:
-            decorator = None
+) -> str:
 
     new_params = [clean_parameter(p, type_annotations) for p in sig.parameters.values()]
     for param_name, annotations in type_annotations.items():
@@ -183,7 +176,7 @@ def clean_signature(
     sig = sig.replace(parameters=new_params)
     if return_type is not None:
         sig = sig.replace(return_annotation=return_type)
-    return format_signature(sig), decorator
+    return format_signature(sig)
 
 
 def insert_self(signature: inspect.Signature) -> inspect.Signature:
@@ -264,7 +257,10 @@ def extract_types(
                 param.arg_name: extract_param_annotation(param)
                 for param in parse_result.params
             }
-            if parse_result.returns is not None:
+            if (
+                parse_result.returns is not None
+                and parse_result.returns.type_name is not None
+            ):
                 return_type = parse_result.returns.type_name
                 try:
                     validate_annotation(return_type)
@@ -283,6 +279,21 @@ def extract_types(
         return dict(), None
 
 
+def get_decorator(method):
+    if (inspect.ismethod(method) and inspect.isclass(method.__self__)) or isinstance(
+        method, ClassMethodDescriptorType
+    ):
+        return "@classmethod"
+
+    if inspect.isgetsetdescriptor(method):
+        return "@property"
+
+    if inspect.isfunction(method) or isinstance(method, BuiltinFunctionType):
+        return "@staticmethod"
+
+    return None
+
+
 def gen_fn(
     function: Union[BuiltinFunctionType, BuiltinMethodType, MethodDescriptorType],
     name: str,
@@ -297,12 +308,15 @@ def gen_fn(
         function, docs_overwrite, signature.return_annotation is signature.empty
     )
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
-    signature, decorator = clean_signature(
+    signature = clean_signature(
         signature,  # type: ignore
-        is_method,
         type_annotations,
         return_type,
     )
+    decorator = None
+    if is_method:
+        decorator = get_decorator(function)
+
     if name == "__new__":
         # new is special and not a class method
         decorator = None
@@ -310,13 +324,6 @@ def gen_fn(
     fn_str = f"{init_tab}def {name}{signature}:\n{docstr}"
 
     return f"{init_tab}{decorator}\n{fn_str}" if decorator else fn_str
-
-
-def gen_property(prop: GetSetDescriptorType, name: str) -> str:
-    prop_tab = TAB * 2
-    docstr = format_docstring(prop.__doc__, tab=prop_tab, ellipsis=True)
-
-    return f"{TAB}@property\n{TAB}def {name}(self):\n{docstr}"
 
 
 def gen_bases(cls: type) -> str:
@@ -329,7 +336,7 @@ def gen_bases(cls: type) -> str:
 
 def gen_class(cls: type, name) -> str:
     contents = list(vars(cls).items())
-    # contents.sort(key=lambda x: x[0])
+    contents.sort(key=lambda x: x[0])
     entities: list[str] = []
     global cls_logger
     global fn_logger
@@ -364,7 +371,14 @@ def gen_class(cls: type, name) -> str:
             if isinstance(entity, MethodTypes) or inspect.ismethoddescriptor(entity):
                 entities.append(gen_fn(entity, obj_name, is_method=True))
             elif isinstance(entity, GetSetDescriptorType):
-                entities.append(gen_property(entity, obj_name))
+                entities.append(
+                    gen_fn(
+                        entity,
+                        obj_name,
+                        is_method=True,
+                        signature_overwrite=insert_self(inspect.Signature()),
+                    )
+                )
             else:
                 logger.debug(f"ignoring {repr(obj_name)}: {repr(entity)}")
 
