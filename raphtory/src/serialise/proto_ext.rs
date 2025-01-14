@@ -3,9 +3,7 @@ use super::proto::{
     prop_type::{Array as ArrayType, Scalar as ScalarType},
 };
 use crate::{
-    core::{
-        prop_array::PropArray, utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType,
-    },
+    core::{prop_array::PropArray, utils::errors::GraphError, Prop, PropType},
     serialise::proto::{
         self,
         graph_update::{
@@ -29,7 +27,7 @@ use raphtory_api::core::{
         timeindex::{AsTime, TimeIndexEntry},
     },
 };
-use std::{borrow::Borrow, sync::Arc};
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
     let val = match p_type {
@@ -43,11 +41,10 @@ fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
         PropType::F32 => SPropType::F32,
         PropType::F64 => SPropType::F64,
         PropType::Bool => SPropType::Bool,
-        PropType::List => SPropType::List,
-        PropType::Map => SPropType::Map,
         PropType::NDTime => SPropType::NdTime,
         PropType::DTime => SPropType::DTime,
-        PropType::Document => SPropType::Document,
+        PropType::Map(_) => SPropType::Map,
+        PropType::List(_) => SPropType::List,
         _ => {
             return None;
         }
@@ -96,11 +93,11 @@ pub fn as_prop_type(p_type: SPropType) -> Option<PropType> {
         SPropType::F32 => Some(PropType::F32),
         SPropType::F64 => Some(PropType::F64),
         SPropType::Bool => Some(PropType::Bool),
-        SPropType::List => Some(PropType::List),
-        SPropType::Map => Some(PropType::Map),
+        SPropType::List => Some(PropType::List(Box::new(PropType::Empty))),
+        SPropType::Map => Some(PropType::Map(HashMap::new())),
         SPropType::NdTime => Some(PropType::NDTime),
         SPropType::DTime => Some(PropType::DTime),
-        SPropType::Document => Some(PropType::Document),
+        SPropType::Document => None,
         SPropType::Graph => None,
         SPropType::PersistentGraph => None,
     }
@@ -666,23 +663,6 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
         prop::Value::DTime(dt) => Some(Prop::DTime(
             DateTime::parse_from_rfc3339(dt).unwrap().into(),
         )),
-        prop::Value::DocumentInput(doc) => Some(Prop::Document(DocumentInput {
-            content: doc.content.clone(),
-            life: doc
-                .life
-                .as_ref()
-                .map(|l| match l.l_type {
-                    Some(prop::lifespan::LType::Interval(prop::lifespan::Interval {
-                        start,
-                        end,
-                    })) => Lifespan::Interval { start, end },
-                    Some(prop::lifespan::LType::Event(prop::lifespan::Event { time })) => {
-                        Lifespan::Event { time }
-                    }
-                    None => Lifespan::Inherited,
-                })
-                .unwrap_or(Lifespan::Inherited),
-        })),
         prop::Value::Array(blob) => Some(Prop::Array(PropArray::from_vec_u8(&blob.data)?)),
         _ => None,
     };
@@ -755,24 +735,6 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::Array(blob) => prop::Value::Array(Array {
             data: blob.to_vec_u8(),
         }),
-        Prop::Document(doc) => {
-            let life = match doc.life {
-                Lifespan::Interval { start, end } => {
-                    Some(prop::lifespan::LType::Interval(prop::lifespan::Interval {
-                        start,
-                        end,
-                    }))
-                }
-                Lifespan::Event { time } => {
-                    Some(prop::lifespan::LType::Event(prop::lifespan::Event { time }))
-                }
-                Lifespan::Inherited => None,
-            };
-            prop::Value::DocumentInput(prop::DocumentInput {
-                content: doc.content.clone(),
-                life: Some(prop::Lifespan { l_type: life }),
-            })
-        }
     };
 
     proto::Prop { value: Some(value) }

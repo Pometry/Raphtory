@@ -3,7 +3,7 @@ use crate::{
         entities::properties::tcell::TCell,
         storage::{timeindex::TimeIndexEntry, TPropColumn},
         utils::errors::GraphError,
-        DocumentInput, Prop, PropArray,
+        Prop, PropArray,
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
@@ -29,7 +29,6 @@ pub enum TProp {
     DTime(TCell<DateTime<Utc>>),
     Array(TCell<PropArray>),
     NDTime(TCell<NaiveDateTime>),
-    Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
 }
@@ -101,7 +100,6 @@ impl TProp {
             Prop::DTime(value) => TProp::DTime(TCell::new(t, value)),
             Prop::NDTime(value) => TProp::NDTime(TCell::new(t, value)),
             Prop::Array(value) => TProp::Array(TCell::new(t, value)),
-            Prop::Document(value) => TProp::Document(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
             Prop::Map(value) => TProp::Map(TCell::new(t, value)),
         }
@@ -153,9 +151,6 @@ impl TProp {
                 (TProp::Array(cell), Prop::Array(a)) => {
                     cell.set(t, a);
                 }
-                (TProp::Document(cell), Prop::Document(a)) => {
-                    cell.set(t, a);
-                }
                 (TProp::List(cell), Prop::List(a)) => {
                     cell.set(t, a);
                 }
@@ -190,10 +185,6 @@ impl TProp {
             TProp::Array(cell) => Box::new(
                 cell.iter()
                     .map(|(t, value)| (*t, Prop::Array(value.clone()))),
-            ),
-            TProp::Document(cell) => Box::new(
-                cell.iter()
-                    .map(|(t, value)| (*t, Prop::Document(value.clone()))),
             ),
             TProp::List(cell) => Box::new(
                 cell.iter()
@@ -230,10 +221,6 @@ impl TProp {
             TProp::Array(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (t, Prop::Array(value.clone()))),
-            ),
-            TProp::Document(cell) => Box::new(
-                cell.iter_t()
-                    .map(|(t, value)| (t, Prop::Document(value.clone()))),
             ),
             TProp::List(cell) => Box::new(
                 cell.iter_t()
@@ -303,10 +290,6 @@ impl TProp {
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::Array(value.clone()))),
             ),
-            TProp::Document(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Document(value.clone()))),
-            ),
             TProp::List(cell) => Box::new(
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::List(value.clone()))),
@@ -338,9 +321,6 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Array(cell) => cell
                 .last_before(t)
                 .map(|(t, v)| (t, Prop::Array(v.clone()))),
-            TProp::Document(cell) => cell
-                .last_before(t)
-                .map(|(t, v)| (t, Prop::Document(v.clone()))),
             TProp::List(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::List(v.clone()))),
             TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Map(v.clone()))),
         }
@@ -373,7 +353,6 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
             TProp::NDTime(cell) => cell.at(ti).map(|v| Prop::NDTime(*v)),
             TProp::Array(cell) => cell.at(ti).map(|v| Prop::Array(v.clone())),
-            TProp::Document(cell) => cell.at(ti).map(|v| Prop::Document(v.clone())),
             TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
             TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
         }

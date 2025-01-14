@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     core::{
         utils::errors::{GraphError, LoadError},
@@ -9,12 +11,13 @@ use crate::{
 use chrono::{DateTime, Utc};
 use polars_arrow::{
     array::{
-        Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, StaticArray, Utf8Array,
+        Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, StaticArray,
+        StructArray, Utf8Array, Utf8ViewArray,
     },
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
 };
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::prelude::*;
 
 pub struct PropCols {
@@ -43,7 +46,7 @@ impl PropCols {
 }
 
 pub(crate) fn combine_properties(
-    props: &[&str],
+    props: &[impl AsRef<str>],
     indices: &[usize],
     df: &DFChunk,
     prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
@@ -59,7 +62,7 @@ pub(crate) fn combine_properties(
     let prop_ids = props
         .iter()
         .zip(dtypes.into_iter())
-        .map(|(name, dtype)| Ok(prop_id_resolver(name, dtype)?.inner()))
+        .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
         .collect::<Result<Vec<_>, GraphError>>()?;
 
     Ok(PropCols {
@@ -115,6 +118,10 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
             let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
             arr.iter().flatten().into_prop_list()
         }
+        DataType::Utf8View => {
+            let arr = arr.as_any().downcast_ref::<Utf8ViewArray>().unwrap();
+            arr.iter().flatten().into_prop_list()
+        }
         DataType::List(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
             arr.iter()
@@ -136,7 +143,58 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
                 .map(|elem| arr_as_prop(elem))
                 .into_prop_list()
         }
-        _ => panic!("Data type not recognized"),
+        DataType::Timestamp(TimeUnit::Millisecond, Some(_)) => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .expect(&format!(
+                    "Expected TimestampMillisecondArray, got {:?}",
+                    arr
+                ));
+            arr.iter()
+                .flatten()
+                .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(*elem).unwrap()))
+                .into_prop_list()
+        }
+        DataType::Timestamp(TimeUnit::Millisecond, None) => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .expect(&format!(
+                    "Expected TimestampMillisecondArray, got {:?}",
+                    arr
+                ));
+            arr.iter()
+                .flatten()
+                .map(|elem| {
+                    Prop::NDTime(DateTime::from_timestamp_millis(*elem).unwrap().naive_utc())
+                })
+                .into_prop_list()
+        }
+        DataType::Struct(_) => {
+            let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
+            let cols = arr
+                .values()
+                .into_iter()
+                .map(|arr| lift_property_col(arr.as_ref()))
+                .collect::<Vec<_>>();
+
+            let mut props = Vec::with_capacity(arr.len());
+            for i in 0..arr.len() {
+                let fields = cols
+                    .iter()
+                    .zip(arr.fields())
+                    .filter_map(|(col, field)| {
+                        col.get(i)
+                            .map(|prop| (ArcStr::from(field.name.as_str()), prop))
+                    })
+                    .collect::<HashMap<_, _>>();
+                props.push(Prop::Map(fields.into()));
+            }
+
+            props.into_prop_list()
+        }
+        dt => panic!("Data type not recognized {dt:?}"),
     }
 }
 
@@ -153,39 +211,27 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
         DataType::Float64 => Ok(PropType::F64),
         DataType::Utf8 => Ok(PropType::Str),
         DataType::LargeUtf8 => Ok(PropType::Str),
-        DataType::List(v) => is_data_type_supported(v.data_type()).map(|_| PropType::List),
-        DataType::FixedSizeList(v, _) => {
-            is_data_type_supported(v.data_type()).map(|_| PropType::List)
-        }
-        DataType::LargeList(v) => is_data_type_supported(v.data_type()).map(|_| PropType::List),
+        DataType::Utf8View => Ok(PropType::Str),
+        DataType::Struct(fields) => Ok(PropType::map(fields.iter().filter_map(|f| {
+            data_type_as_prop_type(f.data_type())
+                .ok()
+                .map(move |pt| (&f.name, pt))
+        }))),
+        DataType::List(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
+            v.data_type(),
+        )?))),
+        DataType::FixedSizeList(v, _) => Ok(PropType::List(Box::new(data_type_as_prop_type(
+            v.data_type(),
+        )?))),
+        DataType::LargeList(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
+            v.data_type(),
+        )?))),
         DataType::Timestamp(_, v) => match v {
             None => Ok(PropType::NDTime),
             Some(_) => Ok(PropType::DTime),
         },
         _ => Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
-}
-
-fn is_data_type_supported(dt: &DataType) -> Result<(), GraphError> {
-    match dt {
-        DataType::Boolean => {}
-        DataType::Int32 => {}
-        DataType::Int64 => {}
-        DataType::UInt8 => {}
-        DataType::UInt16 => {}
-        DataType::UInt32 => {}
-        DataType::UInt64 => {}
-        DataType::Float32 => {}
-        DataType::Float64 => {}
-        DataType::Utf8 => {}
-        DataType::LargeUtf8 => {}
-        DataType::List(v) => is_data_type_supported(v.data_type())?,
-        DataType::FixedSizeList(v, _) => is_data_type_supported(v.data_type())?,
-        DataType::LargeList(v) => is_data_type_supported(v.data_type())?,
-        DataType::Timestamp(_, _) => {}
-        _ => return Err(LoadError::InvalidPropertyType(dt.clone()).into()),
-    }
-    Ok(())
 }
 
 trait PropCol: Send + Sync {
@@ -208,6 +254,23 @@ struct Wrap<A>(A);
 impl PropCol for Wrap<Utf8Array<i32>> {
     fn get(&self, i: usize) -> Option<Prop> {
         self.0.get(i).map(Prop::str)
+    }
+}
+
+impl PropCol for Wrap<StructArray> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        let fields = self
+            .0
+            .values()
+            .iter()
+            .zip(self.0.fields())
+            .filter_map(|(arr, field)| {
+                let prop = lift_property_col(arr.as_ref()).get(i)?;
+                Some((ArcStr::from(field.name.as_str()), prop))
+            })
+            .collect::<HashMap<_, _>>();
+
+        (!fields.is_empty()).then(|| Prop::Map(fields.into()))
     }
 }
 
@@ -302,6 +365,14 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
         DataType::LargeList(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
             Box::new(Wrap(arr.clone()))
+        }
+        DataType::Struct(_) => {
+            let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
+            Box::new(Wrap(arr.clone()))
+        }
+        DataType::Utf8View => {
+            let arr = arr.as_any().downcast_ref::<Utf8ViewArray>().unwrap();
+            Box::new(arr.clone())
         }
         DataType::Timestamp(timeunit, timezone) => {
             let arr = arr

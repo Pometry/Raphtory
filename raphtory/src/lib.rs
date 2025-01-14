@@ -143,8 +143,10 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 #[cfg(test)]
 mod test_utils {
     use crate::prelude::*;
+    use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
-    use proptest::{arbitrary::any, prelude::Strategy};
+    use proptest::{arbitrary::any, prelude::*};
+    use raphtory_api::core::PropType;
     use std::collections::HashMap;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -187,6 +189,324 @@ mod test_utils {
         )
     }
 
+    pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> {
+        match p_type {
+            PropType::Str => any::<String>().prop_map(|s| Prop::str(s)).boxed(),
+            PropType::I64 => any::<i64>().prop_map(|i| Prop::I64(i)).boxed(),
+            PropType::F64 => any::<f64>().prop_map(Prop::F64).boxed(),
+            PropType::U8 => any::<u8>().prop_map(Prop::U8).boxed(),
+            PropType::Bool => any::<bool>().prop_map(Prop::Bool).boxed(),
+            PropType::DTime => (1970..2024, 1..=12, 1..28, 0..24, 0..60, 0..60)
+                .prop_map(|(year, month, day, h, m, s)| {
+                    Prop::DTime(
+                        format!(
+                            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+                            year, month, day, h, m, s
+                        )
+                        .parse::<DateTime<Utc>>()
+                        .unwrap(),
+                    )
+                })
+                .boxed(),
+            PropType::NDTime => (1970..2024, 1..=12, 1..28, 0..24, 0..60, 0..60)
+                .prop_map(|(year, month, day, h, m, s)| {
+                    // 2015-09-18T23:56:04
+                    Prop::NDTime(
+                        format!(
+                            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+                            year, month, day, h, m, s
+                        )
+                        .parse::<NaiveDateTime>()
+                        .unwrap(),
+                    )
+                })
+                .boxed(),
+            PropType::List(p_type) => proptest::collection::vec(prop(p_type), 0..10)
+                .prop_map(|props| Prop::List(props.into()))
+                .boxed(),
+            PropType::Map(p_types) => {
+                let prop_types: Vec<BoxedStrategy<(String, Prop)>> = p_types
+                    .clone()
+                    .into_iter()
+                    .map(|(name, p_type)| {
+                        let pt_strat = prop(&p_type)
+                            .prop_map(move |prop| (name.clone(), prop.clone()))
+                            .boxed();
+                        pt_strat
+                    })
+                    .collect_vec();
+
+                let props = proptest::sample::select(prop_types).prop_flat_map(|prop| prop);
+
+                proptest::collection::vec(props, 1..10)
+                    .prop_map(|props| Prop::map(props))
+                    .boxed()
+            }
+            _ => todo!(),
+        }
+    }
+
+    pub(crate) fn prop_type() -> impl Strategy<Value = PropType> {
+        let leaf = proptest::sample::select(&[
+            PropType::Str,
+            PropType::I64,
+            PropType::F64,
+            PropType::U8,
+            PropType::Bool,
+            PropType::DTime,
+            PropType::NDTime,
+        ]);
+
+        leaf.prop_recursive(3, 10, 10, |inner| {
+            let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
+                .prop_map(|map| PropType::map(map));
+            let list = inner
+                .clone()
+                .prop_map(|p_type| PropType::List(Box::new(p_type)));
+            proptest::prop_oneof![dict, list]
+        })
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct GraphFixture {
+        pub nodes: NodeFixture,
+        pub no_props_edges: Vec<(u64, u64, i64)>,
+        pub edges: Vec<(u64, u64, i64, Vec<(String, Prop)>)>,
+        pub edge_const_props: HashMap<(u64, u64), Vec<(String, Prop)>>,
+    }
+
+    #[derive(Debug, Default, Clone)]
+    pub struct NodeFixture {
+        pub nodes: Vec<(u64, i64, Vec<(String, Prop)>)>,
+        pub node_const_props: HashMap<u64, Vec<(String, Prop)>>,
+    }
+
+    impl<V, T, I: IntoIterator<Item = (V, T, Vec<(String, Prop)>)>> From<I> for NodeFixture
+    where
+        u64: TryFrom<V>,
+        i64: TryFrom<T>,
+    {
+        fn from(value: I) -> Self {
+            Self {
+                nodes: value
+                    .into_iter()
+                    .filter_map(|(node, time, props)| {
+                        Some((node.try_into().ok()?, time.try_into().ok()?, props))
+                    })
+                    .collect(),
+                node_const_props: HashMap::new(),
+            }
+        }
+    }
+
+    impl From<NodeFixture> for GraphFixture {
+        fn from(node_fix: NodeFixture) -> Self {
+            Self {
+                nodes: node_fix,
+                edges: vec![],
+                no_props_edges: vec![],
+                edge_const_props: HashMap::new(),
+            }
+        }
+    }
+
+    impl<V, T, I: IntoIterator<Item = (V, V, T, Vec<(String, Prop)>)>> From<I> for GraphFixture
+    where
+        u64: TryFrom<V>,
+        i64: TryFrom<T>,
+    {
+        fn from(edges: I) -> Self {
+            Self {
+                edges: edges
+                    .into_iter()
+                    .filter_map(|(src, dst, t, props)| {
+                        Some((
+                            src.try_into().ok()?,
+                            dst.try_into().ok()?,
+                            t.try_into().ok()?,
+                            props,
+                        ))
+                    })
+                    .collect(),
+                no_props_edges: vec![],
+                edge_const_props: HashMap::new(),
+                nodes: Default::default(),
+            }
+        }
+    }
+
+    fn make_props(
+        schema: HashMap<String, PropType>,
+    ) -> (BoxedStrategy<(String, Prop)>, BoxedStrategy<(String, Prop)>) {
+        let schema_vec = schema.into_iter().collect_vec();
+        // split in half, one temporal one constant
+        let t_prop_s = schema_vec
+            .iter()
+            .take(schema_vec.len() / 2)
+            .cloned()
+            .collect::<HashMap<_, _>>();
+        let c_prop_s = schema_vec
+            .iter()
+            .skip(schema_vec.len() / 2)
+            .cloned()
+            .collect::<HashMap<_, _>>();
+
+        let make_props = |props: &HashMap<String, PropType>| {
+            props
+                .clone()
+                .into_iter()
+                .map(|(name, p_type)| {
+                    prop(&p_type)
+                        .prop_map(move |prop| (name.clone(), prop))
+                        .boxed()
+                })
+                .collect_vec()
+        };
+
+        let t_props = make_props(&t_prop_s);
+        let t_props = proptest::sample::select(t_props).prop_flat_map(|prop| prop);
+
+        let c_props = make_props(&c_prop_s);
+        let c_props = proptest::sample::select(c_props).prop_flat_map(|prop| prop);
+        (t_props.boxed(), c_props.boxed())
+    }
+    pub(crate) fn build_nodes_dyn(
+        nodes: Vec<u64>,
+        len: usize,
+    ) -> impl Strategy<Value = NodeFixture> {
+        proptest::collection::hash_map(r"\w{1,10}", prop_type(), 2..10).prop_flat_map(
+            move |schema| {
+                let (t_props, c_props) = make_props(schema);
+
+                proptest::collection::vec(
+                    (
+                        proptest::sample::select(nodes.clone()),
+                        i64::MIN..i64::MAX,
+                        proptest::collection::vec(t_props, 1..7),
+                        proptest::collection::vec(c_props, 1..3),
+                    ),
+                    0..=len,
+                )
+                .prop_map(|edges| {
+                    let const_props = edges
+                        .iter()
+                        .into_group_map_by(|(src, _, _, _)| src)
+                        .iter()
+                        .map(|(&src, &ref b)| {
+                            let c_props = b
+                                .iter()
+                                .flat_map(|(_, _, _, c)| c.clone())
+                                .collect::<Vec<_>>();
+                            (*src, c_props)
+                        })
+                        .collect::<HashMap<_, _>>();
+
+                    let nodes = edges
+                        .into_iter()
+                        .map(|(node, time, t_props, _)| (node, time, t_props))
+                        .collect::<Vec<_>>();
+
+                    NodeFixture {
+                        nodes,
+                        node_const_props: const_props,
+                    }
+                })
+            },
+        )
+    }
+
+    pub(crate) fn build_edge_list_dyn(
+        len: usize,
+        num_nodes: usize,
+    ) -> impl Strategy<Value = GraphFixture> {
+        let num_nodes = num_nodes as u64;
+        let edges = proptest::collection::hash_map(r"\w{1,10}", prop_type(), 2..10).prop_flat_map(
+            move |schema| {
+                let (t_props, c_props) = make_props(schema);
+
+                proptest::collection::vec(
+                    (
+                        0..num_nodes,
+                        0..num_nodes,
+                        i64::MIN..i64::MAX,
+                        proptest::collection::vec(t_props, 1..7),
+                        proptest::collection::vec(c_props, 1..3),
+                    ),
+                    0..=len,
+                )
+                .prop_flat_map(move |edges| {
+                    proptest::collection::vec(
+                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                        0..=len,
+                    )
+                    .prop_map(move |no_prop_edges| {
+                        let edges = edges.clone();
+                        let const_props = edges
+                            .iter()
+                            .into_group_map_by(|(src, dst, _, _, _)| (src, dst))
+                            .iter()
+                            .map(|(&a, &ref b)| {
+                                let (src, dst) = a;
+                                let c_props = b
+                                    .iter()
+                                    .flat_map(|(_, _, _, _, c)| c.clone())
+                                    .collect::<Vec<_>>();
+                                ((*src, *dst), c_props)
+                            })
+                            .collect::<HashMap<_, _>>();
+
+                        let edges = edges
+                            .into_iter()
+                            .map(|(src, dst, time, t_props, _)| (src, dst, time, t_props))
+                            .collect::<Vec<_>>();
+
+                        GraphFixture {
+                            edges,
+                            edge_const_props: const_props,
+                            no_props_edges: no_prop_edges,
+                            nodes: Default::default(),
+                        }
+                    })
+                })
+            },
+        );
+        edges
+    }
+
+    pub(crate) fn build_graph_strat(
+        len: usize,
+        num_nodes: usize,
+    ) -> impl Strategy<Value = GraphFixture> {
+        build_edge_list_dyn(len, num_nodes).prop_flat_map(|g_fixture| {
+            let mut nodes = g_fixture
+                .edges
+                .iter()
+                .flat_map(|(src, dst, _, _)| [*src, *dst])
+                .collect_vec();
+            nodes.sort_unstable();
+            nodes.dedup();
+
+            if nodes.is_empty() {
+                Just(g_fixture).boxed()
+            } else {
+                let GraphFixture {
+                    edges,
+                    edge_const_props,
+                    no_props_edges,
+                    ..
+                } = g_fixture;
+                build_nodes_dyn(nodes, 10)
+                    .prop_map(move |nodes_f| GraphFixture {
+                        nodes: nodes_f,
+                        edges: edges.clone(),
+                        no_props_edges: no_props_edges.clone(),
+                        edge_const_props: edge_const_props.clone(),
+                    })
+                    .boxed()
+            }
+        })
+    }
+
     pub(crate) fn build_node_props(
         max_num_nodes: u64,
     ) -> impl Strategy<Value = Vec<(u64, Option<String>, Option<i64>)>> {
@@ -223,6 +543,43 @@ mod test_utils {
                 None,
             )
             .unwrap();
+        }
+        g
+    }
+
+    pub(crate) fn build_graph<'a>(graph_fix: impl Into<GraphFixture>) -> Graph {
+        let g = Graph::new();
+        let graph_fix = graph_fix.into();
+        for (src, dst, time) in &graph_fix.no_props_edges {
+            g.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
+        }
+        for (src, dst, time, props) in &graph_fix.edges {
+            g.add_edge(*time, src, dst, props.clone(), None).unwrap();
+        }
+        for (edge, props) in graph_fix.edge_const_props {
+            if let Some(edge) = g.edge(edge.0, edge.1) {
+                edge.update_constant_properties(props, None).unwrap();
+            } else {
+                g.add_edge(0, edge.0, edge.1, NO_PROPS, None)
+                    .unwrap()
+                    .update_constant_properties(props, None)
+                    .unwrap();
+            }
+        }
+        for (node, t, t_props) in &graph_fix.nodes.nodes {
+            if let Some(n) = g.node(*node) {
+                n.add_updates(*t, t_props.clone()).unwrap();
+            } else {
+                g.add_node(0, *node, t_props.clone(), None).unwrap();
+            }
+        }
+        for (node, c_props) in &graph_fix.nodes.node_const_props {
+            if let Some(n) = g.node(*node) {
+                n.update_constant_properties(c_props.clone()).unwrap();
+            } else {
+                let node = g.add_node(0, *node, NO_PROPS, None).unwrap();
+                node.update_constant_properties(c_props.clone()).unwrap();
+            }
         }
         g
     }

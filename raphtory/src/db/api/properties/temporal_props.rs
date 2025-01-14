@@ -1,5 +1,5 @@
 use crate::{
-    core::{DocumentInput, Prop, PropType, PropUnwrap},
+    core::{Prop, PropType, PropUnwrap},
     db::api::{properties::internal::PropertiesOps, view::BoxedLIter},
 };
 use arrow_array::ArrayRef;
@@ -239,10 +239,6 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()
-    }
-
-    fn into_document(self) -> Option<DocumentInput> {
-        self.latest().into_document()
     }
 
     fn as_f64(&self) -> Option<f64> {
