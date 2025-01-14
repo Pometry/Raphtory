@@ -127,7 +127,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{prelude::*, test_storage};
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
 
     #[test]
     fn test() {
@@ -140,15 +140,15 @@ mod tests {
             let groups_from_lazy = g.nodes().out_degree().groups();
             let groups_from_eager = g.nodes().out_degree().compute().groups();
 
-            let expected = HashMap::from([
-                (0, vec![GID::U64(3), GID::U64(5)]),
-                (1, vec![GID::U64(1), GID::U64(2), GID::U64(4)]),
+            let expected: HashMap<usize, Arc<[GID]>> = HashMap::from([
+                (0, Arc::from_iter([GID::U64(3), GID::U64(5)])),
+                (1, Arc::from_iter([GID::U64(1), GID::U64(2), GID::U64(4)])),
             ]);
 
             assert_eq!(
                 groups_from_lazy
                     .iter()
-                    .map(|(v, nodes)| (*v, nodes.id().collect_vec()))
+                    .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
                     .collect::<HashMap<_, _>>(),
                 expected
             );
@@ -157,7 +157,7 @@ mod tests {
                 groups_from_lazy
                     .clone()
                     .into_iter_groups()
-                    .map(|(v, nodes)| (v, nodes.id().collect_vec()))
+                    .map(|(v, nodes)| (v, nodes.id().sort_by_values(false).values().clone()))
                     .collect::<HashMap<_, _>>(),
                 expected
             );
@@ -165,7 +165,10 @@ mod tests {
             assert_eq!(
                 groups_from_lazy
                     .iter_subgraphs()
-                    .map(|(v, graph)| (*v, graph.nodes().id().collect_vec()))
+                    .map(|(v, graph)| (
+                        *v,
+                        graph.nodes().id().sort_by_values(false).values().clone()
+                    ))
                     .collect::<HashMap<_, _>>(),
                 expected
             );
@@ -174,7 +177,10 @@ mod tests {
                 groups_from_lazy
                     .clone()
                     .into_iter_subgraphs()
-                    .map(|(v, graph)| (v, graph.nodes().id().collect_vec()))
+                    .map(|(v, graph)| (
+                        v,
+                        graph.nodes().id().sort_by_values(false).values().clone()
+                    ))
                     .collect::<HashMap<_, _>>(),
                 expected
             );
@@ -182,7 +188,7 @@ mod tests {
             assert_eq!(
                 groups_from_eager
                     .iter()
-                    .map(|(v, nodes)| (*v, nodes.id().collect_vec()))
+                    .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
                     .collect::<HashMap<_, _>>(),
                 expected
             );

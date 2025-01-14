@@ -40,12 +40,12 @@ def test_group_by():
         1: [1, 2, 4],
     }
 
-    assert {v: nodes.id for v, nodes in groups_from_lazy} == expected
+    assert {v: nodes.id.sorted() for v, nodes in groups_from_lazy} == expected
 
-    assert {v: nodes.id for v, nodes in groups_from_eager} == expected
+    assert {v: nodes.id.sorted() for v, nodes in groups_from_eager} == expected
 
     assert {
-        v: graph.nodes.id for v, graph in groups_from_lazy.iter_subgraphs()
+        v: graph.nodes.id.sorted() for v, graph in groups_from_lazy.iter_subgraphs()
     } == expected
 
     assert len(groups_from_lazy) == len(expected)
