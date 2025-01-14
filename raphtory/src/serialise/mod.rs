@@ -4,6 +4,7 @@ use zip::{write::FileOptions, ZipArchive, ZipWriter};
 pub(crate) mod incremental;
 mod proto_ext;
 mod serialise;
+mod parquet;
 
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));

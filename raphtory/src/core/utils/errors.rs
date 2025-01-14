@@ -1,4 +1,5 @@
 use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
@@ -90,6 +91,9 @@ pub enum GraphError {
     Arrow(#[from] error::PolarsError),
     #[error("Arrow-rs error: {0}")]
     ArrowRs(#[from] arrow_schema::ArrowError),
+
+    #[error("Arrow-rs parquet error: {0}")]
+    ParquetError(#[from] ParquetError),
     #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]
