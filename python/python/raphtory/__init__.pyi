@@ -7,7 +7,6 @@
 #                                                                             #
 ###############################################################################
 
-
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -20,7 +19,8 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
-class GraphView(object): 
+
+class GraphView(object):
     """Graph view is a read-only version of a graph at a certain point in time."""
 
     def __eq__(self, value):
@@ -540,7 +540,14 @@ class GraphView(object):
            GraphView: Returns the subgraph
         """
 
-    def to_networkx(self, explode_edges: bool = False, include_node_properties: bool = True, include_edge_properties: bool = True, include_update_history: bool = True, include_property_history: bool = True) -> nx.MultiDiGraph:
+    def to_networkx(
+        self,
+        explode_edges: bool = False,
+        include_node_properties: bool = True,
+        include_edge_properties: bool = True,
+        include_update_history: bool = True,
+        include_property_history: bool = True,
+    ) -> nx.MultiDiGraph:
         """
         Returns a graph with NetworkX.
 
@@ -559,7 +566,19 @@ class GraphView(object):
                 nx.MultiDiGraph: A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(self, explode_edges: bool = False, edge_color: str = '#000000', shape: str = 'dot', node_image: Optional[str] = None, edge_weight: Optional[str] = None, edge_label: Optional[str] = None, colour_nodes_by_type: bool = False, directed: bool = True, notebook: bool = False, **kwargs: Any) -> pyvis.Network:
+    def to_pyvis(
+        self,
+        explode_edges: bool = False,
+        edge_color: str = "#000000",
+        shape: str = "dot",
+        node_image: Optional[str] = None,
+        edge_weight: Optional[str] = None,
+        edge_label: Optional[str] = None,
+        colour_nodes_by_type: bool = False,
+        directed: bool = True,
+        notebook: bool = False,
+        **kwargs: Any
+    ) -> pyvis.Network:
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -606,7 +625,17 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def vectorise(self, embedding: Callable[[list], list], cache: Optional[str] = None, overwrite_cache: bool = False, graph: bool | str = True, nodes: bool | str = True, edges: bool | str = True, graph_name: Optional[str] = None, verbose: bool = False) -> VectorisedGraph:
+    def vectorise(
+        self,
+        embedding: Callable[[list], list],
+        cache: Optional[str] = None,
+        overwrite_cache: bool = False,
+        graph: bool | str = True,
+        nodes: bool | str = True,
+        edges: bool | str = True,
+        graph_name: Optional[str] = None,
+        verbose: bool = False,
+    ) -> VectorisedGraph:
         """
         Create a VectorisedGraph from the current graph
 
@@ -645,7 +674,7 @@ class GraphView(object):
             Optional[int]:
         """
 
-class Graph(GraphView): 
+class Graph(GraphView):
     """
     A temporal graph with event semantics.
 
@@ -656,9 +685,7 @@ class Graph(GraphView):
     def __new__(cls, num_shards: Optional[int] = None) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def __reduce__(self):
-        ...
-
+    def __reduce__(self): ...
     def add_constant_properties(self, properties: PropInput) -> None:
         """
         Adds static properties to the graph.
@@ -673,7 +700,15 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_edge(self, timestamp: TimeInput, src: str|int, dst: str|int, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableEdge:
+    def add_edge(
+        self,
+        timestamp: TimeInput,
+        src: str | int,
+        dst: str | int,
+        properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> MutableEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -692,7 +727,14 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
+    def add_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: Optional[PropInput] = None,
+        node_type: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> MutableNode:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -710,7 +752,12 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_properties(self, timestamp: TimeInput, properties: PropInput, secondary_index: Optional[int] = None) -> None:
+    def add_properties(
+        self,
+        timestamp: TimeInput,
+        properties: PropInput,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Adds properties to the graph.
 
@@ -740,7 +787,14 @@ class Graph(GraphView):
             None:
         """
 
-    def create_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
+    def create_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: Optional[PropInput] = None,
+        node_type: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
 
@@ -770,7 +824,7 @@ class Graph(GraphView):
            Graph:
         """
 
-    def edge(self, src: str|int, dst: str|int) -> MutableEdge:
+    def edge(self, src: str | int, dst: str | int) -> MutableEdge:
         """
         Gets the edge with the specified source and destination nodes
 
@@ -850,7 +904,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_edges_as(self, edges: List[Edge], new_ids: List[Tuple[int, int]], merge: bool = False) -> None:
+    def import_edges_as(
+        self, edges: List[Edge], new_ids: List[Tuple[int, int]], merge: bool = False
+    ) -> None:
         """
         Import multiple edges into the graph with new ids.
 
@@ -885,7 +941,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_node_as(self, node: Node, new_id: str|int, merge: bool = False) -> MutableNode:
+    def import_node_as(
+        self, node: Node, new_id: str | int, merge: bool = False
+    ) -> MutableNode:
         """
         Import a single node into the graph with new id.
 
@@ -920,7 +978,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_nodes_as(self, nodes: List[Node], new_ids: List[str|int], merge: bool = False) -> None:
+    def import_nodes_as(
+        self, nodes: List[Node], new_ids: List[str | int], merge: bool = False
+    ) -> None:
         """
         Import multiple nodes into the graph with new ids.
 
@@ -965,7 +1025,16 @@ class Graph(GraphView):
            Graph: the loaded graph with initialised cache
         """
 
-    def load_edge_props_from_pandas(self, df: DataFrame, src: str, dst: str, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_props_from_pandas(
+        self,
+        df: DataFrame,
+        src: str,
+        dst: str,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -985,7 +1054,16 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(self, parquet_path: str, src: str, dst: str, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_props_from_parquet(
+        self,
+        parquet_path: str,
+        src: str,
+        dst: str,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edge properties from parquet file
 
@@ -1005,7 +1083,18 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_pandas(
+        self,
+        df: DataFrame,
+        time: str,
+        src: str,
+        dst: str,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1027,7 +1116,18 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        src: str,
+        dst: str,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -1061,7 +1161,15 @@ class Graph(GraphView):
            Graph:
         """
 
-    def load_node_props_from_pandas(self, df: DataFrame, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_node_props_from_pandas(
+        self,
+        df: DataFrame,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load node properties from a Pandas DataFrame.
 
@@ -1080,7 +1188,15 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(self, parquet_path: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_node_props_from_parquet(
+        self,
+        parquet_path: str,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load node properties from a parquet file.
 
@@ -1099,7 +1215,17 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_nodes_from_pandas(
+        self,
+        df: DataFrame,
+        time: str,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1120,7 +1246,17 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_nodes_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1141,7 +1277,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def node(self, id: str|int) -> MutableNode:
+    def node(self, id: str | int) -> MutableNode:
         """
         Gets the node with the specified id
 
@@ -1233,15 +1369,13 @@ class Graph(GraphView):
             None:
         """
 
-class PersistentGraph(GraphView): 
+class PersistentGraph(GraphView):
     """A temporal graph that allows edges and nodes to be deleted."""
 
     def __new__(cls) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def __reduce__(self):
-        ...
-
+    def __reduce__(self): ...
     def add_constant_properties(self, properties: dict) -> None:
         """
         Adds static properties to the graph.
@@ -1256,7 +1390,15 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_edge(self, timestamp: int, src: str | int, dst: str | int, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def add_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -1275,7 +1417,14 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def add_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: Optional[PropInput] = None,
+        node_type: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -1293,7 +1442,12 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_properties(self, timestamp: TimeInput, properties: dict, secondary_index: Optional[int] = None) -> None:
+    def add_properties(
+        self,
+        timestamp: TimeInput,
+        properties: dict,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Adds properties to the graph.
 
@@ -1323,7 +1477,14 @@ class PersistentGraph(GraphView):
             None:
         """
 
-    def create_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
+    def create_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: Optional[PropInput] = None,
+        node_type: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
 
@@ -1341,7 +1502,14 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableEdge:
+    def delete_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> MutableEdge:
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional)
 
@@ -1454,7 +1622,9 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_edges_as(self, edges: List[Edge], new_ids: list[Tuple[GID, GID]], merge: bool = False) -> None:
+    def import_edges_as(
+        self, edges: List[Edge], new_ids: list[Tuple[GID, GID]], merge: bool = False
+    ) -> None:
         """
         Import multiple edges into the graph with new ids.
 
@@ -1491,7 +1661,9 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_node_as(self, node: Node, new_id: str|int, merge: bool = False) -> Node:
+    def import_node_as(
+        self, node: Node, new_id: str | int, merge: bool = False
+    ) -> Node:
         """
         Import a single node into the graph with new id.
 
@@ -1528,7 +1700,9 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_nodes_as(self, nodes: List[Node], new_ids: List[str|int], merge: bool = False) -> None:
+    def import_nodes_as(
+        self, nodes: List[Node], new_ids: List[str | int], merge: bool = False
+    ) -> None:
         """
         Import multiple nodes into the graph with new ids.
 
@@ -1562,7 +1736,15 @@ class PersistentGraph(GraphView):
            PersistentGraph: the loaded graph with initialised cache
         """
 
-    def load_edge_deletions_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_deletions_from_pandas(
+        self,
+        df: DataFrame,
+        time: str,
+        src: str,
+        dst: str,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edges deletions from a Pandas DataFrame into the graph.
 
@@ -1581,7 +1763,15 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_deletions_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_deletions_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        src: str,
+        dst: str,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edges deletions from a Parquet file into the graph.
 
@@ -1600,7 +1790,16 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_pandas(self, df: DataFrame, src: str, dst: str, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_props_from_pandas(
+        self,
+        df: DataFrame,
+        src: str,
+        dst: str,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -1620,7 +1819,16 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(self, parquet_path: str, src: str, dst: str, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_props_from_parquet(
+        self,
+        parquet_path: str,
+        src: str,
+        dst: str,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edge properties from parquet file
 
@@ -1640,7 +1848,18 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_pandas(
+        self,
+        df: DataFrame,
+        time: str,
+        src: str,
+        dst: str,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1662,7 +1881,18 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        src: str,
+        dst: str,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
+    ) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -1696,7 +1926,15 @@ class PersistentGraph(GraphView):
            PersistentGraph:
         """
 
-    def load_node_props_from_pandas(self, df: DataFrame, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_node_props_from_pandas(
+        self,
+        df: DataFrame,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load node properties from a Pandas DataFrame.
 
@@ -1715,7 +1953,15 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(self, parquet_path: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_node_props_from_parquet(
+        self,
+        parquet_path: str,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load node properties from a parquet file.
 
@@ -1734,7 +1980,17 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_nodes_from_pandas(
+        self,
+        df: DataFrame,
+        time: str,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1755,7 +2011,17 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, constant_properties: Optional[List[str]] = None, shared_constant_properties: Optional[PropInput] = None) -> None:
+    def load_nodes_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        id: str,
+        node_type: Optional[str] = None,
+        node_type_col: Optional[str] = None,
+        properties: Optional[List[str]] = None,
+        constant_properties: Optional[List[str]] = None,
+        shared_constant_properties: Optional[PropInput] = None,
+    ) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1846,21 +2112,17 @@ class PersistentGraph(GraphView):
             None:
         """
 
-class PyGraphEncoder(object): 
-
+class PyGraphEncoder(object):
     def __call__(self, *args, **kwargs):
         """Call self as a function."""
 
-    def __getstate__(self):
-        ...
-
+    def __getstate__(self): ...
     def __new__(cls) -> PyGraphEncoder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def __setstate__(self):
-        ...
+    def __setstate__(self): ...
 
-class Node(object): 
+class Node(object):
     """A node (or node) in the graph."""
 
     def __eq__(self, value):
@@ -2106,7 +2368,7 @@ class Node(object):
         """
 
     @property
-    def id(self) -> (str|int):
+    def id(self) -> str | int:
         """
         Returns the id of the node.
         This is a unique identifier for the node.
@@ -2388,7 +2650,7 @@ class Node(object):
             Optional[int]:
         """
 
-class Nodes(object): 
+class Nodes(object):
     """A list of nodes that can be iterated over."""
 
     def __bool__(self):
@@ -2792,12 +3054,12 @@ class Nodes(object):
         """
 
     @property
-    def properties(self):
+    def properties(self) -> PropertiesView:
         """
         The properties of the node
 
         Returns:
-            PyPropsList: A List of properties
+            PropertiesView: A view of the node properties
         """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
@@ -2889,7 +3151,9 @@ class Nodes(object):
              Optional[datetime]: The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
-    def to_df(self, include_property_history: bool = False, convert_datetime: bool = False):
+    def to_df(
+        self, include_property_history: bool = False, convert_datetime: bool = False
+    ) -> DataFrame:
         """
         Converts the graph's nodes into a Pandas DataFrame.
 
@@ -2899,11 +3163,11 @@ class Nodes(object):
         - "update_history": The update history of the node.
 
         Args:
-            include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.
-            convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+            include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Defaults to False.
+            convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
 
         Returns:
-            Dataframe: the view of the node data as a pandas Dataframe
+            DataFrame: the view of the node data as a pandas Dataframe
         """
 
     def type_filter(self, node_types: list[str]) -> Nodes:
@@ -2950,8 +3214,7 @@ class Nodes(object):
             Optional[int]:
         """
 
-class PathFromNode(object): 
-
+class PathFromNode(object):
     def __bool__(self):
         """True if self else False"""
 
@@ -3012,13 +3275,9 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def degree(self):
-        ...
-
+    def degree(self): ...
     @property
-    def earliest_time(self):
-        ...
-
+    def earliest_time(self): ...
     @property
     def edges(self) -> Edges:
         """
@@ -3152,12 +3411,8 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self):
-        ...
-
-    def in_degree(self):
-        ...
-
+    def id(self): ...
+    def in_degree(self): ...
     @property
     def in_edges(self) -> Edges:
         """
@@ -3187,9 +3442,7 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self):
-        ...
-
+    def latest_time(self): ...
     def layer(self, name: str) -> PathFromNode:
         """
          Return a view of PathFromNode containing the layer `"name"`
@@ -3215,9 +3468,7 @@ class PathFromNode(object):
         """
 
     @property
-    def name(self):
-        ...
-
+    def name(self): ...
     @property
     def neighbours(self) -> PathFromNode:
         """
@@ -3229,12 +3480,8 @@ class PathFromNode(object):
         """
 
     @property
-    def node_type(self):
-        ...
-
-    def out_degree(self):
-        ...
-
+    def node_type(self): ...
+    def out_degree(self): ...
     @property
     def out_edges(self) -> Edges:
         """
@@ -3256,9 +3503,7 @@ class PathFromNode(object):
         """
 
     @property
-    def properties(self):
-        ...
-
+    def properties(self): ...
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -3348,9 +3593,7 @@ class PathFromNode(object):
              Optional[datetime]: The earliest datetime that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
-    def type_filter(self, node_types):
-        ...
-
+    def type_filter(self, node_types): ...
     def valid_layers(self, names: list[str]) -> PathFromNode:
         """
          Return a view of PathFromNode containing all layers `names`
@@ -3384,8 +3627,7 @@ class PathFromNode(object):
             Optional[int]:
         """
 
-class PathFromGraph(object): 
-
+class PathFromGraph(object):
     def __bool__(self):
         """True if self else False"""
 
@@ -3446,17 +3688,13 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def degree(self):
-        ...
-
+    def degree(self): ...
     @property
     def earliest_date_time(self):
         """Returns the earliest date time of the nodes."""
 
     @property
-    def earliest_time(self):
-        ...
-
+    def earliest_time(self): ...
     @property
     def edges(self) -> NestedEdges:
         """
@@ -3596,12 +3834,8 @@ class PathFromGraph(object):
         """Returns all timestamps of nodes, when an node is added or change to an node is made."""
 
     @property
-    def id(self):
-        ...
-
-    def in_degree(self):
-        ...
-
+    def id(self): ...
+    def in_degree(self): ...
     @property
     def in_edges(self) -> NestedEdges:
         """
@@ -3635,9 +3869,7 @@ class PathFromGraph(object):
         """Returns the latest date time of the nodes."""
 
     @property
-    def latest_time(self):
-        ...
-
+    def latest_time(self): ...
     def layer(self, name: str) -> PathFromGraph:
         """
          Return a view of PathFromGraph containing the layer `"name"`
@@ -3663,9 +3895,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def name(self):
-        ...
-
+    def name(self): ...
     @property
     def neighbours(self) -> PathFromGraph:
         """
@@ -3677,12 +3907,8 @@ class PathFromGraph(object):
         """
 
     @property
-    def node_type(self):
-        ...
-
-    def out_degree(self):
-        ...
-
+    def node_type(self): ...
+    def out_degree(self): ...
     @property
     def out_edges(self) -> NestedEdges:
         """
@@ -3704,9 +3930,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def properties(self):
-        ...
-
+    def properties(self): ...
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -3796,9 +4020,7 @@ class PathFromGraph(object):
              Optional[datetime]: The earliest datetime that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
-    def type_filter(self, node_types):
-        ...
-
+    def type_filter(self, node_types): ...
     def valid_layers(self, names: list[str]) -> PathFromGraph:
         """
          Return a view of PathFromGraph containing all layers `names`
@@ -3832,8 +4054,7 @@ class PathFromGraph(object):
             Optional[int]:
         """
 
-class MutableNode(Node): 
-
+class MutableNode(Node):
     def __repr__(self):
         """Return repr(self)."""
 
@@ -3847,7 +4068,12 @@ class MutableNode(Node):
             properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, secondary_index: Optional[int] = None) -> None:
+    def add_updates(
+        self,
+        t: TimeInput,
+        properties: Optional[PropInput] = None,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -3886,7 +4112,7 @@ class MutableNode(Node):
             properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-class Edge(object): 
+class Edge(object):
     """
     PyEdge is a Python class that represents an edge in the graph.
     An edge is a directed connection between two nodes.
@@ -4373,7 +4599,7 @@ class Edge(object):
             Optional[int]:
         """
 
-class Edges(object): 
+class Edges(object):
     """A list of edges that can be iterated over."""
 
     def __bool__(self):
@@ -4587,9 +4813,7 @@ class Edges(object):
 
         """
 
-    def history_counts(self):
-        ...
-
+    def history_counts(self): ...
     def history_date_time(self):
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
@@ -4603,9 +4827,7 @@ class Edges(object):
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self):
-        ...
-
+    def is_active(self): ...
     def is_deleted(self):
         """Check if the edges are deleted"""
 
@@ -4793,7 +5015,12 @@ class Edges(object):
           Time of edge
         """
 
-    def to_df(self, include_property_history: bool = True, convert_datetime: bool = False, explode: bool = False) -> DataFrame:
+    def to_df(
+        self,
+        include_property_history: bool = True,
+        convert_datetime: bool = False,
+        explode: bool = False,
+    ) -> DataFrame:
         """
         Converts the graph's edges into a Pandas DataFrame.
 
@@ -4846,8 +5073,7 @@ class Edges(object):
             Optional[int]:
         """
 
-class NestedEdges(object): 
-
+class NestedEdges(object):
     def __bool__(self):
         """True if self else False"""
 
@@ -5042,9 +5268,7 @@ class NestedEdges(object):
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self):
-        ...
-
+    def is_active(self): ...
     def is_deleted(self):
         """Check if edges are deleted"""
 
@@ -5240,12 +5464,13 @@ class NestedEdges(object):
             Optional[int]:
         """
 
-class MutableEdge(Edge): 
-
+class MutableEdge(Edge):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_constant_properties(self, properties: PropInput, layer: Optional[str] = None):
+    def add_constant_properties(
+        self, properties: PropInput, layer: Optional[str] = None
+    ):
         """
         Add constant properties to an edge in the graph.
         This function is used to add properties to an edge that remain constant and do not
@@ -5256,7 +5481,13 @@ class MutableEdge(Edge):
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
-    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def add_updates(
+        self,
+        t: TimeInput,
+        properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -5283,7 +5514,9 @@ class MutableEdge(Edge):
             layer (str, optional): The layer you want the deletion applied to .
         """
 
-    def update_constant_properties(self, properties: PropInput, layer: Optional[str] = None):
+    def update_constant_properties(
+        self, properties: PropInput, layer: Optional[str] = None
+    ):
         """
         Update constant properties of an edge in the graph overwriting existing values.
         This function is used to add properties to an edge that remains constant and does not
@@ -5294,7 +5527,7 @@ class MutableEdge(Edge):
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
-class Properties(object): 
+class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
@@ -5363,7 +5596,7 @@ class Properties(object):
         fallback to the static property if the temporal value does not exist.
         """
 
-class ConstantProperties(object): 
+class ConstantProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
@@ -5444,7 +5677,7 @@ class ConstantProperties(object):
             list | Array: the property values
         """
 
-class TemporalProperties(object): 
+class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
@@ -5528,7 +5761,71 @@ class TemporalProperties(object):
             list[TemporalProp]: the list of property views
         """
 
-class TemporalProp(object): 
+class PropertiesView(object):
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def as_dict(self):
+        """Convert properties view to a dict"""
+
+    @property
+    def constant(self):
+        """Get a view of the constant properties (meta-data) only."""
+
+    def get(self, key):
+        """
+        Get property value.
+
+        First searches temporal properties and returns latest value if it exists.
+        If not, it falls back to constant properties.
+        """
+
+    def items(self):
+        """Get a list of key-value pairs"""
+
+    def keys(self):
+        """Get the names for all properties (includes temporal and constant properties)"""
+
+    @property
+    def temporal(self):
+        """Get a view of the temporal properties only."""
+
+    def values(self):
+        """
+        Get the values of the properties
+
+        If a property exists as both temporal and constant, temporal properties take priority with
+        fallback to the constant property if the temporal value does not exist.
+        """
+
+class TemporalProp(object):
     """A view of a temporal property"""
 
     def __eq__(self, value):
@@ -5618,9 +5915,7 @@ class TemporalProp(object):
             (i64, Prop): A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time):
-        ...
-
+    def ordered_dedupe(self, latest_time): ...
     def sum(self) -> Prop:
         """
         Compute the sum of all property values.
@@ -5629,16 +5924,14 @@ class TemporalProp(object):
             Prop: The sum of all property values.
         """
 
-    def unique(self):
-        ...
-
+    def unique(self): ...
     def value(self):
         """Get the latest value of the property"""
 
     def values(self):
         """Get the property values for each update"""
 
-class Prop(object): 
+class Prop(object):
     """
     A reference to a property used for constructing filters
 
@@ -5646,6 +5939,9 @@ class Prop(object):
     property value (these filters always exclude entities that do not
     have the property) or use one of the methods to construct
     other kinds of filters.
+
+    Arguments:
+        name (str): the name of the property
     """
 
     def __eq__(self, value):
@@ -5666,30 +5962,51 @@ class Prop(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def __new__(cls, name) -> Prop:
+    def __new__(cls, name: str) -> Prop:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def any(self, values):
-        """Create a filter that keeps entities if their property value is in the set"""
+    def any(self, values: set[PropValue]) -> PropertyFilter:
+        """
+        Create a filter that keeps entities if their property value is in the set
 
-    def is_none(self):
-        """Create a filter that only keeps entities that do not have the property"""
+        Arguments:
+            values (set[PropValue]): the set of values to match
 
-    def is_some(self):
-        """Create a filter that only keeps entities if they have the property"""
+        Returns:
+            PropertyFilter: the property filter
+        """
 
-    def not_any(self, values):
+    def is_none(self) -> PropertyFilter:
+        """
+        Create a filter that only keeps entities that do not have the property
+
+        Returns:
+            PropertyFilter: the property filter
+        """
+
+    def is_some(self) -> PropertyFilter:
+        """
+        Create a filter that only keeps entities if they have the property
+
+        Returns:
+            PropertyFilter: the property filter
+        """
+
+    def not_any(self, values: set[PropValue]) -> PropertyFilter:
         """
         Create a filter that keeps entities if their property value is not in the set or
         if they don't have the property
+
+        Arguments:
+            values (set[PropValue]): the set of values to exclude
+
+        Returns:
+            PropertyFilter: the property filter
         """
 
-class PropertyFilter(object): 
-    ...
+class PropertyFilter(object): ...
 
-
-class WindowSet(object): 
-
+class WindowSet(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -5707,8 +6024,7 @@ class WindowSet(object):
             Iterable: the time index"
         """
 
-class AlgorithmResult(object): 
-
+class AlgorithmResult(object):
     def __len__(self):
         """Return len(self)."""
 
@@ -5827,7 +6143,9 @@ class AlgorithmResult(object):
             DataFrame: A `pandas.DataFrame` containing the result
         """
 
-    def top_k(self, k: int, percentage: bool = False, reverse: bool = True) -> list[Tuple[Node, Any]]:
+    def top_k(
+        self, k: int, percentage: bool = False, reverse: bool = True
+    ) -> list[Tuple[Node, Any]]:
         """
         Retrieves the top-k elements from the `AlgorithmResult` based on its values.
 
@@ -5843,14 +6161,21 @@ class AlgorithmResult(object):
             Returns None if the result is empty or if `k` is 0.
         """
 
-class GraphIndex(object): 
+class GraphIndex(object):
     """
     A searchable Index for a `Graph`. This allows for fuzzy and exact searches of nodes and edges.
     This makes use of Tantivity internally to provide the search functionality.
     To create a graph index, call `graph.index()` on any `Graph` object in python.
     """
 
-    def fuzzy_search_edges(self, query: str, limit: int = 25, offset: int = 0, prefix: bool = False, levenshtein_distance: int = 0) -> list[Edge]:
+    def fuzzy_search_edges(
+        self,
+        query: str,
+        limit: int = 25,
+        offset: int = 0,
+        prefix: bool = False,
+        levenshtein_distance: int = 0,
+    ) -> list[Edge]:
         """
         Searches for edges which match the given query. This uses Tantivy's fuzzy search.
 
@@ -5866,7 +6191,14 @@ class GraphIndex(object):
            list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
         """
 
-    def fuzzy_search_nodes(self, query: str, limit: int = 25, offset: int = 0, prefix: bool = False, levenshtein_distance: int = 0) -> list[Node]:
+    def fuzzy_search_nodes(
+        self,
+        query: str,
+        limit: int = 25,
+        offset: int = 0,
+        prefix: bool = False,
+        levenshtein_distance: int = 0,
+    ) -> list[Node]:
         """
         Searches for nodes which match the given query. This uses Tantivy's fuzzy search.
         If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
@@ -5910,40 +6242,33 @@ class GraphIndex(object):
            list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
         """
 
-class DiskGraphStorage(object): 
-
+class DiskGraphStorage(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def append_node_temporal_properties(self, location, chunk_size=20000000):
-        ...
-
-    def graph_dir(self):
-        ...
-
+    def append_node_temporal_properties(self, location, chunk_size=20000000): ...
+    def graph_dir(self): ...
     @staticmethod
-    def load_from_dir(graph_dir):
-        ...
-
+    def load_from_dir(graph_dir): ...
     @staticmethod
-    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col):
-        ...
-
+    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col): ...
     @staticmethod
-    def load_from_parquets(graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10000000, t_props_chunk_size=10000000, num_threads=4, node_type_col=None, node_id_col=None):
-        ...
-
-    def load_node_const_properties(self, location, col_names=None, chunk_size=None):
-        ...
-
+    def load_from_parquets(
+        graph_dir,
+        layer_parquet_cols,
+        node_properties=None,
+        chunk_size=10000000,
+        t_props_chunk_size=10000000,
+        num_threads=4,
+        node_type_col=None,
+        node_id_col=None,
+    ): ...
+    def load_node_const_properties(self, location, col_names=None, chunk_size=None): ...
     def merge_by_sorted_gids(self, other, graph_dir):
         """
         Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
         sorted by their global ids or the resulting graph will be nonsense!
         """
 
-    def to_events(self):
-        ...
-
-    def to_persistent(self):
-        ...
+    def to_events(self): ...
+    def to_persistent(self): ...

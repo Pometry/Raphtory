@@ -54,6 +54,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyProperties,
         PyConstantProperties,
         PyTemporalProperties,
+        PropertiesView,
         PyTemporalProp,
         PyPropertyRef,
         PyPropertyFilter,
@@ -152,3 +153,4 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
+use crate::python::graph::properties::PropertiesView;

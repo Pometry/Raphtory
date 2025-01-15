@@ -29,7 +29,7 @@ use crate::{
     python::{
         graph::{
             node::internal::OneHopFilter,
-            properties::{PyNestedPropsIterable, PyPropsList},
+            properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{
             repr::StructReprBuilder,
@@ -641,9 +641,9 @@ impl PyNodes {
     /// The properties of the node
     ///
     /// Returns:
-    ///     PyPropsList: A List of properties
+    ///     PropertiesView: A view of the node properties
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let nodes = self.nodes.clone();
         (move || nodes.properties().into_iter_values()).into()
     }
@@ -1001,7 +1001,7 @@ impl PyPathFromNode {
     }
 
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
     }

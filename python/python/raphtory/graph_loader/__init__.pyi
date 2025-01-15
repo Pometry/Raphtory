@@ -7,7 +7,6 @@
 #                                                                             #
 ###############################################################################
 
-
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -20,6 +19,7 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
+
 def lotr_graph():
     """
     Load the Lord of the Rings dataset into a graph.
@@ -46,12 +46,8 @@ def lotr_graph():
 def lotr_graph_with_props():
     """Same as `lotr_graph()` but with additional properties race and gender for some of the nodes"""
 
-def neo4j_movie_graph(uri, username, password, database=...):
-    ...
-
-def stable_coin_graph(path=None, subset=None):
-    ...
-
+def neo4j_movie_graph(uri, username, password, database=...): ...
+def stable_coin_graph(path=None, subset=None): ...
 def reddit_hyperlink_graph(timeout_seconds: Any = 600):
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -91,9 +87,7 @@ def reddit_hyperlink_graph(timeout_seconds: Any = 600):
      A Graph containing the Reddit hyperlinks dataset
     """
 
-def reddit_hyperlink_graph_local(file_path):
-    ...
-
+def reddit_hyperlink_graph_local(file_path): ...
 def karate_club_graph():
     """
     `karate_club_graph` constructs a karate club graph.
