@@ -34,7 +34,7 @@ impl PyGraphView {
     ///     kwargs: Additional keyword arguments that are passed to the pyvis Network class.
     ///
     /// Returns:
-    ///         A pyvis network
+    ///     pyvis.Network: A pyvis network
     #[pyo3(signature = (explode_edges=false, edge_color="#000000", shape="dot", node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=false, directed=true, notebook=false, **kwargs))]
     pub fn to_pyvis<'py>(
         &self,
@@ -155,7 +155,7 @@ impl PyGraphView {
     ///         include_property_history (bool): A boolean that is set to True if you want to include the histories in the graph. Defaults to True.
     ///
     ///     Returns:
-    ///         MultiDiGraph: A Networkx MultiDiGraph.
+    ///         nx.MultiDiGraph: A Networkx MultiDiGraph.
     #[pyo3(signature = (explode_edges=false, include_node_properties=true, include_edge_properties=true,include_update_history=true,include_property_history=true))]
     pub fn to_networkx<'py>(
         &self,

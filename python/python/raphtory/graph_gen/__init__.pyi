@@ -7,6 +7,7 @@
 #                                                                             #
 ###############################################################################
 
+
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -16,7 +17,9 @@ from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
-
+from os import PathLike
+import networkx as nx  # type: ignore
+import pyvis  # type: ignore
 def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the random attachment model
@@ -35,9 +38,7 @@ def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any 
      None
     """
 
-def ba_preferential_attachment(
-    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
-):
+def ba_preferential_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the preferential attachment model.
 

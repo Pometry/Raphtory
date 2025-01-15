@@ -185,7 +185,7 @@ impl PyGraphView {
     /// Return all the layer ids in the graph
     ///
     /// Returns:
-    ///     list[str]
+    ///     list[str]: the names of all layers in the graph
     #[getter]
     pub fn unique_layers(&self) -> Vec<ArcStr> {
         self.graph.unique_layers().collect()
@@ -205,7 +205,7 @@ impl PyGraphView {
     /// DateTime of earliest activity in the graph
     ///
     /// Returns:
-    ///     Optional[Datetime]: the datetime of the earliest activity in the graph
+    ///     Optional[datetime]: the datetime of the earliest activity in the graph
     #[getter]
     pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.graph.earliest_date_time()
@@ -223,7 +223,7 @@ impl PyGraphView {
     /// DateTime of latest activity in the graph
     ///
     /// Returns:
-    ///     Optional[Datetime]: the datetime of the latest activity in the graph
+    ///     Optional[datetime]: the datetime of the latest activity in the graph
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.graph.latest_date_time()
@@ -292,7 +292,7 @@ impl PyGraphView {
 
     /// Get the nodes that match the properties name and value
     /// Arguments:
-    ///     property_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, Prop]): the properties name and value
     /// Returns:
     ///    list[Node]: the nodes that match the properties name and value
     #[pyo3(signature = (properties_dict))]
@@ -343,7 +343,7 @@ impl PyGraphView {
 
     /// Get the edges that match the properties name and value
     /// Arguments:
-    ///     property_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, Prop]): the properties name and value
     /// Returns:
     ///    list[Edge]: the edges that match the properties name and value
     #[pyo3(signature = (properties_dict))]
