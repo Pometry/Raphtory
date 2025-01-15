@@ -1,27 +1,23 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::{
-        api::properties::{
-            internal::{ConstPropertiesOps, PropertiesOps},
-            ConstProperties, TemporalProperties, TemporalPropertyView,
-        },
-        graph::{edge::EdgeView, node::NodeView},
-    },
+    db::api::properties::internal::{ConstPropertiesOps, PropertiesOps},
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
 };
-use raphtory_api::core::{storage::arc_str::ArcStr, PropType};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
-    collections::BTreeMap,
+    collections::HashSet,
     ops::{Deref, DerefMut},
-    sync::{Arc, RwLock},
 };
 use tantivy::{
-    collector::TopDocs,
-    query::AllQuery,
+    query::{
+        AllQuery, BooleanQuery, Occur,
+        Occur::{Must, MustNot, Should},
+        Query, TermQuery,
+    },
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
-    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument,
+    Index, IndexReader, IndexSettings,
 };
 
 pub mod graph_index;
@@ -110,22 +106,4 @@ where
     }
 
     Ok(())
-}
-
-fn create_tantivy_term(
-    prop_field: tantivy::schema::Field,
-    prop_value: &Prop,
-) -> Result<tantivy::Term, GraphError> {
-    match prop_value {
-        Prop::Str(value) => Ok(tantivy::Term::from_field_text(prop_field, value.as_ref())),
-        Prop::I32(value) => Ok(tantivy::Term::from_field_i64(prop_field, *value as i64)),
-        Prop::I64(value) => Ok(tantivy::Term::from_field_i64(prop_field, *value)),
-        Prop::U64(value) => Ok(tantivy::Term::from_field_u64(prop_field, *value)),
-        Prop::F64(value) => Ok(tantivy::Term::from_field_f64(prop_field, *value)),
-        Prop::Bool(value) => Ok(tantivy::Term::from_field_bool(prop_field, *value)),
-        v => {
-            println!("Unsupported value: {:?}", v);
-            Err(GraphError::NotSupported)
-        }
-    }
 }

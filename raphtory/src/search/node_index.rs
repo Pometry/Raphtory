@@ -32,6 +32,7 @@ use tantivy::{
     },
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
+use tantivy::schema::{Field, Type};
 
 #[derive(Clone)]
 pub struct NodeIndex {
@@ -132,6 +133,10 @@ impl NodeIndex {
         } else {
             Err(GraphError::PropertyIndexNotFound(prop_name.to_string()))
         }
+    }
+
+    pub fn get_node_field(&self, field_name: &str) -> tantivy::Result<Field> {
+        self.index.schema().get_field(field_name)
     }
 
     fn create_document<'a>(

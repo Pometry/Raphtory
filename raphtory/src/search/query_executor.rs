@@ -15,6 +15,7 @@ use tantivy::{
 };
 use tantivy::collector::{FilterCollector, TopDocs};
 use raphtory_api::core::entities::VID;
+use crate::db::graph::views::property_filter::NodeFilter;
 use crate::prelude::NodeViewOps;
 
 pub struct QueryExecutor<'a> {
@@ -34,8 +35,11 @@ impl<'a> QueryExecutor<'a> {
         offset: usize,
     ) -> Result<HashSet<NodeView<G, G>>, GraphError> {
         match filter {
-            CompositeFilter::Single(single_filter) => {
-                self.execute_property_filter(graph, single_filter, limit, offset)
+            CompositeFilter::SingleProperty(filter) => {
+                self.execute_property_filter(graph, filter, limit, offset)
+            }
+            CompositeFilter::SingleNode(filter) => {
+                self.execute_node_filter(graph, filter, limit, offset)
             }
             CompositeFilter::And(filters) => {
                 let mut results = None;
@@ -72,7 +76,7 @@ impl<'a> QueryExecutor<'a> {
         offset: usize,
     ) -> Result<HashSet<NodeView<G>>, GraphError> {
         let query_builder = QueryBuilder::new(self.index);
-        let (property_index, query) = query_builder.build_query(graph, filter)?;
+        let (property_index, query) = query_builder.build_property_query(graph, filter)?;
 
         let results = match query {
             Some(query) => {
@@ -104,6 +108,16 @@ impl<'a> QueryExecutor<'a> {
         println!("filter: {:?}, result: {:?}", filter, unique_results.iter().map(|n| n.name()).collect_vec());
 
         Ok(unique_results)
+    }
+
+    fn execute_node_filter<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &NodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<HashSet<NodeView<G>>, GraphError> {
+        todo!()
     }
 
     fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
