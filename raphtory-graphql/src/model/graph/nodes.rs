@@ -7,10 +7,7 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
-        api::{
-            state::Index,
-            view::DynamicGraph,
-        },
+        api::{state::Index, view::DynamicGraph},
         graph::nodes::Nodes,
     },
     prelude::*,
