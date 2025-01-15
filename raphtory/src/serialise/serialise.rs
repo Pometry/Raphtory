@@ -587,7 +587,7 @@ mod proto_test {
                     .nodes()
                     .properties()
                     .into_iter()
-                    .map(|prop| prop.get(&key))
+                    .map(|(_, prop)| prop.get(&key))
                     .collect::<Vec<_>>();
                 (key, props)
             })
