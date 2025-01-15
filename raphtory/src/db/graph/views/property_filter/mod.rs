@@ -156,7 +156,7 @@ fn get_ids_and_check_type(
 ) -> Result<(Option<usize>, Option<usize>), GraphError> {
     let t_prop_id = meta
         .temporal_prop_meta()
-        .get_and_validate(property, dtype)?;
+        .get_and_validate(property, dtype.clone())?;
     let c_prop_id = meta.const_prop_meta().get_and_validate(property, dtype)?;
     Ok((t_prop_id, c_prop_id))
 }

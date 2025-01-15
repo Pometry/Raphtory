@@ -122,9 +122,8 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     /// Construct a node state from an eval result
     ///
     /// # Arguments
-    ///     - graph: the graph view
-    ///     - values: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`).
-    ///         This method handles the filtering.
+    /// - `graph`: the graph view
+    /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
     pub fn new_from_eval(graph: G, values: Vec<V>) -> Self
     where
         V: Clone,
@@ -143,10 +142,9 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     /// Construct a node state from an eval result, mapping values
     ///
     /// # Arguments
-    ///     - graph: the graph view
-    ///     - values: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`).
-    ///         This method handles the filtering.
-    ///     - map: Closure mapping input to output values
+    /// - `graph`: the graph view
+    /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
+    /// - `map`: Closure mapping input to output values
     pub fn new_from_eval_mapped<R>(graph: G, values: Vec<R>, map: impl Fn(R) -> V) -> Self {
         let index = Index::for_graph(graph.clone());
         let values = match &index {

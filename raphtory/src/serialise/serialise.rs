@@ -17,8 +17,7 @@ use crate::{
     },
     prelude::Graph,
     serialise::{
-        proto,
-        proto::{graph_update::*, new_meta::*, new_node::Gid},
+        proto::{self, graph_update::*, new_meta::*, new_node::Gid},
         proto_ext,
     },
 };
@@ -32,7 +31,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use std::{iter, sync::Arc};
 
-use super::GraphFolder;
+use super::{proto_ext::PropTypeExt, GraphFolder};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -284,51 +283,62 @@ impl StableDecode for TemporalGraph {
                             .set_id(node_type.name.as_str(), node_type.id as usize);
                     }
                     Meta::NewNodeCprop(node_cprop) => {
-                        storage.node_meta.const_prop_meta().set_id_and_dtype(
-                            node_cprop.name.as_str(),
-                            node_cprop.id as usize,
-                            proto_ext::as_prop_type(node_cprop.p_type()),
-                        )
+                        if let Some(p_type) = node_cprop.prop_type() {
+                            storage.node_meta.const_prop_meta().set_id_and_dtype(
+                                node_cprop.name.as_str(),
+                                node_cprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewNodeTprop(node_tprop) => {
-                        storage.node_meta.temporal_prop_meta().set_id_and_dtype(
-                            node_tprop.name.as_str(),
-                            node_tprop.id as usize,
-                            proto_ext::as_prop_type(node_tprop.p_type()),
-                        )
+                        if let Some(p_type) = node_tprop.prop_type() {
+                            storage.node_meta.temporal_prop_meta().set_id_and_dtype(
+                                node_tprop.name.as_str(),
+                                node_tprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewGraphCprop(graph_cprop) => storage
                         .graph_meta
                         .const_prop_meta()
                         .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
                     Meta::NewGraphTprop(graph_tprop) => {
-                        storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
-                            graph_tprop.name.as_str(),
-                            graph_tprop.id as usize,
-                            proto_ext::as_prop_type(graph_tprop.p_type()),
-                        )
+                        if let Some(p_type) = graph_tprop.prop_type() {
+                            storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
+                                graph_tprop.name.as_str(),
+                                graph_tprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewLayer(new_layer) => storage
                         .edge_meta
                         .layer_meta()
                         .set_id(new_layer.name.as_str(), new_layer.id as usize),
                     Meta::NewEdgeCprop(edge_cprop) => {
-                        storage.edge_meta.const_prop_meta().set_id_and_dtype(
-                            edge_cprop.name.as_str(),
-                            edge_cprop.id as usize,
-                            proto_ext::as_prop_type(edge_cprop.p_type()),
-                        )
+                        if let Some(p_type) = edge_cprop.prop_type() {
+                            storage.edge_meta.const_prop_meta().set_id_and_dtype(
+                                edge_cprop.name.as_str(),
+                                edge_cprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                     Meta::NewEdgeTprop(edge_tprop) => {
-                        storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
-                            edge_tprop.name.as_str(),
-                            edge_tprop.id as usize,
-                            proto_ext::as_prop_type(edge_tprop.p_type()),
-                        )
+                        if let Some(p_type) = edge_tprop.prop_type() {
+                            storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
+                                edge_tprop.name.as_str(),
+                                edge_tprop.id as usize,
+                                p_type,
+                            )
+                        }
                     }
                 }
             }
         });
+
         storage
             .write_lock_edges()?
             .into_par_iter_mut()
@@ -540,6 +550,9 @@ impl StableDecode for PersistentGraph {
 
 #[cfg(test)]
 mod proto_test {
+    use std::{collections::HashMap, path::PathBuf};
+
+    use arrow_array::types::Int32Type;
     use tempfile::TempDir;
 
     use super::*;
@@ -556,6 +569,224 @@ mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
     use proptest::proptest;
     use raphtory_api::core::storage::arc_str::ArcStr;
+
+    #[test]
+    fn can_read_previous_proto() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("raphtory/resources/test/old_graph_proto.bin"))
+            .unwrap();
+
+        let graph = Graph::decode(path).unwrap();
+
+        let actual: HashMap<_, _> = graph
+            .const_prop_keys()
+            .into_iter()
+            .map(|key| {
+                let props = graph
+                    .nodes()
+                    .properties()
+                    .into_iter()
+                    .map(|(_, prop)| prop.get(&key))
+                    .collect::<Vec<_>>();
+                (key, props)
+            })
+            .collect();
+
+        let expected: HashMap<ArcStr, Vec<Option<Prop>>> = [
+            ("name".into(), vec![None, None, None]),
+            (
+                "age".into(),
+                vec![
+                    Some(Prop::U32(47)),
+                    Some(Prop::U32(47)),
+                    Some(Prop::U32(47)),
+                ],
+            ),
+            (
+                "doc".into(),
+                vec![
+                    Some(Prop::Document(DocumentInput {
+                        content: "Hello, World!".to_string(),
+                        life: Lifespan::Interval {
+                            start: -11,
+                            end: 100,
+                        },
+                    })),
+                    Some(Prop::Document(DocumentInput {
+                        content: "Hello, World!".to_string(),
+                        life: Lifespan::Interval {
+                            start: -11,
+                            end: 100,
+                        },
+                    })),
+                    Some(Prop::Document(DocumentInput {
+                        content: "Hello, World!".to_string(),
+                        life: Lifespan::Interval {
+                            start: -11,
+                            end: 100,
+                        },
+                    })),
+                ],
+            ),
+            (
+                "dtime".into(),
+                vec![
+                    Some(Prop::DTime(
+                        DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                            .unwrap()
+                            .into(),
+                    )),
+                    Some(Prop::DTime(
+                        DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                            .unwrap()
+                            .into(),
+                    )),
+                    Some(Prop::DTime(
+                        DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                            .unwrap()
+                            .into(),
+                    )),
+                ],
+            ),
+            (
+                "score".into(),
+                vec![
+                    Some(Prop::I32(27)),
+                    Some(Prop::I32(27)),
+                    Some(Prop::I32(27)),
+                ],
+            ),
+            ("graph".into(), vec![None, None, None]),
+            ("p_graph".into(), vec![None, None, None]),
+            (
+                "time".into(),
+                vec![
+                    Some(Prop::NDTime(
+                        NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", "%Y-%m-%d %H:%M:%S")
+                            .expect("Failed to parse time"),
+                    )),
+                    Some(Prop::NDTime(
+                        NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", "%Y-%m-%d %H:%M:%S")
+                            .expect("Failed to parse time"),
+                    )),
+                    Some(Prop::NDTime(
+                        NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", "%Y-%m-%d %H:%M:%S")
+                            .expect("Failed to parse time"),
+                    )),
+                ],
+            ),
+            (
+                "is_adult".into(),
+                vec![
+                    Some(Prop::Bool(true)),
+                    Some(Prop::Bool(true)),
+                    Some(Prop::Bool(true)),
+                ],
+            ),
+            (
+                "height".into(),
+                vec![
+                    Some(Prop::F32(1.75)),
+                    Some(Prop::F32(1.75)),
+                    Some(Prop::F32(1.75)),
+                ],
+            ),
+            (
+                "weight".into(),
+                vec![
+                    Some(Prop::F64(75.5)),
+                    Some(Prop::F64(75.5)),
+                    Some(Prop::F64(75.5)),
+                ],
+            ),
+            (
+                "children".into(),
+                vec![
+                    Some(Prop::List(
+                        vec![Prop::str("Bob"), Prop::str("Charlie")].into(),
+                    )),
+                    Some(Prop::List(
+                        vec![Prop::str("Bob"), Prop::str("Charlie")].into(),
+                    )),
+                    Some(Prop::List(
+                        vec![Prop::str("Bob"), Prop::str("Charlie")].into(),
+                    )),
+                ],
+            ),
+            (
+                "properties".into(),
+                vec![
+                    Some(Prop::Map(
+                        vec![
+                            ("is_adult", Prop::Bool(true)),
+                            ("weight", Prop::F64(75.5)),
+                            (
+                                "children",
+                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                            ),
+                            ("height", Prop::F32(1.75)),
+                            ("name", Prop::str("Alice")),
+                            ("age", Prop::U32(47)),
+                            ("score", Prop::I32(27)),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v))
+                        .collect::<HashMap<_, _>>()
+                        .into(),
+                    )),
+                    Some(Prop::Map(
+                        vec![
+                            ("is_adult", Prop::Bool(true)),
+                            ("age", Prop::U32(47)),
+                            ("name", Prop::str("Alice")),
+                            ("score", Prop::I32(27)),
+                            ("height", Prop::F32(1.75)),
+                            (
+                                "children",
+                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                            ),
+                            ("weight", Prop::F64(75.5)),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v))
+                        .collect::<HashMap<_, _>>()
+                        .into(),
+                    )),
+                    Some(Prop::Map(
+                        vec![
+                            ("weight", Prop::F64(75.5)),
+                            ("name", Prop::str("Alice")),
+                            ("age", Prop::U32(47)),
+                            ("height", Prop::F32(1.75)),
+                            ("score", Prop::I32(27)),
+                            (
+                                "children",
+                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                            ),
+                            ("is_adult", Prop::Bool(true)),
+                        ]
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v))
+                        .collect::<HashMap<_, _>>()
+                        .into(),
+                    )),
+                ],
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        let mut vec1 = actual.keys().into_iter().collect::<Vec<_>>();
+        let mut vec2 = expected.keys().into_iter().collect::<Vec<_>>();
+        vec1.sort();
+        vec2.sort();
+        assert_eq!(vec1, vec2);
+        for (key, actual_props) in actual.iter() {
+            let expected_props = expected.get(key).unwrap();
+            assert_eq!(actual_props, expected_props, "Key: {}", key);
+        }
+    }
 
     #[test]
     fn node_no_props() {
@@ -669,6 +900,15 @@ mod proto_test {
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
+
+        g1.add_edge(
+            3,
+            "Alice",
+            "Bob",
+            [("image", Prop::from_arr::<Int32Type>(vec![3i32, 5]))],
+            None,
+        )
+        .unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1095,13 +1335,5 @@ mod proto_test {
                 },
             }),
         ));
-        let graph = Graph::new();
-        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        props.push(("graph", Prop::Graph(graph)));
-
-        let graph = Graph::new().persistent_graph();
-        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        graph.delete_edge(2, "a", "b", None).unwrap();
-        props.push(("p_graph", Prop::PersistentGraph(graph)));
     }
 }

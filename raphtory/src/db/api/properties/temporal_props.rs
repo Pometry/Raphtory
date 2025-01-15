@@ -1,11 +1,8 @@
 use crate::{
     core::{DocumentInput, Prop, PropType, PropUnwrap},
-    db::{
-        api::{properties::internal::PropertiesOps, view::BoxedLIter},
-        graph::views::deletion_graph::PersistentGraph,
-    },
-    prelude::Graph,
+    db::api::{properties::internal::PropertiesOps, view::BoxedLIter},
 };
+use arrow_array::ArrayRef;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
@@ -240,12 +237,8 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_ndtime()
     }
 
-    fn into_graph(self) -> Option<Graph> {
-        self.latest().into_graph()
-    }
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph> {
-        self.latest().into_persistent_graph()
+    fn into_array(self) -> Option<ArrayRef> {
+        self.latest().into_array()
     }
 
     fn into_document(self) -> Option<DocumentInput> {

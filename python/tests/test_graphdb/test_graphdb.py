@@ -7,6 +7,7 @@ import re
 import pandas as pd
 import pandas.core.frame
 import pytest
+import pyarrow as pa
 from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
@@ -1030,11 +1031,12 @@ def create_graph_edge_properties():
     return g
 
 
-def test_graph_as_property():
+def test_arrow_array_properties():
     g = Graph()
-    g.add_edge(0, 1, 2, {"graph": g})
-    assert "graph" in g.edge(1, 2).properties
-    assert g.edge(1, 2).properties["graph"].has_edge(1, 2)
+    days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
+    g.add_edge(1, 1, 2, {"prop1": 1, "prop2": 2, "prop3": days})
+    e = g.edge(1, 2)
+    assert e.properties["prop3"] == days
 
 
 def test_map_and_list_property():
@@ -2909,41 +2911,6 @@ def test_unique_temporal_properties():
             expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
         )
         assert sorted_actual_list == sorted_expected_list
-
-    check(g)
-    g1 = Graph()
-    g1.add_constant_properties({"type": "a"})
-    g1.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g1})
-    g2 = Graph()
-    g2.add_constant_properties({"type": "b"})
-    g2.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g2})
-    g3 = Graph()
-    g3.add_constant_properties({"type": "c"})
-    g3.add_node(1, "shivam")
-    g.add_node(7, 3, {"graph": g3})
-
-    # @with_disk_graph #FIXME List, Map and NDTime properties are not supported
-    def check(g):
-        actual_list = g.node(3).properties.temporal.get("graph").unique()
-        expected_list = [g1, g3]
-        sorted_actual_list = sorted(
-            actual_list, key=lambda g: g.properties.constant.get("type")
-        )
-        sorted_expected_list = sorted(
-            expected_list, key=lambda g: g.properties.constant.get("type")
-        )
-        assert sorted_actual_list == sorted_expected_list
-
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
-            (5, 1),
-            (6, 5),
-        ]
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
-            (4, 1),
-            (6, 5),
-        ]
 
     check(g)
 

@@ -24,10 +24,7 @@
 //!    * `macOS`
 //!
 
-use crate::{
-    db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
-    prelude::GraphViewOps,
-};
+use arrow_array::{ArrayRef, ArrowPrimitiveType};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -40,15 +37,20 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use utils::errors::GraphError;
+
+use arrow_schema::{DataType, Field};
 
 #[cfg(test)]
 extern crate core;
 
 pub mod entities;
+pub mod prop_array;
 pub mod state;
 pub mod storage;
 pub mod utils;
 
+use crate::core::prop_array::PropArray;
 pub use raphtory_api::core::*;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, Default)]
@@ -95,8 +97,7 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    Graph(Graph),
-    PersistentGraph(PersistentGraph),
+    Array(PropArray),
     Document(DocumentInput),
 }
 
@@ -120,6 +121,7 @@ impl Hash for Prop {
             }
             Prop::Bool(b) => b.hash(state),
             Prop::NDTime(dt) => dt.hash(state),
+            Prop::Array(b) => b.hash(state),
             Prop::DTime(dt) => dt.hash(state),
             Prop::List(v) => {
                 for prop in v.iter() {
@@ -130,22 +132,6 @@ impl Hash for Prop {
                 for (key, prop) in m.iter() {
                     key.hash(state);
                     prop.hash(state);
-                }
-            }
-            Prop::Graph(g) => {
-                for node in g.nodes() {
-                    node.node.hash(state);
-                }
-                for edge in g.edges() {
-                    edge.edge.pid().hash(state);
-                }
-            }
-            Prop::PersistentGraph(pg) => {
-                for node in pg.nodes() {
-                    node.node.hash(state);
-                }
-                for edge in pg.edges() {
-                    edge.edge.pid().hash(state);
                 }
             }
             Prop::Document(d) => d.hash(state),
@@ -177,6 +163,14 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn from_arr<TT: ArrowPrimitiveType>(vals: Vec<TT::Native>) -> Self
+    where
+        arrow_array::PrimitiveArray<TT>: From<Vec<TT::Native>>,
+    {
+        let array = arrow_array::PrimitiveArray::<TT>::from(vals);
+        Prop::Array(PropArray::Array(Arc::new(array)))
+    }
+
     pub fn dtype(&self) -> PropType {
         match self {
             Prop::Str(_) => PropType::Str,
@@ -192,8 +186,13 @@ impl Prop {
             Prop::List(_) => PropType::List,
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
-            Prop::Graph(_) => PropType::Graph,
-            Prop::PersistentGraph(_) => PropType::PersistentGraph,
+            Prop::Array(arr) => {
+                let arrow_dtype = arr
+                    .as_array_ref()
+                    .expect("Should not call dtype on empty PropArray")
+                    .data_type();
+                PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
+            }
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -263,6 +262,50 @@ impl Prop {
     }
 }
 
+pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, GraphError> {
+    match prop_type {
+        PropType::Str => Ok(DataType::LargeUtf8),
+        PropType::U8 => Ok(DataType::UInt8),
+        PropType::U16 => Ok(DataType::UInt16),
+        PropType::I32 => Ok(DataType::Int32),
+        PropType::I64 => Ok(DataType::Int64),
+        PropType::U32 => Ok(DataType::UInt32),
+        PropType::U64 => Ok(DataType::UInt64),
+        PropType::F32 => Ok(DataType::Float32),
+        PropType::F64 => Ok(DataType::Float64),
+        PropType::Bool => Ok(DataType::Boolean),
+        PropType::Array(d_type) => Ok(DataType::List(
+            Field::new("data", arrow_dtype_from_prop_type(&d_type)?, true).into(),
+        )),
+        PropType::Empty
+        | PropType::List
+        | PropType::Map
+        | PropType::NDTime
+        | PropType::Document
+        | PropType::DTime => Err(GraphError::UnsupportedArrowDataType(prop_type.clone())), //panic!("{prop_type:?} not supported as disk_graph property"),
+    }
+}
+
+pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
+    match arrow_dtype {
+        DataType::LargeUtf8 | DataType::Utf8 => PropType::Str,
+        DataType::UInt8 => PropType::U8,
+        DataType::UInt16 => PropType::U16,
+        DataType::Int32 => PropType::I32,
+        DataType::Int64 => PropType::I64,
+        DataType::UInt32 => PropType::U32,
+        DataType::UInt64 => PropType::U64,
+        DataType::Float32 => PropType::F32,
+        DataType::Float64 => PropType::F64,
+        DataType::Boolean => PropType::Bool,
+        DataType::List(field) => {
+            let d_type = field.data_type();
+            PropType::Array(Box::new(prop_type_from_arrow_dtype(&d_type)))
+        }
+        _ => panic!("{:?} not supported as disk_graph property", arrow_dtype),
+    }
+}
+
 pub trait PropUnwrap: Sized {
     fn into_u8(self) -> Option<u8>;
     fn unwrap_u8(self) -> u8 {
@@ -329,17 +372,14 @@ pub trait PropUnwrap: Sized {
         self.into_ndtime().unwrap()
     }
 
-    fn into_graph(self) -> Option<Graph>;
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph>;
-
-    fn unwrap_graph(self) -> Graph {
-        self.into_graph().unwrap()
-    }
-
     fn into_document(self) -> Option<DocumentInput>;
     fn unwrap_document(self) -> DocumentInput {
         self.into_document().unwrap()
+    }
+
+    fn into_array(self) -> Option<ArrayRef>;
+    fn unwrap_array(self) -> ArrayRef {
+        self.into_array().unwrap()
     }
 }
 
@@ -396,16 +436,12 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_ndtime())
     }
 
-    fn into_graph(self) -> Option<Graph> {
-        self.and_then(|p| p.into_graph())
-    }
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph> {
-        self.and_then(|p| p.into_persistent_graph())
-    }
-
     fn into_document(self) -> Option<DocumentInput> {
         self.and_then(|p| p.into_document())
+    }
+
+    fn into_array(self) -> Option<ArrayRef> {
+        self.and_then(|p| p.into_array())
     }
 }
 
@@ -514,25 +550,17 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_graph(self) -> Option<Graph> {
-        if let Prop::Graph(g) = self {
-            Some(g)
-        } else {
-            None
-        }
-    }
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph> {
-        if let Prop::PersistentGraph(g) = self {
-            Some(g)
-        } else {
-            None
-        }
-    }
-
     fn into_document(self) -> Option<DocumentInput> {
         if let Prop::Document(d) = self {
             Some(d)
+        } else {
+            None
+        }
+    }
+
+    fn into_array(self) -> Option<ArrayRef> {
+        if let Prop::Array(v) = self {
+            v.into_array_ref()
         } else {
             None
         }
@@ -554,18 +582,7 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            Prop::Graph(value) => write!(
-                f,
-                "Graph(num_nodes={}, num_edges={})",
-                value.count_nodes(),
-                value.count_edges()
-            ),
-            Prop::PersistentGraph(value) => write!(
-                f,
-                "Graph(num_nodes={}, num_edges={})",
-                value.count_nodes(),
-                value.count_edges()
-            ),
+            Prop::Array(value) => write!(f, "{:?}", value),
             Prop::List(value) => {
                 write!(
                     f,
