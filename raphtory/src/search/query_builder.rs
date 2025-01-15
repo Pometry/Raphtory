@@ -1,6 +1,9 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::{api::view::StaticGraphViewOps, graph::views::property_filter::ComparisonOperator},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::views::property_filter::{ComparisonOperator, PropertyFilterValue},
+    },
     prelude::PropertyFilter,
     search::{create_tantivy_term, graph_index::GraphIndex, property_index::PropertyIndex},
 };
@@ -34,70 +37,73 @@ impl<'a> QueryBuilder<'a> {
         let prop_field = property_index.get_prop_field(prop_name)?;
         let prop_field_type = property_index.get_prop_field_type(prop_name)?;
 
-        let query: Option<Box<dyn Query>> = match &filter.operator {
-            ComparisonOperator::Eq => {
-                let term = create_tantivy_term(prop_field, prop_value)?;
-                Some(Box::new(TermQuery::new(
-                    term,
-                    tantivy::schema::IndexRecordOption::Basic,
-                )))
-            }
-            ComparisonOperator::Ne => {
-                let term = create_tantivy_term(prop_field, prop_value)?;
-                Some(Box::new(BooleanQuery::new(vec![
-                    // Include all documents
-                    (Should, Box::new(AllQuery)),
-                    // Exclude documents matching the term
-                    (
-                        MustNot,
-                        Box::new(TermQuery::new(
-                            term,
-                            tantivy::schema::IndexRecordOption::Basic,
-                        )),
-                    ),
-                ])))
-            }
-            ComparisonOperator::Lt => {
-                let term = create_tantivy_term(prop_field, prop_value)?;
-                Some(Box::new(RangeQuery::new_term_bounds(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    &Bound::Unbounded,
-                    &Bound::Excluded(term),
-                )))
-            }
-            ComparisonOperator::Le => {
-                let term = create_tantivy_term(prop_field, prop_value)?;
-                Some(Box::new(RangeQuery::new_term_bounds(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    &Bound::Unbounded,
-                    &Bound::Included(term),
-                )))
-            }
-            ComparisonOperator::Gt => {
-                let term = create_tantivy_term(prop_field, prop_value)?;
-                Some(Box::new(RangeQuery::new_term_bounds(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    &Bound::Excluded(term),
-                    &Bound::Unbounded,
-                )))
-            }
-            ComparisonOperator::Ge => {
-                let term = create_tantivy_term(prop_field, prop_value)?;
-                Some(Box::new(RangeQuery::new_term_bounds(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    &Bound::Included(term),
-                    &Bound::Unbounded,
-                )))
-            }
-            ComparisonOperator::In => {
-                if let Some(Prop::List(values)) = prop_value {
-                    let sub_queries: Vec<(Occur, Box<dyn Query>)> = values
+        let query: Option<Box<dyn Query>> = match prop_value {
+            PropertyFilterValue::Single(prop_value) => match &filter.operator {
+                ComparisonOperator::Eq => {
+                    let term = create_tantivy_term(prop_field, prop_value)?;
+                    Some(Box::new(TermQuery::new(
+                        term,
+                        tantivy::schema::IndexRecordOption::Basic,
+                    )))
+                }
+                ComparisonOperator::Ne => {
+                    let term = create_tantivy_term(prop_field, prop_value)?;
+                    Some(Box::new(BooleanQuery::new(vec![
+                        // Include all documents
+                        (Should, Box::new(AllQuery)),
+                        // Exclude documents matching the term
+                        (
+                            MustNot,
+                            Box::new(TermQuery::new(
+                                term,
+                                tantivy::schema::IndexRecordOption::Basic,
+                            )),
+                        ),
+                    ])))
+                }
+                ComparisonOperator::Lt => {
+                    let term = create_tantivy_term(prop_field, prop_value)?;
+                    Some(Box::new(RangeQuery::new_term_bounds(
+                        prop_name.to_string(),
+                        prop_field_type,
+                        &Bound::Unbounded,
+                        &Bound::Excluded(term),
+                    )))
+                }
+                ComparisonOperator::Le => {
+                    let term = create_tantivy_term(prop_field, prop_value)?;
+                    Some(Box::new(RangeQuery::new_term_bounds(
+                        prop_name.to_string(),
+                        prop_field_type,
+                        &Bound::Unbounded,
+                        &Bound::Included(term),
+                    )))
+                }
+                ComparisonOperator::Gt => {
+                    let term = create_tantivy_term(prop_field, prop_value)?;
+                    Some(Box::new(RangeQuery::new_term_bounds(
+                        prop_name.to_string(),
+                        prop_field_type,
+                        &Bound::Excluded(term),
+                        &Bound::Unbounded,
+                    )))
+                }
+                ComparisonOperator::Ge => {
+                    let term = create_tantivy_term(prop_field, prop_value)?;
+                    Some(Box::new(RangeQuery::new_term_bounds(
+                        prop_name.to_string(),
+                        prop_field_type,
+                        &Bound::Included(term),
+                        &Bound::Unbounded,
+                    )))
+                }
+                _ => unreachable!(),
+            },
+            PropertyFilterValue::Set(prop_values) => match &filter.operator {
+                ComparisonOperator::In => {
+                    let sub_queries: Vec<(Occur, Box<dyn Query>)> = prop_values
                         .iter()
-                        .filter_map(|v| create_tantivy_term(prop_field, &Some(v.clone())).ok())
+                        .filter_map(|v| create_tantivy_term(prop_field, &v.clone()).ok())
                         .map(|term| {
                             (
                                 Should,
@@ -114,15 +120,11 @@ impl<'a> QueryBuilder<'a> {
                     } else {
                         None
                     }
-                } else {
-                    None
                 }
-            }
-            ComparisonOperator::NotIn => {
-                if let Some(Prop::List(values)) = prop_value {
-                    let sub_queries: Vec<(Occur, Box<dyn Query>)> = values
+                ComparisonOperator::NotIn => {
+                    let sub_queries: Vec<(Occur, Box<dyn Query>)> = prop_values
                         .iter()
-                        .filter_map(|v| create_tantivy_term(prop_field, &Some(v.clone())).ok())
+                        .filter_map(|v| create_tantivy_term(prop_field, &v.clone()).ok())
                         .map(|term| {
                             (
                                 Should,
@@ -145,13 +147,14 @@ impl<'a> QueryBuilder<'a> {
                     } else {
                         None
                     }
-                } else {
-                    None
                 }
-            }
-            ComparisonOperator::IsSome => Some(Box::new(AllQuery)),
-            ComparisonOperator::IsNone => None,
-            _ => return Err(GraphError::NotSupported),
+                _ => unreachable!(),
+            },
+            PropertyFilterValue::None => match &filter.operator {
+                ComparisonOperator::IsSome => Some(Box::new(AllQuery)),
+                ComparisonOperator::IsNone => None,
+                _ => unreachable!(),
+            },
         };
 
         Ok((property_index, query))

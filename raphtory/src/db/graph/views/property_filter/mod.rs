@@ -1,5 +1,6 @@
 use crate::core::{entities::properties::props::Meta, utils::errors::GraphError, Prop};
-use std::fmt;
+use std::{collections::HashSet, fmt};
+use std::sync::Arc;
 
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
@@ -39,60 +40,58 @@ impl fmt::Display for ComparisonOperator {
 }
 
 impl ComparisonOperator {
-    pub fn is_binary_comparison(&self) -> bool {
-        match self {
-            ComparisonOperator::Eq
-            | ComparisonOperator::Ne
-            | ComparisonOperator::Lt
-            | ComparisonOperator::Le
-            | ComparisonOperator::Gt
-            | ComparisonOperator::Ge => true,
-            _ => false,
-        }
-    }
-
-    pub fn compare(&self, left: Option<&Prop>, right: Option<&Prop>) -> bool {
-        match self {
-            ComparisonOperator::Eq => left.zip(right).map_or(false, |(l, r)| r == l),
-            ComparisonOperator::Ne => left.zip(right).map_or(false, |(l, r)| r != l),
-            ComparisonOperator::Lt => left.zip(right).map_or(false, |(l, r)| r < l),
-            ComparisonOperator::Le => left.zip(right).map_or(false, |(l, r)| r <= l),
-            ComparisonOperator::Gt => left.zip(right).map_or(false, |(l, r)| r > l),
-            ComparisonOperator::Ge => left.zip(right).map_or(false, |(l, r)| r >= l),
-
-            ComparisonOperator::In => right
-                .and_then(|r| match r {
-                    Prop::List(props) => Some(props),
-                    _ => None,
-                })
-                .zip(left)
-                .map_or(false, |(props, l)| props.contains(l)),
-            ComparisonOperator::NotIn => right
-                .and_then(|r| match r {
-                    Prop::List(props) => Some(props),
-                    _ => None,
-                })
-                .zip(left)
-                .map_or(true, |(props, l)| !props.contains(l)),
-
-            ComparisonOperator::IsSome => right.is_some(),
-            ComparisonOperator::IsNone => right.is_none(),
+    pub fn compare(&self, left: &PropertyFilterValue, right: Option<&Prop>) -> bool {
+        match left {
+            PropertyFilterValue::None => match self {
+                ComparisonOperator::IsSome => right.is_some(),
+                ComparisonOperator::IsNone => right.is_none(),
+                _ => unreachable!(),
+            },
+            PropertyFilterValue::Single(l) => match self {
+                ComparisonOperator::Eq => right.map_or(false, |r| r == l),
+                ComparisonOperator::Ne => right.map_or(false, |r| r != l),
+                ComparisonOperator::Lt => right.map_or(false, |r| r < l),
+                ComparisonOperator::Le => right.map_or(false, |r| r <= l),
+                ComparisonOperator::Gt => right.map_or(false, |r| r > l),
+                ComparisonOperator::Ge => right.map_or(false, |r| r >= l),
+                _ => unreachable!(),
+            },
+            PropertyFilterValue::Set(l) => match self {
+                ComparisonOperator::In => right.map_or(false, |r| l.contains(r)),
+                ComparisonOperator::NotIn => right.map_or(false, |r| !l.contains(r)),
+                _ => unreachable!(),
+            },
         }
     }
 }
 
 #[derive(Debug, Clone)]
+pub enum PropertyFilterValue {
+    None,
+    Single(Prop),
+    Set(Arc<HashSet<Prop>>),
+}
+
+#[derive(Debug, Clone)]
 pub struct PropertyFilter {
     pub prop_name: String,
-    pub prop_value: Option<Prop>,
+    pub prop_value: PropertyFilterValue,
     pub operator: ComparisonOperator,
 }
 
 impl fmt::Display for PropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.prop_value {
-            Some(value) => write!(f, "{} {} {}", self.prop_name, self.operator, value),
-            None => write!(f, "{} {}", self.prop_name, self.operator),
+            PropertyFilterValue::None => {
+                write!(f, "{} {}", self.prop_name, self.operator)
+            }
+            PropertyFilterValue::Single(value) => {
+                write!(f, "{} {} {}", self.prop_name, self.operator, value)
+            }
+            PropertyFilterValue::Set(values) => {
+                let values_str = values.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(", ");
+                write!(f, "{} {} [{}]", self.prop_name, self.operator, values_str)
+            }
         }
     }
 }
@@ -101,7 +100,7 @@ impl PropertyFilter {
     pub fn eq(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: ComparisonOperator::Eq,
         }
     }
@@ -109,7 +108,7 @@ impl PropertyFilter {
     pub fn ne(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: ComparisonOperator::Ne,
         }
     }
@@ -117,7 +116,7 @@ impl PropertyFilter {
     pub fn le(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: ComparisonOperator::Le,
         }
     }
@@ -125,7 +124,7 @@ impl PropertyFilter {
     pub fn ge(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: ComparisonOperator::Ge,
         }
     }
@@ -133,7 +132,7 @@ impl PropertyFilter {
     pub fn lt(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: ComparisonOperator::Lt,
         }
     }
@@ -141,23 +140,26 @@ impl PropertyFilter {
     pub fn gt(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: ComparisonOperator::Gt,
         }
     }
 
-    pub fn any(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn any(prop_name: impl Into<String>, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: ComparisonOperator::In,
         }
     }
 
-    pub fn not_any(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn not_any(
+        prop_name: impl Into<String>,
+        prop_values: impl IntoIterator<Item = Prop>,
+    ) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: Some(prop_value.into()),
+            prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: ComparisonOperator::NotIn,
         }
     }
@@ -165,7 +167,7 @@ impl PropertyFilter {
     pub fn is_none(prop_name: impl Into<String>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: None,
+            prop_value: PropertyFilterValue::None,
             operator: ComparisonOperator::IsNone,
         }
     }
@@ -173,41 +175,33 @@ impl PropertyFilter {
     pub fn is_some(prop_name: impl Into<String>) -> Self {
         Self {
             prop_name: prop_name.into(),
-            prop_value: None,
+            prop_value: PropertyFilterValue::None,
             operator: ComparisonOperator::IsSome,
         }
     }
 
     pub fn resolve_temporal_prop_ids(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        if self.operator.is_binary_comparison() {
-            if let Some(value) = &self.prop_value {
-                Ok(meta
-                    .temporal_prop_meta()
-                    .get_and_validate(&self.prop_name, value.dtype())?)
-            } else {
-                Err(GraphError::InvalidFilter(self.operator))
-            }
+        if let PropertyFilterValue::Single(value) = &self.prop_value {
+            Ok(meta
+                .temporal_prop_meta()
+                .get_and_validate(&self.prop_name, value.dtype())?)
         } else {
             Ok(meta.temporal_prop_meta().get_id(&self.prop_name))
         }
     }
 
     pub fn resolve_constant_prop_ids(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        if self.operator.is_binary_comparison() {
-            if let Some(value) = &self.prop_value {
-                Ok(meta
-                    .const_prop_meta()
-                    .get_and_validate(&self.prop_name, value.dtype())?)
-            } else {
-                Err(GraphError::InvalidFilter(self.operator))
-            }
+        if let PropertyFilterValue::Single(value) = &self.prop_value {
+            Ok(meta
+                .const_prop_meta()
+                .get_and_validate(&self.prop_name, value.dtype())?)
         } else {
             Ok(meta.const_prop_meta().get_id(&self.prop_name))
         }
     }
 
     pub fn matches(&self, other: Option<&Prop>) -> bool {
-        let value = self.prop_value.as_ref();
+        let value = &self.prop_value;
         self.operator.compare(value, other)
     }
 }
@@ -243,45 +237,29 @@ impl fmt::Display for CompositeFilter {
     }
 }
 
-impl CompositeFilter {
-    pub fn single(filter: PropertyFilter) -> Self {
-        Self::Single(filter)
-    }
-
-    pub fn and(filters: impl IntoIterator<Item =CompositeFilter>) -> Self {
-        Self::And(filters.into_iter().collect())
-    }
-
-    pub fn or(filters: impl IntoIterator<Item =CompositeFilter>) -> Self {
-        Self::Or(filters.into_iter().collect())
-    }
-}
-
 #[cfg(test)]
 mod test_filters {
-    use crate::{
-        db::graph::views::property_filter::CompositeFilter, prelude::PropertyFilter,
-    };
+    use crate::{db::graph::views::property_filter::CompositeFilter, prelude::PropertyFilter};
 
     #[test]
     fn test_composite_filter() {
         assert_eq!(
             "p2 == 2",
-            CompositeFilter::single(PropertyFilter::eq("p2", 2u64)).to_string()
+            CompositeFilter::Single(PropertyFilter::eq("p2", 2u64)).to_string()
         );
 
         assert_eq!(
             "((p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 <= 1))) OR (p5 == 9)",
             CompositeFilter::Or(vec![
                 CompositeFilter::And(vec![
-                    CompositeFilter::single(PropertyFilter::eq("p2", 2u64)),
-                    CompositeFilter::single(PropertyFilter::eq("p1", 1u64)),
+                    CompositeFilter::Single(PropertyFilter::eq("p2", 2u64)),
+                    CompositeFilter::Single(PropertyFilter::eq("p1", 1u64)),
                     CompositeFilter::Or(vec![
-                        CompositeFilter::single(PropertyFilter::le("p3", 5u64)),
-                        CompositeFilter::single(PropertyFilter::le("p4", 1u64))
+                        CompositeFilter::Single(PropertyFilter::le("p3", 5u64)),
+                        CompositeFilter::Single(PropertyFilter::le("p4", 1u64))
                     ]),
                 ]),
-                CompositeFilter::single(PropertyFilter::eq("p5", 9u64)),
+                CompositeFilter::Single(PropertyFilter::eq("p5", 9u64)),
             ])
             .to_string()
         );

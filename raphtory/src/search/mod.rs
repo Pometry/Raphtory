@@ -114,21 +114,17 @@ where
 
 fn create_tantivy_term(
     prop_field: tantivy::schema::Field,
-    prop_value: &Option<Prop>,
+    prop_value: &Prop,
 ) -> Result<tantivy::Term, GraphError> {
     match prop_value {
-        Some(Prop::Str(value)) => Ok(tantivy::Term::from_field_text(prop_field, value.as_ref())),
-        Some(Prop::I32(value)) => Ok(tantivy::Term::from_field_i64(prop_field, *value as i64)),
-        Some(Prop::I64(value)) => Ok(tantivy::Term::from_field_i64(prop_field, *value)),
-        Some(Prop::U64(value)) => Ok(tantivy::Term::from_field_u64(prop_field, *value)),
-        Some(Prop::F64(value)) => Ok(tantivy::Term::from_field_f64(prop_field, *value)),
-        Some(Prop::Bool(value)) => Ok(tantivy::Term::from_field_bool(prop_field, *value)),
-        Some(v) => {
+        Prop::Str(value) => Ok(tantivy::Term::from_field_text(prop_field, value.as_ref())),
+        Prop::I32(value) => Ok(tantivy::Term::from_field_i64(prop_field, *value as i64)),
+        Prop::I64(value) => Ok(tantivy::Term::from_field_i64(prop_field, *value)),
+        Prop::U64(value) => Ok(tantivy::Term::from_field_u64(prop_field, *value)),
+        Prop::F64(value) => Ok(tantivy::Term::from_field_f64(prop_field, *value)),
+        Prop::Bool(value) => Ok(tantivy::Term::from_field_bool(prop_field, *value)),
+        v => {
             println!("Unsupported value: {:?}", v);
-            Err(GraphError::NotSupported)
-        }
-        None => {
-            println!("Property value is None");
             Err(GraphError::NotSupported)
         }
     }
