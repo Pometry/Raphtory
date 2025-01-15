@@ -251,4 +251,8 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
     fn into_document(self) -> Option<DocumentInput> {
         self.latest().into_document()
     }
+
+    fn as_f64(self) -> Option<f64> {
+        self.latest().as_f64()
+    }
 }

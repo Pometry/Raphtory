@@ -247,20 +247,6 @@ impl Prop {
             _ => None,
         }
     }
-
-    pub fn as_f64(&self) -> Option<f64> {
-        match self {
-            Prop::U8(v) => Some(*v as f64),
-            Prop::U16(v) => Some(*v as f64),
-            Prop::I32(v) => Some(*v as f64),
-            Prop::I64(v) => Some(*v as f64),
-            Prop::U32(v) => Some(*v as f64),
-            Prop::U64(v) => Some(*v as f64),
-            Prop::F32(v) => Some(*v as f64),
-            Prop::F64(v) => Some(*v),
-            _ => None,
-        }
-    }
 }
 
 pub trait PropUnwrap: Sized {
@@ -341,6 +327,8 @@ pub trait PropUnwrap: Sized {
     fn unwrap_document(self) -> DocumentInput {
         self.into_document().unwrap()
     }
+
+    fn as_f64(self) -> Option<f64>;
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -406,6 +394,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_document(self) -> Option<DocumentInput> {
         self.and_then(|p| p.into_document())
+    }
+
+    fn as_f64(self) -> Option<f64> {
+        self.and_then(|p| p.as_f64())
     }
 }
 
@@ -535,6 +527,20 @@ impl PropUnwrap for Prop {
             Some(d)
         } else {
             None
+        }
+    }
+
+    fn as_f64(self) -> Option<f64> {
+        match self {
+            Prop::U8(v) => Some(v as f64),
+            Prop::U16(v) => Some(v as f64),
+            Prop::I32(v) => Some(v as f64),
+            Prop::I64(v) => Some(v as f64),
+            Prop::U32(v) => Some(v as f64),
+            Prop::U64(v) => Some(v as f64),
+            Prop::F32(v) => Some(v as f64),
+            Prop::F64(v) => Some(v),
+            _ => None,
         }
     }
 }
