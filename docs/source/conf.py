@@ -137,4 +137,8 @@ favicons = [
 # sphinx view code
 viewcode_line_numbers = True
 
-autodoc_typehints = "both"
+autodoc_typehints = "description"
+add_module_names = False
+autosummary_generate = True
+autosummary_generate_overwrite = True
+autosummary_ignore_module_all = False
