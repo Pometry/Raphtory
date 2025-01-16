@@ -13,8 +13,14 @@ methods.
    raphtory
 
 .. rubric:: Type Aliases
+.. list-table::
+   :class: autosummary, longtable, table
+
+   * - :py:mod:`raphtory.typing`
+     - Type aliases used in the documentation
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
+    :hidden:
 
     types

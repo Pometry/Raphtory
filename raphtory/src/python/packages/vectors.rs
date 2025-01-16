@@ -469,9 +469,9 @@ impl PyVectorSelection {
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the documents 1 hop away of some of the documents included on the selection (and
-    /// not already selected) are marked as candidates.
+    ///      not already selected) are marked as candidates.
     ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///      similarity score obtained against the `query`.
     ///
     /// This loops goes on until the current selection reaches a total of `limit`  documents or
     /// until no more documents are available
@@ -497,9 +497,9 @@ impl PyVectorSelection {
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the entities 1 hop away of some of the entities included on the selection (and
-    /// not already selected) are marked as candidates.
+    ///      not already selected) are marked as candidates.
     ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///      similarity score obtained against the `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available

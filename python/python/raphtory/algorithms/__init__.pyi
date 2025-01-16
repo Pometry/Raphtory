@@ -7,6 +7,7 @@
 #                                                                             #
 ###############################################################################
 
+
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -20,20 +21,15 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-def dijkstra_single_source_shortest_paths(
-    g: GraphView,
-    source: InputNode,
-    targets: list[InputNode],
-    direction: Direction = "both",
-    weight: str = "weight",
-) -> dict:
+
+def dijkstra_single_source_shortest_paths(g: GraphView, source: NodeInput, targets: list[NodeInput], direction: Direction = "both", weight: str = "weight") -> dict:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
     Arguments:
         g (GraphView): The graph to search in.
-        source (InputNode): The source node.
-        targets (list[InputNode]): A list of target nodes.
+        source (NodeInput): The source node.
+        targets (list[NodeInput]): A list of target nodes.
         direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
         weight (str): The name of the weight property for the edges. Defaults to "weight".
 
@@ -56,9 +52,7 @@ def global_reciprocity(g: GraphView):
         float : reciprocity of the graph between 0 and 1.
     """
 
-def betweenness_centrality(
-    g: GraphView, k: Optional[int] = None, normalized: bool = True
-) -> AlgorithmResult:
+def betweenness_centrality(g: GraphView, k: Optional[int] = None, normalized: bool = True) -> AlgorithmResult:
     """
     Computes the betweenness centrality for nodes in a given graph.
 
@@ -100,7 +94,7 @@ def triplet_count(g: GraphView):
         int : the number of triplets in the graph
     """
 
-def local_triangle_count(g: GraphView, v: InputNode):
+def local_triangle_count(g: GraphView, v: NodeInput):
     """
     Implementations of various graph algorithms that can be run on a graph.
 
@@ -112,7 +106,7 @@ def local_triangle_count(g: GraphView, v: InputNode):
 
     Arguments:
         g (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-        v (InputNode) : node id or name
+        v (NodeInput) : node id or name
 
     Returns:
         int : number of triangles associated with node v
@@ -227,13 +221,7 @@ def min_in_degree(g: GraphView):
         int : value of the smallest indegree
     """
 
-def pagerank(
-    g: GraphView,
-    iter_count: int = 20,
-    max_diff: Optional[float] = None,
-    use_l2_norm=True,
-    damping_factor=0.85,
-):
+def pagerank(g: GraphView, iter_count: int = 20, max_diff: Optional[float] = None, use_l2_norm=True, damping_factor=0.85):
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -252,15 +240,13 @@ def pagerank(
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
     """
 
-def single_source_shortest_path(
-    g: GraphView, source: InputNode, cutoff: Optional[int] = None
-) -> AlgorithmResult:
+def single_source_shortest_path(g: GraphView, source: NodeInput, cutoff: Optional[int] = None) -> AlgorithmResult:
     """
     Calculates the single source shortest paths from a given source node.
 
     Arguments:
         g (GraphView): A reference to the graph. Must implement `GraphViewOps`.
-        source (InputNode): The source node. Must implement `InputNode`.
+        source (NodeInput): The source node.
         cutoff (int, optional): An optional cutoff level. The algorithm will stop if this level is reached.
 
     Returns:
@@ -285,13 +271,7 @@ def global_clustering_coefficient(g: GraphView):
         [`Triplet Count`](triplet_count)
     """
 
-def temporally_reachable_nodes(
-    g: GraphView,
-    max_hops: int,
-    start_time: int,
-    seed_nodes: list[InputNode],
-    stop_nodes: Optional[list[InputNode]] = None,
-):
+def temporally_reachable_nodes(g: GraphView, max_hops: int, start_time: int, seed_nodes: list[NodeInput], stop_nodes: Optional[list[NodeInput]] = None):
     """
     Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 
@@ -303,30 +283,28 @@ def temporally_reachable_nodes(
         g (GraphView) : directed Raphtory graph
         max_hops (int) : maximum number of hops to propagate out
         start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-        seed_nodes (list[InputNode]) : list of node names or ids which should be the starting nodes
-        stop_nodes (Optional[list[InputNode]]) : nodes at which a path shouldn't go any further
+        seed_nodes (list[NodeInput]) : list of node names or ids which should be the starting nodes
+        stop_nodes (Optional[list[NodeInput]]) : nodes at which a path shouldn't go any further
 
     Returns:
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
     """
 
-def temporal_bipartite_graph_projection(
-    g: GraphView, delta: int, pivot_type
-) -> GraphView:
+def temporal_bipartite_graph_projection(g: GraphView, delta: int, pivot_type) -> Graph:
     """
-    Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
-    will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
+    Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
+    will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
 
     Arguments:
         g (GraphView) : A directed raphtory graph
         delta (int): Time period
-        pivot (str) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+        pivot (str) : node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 
     Returns:
-        GraphView: Projected (unipartite) temporal graph.
+        Graph: Projected (unipartite) temporal graph.
     """
 
-def local_clustering_coefficient(g: GraphView, v: InputNode):
+def local_clustering_coefficient(g: GraphView, v: NodeInput):
     """
     Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 
@@ -334,7 +312,7 @@ def local_clustering_coefficient(g: GraphView, v: InputNode):
 
     Arguments:
         g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
-        v (InputNode): node id or name
+        v (NodeInput): node id or name
 
     Returns:
         float : the local clustering coefficient of node v in g.
@@ -412,14 +390,7 @@ def out_component(node: Node) -> NodeStateUsize:
        NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
     """
 
-def fast_rp(
-    g: GraphView,
-    embedding_dim: int,
-    normalization_strength: float,
-    iter_weights: list[float],
-    seed: Optional[int] = None,
-    threads: Optional[int] = None,
-) -> AlgorithmResult:
+def fast_rp(g: GraphView, embedding_dim: int, normalization_strength: float, iter_weights: list[float], seed: Optional[int] = None, threads: Optional[int] = None) -> AlgorithmResult:
     """
     Computes embedding vectors for each vertex of an undirected/bidirectional graph according to the Fast RP algorithm.
     Original Paper: https://doi.org/10.48550/arXiv.1908.11512
@@ -511,30 +482,26 @@ def local_temporal_three_node_motifs(g: GraphView, delta: int):
        the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
     """
 
-def hits(g: GraphView, iter_count: int = 20, threads: Optional[int] = None):
+def hits(g: GraphView, iter_count: int = 20, threads: Optional[int] = None) -> AlgorithmResult:
     """
     HITS (Hubs and Authority) Algorithm:
+
     AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
-        Sum of HubScore of all nodes in the current iteration
+    Sum of HubScore of all nodes in the current iteration
 
     HubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /
-        Sum of AuthScore of all nodes in the current iteration
+    Sum of AuthScore of all nodes in the current iteration
 
     Arguments:
         g (GraphView): Graph to run the algorithm on
         iter_count (int): How many iterations to run the algorithm
         threads (int, optional): Number of threads to use
 
-    Returns
-        An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
+    Returns:
+        AlgorithmResult: An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
     """
 
-def balance(
-    g: GraphView,
-    name: str = "weight",
-    direction: Direction = "both",
-    threads: Optional[int] = None,
-) -> AlgorithmResult:
+def balance(g: GraphView, name: str = "weight", direction: Direction = "both", threads: Optional[int] = None) -> AlgorithmResult:
     """
     Sums the weights of edges in the graph based on the specified direction.
 
@@ -567,15 +534,7 @@ def label_propagation(g: GraphView, seed: Optional[bytes] = None) -> list[set[No
 
     """
 
-def temporal_SEIR(
-    graph: GraphView,
-    seeds: int | float | list[InputNode],
-    infection_prob: float,
-    initial_infection: int | str | datetime,
-    recovery_rate: float | None = None,
-    incubation_rate: float | None = None,
-    rng_seed: int | None = None,
-) -> AlgorithmResult:
+def temporal_SEIR(graph: GraphView, seeds: int | float | list[NodeInput], infection_prob: float, initial_infection: int | str | datetime, recovery_rate: float | None = None, incubation_rate: float | None = None, rng_seed: int | None = None) -> AlgorithmResult:
     """
     Simulate an SEIR dynamic on the network
 
@@ -583,7 +542,7 @@ def temporal_SEIR(
 
     Arguments:
         graph (GraphView): the graph view
-        seeds (int | float | list[InputNode]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
+        seeds (int | float | list[NodeInput]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
                of nodes at random, if `float` infect each node with this probability, if `list`
                initially infect the specified nodes
         infection_prob (float): the probability for a contact between infected and susceptible nodes to lead
@@ -599,7 +558,7 @@ def temporal_SEIR(
 
     Returns:
         AlgorithmResult: Returns an `Infected` object for each infected node with attributes
-
+    
         `infected`: the time stamp of the infection event
 
         `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
@@ -608,12 +567,7 @@ def temporal_SEIR(
 
     """
 
-def louvain(
-    graph: GraphView,
-    resolution: float = 1.0,
-    weight_prop: str | None = None,
-    tol: None | float = None,
-):
+def louvain(graph: GraphView, resolution: float = 1.0, weight_prop: str | None = None, tol: None | float = None):
     """
     Louvain algorithm for community detection
 
@@ -624,14 +578,7 @@ def louvain(
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
     """
 
-def fruchterman_reingold(
-    graph: GraphView,
-    iterations: int | None = 100,
-    scale: float | None = 1.0,
-    node_start_size: float | None = 1.0,
-    cooloff_factor: float | None = 0.95,
-    dt: float | None = 0.1,
-):
+def fruchterman_reingold(graph: GraphView, iterations: int | None = 100, scale: float | None = 1.0, node_start_size: float | None = 1.0, cooloff_factor: float | None = 0.95, dt: float | None = 0.1):
     """
     Fruchterman Reingold layout algorithm
 
@@ -647,17 +594,10 @@ def fruchterman_reingold(
         a dict with the position for each node as a list with two numbers [x, y]
     """
 
-def cohesive_fruchterman_reingold(
-    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
-):
+def cohesive_fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
     """Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes"""
 
-def max_weight_matching(
-    graph: GraphView,
-    weight_prop: Optional[str] = None,
-    max_cardinality: bool = True,
-    verify_optimum_flag: bool = False,
-) -> Matching:
+def max_weight_matching(graph: GraphView, weight_prop: Optional[str] = None, max_cardinality: bool = True, verify_optimum_flag: bool = False) -> Matching:
     """
     Compute a maximum-weighted matching in the general undirected weighted
     graph given by "edges". If `max_cardinality` is true, only
@@ -692,7 +632,7 @@ def max_weight_matching(
         Matching: The matching
     """
 
-class Matching(object):
+class Matching(object): 
     """A Matching (i.e., a set of edges that do not share any nodes)"""
 
     def __bool__(self):
@@ -710,35 +650,35 @@ class Matching(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def dst(self, src: InputNode) -> Optional[Node]:
+    def dst(self, src: NodeInput) -> Optional[Node]:
         """
         Get the matched destination node for a source node
 
         Arguments:
-            src (InputNode): The source node
+            src (NodeInput): The source node
 
         Returns:
             Optional[Node]: The matched destination node if it exists
 
         """
 
-    def edge_for_dst(self, dst: InputNode) -> Optional[Edge]:
+    def edge_for_dst(self, dst: NodeInput) -> Optional[Edge]:
         """
         Get the matched edge for a destination node
 
         Arguments:
-            dst (InputNode): The source node
+            dst (NodeInput): The source node
 
         Returns:
             Optional[Edge]: The matched edge if it exists
         """
 
-    def edge_for_src(self, src: InputNode) -> Optional[Edge]:
+    def edge_for_src(self, src: NodeInput) -> Optional[Edge]:
         """
         Get the matched edge for a source node
 
         Arguments:
-            src (InputNode): The source node
+            src (NodeInput): The source node
 
         Returns:
             Optional[Edge]: The matched edge if it exists
@@ -752,16 +692,17 @@ class Matching(object):
             Edges: The edges in the matching
         """
 
-    def src(self, dst: InputNode) -> Optional[Node]:
+    def src(self, dst: NodeInput) -> Optional[Node]:
         """
         Get the matched source node for a destination node
 
         Arguments:
-            dst (InputNode): The destination node
+            dst (NodeInput): The destination node
 
         Returns:
             Optional[Node]: The matched source node if it exists
 
         """
 
-def connected_components(g): ...
+def connected_components(g):
+    ...

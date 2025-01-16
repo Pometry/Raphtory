@@ -796,24 +796,28 @@ impl_edge_property_filter_ops!(
 
 #[pymethods]
 impl PyPathFromGraph {
+    /// the node ids
     #[getter]
     fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    /// the node names
     #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    /// the node types
     #[getter]
     fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
+    /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -827,6 +831,7 @@ impl PyPathFromGraph {
         (move || path.earliest_date_time()).into()
     }
 
+    /// the node latest times
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -852,27 +857,38 @@ impl PyPathFromGraph {
         (move || path.history_date_time()).into()
     }
 
+    /// the node properties
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
+    /// the node degrees
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    /// the node in-degrees
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    /// the node out-degrees
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    /// filter nodes by type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep
+    ///
+    /// Returns:
+    ///     PathFromGraph: the filtered view
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,
@@ -970,57 +986,73 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
 
 #[pymethods]
 impl PyPathFromNode {
+    /// the node ids
     #[getter]
     fn id(&self) -> GIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    /// the node names
     #[getter]
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    /// the node types
     #[getter]
     fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
+    /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    /// the node latest times
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }
 
+    /// the node properties
     #[getter]
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
+    /// the node in-degrees
     fn in_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    /// the node out-degrees
     fn out_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    /// the node degrees
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    /// filter nodes by type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep
+    ///
+    /// Returns:
+    ///     PathFromNode: the filtered view
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,

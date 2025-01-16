@@ -7,6 +7,7 @@
 #                                                                             #
 ###############################################################################
 
+
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
@@ -20,7 +21,9 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-class NodeGroups(object):
+
+class NodeGroups(object): 
+
     def __bool__(self):
         """True if self else False"""
 
@@ -63,7 +66,7 @@ class NodeGroups(object):
             Iterator[Tuple[Any, GraphView]]: Iterator over subgraphs with corresponding value
         """
 
-class DegreeView(object):
+class DegreeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -413,7 +416,7 @@ class DegreeView(object):
         """
          Create a view of the DegreeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -426,7 +429,7 @@ class DegreeView(object):
         """
          Create a view of the DegreeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              DegreeView:
@@ -529,7 +532,8 @@ class DegreeView(object):
             Optional[int]:
         """
 
-class NodeStateUsize(object):
+class NodeStateUsize(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -697,7 +701,8 @@ class NodeStateUsize(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateU64(object):
+class NodeStateU64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -857,7 +862,8 @@ class NodeStateU64(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateOptionI64(object):
+class NodeStateOptionI64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1009,7 +1015,7 @@ class NodeStateOptionI64(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class IdView(object):
+class IdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1171,7 +1177,8 @@ class IdView(object):
              Iterator[GID]: Iterator over values
         """
 
-class NodeStateGID(object):
+class NodeStateGID(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1315,7 +1322,7 @@ class NodeStateGID(object):
              Iterator[GID]: Iterator over values
         """
 
-class EarliestTimeView(object):
+class EarliestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1657,7 +1664,7 @@ class EarliestTimeView(object):
         """
          Create a view of the EarliestTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -1670,7 +1677,7 @@ class EarliestTimeView(object):
         """
          Create a view of the EarliestTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              EarliestTimeView:
@@ -1744,9 +1751,7 @@ class EarliestTimeView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> EarliestTimeView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
@@ -1767,7 +1772,7 @@ class EarliestTimeView(object):
             Optional[int]:
         """
 
-class LatestTimeView(object):
+class LatestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2109,7 +2114,7 @@ class LatestTimeView(object):
         """
          Create a view of the LatestTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -2122,7 +2127,7 @@ class LatestTimeView(object):
         """
          Create a view of the LatestTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              LatestTimeView:
@@ -2217,7 +2222,7 @@ class LatestTimeView(object):
             Optional[int]:
         """
 
-class NameView(object):
+class NameView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2387,7 +2392,8 @@ class NameView(object):
              Iterator[str]: Iterator over values
         """
 
-class NodeStateString(object):
+class NodeStateString(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -2539,7 +2545,7 @@ class NodeStateString(object):
              Iterator[str]: Iterator over values
         """
 
-class EarliestDateTimeView(object):
+class EarliestDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2881,7 +2887,7 @@ class EarliestDateTimeView(object):
         """
          Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -2894,7 +2900,7 @@ class EarliestDateTimeView(object):
         """
          Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              EarliestDateTimeView:
@@ -2968,9 +2974,7 @@ class EarliestDateTimeView(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> EarliestDateTimeView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
@@ -2991,7 +2995,7 @@ class EarliestDateTimeView(object):
             Optional[int]:
         """
 
-class LatestDateTimeView(object):
+class LatestDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3333,7 +3337,7 @@ class LatestDateTimeView(object):
         """
          Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -3346,7 +3350,7 @@ class LatestDateTimeView(object):
         """
          Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              LatestDateTimeView:
@@ -3420,9 +3424,7 @@ class LatestDateTimeView(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> LatestDateTimeView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
@@ -3443,7 +3445,8 @@ class LatestDateTimeView(object):
             Optional[int]:
         """
 
-class NodeStateOptionDateTime(object):
+class NodeStateOptionDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3595,7 +3598,7 @@ class NodeStateOptionDateTime(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-class HistoryView(object):
+class HistoryView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3929,7 +3932,7 @@ class HistoryView(object):
         """
          Create a view of the HistoryView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -3942,7 +3945,7 @@ class HistoryView(object):
         """
          Create a view of the HistoryView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              HistoryView:
@@ -4037,7 +4040,8 @@ class HistoryView(object):
             Optional[int]:
         """
 
-class NodeStateListI64(object):
+class NodeStateListI64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4181,7 +4185,7 @@ class NodeStateListI64(object):
              Iterator[list[int]]: Iterator over values
         """
 
-class HistoryDateTimeView(object):
+class HistoryDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4515,7 +4519,7 @@ class HistoryDateTimeView(object):
         """
          Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -4528,7 +4532,7 @@ class HistoryDateTimeView(object):
         """
          Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              HistoryDateTimeView:
@@ -4602,9 +4606,7 @@ class HistoryDateTimeView(object):
              Iterator[Optional[list[datetime]]]: Iterator over values
         """
 
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> HistoryDateTimeView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
@@ -4625,7 +4627,8 @@ class HistoryDateTimeView(object):
             Optional[int]:
         """
 
-class NodeStateOptionListDateTime(object):
+class NodeStateOptionListDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -4769,7 +4772,7 @@ class NodeStateOptionListDateTime(object):
              Iterator[Optional[list[datetime]]]: Iterator over values
         """
 
-class NodeTypeView(object):
+class NodeTypeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4939,7 +4942,8 @@ class NodeTypeView(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateOptionStr(object):
+class NodeStateOptionStr(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5091,7 +5095,8 @@ class NodeStateOptionStr(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateListDateTime(object):
+class NodeStateListDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
