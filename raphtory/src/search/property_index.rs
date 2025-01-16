@@ -11,6 +11,8 @@ use tantivy::{
     schema::{Field, Schema, SchemaBuilder, Type, FAST, INDEXED, STORED, TEXT},
     Document, Index, IndexReader, IndexSettings, TantivyDocument,
 };
+use tantivy::schema::{IndexRecordOption, TextFieldIndexing, TextOptions};
+use crate::search::TOKENIZER;
 
 #[derive(Clone)]
 pub struct PropertyIndex {
@@ -52,7 +54,16 @@ impl PropertyIndex {
 
         match prop_type {
             PropType::Str => {
-                schema.add_text_field(prop_name, TEXT | FAST | STORED);
+                schema.add_text_field(
+                    prop_name,
+                    TextOptions::default()
+                        .set_indexing_options(
+                            TextFieldIndexing::default()
+                                .set_tokenizer(TOKENIZER)
+                                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                        )
+                        .set_stored(),
+                );
             }
             PropType::DTime => {
                 schema.add_date_field(prop_name, INDEXED | FAST | STORED);

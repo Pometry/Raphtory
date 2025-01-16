@@ -2,29 +2,156 @@ use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::view::StaticGraphViewOps,
-        graph::{node::NodeView, views::property_filter::CompositeFilter},
+        graph::{
+            node::NodeView,
+            views::property_filter::{CompositeFilter, NodeFilter},
+        },
     },
-    prelude::{GraphViewOps, NodePropertyFilterOps, PropertyFilter, ResetFilter},
+    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
     search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
 };
-use std::collections::HashSet;
 use itertools::Itertools;
-use tantivy::{
-    schema::{Field, Value},
-    TantivyDocument,
-};
-use tantivy::collector::{FilterCollector, TopDocs};
 use raphtory_api::core::entities::VID;
-use crate::db::graph::views::property_filter::NodeFilter;
-use crate::prelude::NodeViewOps;
+use std::{collections::HashSet, sync::Arc};
+use tantivy::{
+    collector::{FilterCollector, TopDocs},
+    query::{Query},
+    schema::{Field, Value},
+    DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
+};
 
 pub struct QueryExecutor<'a> {
-    index: &'a GraphIndex,
+    query_builder: QueryBuilder<'a>,
 }
 
 impl<'a> QueryExecutor<'a> {
     pub fn new(index: &'a GraphIndex) -> Self {
-        Self { index }
+        Self {
+            query_builder: QueryBuilder::new(index),
+        }
+    }
+
+    fn execute_query<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        query: Box<dyn Query>,
+        index: &Arc<Index>,
+        reader: &IndexReader,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+        let searcher = reader.searcher();
+
+        println!("query = {:?}", query);
+        let top_docs =
+            searcher.search(&query, &self.node_id_filter_collector(graph, limit, offset))?;
+        println!();
+        Self::print_docs(&searcher, &query, &top_docs);
+        println!();
+
+        let node_id = index.schema().get_field(fields::NODE_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    fn execute_property_filter<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &PropertyFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<HashSet<NodeView<G>>, GraphError> {
+        let (property_index, query) = self.query_builder.build_property_query(graph, filter)?;
+
+        println!();
+        println!("Printing property index schema::start");
+        Self::print_schema(&property_index.index.schema());
+        println!("Printing property index schema::end");
+        println!();
+
+        let results = match query {
+            Some(query) => self.execute_query(
+                graph,
+                query,
+                &property_index.index,
+                &property_index.reader,
+                limit,
+                offset,
+            )?,
+            None => graph
+                .nodes()
+                .filter_nodes(filter.clone())?
+                .into_iter()
+                .map(|n| n.reset_filter())
+                .skip(offset)
+                .take(limit)
+                .collect(),
+        };
+
+        let unique_results: HashSet<_> = results.into_iter().collect();
+
+        println!(
+            "prop filter: {:?}, result: {:?}",
+            filter,
+            unique_results.iter().map(|n| n.name()).collect_vec()
+        );
+
+        Ok(unique_results)
+    }
+
+    fn execute_node_filter<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &NodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<HashSet<NodeView<G>>, GraphError> {
+        let (node_index, query) = self.query_builder.build_node_query(filter)?;
+
+        println!();
+        println!("Printing node index::start");
+        node_index.print()?;
+        println!("Printing node index::end");
+        println!();
+        println!("Printing node index schema::start");
+        Self::print_schema(&node_index.index.schema());
+        println!("Printing node index schema::end");
+        println!();
+
+        let results = match query {
+            Some(query) => {
+                println!("I was here 2");
+                self.execute_query(
+                    graph,
+                    query,
+                    &node_index.index,
+                    &node_index.reader,
+                    limit,
+                    offset,
+                )?
+            },
+            None => {
+                println!("I was here");
+                vec![]
+            },
+        };
+
+        let unique_results: HashSet<_> = results.into_iter().collect();
+
+        println!(
+            "node filter: {:?}, result: {:?}",
+            filter,
+            unique_results.iter().map(|n| n.name()).collect_vec()
+        );
+
+        Ok(unique_results)
     }
 
     pub fn execute<G: StaticGraphViewOps>(
@@ -68,58 +195,6 @@ impl<'a> QueryExecutor<'a> {
         }
     }
 
-    fn execute_property_filter<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &PropertyFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<HashSet<NodeView<G>>, GraphError> {
-        let query_builder = QueryBuilder::new(self.index);
-        let (property_index, query) = query_builder.build_property_query(graph, filter)?;
-
-        let results = match query {
-            Some(query) => {
-                let searcher = property_index.reader.searcher();
-                let top_docs =
-                    searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
-
-                let node_id = property_index.index.schema().get_field(fields::NODE_ID)?;
-
-                top_docs
-                    .into_iter()
-                    .map(|(_, doc_address)| searcher.doc(doc_address))
-                    .filter_map(Result::ok)
-                    .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
-                    .collect::<Vec<_>>()
-            }
-            None => graph
-                .nodes()
-                .filter_nodes(filter.clone())?
-                .into_iter()
-                .map(|n| n.reset_filter())
-                .skip(offset)
-                .take(limit)
-                .collect(),
-        };
-
-        let unique_results: HashSet<_> = results.into_iter().collect();
-
-        println!("filter: {:?}, result: {:?}", filter, unique_results.iter().map(|n| n.name()).collect_vec());
-
-        Ok(unique_results)
-    }
-
-    fn execute_node_filter<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &NodeFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<HashSet<NodeView<G>>, GraphError> {
-        todo!()
-    }
-
     fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
@@ -135,7 +210,7 @@ impl<'a> QueryExecutor<'a> {
         graph.node(node_id)
     }
 
-    fn node_filter_collector<G: StaticGraphViewOps>(
+    fn node_id_filter_collector<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         limit: usize,
@@ -148,5 +223,39 @@ impl<'a> QueryExecutor<'a> {
             move |node_id: u64| graph.has_node(VID(node_id as usize)),
             ranking,
         )
+    }
+
+    fn print_docs(
+        searcher: &Searcher,
+        query: &Box<dyn Query>,
+        top_docs: &Vec<(Score, DocAddress)>,
+    ) {
+        println!("Top Docs (debugging):");
+        println!("Query:{:?}", query,);
+        for (score, doc_address) in top_docs {
+            match searcher.doc::<TantivyDocument>(*doc_address) {
+                Ok(doc) => {
+                    let schema = searcher.schema();
+                    println!("Score: {}, Document: {}", score, doc.to_json(&schema));
+                }
+                Err(e) => {
+                    println!("Failed to retrieve document: {:?}", e);
+                }
+            }
+        }
+    }
+
+    fn print_schema_fields(schema: &tantivy::schema::Schema) {
+        println!("Schema fields and their IDs:");
+        for (field_name, field_entry) in schema.fields() {
+            println!(
+                "Field Name: '{:?}'",
+                field_name,
+            );
+        }
+    }
+
+    fn print_schema(schema: &tantivy::schema::Schema) {
+        println!("Schema:\n{:?}", schema);
     }
 }

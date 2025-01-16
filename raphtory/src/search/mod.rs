@@ -8,6 +8,7 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashSet,
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
 use tantivy::{
     query::{
@@ -15,8 +16,8 @@ use tantivy::{
         Occur::{Must, MustNot, Should},
         Query, TermQuery,
     },
-    schema::Schema,
-    tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
+    schema::{Field, FieldType, Schema},
+    tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer, TokenizerManager},
     Index, IndexReader, IndexSettings,
 };
 
@@ -106,4 +107,35 @@ where
     }
 
     Ok(())
+}
+
+pub fn get_str_field_tokens(
+    tokenizer_manager: &TokenizerManager,
+    field_type: &FieldType,
+    field_value: &str,
+) -> Result<Vec<String>, GraphError> {
+    let indexing_options = match field_type {
+        FieldType::Str(str_options) => str_options
+            .get_indexing_options()
+            .ok_or(GraphError::UnsupportedFieldTypeForTokenization),
+        _ => Err(GraphError::UnsupportedFieldTypeForTokenization),
+    }?;
+
+    let tokenizer_name = indexing_options.tokenizer();
+
+    let mut tokenizer = tokenizer_manager
+        .get(tokenizer_name)
+        .ok_or_else(|| GraphError::NotSupported)?;
+
+    let mut token_stream = tokenizer.token_stream(field_value);
+    let mut tokens = Vec::new();
+    while let Some(token) = token_stream.next() {
+        tokens.push(token.text.clone());
+    }
+
+    if tokens.len() < 1 {
+        return Err(GraphError::NoTokensFound);
+    }
+
+    Ok(tokens)
 }

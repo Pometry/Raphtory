@@ -27,12 +27,11 @@ use tantivy::{
     collector::TopDocs,
     query::{AllQuery, BooleanQuery, TermQuery},
     schema::{
-        IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value, FAST,
-        INDEXED, STORED,
+        Field, FieldType, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions,
+        Type, Value, FAST, INDEXED, STORED,
     },
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
-use tantivy::schema::{Field, Type};
 
 #[derive(Clone)]
 pub struct NodeIndex {

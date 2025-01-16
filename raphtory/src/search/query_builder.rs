@@ -7,16 +7,25 @@ use crate::{
         },
     },
     prelude::PropertyFilter,
-    search::{graph_index::GraphIndex, node_index::NodeIndex, property_index::PropertyIndex},
+    search::{
+        get_str_field_tokens, graph_index::GraphIndex, node_index::NodeIndex,
+        property_index::PropertyIndex,
+    },
 };
+use itertools::Itertools;
 use std::{
     collections::{Bound, HashSet},
     sync::Arc,
+    vec,
 };
-use tantivy::query::{
-    AllQuery, BooleanQuery, Occur,
-    Occur::{Must, MustNot, Should},
-    Query, RangeQuery, TermQuery,
+use tantivy::{
+    query::{
+        AllQuery, BooleanQuery, Occur,
+        Occur::{Must, MustNot, Should},
+        PhraseQuery, Query, RangeQuery, TermQuery,
+    },
+    schema::{Field, IndexRecordOption, Type},
+    Term,
 };
 
 pub struct QueryBuilder<'a> {
@@ -44,61 +53,49 @@ impl<'a> QueryBuilder<'a> {
 
         let query: Option<Box<dyn Query>> = match prop_value {
             PropertyFilterValue::Single(prop_value) => match &filter.operator {
-                FilterOperator::Eq => {
-                    let term = create_property_tantivy_term(prop_field, prop_value)?;
-                    Some(create_eq_query(term))
-                }
-                FilterOperator::Ne => {
-                    let term = create_property_tantivy_term(prop_field, prop_value)?;
-                    Some(create_ne_query(term))
-                }
-                FilterOperator::Lt => {
-                    let term = create_property_tantivy_term(prop_field, prop_value)?;
-                    Some(Box::new(RangeQuery::new_term_bounds(
-                        prop_name.to_string(),
-                        prop_field_type,
-                        &Bound::Unbounded,
-                        &Bound::Excluded(term),
-                    )))
-                }
-                FilterOperator::Le => {
-                    let term = create_property_tantivy_term(prop_field, prop_value)?;
-                    Some(Box::new(RangeQuery::new_term_bounds(
-                        prop_name.to_string(),
-                        prop_field_type,
-                        &Bound::Unbounded,
-                        &Bound::Included(term),
-                    )))
-                }
-                FilterOperator::Gt => {
-                    let term = create_property_tantivy_term(prop_field, prop_value)?;
-                    Some(Box::new(RangeQuery::new_term_bounds(
-                        prop_name.to_string(),
-                        prop_field_type,
-                        &Bound::Excluded(term),
-                        &Bound::Unbounded,
-                    )))
-                }
-                FilterOperator::Ge => {
-                    let term = create_property_tantivy_term(prop_field, prop_value)?;
-                    Some(Box::new(RangeQuery::new_term_bounds(
-                        prop_name.to_string(),
-                        prop_field_type,
-                        &Bound::Included(term),
-                        &Bound::Unbounded,
-                    )))
-                }
+                FilterOperator::Eq => create_eq_query(create_property_tantivy_terms(
+                    &property_index,
+                    prop_field,
+                    prop_value,
+                )?),
+                FilterOperator::Ne => create_ne_query(create_property_tantivy_terms(
+                    &property_index,
+                    prop_field,
+                    prop_value,
+                )?),
+                FilterOperator::Lt => create_lt_query(
+                    prop_name.to_string(),
+                    prop_field_type,
+                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
+                ),
+                FilterOperator::Le => create_le_query(
+                    prop_name.to_string(),
+                    prop_field_type,
+                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
+                ),
+                FilterOperator::Gt => create_gt_query(
+                    prop_name.to_string(),
+                    prop_field_type,
+                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
+                ),
+                FilterOperator::Ge => create_ge_query(
+                    prop_name.to_string(),
+                    prop_field_type,
+                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
+                ),
                 _ => unreachable!(),
             },
             PropertyFilterValue::Set(prop_values) => match &filter.operator {
-                FilterOperator::In => {
-                    let sub_queries = create_property_sub_queries(prop_field, prop_values);
-                    create_in_query(sub_queries)
-                }
-                FilterOperator::NotIn => {
-                    let sub_queries = create_property_sub_queries(prop_field, prop_values);
-                    create_not_in_query(sub_queries)
-                }
+                FilterOperator::In => create_in_query(create_property_sub_queries(
+                    &property_index,
+                    prop_field,
+                    prop_values,
+                )),
+                FilterOperator::NotIn => create_not_in_query(create_property_sub_queries(
+                    &property_index,
+                    prop_field,
+                    prop_values,
+                )),
                 _ => unreachable!(),
             },
             PropertyFilterValue::None => match &filter.operator {
@@ -111,7 +108,7 @@ impl<'a> QueryBuilder<'a> {
         Ok((property_index, query))
     }
 
-    pub(crate) fn build_node_query<G: StaticGraphViewOps>(
+    pub(crate) fn build_node_query(
         &self,
         filter: &NodeFilter,
     ) -> Result<(Arc<NodeIndex>, Option<Box<dyn Query>>), GraphError> {
@@ -122,25 +119,23 @@ impl<'a> QueryBuilder<'a> {
 
         let query: Option<Box<dyn Query>> = match field_value {
             NodeFilterValue::Single(node_value) => match &filter.operator {
-                FilterOperator::Eq => {
-                    let term = create_node_tantivy_term(node_field, node_value)?;
-                    Some(create_eq_query(term))
-                }
-                FilterOperator::Ne => {
-                    let term = create_node_tantivy_term(node_field, node_value)?;
-                    Some(create_ne_query(term))
-                }
+                FilterOperator::Eq => create_eq_query(create_node_tantivy_terms(
+                    node_index, node_field, node_value,
+                )?),
+                FilterOperator::Ne => create_ne_query(create_node_tantivy_terms(
+                    node_index, node_field, node_value,
+                )?),
                 _ => unreachable!(),
             },
             NodeFilterValue::Set(node_values) => match &filter.operator {
                 FilterOperator::In => {
-                    let sub_queries = create_node_sub_queries(node_field, node_values);
-                    create_in_query(sub_queries)
+                    create_in_query(create_node_sub_queries(node_index, node_field, node_values))
                 }
-                FilterOperator::NotIn => {
-                    let sub_queries = create_node_sub_queries(node_field, node_values);
-                    create_not_in_query(sub_queries)
-                }
+                FilterOperator::NotIn => create_not_in_query(create_node_sub_queries(
+                    node_index,
+                    node_field,
+                    node_values,
+                )),
                 _ => unreachable!(),
             },
         };
@@ -149,17 +144,25 @@ impl<'a> QueryBuilder<'a> {
     }
 }
 
-fn create_property_tantivy_term(
-    prop_field: tantivy::schema::Field,
+fn create_property_tantivy_terms(
+    property_index: &PropertyIndex,
+    prop_field: Field,
     prop_value: &Prop,
-) -> Result<tantivy::Term, GraphError> {
+) -> Result<Vec<Term>, GraphError> {
     match prop_value {
-        Prop::Str(value) => Ok(tantivy::Term::from_field_text(prop_field, value.as_ref())),
-        Prop::I32(value) => Ok(tantivy::Term::from_field_i64(prop_field, *value as i64)),
-        Prop::I64(value) => Ok(tantivy::Term::from_field_i64(prop_field, *value)),
-        Prop::U64(value) => Ok(tantivy::Term::from_field_u64(prop_field, *value)),
-        Prop::F64(value) => Ok(tantivy::Term::from_field_f64(prop_field, *value)),
-        Prop::Bool(value) => Ok(tantivy::Term::from_field_bool(prop_field, *value)),
+        Prop::Str(value) => {
+            let schema = property_index.index.schema();
+            let field_entry = schema.get_field_entry(prop_field.clone());
+            let field_type = field_entry.field_type();
+            let tokens =
+                get_str_field_tokens(property_index.index.tokenizers(), field_type, value)?;
+            create_terms_from_tokens(prop_field, tokens)
+        }
+        Prop::I32(value) => Ok(vec![Term::from_field_i64(prop_field, *value as i64)]),
+        Prop::I64(value) => Ok(vec![Term::from_field_i64(prop_field, *value)]),
+        Prop::U64(value) => Ok(vec![Term::from_field_u64(prop_field, *value)]),
+        Prop::F64(value) => Ok(vec![Term::from_field_f64(prop_field, *value)]),
+        Prop::Bool(value) => Ok(vec![Term::from_field_bool(prop_field, *value)]),
         v => {
             println!("Unsupported value: {:?}", v);
             Err(GraphError::NotSupported)
@@ -168,71 +171,164 @@ fn create_property_tantivy_term(
 }
 
 fn create_property_sub_queries(
-    prop_field: tantivy::schema::Field,
+    property_index: &PropertyIndex,
+    prop_field: Field,
     prop_values: &HashSet<Prop>,
 ) -> Vec<(Occur, Box<dyn Query>)> {
     prop_values
         .iter()
-        .filter_map(|v| create_property_tantivy_term(prop_field, v).ok())
-        .map(|term| {
-            (
-                Should,
-                Box::new(TermQuery::new(
-                    term,
-                    tantivy::schema::IndexRecordOption::Basic,
-                )) as Box<dyn Query>,
-            )
+        .filter_map(|v| create_property_tantivy_terms(property_index, prop_field, v).ok())
+        .flat_map(|terms| {
+            terms.into_iter().map(|term| {
+                (
+                    Should,
+                    Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>,
+                )
+            })
         })
         .collect()
 }
 
-fn create_node_tantivy_term(
-    node_field: tantivy::schema::Field,
-    node_value: &String,
-) -> Result<tantivy::Term, GraphError> {
-    Ok(tantivy::Term::from_field_text(
-        node_field,
-        node_value.as_ref(),
-    ))
+fn create_node_tantivy_terms(
+    node_index: &NodeIndex,
+    node_field: Field,
+    node_value: &str,
+) -> Result<Vec<Term>, GraphError> {
+    let schema = node_index.index.schema();
+    let field_entry = schema.get_field_entry(node_field.clone());
+    let field_type = field_entry.field_type();
+    let tokens = get_str_field_tokens(node_index.index.tokenizers(), &field_type, node_value)?;
+    create_terms_from_tokens(node_field, tokens)
 }
 
 fn create_node_sub_queries(
-    node_field: tantivy::schema::Field,
+    node_index: &NodeIndex,
+    node_field: Field,
     node_values: &HashSet<String>,
 ) -> Vec<(Occur, Box<dyn Query>)> {
     node_values
         .iter()
-        .filter_map(|value| create_node_tantivy_term(node_field, value).ok())
-        .map(|term| {
-            (
-                Should,
-                Box::new(TermQuery::new(
-                    term,
-                    tantivy::schema::IndexRecordOption::Basic,
-                )) as Box<dyn Query>,
-            )
+        .filter_map(|value| create_node_tantivy_terms(node_index, node_field, value).ok())
+        .flat_map(|terms| {
+            terms.into_iter().map(|term| {
+                (
+                    Should,
+                    Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>,
+                )
+            })
         })
         .collect()
 }
 
-fn create_eq_query(term: tantivy::Term) -> Box<dyn Query> {
-    Box::new(TermQuery::new(
-        term,
-        tantivy::schema::IndexRecordOption::Basic,
-    ))
+fn create_terms_from_tokens(field: Field, tokens: Vec<String>) -> Result<Vec<Term>, GraphError> {
+    Ok(tokens
+        .into_iter()
+        .map(|value| Term::from_field_text(field, value.as_ref()))
+        .collect_vec())
 }
 
-fn create_ne_query(term: tantivy::Term) -> Box<dyn Query> {
-    Box::new(BooleanQuery::new(vec![
-        (Should, Box::new(AllQuery)), // Include all documents
-        (
-            MustNot, // Exclude documents matching the term
-            Box::new(TermQuery::new(
-                term,
-                tantivy::schema::IndexRecordOption::Basic,
-            )),
-        ),
-    ]))
+// Creates a Tantivy query from a vector of terms.
+// - For multiple terms (e.g., when tokenizing a string field with multiple tokens),
+//   a `PhraseQuery` is created to match documents containing the terms in sequence.
+// - For a single term (e.g., from a non-string field or a single-token string field),
+//   a `TermQuery` is created to match documents containing the exact term.
+// - If no terms are provided, the function panics, as a valid query cannot be constructed.
+fn create_eq_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
+    match terms.len() {
+        0 => None,
+        1 => Some(Box::new(TermQuery::new(
+            terms[0].clone(),
+            IndexRecordOption::Basic,
+        ))),
+        _ => Some(Box::new(PhraseQuery::new(terms))),
+    }
+}
+
+fn create_ne_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
+    if terms.is_empty() {
+        return None;
+    }
+
+    let must_not_queries: Vec<(Occur, Box<dyn Query>)> = terms
+        .into_iter()
+        .map(|term| {
+            (
+                MustNot,
+                Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>,
+            )
+        })
+        .collect();
+
+    Some(Box::new(BooleanQuery::new(
+        vec![(Should, Box::new(AllQuery) as Box<dyn Query>)] // Include all documents
+            .into_iter()
+            .chain(must_not_queries) // Exclude documents matching any term
+            .collect(),
+    )))
+}
+
+fn create_lt_query(
+    prop_name: String,
+    prop_field_type: Type,
+    terms: Vec<Term>,
+) -> Option<Box<dyn Query>> {
+    match terms.len() {
+        0 => None,
+        _ => Some(Box::new(RangeQuery::new_term_bounds(
+            prop_name,
+            prop_field_type,
+            &Bound::Unbounded,
+            &Bound::Excluded(terms.get(0).unwrap().clone()),
+        ))),
+    }
+}
+
+fn create_le_query(
+    prop_name: String,
+    prop_field_type: Type,
+    terms: Vec<Term>,
+) -> Option<Box<dyn Query>> {
+    match terms.len() {
+        0 => None,
+        _ => Some(Box::new(RangeQuery::new_term_bounds(
+            prop_name.to_string(),
+            prop_field_type,
+            &Bound::Unbounded,
+            &Bound::Included(terms.get(0).unwrap().clone()),
+        ))),
+    }
+}
+
+fn create_gt_query(
+    prop_name: String,
+    prop_field_type: Type,
+    terms: Vec<Term>,
+) -> Option<Box<dyn Query>> {
+    match terms.len() {
+        0 => None,
+        _ => Some(Box::new(RangeQuery::new_term_bounds(
+            prop_name.to_string(),
+            prop_field_type,
+            &Bound::Excluded(terms.get(0).unwrap().clone()),
+            &Bound::Unbounded,
+        ))),
+    }
+}
+
+fn create_ge_query(
+    prop_name: String,
+    prop_field_type: Type,
+    terms: Vec<Term>,
+) -> Option<Box<dyn Query>> {
+    match terms.len() {
+        0 => None,
+        _ => Some(Box::new(RangeQuery::new_term_bounds(
+            prop_name.to_string(),
+            prop_field_type,
+            &Bound::Included(terms.get(0).unwrap().clone()),
+            &Bound::Unbounded,
+        ))),
+    }
 }
 
 fn create_in_query(sub_queries: Vec<(Occur, Box<dyn Query>)>) -> Option<Box<dyn Query>> {
