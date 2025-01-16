@@ -9,6 +9,8 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Any
+
+import raphtory.typing
 import sphinx_autosummary_accessors
 from raphtory import __version__
 
@@ -35,11 +37,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     # Third-party extensions
-    "IPython.sphinxext.ipython_directive",
-    "IPython.sphinxext.ipython_console_highlighting",
-    "matplotlib.sphinxext.plot_directive",
     "autodocsumm",
-    "nbsphinx",
     "numpydoc",
     "notfound.extension",
     "sphinx_autosummary_accessors",
@@ -142,3 +140,23 @@ add_module_names = False
 autosummary_generate = True
 autosummary_generate_overwrite = True
 autosummary_ignore_module_all = False
+
+
+# see https://github.com/sphinx-doc/sphinx/issues/10785 for why this is needed
+TYPE_ALIASES = raphtory.typing.aliases
+
+
+def resolve_type_aliases(app, env, node, contnode):
+    """Resolve :class: references to our type aliases as :attr: instead."""
+    if (
+        node["refdomain"] == "py"
+        and node["reftype"] == "class"
+        and node["reftarget"] in TYPE_ALIASES
+    ):
+        return app.env.get_domain("py").resolve_xref(
+            env, node["refdoc"], app.builder, "type", node["reftarget"], node, contnode
+        )
+
+
+def setup(app):
+    app.connect("missing-reference", resolve_type_aliases)
