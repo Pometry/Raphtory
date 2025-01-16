@@ -2,6 +2,8 @@ typing
 ============
 .. py:module:: raphtory.typing
 
+.. rubric:: Type Aliases
+
 .. py:type:: PropValue
    :canonical: bool | int | float | datetime | str | Graph | PersistentGraph | Document | list[PropValue] | dict[str, PropValue]
 
