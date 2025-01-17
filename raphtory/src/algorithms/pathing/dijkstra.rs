@@ -1,6 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{Direction, PropType},
+    core::{Direction, PropType, PropUnwrap},
     prelude::{EdgeViewOps, NodeViewOps, Prop},
 };
 /// Dijkstra's algorithm
@@ -10,7 +10,6 @@ use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
-use crate::core::PropUnwrap;
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]
@@ -54,8 +53,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     targets: Vec<T>,
     weight: Option<String>,
     direction: Direction,
-) -> Result<AlgorithmResult<G, (f64, Vec<String>), (OrderedFloat<f64>, Vec<String>)>, String>
-{
+) -> Result<AlgorithmResult<G, (f64, Vec<String>), (OrderedFloat<f64>, Vec<String>)>, String> {
     let source_node = match g.node(source) {
         Some(src) => src,
         None => return Err("Source node not found".to_string()),
@@ -248,16 +246,10 @@ mod dijkstra_tests {
 
             let results = results.unwrap();
 
-            assert_eq!(
-                results.get("D").unwrap().0,
-                7.0f64
-            );
+            assert_eq!(results.get("D").unwrap().0, 7.0f64);
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
-            assert_eq!(
-                results.get("F").unwrap().0,
-                8.0f64
-            );
+            assert_eq!(results.get("F").unwrap().0, 8.0f64);
             assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
             let targets: Vec<&str> = vec!["D", "E", "F"];
@@ -269,18 +261,9 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                5.0f64
-            );
-            assert_eq!(
-                results.get("E").unwrap().0,
-                3.0f64
-            );
-            assert_eq!(
-                results.get("F").unwrap().0,
-                6.0f64
-            );
+            assert_eq!(results.get("D").unwrap().0, 5.0f64);
+            assert_eq!(results.get("E").unwrap().0, 3.0f64);
+            assert_eq!(results.get("F").unwrap().0, 6.0f64);
             assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
             assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
@@ -330,16 +313,10 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("4").unwrap().0,
-                7f64
-            );
+            assert_eq!(results.get("4").unwrap().0, 7f64);
             assert_eq!(results.get("4").unwrap().1, vec!["1", "3", "4"]);
 
-            assert_eq!(
-                results.get("6").unwrap().0,
-                8f64
-            );
+            assert_eq!(results.get("6").unwrap().0, 8f64);
             assert_eq!(results.get("6").unwrap().1, vec!["1", "3", "5", "6"]);
 
             let targets = vec![4, 5, 6];
@@ -351,18 +328,9 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("4").unwrap().0,
-                5f64
-            );
-            assert_eq!(
-                results.get("5").unwrap().0,
-                3f64
-            );
-            assert_eq!(
-                results.get("6").unwrap().0,
-                6f64
-            );
+            assert_eq!(results.get("4").unwrap().0, 5f64);
+            assert_eq!(results.get("5").unwrap().0, 3f64);
+            assert_eq!(results.get("6").unwrap().0, 6f64);
             assert_eq!(results.get("4").unwrap().1, vec!["2", "3", "4"]);
             assert_eq!(results.get("5").unwrap().1, vec!["2", "3", "5"]);
             assert_eq!(results.get("6").unwrap().1, vec!["2", "3", "5", "6"]);
@@ -398,16 +366,10 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                7f64
-            );
+            assert_eq!(results.get("D").unwrap().0, 7f64);
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
-            assert_eq!(
-                results.get("F").unwrap().0,
-                8f64
-            );
+            assert_eq!(results.get("F").unwrap().0, 8f64);
             assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
             let targets: Vec<&str> = vec!["D", "E", "F"];
@@ -419,18 +381,9 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                5f64
-            );
-            assert_eq!(
-                results.get("E").unwrap().0,
-                3f64
-            );
-            assert_eq!(
-                results.get("F").unwrap().0,
-                6f64
-            );
+            assert_eq!(results.get("D").unwrap().0, 5f64);
+            assert_eq!(results.get("E").unwrap().0, 3f64);
+            assert_eq!(results.get("F").unwrap().0, 6f64);
             assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
             assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
@@ -462,10 +415,7 @@ mod dijkstra_tests {
             );
 
             let results = results.unwrap();
-            assert_eq!(
-                results.get("D").unwrap().0,
-                7f64
-            );
+            assert_eq!(results.get("D").unwrap().0, 7f64);
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
         });
     }

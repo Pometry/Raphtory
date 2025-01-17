@@ -51,7 +51,6 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -62,7 +61,7 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
@@ -83,7 +82,7 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 /// This function returns the number of pairs of neighbours of a given node which are themselves connected.
 ///
 /// Arguments:
-///     g (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
+///     graph (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
 ///     v (NodeInput) : node id or name
 ///
 /// Returns:
@@ -632,7 +631,7 @@ pub fn min_degree(graph: &PyGraphView) -> usize {
 /// Calculates the single source shortest paths from a given source node.
 ///
 /// Arguments:
-///     g (GraphView): A reference to the graph. Must implement `GraphViewOps`.
+///     graph (GraphView): A reference to the graph. Must implement `GraphViewOps`.
 ///     source (NodeInput): The source node.
 ///     cutoff (int, optional): An optional cutoff level. The algorithm will stop if this level is reached.
 ///
@@ -652,7 +651,7 @@ pub fn single_source_shortest_path(
 /// Finds the shortest paths from a single source to multiple targets in a graph.
 ///
 /// Arguments:
-///     g (GraphView): The graph to search in.
+///     graph (GraphView): The graph to search in.
 ///     source (NodeInput): The source node.
 ///     targets (list[NodeInput]): A list of target nodes.
 ///     direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".

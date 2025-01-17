@@ -7,12 +7,9 @@ use dynamic_graphql::{internal::TypeName, SimpleObject};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::{
-    algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        pathing::dijkstra::dijkstra_single_source_shortest_paths,
-    },
-    core::Prop,
+use raphtory::algorithms::{
+    centrality::pagerank::unweighted_page_rank,
+    pathing::dijkstra::dijkstra_single_source_shortest_paths,
 };
 use raphtory_api::core::Direction;
 use std::collections::HashMap;

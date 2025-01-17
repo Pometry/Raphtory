@@ -4,7 +4,6 @@ use crate::{
     db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
     python::types::repr::{Repr, StructReprBuilder},
 };
-use num_traits::float::FloatCore;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use raphtory_api::core::entities::GID;

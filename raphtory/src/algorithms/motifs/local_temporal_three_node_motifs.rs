@@ -418,13 +418,13 @@ where
 
 #[cfg(test)]
 mod motifs_test {
-    use arrow_array::Datum;
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
         test_storage,
     };
+    use arrow_array::Datum;
     use raphtory_api::core::utils::logging::global_debug_logger;
     use tracing::info;
 
