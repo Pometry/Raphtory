@@ -34,7 +34,7 @@ impl PyGraphView {
     ///     kwargs: Additional keyword arguments that are passed to the pyvis Network class.
     ///
     /// Returns:
-    ///     pyvis.Network: A pyvis network
+    ///     pyvis.network.Network: A pyvis network
     #[pyo3(signature = (explode_edges=false, edge_color="#000000", shape="dot", node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=false, directed=true, notebook=false, **kwargs))]
     pub fn to_pyvis<'py>(
         &self,

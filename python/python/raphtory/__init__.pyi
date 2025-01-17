@@ -578,7 +578,7 @@ class GraphView(object):
         directed: bool = True,
         notebook: bool = False,
         **kwargs: Any
-    ) -> pyvis.Network:
+    ) -> pyvis.network.Network:
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -601,7 +601,7 @@ class GraphView(object):
             kwargs: Additional keyword arguments that are passed to the pyvis Network class.
 
         Returns:
-            pyvis.Network: A pyvis network
+            pyvis.network.Network: A pyvis network
         """
 
     @property

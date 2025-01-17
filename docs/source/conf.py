@@ -13,6 +13,7 @@ from typing import Any
 import raphtory.typing
 import sphinx_autosummary_accessors
 from raphtory import __version__
+from sphinx.ext.intersphinx import missing_reference
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -141,6 +142,13 @@ autosummary_generate = True
 autosummary_generate_overwrite = True
 autosummary_ignore_module_all = False
 
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "networkx": ("https://networkx.org/documentation/stable/", None),
+    "pyvis": ("https://pyvis.readthedocs.io/en/latest/", None),
+}
+
 
 # see https://github.com/sphinx-doc/sphinx/issues/10785 for why this is needed.
 def resolve_type_aliases(app, env, node, contnode):
@@ -151,5 +159,56 @@ def resolve_type_aliases(app, env, node, contnode):
         )
 
 
+def resolve_none(app, env, node, contnode):
+    """Add a fallback for resolving None in type annotations"""
+    if (
+        node["refdomain"] == "py"
+        and node["reftype"] == "class"
+        and node["reftarget"] == "None"
+    ):
+        node["reftype"] = "obj"
+        res = missing_reference(app, env, node, contnode)
+        node["reftype"] = "class"
+        return res
+
+
+def resolve_in_typing_module(app, env, node, contnode):
+    """Add a fallback for resolving missing :class: references in typing module"""
+    if node["refdomain"] == "py" and node["reftype"] == "class":
+        old_target = node["reftarget"]
+        node["reftarget"] = "typing." + old_target
+        node["reftype"] = "obj"
+        res = missing_reference(app, env, node, contnode)
+        node["reftarget"] = old_target
+        node["reftype"] = "class"
+        return res
+
+
+RESOLVE_ALIASES = {
+    "datetime": "datetime.datetime",
+    "DataFrame": "pandas.DataFrame",
+    "nx": "networkx",
+}
+
+MODULE_ALIASES = {}
+
+
+def resolve_aliases(app, env, node, contnode):
+    """Add a fallback for resolving specific aliases used in type hints"""
+    if node["refdomain"] == "py":
+        split_target = node["reftarget"].split(".")
+        if any(s in RESOLVE_ALIASES for s in split_target):
+            old_target = node["reftarget"]
+            node["reftarget"] = ".".join(
+                RESOLVE_ALIASES.get(s, s) for s in split_target
+            )
+            res = missing_reference(app, env, node, contnode)
+            node["reftarget"] = old_target
+            return res
+
+
 def setup(app):
     app.connect("missing-reference", resolve_type_aliases)
+    app.connect("missing-reference", resolve_in_typing_module)
+    app.connect("missing-reference", resolve_aliases)
+    app.connect("missing-reference", resolve_none)
