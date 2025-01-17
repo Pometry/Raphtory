@@ -147,6 +147,8 @@ intersphinx_mapping = {
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "networkx": ("https://networkx.org/documentation/stable/", None),
     "pyvis": ("https://pyvis.readthedocs.io/en/latest/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
 }
 
 
@@ -188,9 +190,9 @@ RESOLVE_ALIASES = {
     "datetime": "datetime.datetime",
     "DataFrame": "pandas.DataFrame",
     "nx": "networkx",
+    "np": "numpy",
+    "pd": "pandas",
 }
-
-MODULE_ALIASES = {}
 
 
 def resolve_aliases(app, env, node, contnode):
