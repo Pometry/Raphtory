@@ -238,7 +238,7 @@ impl PyGraphView {
     }
 }
 
-#[pyclass(name = "VectorisedGraph", frozen)]
+#[pyclass(name = "VectorisedGraph", module = "raphtory.vectors", frozen)]
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
@@ -376,7 +376,7 @@ impl PyVectorisedGraph {
     }
 }
 
-#[pyclass(name = "VectorSelection")]
+#[pyclass(name = "VectorSelection", module = "raphtory.vectors")]
 pub struct PyVectorSelection(DynamicVectorSelection);
 
 /// A vectorised graph, containing a set of documents positioned in the graph space and a selection

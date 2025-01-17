@@ -21,7 +21,7 @@ use tracing::debug;
 
 /// A client for handling GraphQL operations in the context of Raphtory.
 #[derive(Clone)]
-#[pyclass(name = "RaphtoryClient")]
+#[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
 pub struct PyRaphtoryClient {
     pub(crate) url: String,
 }

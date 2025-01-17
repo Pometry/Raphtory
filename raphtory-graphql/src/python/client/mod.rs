@@ -18,7 +18,7 @@ pub mod remote_graph;
 pub mod remote_node;
 
 #[derive(Clone)]
-#[pyclass(name = "RemoteUpdate")]
+#[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
 pub struct PyUpdate {
     time: PyTime,
     properties: Option<HashMap<String, Prop>>,
@@ -64,7 +64,7 @@ impl PyUpdate {
     }
 }
 #[derive(Clone)]
-#[pyclass(name = "RemoteNodeAddition")]
+#[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
     name: GID,
     node_type: Option<String>,
@@ -134,7 +134,7 @@ impl PyNodeAddition {
 }
 
 #[derive(Clone)]
-#[pyclass(name = "RemoteEdgeAddition")]
+#[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
 pub struct PyEdgeAddition {
     src: GID,
     dst: GID,

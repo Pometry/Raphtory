@@ -15,7 +15,7 @@ use raphtory_api::core::entities::GID;
 use std::collections::HashMap;
 
 #[derive(Clone)]
-#[pyclass(name = "RemoteGraph")]
+#[pyclass(name = "RemoteGraph", module = "raphtory.graphql")]
 pub struct PyRemoteGraph {
     pub(crate) path: String,
     pub(crate) client: PyRaphtoryClient,

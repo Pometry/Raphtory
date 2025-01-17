@@ -35,7 +35,7 @@ use raphtory::{
 use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
-#[pyclass(name = "GraphServer")]
+#[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(pub Option<GraphServer>);
 
 impl<'py> IntoPyObject<'py> for GraphServer {

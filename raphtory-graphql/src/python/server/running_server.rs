@@ -13,7 +13,7 @@ use tokio::{self, io::Result as IoResult};
 use tracing::error;
 
 /// A Raphtory server handler that also enables querying the server
-#[pyclass(name = "RunningGraphServer")]
+#[pyclass(name = "RunningGraphServer", module = "raphtory.graphql")]
 pub struct PyRunningGraphServer {
     pub(crate) server_handler: Option<ServerHandler>,
 }

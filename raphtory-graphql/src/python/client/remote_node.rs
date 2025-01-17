@@ -13,7 +13,7 @@ use raphtory::{
 use std::collections::HashMap;
 
 #[derive(Clone)]
-#[pyclass(name = "RemoteNode")]
+#[pyclass(name = "RemoteNode", module = "raphtory.graphql")]
 pub struct PyRemoteNode {
     pub(crate) path: String,
     pub(crate) client: PyRaphtoryClient,

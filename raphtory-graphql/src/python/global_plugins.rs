@@ -13,7 +13,7 @@ use raphtory::{
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
 /// graph documents
-#[pyclass(name = "GraphqlGraphs")]
+#[pyclass(name = "GraphqlGraphs", module = "raphtory.graphql")]
 pub struct PyGlobalPlugins(pub(crate) QueryPlugin);
 
 #[pymethods]

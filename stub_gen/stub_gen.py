@@ -18,14 +18,13 @@ from types import (
 from typing import *
 
 from docstring_parser import parse, DocstringStyle, DocstringParam
+import builtins
 
 logger = logging.getLogger(__name__)
 fn_logger = logging.getLogger(__name__)
 cls_logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-
-TARGET_MODULES = ["raphtory", "builtins"]
 TAB = " " * 4
 
 MethodTypes = (
@@ -47,6 +46,11 @@ imports = ""
 
 # imports for type checking
 global_ns = {}
+
+
+def is_builtin(name: str) -> bool:
+    """check if name is actually builtin"""
+    return hasattr(builtins, name)
 
 
 def set_imports(preamble: str):
@@ -200,12 +204,17 @@ def cls_signature(cls: type) -> Optional[inspect.Signature]:
         pass
 
 
-def from_module(obj, name: str) -> bool:
+def from_module(obj, obj_name: str, name: str) -> bool:
     module = inspect.getmodule(obj)
-    if module:
-        return module.__name__ == name or any(
-            module.__name__.startswith(target) for target in TARGET_MODULES
+    module_name = module.__name__ if module else None
+    if module_name == "builtins" and not is_builtin(obj_name):
+        logger.error(
+            f"{obj_name} has default module 'builtins', should be {repr(name)}"
         )
+        return True
+    if module_name == name:
+        return True
+    logger.debug(f"ignoring {obj_name} with module name {module_name}")
     return False
 
 
@@ -406,9 +415,11 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
     modules: List[(ModuleType, str)] = []
     path = path / name
     logger = logging.getLogger(log_path)
+    if "." in name:
+        logger.error("module name contains path separator '.'")
     for obj_name, obj in objs:
         if not obj_name.startswith("_"):
-            if isinstance(obj, type) and from_module(obj, name):
+            if isinstance(obj, type) and from_module(obj, obj_name, name):
                 stubs.append(gen_class(obj, obj_name))
             elif isinstance(obj, BuiltinFunctionType):
                 fn_logger = logger.getChild(obj_name)
