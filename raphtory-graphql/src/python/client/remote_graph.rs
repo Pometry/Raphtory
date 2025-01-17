@@ -369,14 +369,14 @@ impl PyRemoteGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int |str | datetime): The timestamp of the edge.
+    ///    timestamp (int | str | datetime): The timestamp of the edge.
     ///    src (str | int): The id of the source node.
     ///    dst (str | int): The id of the destination node.
     ///    properties (dict, optional): The properties of the edge, as a dict of string and properties.
     ///    layer (str, optional): The layer of the edge.
     ///
     /// Returns:
-    ///   RemoteEdge
+    ///   RemoteEdge:
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
@@ -420,8 +420,8 @@ impl PyRemoteGraph {
     ///
     /// Arguments:
     ///   timestamp (int): The timestamp of the edge.
-    ///   src (str|int): The id of the source node.
-    ///   dst (str|int): The id of the destination node.
+    ///   src (str | int): The id of the source node.
+    ///   dst (str | int): The id of the destination node.
     ///   layer (str, optional): The layer of the edge.
     ///
     /// Returns:

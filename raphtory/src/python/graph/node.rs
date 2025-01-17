@@ -29,7 +29,7 @@ use crate::{
     python::{
         graph::{
             node::internal::OneHopFilter,
-            properties::{PyNestedPropsIterable, PyPropsList},
+            properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{
             repr::StructReprBuilder,
@@ -67,7 +67,14 @@ pub struct PyNode {
     pub node: NodeView<DynamicGraph, DynamicGraph>,
 }
 
-impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
+impl_nodeviewops!(
+    PyNode,
+    node,
+    NodeView<DynamicGraph>,
+    "Node",
+    "Edges",
+    "PathFromNode"
+);
 impl_edge_property_filter_ops!(PyNode<NodeView<DynamicGraph, DynamicGraph>>, node, "Node");
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
@@ -167,7 +174,7 @@ impl PyNode {
     /// Returns the earliest datetime that the node exists.
     ///
     /// Returns:
-    ///     Datetime: The earliest datetime that the node exists as a Datetime.
+    ///     datetime: The earliest datetime that the node exists as a Datetime.
     #[getter]
     pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.earliest_date_time()
@@ -201,6 +208,9 @@ impl PyNode {
     }
 
     /// Returns the type of node
+    ///
+    /// Returns:
+    ///     Optional[str]: The node type if it is set or `None` otherwise.
     #[getter]
     pub fn node_type(&self) -> Option<ArcStr> {
         self.node.node_type()
@@ -208,7 +218,7 @@ impl PyNode {
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
-    /// Returns
+    /// Returns:
     ///     int: The degree of this node.
     pub fn degree(&self) -> usize {
         self.node.degree()
@@ -248,6 +258,10 @@ impl PyNode {
         self.node.history_date_time()
     }
 
+    /// Check if the node is active, i.e., it's history is not empty
+    ///
+    /// Returns:
+    ///     bool:
     pub fn is_active(&self) -> bool {
         self.node.is_active()
     }
@@ -449,7 +463,9 @@ impl_nodeviewops!(
     PyNodes,
     nodes,
     Nodes<'static, DynamicGraph, DynamicGraph>,
-    "Nodes"
+    "Nodes",
+    "NestedEdges",
+    "PathFromGraph"
 );
 impl_edge_property_filter_ops!(
     PyNodes<Nodes<'static, DynamicGraph, DynamicGraph>>,
@@ -521,19 +537,28 @@ impl PyNodes {
         true
     }
 
-    /// Returns an iterator over the nodes ids
+    /// The node ids
+    ///
+    /// Returns:
+    ///     IdView: a view of the node ids
     #[getter]
     fn id(&self) -> LazyNodeState<'static, ops::Id, DynamicGraph, DynamicGraph> {
         self.nodes.id()
     }
 
-    /// Returns an iterator over the nodes name
+    /// The node names
+    ///
+    /// Returns:
+    ///     NameView: a view of the node names
     #[getter]
     fn name(&self) -> LazyNodeState<'static, ops::Name, DynamicGraph, DynamicGraph> {
         self.nodes.name()
     }
 
-    /// Returns an iterator over the nodes earliest time
+    /// The earliest times nodes are active
+    ///
+    /// Returns:
+    ///     EarliestTimeView: a view of the earliest active times
     #[getter]
     fn earliest_time(
         &self,
@@ -541,10 +566,10 @@ impl PyNodes {
         self.nodes.earliest_time()
     }
 
-    /// Returns the earliest time of the nodes.
+    /// The earliest time nodes are active as datetime objects
     ///
     /// Returns:
-    /// Earliest time of the nodes.
+    ///     EarliestDateTimeView: a view of the earliest active times.
     #[getter]
     fn earliest_date_time(
         &self,
@@ -556,16 +581,19 @@ impl PyNodes {
         self.nodes.earliest_date_time()
     }
 
-    /// Returns an iterator over the nodes latest time
+    /// The latest time nodes are active
+    ///
+    /// Returns:
+    ///     LatestTimeView: a view of the latest active times
     #[getter]
     fn latest_time(&self) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph> {
         self.nodes.latest_time()
     }
 
-    /// Returns the latest date time of the nodes.
+    /// The latest time nodes are active as datetime objects
     ///
     /// Returns:
-    ///   Latest date time of the nodes.
+    ///   LatestDateTimeView: a view of the latest active times
     #[getter]
     fn latest_date_time(
         &self,
@@ -577,25 +605,28 @@ impl PyNodes {
         self.nodes.latest_date_time()
     }
 
-    /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    /// Returns all timestamps of nodes, when a node is added or change to a node is made.
     ///
     /// Returns:
-    ///    A list of unix timestamps.
+    ///    HistoryView: a view of the node histories
     ///
     fn history(&self) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph> {
         self.nodes.history()
     }
 
-    /// Returns the type of node
+    /// The node types
+    ///
+    /// Returns:
+    ///     NodeTypeView: a view of the node types
     #[getter]
     fn node_type(&self) -> LazyNodeState<'static, ops::Type, DynamicGraph> {
         self.nodes.node_type()
     }
 
-    /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    /// Returns all timestamps of nodes, when a node is added or change to a node is made.
     ///
     /// Returns:
-    ///    An  list of timestamps.
+    ///    HistoryDateTimeView: a view of the node histories as datetime objects.
     ///
     fn history_date_time(
         &self,
@@ -610,9 +641,9 @@ impl PyNodes {
     /// The properties of the node
     ///
     /// Returns:
-    ///     A List of properties
+    ///     PropertiesView: A view of the node properties
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let nodes = self.nodes.clone();
         (move || nodes.properties().into_iter_values()).into()
     }
@@ -620,7 +651,7 @@ impl PyNodes {
     /// Returns the number of edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of edges of the nodes
+    ///     DegreeView: a view of the undirected node degrees
     fn degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.degree()
     }
@@ -628,7 +659,7 @@ impl PyNodes {
     /// Returns the number of in edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of in edges of the nodes
+    ///     DegreeView: a view of the in-degrees of the nodes
     fn in_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.in_degree()
     }
@@ -636,7 +667,7 @@ impl PyNodes {
     /// Returns the number of out edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of out edges of the nodes
+    ///     DegreeView: a view of the out-degrees of the nodes
     fn out_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.out_degree()
     }
@@ -655,11 +686,11 @@ impl PyNodes {
     /// - "update_history": The update history of the node.
     ///
     /// Args:
-    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.
-    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///     include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Defaults to False.
+    ///     convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
     ///
     /// Returns:
-    ///     If successful, this PyObject will be a Pandas DataFrame.
+    ///     DataFrame: the view of the node data as a pandas Dataframe
     #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
     pub fn to_df(
         &self,
@@ -719,6 +750,13 @@ impl PyNodes {
         })
     }
 
+    /// Filter nodes by node type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the list of node types to keep
+    ///
+    /// Returns:
+    ///     Nodes: the filtered view of the nodes
     pub fn type_filter(&self, node_types: Vec<PyBackedStr>) -> Nodes<'static, DynamicGraph> {
         self.nodes.type_filter(&node_types)
     }
@@ -739,6 +777,8 @@ impl_nodeviewops!(
     PyPathFromGraph,
     path,
     PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    "PathFromGraph",
+    "NestedEdges",
     "PathFromGraph"
 );
 impl_iterable_mixin!(
@@ -756,24 +796,28 @@ impl_edge_property_filter_ops!(
 
 #[pymethods]
 impl PyPathFromGraph {
+    /// the node ids
     #[getter]
     fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    /// the node names
     #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    /// the node types
     #[getter]
     fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
+    /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -787,6 +831,7 @@ impl PyPathFromGraph {
         (move || path.earliest_date_time()).into()
     }
 
+    /// the node latest times
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -812,27 +857,38 @@ impl PyPathFromGraph {
         (move || path.history_date_time()).into()
     }
 
+    /// the node properties
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
+    /// the node degrees
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    /// the node in-degrees
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    /// the node out-degrees
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    /// filter nodes by type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep
+    ///
+    /// Returns:
+    ///     PathFromGraph: the filtered view
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,
@@ -885,6 +941,8 @@ impl_nodeviewops!(
     PyPathFromNode,
     path,
     PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    "PathFromNode",
+    "Edges",
     "PathFromNode"
 );
 impl_iterable_mixin!(
@@ -928,57 +986,73 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
 
 #[pymethods]
 impl PyPathFromNode {
+    /// the node ids
     #[getter]
     fn id(&self) -> GIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    /// the node names
     #[getter]
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    /// the node types
     #[getter]
     fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
+    /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    /// the node latest times
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }
 
+    /// the node properties
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
+    /// the node in-degrees
     fn in_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    /// the node out-degrees
     fn out_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    /// the node degrees
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    /// filter nodes by type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep
+    ///
+    /// Returns:
+    ///     PathFromNode: the filtered view
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,

@@ -3,22 +3,23 @@ Generate randomised reference models for a temporal graph edgelist
 """
 
 import pandas as pd
+from typing import *
 
 
 def shuffle_column(
     graph_df: pd.DataFrame, col_number=None, col_name=None, inplace=False
-):
+) -> pd.DataFrame:
     """
     Returns an edgelist with a given column shuffled. Exactly one of col_number or col_name should be specified.
 
     Args:
-        graph_df (pd.DataFrame): The input DataFrame representing the timestamped edgelist.
+        graph_df (DataFrame): The input DataFrame representing the timestamped edgelist.
         col_number (int, optional): The column number to shuffle. Default is None.
         col_name (str, optional): The column name to shuffle. Default is None.
         inplace (bool, optional): If True, shuffles the column in-place. Otherwise, creates a copy of the DataFrame. Default is False.
 
     Returns:
-        pd.DataFrame: The shuffled DataFrame with the specified column.
+        DataFrame: The shuffled DataFrame with the specified column.
 
     Raises:
         AssertionError: If neither col_number nor col_name is provided.
@@ -55,18 +56,18 @@ def shuffle_multiple_columns(
     col_numbers: list = None,
     col_names: list = None,
     inplace=False,
-):
+) -> pd.DataFrame:
     """
     Returns an edgelist with given columns shuffled. Exactly one of col_numbers or col_names should be specified.
 
     Args:
-        graph_df (pd.DataFrame): The input DataFrame representing the graph.
+        graph_df (DataFrame): The input DataFrame representing the graph.
         col_numbers (list, optional): The list of column numbers to shuffle. Default is None.
         col_names (list, optional): The list of column names to shuffle. Default is None.
         inplace (bool, optional): If True, shuffles the columns in-place. Otherwise, creates a copy of the DataFrame. Default is False.
 
     Returns:
-        pd.DataFrame: The shuffled DataFrame with the specified columns.
+        DataFrame: The shuffled DataFrame with the specified columns.
 
     Raises:
         AssertionError: If neither col_numbers nor col_names are provided.
@@ -95,19 +96,19 @@ def permuted_timestamps_model(
     time_name: str = None,
     inplace=False,
     sorted=False,
-):
+) -> Optional[pd.DataFrame]:
     """
     Returns a DataFrame with the time column shuffled.
 
     Args:
-        graph_df (pd.DataFrame): The input DataFrame representing the graph.
+        graph_df (DataFrame): The input DataFrame representing the graph.
         time_col (int, optional): The column number of the time column to shuffle. Default is None.
         time_name (str, optional): The column name of the time column to shuffle. Default is None.
         inplace (bool, optional): If True, shuffles the time column in-place. Otherwise, creates a copy of the DataFrame. Default is False.
         sorted (bool, optional): If True, sorts the DataFrame by the shuffled time column. Default is False.
 
     Returns:
-        pd.DataFrame or None: The shuffled DataFrame with the time column, or None if inplace=True.
+        DataFrame | None: The shuffled DataFrame with the time column, or None if inplace=True.
 
     """
     shuffled_df = shuffle_column(graph_df, time_col, time_name, inplace)

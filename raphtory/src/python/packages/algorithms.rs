@@ -68,7 +68,7 @@ use std::collections::{HashMap, HashSet};
 use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::bipartite::max_weight_matching::Matching, core::utils::errors::GraphError,
-    db::api::state::NodeState,
+    db::api::state::NodeState, prelude::Graph,
 };
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
@@ -84,7 +84,7 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 ///
 /// Arguments:
 ///     g (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-///     v (InputNode) : node id or name
+///     v (NodeInput) : node id or name
 ///
 /// Returns:
 ///     int : number of triangles associated with node v
@@ -234,8 +234,8 @@ pub fn pagerank(
 ///     g (GraphView) : directed Raphtory graph
 ///     max_hops (int) : maximum number of hops to propagate out
 ///     start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-///     seed_nodes (list[InputNode]) : list of node names or ids which should be the starting nodes
-///     stop_nodes (Optional[list[InputNode]]) : nodes at which a path shouldn't go any further
+///     seed_nodes (list[NodeInput]) : list of node names or ids which should be the starting nodes
+///     stop_nodes (Optional[list[NodeInput]]) : nodes at which a path shouldn't go any further
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
@@ -257,7 +257,7 @@ pub fn temporally_reachable_nodes(
 ///
 /// Arguments:
 ///     g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v (InputNode): node id or name
+///     v (NodeInput): node id or name
 ///
 /// Returns:
 ///     float : the local clustering coefficient of node v in g.
@@ -459,24 +459,24 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
-/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
-/// will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
+/// will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
 ///
 /// Arguments:
 ///     g (GraphView) : A directed raphtory graph
 ///     delta (int): Time period
-///     pivot (str) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+///     pivot (str) : node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 ///
 /// Returns:
-///     GraphView: Projected (unipartite) temporal graph.
+///     Graph: Projected (unipartite) temporal graph.
 #[pyfunction]
 #[pyo3(signature = (g, delta, pivot_type))]
 pub fn temporal_bipartite_graph_projection(
     g: &PyGraphView,
     delta: i64,
     pivot_type: String,
-) -> PyGraphView {
-    temporal_bipartite_rs(&g.graph, delta, pivot_type).into()
+) -> Graph {
+    temporal_bipartite_rs(&g.graph, delta, pivot_type)
 }
 
 /// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
@@ -519,19 +519,20 @@ pub fn local_temporal_three_node_motifs(
 }
 
 /// HITS (Hubs and Authority) Algorithm:
+///
 /// AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
-///     Sum of HubScore of all nodes in the current iteration
+/// Sum of HubScore of all nodes in the current iteration
 ///
 /// HubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /
-///     Sum of AuthScore of all nodes in the current iteration
+/// Sum of AuthScore of all nodes in the current iteration
 ///
 /// Arguments:
 ///     g (GraphView): Graph to run the algorithm on
 ///     iter_count (int): How many iterations to run the algorithm
 ///     threads (int, optional): Number of threads to use
 ///
-/// Returns
-///     An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
+/// Returns:
+///     AlgorithmResult: An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=20, threads=None))]
 pub fn hits(
@@ -618,7 +619,7 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 ///
 /// Arguments:
 ///     g (GraphView): A reference to the graph. Must implement `GraphViewOps`.
-///     source (InputNode): The source node. Must implement `InputNode`.
+///     source (NodeInput): The source node.
 ///     cutoff (int, optional): An optional cutoff level. The algorithm will stop if this level is reached.
 ///
 /// Returns:
@@ -638,8 +639,8 @@ pub fn single_source_shortest_path(
 ///
 /// Arguments:
 ///     g (GraphView): The graph to search in.
-///     source (InputNode): The source node.
-///     targets (list[InputNode]): A list of target nodes.
+///     source (NodeInput): The source node.
+///     targets (list[NodeInput]): A list of target nodes.
 ///     direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
 ///     weight (str): The name of the weight property for the edges. Defaults to "weight".
 ///
@@ -708,7 +709,7 @@ pub fn label_propagation(
 ///
 /// Arguments:
 ///     graph (GraphView): the graph view
-///     seeds (int | float | list[InputNode]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
+///     seeds (int | float | list[NodeInput]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
 ///            of nodes at random, if `float` infect each node with this probability, if `list`
 ///            initially infect the specified nodes
 ///     infection_prob (float): the probability for a contact between infected and susceptible nodes to lead

@@ -9,11 +9,11 @@ use crate::{
         graph::{
             algorithm_result::AlgorithmResult,
             edge::{PyEdge, PyMutableEdge},
-            edges::PyEdges,
+            edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
-            node::{PyMutableNode, PyNode, PyNodes},
+            node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
                 PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
             },
@@ -44,13 +44,17 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyGraphEncoder,
         PyNode,
         PyNodes,
+        PyPathFromNode,
+        PyPathFromGraph,
         PyMutableNode,
         PyEdge,
         PyEdges,
+        PyNestedEdges,
         PyMutableEdge,
         PyProperties,
         PyConstantProperties,
         PyTemporalProperties,
+        PropertiesView,
         PyTemporalProp,
         PyPropertyRef,
         PyPropertyFilter,
@@ -149,3 +153,4 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
+use crate::python::graph::properties::PropertiesView;

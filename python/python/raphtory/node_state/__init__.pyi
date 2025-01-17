@@ -16,6 +16,9 @@ from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
+from os import PathLike
+import networkx as nx  # type: ignore
+import pyvis  # type: ignore
 
 class NodeGroups(object):
     def __bool__(self):
@@ -410,7 +413,7 @@ class DegreeView(object):
         """
          Create a view of the DegreeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -423,7 +426,7 @@ class DegreeView(object):
         """
          Create a view of the DegreeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              DegreeView:
@@ -1654,7 +1657,7 @@ class EarliestTimeView(object):
         """
          Create a view of the EarliestTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -1667,7 +1670,7 @@ class EarliestTimeView(object):
         """
          Create a view of the EarliestTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              EarliestTimeView:
@@ -2106,7 +2109,7 @@ class LatestTimeView(object):
         """
          Create a view of the LatestTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -2119,7 +2122,7 @@ class LatestTimeView(object):
         """
          Create a view of the LatestTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              LatestTimeView:
@@ -2878,7 +2881,7 @@ class EarliestDateTimeView(object):
         """
          Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -2891,7 +2894,7 @@ class EarliestDateTimeView(object):
         """
          Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              EarliestDateTimeView:
@@ -3330,7 +3333,7 @@ class LatestDateTimeView(object):
         """
          Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -3343,7 +3346,7 @@ class LatestDateTimeView(object):
         """
          Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              LatestDateTimeView:
@@ -3926,7 +3929,7 @@ class HistoryView(object):
         """
          Create a view of the HistoryView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -3939,7 +3942,7 @@ class HistoryView(object):
         """
          Create a view of the HistoryView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              HistoryView:
@@ -4512,7 +4515,7 @@ class HistoryDateTimeView(object):
         """
          Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at `time`.
 
-        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
         Arguments:
             time (TimeInput): The time of the window.
@@ -4525,7 +4528,7 @@ class HistoryDateTimeView(object):
         """
          Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at the latest time.
 
-        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
              HistoryDateTimeView:

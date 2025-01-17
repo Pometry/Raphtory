@@ -79,7 +79,7 @@ macro_rules! py_algorithm_result_base {
             /// Returns the value corresponding to the provided key
             ///
             /// Arguments:
-            ///     key (InputNode): The node for which the value is to be retrieved.
+            ///     key (NodeInput): The node for which the value is to be retrieved.
             ///
             /// Returns:
             ///     Optional[Any]: The value for the node or `None` if the value does not exist.

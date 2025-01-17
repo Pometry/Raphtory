@@ -11,7 +11,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::properties::{PyNestedPropsIterable, PyPropsList},
+        graph::properties::{PropertiesView, PyNestedPropsIterable},
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
@@ -151,7 +151,7 @@ impl PyEdges {
 
     /// Returns all properties of the edges
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let edges = self.edges.clone();
         (move || edges.properties()).into()
     }

@@ -16,6 +16,9 @@ from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
+from os import PathLike
+import networkx as nx  # type: ignore
+import pyvis  # type: ignore
 
 class GraphqlGraphs(object):
     """
@@ -294,19 +297,19 @@ class RemoteGraph(object):
         dst: str | int,
         properties: Optional[dict] = None,
         layer: Optional[str] = None,
-    ):
+    ) -> RemoteEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
 
         Arguments:
-           timestamp (int |str | datetime): The timestamp of the edge.
+           timestamp (int | str | datetime): The timestamp of the edge.
            src (str | int): The id of the source node.
            dst (str | int): The id of the destination node.
            properties (dict, optional): The properties of the edge, as a dict of string and properties.
            layer (str, optional): The layer of the edge.
 
         Returns:
-          RemoteEdge
+          RemoteEdge:
         """
 
     def add_edges(self, updates: List[RemoteEdgeAddition]):
@@ -384,8 +387,8 @@ class RemoteGraph(object):
 
         Arguments:
           timestamp (int): The timestamp of the edge.
-          src (str|int): The id of the source node.
-          dst (str|int): The id of the destination node.
+          src (str | int): The id of the source node.
+          dst (str | int): The id of the destination node.
           layer (str, optional): The layer of the edge.
 
         Returns:
