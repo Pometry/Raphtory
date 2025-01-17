@@ -60,7 +60,7 @@ impl PyConstantProperties {
     ///
     /// Returns:
     ///     list | Array: the property values
-    pub fn values(&self) -> Vec<Prop> {
+    pub fn values(&self) -> Vec<Option<Prop>> {
         self.props.values().collect()
     }
 

@@ -458,6 +458,51 @@ mod db_tests {
     use tracing::{error, info};
 
     #[test]
+    fn edge_const_props() -> Result<(), GraphError> {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 0, NO_PROPS, None)?;
+        g.add_edge(0, 0, 1, NO_PROPS, None)?;
+
+        g.edge(0, 0).unwrap().update_constant_properties(
+            vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
+            None,
+        )?;
+        g.edge(0, 1).unwrap().update_constant_properties(
+            vec![(
+                "a".to_string(),
+                Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
+            )],
+            None,
+        )?;
+
+        let e1 = g.edge(0, 0).unwrap();
+        let actual = e1
+            .properties()
+            .constant()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<Vec<_>>();
+        assert!(actual.contains(&("x".to_string(), Prop::map([("n", Prop::U64(23))]))));
+
+        let e2 = g.edge(0, 1).unwrap();
+        let actual = e2
+            .properties()
+            .constant()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual,
+            vec![(
+                "a".to_string(),
+                Prop::map([("b", Prop::str("baa")), ("a", Prop::U8(1))])
+            )]
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_empty_graph() {
         let graph = Graph::new();
         test_storage!(&graph, |graph| {
@@ -486,7 +531,7 @@ mod db_tests {
             );
             assert_eq!(
                 graph.const_prop_values().collect::<Vec<_>>(),
-                Vec::<Prop>::new()
+                Vec::<Option<Prop>>::new()
             );
             assert!(graph.constant_prop(1).is_none());
             assert!(graph.get_const_prop_id("1").is_none());
