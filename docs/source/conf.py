@@ -142,17 +142,10 @@ autosummary_generate_overwrite = True
 autosummary_ignore_module_all = False
 
 
-# see https://github.com/sphinx-doc/sphinx/issues/10785 for why this is needed
-TYPE_ALIASES = raphtory.typing.aliases
-
-
+# see https://github.com/sphinx-doc/sphinx/issues/10785 for why this is needed.
 def resolve_type_aliases(app, env, node, contnode):
-    """Resolve :class: references to our type aliases as :attr: instead."""
-    if (
-        node["refdomain"] == "py"
-        and node["reftype"] == "class"
-        and node["reftarget"] in TYPE_ALIASES
-    ):
+    """Add a fallback for missing :class: references to type aliases as :type: instead."""
+    if node["refdomain"] == "py" and node["reftype"] == "class":
         return app.env.get_domain("py").resolve_xref(
             env, node["refdoc"], app.builder, "type", node["reftarget"], node, contnode
         )

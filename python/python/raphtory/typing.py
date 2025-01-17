@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Union, Literal, Mapping
 
 
-
 PropValue = Union[
     bool,
     int,
@@ -25,5 +24,3 @@ Direction = Literal["in", "out", "both"]
 NodeInput = Union[int, str, "Node"]
 
 TimeInput = Union[int, str, float, datetime]
-
-aliases = {"PropValue", "GID", "PropInput", "Direction", "NodeInput", "TimeInput"}
