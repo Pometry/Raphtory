@@ -14,7 +14,7 @@ if hasattr(raphtory, "__all__"):
 else:
     __all__ = []
 
-__all__.extend(["nullmodels", "plottingutils"]) # add the python modules
+__all__.extend(["nullmodels", "plottingutils"])  # add the python modules
 
 algorithms.__doc__ = "Algorithmic functions that can be run on Raphtory graphs"
 graph_gen.__doc__ = "Generate Raphtory graphs from attachment models"
