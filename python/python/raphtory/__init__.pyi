@@ -2112,16 +2112,6 @@ class PersistentGraph(GraphView):
             None:
         """
 
-class PyGraphEncoder(object):
-    def __call__(self, *args, **kwargs):
-        """Call self as a function."""
-
-    def __getstate__(self): ...
-    def __new__(cls) -> PyGraphEncoder:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-    def __setstate__(self): ...
-
 class Node(object):
     """A node (or node) in the graph."""
 

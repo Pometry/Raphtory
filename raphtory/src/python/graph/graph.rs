@@ -121,7 +121,7 @@ impl PyGraph {
     }
 }
 
-#[pyclass(module = "raphtory", frozen)]
+#[pyclass(module = "raphtory", name = "_GraphEncoder", frozen)]
 pub struct PyGraphEncoder;
 
 #[pymethods]
