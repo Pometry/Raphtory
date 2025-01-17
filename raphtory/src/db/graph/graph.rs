@@ -464,21 +464,17 @@ mod db_tests {
         g.add_edge(0, 0, 0, NO_PROPS, None)?;
         g.add_edge(0, 0, 1, NO_PROPS, None)?;
 
-        g.edge(0, 0)
-            .unwrap()
-            .update_constant_properties(
-                vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
-                None,
-            )?;
-        g.edge(0, 1)
-            .unwrap()
-            .update_constant_properties(
-                vec![(
-                    "a".to_string(),
-                    Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
-                )],
-                None,
-            )?;
+        g.edge(0, 0).unwrap().update_constant_properties(
+            vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
+            None,
+        )?;
+        g.edge(0, 1).unwrap().update_constant_properties(
+            vec![(
+                "a".to_string(),
+                Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
+            )],
+            None,
+        )?;
 
         let e1 = g.edge(0, 0).unwrap();
         let actual = e1
