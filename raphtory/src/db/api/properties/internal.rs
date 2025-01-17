@@ -53,8 +53,8 @@ pub trait ConstPropertiesOps: Send + Sync {
     fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
     }
-    fn const_prop_values(&self) -> BoxedLIter<Prop> {
-        Box::new(self.const_prop_ids().filter_map(|k| self.get_const_prop(k)))
+    fn const_prop_values(&self) -> BoxedLIter<Option<Prop>> {
+        Box::new(self.const_prop_ids().map(|k| self.get_const_prop(k)))
     }
     fn get_const_prop(&self, id: usize) -> Option<Prop>;
 }
@@ -173,7 +173,7 @@ where
     }
 
     #[inline]
-    fn const_prop_values(&self) -> BoxedLIter<Prop> {
+    fn const_prop_values(&self) -> BoxedLIter<Option<Prop>> {
         self.base().const_prop_values()
     }
 

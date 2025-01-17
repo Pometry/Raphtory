@@ -163,6 +163,11 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, Prop)>) -> Self {
+        let h_map: HashMap<_, _> = vals.into_iter().map(|(k, v)| (k.into(), v)).collect();
+        Prop::Map(h_map.into())
+    }
+
     pub fn from_arr<TT: ArrowPrimitiveType>(vals: Vec<TT::Native>) -> Self
     where
         arrow_array::PrimitiveArray<TT>: From<Vec<TT::Native>>,
