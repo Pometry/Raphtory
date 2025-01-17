@@ -8,7 +8,7 @@ use crate::{
     },
     prelude::PropertyFilter,
     search::{
-        get_str_field_tokens, graph_index::GraphIndex, node_index::NodeIndex,
+        graph_index::GraphIndex, node_index::NodeIndex,
         property_index::PropertyIndex,
     },
 };
@@ -27,6 +27,8 @@ use tantivy::{
     schema::{Field, IndexRecordOption, Type},
     Term,
 };
+use tantivy::schema::FieldType;
+use tantivy::tokenizer::TokenizerManager;
 
 pub struct QueryBuilder<'a> {
     index: &'a GraphIndex,
@@ -52,52 +54,35 @@ impl<'a> QueryBuilder<'a> {
         let prop_field_type = property_index.get_prop_field_type(prop_name)?;
 
         let query: Option<Box<dyn Query>> = match prop_value {
-            PropertyFilterValue::Single(prop_value) => match &filter.operator {
-                FilterOperator::Eq => create_eq_query(create_property_tantivy_terms(
-                    &property_index,
-                    prop_field,
-                    prop_value,
-                )?),
-                FilterOperator::Ne => create_ne_query(create_property_tantivy_terms(
-                    &property_index,
-                    prop_field,
-                    prop_value,
-                )?),
-                FilterOperator::Lt => create_lt_query(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
-                ),
-                FilterOperator::Le => create_le_query(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
-                ),
-                FilterOperator::Gt => create_gt_query(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
-                ),
-                FilterOperator::Ge => create_ge_query(
-                    prop_name.to_string(),
-                    prop_field_type,
-                    create_property_tantivy_terms(&property_index, prop_field, prop_value)?,
-                ),
-                _ => unreachable!(),
-            },
-            PropertyFilterValue::Set(prop_values) => match &filter.operator {
-                FilterOperator::In => create_in_query(create_property_sub_queries(
-                    &property_index,
-                    prop_field,
-                    prop_values,
-                )),
-                FilterOperator::NotIn => create_not_in_query(create_property_sub_queries(
-                    &property_index,
-                    prop_field,
-                    prop_values,
-                )),
-                _ => unreachable!(),
-            },
+            PropertyFilterValue::Single(prop_value) => {
+                let terms = create_property_tantivy_terms(&property_index, prop_field, prop_value)?;
+                match &filter.operator {
+                    FilterOperator::Eq => create_eq_query(terms),
+                    FilterOperator::Ne => create_ne_query(terms),
+                    FilterOperator::Lt => {
+                        create_lt_query(prop_name.to_string(), prop_field_type, terms)
+                    }
+                    FilterOperator::Le => {
+                        create_le_query(prop_name.to_string(), prop_field_type, terms)
+                    }
+                    FilterOperator::Gt => {
+                        create_gt_query(prop_name.to_string(), prop_field_type, terms)
+                    }
+                    FilterOperator::Ge => {
+                        create_ge_query(prop_name.to_string(), prop_field_type, terms)
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            PropertyFilterValue::Set(prop_values) => {
+                let sub_queries =
+                    create_property_sub_queries(&property_index, prop_field, prop_values);
+                match &filter.operator {
+                    FilterOperator::In => create_in_query(sub_queries),
+                    FilterOperator::NotIn => create_not_in_query(sub_queries),
+                    _ => unreachable!(),
+                }
+            }
             PropertyFilterValue::None => match &filter.operator {
                 FilterOperator::IsSome => Some(Box::new(AllQuery)),
                 FilterOperator::IsNone => None,
@@ -118,30 +103,57 @@ impl<'a> QueryBuilder<'a> {
         let node_field = node_index.get_node_field(field_name)?;
 
         let query: Option<Box<dyn Query>> = match field_value {
-            NodeFilterValue::Single(node_value) => match &filter.operator {
-                FilterOperator::Eq => create_eq_query(create_node_tantivy_terms(
-                    node_index, node_field, node_value,
-                )?),
-                FilterOperator::Ne => create_ne_query(create_node_tantivy_terms(
-                    node_index, node_field, node_value,
-                )?),
-                _ => unreachable!(),
-            },
-            NodeFilterValue::Set(node_values) => match &filter.operator {
-                FilterOperator::In => {
-                    create_in_query(create_node_sub_queries(node_index, node_field, node_values))
+            NodeFilterValue::Single(node_value) => {
+                let terms = create_node_tantivy_terms(node_index, node_field, node_value)?;
+                match &filter.operator {
+                    FilterOperator::Eq => create_eq_query(terms),
+                    FilterOperator::Ne => create_ne_query(terms),
+                    _ => unreachable!(),
                 }
-                FilterOperator::NotIn => create_not_in_query(create_node_sub_queries(
-                    node_index,
-                    node_field,
-                    node_values,
-                )),
-                _ => unreachable!(),
-            },
+            }
+            NodeFilterValue::Set(node_values) => {
+                let sub_queries = create_node_sub_queries(node_index, node_field, node_values);
+                match &filter.operator {
+                    FilterOperator::In => create_in_query(sub_queries),
+                    FilterOperator::NotIn => create_not_in_query(sub_queries),
+                    _ => unreachable!(),
+                }
+            }
         };
 
         Ok((Arc::from(node_index.clone()), query))
     }
+}
+
+pub fn get_str_field_tokens(
+    tokenizer_manager: &TokenizerManager,
+    field_type: &FieldType,
+    field_value: &str,
+) -> Result<Vec<String>, GraphError> {
+    let indexing_options = match field_type {
+        FieldType::Str(str_options) => str_options
+            .get_indexing_options()
+            .ok_or(GraphError::UnsupportedFieldTypeForTokenization),
+        _ => Err(GraphError::UnsupportedFieldTypeForTokenization),
+    }?;
+
+    let tokenizer_name = indexing_options.tokenizer();
+
+    let mut tokenizer = tokenizer_manager
+        .get(tokenizer_name)
+        .ok_or_else(|| GraphError::NotSupported)?;
+
+    let mut token_stream = tokenizer.token_stream(field_value);
+    let mut tokens = Vec::new();
+    while let Some(token) = token_stream.next() {
+        tokens.push(token.text.clone());
+    }
+
+    if tokens.len() < 1 {
+        return Err(GraphError::NoTokensFound);
+    }
+
+    Ok(tokens)
 }
 
 fn create_property_tantivy_terms(

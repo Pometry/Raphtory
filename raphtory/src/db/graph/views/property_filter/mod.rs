@@ -1,5 +1,5 @@
 use crate::core::{entities::properties::props::Meta, utils::errors::GraphError, Prop};
-use std::{collections::HashSet, fmt, iter::Filter, sync::Arc};
+use std::{collections::HashSet, fmt, sync::Arc};
 
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
@@ -39,6 +39,32 @@ impl fmt::Display for FilterOperator {
 }
 
 impl FilterOperator {
+    fn operation<T>(&self) -> impl Fn(&T, &T) -> bool
+    where
+        T: ?Sized + PartialEq + PartialOrd,
+    {
+        match self {
+            FilterOperator::Eq => T::eq,
+            FilterOperator::Ne => T::ne,
+            FilterOperator::Lt => T::lt,
+            FilterOperator::Le => T::le,
+            FilterOperator::Gt => T::gt,
+            FilterOperator::Ge => T::ge,
+            _ => panic!("Operation not supported for this operator"),
+        }
+    }
+
+    fn collection_operation<T>(&self) -> impl Fn(&HashSet<T>, &T) -> bool
+    where
+        T: Eq + std::hash::Hash,
+    {
+        match self {
+            FilterOperator::In => |set: &HashSet<T>, value: &T| set.contains(value),
+            FilterOperator::NotIn => |set: &HashSet<T>, value: &T| !set.contains(value),
+            _ => panic!("Collection operation not supported for this operator"),
+        }
+    }
+
     pub fn apply_to_property(&self, left: &PropertyFilterValue, right: Option<&Prop>) -> bool {
         match left {
             PropertyFilterValue::None => match self {
@@ -47,17 +73,18 @@ impl FilterOperator {
                 _ => unreachable!(),
             },
             PropertyFilterValue::Single(l) => match self {
-                FilterOperator::Eq => right.map_or(false, |r| r == l),
-                FilterOperator::Ne => right.map_or(false, |r| r != l),
-                FilterOperator::Lt => right.map_or(false, |r| r < l),
-                FilterOperator::Le => right.map_or(false, |r| r <= l),
-                FilterOperator::Gt => right.map_or(false, |r| r > l),
-                FilterOperator::Ge => right.map_or(false, |r| r >= l),
+                FilterOperator::Eq
+                | FilterOperator::Ne
+                | FilterOperator::Lt
+                | FilterOperator::Le
+                | FilterOperator::Gt
+                | FilterOperator::Ge => right.map_or(false, |r| self.operation()(r, l)),
                 _ => unreachable!(),
             },
             PropertyFilterValue::Set(l) => match self {
-                FilterOperator::In => right.map_or(false, |r| l.contains(r)),
-                FilterOperator::NotIn => right.map_or(false, |r| !l.contains(r)),
+                FilterOperator::In | FilterOperator::NotIn => {
+                    right.map_or(false, |r| self.collection_operation()(l, r))
+                }
                 _ => unreachable!(),
             },
         }
@@ -66,13 +93,15 @@ impl FilterOperator {
     pub fn apply_to_node(&self, left: &NodeFilterValue, right: Option<&str>) -> bool {
         match left {
             NodeFilterValue::Single(l) => match self {
-                FilterOperator::Eq => right.map_or(false, |r| r == l),
-                FilterOperator::Ne => right.map_or(false, |r| r != l),
+                FilterOperator::Eq | FilterOperator::Ne => {
+                    right.map_or(false, |r| self.operation()(r, l))
+                }
                 _ => unreachable!(),
             },
             NodeFilterValue::Set(l) => match self {
-                FilterOperator::In => right.map_or(false, |r| l.contains(r)),
-                FilterOperator::NotIn => right.map_or(true, |r| !l.contains(r)),
+                FilterOperator::In | FilterOperator::NotIn => {
+                    right.map_or(false, |r| self.collection_operation()(l, &r.to_string()))
+                }
                 _ => unreachable!(),
             },
         }
@@ -334,7 +363,10 @@ impl fmt::Display for CompositeFilter {
 
 #[cfg(test)]
 mod test_filters {
-    use crate::{db::graph::views::property_filter::CompositeFilter, prelude::PropertyFilter};
+    use crate::{
+        db::graph::views::property_filter::{CompositeFilter, NodeFilter},
+        prelude::PropertyFilter,
+    };
 
     #[test]
     fn test_composite_filter() {
@@ -344,9 +376,13 @@ mod test_filters {
         );
 
         assert_eq!(
-            "((p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 <= 1))) OR (p5 == 9)",
+            "((node_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 <= 1))) OR (node_name == pometry) OR (p5 == 9)",
             CompositeFilter::Or(vec![
                 CompositeFilter::And(vec![
+                    CompositeFilter::SingleNode(NodeFilter::not_any(
+                        "node_type",
+                        vec!["fire_nation".into(), "water_tribe".into()]
+                    )),
                     CompositeFilter::SingleProperty(PropertyFilter::eq("p2", 2u64)),
                     CompositeFilter::SingleProperty(PropertyFilter::eq("p1", 1u64)),
                     CompositeFilter::Or(vec![
@@ -354,6 +390,7 @@ mod test_filters {
                         CompositeFilter::SingleProperty(PropertyFilter::le("p4", 1u64))
                     ]),
                 ]),
+                CompositeFilter::SingleNode(NodeFilter::eq("node_name", "pometry")),
                 CompositeFilter::SingleProperty(PropertyFilter::eq("p5", 9u64)),
             ])
             .to_string()

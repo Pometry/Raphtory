@@ -1,23 +1,15 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::Prop,
     db::api::properties::internal::{ConstPropertiesOps, PropertiesOps},
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{
-    collections::HashSet,
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::ops::{Deref, DerefMut};
 use tantivy::{
-    query::{
-        AllQuery, BooleanQuery, Occur,
-        Occur::{Must, MustNot, Should},
-        Query, TermQuery,
-    },
-    schema::{Field, FieldType, Schema},
-    tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer, TokenizerManager},
+    query::Query,
+    schema::Schema,
+    tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Index, IndexReader, IndexSettings,
 };
 
@@ -107,35 +99,4 @@ where
     }
 
     Ok(())
-}
-
-pub fn get_str_field_tokens(
-    tokenizer_manager: &TokenizerManager,
-    field_type: &FieldType,
-    field_value: &str,
-) -> Result<Vec<String>, GraphError> {
-    let indexing_options = match field_type {
-        FieldType::Str(str_options) => str_options
-            .get_indexing_options()
-            .ok_or(GraphError::UnsupportedFieldTypeForTokenization),
-        _ => Err(GraphError::UnsupportedFieldTypeForTokenization),
-    }?;
-
-    let tokenizer_name = indexing_options.tokenizer();
-
-    let mut tokenizer = tokenizer_manager
-        .get(tokenizer_name)
-        .ok_or_else(|| GraphError::NotSupported)?;
-
-    let mut token_stream = tokenizer.token_stream(field_value);
-    let mut tokens = Vec::new();
-    while let Some(token) = token_stream.next() {
-        tokens.push(token.text.clone());
-    }
-
-    if tokens.len() < 1 {
-        return Err(GraphError::NoTokensFound);
-    }
-
-    Ok(tokens)
 }
