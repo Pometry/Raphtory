@@ -44,7 +44,7 @@ use std::{
     borrow::Borrow,
     sync::{atomic::Ordering, Arc},
 };
-use crate::db::graph::views::property_filter::CompositeFilter;
+use crate::db::graph::views::property_filter::CompositeNodeFilter;
 use crate::prelude::PropertyFilter;
 
 /// This trait GraphViewOps defines operations for accessing
@@ -136,7 +136,7 @@ pub trait SearchableGraphOps: Sized {
     fn search_nodes(
         &self,
         // q: &str,
-        filter: &CompositeFilter,
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
@@ -626,7 +626,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn search_nodes(
         &self,
         // q: &str,
-        filter: &CompositeFilter,
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {

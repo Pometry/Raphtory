@@ -16,7 +16,8 @@ use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
-use crate::db::graph::views::property_filter::ComparisonOperator;
+use tracing::error;
+use crate::db::graph::views::property_filter::FilterOperator;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -296,13 +297,19 @@ pub enum GraphError {
     LockError,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
-    InvalidFilter(ComparisonOperator),
+    InvalidFilter(FilterOperator),
 
     #[error("Property {0} not found in temporal or constant metadata")]
     PropertyNotFound(String),
 
     #[error("PropertyIndex not found for property {0}")]
-    PropertyIndexNotFound(String)
+    PropertyIndexNotFound(String),
+
+    #[error("Tokenization is support only for str field type")]
+    UnsupportedFieldTypeForTokenization,
+
+    #[error("Not tokens found")]
+    NoTokensFound,
 }
 
 impl GraphError {

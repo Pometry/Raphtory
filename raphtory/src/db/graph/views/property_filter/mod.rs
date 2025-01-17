@@ -329,19 +329,19 @@ impl NodeFilter {
 }
 
 #[derive(Debug, Clone)]
-pub enum CompositeFilter {
-    SingleNode(NodeFilter),
-    SingleProperty(PropertyFilter),
-    And(Vec<CompositeFilter>),
-    Or(Vec<CompositeFilter>),
+pub enum CompositeNodeFilter {
+    Node(NodeFilter),
+    Property(PropertyFilter),
+    And(Vec<CompositeNodeFilter>),
+    Or(Vec<CompositeNodeFilter>),
 }
 
-impl fmt::Display for CompositeFilter {
+impl fmt::Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeFilter::SingleProperty(filter) => write!(f, "{}", filter),
-            CompositeFilter::SingleNode(filter) => write!(f, "{}", filter),
-            CompositeFilter::And(filters) => {
+            CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::And(filters) => {
                 let formatted = filters
                     .iter()
                     .map(|filter| format!("({})", filter))
@@ -349,7 +349,7 @@ impl fmt::Display for CompositeFilter {
                     .join(" AND ");
                 write!(f, "{}", formatted)
             }
-            CompositeFilter::Or(filters) => {
+            CompositeNodeFilter::Or(filters) => {
                 let formatted = filters
                     .iter()
                     .map(|filter| format!("({})", filter))
@@ -364,7 +364,7 @@ impl fmt::Display for CompositeFilter {
 #[cfg(test)]
 mod test_filters {
     use crate::{
-        db::graph::views::property_filter::{CompositeFilter, NodeFilter},
+        db::graph::views::property_filter::{CompositeNodeFilter, NodeFilter},
         prelude::PropertyFilter,
     };
 
@@ -372,26 +372,26 @@ mod test_filters {
     fn test_composite_filter() {
         assert_eq!(
             "p2 == 2",
-            CompositeFilter::SingleProperty(PropertyFilter::eq("p2", 2u64)).to_string()
+            CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
         );
 
         assert_eq!(
             "((node_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 <= 1))) OR (node_name == pometry) OR (p5 == 9)",
-            CompositeFilter::Or(vec![
-                CompositeFilter::And(vec![
-                    CompositeFilter::SingleNode(NodeFilter::not_any(
+            CompositeNodeFilter::Or(vec![
+                CompositeNodeFilter::And(vec![
+                    CompositeNodeFilter::Node(NodeFilter::not_any(
                         "node_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
-                    CompositeFilter::SingleProperty(PropertyFilter::eq("p2", 2u64)),
-                    CompositeFilter::SingleProperty(PropertyFilter::eq("p1", 1u64)),
-                    CompositeFilter::Or(vec![
-                        CompositeFilter::SingleProperty(PropertyFilter::le("p3", 5u64)),
-                        CompositeFilter::SingleProperty(PropertyFilter::le("p4", 1u64))
+                    CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)),
+                    CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                    CompositeNodeFilter::Or(vec![
+                        CompositeNodeFilter::Property(PropertyFilter::le("p3", 5u64)),
+                        CompositeNodeFilter::Property(PropertyFilter::le("p4", 1u64))
                     ]),
                 ]),
-                CompositeFilter::SingleNode(NodeFilter::eq("node_name", "pometry")),
-                CompositeFilter::SingleProperty(PropertyFilter::eq("p5", 9u64)),
+                CompositeNodeFilter::Node(NodeFilter::eq("node_name", "pometry")),
+                CompositeNodeFilter::Property(PropertyFilter::eq("p5", 9u64)),
             ])
             .to_string()
         );

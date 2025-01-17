@@ -4,7 +4,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
-            views::property_filter::{CompositeFilter, NodeFilter},
+            views::property_filter::{CompositeNodeFilter, NodeFilter},
         },
     },
     prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
@@ -15,7 +15,7 @@ use raphtory_api::core::entities::VID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{FilterCollector, TopDocs},
-    query::{Query},
+    query::Query,
     schema::{Field, Value},
     DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
 };
@@ -136,11 +136,11 @@ impl<'a> QueryExecutor<'a> {
                     limit,
                     offset,
                 )?
-            },
+            }
             None => {
                 println!("I was here");
                 vec![]
-            },
+            }
         };
 
         let unique_results: HashSet<_> = results.into_iter().collect();
@@ -157,18 +157,18 @@ impl<'a> QueryExecutor<'a> {
     pub fn execute<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &CompositeFilter,
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<HashSet<NodeView<G, G>>, GraphError> {
         match filter {
-            CompositeFilter::SingleProperty(filter) => {
+            CompositeNodeFilter::Property(filter) => {
                 self.execute_property_filter(graph, filter, limit, offset)
             }
-            CompositeFilter::SingleNode(filter) => {
+            CompositeNodeFilter::Node(filter) => {
                 self.execute_node_filter(graph, filter, limit, offset)
             }
-            CompositeFilter::And(filters) => {
+            CompositeNodeFilter::And(filters) => {
                 let mut results = None;
 
                 for sub_filter in filters {
@@ -182,7 +182,7 @@ impl<'a> QueryExecutor<'a> {
 
                 Ok(results.unwrap_or_default())
             }
-            CompositeFilter::Or(filters) => {
+            CompositeNodeFilter::Or(filters) => {
                 let mut results = HashSet::new();
 
                 for sub_filter in filters {
@@ -248,10 +248,7 @@ impl<'a> QueryExecutor<'a> {
     fn print_schema_fields(schema: &tantivy::schema::Schema) {
         println!("Schema fields and their IDs:");
         for (field_name, field_entry) in schema.fields() {
-            println!(
-                "Field Name: '{:?}'",
-                field_name,
-            );
+            println!("Field Name: '{:?}'", field_name,);
         }
     }
 
