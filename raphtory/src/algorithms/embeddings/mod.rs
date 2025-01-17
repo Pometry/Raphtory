@@ -1,3 +1,1 @@
-mod fast_rp;
-
-pub use fast_rp::fast_rp;
+pub mod fast_rp;

@@ -74,6 +74,19 @@ where
     result
 }
 
+/// Computes the strongly connected components of a graph using Tarjan's Strongly Connected Components algorithm
+///
+/// Original Paper:
+/// https://web.archive.org/web/20170829214726id_/http://www.cs.ucsb.edu/~gilbert/cs240a/old/cs240aSpr2011/slides/TarjanDFS.pdf
+///
+/// # Arguments
+///
+/// - `graph` - A reference to the graph
+///
+/// # Returns
+///
+/// An [AlgorithmResult] containing the mapping from each node to its component ID
+///
 pub fn strongly_connected_components<G>(graph: &G) -> AlgorithmResult<G, usize>
 where
     G: StaticGraphViewOps,
