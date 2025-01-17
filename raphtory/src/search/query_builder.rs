@@ -27,7 +27,7 @@ use tantivy::{
     schema::{Field, IndexRecordOption, Type},
     Term,
 };
-use tantivy::schema::FieldType;
+use tantivy::schema::{FieldType, Schema};
 use tantivy::tokenizer::TokenizerManager;
 
 pub struct QueryBuilder<'a> {
@@ -101,10 +101,12 @@ impl<'a> QueryBuilder<'a> {
         let field_value = &filter.field_value;
         let node_index = &self.index.node_index;
         let node_field = node_index.get_node_field(field_name)?;
+        let schema = &node_index.index.schema();
+        let tokenizer_manager = node_index.index.tokenizers();
 
         let query: Option<Box<dyn Query>> = match field_value {
             NodeFilterValue::Single(node_value) => {
-                let terms = create_node_tantivy_terms(node_index, node_field, node_value)?;
+                let terms = create_tantivy_terms(schema, tokenizer_manager, node_field, node_value)?;
                 match &filter.operator {
                     FilterOperator::Eq => create_eq_query(terms),
                     FilterOperator::Ne => create_ne_query(terms),
@@ -112,7 +114,7 @@ impl<'a> QueryBuilder<'a> {
                 }
             }
             NodeFilterValue::Set(node_values) => {
-                let sub_queries = create_node_sub_queries(node_index, node_field, node_values);
+                let sub_queries = create_sub_queries(schema, tokenizer_manager, node_field, node_values);
                 match &filter.operator {
                     FilterOperator::In => create_in_query(sub_queries),
                     FilterOperator::NotIn => create_not_in_query(sub_queries),
@@ -182,54 +184,59 @@ fn create_property_tantivy_terms(
     }
 }
 
+fn create_sub_queries_generic<F, T>(
+    field_values: &HashSet<T>,
+    create_terms_fn: F,
+) -> Vec<(Occur, Box<dyn Query>)>
+where
+    F: Fn(&T) -> Result<Vec<Term>, GraphError>,
+    T: Eq + std::hash::Hash,
+{
+    field_values
+        .iter()
+        .filter_map(|value| create_terms_fn(value).ok())
+        .flat_map(|terms| {
+            terms.into_iter().map(|term| {
+                (
+                    Should,
+                    Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>,
+                )
+            })
+        })
+        .collect()
+}
+
 fn create_property_sub_queries(
     property_index: &PropertyIndex,
     prop_field: Field,
     prop_values: &HashSet<Prop>,
 ) -> Vec<(Occur, Box<dyn Query>)> {
-    prop_values
-        .iter()
-        .filter_map(|v| create_property_tantivy_terms(property_index, prop_field, v).ok())
-        .flat_map(|terms| {
-            terms.into_iter().map(|term| {
-                (
-                    Should,
-                    Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>,
-                )
-            })
-        })
-        .collect()
+    create_sub_queries_generic(prop_values, |value| {
+        create_property_tantivy_terms(property_index, prop_field, value)
+    })
 }
 
-fn create_node_tantivy_terms(
-    node_index: &NodeIndex,
-    node_field: Field,
-    node_value: &str,
+fn create_tantivy_terms(
+    schema: &Schema,
+    tokenizer_manager: &TokenizerManager,
+    field: Field,
+    field_value: &str,
 ) -> Result<Vec<Term>, GraphError> {
-    let schema = node_index.index.schema();
-    let field_entry = schema.get_field_entry(node_field.clone());
+    let field_entry = schema.get_field_entry(field.clone());
     let field_type = field_entry.field_type();
-    let tokens = get_str_field_tokens(node_index.index.tokenizers(), &field_type, node_value)?;
-    create_terms_from_tokens(node_field, tokens)
+    let tokens = get_str_field_tokens(tokenizer_manager, &field_type, field_value)?;
+    create_terms_from_tokens(field, tokens)
 }
 
-fn create_node_sub_queries(
-    node_index: &NodeIndex,
-    node_field: Field,
-    node_values: &HashSet<String>,
+fn create_sub_queries(
+    schema: &Schema,
+    tokenizer_manager: &TokenizerManager,
+    field: Field,
+    field_values: &HashSet<String>,
 ) -> Vec<(Occur, Box<dyn Query>)> {
-    node_values
-        .iter()
-        .filter_map(|value| create_node_tantivy_terms(node_index, node_field, value).ok())
-        .flat_map(|terms| {
-            terms.into_iter().map(|term| {
-                (
-                    Should,
-                    Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>,
-                )
-            })
-        })
-        .collect()
+    create_sub_queries_generic(field_values, |value| {
+        create_tantivy_terms(schema, tokenizer_manager, field, value)
+    })
 }
 
 fn create_terms_from_tokens(field: Field, tokens: Vec<String>) -> Result<Vec<Term>, GraphError> {
