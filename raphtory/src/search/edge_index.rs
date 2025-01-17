@@ -9,7 +9,7 @@ use crate::{
             properties::internal::ConstPropertiesOps, storage::graph::storage_ops::GraphStorage,
             view::internal::core_ops::CoreGraphOps,
         },
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView},
     },
     prelude::*,
     search::{fields, index_properties, new_index, property_index::PropertyIndex, TOKENIZER},
@@ -100,6 +100,16 @@ impl EdgeIndex {
                     .set_tokenizer(TOKENIZER)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
+        );
+        schema.add_text_field(
+            fields::EDGE_TYPE,
+            TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer(TOKENIZER)
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
+                .set_stored(),
         );
         schema
     }

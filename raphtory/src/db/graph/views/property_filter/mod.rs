@@ -1,4 +1,5 @@
-use crate::core::{entities::properties::props::Meta, utils::errors::GraphError, Prop};
+use crate::core::{entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop};
+use itertools::Itertools;
 use std::{collections::HashSet, fmt, sync::Arc};
 
 pub mod edge_property_filter;
@@ -106,6 +107,23 @@ impl FilterOperator {
             },
         }
     }
+
+    pub fn apply_to_edge(&self, left: &EdgeFilterValue, right: Option<&str>) -> bool {
+        match left {
+            EdgeFilterValue::Single(l) => match self {
+                FilterOperator::Eq | FilterOperator::Ne => {
+                    right.map_or(false, |r| self.operation()(r, l))
+                }
+                _ => unreachable!(),
+            },
+            EdgeFilterValue::Set(l) => match self {
+                FilterOperator::In | FilterOperator::NotIn => {
+                    right.map_or(false, |r| self.collection_operation()(l, &r.to_string()))
+                }
+                _ => unreachable!(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -132,7 +150,8 @@ impl fmt::Display for PropertyFilter {
                 write!(f, "{} {} {}", self.prop_name, self.operator, value)
             }
             PropertyFilterValue::Set(values) => {
-                let values_str = values
+                let sorted_values = sort_comparable_props(values.iter().collect_vec());
+                let values_str = sorted_values
                     .iter()
                     .map(|v| format!("{}", v))
                     .collect::<Vec<_>>()
@@ -273,7 +292,9 @@ impl fmt::Display for NodeFilter {
                 write!(f, "{} {} {}", self.field_name, self.operator, value)
             }
             NodeFilterValue::Set(values) => {
-                let values_str = values
+                let mut sorted_values: Vec<_> = values.iter().collect();
+                sorted_values.sort();
+                let values_str = sorted_values
                     .iter()
                     .map(|v| format!("{}", v))
                     .collect::<Vec<_>>()
@@ -361,22 +382,133 @@ impl fmt::Display for CompositeNodeFilter {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum EdgeFilterValue {
+    Single(String),
+    Set(Arc<HashSet<String>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct EdgeFilter {
+    pub field_name: String,
+    pub field_value: EdgeFilterValue,
+    pub operator: FilterOperator,
+}
+
+impl fmt::Display for EdgeFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.field_value {
+            EdgeFilterValue::Single(value) => {
+                write!(f, "{} {} {}", self.field_name, self.operator, value)
+            }
+            EdgeFilterValue::Set(values) => {
+                let mut sorted_values: Vec<_> = values.iter().collect();
+                sorted_values.sort();
+                let values_str = sorted_values
+                    .iter()
+                    .map(|v| format!("{}", v))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
+            }
+        }
+    }
+}
+
+impl EdgeFilter {
+    pub fn eq(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: EdgeFilterValue::Single(field_value.into()),
+            operator: FilterOperator::Eq,
+        }
+    }
+
+    pub fn ne(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: EdgeFilterValue::Single(field_value.into()),
+            operator: FilterOperator::Ne,
+        }
+    }
+
+    pub fn any(
+        field_name: impl Into<String>,
+        field_values: impl IntoIterator<Item = String>,
+    ) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: EdgeFilterValue::Set(Arc::new(field_values.into_iter().collect())),
+            operator: FilterOperator::In,
+        }
+    }
+
+    pub fn not_any(
+        field_name: impl Into<String>,
+        field_values: impl IntoIterator<Item = String>,
+    ) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: EdgeFilterValue::Set(Arc::new(field_values.into_iter().collect())),
+            operator: FilterOperator::NotIn,
+        }
+    }
+
+    pub fn matches(&self, node_value: Option<&str>) -> bool {
+        self.operator.apply_to_edge(&self.field_value, node_value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum CompositeEdgeFilter {
+    Edge(NodeFilter),
+    Property(PropertyFilter),
+    And(Vec<CompositeEdgeFilter>),
+    Or(Vec<CompositeEdgeFilter>),
+}
+
+impl fmt::Display for CompositeEdgeFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::And(filters) => {
+                let formatted = filters
+                    .iter()
+                    .map(|filter| format!("({})", filter))
+                    .collect::<Vec<String>>()
+                    .join(" AND ");
+                write!(f, "{}", formatted)
+            }
+            CompositeEdgeFilter::Or(filters) => {
+                let formatted = filters
+                    .iter()
+                    .map(|filter| format!("({})", filter))
+                    .collect::<Vec<String>>()
+                    .join(" OR ");
+                write!(f, "{}", formatted)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
-mod test_filters {
+mod test_composite_filters {
     use crate::{
-        db::graph::views::property_filter::{CompositeNodeFilter, NodeFilter},
+        core::Prop,
+        db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, NodeFilter},
         prelude::PropertyFilter,
     };
 
     #[test]
-    fn test_composite_filter() {
+    fn test_composite_node_filter() {
         assert_eq!(
             "p2 == 2",
             CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
         );
 
         assert_eq!(
-            "((node_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 <= 1))) OR (node_name == pometry) OR (p5 == 9)",
+            "((node_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 IN [2, 10]))) OR (node_name == pometry) OR (p5 == 9)",
             CompositeNodeFilter::Or(vec![
                 CompositeNodeFilter::And(vec![
                     CompositeNodeFilter::Node(NodeFilter::not_any(
@@ -387,13 +519,42 @@ mod test_filters {
                     CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64)),
                     CompositeNodeFilter::Or(vec![
                         CompositeNodeFilter::Property(PropertyFilter::le("p3", 5u64)),
-                        CompositeNodeFilter::Property(PropertyFilter::le("p4", 1u64))
+                        CompositeNodeFilter::Property(PropertyFilter::any("p4", vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
                 CompositeNodeFilter::Node(NodeFilter::eq("node_name", "pometry")),
                 CompositeNodeFilter::Property(PropertyFilter::eq("p5", 9u64)),
             ])
             .to_string()
+        );
+    }
+
+    #[test]
+    fn test_composite_edge_filter() {
+        assert_eq!(
+            "p2 == 2",
+            CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
+        );
+
+        assert_eq!(
+            "((edge_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 IN [2, 10]))) OR (from == pometry) OR (p5 == 9)",
+            CompositeEdgeFilter::Or(vec![
+                CompositeEdgeFilter::And(vec![
+                    CompositeEdgeFilter::Edge(NodeFilter::not_any(
+                        "edge_type",
+                        vec!["fire_nation".into(), "water_tribe".into()]
+                    )),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                    CompositeEdgeFilter::Or(vec![
+                        CompositeEdgeFilter::Property(PropertyFilter::le("p3", 5u64)),
+                        CompositeEdgeFilter::Property(PropertyFilter::any("p4", vec![Prop::U64(10), Prop::U64(2)]))
+                    ]),
+                ]),
+                CompositeEdgeFilter::Edge(NodeFilter::eq("from", "pometry")),
+                CompositeEdgeFilter::Property(PropertyFilter::eq("p5", 9u64)),
+            ])
+                .to_string()
         );
     }
 }

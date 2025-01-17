@@ -32,7 +32,7 @@ pub(in crate::search) mod fields {
     pub const EDGE_ID: &str = "edge_id";
     pub const SOURCE: &str = "from";
     pub const DESTINATION: &str = "to";
-
+    pub const EDGE_TYPE: &str = "edge_type";
     pub const PROPERTIES: &str = "properties";
 }
 
