@@ -126,7 +126,7 @@ macro_rules! impl_timeops {
 
             #[doc = concat!(r" Create a view of the ", $name, r" including all events that have not been explicitly deleted at `time`.")]
             ///
-            /// This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+            /// This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
             ///
             /// Arguments:
             ///     time (TimeInput): The time of the window.
@@ -139,7 +139,7 @@ macro_rules! impl_timeops {
 
             #[doc = concat!(r" Create a view of the ", $name, r" including all events that have not been explicitly deleted at the latest time.")]
             ///
-            /// This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+            /// This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]

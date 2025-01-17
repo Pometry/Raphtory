@@ -34,12 +34,48 @@ impl Repr for Lifespan {
     }
 }
 
-#[pyclass(name = "Document", frozen, get_all)]
+#[pyclass(name = "Document", frozen)]
 pub struct PyDocument {
     pub(crate) content: String,
     pub(crate) entity: Option<PyObject>,
     pub(crate) embedding: Option<PyEmbedding>,
     pub(crate) life: Lifespan,
+}
+
+#[pymethods]
+impl PyDocument {
+    /// the document content
+    ///
+    /// Returns:
+    ///     str:
+    #[getter]
+    fn content(&self) -> &str {
+        &self.content
+    }
+
+    /// the entity corresponding to the document
+    ///
+    /// Returns:
+    ///     Optional[Any]:
+    #[getter]
+    fn entity<'py>(&self) -> Option<&PyObject> {
+        self.entity.as_ref()
+    }
+
+    /// the embedding
+    #[getter]
+    fn embedding(&self) -> Option<PyEmbedding> {
+        self.embedding.clone()
+    }
+
+    /// the life span
+    ///
+    /// Returns:
+    ///     None | int | Tuple[int, int]
+    #[getter]
+    fn life(&self) -> Lifespan {
+        self.life
+    }
 }
 
 impl Clone for PyDocument {

@@ -344,7 +344,7 @@ impl PyEdge {
     /// Gets the datetime of an exploded edge.
     ///
     /// Returns:
-    ///     Datetime: the datetime of an exploded edge
+    ///     datetime: the datetime of an exploded edge
     #[getter]
     pub fn date_time(&self) -> Option<DateTime<Utc>> {
         self.edge.date_time()

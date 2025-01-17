@@ -21,7 +21,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::*,
 };
 use ordered_float::OrderedFloat;
 

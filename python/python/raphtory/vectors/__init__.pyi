@@ -16,6 +16,9 @@ from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
+from os import PathLike
+import networkx as nx  # type: ignore
+import pyvis  # type: ignore
 
 class VectorisedGraph(object):
     def documents_by_similarity(
@@ -104,13 +107,35 @@ class Document(object):
         """Return repr(self)."""
 
     @property
-    def content(self): ...
+    def content(self) -> str:
+        """
+        the document content
+
+        Returns:
+            str:
+        """
+
     @property
-    def embedding(self): ...
+    def embedding(self):
+        """the embedding"""
+
     @property
-    def entity(self): ...
+    def entity(self) -> Optional[Any]:
+        """
+        the entity corresponding to the document
+
+        Returns:
+            Optional[Any]:
+        """
+
     @property
-    def life(self): ...
+    def life(self):
+        """
+        the life span
+
+        Returns:
+            None | int | Tuple[int, int]
+        """
 
 class VectorSelection(object):
     def add_edges(self, edges: list):
@@ -172,9 +197,9 @@ class VectorSelection(object):
 
         The expansion algorithm is a loop with two steps on each iteration:
           1. All the documents 1 hop away of some of the documents included on the selection (and
-        not already selected) are marked as candidates.
+             not already selected) are marked as candidates.
           2. Those candidates are added to the selection in descending order according to the
-        similarity score obtained against the `query`.
+             similarity score obtained against the `query`.
 
         This loops goes on until the current selection reaches a total of `limit`  documents or
         until no more documents are available
@@ -212,9 +237,9 @@ class VectorSelection(object):
 
         The expansion algorithm is a loop with two steps on each iteration:
           1. All the entities 1 hop away of some of the entities included on the selection (and
-        not already selected) are marked as candidates.
+             not already selected) are marked as candidates.
           2. Those candidates are added to the selection in descending order according to the
-        similarity score obtained against the `query`.
+             similarity score obtained against the `query`.
 
         This loops goes on until the number of new entities reaches a total of `limit`
         entities or until no more documents are available

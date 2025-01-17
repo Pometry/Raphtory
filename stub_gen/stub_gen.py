@@ -43,21 +43,25 @@ comment = """###################################################################
 #                                                                             #
 ###############################################################################\n"""
 
-imports = """
-from typing import *
-from raphtory import *
-from raphtory.algorithms import *
-from raphtory.vectors import *
-from raphtory.node_state import *
-from raphtory.graphql import *
-from raphtory.typing import *
-from datetime import datetime
-from pandas import DataFrame
-"""
+imports = ""
 
 # imports for type checking
 global_ns = {}
-exec(imports, global_ns)
+
+
+def set_imports(preamble: str):
+    """
+    Specify import statements that are added to each generated file
+
+    Arguments:
+        preamble: the import statements
+
+    Note that this string will be evaluated to create the global namespace for checking type annotations
+    """
+    global imports
+    global global_ns
+    imports = preamble
+    exec(imports, global_ns)
 
 
 def format_type(obj) -> str:
@@ -218,7 +222,7 @@ def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
 def extract_param_annotation(param: DocstringParam) -> dict:
     res = {}
     if param.type_name is None:
-        res["annotation"] = Any
+        res["annotation"] = "Any"
     else:
         type_val = param.type_name
         try:
@@ -227,6 +231,7 @@ def extract_param_annotation(param: DocstringParam) -> dict:
                 type_val = f"Optional[{type_val}]"
             res["annotation"] = type_val
         except Exception as e:
+            res["annotation"] = "Any"
             fn_logger.error(
                 f"Invalid annotation {repr(type_val)} for parameter {param.arg_name}: {e}"
             )
@@ -273,6 +278,7 @@ def extract_types(
                 return_type = None
             return type_annotations, return_type
         else:
+            fn_logger.warning(f"Missing documentation")
             return dict(), None
     except Exception as e:
         fn_logger.error(f"failed to parse docstring: {e}")
