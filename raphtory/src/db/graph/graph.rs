@@ -425,7 +425,6 @@ mod db_tests {
         db::{
             api::{
                 properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
-                storage::graph::edges::edge_storage_ops::EdgeStorageOps,
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
@@ -443,7 +442,7 @@ mod db_tests {
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
-        entities::{EID, GID, VID},
+        entities::{GID, VID},
         storage::{
             arc_str::{ArcStr, OptionAsStr},
             timeindex::TimeIndexEntry,
@@ -459,19 +458,18 @@ mod db_tests {
     use tracing::{error, info};
 
     #[test]
-    fn edge_const_props() {
+    fn edge_const_props() -> Result<(), GraphError> {
         let g = Graph::new();
 
-        g.add_edge(0, 0, 0, NO_PROPS, None);
-        g.add_edge(0, 0, 1, NO_PROPS, None);
+        g.add_edge(0, 0, 0, NO_PROPS, None)?;
+        g.add_edge(0, 0, 1, NO_PROPS, None)?;
 
         g.edge(0, 0)
             .unwrap()
             .update_constant_properties(
                 vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
                 None,
-            )
-            .unwrap();
+            )?;
         g.edge(0, 1)
             .unwrap()
             .update_constant_properties(
@@ -480,8 +478,7 @@ mod db_tests {
                     Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
                 )],
                 None,
-            )
-            .unwrap();
+            )?;
 
         let e1 = g.edge(0, 0).unwrap();
         let actual = e1
@@ -506,6 +503,7 @@ mod db_tests {
                 Prop::map([("b", Prop::str("baa")), ("a", Prop::U8(1))])
             )]
         );
+        Ok(())
     }
 
     #[test]
