@@ -44,7 +44,7 @@ use std::{
     borrow::Borrow,
     sync::{atomic::Ordering, Arc},
 };
-use crate::db::graph::views::property_filter::CompositeNodeFilter;
+use crate::db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter};
 use crate::prelude::PropertyFilter;
 
 /// This trait GraphViewOps defines operations for accessing
@@ -143,7 +143,8 @@ pub trait SearchableGraphOps: Sized {
 
     fn search_edges(
         &self,
-        q: &str,
+        // q: &str,
+        filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
@@ -635,11 +636,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn search_edges(
         &self,
-        q: &str,
+        // q: &str,
+        filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
-        self.searcher()?.search_edges(self, q, limit, offset)
+        self.searcher()?.search_edges(self, filter, limit, offset)
     }
 
     fn search_node_count(&self, q: &str) -> Result<usize, GraphError> {

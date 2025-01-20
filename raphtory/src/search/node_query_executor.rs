@@ -1,17 +1,18 @@
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
-        api::view::StaticGraphViewOps,
+        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
         graph::{
+            edge::EdgeView,
             node::NodeView,
-            views::property_filter::{CompositeNodeFilter, NodeFilter},
+            views::property_filter::{CompositeNodeFilter, Filter},
         },
     },
     prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
     search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{EID, VID};
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{FilterCollector, TopDocs},
@@ -20,11 +21,11 @@ use tantivy::{
     DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
 };
 
-pub struct QueryExecutor<'a> {
+pub struct NodeQueryExecutor<'a> {
     query_builder: QueryBuilder<'a>,
 }
 
-impl<'a> QueryExecutor<'a> {
+impl<'a> NodeQueryExecutor<'a> {
     pub fn new(index: &'a GraphIndex) -> Self {
         Self {
             query_builder: QueryBuilder::new(index),
@@ -109,7 +110,7 @@ impl<'a> QueryExecutor<'a> {
     fn execute_node_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &NodeFilter,
+        filter: &Filter,
         limit: usize,
         offset: usize,
     ) -> Result<HashSet<NodeView<G>>, GraphError> {
@@ -126,19 +127,15 @@ impl<'a> QueryExecutor<'a> {
         println!();
 
         let results = match query {
-            Some(query) => {
-                println!("I was here 2");
-                self.execute_query(
-                    graph,
-                    query,
-                    &node_index.index,
-                    &node_index.reader,
-                    limit,
-                    offset,
-                )?
-            }
+            Some(query) => self.execute_query(
+                graph,
+                query,
+                &node_index.index,
+                &node_index.reader,
+                limit,
+                offset,
+            )?,
             None => {
-                println!("I was here");
                 vec![]
             }
         };
@@ -195,21 +192,6 @@ impl<'a> QueryExecutor<'a> {
         }
     }
 
-    fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        node_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<NodeView<G>> {
-        let node_id: usize = doc
-            .get_first(node_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let node_id = NodeRef::Internal(node_id.into());
-        graph.node(node_id)
-    }
-
     fn node_id_filter_collector<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -223,6 +205,21 @@ impl<'a> QueryExecutor<'a> {
             move |node_id: u64| graph.has_node(VID(node_id as usize)),
             ranking,
         )
+    }
+
+    fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        node_id: Field,
+        doc: TantivyDocument,
+    ) -> Option<NodeView<G>> {
+        let node_id: usize = doc
+            .get_first(node_id)
+            .and_then(|value| value.as_u64())?
+            .try_into()
+            .ok()?;
+        let node_id = NodeRef::Internal(node_id.into());
+        graph.node(node_id)
     }
 
     fn print_docs(

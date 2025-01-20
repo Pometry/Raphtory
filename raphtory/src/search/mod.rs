@@ -1,11 +1,22 @@
 use crate::{
-    core::Prop,
-    db::api::properties::internal::{ConstPropertiesOps, PropertiesOps},
-    prelude::{GraphViewOps, NodeViewOps},
-    search::property_index::PropertyIndex,
+    core::{utils::errors::GraphError, Prop},
+    db::{
+        api::{
+            properties::internal::{ConstPropertiesOps, PropertiesOps},
+            view::StaticGraphViewOps,
+        },
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::{GraphViewOps, NodeViewOps, PropertyFilter},
+    search::{property_index::PropertyIndex, query_builder::QueryBuilder},
 };
+use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashSet,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 use tantivy::{
     query::Query,
     schema::Schema,
@@ -22,7 +33,8 @@ pub mod node_filter_collector;
 pub mod node_index;
 pub mod property_index;
 mod query_builder;
-mod query_executor;
+mod node_query_executor;
+mod edge_query_executor;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";

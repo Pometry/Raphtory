@@ -32,6 +32,7 @@ use tantivy::{
     },
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
+use tantivy::schema::Field;
 
 #[derive(Clone)]
 pub struct EdgeIndex {
@@ -112,6 +113,10 @@ impl EdgeIndex {
                 .set_stored(),
         );
         schema
+    }
+
+    pub fn get_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {
+        self.index.schema().get_field(field_name)
     }
 
     fn create_document<'a>(

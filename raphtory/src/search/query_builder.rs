@@ -2,13 +2,11 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::StaticGraphViewOps,
-        graph::views::property_filter::{
-            FilterOperator, NodeFilter, NodeFilterValue, PropertyFilterValue,
-        },
+        graph::views::property_filter::{Filter, FilterOperator, FilterValue, PropertyFilterValue},
     },
     prelude::PropertyFilter,
     search::{
-        graph_index::GraphIndex, node_index::NodeIndex,
+        edge_index::EdgeIndex, graph_index::GraphIndex, node_index::NodeIndex,
         property_index::PropertyIndex,
     },
 };
@@ -24,11 +22,10 @@ use tantivy::{
         Occur::{Must, MustNot, Should},
         PhraseQuery, Query, RangeQuery, TermQuery,
     },
-    schema::{Field, IndexRecordOption, Type},
-    Term,
+    schema::{Field, FieldType, IndexRecordOption, Schema, Type},
+    tokenizer::TokenizerManager,
+    Index, Term,
 };
-use tantivy::schema::{FieldType, Schema};
-use tantivy::tokenizer::TokenizerManager;
 
 pub struct QueryBuilder<'a> {
     index: &'a GraphIndex,
@@ -93,29 +90,29 @@ impl<'a> QueryBuilder<'a> {
         Ok((property_index, query))
     }
 
-    pub(crate) fn build_node_query(
+    fn build_query_generic(
         &self,
-        filter: &NodeFilter,
-    ) -> Result<(Arc<NodeIndex>, Option<Box<dyn Query>>), GraphError> {
-        let field_name = &filter.field_name;
-        let field_value = &filter.field_value;
-        let node_index = &self.index.node_index;
-        let node_field = node_index.get_node_field(field_name)?;
-        let schema = &node_index.index.schema();
-        let tokenizer_manager = node_index.index.tokenizers();
-
-        let query: Option<Box<dyn Query>> = match field_value {
-            NodeFilterValue::Single(node_value) => {
-                let terms = create_tantivy_terms(schema, tokenizer_manager, node_field, node_value)?;
-                match &filter.operator {
+        index: &Index,
+        node_field: Field,
+        filter_value: &FilterValue,
+        operator: &FilterOperator,
+    ) -> Result<Option<Box<dyn Query>>, GraphError> {
+        let schema = &index.schema();
+        let tokenizer_manager = index.tokenizers();
+        let query = match filter_value {
+            FilterValue::Single(node_value) => {
+                let terms =
+                    create_tantivy_terms(schema, tokenizer_manager, node_field, node_value)?;
+                match operator {
                     FilterOperator::Eq => create_eq_query(terms),
                     FilterOperator::Ne => create_ne_query(terms),
                     _ => unreachable!(),
                 }
             }
-            NodeFilterValue::Set(node_values) => {
-                let sub_queries = create_sub_queries(schema, tokenizer_manager, node_field, node_values);
-                match &filter.operator {
+            FilterValue::Set(node_values) => {
+                let sub_queries =
+                    create_sub_queries(schema, tokenizer_manager, node_field, node_values);
+                match operator {
                     FilterOperator::In => create_in_query(sub_queries),
                     FilterOperator::NotIn => create_not_in_query(sub_queries),
                     _ => unreachable!(),
@@ -123,7 +120,37 @@ impl<'a> QueryBuilder<'a> {
             }
         };
 
+        Ok(query)
+    }
+
+    pub(crate) fn build_node_query(
+        &self,
+        filter: &Filter,
+    ) -> Result<(Arc<NodeIndex>, Option<Box<dyn Query>>), GraphError> {
+        let node_index = &self.index.node_index;
+        let index = &node_index.index;
+        let field_name = &filter.field_name;
+        let field = node_index.get_node_field(field_name)?;
+        let filter_value = &filter.field_value;
+        let operator = &filter.operator;
+
+        let query = self.build_query_generic(index, field, filter_value, operator)?;
         Ok((Arc::from(node_index.clone()), query))
+    }
+
+    pub(crate) fn build_edge_query(
+        &self,
+        filter: &Filter,
+    ) -> Result<(Arc<EdgeIndex>, Option<Box<dyn Query>>), GraphError> {
+        let edge_index = &self.index.edge_index;
+        let index = &edge_index.index;
+        let field_name = &filter.field_name;
+        let field = edge_index.get_edge_field(field_name)?;
+        let filter_value = &filter.field_value;
+        let operator = &filter.operator;
+
+        let query = self.build_query_generic(index, field, filter_value, operator)?;
+        Ok((Arc::from(edge_index.clone()), query))
     }
 }
 

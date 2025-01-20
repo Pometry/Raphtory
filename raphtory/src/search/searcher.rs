@@ -13,12 +13,17 @@ use crate::{
                 StaticGraphViewOps,
             },
         },
-        graph::{edge::EdgeView, node::NodeView, views::property_filter::CompositeNodeFilter},
+        graph::{
+            edge::EdgeView,
+            node::NodeView,
+            views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter},
+        },
     },
     prelude::*,
     search::{
-        fields, graph_index::GraphIndex, latest_value_collector::LatestValueCollector,
-        node_filter_collector::NodeFilterCollector, query_executor::QueryExecutor,
+        edge_query_executor::EdgeQueryExecutor, fields, graph_index::GraphIndex,
+        latest_value_collector::LatestValueCollector, node_filter_collector::NodeFilterCollector,
+        node_query_executor::NodeQueryExecutor,
     },
 };
 use itertools::Itertools;
@@ -182,7 +187,7 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let query_executor = QueryExecutor::new(self.index);
+        let query_executor = NodeQueryExecutor::new(self.index);
         let result = query_executor.execute(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
@@ -201,32 +206,45 @@ impl<'a> Searcher<'a> {
     pub fn search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        q: &str,
+        filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let searcher = self.index.edge_index.reader.searcher();
-        let query_parser = self.index.edge_parser()?;
-        let query = query_parser.parse_query(q)?;
+        let query_executor = EdgeQueryExecutor::new(self.index);
+        let result = query_executor.execute(graph, filter, limit, offset)?;
 
-        let top_docs =
-            searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
-        let edge_id = self
-            .index
-            .edge_index
-            .index
-            .schema()
-            .get_field(fields::EDGE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
+        Ok(result.into_iter().collect_vec())
     }
+
+    // pub fn search_edges<G: StaticGraphViewOps>(
+    //     &self,
+    //     graph: &G,
+    //     q: &str,
+    //     limit: usize,
+    //     offset: usize,
+    // ) -> Result<Vec<EdgeView<G>>, GraphError> {
+    //     let searcher = self.index.edge_index.reader.searcher();
+    //     let query_parser = self.index.edge_parser()?;
+    //     let query = query_parser.parse_query(q)?;
+    //
+    //     let top_docs =
+    //         searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
+    //     let edge_id = self
+    //         .index
+    //         .edge_index
+    //         .index
+    //         .schema()
+    //         .get_field(fields::EDGE_ID)?;
+    //
+    //     let results = top_docs
+    //         .into_iter()
+    //         .map(|(_, doc_address)| searcher.doc(doc_address))
+    //         .filter_map(Result::ok)
+    //         .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
+    //         .collect::<Vec<_>>();
+    //
+    //     Ok(results)
+    // }
 
     pub fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
         let searcher = self.index.edge_index.reader.searcher();
@@ -328,7 +346,7 @@ mod search_tests {
             mutation::internal::DelegateDeletionOps,
             view::{internal::InternalIndexSearch, SearchableGraphOps},
         },
-        graph::views::{deletion_graph::PersistentGraph, property_filter::NodeFilter},
+        graph::views::{deletion_graph::PersistentGraph, property_filter::Filter},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
@@ -390,7 +408,7 @@ mod search_tests {
         assert_eq!(results, vec!["3"]);
 
         let filter = CompositeNodeFilter::And(vec![
-            CompositeNodeFilter::Node(NodeFilter::eq("node_type", "fire_nation")),
+            CompositeNodeFilter::Node(Filter::eq("node_type", "fire_nation")),
             CompositeNodeFilter::Property(PropertyFilter::eq("p1", "prop1")),
         ]);
         let results = search_nodes_by_composite_filter(&filter);
@@ -399,61 +417,59 @@ mod search_tests {
 
     #[test]
     fn search_nodes_for_node_name_eq() {
-        let filter = CompositeNodeFilter::Node(NodeFilter::eq("node_name", "3"));
+        let filter = CompositeNodeFilter::Node(Filter::eq("node_name", "3"));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["3"]);
     }
 
     #[test]
     fn search_nodes_for_node_name_ne() {
-        let filter = CompositeNodeFilter::Node(NodeFilter::ne("node_name", "2"));
+        let filter = CompositeNodeFilter::Node(Filter::ne("node_name", "2"));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["1", "3"]);
     }
 
     #[test]
     fn search_nodes_for_node_name_in() {
-        let filter = CompositeNodeFilter::Node(NodeFilter::any("node_name", vec!["1".into()]));
+        let filter = CompositeNodeFilter::Node(Filter::any("node_name", vec!["1".into()]));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["1"]);
 
-        let filter = CompositeNodeFilter::Node(NodeFilter::any(
-            "node_name",
-            vec!["2".into(), "3".into()],
-        ));
+        let filter =
+            CompositeNodeFilter::Node(Filter::any("node_name", vec!["2".into(), "3".into()]));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["2", "3"]);
     }
 
     #[test]
     fn search_nodes_for_node_name_not_in() {
-        let filter =
-            CompositeNodeFilter::Node(NodeFilter::not_any("node_name", vec!["1".into()]));
+        let filter = CompositeNodeFilter::Node(Filter::not_any("node_name", vec!["1".into()]));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["2", "3"]);
     }
 
     #[test]
     fn search_nodes_for_node_type_eq() {
-        let filter = CompositeNodeFilter::Node(NodeFilter::eq("node_type", "fire_nation"));
+        let filter = CompositeNodeFilter::Node(Filter::eq("node_type", "fire_nation"));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["1", "3"]);
     }
 
     #[test]
     fn search_nodes_for_node_type_ne() {
-        let filter = CompositeNodeFilter::Node(NodeFilter::ne("node_type", "fire_nation"));
+        let filter = CompositeNodeFilter::Node(Filter::ne("node_type", "fire_nation"));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["2"]);
     }
 
     #[test]
     fn search_nodes_for_node_type_in() {
-        let filter = CompositeNodeFilter::Node(NodeFilter::any("node_type", vec!["fire_nation".into()]));
+        let filter =
+            CompositeNodeFilter::Node(Filter::any("node_type", vec!["fire_nation".into()]));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["1", "3"]);
 
-        let filter = CompositeNodeFilter::Node(NodeFilter::any(
+        let filter = CompositeNodeFilter::Node(Filter::any(
             "node_type",
             vec!["fire_nation".into(), "air_nomads".into()],
         ));
@@ -464,7 +480,7 @@ mod search_tests {
     #[test]
     fn search_nodes_for_node_type_not_in() {
         let filter =
-            CompositeNodeFilter::Node(NodeFilter::not_any("node_type", vec!["fire_nation".into()]));
+            CompositeNodeFilter::Node(Filter::not_any("node_type", vec!["fire_nation".into()]));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["2"]);
     }
@@ -492,9 +508,9 @@ mod search_tests {
 
     #[test]
     fn search_nodes_for_property_le() {
-        let filter = CompositeNodeFilter::Property(PropertyFilter::le("p1", 6u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::le("p2", 6u64));
         let results = search_nodes_by_composite_filter(&filter);
-        assert_eq!(results, vec!["2"]);
+        assert_eq!(results, vec!["2", "3"]);
     }
 
     #[test]
@@ -545,6 +561,49 @@ mod search_tests {
         let filter = CompositeNodeFilter::Property(PropertyFilter::is_none("p2"));
         let results = search_nodes_by_composite_filter(&filter);
         assert_eq!(results, vec!["1"]);
+    }
+
+    fn search_edges_by_composite_filter(filter: &CompositeEdgeFilter) -> Vec<(String, String)> {
+        let graph = Graph::new();
+        graph
+            .add_edge(1, 1, 2, [("p1", "shivam_kapoor")], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_edge(
+                2,
+                2,
+                3,
+                [("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                Some("air_nomads"),
+            )
+            .unwrap();
+        graph
+            .add_edge(3, 3, 1, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
+            .unwrap();
+
+        let mut results = graph
+            .search_edges(&filter, 5, 0)
+            .expect("Failed to search for nodes")
+            .into_iter()
+            .map(|e| (e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        results.sort();
+
+        results
+    }
+
+    #[test]
+    fn search_edges_for_src_from_eq() {
+        let filter = CompositeEdgeFilter::Edge(Filter::eq("from", "2"));
+        let results = search_edges_by_composite_filter(&filter);
+        assert_eq!(results, vec![("2".into(), "3".into())]);
+    }
+
+    #[test]
+    fn search_edges_for_src_from_ne() {
+        let filter = CompositeEdgeFilter::Edge(Filter::ne("to", "2"));
+        let results = search_edges_by_composite_filter(&filter);
+        assert_eq!(results, vec![("2".into(), "3".into()), ("3".into(), "1".into())]);
     }
 
     // #[test]

@@ -39,6 +39,8 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
+use std::hash::{Hash, Hasher};
+use crate::db::api::view::internal::CoreGraphOps;
 
 /// A view of an edge in the graph.
 #[derive(Copy, Clone)]
@@ -432,6 +434,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
             self.temporal_prop_ids()
                 .map(move |id| reverse_map[id].clone()),
         )
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for EdgeView<G, GH> {}
+
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Hash
+for EdgeView<G1, GH1>
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+        self.edge.time().hash(state);
     }
 }
 

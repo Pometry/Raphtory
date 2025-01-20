@@ -91,32 +91,15 @@ impl FilterOperator {
         }
     }
 
-    pub fn apply_to_node(&self, left: &NodeFilterValue, right: Option<&str>) -> bool {
+    pub fn apply(&self, left: &FilterValue, right: Option<&str>) -> bool {
         match left {
-            NodeFilterValue::Single(l) => match self {
+            FilterValue::Single(l) => match self {
                 FilterOperator::Eq | FilterOperator::Ne => {
                     right.map_or(false, |r| self.operation()(r, l))
                 }
                 _ => unreachable!(),
             },
-            NodeFilterValue::Set(l) => match self {
-                FilterOperator::In | FilterOperator::NotIn => {
-                    right.map_or(false, |r| self.collection_operation()(l, &r.to_string()))
-                }
-                _ => unreachable!(),
-            },
-        }
-    }
-
-    pub fn apply_to_edge(&self, left: &EdgeFilterValue, right: Option<&str>) -> bool {
-        match left {
-            EdgeFilterValue::Single(l) => match self {
-                FilterOperator::Eq | FilterOperator::Ne => {
-                    right.map_or(false, |r| self.operation()(r, l))
-                }
-                _ => unreachable!(),
-            },
-            EdgeFilterValue::Set(l) => match self {
+            FilterValue::Set(l) => match self {
                 FilterOperator::In | FilterOperator::NotIn => {
                     right.map_or(false, |r| self.collection_operation()(l, &r.to_string()))
                 }
@@ -273,25 +256,25 @@ impl PropertyFilter {
 }
 
 #[derive(Debug, Clone)]
-pub enum NodeFilterValue {
+pub enum FilterValue {
     Single(String),
     Set(Arc<HashSet<String>>),
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeFilter {
+pub struct Filter {
     pub field_name: String,
-    pub field_value: NodeFilterValue,
+    pub field_value: FilterValue,
     pub operator: FilterOperator,
 }
 
-impl fmt::Display for NodeFilter {
+impl fmt::Display for Filter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.field_value {
-            NodeFilterValue::Single(value) => {
+            FilterValue::Single(value) => {
                 write!(f, "{} {} {}", self.field_name, self.operator, value)
             }
-            NodeFilterValue::Set(values) => {
+            FilterValue::Set(values) => {
                 let mut sorted_values: Vec<_> = values.iter().collect();
                 sorted_values.sort();
                 let values_str = sorted_values
@@ -305,11 +288,11 @@ impl fmt::Display for NodeFilter {
     }
 }
 
-impl NodeFilter {
+impl Filter {
     pub fn eq(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: NodeFilterValue::Single(field_value.into()),
+            field_value: FilterValue::Single(field_value.into()),
             operator: FilterOperator::Eq,
         }
     }
@@ -317,7 +300,7 @@ impl NodeFilter {
     pub fn ne(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: NodeFilterValue::Single(field_value.into()),
+            field_value: FilterValue::Single(field_value.into()),
             operator: FilterOperator::Ne,
         }
     }
@@ -328,7 +311,7 @@ impl NodeFilter {
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: NodeFilterValue::Set(Arc::new(field_values.into_iter().collect())),
+            field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
             operator: FilterOperator::In,
         }
     }
@@ -339,19 +322,19 @@ impl NodeFilter {
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: NodeFilterValue::Set(Arc::new(field_values.into_iter().collect())),
+            field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
             operator: FilterOperator::NotIn,
         }
     }
 
     pub fn matches(&self, node_value: Option<&str>) -> bool {
-        self.operator.apply_to_node(&self.field_value, node_value)
+        self.operator.apply(&self.field_value, node_value)
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum CompositeNodeFilter {
-    Node(NodeFilter),
+    Node(Filter),
     Property(PropertyFilter),
     And(Vec<CompositeNodeFilter>),
     Or(Vec<CompositeNodeFilter>),
@@ -383,85 +366,8 @@ impl fmt::Display for CompositeNodeFilter {
 }
 
 #[derive(Debug, Clone)]
-pub enum EdgeFilterValue {
-    Single(String),
-    Set(Arc<HashSet<String>>),
-}
-
-#[derive(Debug, Clone)]
-pub struct EdgeFilter {
-    pub field_name: String,
-    pub field_value: EdgeFilterValue,
-    pub operator: FilterOperator,
-}
-
-impl fmt::Display for EdgeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.field_value {
-            EdgeFilterValue::Single(value) => {
-                write!(f, "{} {} {}", self.field_name, self.operator, value)
-            }
-            EdgeFilterValue::Set(values) => {
-                let mut sorted_values: Vec<_> = values.iter().collect();
-                sorted_values.sort();
-                let values_str = sorted_values
-                    .iter()
-                    .map(|v| format!("{}", v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
-            }
-        }
-    }
-}
-
-impl EdgeFilter {
-    pub fn eq(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: EdgeFilterValue::Single(field_value.into()),
-            operator: FilterOperator::Eq,
-        }
-    }
-
-    pub fn ne(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: EdgeFilterValue::Single(field_value.into()),
-            operator: FilterOperator::Ne,
-        }
-    }
-
-    pub fn any(
-        field_name: impl Into<String>,
-        field_values: impl IntoIterator<Item = String>,
-    ) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: EdgeFilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::In,
-        }
-    }
-
-    pub fn not_any(
-        field_name: impl Into<String>,
-        field_values: impl IntoIterator<Item = String>,
-    ) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: EdgeFilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::NotIn,
-        }
-    }
-
-    pub fn matches(&self, node_value: Option<&str>) -> bool {
-        self.operator.apply_to_edge(&self.field_value, node_value)
-    }
-}
-
-#[derive(Debug, Clone)]
 pub enum CompositeEdgeFilter {
-    Edge(NodeFilter),
+    Edge(Filter),
     Property(PropertyFilter),
     And(Vec<CompositeEdgeFilter>),
     Or(Vec<CompositeEdgeFilter>),
@@ -496,7 +402,7 @@ impl fmt::Display for CompositeEdgeFilter {
 mod test_composite_filters {
     use crate::{
         core::Prop,
-        db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, NodeFilter},
+        db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
         prelude::PropertyFilter,
     };
 
@@ -511,7 +417,7 @@ mod test_composite_filters {
             "((node_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 IN [2, 10]))) OR (node_name == pometry) OR (p5 == 9)",
             CompositeNodeFilter::Or(vec![
                 CompositeNodeFilter::And(vec![
-                    CompositeNodeFilter::Node(NodeFilter::not_any(
+                    CompositeNodeFilter::Node(Filter::not_any(
                         "node_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
@@ -522,7 +428,7 @@ mod test_composite_filters {
                         CompositeNodeFilter::Property(PropertyFilter::any("p4", vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
-                CompositeNodeFilter::Node(NodeFilter::eq("node_name", "pometry")),
+                CompositeNodeFilter::Node(Filter::eq("node_name", "pometry")),
                 CompositeNodeFilter::Property(PropertyFilter::eq("p5", 9u64)),
             ])
             .to_string()
@@ -540,7 +446,7 @@ mod test_composite_filters {
             "((edge_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 IN [2, 10]))) OR (from == pometry) OR (p5 == 9)",
             CompositeEdgeFilter::Or(vec![
                 CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Edge(NodeFilter::not_any(
+                    CompositeEdgeFilter::Edge(Filter::not_any(
                         "edge_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
@@ -551,7 +457,7 @@ mod test_composite_filters {
                         CompositeEdgeFilter::Property(PropertyFilter::any("p4", vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
-                CompositeEdgeFilter::Edge(NodeFilter::eq("from", "pometry")),
+                CompositeEdgeFilter::Edge(Filter::eq("from", "pometry")),
                 CompositeEdgeFilter::Property(PropertyFilter::eq("p5", 9u64)),
             ])
                 .to_string()

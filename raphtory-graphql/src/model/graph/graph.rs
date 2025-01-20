@@ -722,41 +722,42 @@ impl GqlGraph {
     ////////////////////////
     // INDEX SEARCH     ////
     ////////////////////////
-    async fn search_nodes(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<Node>, GraphError> {
-        self.execute_search(|| {
-            Ok(self
-                .graph
-                .search_nodes(&query, limit, offset)
-                .into_iter()
-                .flatten()
-                .map(|vv| vv.into())
-                .collect())
-        })
-        .await
-    }
+    // TODO Fix this
+    // async fn search_nodes(
+    //     &self,
+    //     query: String,
+    //     limit: usize,
+    //     offset: usize,
+    // ) -> Result<Vec<Node>, GraphError> {
+    //     self.execute_search(|| {
+    //         Ok(self
+    //             .graph
+    //             .search_nodes(&query, limit, offset)
+    //             .into_iter()
+    //             .flatten()
+    //             .map(|vv| vv.into())
+    //             .collect())
+    //     })
+    //     .await
+    // }
 
-    async fn search_edges(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<Edge>, GraphError> {
-        self.execute_search(|| {
-            Ok(self
-                .graph
-                .search_edges(&query, limit, offset)
-                .into_iter()
-                .flatten()
-                .map(|vv| vv.into())
-                .collect())
-        })
-        .await
-    }
+    // async fn search_edges(
+    //     &self,
+    //     query: String,
+    //     limit: usize,
+    //     offset: usize,
+    // ) -> Result<Vec<Edge>, GraphError> {
+    //     self.execute_search(|| {
+    //         Ok(self
+    //             .graph
+    //             .search_edges(&query, limit, offset)
+    //             .into_iter()
+    //             .flatten()
+    //             .map(|vv| vv.into())
+    //             .collect())
+    //     })
+    //     .await
+    // }
 
     async fn search_node_count(&self, query: String) -> Result<usize, GraphError> {
         self.execute_search(|| Ok(self.graph.search_node_count(&query).unwrap_or(0)))
