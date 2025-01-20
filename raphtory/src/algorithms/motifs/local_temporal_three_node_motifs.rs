@@ -3,7 +3,10 @@ use crate::{
     algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
-        api::view::{NodeViewOps, *},
+        api::{
+            state::NodeState,
+            view::{NodeViewOps, *},
+        },
         graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
@@ -13,11 +16,10 @@ use crate::{
         },
     },
 };
-
-use crate::algorithms::algorithm_result::AlgorithmResult;
-use itertools::{enumerate, Itertools};
+use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
+use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
 use tracing::debug;
@@ -334,85 +336,61 @@ where
 /// the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 pub fn temporal_three_node_motif<G>(
     g: &G,
-    deltas: Vec<i64>,
+    delta: i64,
     threads: Option<usize>,
-) -> AlgorithmResult<G, Vec<usize>>
+) -> NodeState<Vec<usize>, G>
 where
     G: StaticGraphViewOps,
 {
-    let delta_len = deltas.len();
     let ctx: Context<G, ComputeStateVec> = g.into();
 
     debug!("Running triangle step");
-    let triadic_motifs = triangle_motifs(g, deltas.clone(), threads);
+    let triadic_motifs = triangle_motifs(g, vec![delta], threads);
     debug!("Running rest of motifs");
 
     let star_motif_step = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
-        let two_nodes = twonode_motif_count(evv, deltas.clone());
-        let star_nodes = star_motif_count(evv, deltas.clone());
+        let two_nodes = twonode_motif_count(evv, vec![delta]);
+        let star_nodes = star_motif_count(evv, vec![delta]);
 
-        *evv.get_mut() = MotifCounter::new(
-            deltas.len(),
-            two_nodes,
-            star_nodes,
-            evv.get().triangle.clone(),
-        );
+        *evv.get_mut() = MotifCounter::new(1, two_nodes, star_nodes, evv.get().triangle.clone());
 
         Step::Continue
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let result = runner
-        .run(
-            vec![Job::new(star_motif_step)],
-            vec![],
-            None,
-            |_, _, _els, local| {
-                let mut motifs = HashMap::new();
-                for (vref, mc) in enumerate(local) {
-                    if mc.two_nodes.is_empty() || mc.star_nodes.is_empty() {
-                        continue;
-                    }
-                    let v_gid = g.node_name(vref.into());
+    runner.run(
+        vec![Job::new(star_motif_step)],
+        vec![],
+        None,
+        |_, _, _, local| {
+            let values: Vec<_> = g
+                .nodes()
+                .par_iter()
+                .map(|n| {
+                    let mc = &local[n.node.index()];
+                    let v_gid = n.name();
                     let triangles = triadic_motifs
                         .get(&v_gid)
-                        .cloned()
-                        .unwrap_or_else(|| vec![[0usize; 8]; delta_len]);
-                    let run_counts = (0..delta_len)
-                        .map(|i| {
-                            let two_nodes = mc.two_nodes[i].to_vec();
-                            let tmp_stars = mc.star_nodes[i].to_vec();
-                            let stars: Vec<usize> = tmp_stars
-                                .iter()
-                                .zip(two_nodes.iter().cycle().take(24))
-                                .map(|(&x1, &x2)| x1 - x2)
-                                .collect();
-                            let mut final_cts = Vec::new();
-                            final_cts.extend(stars.into_iter());
-                            final_cts.extend(two_nodes.into_iter());
-                            final_cts.extend(triangles[i].into_iter());
-                            final_cts
-                        })
-                        .collect::<Vec<Vec<usize>>>();
-                    motifs.insert(vref, run_counts);
-                }
-                motifs
-            },
-            threads,
-            1,
-            None,
-            None,
-        )
-        .into_iter()
-        .map(|(k, v)| (k, v[0].clone()))
-        .collect::<HashMap<usize, Vec<usize>>>();
-    let results_type = std::any::type_name::<Vec<usize>>();
-    AlgorithmResult::new(
-        g.clone(),
-        "Temporal Three Node Motifs",
-        results_type,
-        result,
+                        .map(|t| &t[0])
+                        .unwrap_or_else(|| &[0usize; 8]);
+                    let two_nodes = &mc.two_nodes[0];
+                    let mut counts: Vec<_> = mc.star_nodes[0]
+                        .iter()
+                        .zip(two_nodes.iter().cycle().take(24))
+                        .map(|(&x1, &x2)| x1 - x2)
+                        .collect();
+                    counts.extend_from_slice(two_nodes);
+                    counts.extend_from_slice(triangles);
+                    counts
+                })
+                .collect();
+            NodeState::new_from_values(g.clone(), values)
+        },
+        threads,
+        1,
+        None,
+        None,
     )
 }
 
@@ -421,10 +399,9 @@ mod motifs_test {
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
+        prelude::{NodeStateOps, NO_PROPS},
         test_storage,
     };
-    use arrow_array::Datum;
     use raphtory_api::core::utils::logging::global_debug_logger;
     use tracing::info;
 
@@ -475,9 +452,9 @@ mod motifs_test {
         global_debug_logger();
         let ij_kj_ik = vec![(1, 1, 2), (2, 3, 2), (3, 1, 3)];
         let g = load_graph(ij_kj_ik);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
@@ -486,9 +463,9 @@ mod motifs_test {
 
         let ij_ki_jk = vec![(1, 1, 2), (2, 3, 1), (3, 2, 3)];
         let g = load_graph(ij_ki_jk);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
@@ -497,9 +474,9 @@ mod motifs_test {
 
         let ij_jk_ik = vec![(1, 1, 2), (2, 2, 3), (3, 1, 3)];
         let g = load_graph(ij_jk_ik);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
@@ -508,9 +485,9 @@ mod motifs_test {
 
         let ij_ik_jk = vec![(1, 1, 2), (2, 1, 3), (3, 2, 3)];
         let g = load_graph(ij_ik_jk);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
@@ -519,9 +496,9 @@ mod motifs_test {
 
         let ij_kj_ki = vec![(1, 1, 2), (2, 3, 2), (3, 3, 1)];
         let g = load_graph(ij_kj_ki);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0
@@ -530,9 +507,9 @@ mod motifs_test {
 
         let ij_ki_kj = vec![(1, 1, 2), (2, 3, 1), (3, 3, 2)];
         let g = load_graph(ij_ki_kj);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
@@ -541,9 +518,9 @@ mod motifs_test {
 
         let ij_jk_ki = vec![(1, 1, 2), (2, 2, 3), (3, 3, 1)];
         let g = load_graph(ij_jk_ki);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
@@ -552,9 +529,9 @@ mod motifs_test {
 
         let ij_ik_kj = vec![(1, 1, 2), (2, 1, 3), (3, 3, 2)];
         let g = load_graph(ij_ik_kj);
-        let mc = temporal_three_node_motif(&g, vec![3], None);
+        let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get(&3).unwrap(),
+            *mc.get_by_node(3).unwrap(),
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
@@ -567,8 +544,7 @@ mod motifs_test {
         let graph = load_sample_graph();
 
         test_storage!(&graph, |graph| {
-            let actual =
-                temporal_three_node_motif(graph, Vec::from([10]), None).get_all_with_names();
+            let actual = temporal_three_node_motif(graph, 10, None);
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([
                 (
@@ -649,13 +625,7 @@ mod motifs_test {
                     ],
                 ),
             ]);
-
-            for ind in 1..12 {
-                assert_eq!(
-                    actual.get(&ind.to_string()).unwrap(),
-                    expected.get(&ind.to_string()).unwrap()
-                );
-            }
+            assert_eq!(actual, expected);
         });
     }
 
@@ -666,8 +636,7 @@ mod motifs_test {
         let g_windowed = g.before(11).after(0);
         info! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
 
-        let actual =
-            temporal_three_node_motif(&g_windowed, Vec::from([10]), None).get_all_with_names();
+        let actual = temporal_three_node_motif(&g_windowed, 10, None);
 
         let expected: HashMap<String, Vec<usize>> = HashMap::from([
             (
@@ -728,11 +697,6 @@ mod motifs_test {
             ),
         ]);
 
-        for ind in 1..8 {
-            assert_eq!(
-                actual.get(&ind.to_string()).unwrap(),
-                expected.get(&ind.to_string()).unwrap()
-            );
-        }
+        assert_eq!(actual, expected);
     }
 }

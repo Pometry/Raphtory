@@ -1,8 +1,10 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{entities::VID, state::compute_state::ComputeStateVec},
+    core::state::compute_state::ComputeStateVec,
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::NodeState,
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -11,8 +13,6 @@ use crate::{
         },
     },
 };
-use raphtory_api::core::entities::GID;
-use rayon::prelude::*;
 
 #[derive(Clone, Debug, Default)]
 struct WccState {
@@ -29,13 +29,13 @@ struct WccState {
 ///
 /// # Returns
 ///
-/// An [AlgorithmResult] containing the mapping from each node to its component ID
+/// An [NodeState] containing the mapping from each node to its component ID
 ///
 pub fn weakly_connected_components<G>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<G, GID, GID>
+) -> NodeState<usize, G>
 where
     G: StaticGraphViewOps,
 {
@@ -66,29 +66,18 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<u64>();
-
-    let res = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local: Vec<WccState>| {
-            g.nodes()
-                .par_iter()
-                .map(|node| {
-                    let VID(id) = node.node;
-                    let comp = g.node_id(VID(local[id].component));
-                    (id, comp)
-                })
-                .collect()
+            NodeState::new_from_eval_mapped(g.clone(), local, |v| v.component)
         },
         threads,
         iter_count,
         None,
         None,
-    );
-
-    AlgorithmResult::new(g.clone(), "Connected Components", results_type, res)
+    )
 }
 
 #[cfg(test)]
@@ -118,18 +107,18 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+            let results = weakly_connected_components(graph, usize::MAX, None);
             assert_eq!(
                 results,
                 vec![
-                    ("1".to_string(), GID::U64(1)),
-                    ("2".to_string(), GID::U64(1)),
-                    ("3".to_string(), GID::U64(1)),
-                    ("4".to_string(), GID::U64(1)),
-                    ("5".to_string(), GID::U64(1)),
-                    ("6".to_string(), GID::U64(1)),
-                    ("7".to_string(), GID::U64(7)),
-                    ("8".to_string(), GID::U64(7)),
+                    ("1".to_string(), 0),
+                    ("2".to_string(), 0),
+                    ("3".to_string(), 0),
+                    ("4".to_string(), 0),
+                    ("5".to_string(), 0),
+                    ("6".to_string(), 0),
+                    ("7".to_string(), 6),
+                    ("8".to_string(), 6),
                 ]
                 .into_iter()
                 .collect::<HashMap<_, _>>()
@@ -172,22 +161,22 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+            let results = weakly_connected_components(graph, usize::MAX, None);
 
             assert_eq!(
                 results,
                 vec![
-                    ("1".to_string(), GID::U64(1)),
-                    ("2".to_string(), GID::U64(1)),
-                    ("3".to_string(), GID::U64(1)),
-                    ("4".to_string(), GID::U64(1)),
-                    ("5".to_string(), GID::U64(1)),
-                    ("6".to_string(), GID::U64(1)),
-                    ("7".to_string(), GID::U64(1)),
-                    ("8".to_string(), GID::U64(1)),
-                    ("9".to_string(), GID::U64(1)),
-                    ("10".to_string(), GID::U64(1)),
-                    ("11".to_string(), GID::U64(1)),
+                    ("1".to_string(), 0),
+                    ("2".to_string(), 0),
+                    ("3".to_string(), 0),
+                    ("4".to_string(), 0),
+                    ("5".to_string(), 0),
+                    ("6".to_string(), 0),
+                    ("7".to_string(), 0),
+                    ("8".to_string(), 0),
+                    ("9".to_string(), 0),
+                    ("10".to_string(), 0),
+                    ("11".to_string(), 0),
                 ]
                 .into_iter()
                 .collect::<HashMap<_, _>>()
@@ -207,11 +196,11 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+            let results = weakly_connected_components(graph, usize::MAX, None);
 
             assert_eq!(
                 results,
-                vec![("1".to_string(), GID::U64(1))]
+                vec![("1".to_string(), 0)]
                     .into_iter()
                     .collect::<HashMap<_, _>>()
             );
@@ -227,12 +216,12 @@ mod cc_test {
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+            let results = weakly_connected_components(graph, usize::MAX, None);
             let expected = vec![
-                ("1".to_string(), GID::U64(1)),
-                ("2".to_string(), GID::U64(1)),
-                ("3".to_string(), GID::U64(3)),
-                ("4".to_string(), GID::U64(3)),
+                ("1".to_string(), 0),
+                ("2".to_string(), 0),
+                ("3".to_string(), 2),
+                ("4".to_string(), 2),
             ]
             .into_iter()
             .collect::<HashMap<_, _>>();
@@ -240,12 +229,9 @@ mod cc_test {
             assert_eq!(results, expected);
 
             let wg = graph.window(0, 2);
-            let results = weakly_connected_components(&wg, usize::MAX, None).get_all_with_names();
+            let results = weakly_connected_components(&wg, usize::MAX, None);
 
-            let expected = vec![("1", 1), ("2", 1)]
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), GID::U64(v)))
-                .collect::<HashMap<_, _>>();
+            let expected = HashMap::from([("1", 0), ("2", 0)]);
 
             assert_eq!(results, expected);
         });
@@ -293,10 +279,10 @@ mod cc_test {
 
             test_storage!(&graph, |graph| {
                 // now we do connected community_detection over window 0..1
-                let res = weakly_connected_components(graph, usize::MAX, None).group_by();
+                let res = weakly_connected_components(graph, usize::MAX, None).groups();
 
-                let (node, size) = res
-                    .into_iter()
+                let (cc, size) = res
+                    .into_iter_groups()
                     .map(|(cc, group)| (cc, Reverse(group.len())))
                     .sorted_by(|l, r| l.1.cmp(&r.1))
                     .map(|(cc, count)| (cc, count.0))
@@ -304,8 +290,7 @@ mod cc_test {
                     .next()
                     .unwrap();
 
-                let node = graph.node(node).map(|node| node.node);
-                assert_eq!(node, Some(VID(0)));
+                assert_eq!(cc, 0);
 
                 assert_eq!(size, edges.len());
             });

@@ -1,15 +1,11 @@
-use raphtory_api::core::entities::GID;
-use rayon::prelude::*;
-
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
             state::{Index, NodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -39,7 +35,7 @@ struct InState {
 ///
 /// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes in component)
 ///
-pub fn in_components<G>(g: &G, threads: Option<usize>) -> AlgorithmResult<G, Vec<GID>, Vec<GID>>
+pub fn in_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
 where
     G: StaticGraphViewOps,
 {
@@ -70,33 +66,28 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<u64>();
 
-    let res = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![],
         None,
         |_, _, _, local: Vec<InState>| {
-            g.nodes()
-                .par_iter()
-                .map(|node| {
-                    let VID(id) = node.node;
-                    let components = local[id]
-                        .in_components
-                        .iter()
-                        .map(|vid| g.node_id(*vid))
-                        .collect();
-                    (id, components)
-                })
-                .collect()
+            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+                Nodes::new_filtered(
+                    g.clone(),
+                    g.clone(),
+                    Some(Index::from_iter(v.in_components)),
+                    None,
+                )
+            })
         },
         threads,
         1,
         None,
         None,
-    );
-    AlgorithmResult::new(g.clone(), "In Components", results_type, res)
+    )
 }
+
 /// Computes the in-component of a given node in the graph
 ///
 /// # Arguments:
@@ -215,7 +206,7 @@ mod components_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = in_components(graph, None).get_all_with_names();
+            let results = in_components(graph, None);
             let mut correct = HashMap::new();
             correct.insert("1".to_string(), vec![]);
             correct.insert("2".to_string(), vec![1]);
@@ -227,9 +218,15 @@ mod components_test {
             correct.insert("8".to_string(), vec![1, 2, 5]);
             let map: HashMap<String, Vec<u64>> = results
                 .into_iter()
-                .map(|(k, mut v)| {
-                    v.sort();
-                    (k, v.into_iter().filter_map(|v| v.as_u64()).collect())
+                .map(|(k, v)| {
+                    (
+                        k.name(),
+                        v.id()
+                            .into_iter_values()
+                            .filter_map(|v| v.as_u64())
+                            .sorted()
+                            .collect(),
+                    )
                 })
                 .collect();
             assert_eq!(map, correct);

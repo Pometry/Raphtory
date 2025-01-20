@@ -1,11 +1,12 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::entities::VID,
-    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
+    db::{
+        api::{state::NodeState, view::StaticGraphViewOps},
+        graph::node::NodeView,
+    },
     prelude::*,
 };
+use std::collections::{HashMap, HashSet};
 
 fn tarjan<'graph, G>(
     node: NodeView<&'graph G>,
@@ -87,7 +88,7 @@ where
 ///
 /// An [AlgorithmResult] containing the mapping from each node to its component ID
 ///
-pub fn strongly_connected_components<G>(graph: &G) -> AlgorithmResult<G, usize>
+pub fn strongly_connected_components<G>(graph: &G) -> NodeState<usize, G>
 where
     G: StaticGraphViewOps,
 {
@@ -146,32 +147,27 @@ where
             .map(|(vid, _)| VID(vid)),
     );
      */
-
-    let results_type = std::any::type_name::<usize>();
     let groups = tarjan_scc(graph);
 
-    let mut res = HashMap::new();
+    let mut values = vec![usize::MAX; graph.unfiltered_num_nodes()];
+
     for (id, group) in groups.into_iter().enumerate() {
         for VID(node) in group {
-            res.insert(node, id);
+            values[node] = id;
         }
     }
 
-    AlgorithmResult::new(
-        graph.clone(),
-        "Strongly-connected Components",
-        results_type,
-        res,
-    )
+    NodeState::new_from_eval(graph.clone(), values)
 }
 
 #[cfg(test)]
 mod strongly_connected_components_tests {
     use crate::{
         algorithms::components::scc::strongly_connected_components,
-        prelude::{AdditionOps, Graph, NO_PROPS},
+        prelude::{AdditionOps, Graph, NodeStateGroupBy, NodeStateOps, NodeViewOps, NO_PROPS},
         test_storage,
     };
+    use itertools::Itertools;
     use std::collections::HashSet;
 
     #[test]
@@ -195,13 +191,10 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
-                .group_by()
-                .into_values()
-                .map(|mut v| {
-                    v.sort();
-                    v
-                })
+            let scc_nodes: HashSet<Vec<String>> = strongly_connected_components(graph)
+                .groups()
+                .into_iter_groups()
+                .map(|(_, v)| v.name().into_iter_values().sorted().collect())
                 .collect();
 
             let expected: HashSet<Vec<String>> = [
@@ -239,13 +232,10 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
-                .group_by()
-                .into_values()
-                .map(|mut v| {
-                    v.sort();
-                    v
-                })
+            let scc_nodes: HashSet<Vec<_>> = strongly_connected_components(graph)
+                .groups()
+                .into_iter_groups()
+                .map(|(_, v)| v.name().into_iter_values().sorted().collect())
                 .collect();
 
             let expected: HashSet<Vec<String>> =
@@ -266,13 +256,10 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
-                .group_by()
-                .into_values()
-                .map(|mut v| {
-                    v.sort();
-                    v
-                })
+            let scc_nodes: HashSet<Vec<_>> = strongly_connected_components(graph)
+                .groups()
+                .into_iter_groups()
+                .map(|(_, v)| v.name().into_iter_values().sorted().collect())
                 .collect();
 
             let expected: HashSet<Vec<String>> = [vec!["2", "3", "4"], vec!["1"]]
@@ -301,13 +288,10 @@ mod strongly_connected_components_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let scc_nodes: HashSet<_> = strongly_connected_components(graph)
-                .group_by()
-                .into_values()
-                .map(|mut v| {
-                    v.sort();
-                    v
-                })
+            let scc_nodes: HashSet<Vec<_>> = strongly_connected_components(graph)
+                .groups()
+                .into_iter_groups()
+                .map(|(_, v)| v.name().into_iter_values().sorted().collect())
                 .collect();
 
             let expected: HashSet<Vec<String>> = [

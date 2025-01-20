@@ -1,11 +1,12 @@
 use crate::{
-    algorithms::{algorithm_result::AlgorithmResult, layout::NodeVectors},
+    algorithms::layout::NodeVectors,
+    db::api::state::NodeState,
     prelude::{GraphViewOps, NodeViewOps},
 };
 use glam::Vec2;
-use ordered_float::OrderedFloat;
 use quad_rand::RandomRange;
-use raphtory_api::core::entities::{GID, VID};
+use raphtory_api::core::entities::GID;
+use rayon::prelude::*;
 
 /// Return the position of the nodes after running Fruchterman Reingold algorithm on the `graph`
 pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
@@ -15,7 +16,7 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> AlgorithmResult<G, [f32; 2], [OrderedFloat<f32>; 2]> {
+) -> NodeState<'graph, [f32; 2], G> {
     let mut positions = init_positions(g, node_start_size);
     let mut velocities = init_velocities(g);
 
@@ -23,16 +24,13 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
         positions = update_positions(&positions, &mut velocities, g, scale, cooloff_factor, dt);
     }
 
-    let res = positions
-        .into_iter()
-        .map(move |(id, vec)| {
-            let VID(id) = g.node(id).unwrap().node;
-            (id, [vec.x, vec.y])
-        })
+    let res: Vec<_> = g
+        .nodes()
+        .par_iter()
+        .map(|node| positions.get(&node.id()).unwrap().to_array())
         .collect();
 
-    let results_type = std::any::type_name::<Vec2>();
-    AlgorithmResult::new(g.clone(), "Fruchterman-Reingold", results_type, res)
+    NodeState::new_from_values(g.clone(), res)
 }
 
 fn update_positions<'graph, G: GraphViewOps<'graph>>(

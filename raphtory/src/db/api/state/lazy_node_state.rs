@@ -25,6 +25,32 @@ pub struct LazyNodeState<'graph, Op, G, GH = G> {
     pub(crate) op: Op,
 }
 
+impl<
+        'graph,
+        Op: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        RHS: PartialEq<Op::Output>,
+    > PartialEq<[RHS]> for LazyNodeState<'graph, Op, G, GH>
+{
+    fn eq(&self, other: &[RHS]) -> bool {
+        self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| b == &a)
+    }
+}
+
+impl<
+        'graph,
+        Op: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        RHS: PartialEq<Op::Output>,
+    > PartialEq<Vec<RHS>> for LazyNodeState<'graph, Op, G, GH>
+{
+    fn eq(&self, other: &Vec<RHS>) -> bool {
+        self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| b == &a)
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, Op: NodeOp + 'graph> Debug
     for LazyNodeState<'graph, Op, G, GH>
 where

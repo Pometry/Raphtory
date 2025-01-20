@@ -3,12 +3,14 @@
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::entities::{nodes::node_ref::AsNodeRef, VID},
-    db::graph::node::NodeView,
+    db::{
+        api::state::{Index, NodeState},
+        graph::{node::NodeView, nodes::Nodes},
+    },
     prelude::*,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 /// Calculates the single source shortest paths from a given source node.
 ///
@@ -26,54 +28,38 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> AlgorithmResult<G, Vec<String>, Vec<String>> {
-    let results_type = std::any::type_name::<Vec<String>>();
-    let mut paths: HashMap<usize, Vec<String>> = HashMap::new();
+) -> NodeState<'graph, Nodes<'graph, G>, G> {
+    let mut paths: HashMap<VID, Vec<VID>> = HashMap::new();
     if let Some(source_node) = g.node(source) {
-        let node_internal_id = source_node.node.0;
+        let node_internal_id = source_node.node;
         let mut level = 0;
-        let mut nextlevel: HashMap<usize, String> = HashMap::new();
-        nextlevel.insert(node_internal_id, "1".to_string());
-
-        paths.insert(node_internal_id, vec![source_node.name()]);
-
-        if let Some(0) = cutoff {
-            return AlgorithmResult::new(
-                g.clone(),
-                "Single Source Shortest Path",
-                results_type,
-                paths,
-            );
-        }
+        let mut nextlevel = vec![node_internal_id];
+        paths.insert(node_internal_id, vec![node_internal_id]);
+        let mut thislevel = vec![];
 
         while !nextlevel.is_empty() {
-            let thislevel: HashMap<usize, String> = nextlevel.clone();
+            if Some(level) == cutoff {
+                break;
+            }
+            mem::swap(&mut thislevel, &mut nextlevel);
             nextlevel.clear();
-            for v in thislevel.keys() {
-                let node = NodeView::new_internal(g.clone(), VID::from(*v));
+            for v in thislevel.iter() {
+                let node = NodeView::new_internal(g, *v);
                 for w in node.neighbours() {
-                    if !paths.contains_key(&w.node.0) {
+                    if !paths.contains_key(&w.node) {
                         let mut new_path = paths.get(v).unwrap().clone();
-                        new_path.push(w.name());
-                        paths.insert(w.node.0, new_path);
-                        nextlevel.insert(w.node.0, "1".to_string());
+                        new_path.push(w.node);
+                        paths.insert(w.node, new_path);
+                        nextlevel.push(w.node);
                     }
                 }
             }
             level += 1;
-            if let Some(c) = cutoff {
-                if c <= level {
-                    break;
-                }
-            }
         }
     }
-    AlgorithmResult::new(
-        g.clone(),
-        "Single Source Shortest Path",
-        results_type,
-        paths,
-    )
+    NodeState::new_from_map(g.clone(), paths, |v| {
+        Nodes::new_filtered(g.clone(), g.clone(), Some(Index::from_iter(v)), None)
+    })
 }
 
 #[cfg(test)]
@@ -110,8 +96,7 @@ mod sssp_tests {
         ]);
 
         test_storage!(&graph, |graph| {
-            let binding = single_source_shortest_path(graph, 1, Some(4));
-            let results = binding.get_all_with_names();
+            let results = single_source_shortest_path(graph, 1, Some(4));
             let expected: HashMap<String, Vec<String>> = HashMap::from([
                 ("1".to_string(), vec!["1".to_string()]),
                 ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
@@ -131,9 +116,12 @@ mod sssp_tests {
                     ],
                 ),
             ]);
-            assert_eq!(results, expected);
+            assert_eq!(expected.len(), results.len());
+            for (node, values) in expected {
+                assert_eq!(results.get_by_node(node).unwrap().name(), values);
+            }
             let binding = single_source_shortest_path(graph, 5, Some(4));
-            info!("{:?}", binding.get_all_with_names());
+            info!("{:?}", binding);
         });
     }
 }
