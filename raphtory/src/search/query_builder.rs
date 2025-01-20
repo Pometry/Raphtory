@@ -39,15 +39,11 @@ impl<'a> QueryBuilder<'a> {
 
     pub(crate) fn build_property_query<G: StaticGraphViewOps>(
         &self,
-        graph: &G,
+        property_index: Arc<PropertyIndex>,
         filter: &PropertyFilter,
     ) -> Result<(Arc<PropertyIndex>, Option<Box<dyn Query>>), GraphError> {
         let prop_name = &filter.prop_name;
         let prop_value = &filter.prop_value;
-        let property_index = self
-            .index
-            .node_index
-            .get_property_index(graph.node_meta(), prop_name)?;
         let prop_field = property_index.get_prop_field(prop_name)?;
         let prop_field_type = property_index.get_prop_field_type(prop_name)?;
 

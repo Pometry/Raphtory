@@ -33,6 +33,7 @@ use tantivy::{
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
 use tantivy::schema::Field;
+use raphtory_api::core::entities::properties::props::Meta;
 
 #[derive(Clone)]
 pub struct EdgeIndex {
@@ -113,6 +114,32 @@ impl EdgeIndex {
                 .set_stored(),
         );
         schema
+    }
+
+    pub fn get_property_index(
+        &self,
+        meta: &Meta,
+        prop_name: &str,
+    ) -> Result<Arc<PropertyIndex>, GraphError> {
+        fn get_prop_id(meta: &Meta, prop_name: &str) -> Result<usize, GraphError> {
+            meta.temporal_prop_meta()
+                .get_id(prop_name)
+                .or_else(|| meta.const_prop_meta().get_id(prop_name))
+                .ok_or_else(|| GraphError::PropertyNotFound(prop_name.to_string()))
+        }
+
+        let property_indexes = self
+            .property_indexes
+            .read()
+            .map_err(|_| GraphError::LockError)?;
+
+        let prop_id = get_prop_id(meta, prop_name)?;
+
+        if let Some(Some(property_index)) = property_indexes.get(prop_id) {
+            Ok(Arc::from(property_index.clone()))
+        } else {
+            Err(GraphError::PropertyIndexNotFound(prop_name.to_string()))
+        }
     }
 
     pub fn get_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {

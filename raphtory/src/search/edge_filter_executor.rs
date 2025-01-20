@@ -4,37 +4,40 @@ use crate::{
         api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::property_filter::{CompositeEdgeFilter, Filter},
+            views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
         },
     },
-    prelude::{EdgePropertyFilterOps, GraphViewOps, NodeViewOps, PropertyFilter, ResetFilter},
+    prelude::{
+        EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyFilter, ResetFilter,
+    },
     search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::EID;
 use std::{collections::HashSet, sync::Arc};
-use std::fmt::format;
 use tantivy::{
     collector::{FilterCollector, TopDocs},
     query::Query,
     schema::{Field, Value},
     DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
 };
-use crate::prelude::EdgeViewOps;
+use crate::db::api::view::internal::CoreGraphOps;
 
 #[derive(Clone, Copy)]
 pub struct EdgeFilterExecutor<'a> {
+    index: &'a GraphIndex,
     query_builder: QueryBuilder<'a>,
 }
 
 impl<'a> EdgeFilterExecutor<'a> {
     pub fn new(index: &'a GraphIndex) -> Self {
         Self {
+            index,
             query_builder: QueryBuilder::new(index),
         }
     }
 
-    fn execute_query<G: StaticGraphViewOps>(
+    fn execute_filter_edge_query<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         query: Box<dyn Query>,
@@ -64,6 +67,16 @@ impl<'a> EdgeFilterExecutor<'a> {
         Ok(results)
     }
 
+    fn execute_filter_count_query(
+        &self,
+        query: Box<dyn Query>,
+        reader: &IndexReader,
+    ) -> Result<usize, GraphError> {
+        let searcher = reader.searcher();
+        let docs_count = searcher.search(&query, &tantivy::collector::Count)?;
+        Ok(docs_count)
+    }
+
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -71,7 +84,15 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<HashSet<EdgeView<G>>, GraphError> {
-        let (property_index, query) = self.query_builder.build_property_query(graph, filter)?;
+        let prop_name = &filter.prop_name;
+        let property_index = self
+            .index
+            .edge_index
+            .get_property_index(graph.edge_meta(), prop_name)?;
+
+        let (property_index, query) = self
+            .query_builder
+            .build_property_query::<G>(property_index, filter)?;
 
         println!();
         println!("Printing property index schema::start");
@@ -80,7 +101,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         println!();
 
         let results = match query {
-            Some(query) => self.execute_query(
+            Some(query) => self.execute_filter_edge_query(
                 graph,
                 query,
                 &property_index.index,
@@ -96,7 +117,7 @@ impl<'a> EdgeFilterExecutor<'a> {
             //     .skip(offset)
             //     .take(limit)
             //     .collect(),
-            None => vec![]
+            None => vec![],
         };
 
         let unique_results: HashSet<_> = results.into_iter().collect();
@@ -104,10 +125,42 @@ impl<'a> EdgeFilterExecutor<'a> {
         println!(
             "prop filter: {:?}, result: {:?}",
             filter,
-            unique_results.iter().map(|n| format!("{} -> {}", n.src(), n.dst())).collect_vec()
+            unique_results
+                .iter()
+                .map(|n| format!("{} -> {}", n.src(), n.dst()))
+                .collect_vec()
         );
 
         Ok(unique_results)
+    }
+
+    fn filter_count_property_index<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &PropertyFilter,
+    ) -> Result<usize, GraphError> {
+        let prop_name = &filter.prop_name;
+        let property_index = self
+            .index
+            .edge_index
+            .get_property_index(graph.edge_meta(), prop_name)?;
+
+        let (property_index, query) = self.query_builder.build_property_query::<G>(property_index, filter)?;
+
+        // println!();
+        // println!("Printing property index schema::start");
+        // Self::print_schema(&property_index.index.schema());
+        // println!("Printing property index schema::end");
+        // println!();
+
+        let results = match query {
+            Some(query) => self.execute_filter_count_query(query, &property_index.reader)?,
+            None => 0,
+        };
+
+        // println!("filter = {}, count = {}", filter, results);
+
+        Ok(results)
     }
 
     fn filter_edge_index<G: StaticGraphViewOps>(
@@ -130,7 +183,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         println!();
 
         let results = match query {
-            Some(query) => self.execute_query(
+            Some(query) => self.execute_filter_edge_query(
                 graph,
                 query,
                 &edge_index.index,
@@ -146,10 +199,24 @@ impl<'a> EdgeFilterExecutor<'a> {
         println!(
             "edge filter: {:?}, result: {:?}",
             filter,
-            unique_results.iter().map(|e| format!("{} -> {}", e.src(), e.dst())).collect_vec()
+            unique_results
+                .iter()
+                .map(|e| format!("{} -> {}", e.src(), e.dst()))
+                .collect_vec()
         );
 
         Ok(unique_results)
+    }
+
+    fn filter_count_edge_index(&self, filter: &Filter) -> Result<usize, GraphError> {
+        let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
+
+        let results = match query {
+            Some(query) => self.execute_filter_count_query(query, &edge_index.reader)?,
+            None => 0,
+        };
+
+        Ok(results)
     }
 
     pub fn filter_edges<G: StaticGraphViewOps>(
@@ -189,6 +256,52 @@ impl<'a> EdgeFilterExecutor<'a> {
                 }
 
                 Ok(results)
+            }
+        }
+    }
+
+    pub fn filter_count<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeEdgeFilter,
+    ) -> Result<usize, GraphError> {
+        match filter {
+            CompositeEdgeFilter::Property(filter) => {
+                self.filter_count_property_index(graph, filter)
+            }
+            CompositeEdgeFilter::Edge(filter) => self.filter_count_edge_index(filter),
+            CompositeEdgeFilter::And(filters) => {
+                let mut results = None;
+
+                for sub_filter in filters {
+                    let sub_count = self.filter_count(graph, sub_filter)?;
+                    results = Some(
+                        results
+                            .map(|count| std::cmp::min(count, sub_count))
+                            .unwrap_or(sub_count),
+                    );
+                }
+
+                Ok(results.unwrap_or(0))
+            }
+            CompositeEdgeFilter::Or(filters) => {
+                let mut total_count = 0;
+                let mut seen_ids = HashSet::new();
+
+                for sub_filter in filters {
+                    let sub_count = self.filter_count(graph, sub_filter)?;
+
+                    if sub_count > 0 {
+                        let sub_results = self.filter_edges(graph, sub_filter, sub_count, 0)?;
+                        for edge in sub_results {
+                            if seen_ids.insert(edge.id()) {
+                                total_count += 1; // Count only unique results
+                            }
+                        }
+                    }
+                }
+
+                Ok(total_count)
             }
         }
     }

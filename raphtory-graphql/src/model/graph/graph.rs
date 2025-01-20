@@ -759,15 +759,15 @@ impl GqlGraph {
     //     .await
     // }
 
-    async fn search_node_count(&self, query: String) -> Result<usize, GraphError> {
-        self.execute_search(|| Ok(self.graph.search_node_count(&query).unwrap_or(0)))
-            .await
-    }
+    // async fn search_nodes_count(&self, query: String) -> Result<usize, GraphError> {
+    //     self.execute_search(|| Ok(self.graph.search_node_count(&query).unwrap_or(0)))
+    //         .await
+    // }
 
-    async fn search_edge_count(&self, query: String) -> Result<usize, GraphError> {
-        self.execute_search(|| Ok(self.graph.search_edge_count(&query).unwrap_or(0)))
-            .await
-    }
+    // async fn search_edge_count(&self, query: String) -> Result<usize, GraphError> {
+    //     self.execute_search(|| Ok(self.graph.search_edge_count(&query).unwrap_or(0)))
+    //         .await
+    // }
 
     async fn fuzzy_search_nodes(
         &self,

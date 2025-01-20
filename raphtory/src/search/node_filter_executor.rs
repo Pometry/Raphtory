@@ -1,9 +1,8 @@
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
-        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
+        api::view::StaticGraphViewOps,
         graph::{
-            edge::EdgeView,
             node::NodeView,
             views::property_filter::{CompositeNodeFilter, Filter},
         },
@@ -12,7 +11,7 @@ use crate::{
     search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::{EID, VID};
+use raphtory_api::core::entities::VID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{FilterCollector, TopDocs},
@@ -20,20 +19,23 @@ use tantivy::{
     schema::{Field, Value},
     DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
 };
+use crate::db::api::view::internal::CoreGraphOps;
 
 #[derive(Clone, Copy)]
 pub struct NodeFilterExecutor<'a> {
+    index: &'a GraphIndex,
     query_builder: QueryBuilder<'a>,
 }
 
 impl<'a> NodeFilterExecutor<'a> {
     pub fn new(index: &'a GraphIndex) -> Self {
         Self {
+            index,
             query_builder: QueryBuilder::new(index),
         }
     }
 
-    fn execute_query<G: StaticGraphViewOps>(
+    fn execute_filter_nodes_query<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         query: Box<dyn Query>,
@@ -44,12 +46,12 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
 
-        println!("query = {:?}", query);
+        // println!("query = {:?}", query);
         let top_docs =
             searcher.search(&query, &self.node_id_filter_collector(graph, limit, offset))?;
-        println!();
-        Self::print_docs(&searcher, &query, &top_docs);
-        println!();
+        // println!();
+        // Self::print_docs(&searcher, &query, &top_docs);
+        // println!();
 
         let node_id = index.schema().get_field(fields::NODE_ID)?;
 
@@ -63,6 +65,17 @@ impl<'a> NodeFilterExecutor<'a> {
         Ok(results)
     }
 
+    fn execute_filter_count_query(
+        &self,
+        query: Box<dyn Query>,
+        reader: &IndexReader,
+    ) -> Result<usize, GraphError> {
+        let searcher = reader.searcher();
+        let docs_count =
+            searcher.search(&query, &tantivy::collector::Count)?;
+        Ok(docs_count)
+    }
+
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -70,16 +83,21 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<HashSet<NodeView<G>>, GraphError> {
-        let (property_index, query) = self.query_builder.build_property_query(graph, filter)?;
+        let prop_name = &filter.prop_name;
+        let property_index = self
+            .index
+            .node_index
+            .get_property_index(graph.node_meta(), prop_name)?;
+        let (property_index, query) = self.query_builder.build_property_query::<G>(property_index, filter)?;
 
-        println!();
-        println!("Printing property index schema::start");
-        Self::print_schema(&property_index.index.schema());
-        println!("Printing property index schema::end");
-        println!();
+        // println!();
+        // println!("Printing property index schema::start");
+        // Self::print_schema(&property_index.index.schema());
+        // println!("Printing property index schema::end");
+        // println!();
 
         let results = match query {
-            Some(query) => self.execute_query(
+            Some(query) => self.execute_filter_nodes_query(
                 graph,
                 query,
                 &property_index.index,
@@ -99,13 +117,44 @@ impl<'a> NodeFilterExecutor<'a> {
 
         let unique_results: HashSet<_> = results.into_iter().collect();
 
-        println!(
-            "prop filter: {:?}, result: {:?}",
-            filter,
-            unique_results.iter().map(|n| n.name()).collect_vec()
-        );
+        // println!(
+        //     "prop filter: {:?}, result: {:?}",
+        //     filter,
+        //     unique_results.iter().map(|n| n.name()).collect_vec()
+        // );
 
         Ok(unique_results)
+    }
+
+    fn filter_count_property_index<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &PropertyFilter,
+    ) -> Result<usize, GraphError> {
+        let prop_name = &filter.prop_name;
+        let property_index = self
+            .index
+            .node_index
+            .get_property_index(graph.node_meta(), prop_name)?;
+        let (property_index, query) = self.query_builder.build_property_query::<G>(property_index, filter)?;
+
+        // println!();
+        // println!("Printing property index schema::start");
+        // Self::print_schema(&property_index.index.schema());
+        // println!("Printing property index schema::end");
+        // println!();
+
+        let results = match query {
+            Some(query) => self.execute_filter_count_query(
+                query,
+                &property_index.reader,
+            )?,
+            None => 0
+        };
+
+        // println!("filter = {}, count = {}", filter, results);
+
+        Ok(results)
     }
 
     fn filter_node_index<G: StaticGraphViewOps>(
@@ -117,18 +166,18 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<HashSet<NodeView<G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
-        println!();
-        println!("Printing node index::start");
-        node_index.print()?;
-        println!("Printing node index::end");
-        println!();
-        println!("Printing node index schema::start");
-        Self::print_schema(&node_index.index.schema());
-        println!("Printing node index schema::end");
-        println!();
+        // println!();
+        // println!("Printing node index::start");
+        // node_index.print()?;
+        // println!("Printing node index::end");
+        // println!();
+        // println!("Printing node index schema::start");
+        // Self::print_schema(&node_index.index.schema());
+        // println!("Printing node index schema::end");
+        // println!();
 
         let results = match query {
-            Some(query) => self.execute_query(
+            Some(query) => self.execute_filter_nodes_query(
                 graph,
                 query,
                 &node_index.index,
@@ -143,13 +192,30 @@ impl<'a> NodeFilterExecutor<'a> {
 
         let unique_results: HashSet<_> = results.into_iter().collect();
 
-        println!(
-            "node filter: {:?}, result: {:?}",
-            filter,
-            unique_results.iter().map(|n| n.name()).collect_vec()
-        );
+        // println!(
+        //     "node filter: {:?}, result: {:?}",
+        //     filter,
+        //     unique_results.iter().map(|n| n.name()).collect_vec()
+        // );
 
         Ok(unique_results)
+    }
+
+    fn filter_count_node_index(
+        &self,
+        filter: &Filter,
+    ) -> Result<usize, GraphError> {
+        let (node_index, query) = self.query_builder.build_node_query(filter)?;
+
+        let results = match query {
+            Some(query) => self.execute_filter_count_query(
+                query,
+                &node_index.reader,
+            )?,
+            None => 0
+        };
+
+        Ok(results)
     }
 
     pub fn filter_nodes<G: StaticGraphViewOps>(
@@ -189,6 +255,54 @@ impl<'a> NodeFilterExecutor<'a> {
                 }
 
                 Ok(results)
+            }
+        }
+    }
+
+    pub fn filter_count<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeNodeFilter,
+    ) -> Result<usize, GraphError> {
+        match filter {
+            CompositeNodeFilter::Property(filter) => {
+                self.filter_count_property_index(graph, filter)
+            }
+            CompositeNodeFilter::Node(filter) => {
+                self.filter_count_node_index(filter)
+            }
+            CompositeNodeFilter::And(filters) => {
+                let mut results = None;
+
+                for sub_filter in filters {
+                    let sub_count = self.filter_count(graph, sub_filter)?;
+                    results = Some(
+                        results
+                            .map(|count| std::cmp::min(count, sub_count))
+                            .unwrap_or(sub_count),
+                    );
+                }
+
+                Ok(results.unwrap_or(0))
+            }
+            CompositeNodeFilter::Or(filters) => {
+                let mut total_count = 0;
+                let mut seen_ids = HashSet::new();
+
+                for sub_filter in filters {
+                    let sub_count = self.filter_count(graph, sub_filter)?;
+
+                    if sub_count > 0 {
+                        let sub_results = self.filter_nodes(graph, sub_filter, sub_count, 0)?;
+                        for node in sub_results {
+                            if seen_ids.insert(node.id()) {
+                                total_count += 1; // Count only unique results
+                            }
+                        }
+                    }
+                }
+
+                Ok(total_count)
             }
         }
     }
