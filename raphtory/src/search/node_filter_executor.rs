@@ -22,11 +22,11 @@ use tantivy::{
 };
 
 #[derive(Clone, Copy)]
-pub struct NodeQueryExecutor<'a> {
+pub struct NodeFilterExecutor<'a> {
     query_builder: QueryBuilder<'a>,
 }
 
-impl<'a> NodeQueryExecutor<'a> {
+impl<'a> NodeFilterExecutor<'a> {
     pub fn new(index: &'a GraphIndex) -> Self {
         Self {
             query_builder: QueryBuilder::new(index),
@@ -63,7 +63,7 @@ impl<'a> NodeQueryExecutor<'a> {
         Ok(results)
     }
 
-    fn execute_property_filter<G: StaticGraphViewOps>(
+    fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &PropertyFilter,
@@ -108,7 +108,7 @@ impl<'a> NodeQueryExecutor<'a> {
         Ok(unique_results)
     }
 
-    fn execute_node_filter<G: StaticGraphViewOps>(
+    fn filter_node_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &Filter,
@@ -152,7 +152,7 @@ impl<'a> NodeQueryExecutor<'a> {
         Ok(unique_results)
     }
 
-    pub fn execute<G: StaticGraphViewOps>(
+    pub fn filter_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &CompositeNodeFilter,
@@ -161,16 +161,16 @@ impl<'a> NodeQueryExecutor<'a> {
     ) -> Result<HashSet<NodeView<G, G>>, GraphError> {
         match filter {
             CompositeNodeFilter::Property(filter) => {
-                self.execute_property_filter(graph, filter, limit, offset)
+                self.filter_property_index(graph, filter, limit, offset)
             }
             CompositeNodeFilter::Node(filter) => {
-                self.execute_node_filter(graph, filter, limit, offset)
+                self.filter_node_index(graph, filter, limit, offset)
             }
             CompositeNodeFilter::And(filters) => {
                 let mut results = None;
 
                 for sub_filter in filters {
-                    let sub_result = self.execute(graph, sub_filter, limit, offset)?;
+                    let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
                     results = Some(
                         results
                             .map(|r: HashSet<_>| r.intersection(&sub_result).cloned().collect())
@@ -184,7 +184,7 @@ impl<'a> NodeQueryExecutor<'a> {
                 let mut results = HashSet::new();
 
                 for sub_filter in filters {
-                    let sub_result = self.execute(graph, sub_filter, limit, offset)?;
+                    let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
                     results.extend(sub_result);
                 }
 

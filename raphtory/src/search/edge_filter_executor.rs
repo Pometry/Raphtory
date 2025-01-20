@@ -23,11 +23,11 @@ use tantivy::{
 use crate::prelude::EdgeViewOps;
 
 #[derive(Clone, Copy)]
-pub struct EdgeQueryExecutor<'a> {
+pub struct EdgeFilterExecutor<'a> {
     query_builder: QueryBuilder<'a>,
 }
 
-impl<'a> EdgeQueryExecutor<'a> {
+impl<'a> EdgeFilterExecutor<'a> {
     pub fn new(index: &'a GraphIndex) -> Self {
         Self {
             query_builder: QueryBuilder::new(index),
@@ -64,7 +64,7 @@ impl<'a> EdgeQueryExecutor<'a> {
         Ok(results)
     }
 
-    fn execute_property_filter<G: StaticGraphViewOps>(
+    fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &PropertyFilter,
@@ -110,7 +110,7 @@ impl<'a> EdgeQueryExecutor<'a> {
         Ok(unique_results)
     }
 
-    fn execute_edge_filter<G: StaticGraphViewOps>(
+    fn filter_edge_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &Filter,
@@ -152,7 +152,7 @@ impl<'a> EdgeQueryExecutor<'a> {
         Ok(unique_results)
     }
 
-    pub fn execute<G: StaticGraphViewOps>(
+    pub fn filter_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &CompositeEdgeFilter,
@@ -161,16 +161,16 @@ impl<'a> EdgeQueryExecutor<'a> {
     ) -> Result<HashSet<EdgeView<G, G>>, GraphError> {
         match filter {
             CompositeEdgeFilter::Property(filter) => {
-                self.execute_property_filter(graph, filter, limit, offset)
+                self.filter_property_index(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::Edge(filter) => {
-                self.execute_edge_filter(graph, filter, limit, offset)
+                self.filter_edge_index(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::And(filters) => {
                 let mut results = None;
 
                 for sub_filter in filters {
-                    let sub_result = self.execute(graph, sub_filter, limit, offset)?;
+                    let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
                     results = Some(
                         results
                             .map(|r: HashSet<_>| r.intersection(&sub_result).cloned().collect())
@@ -184,7 +184,7 @@ impl<'a> EdgeQueryExecutor<'a> {
                 let mut results = HashSet::new();
 
                 for sub_filter in filters {
-                    let sub_result = self.execute(graph, sub_filter, limit, offset)?;
+                    let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
                     results.extend(sub_result);
                 }
 

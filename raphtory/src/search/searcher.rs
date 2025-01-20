@@ -21,9 +21,9 @@ use crate::{
     },
     prelude::*,
     search::{
-        edge_query_executor::EdgeQueryExecutor, fields, graph_index::GraphIndex,
+        edge_filter_executor::EdgeFilterExecutor, fields, graph_index::GraphIndex,
         latest_value_collector::LatestValueCollector, node_filter_collector::NodeFilterCollector,
-        node_query_executor::NodeQueryExecutor,
+        node_filter_executor::NodeFilterExecutor,
     },
 };
 use itertools::Itertools;
@@ -40,19 +40,19 @@ use tantivy::{
 #[derive(Copy, Clone)]
 pub struct Searcher<'a> {
     pub(crate) index: &'a GraphIndex,
-    node_query_executor: NodeQueryExecutor<'a>,
-    edge_query_executor: EdgeQueryExecutor<'a>,
+    node_filter_executor: NodeFilterExecutor<'a>,
+    edge_filter_executor: EdgeFilterExecutor<'a>,
 }
 
 impl<'a> Searcher<'a> {
     pub(crate) fn new(index: &'a GraphIndex) -> Self {
-        let node_query_executor = NodeQueryExecutor::new(index);
-        let edge_query_executor = EdgeQueryExecutor::new(index);
+        let node_query_executor = NodeFilterExecutor::new(index);
+        let edge_query_executor = EdgeFilterExecutor::new(index);
 
         Self {
             index,
-            node_query_executor,
-            edge_query_executor,
+            node_filter_executor: node_query_executor,
+            edge_filter_executor: edge_query_executor,
         }
     }
 
@@ -201,8 +201,8 @@ impl<'a> Searcher<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let result = self
-            .node_query_executor
-            .execute(graph, filter, limit, offset)?;
+            .node_filter_executor
+            .filter_nodes(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
     }
@@ -225,8 +225,8 @@ impl<'a> Searcher<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let result = self
-            .edge_query_executor
-            .execute(graph, filter, limit, offset)?;
+            .edge_filter_executor
+            .filter_edges(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
     }
