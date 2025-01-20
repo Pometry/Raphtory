@@ -150,7 +150,7 @@ impl InternalIndexSearch for Storage {
     #[cfg(feature = "search")]
     fn searcher(&self) -> Result<Searcher, GraphError> {
         let index = self.get_or_create_index()?;
-        Ok(Searcher { index })
+        Ok(Searcher::new(index))
     }
 }
 

@@ -21,6 +21,7 @@ use tantivy::{
     DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
 };
 
+#[derive(Clone, Copy)]
 pub struct NodeQueryExecutor<'a> {
     query_builder: QueryBuilder<'a>,
 }

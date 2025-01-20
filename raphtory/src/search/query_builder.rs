@@ -27,6 +27,7 @@ use tantivy::{
     Index, Term,
 };
 
+#[derive(Clone, Copy)]
 pub struct QueryBuilder<'a> {
     index: &'a GraphIndex,
 }

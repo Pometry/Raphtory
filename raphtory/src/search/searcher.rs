@@ -40,9 +40,22 @@ use tantivy::{
 #[derive(Copy, Clone)]
 pub struct Searcher<'a> {
     pub(crate) index: &'a GraphIndex,
+    node_query_executor: NodeQueryExecutor<'a>,
+    edge_query_executor: EdgeQueryExecutor<'a>,
 }
 
 impl<'a> Searcher<'a> {
+    fn new(index: &'a GraphIndex) -> Self {
+        let node_query_executor = NodeQueryExecutor::new(index);
+        let edge_query_executor = EdgeQueryExecutor::new(index);
+
+        Self {
+            index,
+            node_query_executor,
+            edge_query_executor,
+        }
+    }
+
     // For persistent graph , we need 3 args: node id, time of the event, and the prop id
     // Dedup: unique results returned from the query itself
     fn node_filter_collector<G: StaticGraphViewOps>(
@@ -183,12 +196,13 @@ impl<'a> Searcher<'a> {
     pub fn search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &CompositeNodeFilter, // higher abs node_type && || node_name && || list of prop filters (whatever abs takes care of and and or)
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let query_executor = NodeQueryExecutor::new(self.index);
-        let result = query_executor.execute(graph, filter, limit, offset)?;
+        let result = self
+            .node_query_executor
+            .execute(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
     }
@@ -210,41 +224,12 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let query_executor = EdgeQueryExecutor::new(self.index);
-        let result = query_executor.execute(graph, filter, limit, offset)?;
+        let result = self
+            .edge_query_executor
+            .execute(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
     }
-
-    // pub fn search_edges<G: StaticGraphViewOps>(
-    //     &self,
-    //     graph: &G,
-    //     q: &str,
-    //     limit: usize,
-    //     offset: usize,
-    // ) -> Result<Vec<EdgeView<G>>, GraphError> {
-    //     let searcher = self.index.edge_index.reader.searcher();
-    //     let query_parser = self.index.edge_parser()?;
-    //     let query = query_parser.parse_query(q)?;
-    //
-    //     let top_docs =
-    //         searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
-    //     let edge_id = self
-    //         .index
-    //         .edge_index
-    //         .index
-    //         .schema()
-    //         .get_field(fields::EDGE_ID)?;
-    //
-    //     let results = top_docs
-    //         .into_iter()
-    //         .map(|(_, doc_address)| searcher.doc(doc_address))
-    //         .filter_map(Result::ok)
-    //         .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
-    //         .collect::<Vec<_>>();
-    //
-    //     Ok(results)
-    // }
 
     pub fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
         let searcher = self.index.edge_index.reader.searcher();
@@ -603,7 +588,10 @@ mod search_tests {
     fn search_edges_for_src_from_ne() {
         let filter = CompositeEdgeFilter::Edge(Filter::ne("to", "2"));
         let results = search_edges_by_composite_filter(&filter);
-        assert_eq!(results, vec![("2".into(), "3".into()), ("3".into(), "1".into())]);
+        assert_eq!(
+            results,
+            vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+        );
     }
 
     // #[test]
