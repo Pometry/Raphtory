@@ -45,7 +45,7 @@ pub struct Searcher<'a> {
 }
 
 impl<'a> Searcher<'a> {
-    fn new(index: &'a GraphIndex) -> Self {
+    pub(crate) fn new(index: &'a GraphIndex) -> Self {
         let node_query_executor = NodeQueryExecutor::new(index);
         let edge_query_executor = EdgeQueryExecutor::new(index);
 
