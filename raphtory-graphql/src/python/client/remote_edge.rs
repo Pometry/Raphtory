@@ -12,6 +12,9 @@ use raphtory::{
 };
 use std::collections::HashMap;
 
+/// A remote edge reference
+///
+/// Returned by :meth:`RemoteGraph.edge`, :meth:`RemoteGraph.add_edge`, and :meth:`RemoteGraph.delete_edge`.
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
 pub struct PyRemoteEdge {
@@ -20,25 +23,31 @@ pub struct PyRemoteEdge {
     pub(crate) src: String,
     pub(crate) dst: String,
 }
-#[pymethods]
+
 impl PyRemoteEdge {
-    #[new]
     pub(crate) fn new(path: String, client: PyRaphtoryClient, src: String, dst: String) -> Self {
-        Self {
+        PyRemoteEdge {
             path,
             client,
             src,
             dst,
         }
     }
-
+}
+#[pymethods]
+impl PyRemoteEdge {
     /// Add updates to an edge in the remote graph at a specified time.
-    /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
+    ///
+    /// This function allows for the addition of property updates to an edge within the graph.
+    /// The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the updates should be applied.
     ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
     ///     layer (str, optional): The layer you want the updates to be applied.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (t, properties=None, layer=None))]
     fn add_updates(
         &self,
@@ -77,6 +86,9 @@ impl PyRemoteEdge {
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
@@ -110,6 +122,9 @@ impl PyRemoteEdge {
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (properties, layer=None))]
     fn add_constant_properties(
         &self,
@@ -148,6 +163,9 @@ impl PyRemoteEdge {
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (properties, layer=None))]
     pub fn update_constant_properties(
         &self,

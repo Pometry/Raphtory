@@ -20,18 +20,22 @@ pub struct PyRemoteNode {
     pub(crate) id: String,
 }
 
-#[pymethods]
 impl PyRemoteNode {
-    #[new]
     pub(crate) fn new(path: String, client: PyRaphtoryClient, id: String) -> Self {
         Self { path, client, id }
     }
+}
 
+#[pymethods]
+impl PyRemoteNode {
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
     /// throw an error
     ///
     /// Parameters:
     ///     new_type (str): The new type to be set
+    ///
+    /// Returns:
+    ///     None:
     pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -60,6 +64,9 @@ impl PyRemoteNode {
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the updates should be applied.
     ///     properties (Dict[str, Prop], optional): A dictionary of properties to update.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
@@ -96,6 +103,9 @@ impl PyRemoteNode {
     ///
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    ///
+    /// Returns:
+    ///     None:
     pub fn add_constant_properties(
         &self,
         py: Python,
@@ -128,6 +138,9 @@ impl PyRemoteNode {
     ///
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    ///
+    /// Returns:
+    ///     None:
     pub fn update_constant_properties(
         &self,
         py: Python,

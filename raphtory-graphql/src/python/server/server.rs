@@ -35,6 +35,17 @@ use raphtory::{
 use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
+///
+/// Arguments:
+///     work_dir (str | PathLike): the working directory for the server
+///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
+///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
+///     log_level (str, optional): the log level for the server
+///     tracing (bool, optional): whether tracing should be enabled
+///     otlp_agent_host (str, optional): OTLP agent host for tracing
+///     otlp_agent_port(str, optional): OTLP agent port for tracing
+///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
+///     config_path (str | PathLike, optional): Path to the config file
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(pub Option<GraphServer>);
 
@@ -204,6 +215,9 @@ impl PyGraphServer {
     }
 
     /// Turn off index for all graphs
+    ///
+    /// Returns:
+    ///     GraphServer: The server with indexing disabled
     fn turn_off_index(slf: PyRefMut<Self>) -> PyResult<GraphServer> {
         let server = take_server_ownership(slf)?;
         Ok(server.turn_off_index())
@@ -214,9 +228,9 @@ impl PyGraphServer {
     /// Arguments:
     ///   cache (str):  the directory to use as cache for the embeddings.
     ///   embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///    GraphServer: A new server object with embeddings setup.
@@ -246,9 +260,9 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///   graph_names (list[str]): the names of the graphs to vectorise. All by default.
-    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided (defaults to True)
-    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided (defaults to True)
+    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
@@ -280,7 +294,7 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///   name (str): the name of the function in the GraphQL schema.
-    ///   input (dict):  the keyword arguments expected by the function.
+    ///   input (dict[str, str]):  the keyword arguments expected by the function.
     ///   function (Callable): the function to run.
     ///
     /// Returns:
@@ -365,6 +379,9 @@ impl PyGraphServer {
     /// Arguments:
     ///   port (int): The port to use. Defaults to 1736.
     ///   timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(
         signature = (port = 1736, timeout_ms = 180000)
     )]
