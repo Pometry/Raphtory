@@ -178,7 +178,7 @@ def clean_signature(
 
     new_params = [clean_parameter(p, type_annotations) for p in sig.parameters.values()]
     for param_name, annotations in type_annotations.items():
-        fn_logger.warning(
+        fn_logger.error(
             f"parameter {param_name} appears in documentation but does not exist."
         )
     sig = sig.replace(parameters=new_params)
