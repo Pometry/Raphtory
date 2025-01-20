@@ -23,7 +23,7 @@ use std::{
 };
 
 #[derive(Clone)]
-#[pyclass(name = "DiskGraphStorage", frozen)]
+#[pyclass(name = "DiskGraphStorage", frozen, module = "raphtory")]
 pub struct PyDiskGraph {
     pub graph: DiskGraphStorage,
 }

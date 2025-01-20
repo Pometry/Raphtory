@@ -356,7 +356,7 @@ impl Repr for PyEdges {
     }
 }
 
-#[pyclass(name = "NestedEdges")]
+#[pyclass(name = "NestedEdges", module = "raphtory")]
 pub struct PyNestedEdges {
     edges: NestedEdges<'static, DynamicGraph>,
 }

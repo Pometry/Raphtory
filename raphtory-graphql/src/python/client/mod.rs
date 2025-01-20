@@ -17,8 +17,13 @@ pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;
 
+/// A temporal update
+///
+/// Arguments:
+///     time (TimeInput): the timestamp for the update
+///     properties (PropInput, optional): the properties for the update
 #[derive(Clone)]
-#[pyclass(name = "RemoteUpdate")]
+#[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
 pub struct PyUpdate {
     time: PyTime,
     properties: Option<HashMap<String, Prop>>,
@@ -63,8 +68,16 @@ impl PyUpdate {
         Self { time, properties }
     }
 }
+
+/// Node addition update
+///
+/// Arguments:
+///     name (GID): the id of the node
+///     node_type (str, optional): the node type
+///     constant_properties (PropInput, optional): the constant properties
+///     updates: (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
-#[pyclass(name = "RemoteNodeAddition")]
+#[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
     name: GID,
     node_type: Option<String>,
@@ -133,8 +146,16 @@ impl PyNodeAddition {
     }
 }
 
+/// An edge update
+///
+/// Arguments:
+///     src (GID): the id of the source node
+///     dst (GID): the id of the destination node
+///     layer (str, optional): the layer for the update
+///     constant_properties (PropInput, optional): the constant properties for the edge
+///     updates (list[RemoteUpdate], optional): the temporal updates for the edge
 #[derive(Clone)]
-#[pyclass(name = "RemoteEdgeAddition")]
+#[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
 pub struct PyEdgeAddition {
     src: GID,
     dst: GID,

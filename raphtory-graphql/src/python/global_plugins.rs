@@ -13,20 +13,20 @@ use raphtory::{
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
 /// graph documents
-#[pyclass(name = "GraphqlGraphs")]
+#[pyclass(name = "GraphqlGraphs", module = "raphtory.graphql")]
 pub struct PyGlobalPlugins(pub(crate) QueryPlugin);
 
 #[pymethods]
 impl PyGlobalPlugins {
     /// Return the top documents with the smallest cosine distance to `query`
     ///
-    /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of documents to return
-    ///   * window - the window where documents need to belong to in order to be considered
+    /// Arguments:
+    ///   query (str): the text or the embedding to score against
+    ///   limit (int): the maximum number of documents to return
+    ///   window (Tuple[TimeInput, TimeInput], optional): the window where documents need to belong to in order to be considered
     ///
-    /// # Returns
-    ///   A list of documents
+    /// Returns:
+    ///   list[Document]: A list of documents
     fn search_graph_documents(
         &self,
         py: Python,
@@ -39,6 +39,14 @@ impl PyGlobalPlugins {
     }
 
     /// Same as `search_graph_documents` but it also returns the scores alongside the documents
+    ///
+    /// Arguments:
+    ///   query (str): the text or the embedding to score against
+    ///   limit (int): the maximum number of documents to return
+    ///   window (Tuple[TimeInput, TimeInput], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///   list[Tuple[Document, float]]: A list of documents and their scores
     fn search_graph_documents_with_scores(
         &self,
         py: Python,
@@ -66,6 +74,11 @@ impl PyGlobalPlugins {
     }
 
     /// Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist
+    ///
+    /// Arguments:
+    ///     name (str): the name of the graph
+    /// Returns:
+    ///     Optional[VectorisedGraph]: the graph if it exists
     fn get(&self, name: &str) -> Option<PyVectorisedGraph> {
         self.0.graphs.get(name).map(|graph| graph.clone().into())
     }

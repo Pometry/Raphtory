@@ -148,9 +148,10 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
+    vectors_module.add_class::<PyEmbedding>()?;
     vectors_module.add_class::<PyVectorSelection>()?;
     Ok(vectors_module)
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
-use crate::python::graph::properties::PropertiesView;
+use crate::python::{graph::properties::PropertiesView, types::wrappers::document::PyEmbedding};

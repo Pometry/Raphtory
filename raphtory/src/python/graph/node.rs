@@ -768,7 +768,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'
     }
 }
 
-#[pyclass(name = "PathFromGraph")]
+#[pyclass(name = "PathFromGraph", module = "raphtory")]
 pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
@@ -932,7 +932,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
     }
 }
 
-#[pyclass(name = "PathFromNode")]
+#[pyclass(name = "PathFromNode", module = "raphtory")]
 pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }

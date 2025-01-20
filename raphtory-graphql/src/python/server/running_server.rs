@@ -13,7 +13,7 @@ use tokio::{self, io::Result as IoResult};
 use tracing::error;
 
 /// A Raphtory server handler that also enables querying the server
-#[pyclass(name = "RunningGraphServer")]
+#[pyclass(name = "RunningGraphServer", module = "raphtory.graphql")]
 pub struct PyRunningGraphServer {
     pub(crate) server_handler: Option<ServerHandler>,
 }
@@ -82,6 +82,10 @@ impl PyRunningGraphServer {
 
 #[pymethods]
 impl PyRunningGraphServer {
+    /// Get the client for the server
+    ///
+    /// Returns:
+    ///     RaphtoryClient: the client
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
         self.apply_if_alive(|handler| {
             let port = handler.port;
@@ -91,6 +95,9 @@ impl PyRunningGraphServer {
     }
 
     /// Stop the server and wait for it to finish
+    ///
+    /// Returns:
+    ///     None:
     pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
         self.stop_server(py)
     }

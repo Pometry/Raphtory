@@ -34,7 +34,14 @@ impl Repr for Lifespan {
     }
 }
 
-#[pyclass(name = "Document", frozen)]
+/// A Document
+///
+/// Args:
+///     content (str): the document content
+///     life (int | Tuple[int, int], optional): the optional lifespan for the document (single value
+///                                             corresponds to an event, a tuple corresponds to a
+///                                             window).
+#[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
 pub struct PyDocument {
     pub(crate) content: String,
     pub(crate) entity: Option<PyObject>,
@@ -63,6 +70,9 @@ impl PyDocument {
     }
 
     /// the embedding
+    ///
+    /// Returns:
+    ///     Optional[Embedding]: the embedding for the document if it was computed
     #[getter]
     fn embedding(&self) -> Option<PyEmbedding> {
         self.embedding.clone()
@@ -71,7 +81,7 @@ impl PyDocument {
     /// the life span
     ///
     /// Returns:
-    ///     None | int | Tuple[int, int]
+    ///     Optional[Union[int | Tuple[int, int]]]:
     #[getter]
     fn life(&self) -> Lifespan {
         self.life
@@ -93,7 +103,7 @@ impl Clone for PyDocument {
     }
 }
 
-#[pyclass(name = "Embedding", frozen)]
+#[pyclass(name = "Embedding", module = "raphtory.vectors", frozen)]
 #[derive(Clone)]
 pub struct PyEmbedding(pub Embedding);
 
