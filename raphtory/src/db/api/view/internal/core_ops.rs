@@ -459,7 +459,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.first(),
             NodeAdditions::Range(index) => index.first(),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
+            NodeAdditions::Col(index) => index.iter().flat_map(|index| index.first()).min(),
         }
     }
 
@@ -468,7 +468,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.last(),
             NodeAdditions::Range(index) => index.last(),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
+            NodeAdditions::Col(index) => index.iter().flat_map(|index| index.last()).max(),
         }
     }
 
