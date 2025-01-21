@@ -362,6 +362,8 @@ impl PyGraphServer {
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(_server_handler) = &server.server_handler {
             let url = format!("http://localhost:{port}");
+            // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
+            // and wait_for_server_online will never return
             let result =
                 py.allow_threads(|| PyRunningGraphServer::wait_for_server_online(&url, timeout_ms));
             match result {
