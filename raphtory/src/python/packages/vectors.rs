@@ -287,7 +287,10 @@ impl PyVectorisedGraph {
         self.0.empty_selection()
     }
 
-    /// # Returns all the graph level documents
+    /// Return all the graph level documents
+    ///
+    /// Returns:
+    ///   list[Document]: list of graph level documents
     pub fn get_graph_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
         self.0
             .get_graph_documents()

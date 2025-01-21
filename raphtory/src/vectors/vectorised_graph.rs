@@ -152,7 +152,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         VectorSelection::new(self.clone())
     }
 
-    /// # Returns all the graph level documents
+    /// Return all the graph level documents
     pub fn get_graph_documents(&self) -> Vec<Document> {
         self.graph_documents
             .read()
