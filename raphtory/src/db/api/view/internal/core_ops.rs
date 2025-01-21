@@ -441,7 +441,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.active(w),
             NodeAdditions::Range(index) => index.active(w),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w.clone())),
+            NodeAdditions::Col(index) => index.iter().any(|index| index.active(w.clone())),
         }
     }
 
