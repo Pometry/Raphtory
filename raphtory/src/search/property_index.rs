@@ -167,7 +167,7 @@ impl PropertyIndex {
             prop => document.add_text(field_property, prop.to_string()),
         }
 
-        println!("Added prop doc: {}", &document.to_json(&schema));
+        // println!("Added prop doc: {}", &document.to_json(&schema));
 
         Ok(document)
     }

@@ -48,12 +48,12 @@ impl<'a> EdgeFilterExecutor<'a> {
     ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
 
-        println!("query = {:?}", query);
+        // println!("query = {:?}", query);
         let top_docs =
             searcher.search(&query, &self.edge_id_filter_collector(graph, limit, offset))?;
-        println!();
-        Self::print_docs(&searcher, &query, &top_docs);
-        println!();
+        // println!();
+        // Self::print_docs(&searcher, &query, &top_docs);
+        // println!();
 
         let edge_id = index.schema().get_field(fields::EDGE_ID)?;
 
@@ -94,11 +94,11 @@ impl<'a> EdgeFilterExecutor<'a> {
             .query_builder
             .build_property_query::<G>(property_index, filter)?;
 
-        println!();
-        println!("Printing property index schema::start");
-        Self::print_schema(&property_index.index.schema());
-        println!("Printing property index schema::end");
-        println!();
+        // println!();
+        // println!("Printing property index schema::start");
+        // Self::print_schema(&property_index.index.schema());
+        // println!("Printing property index schema::end");
+        // println!();
 
         let results = match query {
             Some(query) => self.execute_filter_edge_query(
@@ -122,14 +122,14 @@ impl<'a> EdgeFilterExecutor<'a> {
 
         let unique_results: HashSet<_> = results.into_iter().collect();
 
-        println!(
-            "prop filter: {:?}, result: {:?}",
-            filter,
-            unique_results
-                .iter()
-                .map(|n| format!("{} -> {}", n.src(), n.dst()))
-                .collect_vec()
-        );
+        // println!(
+        //     "prop filter: {:?}, result: {:?}",
+        //     filter,
+        //     unique_results
+        //         .iter()
+        //         .map(|n| format!("{} -> {}", n.src(), n.dst()))
+        //         .collect_vec()
+        // );
 
         Ok(unique_results)
     }
@@ -172,15 +172,15 @@ impl<'a> EdgeFilterExecutor<'a> {
     ) -> Result<HashSet<EdgeView<G>>, GraphError> {
         let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
 
-        println!();
-        println!("Printing node index::start");
-        edge_index.print()?;
-        println!("Printing node index::end");
-        println!();
-        println!("Printing node index schema::start");
-        Self::print_schema(&edge_index.index.schema());
-        println!("Printing node index schema::end");
-        println!();
+        // println!();
+        // println!("Printing node index::start");
+        // edge_index.print()?;
+        // println!("Printing node index::end");
+        // println!();
+        // println!("Printing node index schema::start");
+        // Self::print_schema(&edge_index.index.schema());
+        // println!("Printing node index schema::end");
+        // println!();
 
         let results = match query {
             Some(query) => self.execute_filter_edge_query(
@@ -196,14 +196,14 @@ impl<'a> EdgeFilterExecutor<'a> {
 
         let unique_results: HashSet<_> = results.into_iter().collect();
 
-        println!(
-            "edge filter: {:?}, result: {:?}",
-            filter,
-            unique_results
-                .iter()
-                .map(|e| format!("{} -> {}", e.src(), e.dst()))
-                .collect_vec()
-        );
+        // println!(
+        //     "edge filter: {:?}, result: {:?}",
+        //     filter,
+        //     unique_results
+        //         .iter()
+        //         .map(|e| format!("{} -> {}", e.src(), e.dst()))
+        //         .collect_vec()
+        // );
 
         Ok(unique_results)
     }

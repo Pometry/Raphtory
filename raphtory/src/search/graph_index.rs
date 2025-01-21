@@ -33,7 +33,7 @@ impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
         let node_index = NodeIndex::index_nodes(graph)?;
         let edge_index = EdgeIndex::index_edges(graph)?;
 
-        node_index.print()?;
+        // node_index.print()?;
 
         Ok(GraphIndex {
             node_index,

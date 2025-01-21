@@ -46,12 +46,12 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
 
-        println!("query = {:?}", query);
+        // println!("query = {:?}", query);
         let top_docs =
             searcher.search(&query, &self.node_id_filter_collector(graph, limit, offset))?;
-        println!();
-        Self::print_docs(&searcher, &query, &top_docs);
-        println!();
+        // println!();
+        // Self::print_docs(&searcher, &query, &top_docs);
+        // println!();
 
         let node_id = index.schema().get_field(fields::NODE_ID)?;
 
@@ -117,11 +117,11 @@ impl<'a> NodeFilterExecutor<'a> {
 
         let unique_results: HashSet<_> = results.into_iter().collect();
 
-        println!(
-            "prop filter: {:?}, result: {:?}",
-            filter,
-            unique_results.iter().map(|n| n.name()).collect_vec()
-        );
+        // println!(
+        //     "prop filter: {:?}, result: {:?}",
+        //     filter,
+        //     unique_results.iter().map(|n| n.name()).collect_vec()
+        // );
 
         Ok(unique_results)
     }
@@ -357,8 +357,8 @@ impl<'a> NodeFilterExecutor<'a> {
         query: &Box<dyn Query>,
         top_docs: &Vec<(Score, DocAddress)>,
     ) {
-        println!("Top Docs (debugging):");
-        println!("Query:{:?}", query,);
+        // println!("Top Docs (debugging):");
+        // println!("Query:{:?}", query,);
         for (score, doc_address) in top_docs {
             match searcher.doc::<TantivyDocument>(*doc_address) {
                 Ok(doc) => {

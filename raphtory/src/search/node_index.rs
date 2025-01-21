@@ -153,7 +153,7 @@ impl NodeIndex {
         });
 
         let document = TantivyDocument::parse_json(&schema, &doc.to_string())?;
-        println!("Added node doc: {}", &document.to_json(&schema));
+        // println!("Added node doc: {}", &document.to_json(&schema));
 
         Ok(document)
     }
