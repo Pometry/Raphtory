@@ -11,7 +11,7 @@ use crate::{
     search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{GID, VID};
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{FilterCollector, TopDocs},
@@ -46,12 +46,12 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
 
-        // println!("query = {:?}", query);
+        println!("query = {:?}", query);
         let top_docs =
             searcher.search(&query, &self.node_id_filter_collector(graph, limit, offset))?;
-        // println!();
-        // Self::print_docs(&searcher, &query, &top_docs);
-        // println!();
+        println!();
+        Self::print_docs(&searcher, &query, &top_docs);
+        println!();
 
         let node_id = index.schema().get_field(fields::NODE_ID)?;
 
@@ -117,11 +117,11 @@ impl<'a> NodeFilterExecutor<'a> {
 
         let unique_results: HashSet<_> = results.into_iter().collect();
 
-        // println!(
-        //     "prop filter: {:?}, result: {:?}",
-        //     filter,
-        //     unique_results.iter().map(|n| n.name()).collect_vec()
-        // );
+        println!(
+            "prop filter: {:?}, result: {:?}",
+            filter,
+            unique_results.iter().map(|n| n.name()).collect_vec()
+        );
 
         Ok(unique_results)
     }
@@ -272,18 +272,32 @@ impl<'a> NodeFilterExecutor<'a> {
                 self.filter_count_node_index(filter)
             }
             CompositeNodeFilter::And(filters) => {
-                let mut results = None;
+                let mut seen_ids: Option<HashSet<String>> = None;
 
                 for sub_filter in filters {
                     let sub_count = self.filter_count(graph, sub_filter)?;
-                    results = Some(
-                        results
-                            .map(|count| std::cmp::min(count, sub_count))
-                            .unwrap_or(sub_count),
+                    let effective_limit = std::cmp::max(sub_count, 1);
+
+                    let sub_results = self.filter_nodes(graph, sub_filter, effective_limit, 0)?
+                        .into_iter()
+                        .map(|node| node.name())
+                        .collect::<HashSet<_>>();
+
+                    seen_ids = Some(
+                        seen_ids
+                            .map(|ids| ids.intersection(&sub_results).cloned().collect())
+                            .unwrap_or(sub_results), // Initialize if not already done.
                     );
+
+                    // Early exit if the intersection is empty.
+                    if let Some(ref ids) = seen_ids {
+                        if ids.is_empty() {
+                            return Ok(0);
+                        }
+                    }
                 }
 
-                Ok(results.unwrap_or(0))
+                Ok(seen_ids.map_or(0, |ids| ids.len()))
             }
             CompositeNodeFilter::Or(filters) => {
                 let mut total_count = 0;
@@ -291,9 +305,10 @@ impl<'a> NodeFilterExecutor<'a> {
 
                 for sub_filter in filters {
                     let sub_count = self.filter_count(graph, sub_filter)?;
+                    let effective_limit = std::cmp::max(sub_count, 1);
 
                     if sub_count > 0 {
-                        let sub_results = self.filter_nodes(graph, sub_filter, sub_count, 0)?;
+                        let sub_results = self.filter_nodes(graph, sub_filter, effective_limit, 0)?;
                         for node in sub_results {
                             if seen_ids.insert(node.id()) {
                                 total_count += 1; // Count only unique results

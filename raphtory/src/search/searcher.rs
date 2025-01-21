@@ -73,17 +73,6 @@ impl<'a> Searcher<'a> {
         )
     }
 
-    fn custom_node_filter_collector<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        limit: usize,
-        offset: usize,
-    ) -> NodeFilterCollector<TopDocs, G> {
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-        let graph = graph.clone();
-        NodeFilterCollector::new(fields::NODE_ID.to_string(), ranking, graph)
-    }
-
     fn edge_filter_collector<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -383,7 +372,7 @@ mod search_tests {
         fn search_nodes_for_node_name_ne() {
             let filter = CompositeNodeFilter::Node(Filter::ne("node_name", "2"));
             let results = search_nodes_by_composite_filter(&filter);
-            assert_eq!(results, vec!["1", "3"]);
+            assert_eq!(results, vec!["1", "3", "4"]);
         }
 
         #[test]
@@ -402,7 +391,7 @@ mod search_tests {
         fn search_nodes_for_node_name_not_in() {
             let filter = CompositeNodeFilter::Node(Filter::not_any("node_name", vec!["1".into()]));
             let results = search_nodes_by_composite_filter(&filter);
-            assert_eq!(results, vec!["2", "3"]);
+            assert_eq!(results, vec!["2", "3", "4"]);
         }
 
         #[test]
@@ -416,7 +405,7 @@ mod search_tests {
         fn search_nodes_for_node_type_ne() {
             let filter = CompositeNodeFilter::Node(Filter::ne("node_type", "fire_nation"));
             let results = search_nodes_by_composite_filter(&filter);
-            assert_eq!(results, vec!["2"]);
+            assert_eq!(results, vec!["2", "4"]);
         }
 
         #[test]
@@ -439,7 +428,7 @@ mod search_tests {
             let filter =
                 CompositeNodeFilter::Node(Filter::not_any("node_type", vec!["fire_nation".into()]));
             let results = search_nodes_by_composite_filter(&filter);
-            assert_eq!(results, vec!["2"]);
+            assert_eq!(results, vec!["2", "4"]);
         }
 
         #[test]
@@ -518,7 +507,7 @@ mod search_tests {
         fn search_nodes_for_property_is_none() {
             let filter = CompositeNodeFilter::Property(PropertyFilter::is_none("p2"));
             let results = search_nodes_by_composite_filter(&filter);
-            assert_eq!(results, vec!["1"]);
+            assert_eq!(results, vec!["1", "4"]);
         }
 
         #[test]
