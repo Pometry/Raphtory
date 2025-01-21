@@ -287,6 +287,15 @@ impl PyVectorisedGraph {
         self.0.empty_selection()
     }
 
+    /// # Returns all the graph level documents
+    pub fn get_graph_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
+        self.0
+            .get_graph_documents()
+            .into_iter()
+            .map(|doc| into_py_document(doc, &self.0, py))
+            .collect()
+    }
+
     /// Search the top scoring documents according to `query` with no more than `limit` documents
     ///
     /// Args:

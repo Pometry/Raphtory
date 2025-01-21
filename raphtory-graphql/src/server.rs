@@ -266,6 +266,7 @@ impl GraphServer {
 }
 
 /// A Raphtory server handler
+#[derive(Debug)]
 pub struct RunningGraphServer {
     signal_sender: Sender<()>,
     server_result: JoinHandle<IoResult<()>>,

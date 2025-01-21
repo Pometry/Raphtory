@@ -12,6 +12,7 @@ pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embeddi
     let client = Client::new();
     let request = CreateEmbeddingRequest {
         model: "text-embedding-ada-002".to_owned(),
+        // model: "text-embedding-3-large".to_owned(),
         input: EmbeddingInput::StringArray(texts),
         user: None,
         encoding_format: None,

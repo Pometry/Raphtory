@@ -69,17 +69,17 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let edges_docs = edges.flat_map(|edge| indexed_docs_for_edge(edge, &template));
 
         if verbose {
-            info!("computing embeddings for graph");
+            println!("computing embeddings for graph");
         }
         let graph_refs = compute_entity_embeddings(graph_docs, embedding.as_ref(), &cache).await?;
 
         if verbose {
-            info!("computing embeddings for nodes");
+            println!("computing embeddings for nodes");
         }
         let node_refs = compute_embedding_groups(nodes_docs, embedding.as_ref(), &cache).await?;
 
         if verbose {
-            info!("computing embeddings for edges");
+            println!("computing embeddings for edges");
         }
         let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await?;
 
@@ -239,6 +239,7 @@ async fn compute_chunk(
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
 ) -> GraphResult<Vec<DocumentRef>> {
+    println!("embedding {} documents", documents.len());
     let mut misses = vec![];
     let mut embedded = vec![];
     match cache {

@@ -157,7 +157,7 @@ impl From<Prop> for Value {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DocumentTemplate {
     pub graph_template: Option<String>,
     pub node_template: Option<String>,
@@ -184,6 +184,7 @@ impl DocumentTemplate {
                         Box::new(std::iter::once(document.into()))
                     }
                     Err(error) => {
+                        println!("Template render failed for graph, skipping: {error}"); // TODO: remove, the error! call should be enough
                         error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
@@ -208,6 +209,7 @@ impl DocumentTemplate {
                         Box::new(std::iter::once(document.into()))
                     }
                     Err(error) => {
+                        println!("Template render failed for a node, skipping: {error}"); // TODO: remove, the error! call should be enough
                         error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
