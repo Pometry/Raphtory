@@ -244,7 +244,9 @@ impl InternalAdditionOps for Storage {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self.graph.resolve_graph_property(prop, dtype, is_static)?;
+        let id = self
+            .graph
+            .resolve_graph_property(prop, dtype.clone(), is_static)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_graph_property(prop, id, dtype, is_static));
@@ -258,7 +260,9 @@ impl InternalAdditionOps for Storage {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self.graph.resolve_node_property(prop, dtype, is_static)?;
+        let id = self
+            .graph
+            .resolve_node_property(prop, dtype.clone(), is_static)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_node_property(prop, id, dtype, is_static));
@@ -272,7 +276,9 @@ impl InternalAdditionOps for Storage {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self.graph.resolve_edge_property(prop, dtype, is_static)?;
+        let id = self
+            .graph
+            .resolve_edge_property(prop, dtype.clone(), is_static)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_edge_property(prop, id, dtype, is_static));

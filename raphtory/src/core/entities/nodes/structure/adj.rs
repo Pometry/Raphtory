@@ -3,6 +3,7 @@ use crate::core::{
     Direction,
 };
 use itertools::Itertools;
+use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -58,7 +59,7 @@ impl Adj {
         }
     }
 
-    pub(crate) fn iter(&self, dir: Direction) -> Box<dyn Iterator<Item = (VID, EID)> + Send + '_> {
+    pub(crate) fn iter(&self, dir: Direction) -> BoxedLIter<(VID, EID)> {
         match self {
             Adj::Solo => Box::new(std::iter::empty()),
             Adj::List { out, into } => match dir {

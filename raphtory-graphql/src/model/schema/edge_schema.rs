@@ -7,7 +7,7 @@ use raphtory::{
     db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
     prelude::{EdgeViewOps, GraphViewOps},
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct EdgeSchema<G: StaticGraphViewOps> {
@@ -51,7 +51,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         let schema: SchemaAggregate = filtered_edges
             .map(collect_edge_schema)
             .reduce(merge_schemas)
-            .unwrap_or_else(|| HashMap::new());
+            .unwrap_or_default();
 
         schema.into_iter().map(|prop| prop.into()).collect_vec()
     }
@@ -60,7 +60,8 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
 fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> SchemaAggregate {
     edge.properties()
         .iter()
-        .map(|(key, value)| {
+        .filter_map(|(key, value)| {
+            let value = value?;
             let temporal_prop = edge
                 .base_graph
                 .edge_meta()
@@ -88,7 +89,7 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
                 (key.to_string(), "NONE".to_string())
             };
 
-            (key_with_prop_type, HashSet::from([value.to_string()]))
+            Some((key_with_prop_type, HashSet::from([value.to_string()])))
         })
         .collect()
 }

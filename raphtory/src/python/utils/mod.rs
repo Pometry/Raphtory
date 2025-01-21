@@ -16,12 +16,13 @@ use crate::{
     python::graph::node::PyNode,
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use numpy::IntoPyArray;
+use numpy::{IntoPyArray, PyArray};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
     pybacked::PyBackedStr,
     types::PyDateTime,
+    BoundObject,
 };
 use raphtory_api::core::entities::VID;
 use serde::Serialize;
@@ -90,7 +91,7 @@ impl AsNodeRef for PyNodeRef {
 
 fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     Python::with_gil(|py| {
-        let email_utils = PyModule::import_bound(py, "email.utils")?;
+        let email_utils = PyModule::import(py, "email.utils")?;
         let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
         let py_seconds = datetime.call_method1("timestamp", ())?;
         let seconds = py_seconds.extract::<f64>()?;
@@ -207,7 +208,7 @@ pub trait WindowSetOps {
 impl<T> WindowSetOps for WindowSet<'static, T>
 where
     T: TimeOps<'static> + Clone + Sync + Send + 'static,
-    T::WindowedViewType: IntoPy<PyObject> + Send + 'static,
+    T::WindowedViewType: for<'py> IntoPyObject<'py> + Send + Sync + 'static,
 {
     fn build_iter(&self) -> PyGenericIterator {
         self.clone().into()
@@ -218,7 +219,7 @@ where
 
         if window_set.temporal() {
             let iterable = move || {
-                let iter: Box<dyn Iterator<Item = DateTime<Utc>> + Send> = Box::new(
+                let iter: BoxedIter<DateTime<Utc>> = Box::new(
                     window_set
                         .clone()
                         .time_index(center)
@@ -229,8 +230,7 @@ where
             iterable.into()
         } else {
             (move || {
-                let iter: Box<dyn Iterator<Item = i64> + Send> =
-                    Box::new(window_set.time_index(center));
+                let iter: BoxedIter<i64> = Box::new(window_set.time_index(center));
                 iter
             })
             .into()
@@ -240,13 +240,13 @@ where
 
 #[pyclass(name = "WindowSet", module = "raphtory", frozen)]
 pub struct PyWindowSet {
-    window_set: Box<dyn WindowSetOps + Send>,
+    window_set: Box<dyn WindowSetOps + Send + Sync>,
 }
 
 impl<T> From<WindowSet<'static, T>> for PyWindowSet
 where
     T: TimeOps<'static> + Clone + Sync + Send + 'static,
-    T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
+    T::WindowedViewType: for<'py> IntoPyObject<'py> + Send + Sync,
 {
     fn from(value: WindowSet<'static, T>) -> Self {
         Self {
@@ -255,13 +255,17 @@ where
     }
 }
 
-impl<T> IntoPy<PyObject> for WindowSet<'static, T>
+impl<'py, T> IntoPyObject<'py> for WindowSet<'static, T>
 where
     T: TimeOps<'static> + Clone + Sync + Send + 'static,
-    T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
+    T::WindowedViewType: for<'py2> IntoPyObject<'py2> + Send + Sync,
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyWindowSet::from(self).into_py(py)
+    type Target = PyWindowSet;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyWindowSet::from(self).into_pyobject(py)
     }
 }
 
@@ -289,18 +293,28 @@ impl PyWindowSet {
 
 #[pyclass(name = "Iterable")]
 pub struct PyGenericIterable {
-    build_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send>,
+    build_iter: Box<dyn Fn() -> BoxedIter<PyResult<PyObject>> + Send + Sync>,
 }
 
-impl<F, I, T> From<F> for PyGenericIterable
+impl<F, I: Send + Sync, T> From<F> for PyGenericIterable
 where
     F: (Fn() -> I) + Send + Sync + 'static,
     I: Iterator<Item = T> + Send + 'static,
-    T: IntoPy<PyObject> + 'static,
+    T: for<'py> IntoPyObject<'py> + 'static,
 {
     fn from(value: F) -> Self {
-        let build_py_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send> =
-            Box::new(move || Box::new(value().map(|item| Python::with_gil(|py| item.into_py(py)))));
+        let build_py_iter: Box<dyn Fn() -> BoxedIter<PyResult<PyObject>> + Send + Sync> =
+            Box::new(move || {
+                Box::new(value().map(|item| {
+                    Python::with_gil(|py| {
+                        Ok(item
+                            .into_pyobject(py)
+                            .map_err(|e| e.into())?
+                            .into_any()
+                            .unbind())
+                    })
+                }))
+            });
         Self {
             build_iter: build_py_iter,
         }
@@ -310,30 +324,44 @@ where
 #[pymethods]
 impl PyGenericIterable {
     fn __iter__(&self) -> PyGenericIterator {
-        (self.build_iter)().into()
+        PyGenericIterator::new((self.build_iter)())
     }
 }
 
 #[pyclass(name = "Iterator", unsendable)]
 pub struct PyGenericIterator {
-    iter: Box<dyn Iterator<Item = PyObject>>,
+    iter: Box<dyn Iterator<Item = PyResult<PyObject>>>,
+}
+
+impl PyGenericIterator {
+    fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
+        Self { iter }
+    }
 }
 
 impl<I, T> From<I> for PyGenericIterator
 where
     I: Iterator<Item = T> + 'static,
-    T: IntoPy<PyObject> + 'static,
+    T: for<'py> IntoPyObject<'py> + 'static,
 {
     fn from(value: I) -> Self {
-        let py_iter = Box::new(value.map(|item| Python::with_gil(|py| item.into_py(py))));
+        let py_iter = Box::new(value.map(|item| {
+            Python::with_gil(|py| {
+                Ok(item
+                    .into_pyobject(py)
+                    .map_err(|e| e.into())?
+                    .into_any()
+                    .unbind())
+            })
+        }));
         Self { iter: py_iter }
     }
 }
 
 impl IntoIterator for PyGenericIterator {
-    type Item = PyObject;
+    type Item = PyResult<PyObject>;
 
-    type IntoIter = Box<dyn Iterator<Item = PyObject>>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter
@@ -345,7 +373,7 @@ impl PyGenericIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(&mut self) -> Option<PyObject> {
+    fn __next__(&mut self) -> Option<PyResult<PyObject>> {
         self.iter.next()
     }
 }
@@ -357,9 +385,9 @@ pub struct PyNestedGenericIterator {
 
 impl<I, J, T> From<I> for PyNestedGenericIterator
 where
-    I: Iterator<Item = J> + Send + 'static,
-    J: Iterator<Item = T> + Send + 'static,
-    T: IntoPy<PyObject> + 'static,
+    I: Iterator<Item = J> + Send + Sync + 'static,
+    J: Iterator<Item = T> + Send + Sync + 'static,
+    T: for<'py> IntoPyObject<'py> + 'static,
 {
     fn from(value: I) -> Self {
         let py_iter = Box::new(value.map(|item| item.into()));
@@ -410,39 +438,57 @@ impl From<Vec<i64>> for NumpyArray {
     }
 }
 
-impl IntoPy<PyObject> for NumpyArray {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for NumpyArray {
+    type Target = PyAny;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            NumpyArray::Bool(value) => value.into_pyarray_bound(py).to_object(py),
-            NumpyArray::I32(value) => value.into_pyarray_bound(py).to_object(py),
-            NumpyArray::I64(value) => value.into_pyarray_bound(py).to_object(py),
-            NumpyArray::U32(value) => value.into_pyarray_bound(py).to_object(py),
-            NumpyArray::U64(value) => value.into_pyarray_bound(py).to_object(py),
-            NumpyArray::F32(value) => value.into_pyarray_bound(py).to_object(py),
-            NumpyArray::F64(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::Bool(value) => Ok(value.into_pyarray(py).into_any()),
+            NumpyArray::I32(value) => Ok(value.into_pyarray(py).into_any()),
+            NumpyArray::I64(value) => Ok(value.into_pyarray(py).into_any()),
+            NumpyArray::U32(value) => Ok(value.into_pyarray(py).into_any()),
+            NumpyArray::U64(value) => Ok(value.into_pyarray(py).into_any()),
+            NumpyArray::F32(value) => Ok(value.into_pyarray(py).into_any()),
+            NumpyArray::F64(value) => Ok(value.into_pyarray(py).into_any()),
             NumpyArray::Props(vec) => match vec.first() {
-                Some(Prop::Bool(_)) => {
-                    Self::Bool(vec.into_iter().filter_map(|p| p.into_bool()).collect()).into_py(py)
-                }
-                Some(Prop::I32(_)) => {
-                    Self::I32(vec.into_iter().filter_map(|p| p.into_i32()).collect()).into_py(py)
-                }
-                Some(Prop::I64(_)) => {
-                    Self::I64(vec.into_iter().filter_map(|p| p.into_i64()).collect()).into_py(py)
-                }
-                Some(Prop::U32(_)) => {
-                    Self::U32(vec.into_iter().filter_map(|p| p.into_u32()).collect()).into_py(py)
-                }
-                Some(Prop::U64(_)) => {
-                    Self::U64(vec.into_iter().filter_map(|p| p.into_u64()).collect()).into_py(py)
-                }
-                Some(Prop::F32(_)) => {
-                    Self::F32(vec.into_iter().filter_map(|p| p.into_f32()).collect()).into_py(py)
-                }
-                Some(Prop::F64(_)) => {
-                    Self::F64(vec.into_iter().filter_map(|p| p.into_f64()).collect()).into_py(py)
-                }
-                _ => vec.into_py(py),
+                Some(Prop::Bool(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_bool()),
+                )
+                .into_any()),
+                Some(Prop::I32(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_i32()),
+                )
+                .into_any()),
+                Some(Prop::I64(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_i64()),
+                )
+                .into_any()),
+                Some(Prop::U32(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_u32()),
+                )
+                .into_any()),
+                Some(Prop::U64(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_u64()),
+                )
+                .into_any()),
+                Some(Prop::F32(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_f32()),
+                )
+                .into_any()),
+                Some(Prop::F64(_)) => Ok(PyArray::from_iter(
+                    py,
+                    vec.into_iter().filter_map(|p| p.into_f64()),
+                )
+                .into_any()),
+                _ => vec.into_pyobject(py),
             },
         }
     }

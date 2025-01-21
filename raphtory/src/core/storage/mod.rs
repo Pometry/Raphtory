@@ -1,34 +1,42 @@
 use crate::core::entities::nodes::node_store::NodeStore;
+use lazy_vec::LazyVec;
 use lock_api;
+use node_entry::NodePtr;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidRef, VID};
+use raphtory_api::core::{
+    entities::{GidRef, VID},
+    storage::arc_str::ArcStr,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fmt::Debug,
     marker::PhantomData,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
 
+use super::{utils::errors::GraphError, DocumentInput, Prop, PropArray};
+
 pub mod lazy_vec;
 pub mod locked_view;
+pub mod node_entry;
 pub mod raw_edges;
-pub mod sorted_vec_map;
 pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 #[must_use]
-pub struct UninitialisedEntry<'a, T> {
+pub struct UninitialisedEntry<'a, T, TS> {
     offset: usize,
-    guard: RwLockWriteGuard<'a, Vec<T>>,
+    guard: RwLockWriteGuard<'a, TS>,
     value: T,
 }
 
-impl<'a, T: Default> UninitialisedEntry<'a, T> {
+impl<'a, T: Default, TS: DerefMut<Target = Vec<T>>> UninitialisedEntry<'a, T, TS> {
     pub fn init(mut self) {
         if self.offset >= self.guard.len() {
             self.guard.resize_with(self.offset + 1, Default::default);
@@ -48,11 +56,305 @@ fn resolve(index: usize, num_buckets: usize) -> (usize, usize) {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LockVec<T> {
-    data: Arc<RwLock<Vec<T>>>,
+pub struct NodeVec {
+    data: Arc<RwLock<NodeSlot>>,
 }
 
-impl<T: PartialEq + Default> PartialEq for LockVec<T> {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct NodeSlot {
+    nodes: Vec<NodeStore>,
+    t_props_log: TColumns, // not the same size as nodes
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct TColumns {
+    t_props_log: Vec<TPropColumn>,
+    num_rows: usize,
+}
+
+impl TColumns {
+    pub fn push(
+        &mut self,
+        row: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<Option<usize>, GraphError> {
+        let id = self.num_rows;
+        let mut has_props = false;
+
+        for (prop_id, prop) in row {
+            match self.t_props_log.get_mut(prop_id) {
+                Some(col) => col.push(prop)?,
+                None => {
+                    let col: TPropColumn = TPropColumn::new(self.num_rows, prop);
+                    self.t_props_log
+                        .resize_with(prop_id + 1, || TPropColumn::Empty(id));
+                    self.t_props_log[prop_id] = col;
+                }
+            }
+            has_props = true;
+        }
+
+        if has_props {
+            self.num_rows += 1;
+            for col in self.t_props_log.iter_mut() {
+                col.grow(self.num_rows);
+            }
+            Ok(Some(id))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
+        self.t_props_log.get(prop_id).map(|col| col)
+    }
+
+    pub fn len(&self) -> usize {
+        self.num_rows
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &TPropColumn> {
+        self.t_props_log.iter()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub(crate) enum TPropColumn {
+    Empty(usize),
+    Bool(LazyVec<bool>),
+    U8(LazyVec<u8>),
+    U16(LazyVec<u16>),
+    U32(LazyVec<u32>),
+    U64(LazyVec<u64>),
+    I32(LazyVec<i32>),
+    I64(LazyVec<i64>),
+    F32(LazyVec<f32>),
+    F64(LazyVec<f64>),
+    Str(LazyVec<ArcStr>),
+    Array(LazyVec<PropArray>),
+    List(LazyVec<Arc<Vec<Prop>>>),
+    Map(LazyVec<Arc<HashMap<ArcStr, Prop>>>),
+    NDTime(LazyVec<chrono::NaiveDateTime>),
+    DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
+    Document(LazyVec<DocumentInput>),
+}
+
+impl Default for TPropColumn {
+    fn default() -> Self {
+        TPropColumn::Empty(0)
+    }
+}
+
+impl TPropColumn {
+    pub(crate) fn new(idx: usize, prop: Prop) -> Self {
+        let mut col = TPropColumn::default();
+        col.set(idx, prop).unwrap();
+        col
+    }
+
+    pub(crate) fn grow(&mut self, new_len: usize) {
+        while self.len() < new_len {
+            self.push_null();
+        }
+    }
+
+    pub(crate) fn set(&mut self, index: usize, prop: Prop) -> Result<(), GraphError> {
+        self.init_empty_col(&prop)?;
+        match (self, prop) {
+            (TPropColumn::Bool(col), Prop::Bool(v)) => col.set(index, v)?,
+            (TPropColumn::I64(col), Prop::I64(v)) => col.set(index, v)?,
+            (TPropColumn::U32(col), Prop::U32(v)) => col.set(index, v)?,
+            (TPropColumn::U64(col), Prop::U64(v)) => col.set(index, v)?,
+            (TPropColumn::F32(col), Prop::F32(v)) => col.set(index, v)?,
+            (TPropColumn::F64(col), Prop::F64(v)) => col.set(index, v)?,
+            (TPropColumn::Str(col), Prop::Str(v)) => col.set(index, v)?,
+            (TPropColumn::Array(col), Prop::Array(v)) => col.set(index, v)?,
+            (TPropColumn::U8(col), Prop::U8(v)) => col.set(index, v)?,
+            (TPropColumn::U16(col), Prop::U16(v)) => col.set(index, v)?,
+            (TPropColumn::I32(col), Prop::I32(v)) => col.set(index, v)?,
+            (TPropColumn::List(col), Prop::List(v)) => col.set(index, v)?,
+            (TPropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
+            (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
+            (TPropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
+            (TPropColumn::Document(col), Prop::Document(v)) => col.set(index, v)?,
+            _ => return Err(GraphError::IncorrectPropertyType),
+        }
+        Ok(())
+    }
+
+    pub(crate) fn push(&mut self, prop: Prop) -> Result<(), GraphError> {
+        self.init_empty_col(&prop)?;
+        match (self, prop) {
+            (TPropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
+            (TPropColumn::I64(col), Prop::I64(v)) => col.push(Some(v)),
+            (TPropColumn::U32(col), Prop::U32(v)) => col.push(Some(v)),
+            (TPropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
+            (TPropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
+            (TPropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
+            (TPropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
+            (TPropColumn::Array(col), Prop::Array(v)) => col.push(Some(v)),
+            (TPropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
+            (TPropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
+            (TPropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
+            (TPropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
+            (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
+            (TPropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
+            (TPropColumn::Document(col), Prop::Document(v)) => col.push(Some(v)),
+            _ => return Err(GraphError::IncorrectPropertyType),
+        }
+        Ok(())
+    }
+
+    fn init_empty_col(&mut self, prop: &Prop) -> Result<(), GraphError> {
+        match self {
+            TPropColumn::Empty(len) => match prop {
+                Prop::Bool(_) => *self = TPropColumn::Bool(LazyVec::with_len(*len)),
+                Prop::I64(_) => *self = TPropColumn::I64(LazyVec::with_len(*len)),
+                Prop::U32(_) => *self = TPropColumn::U32(LazyVec::with_len(*len)),
+                Prop::U64(_) => *self = TPropColumn::U64(LazyVec::with_len(*len)),
+                Prop::F32(_) => *self = TPropColumn::F32(LazyVec::with_len(*len)),
+                Prop::F64(_) => *self = TPropColumn::F64(LazyVec::with_len(*len)),
+                Prop::Str(_) => *self = TPropColumn::Str(LazyVec::with_len(*len)),
+                Prop::Array(_) => *self = TPropColumn::Array(LazyVec::with_len(*len)),
+                Prop::U8(_) => *self = TPropColumn::U8(LazyVec::with_len(*len)),
+                Prop::U16(_) => *self = TPropColumn::U16(LazyVec::with_len(*len)),
+                Prop::I32(_) => *self = TPropColumn::I32(LazyVec::with_len(*len)),
+                Prop::List(_) => *self = TPropColumn::List(LazyVec::with_len(*len)),
+                Prop::Map(_) => *self = TPropColumn::Map(LazyVec::with_len(*len)),
+                Prop::NDTime(_) => *self = TPropColumn::NDTime(LazyVec::with_len(*len)),
+                Prop::DTime(_) => *self = TPropColumn::DTime(LazyVec::with_len(*len)),
+                Prop::Document(_) => *self = TPropColumn::Document(LazyVec::with_len(*len)),
+            },
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn is_empty(&self) -> bool {
+        matches!(self, TPropColumn::Empty(_))
+    }
+
+    pub(crate) fn push_null(&mut self) {
+        match self {
+            TPropColumn::Bool(col) => col.push(None),
+            TPropColumn::I64(col) => col.push(None),
+            TPropColumn::U32(col) => col.push(None),
+            TPropColumn::U64(col) => col.push(None),
+            TPropColumn::F32(col) => col.push(None),
+            TPropColumn::F64(col) => col.push(None),
+            TPropColumn::Str(col) => col.push(None),
+            TPropColumn::Array(col) => col.push(None),
+            TPropColumn::U8(col) => col.push(None),
+            TPropColumn::U16(col) => col.push(None),
+            TPropColumn::I32(col) => col.push(None),
+            TPropColumn::List(col) => col.push(None),
+            TPropColumn::Map(col) => col.push(None),
+            TPropColumn::NDTime(col) => col.push(None),
+            TPropColumn::DTime(col) => col.push(None),
+            TPropColumn::Document(col) => col.push(None),
+            TPropColumn::Empty(count) => {
+                *count += 1;
+            }
+        }
+    }
+
+    pub(crate) fn get(&self, index: usize) -> Option<Prop> {
+        match self {
+            TPropColumn::Bool(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::I64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::U32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
+            TPropColumn::Array(col) => col.get_opt(index).map(|prop| Prop::Array(prop.clone())),
+            TPropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::List(col) => col.get_opt(index).map(|prop| Prop::List(prop.clone())),
+            TPropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
+            TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(prop.clone())),
+            TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(prop.clone())),
+            TPropColumn::Document(col) => {
+                col.get_opt(index).map(|prop| Prop::Document(prop.clone()))
+            }
+            TPropColumn::Empty(_) => None,
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            TPropColumn::Bool(col) => col.len(),
+            TPropColumn::I64(col) => col.len(),
+            TPropColumn::U32(col) => col.len(),
+            TPropColumn::U64(col) => col.len(),
+            TPropColumn::F32(col) => col.len(),
+            TPropColumn::F64(col) => col.len(),
+            TPropColumn::Str(col) => col.len(),
+            TPropColumn::Array(col) => col.len(),
+            TPropColumn::U8(col) => col.len(),
+            TPropColumn::U16(col) => col.len(),
+            TPropColumn::I32(col) => col.len(),
+            TPropColumn::List(col) => col.len(),
+            TPropColumn::Map(col) => col.len(),
+            TPropColumn::NDTime(col) => col.len(),
+            TPropColumn::DTime(col) => col.len(),
+            TPropColumn::Document(col) => col.len(),
+            TPropColumn::Empty(count) => *count,
+        }
+    }
+}
+
+impl NodeSlot {
+    pub fn t_props_log(&self) -> &TColumns {
+        &self.t_props_log
+    }
+
+    pub fn t_props_log_mut(&mut self) -> &mut TColumns {
+        &mut self.t_props_log
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr> {
+        self.nodes
+            .iter()
+            .map(|ns| NodePtr::new(ns, &self.t_props_log))
+    }
+
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> {
+        self.nodes
+            .par_iter()
+            .map(|ns| NodePtr::new(ns, &self.t_props_log))
+    }
+}
+
+impl Index<usize> for NodeSlot {
+    type Output = NodeStore;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.nodes[index]
+    }
+}
+
+impl IndexMut<usize> for NodeSlot {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.nodes[index]
+    }
+}
+
+impl Deref for NodeSlot {
+    type Target = Vec<NodeStore>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.nodes
+    }
+}
+
+impl DerefMut for NodeSlot {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.nodes
+    }
+}
+
+impl PartialEq for NodeVec {
     fn eq(&self, other: &Self) -> bool {
         let a = self.data.read();
         let b = other.data.read();
@@ -60,28 +362,38 @@ impl<T: PartialEq + Default> PartialEq for LockVec<T> {
     }
 }
 
-impl<T: Default> Default for LockVec<T> {
+impl Default for NodeVec {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Default> LockVec<T> {
+impl NodeVec {
     pub fn new() -> Self {
         Self {
-            data: Arc::new(RwLock::new(Vec::new())),
+            data: Arc::new(RwLock::new(Default::default())),
         }
     }
 
     #[inline]
-    pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<Vec<T>> {
+    pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<NodeSlot> {
         RwLock::read_arc(&self.data)
+    }
+
+    #[inline]
+    pub fn write(&self) -> impl DerefMut<Target = NodeSlot> + '_ {
+        self.data.write()
+    }
+
+    #[inline]
+    pub fn read(&self) -> impl Deref<Target = NodeSlot> + '_ {
+        self.data.read()
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NodeStorage {
-    pub(crate) data: Box<[LockVec<NodeStore>]>,
+    pub(crate) data: Box<[NodeVec]>,
     len: AtomicUsize,
 }
 
@@ -92,17 +404,13 @@ impl PartialEq for NodeStorage {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedStorage<T, Index = usize> {
-    pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<Vec<T>>>>,
+pub struct ReadLockedStorage {
+    pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<NodeSlot>>>,
     len: usize,
-    _index: PhantomData<Index>,
 }
 
-impl<Index, T> ReadLockedStorage<T, Index>
-where
-    usize: From<Index>,
-{
-    fn resolve(&self, index: Index) -> (usize, usize) {
+impl ReadLockedStorage {
+    fn resolve(&self, index: VID) -> (usize, usize) {
         let index: usize = index.into();
         let n = self.locks.len();
         let bucket = index % n;
@@ -114,51 +422,41 @@ where
         self.len
     }
 
-    pub(crate) fn get(&self, index: Index) -> &T {
+    #[cfg(test)]
+    pub(crate) fn get(&self, index: VID) -> &NodeStore {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
     }
 
-    pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry<T> {
+    #[inline]
+    pub(crate) fn arc_entry(&self, index: VID) -> ArcNodeEntry {
         let (bucket, offset) = self.resolve(index);
-        ArcEntry {
+        ArcNodeEntry {
             guard: self.locks[bucket].clone(),
             i: offset,
         }
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+    #[inline]
+    pub(crate) fn get_entry(&self, index: VID) -> NodePtr {
+        let (bucket, offset) = self.resolve(index);
+        let bucket = &self.locks[bucket];
+        NodePtr::new(&bucket[offset], &bucket.t_props_log)
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = NodePtr> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
 
-    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = &T> + '_
-    where
-        T: Send + Sync,
-    {
+    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 
-    #[allow(unused)]
-    pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry<T>> + Send
-    where
-        T: Send + Sync + 'static,
-    {
+    #[cfg(test)]
+    pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcNodeEntry> {
         self.locks.into_iter().flat_map(|data| {
-            (0..data.len()).map(move |offset| ArcEntry {
-                guard: data.clone(),
-                i: offset,
-            })
-        })
-    }
-
-    #[allow(unused)]
-    pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry<T>>
-    where
-        T: Send + Sync + 'static,
-    {
-        self.locks.into_par_iter().flat_map(|data| {
-            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
+            (0..data.as_ref().len()).map(move |offset| ArcNodeEntry {
                 guard: data.clone(),
                 i: offset,
             })
@@ -167,8 +465,8 @@ where
 }
 
 impl NodeStorage {
-    pub fn count_with_filter<F: Fn(&NodeStore) -> bool + Send + Sync>(&self, f: F) -> usize {
-        self.read_lock().par_iter().filter(|x| f(x)).count()
+    pub fn count_with_filter<F: Fn(NodePtr<'_>) -> bool + Send + Sync>(&self, f: F) -> usize {
+        self.read_lock().par_iter().filter(|x| f(*x)).count()
     }
 }
 
@@ -179,7 +477,7 @@ impl NodeStorage {
     }
 
     #[inline]
-    pub fn read_lock(&self) -> ReadLockedStorage<NodeStore, VID> {
+    pub fn read_lock(&self) -> ReadLockedStorage {
         let guards = self
             .data
             .iter()
@@ -188,7 +486,6 @@ impl NodeStorage {
         ReadLockedStorage {
             locks: guards,
             len: self.len(),
-            _index: PhantomData,
         }
     }
 
@@ -200,17 +497,18 @@ impl NodeStorage {
     }
 
     pub fn new(n_locks: usize) -> Self {
-        let data: Box<[LockVec<NodeStore>]> = (0..n_locks)
-            .map(|_| LockVec::new())
+        let data: Box<[NodeVec]> = (0..n_locks)
+            .map(|_| NodeVec::new())
             .collect::<Vec<_>>()
             .into();
+
         Self {
             data,
             len: AtomicUsize::new(0),
         }
     }
 
-    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore> {
+    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
         let index = self.len.fetch_add(1, Ordering::Relaxed);
         value.vid = VID(index);
         let (bucket, offset) = self.resolve(index);
@@ -234,33 +532,44 @@ impl NodeStorage {
     }
 
     #[inline]
-    pub fn entry(&self, index: VID) -> Entry<'_, NodeStore> {
+    pub fn entry(&self, index: VID) -> NodeEntry<'_> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
-        Entry { offset, guard }
+        NodeEntry { offset, guard }
     }
 
-    pub fn entry_arc(&self, index: VID) -> ArcEntry<NodeStore> {
+    pub fn entry_arc(&self, index: VID) -> ArcNodeEntry {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = &self.data[bucket].data;
         let arc_guard = RwLock::read_arc_recursive(guard);
-        ArcEntry {
+        ArcNodeEntry {
             i: offset,
             guard: Arc::new(arc_guard),
         }
     }
 
-    pub fn entry_mut(&self, index: VID) -> EntryMut<'_, NodeStore> {
+    pub fn entry_mut(&self, index: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
-        EntryMut { i: offset, guard }
+        EntryMut {
+            i: offset,
+            guard,
+            _pd: PhantomData,
+        }
+    }
+
+    pub fn prop_entry_mut(&self, index: VID) -> impl DerefMut<Target = TColumns> + '_ {
+        let index = index.into();
+        let (bucket, _) = self.resolve(index);
+        let lock = self.data[bucket].data.write();
+        RwLockWriteGuard::map(lock, |data| &mut data.t_props_log)
     }
 
     // This helps get the right locks when adding an edge
-    pub fn pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
+    pub fn pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
         let i = i.into();
         let j = j.into();
         let (bucket_i, offset_i) = self.resolve(i);
@@ -304,7 +613,7 @@ impl NodeStorage {
 }
 
 pub struct WriteLockedNodes<'a> {
-    guards: Vec<RwLockWriteGuard<'a, Vec<NodeStore>>>,
+    guards: Vec<RwLockWriteGuard<'a, NodeSlot>>,
     global_len: &'a AtomicUsize,
 }
 
@@ -317,7 +626,7 @@ pub struct NodeShardWriter<'a, S> {
 
 impl<'a, S> NodeShardWriter<'a, S>
 where
-    S: DerefMut<Target = Vec<NodeStore>>,
+    S: DerefMut<Target = NodeSlot>,
 {
     #[inline]
     fn resolve(&self, index: VID) -> Option<usize> {
@@ -330,7 +639,26 @@ where
         self.resolve(index).map(|offset| &mut self.shard[offset])
     }
 
-    pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<&mut NodeStore> {
+    #[inline]
+    pub fn get_mut_entry(&mut self, index: VID) -> Option<EntryMut<'_, &mut S>> {
+        self.resolve(index).map(|offset| EntryMut {
+            i: offset,
+            guard: &mut self.shard,
+            _pd: PhantomData,
+        })
+    }
+
+    #[inline]
+    pub fn get(&self, index: VID) -> Option<&NodeStore> {
+        self.resolve(index).map(|offset| &self.shard[offset])
+    }
+
+    #[inline]
+    pub fn t_prop_log_mut(&mut self) -> &mut TColumns {
+        &mut self.shard.t_props_log
+    }
+
+    pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<EntryMut<'_, &mut S>> {
         self.resolve(vid).map(|offset| {
             if offset >= self.shard.len() {
                 self.shard.resize_with(offset + 1, NodeStore::default);
@@ -338,7 +666,12 @@ where
                     .fetch_max(vid.index() + 1, Ordering::Relaxed);
             }
             self.shard[offset] = NodeStore::resolved(gid.to_owned(), vid);
-            &mut self.shard[offset]
+
+            EntryMut {
+                i: offset,
+                guard: &mut self.shard,
+                _pd: PhantomData,
+            }
         })
     }
 
@@ -361,10 +694,10 @@ where
 impl<'a> WriteLockedNodes<'a> {
     pub fn par_iter_mut(
         &mut self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut Vec<NodeStore>>> + '_ {
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut NodeSlot>> + '_ {
         let num_shards = self.guards.len();
         let global_len = self.global_len;
-        let shards: Vec<&mut Vec<NodeStore>> = self
+        let shards: Vec<&mut NodeSlot> = self
             .guards
             .iter_mut()
             .map(|guard| guard.deref_mut())
@@ -382,8 +715,8 @@ impl<'a> WriteLockedNodes<'a> {
 
     pub fn into_par_iter_mut(
         self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a, RwLockWriteGuard<'a, Vec<NodeStore>>>>
-           + 'a {
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a, RwLockWriteGuard<'a, NodeSlot>>> + 'a
+    {
         let num_shards = self.guards.len();
         let global_len = self.global_len;
         self.guards
@@ -408,18 +741,32 @@ impl<'a> WriteLockedNodes<'a> {
 }
 
 #[derive(Debug)]
-pub struct Entry<'a, T: 'static> {
+pub struct NodeEntry<'a> {
     offset: usize,
-    guard: RwLockReadGuard<'a, Vec<T>>,
+    guard: RwLockReadGuard<'a, NodeSlot>,
+}
+
+impl NodeEntry<'_> {
+    #[inline]
+    pub fn get_entry(&self) -> NodePtr<'_> {
+        NodePtr::new(&self.guard[self.offset], &self.guard.t_props_log)
+    }
 }
 
 #[derive(Debug)]
-pub struct ArcEntry<T> {
-    guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
+pub struct ArcNodeEntry {
+    guard: Arc<ArcRwLockReadGuard<NodeSlot>>,
     i: usize,
 }
 
-impl<T> Clone for ArcEntry<T> {
+impl ArcNodeEntry {
+    #[inline]
+    pub fn get_entry(&self) -> NodePtr<'_> {
+        NodePtr::new(&self.guard[self.i], &self.guard.t_props_log)
+    }
+}
+
+impl Clone for ArcNodeEntry {
     fn clone(&self) -> Self {
         Self {
             guard: self.guard.clone(),
@@ -428,58 +775,42 @@ impl<T> Clone for ArcEntry<T> {
     }
 }
 
-impl<T> Deref for ArcEntry<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.guard[self.i]
-    }
-}
-
-impl<'a, T> Deref for Entry<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.guard[self.offset]
-    }
-}
-
-pub enum PairEntryMut<'a, T: 'static> {
+pub enum PairEntryMut<'a> {
     Same {
         i: usize,
         j: usize,
-        guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+        guard: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
     },
     Different {
         i: usize,
         j: usize,
-        guard1: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
-        guard2: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+        guard1: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
+        guard2: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
     },
 }
 
-impl<'a, T: 'static> PairEntryMut<'a, T> {
-    pub(crate) fn get_i(&self) -> &T {
+impl<'a> PairEntryMut<'a> {
+    pub(crate) fn get_i(&self) -> &NodeStore {
         match self {
             PairEntryMut::Same { i, guard, .. } => &guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &guard1[*i],
         }
     }
-    pub(crate) fn get_mut_i(&mut self) -> &mut T {
+    pub(crate) fn get_mut_i(&mut self) -> &mut NodeStore {
         match self {
             PairEntryMut::Same { i, guard, .. } => &mut guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &mut guard1[*i],
         }
     }
 
-    pub(crate) fn get_j(&self) -> &T {
+    pub(crate) fn get_j(&self) -> &NodeStore {
         match self {
             PairEntryMut::Same { j, guard, .. } => &guard[*j],
             PairEntryMut::Different { j, guard2, .. } => &guard2[*j],
         }
     }
 
-    pub(crate) fn get_mut_j(&mut self) -> &mut T {
+    pub(crate) fn get_mut_j(&mut self) -> &mut NodeStore {
         match self {
             PairEntryMut::Same { j, guard, .. } => &mut guard[*j],
             PairEntryMut::Different { j, guard2, .. } => &mut guard2[*j],
@@ -487,34 +818,172 @@ impl<'a, T: 'static> PairEntryMut<'a, T> {
     }
 }
 
-pub struct EntryMut<'a, T: 'static> {
+pub struct EntryMut<'a, NS: 'a> {
     i: usize,
-    guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+    guard: NS,
+    _pd: PhantomData<&'a ()>,
 }
 
-impl<'a, T> Deref for EntryMut<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.guard[self.i]
+impl<'a, NS> EntryMut<'a, NS> {
+    pub(crate) fn to_mut(&mut self) -> EntryMut<'a, &mut NS> {
+        EntryMut {
+            i: self.i,
+            guard: &mut self.guard,
+            _pd: self._pd,
+        }
     }
 }
 
-impl<'a, T> DerefMut for EntryMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+impl<'a, NS: DerefMut<Target = NodeSlot>> AsMut<NodeStore> for EntryMut<'a, NS> {
+    fn as_mut(&mut self) -> &mut NodeStore {
+        let slots = self.guard.deref_mut();
+        &mut slots[self.i]
+    }
+}
+
+impl<'a, NS: DerefMut<Target = NodeSlot> + 'a> EntryMut<'a, &'a mut NS> {
+    pub fn node_store_mut(&mut self) -> &mut NodeStore {
         &mut self.guard[self.i]
+    }
+
+    pub fn t_props_log_mut(&mut self) -> &mut TColumns {
+        &mut self.guard.t_props_log
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::NodeStorage;
-    use crate::core::entities::nodes::node_store::NodeStore;
+    use super::{NodeStorage, TColumns};
+    use crate::core::{entities::nodes::node_store::NodeStore, Prop};
     use pretty_assertions::assert_eq;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::entities::{GID, VID};
-    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+    use rayon::prelude::*;
     use std::borrow::Cow;
+
+    #[test]
+    fn tcolumns_append_1() {
+        let mut t_cols = TColumns::default();
+
+        t_cols.push([(1, Prop::U64(1))]).unwrap();
+
+        let col0 = t_cols.get(0).unwrap();
+        let col1 = t_cols.get(1).unwrap();
+
+        assert_eq!(col0.len(), 1);
+        assert_eq!(col1.len(), 1);
+    }
+
+    #[test]
+    fn tcolumns_append_3_rows() {
+        let mut t_cols = TColumns::default();
+
+        t_cols
+            .push([(1, Prop::U64(1)), (0, Prop::Str("a".into()))])
+            .unwrap();
+        t_cols
+            .push([(0, Prop::Str("c".into())), (2, Prop::I64(9))])
+            .unwrap();
+        t_cols
+            .push([(1, Prop::U64(1)), (3, Prop::Str("c".into()))])
+            .unwrap();
+
+        assert_eq!(t_cols.len(), 3);
+
+        for col_id in 0..4 {
+            let col = t_cols.get(col_id).unwrap();
+            assert_eq!(col.len(), 3);
+        }
+
+        let col0 = (0..3)
+            .map(|row| t_cols.get(0).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col0,
+            vec![
+                Some(Prop::Str("a".into())),
+                Some(Prop::Str("c".into())),
+                None
+            ]
+        );
+
+        let col1 = (0..3)
+            .map(|row| t_cols.get(1).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(col1, vec![Some(Prop::U64(1)), None, Some(Prop::U64(1))]);
+
+        let col2 = (0..3)
+            .map(|row| t_cols.get(2).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(col2, vec![None, Some(Prop::I64(9)), None]);
+
+        let col3 = (0..3)
+            .map(|row| t_cols.get(3).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(col3, vec![None, None, Some(Prop::Str("c".into()))]);
+    }
+
+    #[test]
+    fn tcolumns_append_2_columns_12_items() {
+        let mut t_cols = TColumns::default();
+
+        for value in 0..12 {
+            if value % 2 == 0 {
+                t_cols
+                    .push([
+                        (1, Prop::U64(value)),
+                        (0, Prop::Str(value.to_string().into())),
+                    ])
+                    .unwrap();
+            } else {
+                t_cols.push([(1, Prop::U64(value))]).unwrap();
+            }
+        }
+
+        assert_eq!(t_cols.len(), 12);
+
+        let col0 = (0..12)
+            .map(|row| t_cols.get(0).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col0,
+            vec![
+                Some(Prop::Str("0".into())),
+                None,
+                Some(Prop::Str("2".into())),
+                None,
+                Some(Prop::Str("4".into())),
+                None,
+                Some(Prop::Str("6".into())),
+                None,
+                Some(Prop::Str("8".into())),
+                None,
+                Some(Prop::Str("10".into())),
+                None
+            ]
+        );
+
+        let col1 = (0..12)
+            .map(|row| t_cols.get(1).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col1,
+            vec![
+                Some(Prop::U64(0)),
+                Some(Prop::U64(1)),
+                Some(Prop::U64(2)),
+                Some(Prop::U64(3)),
+                Some(Prop::U64(4)),
+                Some(Prop::U64(5)),
+                Some(Prop::U64(6)),
+                Some(Prop::U64(7)),
+                Some(Prop::U64(8)),
+                Some(Prop::U64(9)),
+                Some(Prop::U64(10)),
+                Some(Prop::U64(11))
+            ]
+        );
+    }
 
     #[test]
     fn add_5_values_to_storage() {
@@ -528,12 +997,14 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(entry.vid, VID(i));
+            assert_eq!(entry.get_entry().node().vid, VID(i));
         }
 
         let items_iter = storage.read_lock().into_iter();
 
-        let actual = items_iter.map(|s| s.vid.index()).collect::<Vec<_>>();
+        let actual = items_iter
+            .map(|s| s.get_entry().node().vid.index())
+            .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![0, 2, 4, 1, 3]);
     }
@@ -572,7 +1043,7 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(*entry.global_id.to_str(), i.to_string());
+            assert_eq!(*entry.get_entry().node().global_id.to_str(), i.to_string());
         }
     }
 
@@ -590,7 +1061,7 @@ mod test {
         let locked = storage.read_lock();
         let mut actual: Vec<_> = locked
             .iter()
-            .map(|n| n.global_id.as_u64().unwrap())
+            .map(|n| n.node().global_id.as_u64().unwrap())
             .collect();
 
         actual.sort();

@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, Prop},
+    core::{utils::time::IntoTime, Prop, PropUnwrap},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -116,7 +116,7 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[(int, Any)]]: the mapping of property keys to histories
+    ///     dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
     fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
         self.props
             .iter()
@@ -127,7 +127,7 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[(datetime, Any)]]: the mapping of property keys to histories
+    ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
     fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
         self.props
             .iter()
@@ -373,23 +373,35 @@ impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for
     }
 }
 
-impl<P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPy<PyObject>
+impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
     for TemporalProperties<P>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTemporalProperties::from(self).into_py(py)
+    type Target = PyTemporalProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyTemporalProperties::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for TemporalProperties<DynamicGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTemporalProperties::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for TemporalProperties<DynamicGraph> {
+    type Target = PyTemporalProperties;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyTemporalProperties::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for DynTemporalProperties {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTemporalProperties::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for DynTemporalProperties {
+    type Target = PyTemporalProperties;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyTemporalProperties::from(self).into_pyobject(py)
     }
 }
 
@@ -420,9 +432,13 @@ impl Repr for PyTemporalProperties {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for TemporalPropertyView<P> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTemporalProp::from(self).into_py(py)
+impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py> for TemporalPropertyView<P> {
+    type Target = PyTemporalProp;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyTemporalProp::from(self).into_pyobject(py)
     }
 }
 
@@ -568,9 +584,13 @@ impl Repr for OptionPyTemporalProp {
     }
 }
 
-impl IntoPy<PyObject> for OptionPyTemporalProp {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
+impl<'py> IntoPyObject<'py> for OptionPyTemporalProp {
+    type Target = <Option<PyTemporalProp> as IntoPyObject<'py>>::Target;
+    type Output = <Option<PyTemporalProp> as IntoPyObject<'py>>::Output;
+    type Error = <Option<PyTemporalProp> as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.0.into_pyobject(py)
     }
 }
 

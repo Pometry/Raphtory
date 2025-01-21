@@ -10,7 +10,7 @@ use crate::{
 };
 use polars_arrow::{array::Array, ffi};
 use pyo3::{
-    ffi::Py_uintptr_t,
+    ffi::{c_str, Py_uintptr_t},
     prelude::*,
     pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},
@@ -194,8 +194,8 @@ pub(crate) fn process_pandas_py_df<'a>(
 ) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
     let py = df.py();
     is_jupyter(py);
-    py.import_bound("pandas")?;
-    let module = py.import_bound("pyarrow")?;
+    py.import("pandas")?;
+    let module = py.import("pyarrow")?;
     let pa_table = module.getattr("Table")?;
 
     let df_columns: Vec<String> = df.getattr("columns")?.extract()?;
@@ -207,16 +207,13 @@ pub(crate) fn process_pandas_py_df<'a>(
 
     let dropped_df = if !cols_to_drop.is_empty() {
         let drop_method = df.getattr("drop")?;
-        &drop_method.call(
-            (cols_to_drop,),
-            Some(&vec![("axis", 1)].into_py_dict_bound(py)),
-        )?
+        &drop_method.call((cols_to_drop,), Some(&vec![("axis", 1)].into_py_dict(py)?))?
     } else {
         df
     };
 
     let table = pa_table.call_method("from_pandas", (dropped_df.clone(),), None)?;
-    let kwargs = PyDict::new_bound(py);
+    let kwargs = PyDict::new(py);
     kwargs.set_item("max_chunksize", 1000000)?;
     let rb = table
         .call_method("to_batches", (), Some(&kwargs))?
@@ -281,7 +278,8 @@ pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
 }
 
 fn is_jupyter(py: Python) {
-    let code = r#"
+    let code = c_str!(
+        r#"
 try:
     shell = get_ipython().__class__.__name__
     if shell == 'ZMQInteractiveShell':
@@ -292,14 +290,15 @@ try:
         result = False  # Other type, assuming not a Jupyter environment
 except NameError:
     result = False      # Probably standard Python interpreter
-"#;
+"#
+    );
 
-    if let Err(e) = py.run_bound(code, None, None) {
+    if let Err(e) = py.run(code, None, None) {
         error!("Error checking if running in a jupyter notebook: {}", e);
         return;
     }
 
-    match py.eval_bound("result", None, None) {
+    match py.eval(c_str!("result"), None, None) {
         Ok(x) => {
             if let Ok(x) = x.extract() {
                 kdam::set_notebook(x);

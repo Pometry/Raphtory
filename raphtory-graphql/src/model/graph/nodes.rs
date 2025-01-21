@@ -1,10 +1,19 @@
-use crate::model::graph::{node::Node, FilterCondition, Operator};
+use crate::model::{
+    graph::{node::Node, FilterCondition, Operator},
+    sorting::{NodeSortBy, SortByTime},
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use itertools::Itertools;
 use raphtory::{
     core::utils::errors::GraphError,
-    db::{api::view::DynamicGraph, graph::nodes::Nodes},
+    db::{
+        api::{state::Index, view::DynamicGraph},
+        graph::nodes::Nodes,
+    },
     prelude::*,
 };
+use raphtory_api::core::entities::VID;
+use std::cmp::Ordering;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
@@ -215,6 +224,57 @@ impl GqlNodes {
                 }
             }
         }
+    }
+
+    /////////////////
+    //// Sorting ////
+    /////////////////
+
+    async fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> Self {
+        let sorted: Index<VID> = self
+            .nn
+            .iter()
+            .sorted_by(|first_node, second_node| {
+                sort_bys
+                    .iter()
+                    .fold(Ordering::Equal, |current_ordering, sort_by| {
+                        current_ordering.then_with(|| {
+                            let ordering = if sort_by.id == Some(true) {
+                                first_node.id().partial_cmp(&second_node.id())
+                            } else if let Some(sort_by_time) = sort_by.time.as_ref() {
+                                let (first_time, second_time) = match sort_by_time {
+                                    SortByTime::Latest => {
+                                        (first_node.latest_time(), second_node.latest_time())
+                                    }
+                                    SortByTime::Earliest => {
+                                        (first_node.earliest_time(), second_node.earliest_time())
+                                    }
+                                };
+                                first_time.partial_cmp(&second_time)
+                            } else if let Some(sort_by_property) = sort_by.property.as_ref() {
+                                let first_prop_maybe =
+                                    first_node.properties().get(sort_by_property);
+                                let second_prop_maybe =
+                                    second_node.properties().get(sort_by_property);
+                                first_prop_maybe.partial_cmp(&second_prop_maybe)
+                            } else {
+                                None
+                            };
+                            if let Some(ordering) = ordering {
+                                if sort_by.reverse == Some(true) {
+                                    ordering.reverse()
+                                } else {
+                                    ordering
+                                }
+                            } else {
+                                Ordering::Equal
+                            }
+                        })
+                    })
+            })
+            .map(|node_view| node_view.node)
+            .collect();
+        GqlNodes::new(self.nn.indexed(sorted))
     }
 
     ////////////////////////

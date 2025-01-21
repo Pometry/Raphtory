@@ -34,10 +34,7 @@ use crate::{
     },
     prelude::{DeletionOps, GraphViewOps},
 };
-use itertools::Itertools;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{iter, sync::Arc};
 
 use crate::db::api::view::internal::InternalIndexSearch;
 #[cfg(feature = "storage")]
@@ -54,6 +51,11 @@ use crate::{
         DiskGraphStorage,
     },
 };
+use itertools::Itertools;
+use raphtory_api::iter::BoxedLIter;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::{iter, sync::Arc};
 
 #[cfg(feature = "search")]
 use crate::search::searcher::Searcher;
@@ -224,9 +226,9 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn node_entry(&self, vid: VID) -> NodeStorageEntry {
+    pub fn node_entry<'a>(&'a self, vid: VID) -> NodeStorageEntry<'a> {
         match self {
-            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get(vid)),
+            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get_entry(vid)),
             GraphStorage::Unlocked(storage) => {
                 NodeStorageEntry::Unlocked(storage.storage.get_node(vid))
             }
@@ -316,7 +318,7 @@ impl GraphStorage {
                     let nodes_storage = self.nodes();
                     nodes
                         .par_iter()
-                        .filter(|vid| view.filter_node(nodes_storage.node(**vid), layer_ids))
+                        .filter(|&vid| view.filter_node(nodes_storage.node(vid), layer_ids))
                         .count()
                 }
             }
@@ -327,7 +329,7 @@ impl GraphStorage {
         self,
         view: G,
         type_filter: Option<Arc<[bool]>>,
-    ) -> Box<dyn Iterator<Item = VID> + Send + 'graph> {
+    ) -> BoxedLIter<'graph, VID> {
         let iter = view.node_list().into_iter();
         match type_filter {
             None => {

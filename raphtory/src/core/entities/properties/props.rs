@@ -31,8 +31,8 @@ enum PropId {
 impl Props {
     pub fn new() -> Self {
         Self {
-            constant_props: LazyVec::Empty,
-            temporal_props: LazyVec::Empty,
+            constant_props: Default::default(),
+            temporal_props: Default::default(),
         }
     }
 
@@ -96,7 +96,7 @@ impl Props {
         self.constant_props.filled_ids()
     }
 
-    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + '_ {
+    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + Sync + '_ {
         self.temporal_props.filled_ids()
     }
 }

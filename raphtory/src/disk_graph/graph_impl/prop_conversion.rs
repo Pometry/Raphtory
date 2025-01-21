@@ -5,7 +5,6 @@ use crate::{
     },
     core::{
         entities::{properties::props::PropMapper, VID},
-        storage::timeindex::TimeIndexOps,
         utils::iter::GenLockedIter,
         PropType,
     },
@@ -52,8 +51,7 @@ pub fn make_node_properties_from_graph(
     let builder = NodePropsBuilder::new(n, graph_dir)
         .with_timestamps(|vid| {
             let node = gs.node_entry(vid);
-            let additions = node.additions();
-            additions.iter_t().collect()
+            node.as_ref().temp_prop_rows().map(|(ts, _)| ts).collect()
         })
         .with_temporal_props(temporal_prop_keys, |prop_id, prop_key, ts, offsets| {
             let prop_type = temporal_meta.get_dtype(prop_id).unwrap();
@@ -62,7 +60,7 @@ pub fn make_node_properties_from_graph(
                     let ts = node_ts(VID(vid), offsets, ts);
                     let node = gs.node_entry(VID(vid));
                     let iter =
-                        GenLockedIter::from(node, |node| Box::new(node.tprop(prop_id).iter_t()));
+                        GenLockedIter::from(node, |node| Box::new(node.tprop(prop_id).iter()));
                     iter.merge_join_by(ts, |(t2, _), &t1| t2.cmp(t1))
                         .map(|result| match result {
                             itertools::EitherOrBoth::Both((_, t_prop), _) => Some(t_prop),
@@ -92,29 +90,6 @@ pub fn make_node_properties_from_graph(
         });
     let props = builder.build()?;
     Ok(props)
-}
-
-pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
-    match prop_type {
-        PropType::Str => DataType::LargeUtf8,
-        PropType::U8 => DataType::UInt8,
-        PropType::U16 => DataType::UInt16,
-        PropType::I32 => DataType::Int32,
-        PropType::I64 => DataType::Int64,
-        PropType::U32 => DataType::UInt32,
-        PropType::U64 => DataType::UInt64,
-        PropType::F32 => DataType::Float32,
-        PropType::F64 => DataType::Float64,
-        PropType::Bool => DataType::Boolean,
-        PropType::Empty
-        | PropType::List
-        | PropType::Map
-        | PropType::NDTime
-        | PropType::Graph
-        | PropType::PersistentGraph
-        | PropType::Document
-        | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
-    }
 }
 
 /// Map iterator of prop values to array (returns None if all the props are None)
@@ -167,8 +142,7 @@ pub fn arrow_array_from_props(
         | PropType::List
         | PropType::Map
         | PropType::NDTime
-        | PropType::Graph
-        | PropType::PersistentGraph
+        | PropType::Array(_)
         | PropType::Document
         | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
     }
@@ -214,8 +188,7 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
             | PropType::List
             | PropType::Map
             | PropType::NDTime
-            | PropType::Graph
-            | PropType::PersistentGraph
+            | PropType::Array(_)
             | PropType::Document
             | PropType::DTime) => panic!("{:?} not supported as disk_graph property", prop_type),
         }

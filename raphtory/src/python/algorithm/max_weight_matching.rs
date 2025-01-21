@@ -18,12 +18,16 @@ pub struct PyMatching {
     inner: Matching<DynamicGraph>,
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for Matching<G> {
-    fn into_py(self, py: Python) -> PyObject {
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Matching<G> {
+    type Target = PyMatching;
+    type Output = Bound<'py, PyMatching>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyMatching {
             inner: self.into_dyn(),
         }
-        .into_py(py)
+        .into_pyobject(py)
     }
 }
 
@@ -47,7 +51,7 @@ impl PyMatching {
     /// Get the matched source node for a destination node
     ///
     /// Arguments:
-    ///     dst (InputNode): The destination node
+    ///     dst (NodeInput): The destination node
     ///
     /// Returns:
     ///     Optional[Node]: The matched source node if it exists
@@ -59,7 +63,7 @@ impl PyMatching {
     /// Get the matched destination node for a source node
     ///
     /// Arguments:
-    ///     src (InputNode): The source node
+    ///     src (NodeInput): The source node
     ///
     /// Returns:
     ///     Optional[Node]: The matched destination node if it exists
@@ -79,7 +83,7 @@ impl PyMatching {
     /// Get the matched edge for a source node
     ///
     /// Arguments:
-    ///     src (InputNode): The source node
+    ///     src (NodeInput): The source node
     ///
     /// Returns:
     ///     Optional[Edge]: The matched edge if it exists
@@ -90,7 +94,7 @@ impl PyMatching {
     /// Get the matched edge for a destination node
     ///
     /// Arguments:
-    ///     dst (InputNode): The source node
+    ///     dst (NodeInput): The source node
     ///
     /// Returns:
     ///     Optional[Edge]: The matched edge if it exists
@@ -101,7 +105,7 @@ impl PyMatching {
     /// Check if an edge is part of the matching
     ///
     /// Arguments:
-    ///     edge (Tuple[InputNode, InputNode]): The edge to check
+    ///     edge (Tuple[NodeInput, NodeInput]): The edge to check
     ///
     /// Returns:
     ///     bool: Returns True if the edge is part of the matching, False otherwise

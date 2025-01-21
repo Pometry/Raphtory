@@ -4,7 +4,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
@@ -40,6 +40,10 @@ pub trait TemporalPropertyViewOps {
     }
 }
 
+pub trait TemporalPropertiesRowView {
+    fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
+}
+
 #[enum_dispatch]
 pub trait ConstPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
@@ -49,11 +53,8 @@ pub trait ConstPropertiesOps: Send + Sync {
     fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
     }
-    fn const_prop_values(&self) -> BoxedLIter<Prop> {
-        Box::new(self.const_prop_ids().map(|k| {
-            self.get_const_prop(k)
-                .expect("ids that come from the internal iterator should exist")
-        }))
+    fn const_prop_values(&self) -> BoxedLIter<Option<Prop>> {
+        Box::new(self.const_prop_ids().map(|k| self.get_const_prop(k)))
     }
     fn get_const_prop(&self, id: usize) -> Option<Prop>;
 }
@@ -172,7 +173,7 @@ where
     }
 
     #[inline]
-    fn const_prop_values(&self) -> BoxedLIter<Prop> {
+    fn const_prop_values(&self) -> BoxedLIter<Option<Prop>> {
         self.base().const_prop_values()
     }
 

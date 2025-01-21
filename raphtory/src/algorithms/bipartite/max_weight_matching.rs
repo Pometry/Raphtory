@@ -20,14 +20,15 @@
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
-        api::{
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
-        },
+        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::IntoDynBoxed},
         graph::{edge::EdgeView, edges::Edges, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, Prop, PropUnwrap},
 };
+
+#[cfg(feature = "python")]
+use crate::db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps};
+
 use hashbrown::HashMap;
 use raphtory_api::core::entities::{EID, VID};
 use std::{
@@ -826,16 +827,20 @@ fn verify_optimum(
 ///
 /// The function takes time O(n**3)
 ///
-/// Arguments:
+/// # Arguments
 ///
-/// * `graph` - The graph to compute the maximum weight matching for
-/// * `max_cardinality` - If set to true compute the maximum-cardinality matching
+/// - `graph` - The graph to compute the maximum weight matching for
+/// - `max_cardinality` - If set to true compute the maximum-cardinality matching
 ///     with maximum weight among all maximum-cardinality matchings
-/// * `verify_optimum_flag`: If true prior to returning an additional routine
+/// - `verify_optimum_flag`: If true prior to returning an additional routine
 ///     to verify the optimal solution was found will be run after computing
 ///     the maximum weight matching. If it's true and the found matching is not
 ///     an optimal solution this function will panic. This option should
 ///     normally be only set true during testing.
+///
+/// # Returns
+///
+///  A [Matching] object that contains a mapping of vertices to outwardly and inwardly assigned target vertices.
 ///
 /// # Example
 /// ```rust
@@ -1389,6 +1394,7 @@ pub struct Matching<G> {
     reverse_map: Arc<HashMap<VID, (VID, EID)>>,
 }
 
+#[cfg(feature = "python")]
 impl<G: StaticGraphViewOps + IntoDynamic> Matching<G> {
     pub(crate) fn into_dyn(self) -> Matching<DynamicGraph> {
         Matching {
@@ -1558,7 +1564,6 @@ mod test {
         let maxc_res = max_weight_matching(&g, Some("weight"), true, true);
 
         let matching = res;
-        println!("{}", matching);
         let maxc_matching = maxc_res;
         // Check output
         assert_eq!(matching.len(), 1);

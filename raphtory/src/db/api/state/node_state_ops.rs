@@ -1,22 +1,19 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{
-            state::{node_state::NodeState, node_state_ord_ops, Index},
-            view::internal::CoreGraphOps,
-        },
-        graph::node::NodeView,
+        api::state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
+use indexmap::IndexSet;
 use num_traits::AsPrimitive;
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    prelude::ParallelSliceMut,
-};
-use std::{borrow::Borrow, iter::Sum};
+use rayon::prelude::*;
+use std::{borrow::Borrow, hash::Hash, iter::Sum};
 
-pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
+pub trait NodeStateOps<'graph>:
+    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)> + 'graph
+{
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
     type Value<'a>: Send + Sync + Borrow<Self::OwnedValue>
@@ -30,16 +27,16 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
 
     fn base_graph(&self) -> &Self::BaseGraph;
 
-    fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;
-    fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph;
+    fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph;
 
-    fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph;
+    fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph;
 
     fn iter<'a>(
         &'a self,
@@ -52,14 +49,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     where
         'graph: 'a;
 
-    fn nodes<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = NodeView<&'a Self::BaseGraph, &'a Self::Graph>> + 'a
-    where
-        'graph: 'a,
-    {
-        self.iter().map(|(n, _)| n)
-    }
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph>;
 
     fn par_iter<'a>(
         &'a self,
@@ -81,6 +71,40 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
 
     fn len(&self) -> usize;
 
+    fn sort_by<
+        F: Fn(
+                (NodeView<&Self::BaseGraph, &Self::Graph>, &Self::OwnedValue),
+                (NodeView<&Self::BaseGraph, &Self::Graph>, &Self::OwnedValue),
+            ) -> std::cmp::Ordering
+            + Sync,
+    >(
+        &self,
+        cmp: F,
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+        let mut state: Vec<_> = self
+            .par_iter()
+            .map(|(n, v)| (n.node, v.borrow().clone()))
+            .collect();
+        let graph = self.graph();
+        let base_graph = self.base_graph();
+        state.par_sort_by(|(n1, v1), (n2, v2)| {
+            cmp(
+                (NodeView::new_one_hop_filtered(base_graph, graph, *n1), v1),
+                (NodeView::new_one_hop_filtered(base_graph, graph, *n2), v2),
+            )
+        });
+
+        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) =
+            state.into_par_iter().unzip();
+
+        NodeState::new(
+            self.base_graph().clone(),
+            self.graph().clone(),
+            values.into(),
+            Some(Index::new(keys)),
+        )
+    }
+
     /// Sorts the by its values in ascending or descending order.
     ///
     /// Arguments:
@@ -96,49 +120,12 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         &self,
         cmp: F,
     ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
-        {
-            let mut state: Vec<_> = self
-                .par_iter()
-                .map(|(n, v)| (n.node, v.borrow().clone()))
-                .collect();
-            state.par_sort_by(|(_, v1), (_, v2)| cmp(v1, v2));
-
-            let mut keys = Vec::with_capacity(state.len());
-            let mut values = Vec::with_capacity(state.len());
-            state
-                .into_par_iter()
-                .unzip_into_vecs(&mut keys, &mut values);
-
-            NodeState::new(
-                self.base_graph().clone(),
-                self.graph().clone(),
-                values,
-                Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
-            )
-        }
+        self.sort_by(|(_, v1), (_, v2)| cmp(v1, v2))
     }
 
     /// Sort the results by global node id
     fn sort_by_id(&self) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
-        let mut state: Vec<_> = self
-            .par_iter()
-            .map(|(n, v)| (n.id(), n.node, v.borrow().clone()))
-            .collect();
-        state.par_sort_by(|(l_id, l_n, _), (r_id, r_n, _)| (l_id, l_n).cmp(&(r_id, r_n)));
-
-        let mut keys = Vec::with_capacity(state.len());
-        let mut values = Vec::with_capacity(state.len());
-        state
-            .into_par_iter()
-            .map(|(_, n, v)| (n, v))
-            .unzip_into_vecs(&mut keys, &mut values);
-
-        NodeState::new(
-            self.base_graph().clone(),
-            self.graph().clone(),
-            values,
-            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
-        )
+        self.sort_by(|(n1, _), (n2, _)| n1.id().cmp(&n2.id()))
     }
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
@@ -165,7 +152,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
             k,
         );
-        let (keys, values): (Vec<_>, Vec<_>) = values
+        let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = values
             .into_iter()
             .map(|(n, v)| (n.node, v.borrow().clone()))
             .unzip();
@@ -173,8 +160,8 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         NodeState::new(
             self.base_graph().clone(),
             self.graph().clone(),
-            values,
-            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
+            values.into(),
+            Some(Index::new(keys)),
         )
     }
 
@@ -216,12 +203,23 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         values.into_iter().nth(median_index)
     }
 
+    fn group_by<V: Hash + Eq + Send + Sync + Clone, F: Fn(&Self::OwnedValue) -> V + Sync>(
+        &self,
+        group_fn: F,
+    ) -> NodeGroups<V, Self::Graph> {
+        NodeGroups::new(
+            self.par_iter()
+                .map(|(node, v)| (node.node, group_fn(v.borrow()))),
+            self.graph().clone(),
+        )
+    }
+
     fn sum<'a, S>(&'a self) -> S
     where
         'graph: 'a,
         S: Send + Sum<Self::Value<'a>> + Sum<S>,
     {
-        self.par_values().sum()
+        self.par_iter_values().sum()
     }
 
     fn mean<'a>(&'a self) -> f64

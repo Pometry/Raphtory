@@ -1,5 +1,5 @@
 [package]
-name = "examples"
+name = "rust-examples"
 version.workspace = true
 edition = "2021"
 keywords = ["graph", "temporal-graph", "temporal", "examples"]

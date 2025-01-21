@@ -7,6 +7,7 @@ import re
 import pandas as pd
 import pandas.core.frame
 import pytest
+import pyarrow as pa
 from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
@@ -199,6 +200,19 @@ def test_windowed_graph_get_node():
         assert view.node(1).id == 1
         assert view.node(10) is None
         assert view.node(1).degree() == 3
+
+    check(g)
+
+
+def test_edge_sorting():
+    g = create_graph()
+
+    @with_disk_graph
+    def check(g):
+        assert sorted(g.edges, key=lambda e: e.id) == sorted(g.edges)
+        assert sorted(g.edges.explode(), key=lambda e: (*e.id, e.time)) == sorted(
+            g.edges.explode()
+        )
 
     check(g)
 
@@ -785,6 +799,7 @@ def test_node_properties():
         }
 
         assert g.at(2).node(1).properties.temporal == {
+            "prop 3": [],
             "prop 2": [(2, 0.6)],
             "prop 4": [(2, False)],
             "prop 1": [(2, 2)],
@@ -816,7 +831,7 @@ def test_node_properties():
             == expected_names_no_static
         )
 
-        expected_names_no_static_at_1 = sorted(["prop 4", "prop 1", "prop 3"])
+        expected_names_no_static_at_1 = ["prop 1", "prop 2", "prop 3", "prop 4"]
         assert (
             sorted(g.at(1).node(1).properties.temporal.keys())
             == expected_names_no_static_at_1
@@ -899,6 +914,7 @@ def test_edge_properties():
             "prop 4": [(1, True)],
             "prop 1": [(1, 1)],
             "prop 3": [(1, "hi")],
+            "prop 2": [],
         }
 
         assert g.edge(1, 2).properties.temporal.latest() == {
@@ -920,21 +936,27 @@ def test_edge_properties():
             "prop 2": [(2, 0.6)],
             "prop 4": [(2, False)],
             "prop 1": [(2, 2)],
+            "prop 3": [],
         }
 
         assert g.after(2).edge(1, 2).properties.temporal == {
             "prop 2": [(3, 0.9)],
             "prop 3": [(3, "hello")],
             "prop 4": [(3, True)],
+            "prop 1": [],
         }
 
         assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(
             ["prop 4", "prop 1", "prop 2", "prop 3"]
         )
 
-        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(
-            ["prop 4", "prop 1", "prop 3"]
-        )
+        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == [
+            "prop 1",
+            "prop 2",
+            "prop 3",
+            "prop 4",
+        ]
+
         # find all edges that match properties
         [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
         assert e == g.edge(1, 2)
@@ -1009,11 +1031,12 @@ def create_graph_edge_properties():
     return g
 
 
-def test_graph_as_property():
+def test_arrow_array_properties():
     g = Graph()
-    g.add_edge(0, 1, 2, {"graph": g})
-    assert "graph" in g.edge(1, 2).properties
-    assert g.edge(1, 2).properties["graph"].has_edge(1, 2)
+    days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
+    g.add_edge(1, 1, 2, {"prop1": 1, "prop2": 2, "prop3": days})
+    e = g.edge(1, 2)
+    assert e.properties["prop3"] == days
 
 
 def test_map_and_list_property():
@@ -1072,7 +1095,7 @@ def test_algorithms():
             lotr_graph, "Frodo"
         )
         lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, "Frodo")
-        assert lotr_clustering_coefficient == 0.1984313726425171
+        assert lotr_clustering_coefficient == 0.1984313725490196
         assert lotr_local_triangle_count == 253
 
     check(g)
@@ -1129,6 +1152,7 @@ def test_save_load_graph():
 
         v = view.node(11)
         assert v.properties.temporal == {
+            "cost": [],
             "type": [(1, "wallet")],
             "balance": [(1, 99.5)],
         }
@@ -2109,25 +2133,30 @@ def test_materialize_graph():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for constant properties on edges
     def check(g):
+        def check_g_inner(mg):
+            assert mg.node(1).properties.get("type") == "wallet"
+            assert mg.node(4).properties == {"abc": "xyz"}
+            assert mg.node(4).properties.constant.get("abc") == "xyz"
+            check_arr(mg.node(1).history(), [-1, 0, 1, 2])
+            check_arr(mg.node(4).history(), [6, 8])
+            assert mg.nodes.id.collect() == [1, 2, 3, 4]
+            assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
+            assert g.nodes.id.collect() == mg.nodes.id.collect()
+            assert set(g.edges.id) == set(mg.edges.id)
+            assert mg.node(1).properties.constant == {}
+            assert mg.node(4).properties.constant == {"abc": "xyz"}
+            assert g.edge(1, 2).id == (1, 2)
+            assert mg.edge(1, 2).id == (1, 2)
+            assert mg.has_edge(1, 2)
+            assert g.has_edge(1, 2)
+            assert mg.has_edge(2, 1)
+            assert g.has_edge(2, 1)
+
+        check_g_inner(g)
+
         mg = g.materialize()
 
-        assert mg.node(1).properties.get("type") == "wallet"
-        assert mg.node(4).properties == {"abc": "xyz"}
-        assert mg.node(4).properties.constant.get("abc") == "xyz"
-        check_arr(mg.node(1).history(), [-1, 0, 1, 2])
-        check_arr(mg.node(4).history(), [6, 8])
-        assert mg.nodes.id.collect() == [1, 2, 3, 4]
-        assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-        assert g.nodes.id.collect() == mg.nodes.id.collect()
-        assert set(g.edges.id) == set(mg.edges.id)
-        assert mg.node(1).properties.constant == {}
-        assert mg.node(4).properties.constant == {"abc": "xyz"}
-        assert g.edge(1, 2).id == (1, 2)
-        assert mg.edge(1, 2).id == (1, 2)
-        assert mg.has_edge(1, 2)
-        assert g.has_edge(1, 2)
-        assert mg.has_edge(2, 1)
-        assert g.has_edge(2, 1)
+        check_g_inner(mg)
 
         sprop2 = {"sprop 3": 11, "sprop 4": 10}
         mg.add_constant_properties(sprop2)
@@ -2748,7 +2777,7 @@ def test_NaN_NaT_as_properties():
     @with_disk_graph
     def check(g):
         assert g.node(103).properties.temporal.get("floats").items() == [(30, 2.4)]
-        assert g.node(101).properties.temporal.get("floats") == None
+        assert g.node(101).properties.temporal.get("floats") == []
 
     check(g)
 
@@ -2882,41 +2911,6 @@ def test_unique_temporal_properties():
             expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
         )
         assert sorted_actual_list == sorted_expected_list
-
-    check(g)
-    g1 = Graph()
-    g1.add_constant_properties({"type": "a"})
-    g1.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g1})
-    g2 = Graph()
-    g2.add_constant_properties({"type": "b"})
-    g2.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g2})
-    g3 = Graph()
-    g3.add_constant_properties({"type": "c"})
-    g3.add_node(1, "shivam")
-    g.add_node(7, 3, {"graph": g3})
-
-    # @with_disk_graph #FIXME List, Map and NDTime properties are not supported
-    def check(g):
-        actual_list = g.node(3).properties.temporal.get("graph").unique()
-        expected_list = [g1, g3]
-        sorted_actual_list = sorted(
-            actual_list, key=lambda g: g.properties.constant.get("type")
-        )
-        sorted_expected_list = sorted(
-            expected_list, key=lambda g: g.properties.constant.get("type")
-        )
-        assert sorted_actual_list == sorted_expected_list
-
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
-            (5, 1),
-            (6, 5),
-        ]
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
-            (4, 1),
-            (6, 5),
-        ]
 
     check(g)
 

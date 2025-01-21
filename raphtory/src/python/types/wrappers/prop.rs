@@ -1,63 +1,48 @@
 use super::document::PyDocument;
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Prop},
-    db::graph::views::{
-        deletion_graph::PersistentGraph,
-        property_filter::internal::{
-            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
-        },
+    core::{prop_array::PropArray, utils::errors::GraphError, DocumentInput, Prop},
+    db::graph::views::property_filter::internal::{
+        InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
-    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
+    python::types::repr::Repr,
 };
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool};
+use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
+use pyo3_arrow::PyArray;
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
-impl ToPyObject for Prop {
-    fn to_object(&self, py: Python) -> PyObject {
-        match self {
-            Prop::Str(s) => s.clone().into_py(py),
-            Prop::Bool(bool) => bool.into_py(py),
-            Prop::U8(u8) => u8.into_py(py),
-            Prop::U16(u16) => u16.into_py(py),
-            Prop::I64(i64) => i64.into_py(py),
-            Prop::U64(u64) => u64.into_py(py),
-            Prop::F64(f64) => f64.into_py(py),
-            Prop::DTime(dtime) => dtime.into_py(py),
-            Prop::NDTime(ndtime) => ndtime.into_py(py),
-            Prop::Graph(g) => g.clone().into_py(py), // Need to find a better way
-            Prop::PersistentGraph(g) => g.clone().into_py(py), // Need to find a better way
-            Prop::Document(d) => PyDocument::from(d.clone()).into_py(py),
-            Prop::I32(v) => v.into_py(py),
-            Prop::U32(v) => v.into_py(py),
-            Prop::F32(v) => v.into_py(py),
-            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
-            Prop::Map(v) => v.deref().clone().into_py(py),
-        }
-    }
-}
+impl<'py> IntoPyObject<'py> for Prop {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
 
-impl IntoPy<PyObject> for Prop {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Prop::Str(s) => s.into_py(py),
-            Prop::Bool(bool) => bool.into_py(py),
-            Prop::U8(u8) => u8.into_py(py),
-            Prop::U16(u16) => u16.into_py(py),
-            Prop::I64(i64) => i64.into_py(py),
-            Prop::U64(u64) => u64.into_py(py),
-            Prop::F64(f64) => f64.into_py(py),
-            Prop::DTime(dtime) => dtime.into_py(py),
-            Prop::NDTime(ndtime) => ndtime.into_py(py),
-            Prop::Graph(g) => g.into_py(py), // Need to find a better way
-            Prop::PersistentGraph(g) => g.into_py(py), // Need to find a better way
-            Prop::Document(d) => PyDocument::from(d).into_py(py),
-            Prop::I32(v) => v.into_py(py),
-            Prop::U32(v) => v.into_py(py),
-            Prop::F32(v) => v.into_py(py),
-            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
-            Prop::Map(v) => v.deref().clone().into_py(py),
-        }
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Prop::Str(s) => s.into_pyobject(py)?.into_any(),
+            Prop::Bool(bool) => bool.into_pyobject(py)?.into_bound_py_any(py)?,
+            Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
+            Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
+            Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
+            Prop::U64(u64) => u64.into_pyobject(py)?.into_any(),
+            Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
+            Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
+            Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
+            Prop::Array(blob) => {
+                if let Some(arr_ref) = blob.into_array_ref() {
+                    pyo3_arrow::PyArray::from_array_ref(arr_ref)
+                        .to_pyarrow(py)?
+                        .into_bound(py)
+                } else {
+                    py.None().into_bound(py)
+                }
+            }
+            Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
+            Prop::I32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::U32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::F32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+        })
     }
 }
 
@@ -82,12 +67,6 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
-        if let Ok(g) = ob.extract() {
-            return Ok(Prop::Graph(g));
-        }
-        if let Ok(g) = ob.extract::<PersistentGraph>() {
-            return Ok(Prop::PersistentGraph(g));
-        }
         if let Ok(d) = ob.extract::<PyDocument>() {
             return Ok(Prop::Document(DocumentInput {
                 content: d.content,
@@ -100,7 +79,14 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));
         }
-        Err(PyTypeError::new_err("Not a valid property type"))
+        if let Ok(arrow) = ob.extract::<PyArray>() {
+            let (arr, _) = arrow.into_inner();
+            return Ok(Prop::Array(PropArray::Array(arr)));
+        }
+        Err(PyTypeError::new_err(format!(
+            "Could not convert {:?} to Prop",
+            ob
+        )))
     }
 }
 
@@ -116,8 +102,7 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::NDTime(v) => v.repr(),
-            Prop::Graph(g) => PyGraphView::from(g.clone()).repr(),
-            Prop::PersistentGraph(g) => PyGraphView::from(g.clone()).repr(),
+            Prop::Array(v) => format!("{:?}", v),
             Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
@@ -186,6 +171,9 @@ impl InternalNodePropertyFilterOps for PyPropertyFilter {
 /// property value (these filters always exclude entities that do not
 /// have the property) or use one of the methods to construct
 /// other kinds of filters.
+///
+/// Arguments:
+///     name (str): the name of the property
 #[pyclass(frozen, name = "Prop", module = "raphtory")]
 #[derive(Clone)]
 pub struct PyPropertyRef {
@@ -230,18 +218,30 @@ impl PyPropertyRef {
     }
 
     /// Create a filter that only keeps entities if they have the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn is_some(&self) -> PyPropertyFilter {
         let filter = PropertyFilter::is_some(&self.name);
         PyPropertyFilter(filter)
     }
 
     /// Create a filter that only keeps entities that do not have the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn is_none(&self) -> PyPropertyFilter {
         let filter = PropertyFilter::is_none(&self.name);
         PyPropertyFilter(filter)
     }
 
     /// Create a filter that keeps entities if their property value is in the set
+    ///
+    /// Arguments:
+    ///     values (set[PropValue]): the set of values to match
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::any(&self.name, values);
         PyPropertyFilter(filter)
@@ -249,6 +249,12 @@ impl PyPropertyRef {
 
     /// Create a filter that keeps entities if their property value is not in the set or
     /// if they don't have the property
+    ///
+    /// Arguments:
+    ///     values (set[PropValue]): the set of values to exclude
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::not_any(&self.name, values);
         PyPropertyFilter(filter)

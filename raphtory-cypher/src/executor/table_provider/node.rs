@@ -31,6 +31,7 @@ use raphtory::{
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
 // FIXME: review this file, some of the assuptions and mapping between partitions and chunk sizes are not correct
+#[derive(Debug)]
 pub struct NodeTableProvider {
     graph: DiskGraphStorage,
     schema: SchemaRef,

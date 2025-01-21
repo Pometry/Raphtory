@@ -251,7 +251,15 @@ where
 }
 
 ///////////////////////////////////////////////////////
-
+/// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
+///
+/// # Arguments
+/// - `g`: A directed raphtory graph
+/// - `deltas`: A list of delta values to use.
+/// - `threads`: Number of threads to use
+///
+/// # Returns
+/// A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
 pub fn temporal_three_node_motif_multi<G>(
     g: &G,
     deltas: Vec<i64>,
@@ -303,6 +311,19 @@ where
     )
 }
 
+/// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
+///
+/// # Arguments
+/// - `g`: A directed raphtory graph
+/// - `delta`: Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+/// - `threads`: Number of threads to use
+///
+/// # Returns
+/// A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
+///
+/// # Notes
+/// This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
+///
 pub fn global_temporal_three_node_motif<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,

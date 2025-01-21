@@ -40,7 +40,7 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 /// The hyperlink network represents the directed connections between two subreddits (a subreddit
 /// is a community_detection on Reddit). We also provide subreddit embeddings. The network is extracted
 /// from publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.
-/// *NOTE: It may take a while to download the dataset
+/// *NOTE: It may take a while to download the dataset*
 ///
 /// Dataset statistics:
 ///   * Number of nodes (subreddits) 35,776
@@ -49,7 +49,7 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 ///
 /// Source:
 ///     * S. Kumar, W.L. Hamilton, J. Leskovec, D. Jurafsky. Community Interaction and Conflict
-///     on the Web. World Wide Web Conference, 2018.
+///       on the Web. World Wide Web Conference, 2018.
 ///
 /// Properties:
 ///
@@ -58,18 +58,18 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 ///  * POST_ID: the post in the source subreddit that starts the link
 ///  * TIMESTAMP: time time of the post
 ///  * POST_LABEL: label indicating if the source post is explicitly negative towards the target
-/// post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
-/// positive. The label is created using crowd-sourcing and training a text based classifier, and
-/// is better than simple sentiment analysis of the posts. Please see the reference paper for details.
+///    post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
+///    positive. The label is created using crowd-sourcing and training a text based classifier, and
+///    is better than simple sentiment analysis of the posts. Please see the reference paper for details.
 ///  * POST_PROPERTIES: a vector representing the text properties of the source post, listed as a
-/// list of comma separated numbers. This can be found on the source website
+///    list of comma separated numbers. This can be found on the source website
 ///
 /// Arguments:
 ///   shards: The number of shards to use for the graph
 ///   timeout_seconds: The number of seconds to wait for the dataset to download
 ///
 /// Returns:
-///  A Graph containing the Reddit hyperlinks dataset
+///  Graph: A Graph containing the Reddit hyperlinks dataset
 #[pyfunction]
 #[pyo3(signature = (timeout_seconds=600))]
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {

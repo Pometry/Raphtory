@@ -3,6 +3,7 @@ from raphtory import Graph
 # Range queries are not supported for properties in tantivy (as of 0.22) because they are implemented as json.
 # See https://github.com/quickwit-oss/tantivy/issues/1709
 
+
 def test_search_in_python():
     g = Graph()
     g.add_node(

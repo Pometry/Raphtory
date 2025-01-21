@@ -33,6 +33,7 @@ pub mod algorithms;
 pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
+pub(crate) mod sorting;
 
 #[derive(Debug)]
 pub struct MissingGraph;

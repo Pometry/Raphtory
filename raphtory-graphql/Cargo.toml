@@ -48,6 +48,7 @@ config = { workspace = true }
 url = { workspace = true }
 base64-compat = { workspace = true }
 reqwest = { workspace = true }
+rustc-hash = { workspace = true }
 moka = { workspace = true }
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -58,6 +59,8 @@ clap = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+pretty_assertions = { workspace = true }
+arrow-array = { workspace = true }
 
 [features]
 storage = ["raphtory/storage"]

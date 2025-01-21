@@ -4,6 +4,6 @@ sphinx_copybutton
 sphinx_design
 sphinx_favicon
 autodocsumm
-nbsphinx
 numpydoc
 pydata-sphinx-theme
+sphinx >= 8

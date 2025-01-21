@@ -8,7 +8,9 @@ use crate::{
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
-        template::DocumentTemplate,
+        template::{
+            DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
+        },
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
@@ -21,6 +23,7 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
+    IntoPyObjectExt,
 };
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
@@ -108,8 +111,8 @@ pub fn into_py_document(
     document: Document,
     graph: &DynamicVectorisedGraph,
     py: Python,
-) -> PyDocument {
-    match document {
+) -> PyResult<PyDocument> {
+    let doc = match document {
         Document::Graph {
             content,
             life,
@@ -117,7 +120,7 @@ pub fn into_py_document(
             ..
         } => PyDocument {
             content,
-            entity: Some(graph.source_graph.clone().into_py(py)),
+            entity: Some(graph.source_graph.clone().into_py_any(py)?),
             embedding: Some(PyEmbedding(embedding)),
             life,
         },
@@ -131,7 +134,7 @@ pub fn into_py_document(
 
             PyDocument {
                 content,
-                entity: Some(node.into_py(py)),
+                entity: Some(node.into_py_any(py)?),
                 embedding: Some(PyEmbedding(embedding)),
                 life,
             }
@@ -147,11 +150,40 @@ pub fn into_py_document(
 
             PyDocument {
                 content,
-                entity: Some(edge.into_py(py)),
+                entity: Some(edge.into_py_any(py)?),
                 embedding: Some(PyEmbedding(embedding)),
                 life,
             }
         }
+    };
+    Ok(doc)
+}
+
+#[derive(FromPyObject)]
+pub enum TemplateConfig {
+    Bool(bool),
+    String(String),
+    // re-enable the code below to be able to customise the erro message
+    // #[pyo3(transparent)]
+    // CatchAll(Bound<'py, PyAny>), // This extraction never fails
+}
+
+impl TemplateConfig {
+    pub fn get_template_or(self, default: &str) -> Option<String> {
+        match self {
+            Self::Bool(vectorise) => {
+                if vectorise {
+                    Some(default.to_owned())
+                } else {
+                    None
+                }
+            }
+            Self::String(custom_template) => Some(custom_template),
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Bool(false))
     }
 }
 
@@ -161,35 +193,36 @@ impl PyGraphView {
     ///
     /// Args:
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
-    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-    ///   graph_template (str): the document template for the graphs (optional)
-    ///   node_template (str): the document template for the nodes (optional)
-    ///   edge_template (str): the document template for the edges (optional)
-    ///   verbose (bool): whether or not to print logs reporting the progress
+    ///   cache (str, optional): the file to be used as a cache to avoid calling the embedding function
+    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings. Defaults to False.
+    ///   graph (bool | str): if the graph has to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   graph_name (str, optional): the name of the graph
+    ///   verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
     ///
     /// Returns:
-    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, graph_name = None, verbose = false))]
+    ///   VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), graph_name = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: Bound<PyFunction>,
         cache: Option<String>,
         overwrite_cache: bool,
-        graph_template: Option<String>,
-        node_template: Option<String>,
-        edge_template: Option<String>,
+        graph: TemplateConfig,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
         graph_name: Option<String>,
         verbose: bool,
     ) -> PyResult<DynamicVectorisedGraph> {
-        let graph = self.graph.clone();
+        let template = DocumentTemplate {
+            graph_template: graph.get_template_or(DEFAULT_GRAPH_TEMPLATE),
+            node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
+            edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
+        };
         let embedding = embedding.unbind();
         let cache = cache.map(|cache| cache.into()).into();
-        let template = DocumentTemplate {
-            graph_template,
-            node_template,
-            edge_template,
-        };
+        let graph = self.graph.clone();
         execute_async_task(move || async move {
             Ok(graph
                 .vectorise(
@@ -205,7 +238,7 @@ impl PyGraphView {
     }
 }
 
-#[pyclass(name = "VectorisedGraph", frozen)]
+#[pyclass(name = "VectorisedGraph", module = "raphtory.vectors", frozen)]
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
@@ -220,15 +253,23 @@ impl From<VectorisedGraph<MaterializedGraph>> for PyVectorisedGraph {
     }
 }
 
-impl IntoPy<PyObject> for DynamicVectorisedGraph {
-    fn into_py(self, py: Python) -> PyObject {
-        Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
+impl<'py> IntoPyObject<'py> for DynamicVectorisedGraph {
+    type Target = PyVectorisedGraph;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyVectorisedGraph(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for DynamicVectorSelection {
-    fn into_py(self, py: Python) -> PyObject {
-        Py::new(py, PyVectorSelection(self)).unwrap().into_py(py)
+impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
+    type Target = PyVectorSelection;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyVectorSelection(self).into_pyobject(py)
     }
 }
 
@@ -335,7 +376,7 @@ impl PyVectorisedGraph {
     }
 }
 
-#[pyclass(name = "VectorSelection")]
+#[pyclass(name = "VectorSelection", module = "raphtory.vectors")]
 pub struct PyVectorSelection(DynamicVectorSelection);
 
 /// A vectorised graph, containing a set of documents positioned in the graph space and a selection
@@ -343,6 +384,9 @@ pub struct PyVectorSelection(DynamicVectorSelection);
 #[pymethods]
 impl PyVectorSelection {
     /// Return the nodes present in the current selection
+    ///
+    /// Returns:
+    ///     list[Node]: list of nodes in the current selection
     fn nodes(&self) -> Vec<PyNode> {
         self.0
             .nodes()
@@ -352,6 +396,9 @@ impl PyVectorSelection {
     }
 
     /// Return the edges present in the current selection
+    ///
+    /// Returns:
+    ///     list[Edge]: list of edges in the current selection
     fn edges(&self) -> Vec<PyEdge> {
         self.0
             .edges()
@@ -361,19 +408,26 @@ impl PyVectorSelection {
     }
 
     /// Return the documents present in the current selection
-    fn get_documents(&self, py: Python) -> Vec<PyDocument> {
+    ///
+    /// Returns:
+    ///     list[Document]: list of documents in the current selection
+    fn get_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
         // TODO: review if I can simplify this
-        self.get_documents_with_scores(py)
+        Ok(self
+            .get_documents_with_scores(py)?
             .into_iter()
             .map(|(doc, _)| doc)
-            .collect_vec()
+            .collect_vec())
     }
 
     /// Return the documents alongside their scores present in the current selection
-    fn get_documents_with_scores(&self, py: Python) -> Vec<(PyDocument, f32)> {
+    ///
+    /// Returns:
+    ///     list[Tuple[Document, float]]: list of documents and scores
+    fn get_documents_with_scores(&self, py: Python) -> PyResult<Vec<(PyDocument, f32)>> {
         let docs = self.0.get_documents_with_scores();
         docs.into_iter()
-            .map(|(doc, score)| (into_py_document(doc, &self.0.graph, py), score))
+            .map(|(doc, score)| Ok((into_py_document(doc, &self.0.graph, py)?, score)))
             .collect()
     }
 
@@ -383,6 +437,9 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   nodes (list): a list of the node ids or nodes to add
+    ///
+    /// Returns:
+    ///     None:
     fn add_nodes(mut self_: PyRefMut<'_, Self>, nodes: Vec<PyNodeRef>) {
         self_.0.add_nodes(nodes)
     }
@@ -393,6 +450,9 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   edges (list):  a list of the edge ids or edges to add
+    ///
+    /// Returns:
+    ///     None:
     fn add_edges(mut self_: PyRefMut<'_, Self>, edges: Vec<(PyNodeRef, PyNodeRef)>) {
         self_.0.add_edges(edges)
     }
@@ -400,10 +460,10 @@ impl PyVectorSelection {
     /// Add all the documents in `selection` to the current selection
     ///
     /// Args:
-    ///   selection: a selection to be added
+    ///   selection (VectorSelection): a selection to be added
     ///
     /// Returns:
-    ///   The selection with the new documents
+    ///   VectorSelection: The selection with the new documents
     pub fn append(mut self_: PyRefMut<'_, Self>, selection: &Self) -> DynamicVectorSelection {
         self_.0.append(&selection.0).clone()
     }
@@ -418,6 +478,9 @@ impl PyVectorSelection {
     /// Args:
     ///   hops (int): the number of hops to carry out the expansion
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (hops, window=None))]
     fn expand(mut self_: PyRefMut<'_, Self>, hops: usize, window: PyWindow) {
         self_.0.expand(hops, translate_window(window))
@@ -427,16 +490,20 @@ impl PyVectorSelection {
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the documents 1 hop away of some of the documents included on the selection (and
-    /// not already selected) are marked as candidates.
+    ///      not already selected) are marked as candidates.
     ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///      similarity score obtained against the `query`.
     ///
     /// This loops goes on until the current selection reaches a total of `limit`  documents or
     /// until no more documents are available
     ///
     /// Args:
     ///   query (str | list): the text or the embedding to score against
+    ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_documents_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -455,16 +522,20 @@ impl PyVectorSelection {
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the entities 1 hop away of some of the entities included on the selection (and
-    /// not already selected) are marked as candidates.
+    ///      not already selected) are marked as candidates.
     ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///      similarity score obtained against the `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// Args:
     ///   query (str | list): the text or the embedding to score against
+    ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_entities_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -487,6 +558,9 @@ impl PyVectorSelection {
     ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new nodes to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_nodes_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -509,6 +583,9 @@ impl PyVectorSelection {
     ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new edges to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_edges_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -538,7 +615,7 @@ impl EmbeddingFunction for Py<PyFunction> {
         Box::pin(async move {
             Python::with_gil(|py| {
                 let embedding_function = embedding_function.bind(py);
-                let python_texts = PyList::new_bound(py, texts);
+                let python_texts = PyList::new(py, texts)?;
                 let result = embedding_function.call1((python_texts,))?;
                 let embeddings = result.downcast::<PyList>().map_err(|_| {
                     PyTypeError::new_err(

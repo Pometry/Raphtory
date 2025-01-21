@@ -184,16 +184,40 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .is_some()
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
         // separate timestamps from node property updates and edge additions currently
         self.graph.node_history(v)
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
         // separate timestamps from node property updates and edge additions currently
         self.graph.node_history_window(v, w)
+    }
+
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph.node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
+        self.graph.node_history_rows(v, w)
+    }
+
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph.node_property_history(v, w)
     }
 
     fn edge_history<'a>(
@@ -388,20 +412,10 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
-
-    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        self.graph.has_temporal_node_prop(v, prop_id)
-    }
-
     fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         // FIXME: this is wrong as we should not include filtered-out edges here
         self.graph.temporal_node_prop_hist(v, id)
     }
-
-    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph.has_temporal_node_prop_window(v, prop_id, w)
-    }
-
     fn temporal_node_prop_hist_window(
         &self,
         v: VID,
@@ -411,20 +425,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         // FIXME: this is wrong as we should not include filtered-out edges here
         self.graph.temporal_node_prop_hist_window(v, id, start, end)
-    }
-
-    fn has_temporal_edge_prop_window(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.edge_window_exploded(e, w, layer_ids).any(move |e| {
-            self.graph
-                .temporal_edge_prop_at(e, prop_id, e.time().unwrap(), layer_ids)
-                .is_some()
-        })
     }
 
     fn temporal_edge_prop_hist_window<'a>(
@@ -451,12 +451,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         self.graph
             .temporal_edge_prop_at(e, id, t, layer_ids)
             .filter(move |_| self.filter(e, t, layer_ids))
-    }
-
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        self.temporal_edge_prop_hist(e, prop_id, layer_ids)
-            .next()
-            .is_some()
     }
 
     fn temporal_edge_prop_hist<'a>(

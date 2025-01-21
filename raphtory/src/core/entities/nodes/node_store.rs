@@ -2,19 +2,15 @@ use crate::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
         nodes::structure::adj::Adj,
-        properties::{props::Props, tprop::TProp},
+        properties::{props::Props, tcell::TCell},
         LayerIds, EID, GID, VID,
     },
-    storage::{
-        lazy_vec::IllegalSet,
-        timeindex::{AsTime, TimeIndex, TimeIndexEntry},
-        ArcEntry, Entry,
-    },
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcNodeEntry, NodeEntry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::GidRef;
+use raphtory_api::{core::entities::GidRef, iter::BoxedLIter};
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Deref};
 
@@ -22,13 +18,21 @@ use std::{iter, ops::Deref};
 pub struct NodeStore {
     pub(crate) global_id: GID,
     pub(crate) vid: VID,
-    // all the timestamps that have been seen by this node
-    timestamps: TimeIndex<i64>,
     // each layer represents a separate view of the graph
     pub(crate) layers: Vec<Adj>,
     // props for node
     pub(crate) props: Option<Props>,
     pub(crate) node_type: usize,
+
+    /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
+    timestamps: NodeTimestamps,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+pub struct NodeTimestamps {
+    // all the timestamps that have been seen by this node
+    pub(crate) edge_ts: TCell<EID>,
+    pub(crate) props_ts: TCell<Option<usize>>,
 }
 
 impl NodeStore {
@@ -51,7 +55,7 @@ impl NodeStore {
         Self {
             global_id,
             vid: VID(0),
-            timestamps: TimeIndex::Empty,
+            timestamps: Default::default(),
             layers,
             props: None,
             node_type: 0,
@@ -73,27 +77,18 @@ impl NodeStore {
         &self.global_id
     }
 
-    pub fn timestamps(&self) -> &TimeIndex<i64> {
+    pub fn timestamps(&self) -> &NodeTimestamps {
         &self.timestamps
     }
 
-    pub fn update_time(&mut self, t: TimeIndexEntry) {
-        self.timestamps.insert(t.t());
+    #[inline]
+    pub fn update_time(&mut self, t: TimeIndexEntry, eid: EID) {
+        self.timestamps.edge_ts.set(t, eid);
     }
 
     pub fn update_node_type(&mut self, node_type: usize) -> usize {
         self.node_type = node_type;
         node_type
-    }
-
-    pub fn add_prop(
-        &mut self,
-        t: TimeIndexEntry,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), GraphError> {
-        let props = self.props.get_or_insert_with(Props::new);
-        props.add_prop(t, prop_id, prop)
     }
 
     pub fn add_constant_prop(
@@ -108,6 +103,10 @@ impl NodeStore {
     pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
         let props = self.props.get_or_insert_with(Props::new);
         props.update_constant_prop(prop_id, prop)
+    }
+
+    pub fn update_t_prop_time(&mut self, t: TimeIndexEntry, prop_i: Option<usize>) {
+        self.timestamps.props_ts.set(t, prop_i);
     }
 
     #[inline(always)]
@@ -151,9 +150,9 @@ impl NodeStore {
         &'a self,
         layers: &LayerIds,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+    ) -> BoxedLIter<'a, EdgeRef> {
         let self_id = self.vid;
-        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+        let iter: BoxedLIter<'a, EdgeRef> = match d {
             Direction::OUT => self.merge_layers(layers, Direction::OUT, self_id),
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
@@ -167,12 +166,7 @@ impl NodeStore {
         iter
     }
 
-    fn merge_layers(
-        &self,
-        layers: &LayerIds,
-        d: Direction,
-        self_id: VID,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+    fn merge_layers(&self, layers: &LayerIds, d: Direction, self_id: VID) -> BoxedLIter<EdgeRef> {
         match layers {
             LayerIds::All => Box::new(
                 self.layers
@@ -204,8 +198,8 @@ impl NodeStore {
         layer: &'a Adj,
         d: Direction,
         self_id: VID,
-    ) -> impl Iterator<Item = EdgeRef> + Send + 'a {
-        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a {
+        let iter: BoxedLIter<'a, EdgeRef> = match d {
             Direction::IN => Box::new(
                 layer
                     .iter(d)
@@ -251,11 +245,7 @@ impl NodeStore {
 
     // every neighbour apears once in the iterator
     // this is important because it calculates degree
-    pub(crate) fn neighbours<'a>(
-        &'a self,
-        layers: &LayerIds,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
+    pub(crate) fn neighbours<'a>(&'a self, layers: &LayerIds, d: Direction) -> BoxedLIter<'a, VID> {
         match layers {
             LayerIds::All => {
                 let iter = self
@@ -287,12 +277,8 @@ impl NodeStore {
         }
     }
 
-    fn neighbours_from_adj<'a>(
-        &'a self,
-        layer: &'a Adj,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
-        let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
+    fn neighbours_from_adj<'a>(&'a self, layer: &'a Adj, d: Direction) -> BoxedLIter<'a, VID> {
+        let iter: BoxedLIter<'a, VID> = match d {
             Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
             Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
             Direction::BOTH => Box::new(
@@ -311,33 +297,26 @@ impl NodeStore {
             .flat_map(|ps| ps.const_prop_ids())
     }
 
-    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-        self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
-    }
-
     pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
-
-    pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.props
-            .as_ref()
-            .into_iter()
-            .flat_map(|ps| ps.temporal_prop_ids())
-    }
 }
 
-impl ArcEntry<NodeStore> {
+impl ArcNodeEntry {
     pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().edge_tuples(layers, dir)
+        })
     }
 
     pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().neighbours(layers, dir).into()
+        })
     }
 
     pub fn into_layers(self) -> LockedLayers {
-        let len = self.layers.len();
+        let len = self.get_entry().node().layers.len();
         LockedLayers {
             entry: self,
             pos: 0,
@@ -346,20 +325,20 @@ impl ArcEntry<NodeStore> {
     }
 
     pub fn into_layer(self, offset: usize) -> Option<LockedLayer> {
-        (offset < self.layers.len()).then_some(LockedLayer {
+        (offset < self.get_entry().node().layers.len()).then_some(LockedLayer {
             entry: self,
             offset,
         })
     }
 }
 
-impl<'a> Entry<'a, NodeStore> {
+impl<'a> NodeEntry<'a> {
     pub fn into_neighbours(
         self,
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.get_entry().node().neighbours(layers, dir))
     }
 
     pub fn into_edges(
@@ -367,7 +346,9 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().edge_tuples(layers, dir)
+        })
     }
 
     pub fn into_edges_iter(
@@ -375,12 +356,14 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| {
+            node.get_entry().node().edge_tuples(layers, dir)
+        })
     }
 }
 
 pub struct LockedLayers {
-    entry: ArcEntry<NodeStore>,
+    entry: ArcNodeEntry,
     pos: usize,
     len: usize,
 }
@@ -407,7 +390,7 @@ impl Iterator for LockedLayers {
 }
 
 pub struct LockedLayer {
-    entry: ArcEntry<NodeStore>,
+    entry: ArcNodeEntry,
     offset: usize,
 }
 
@@ -416,7 +399,7 @@ impl Deref for LockedLayer {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.entry.layers[self.offset]
+        &self.entry.get_entry().node().layers[self.offset]
     }
 }
 

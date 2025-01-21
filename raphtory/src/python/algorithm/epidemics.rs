@@ -12,7 +12,7 @@ use crate::{
 };
 use pyo3::{
     prelude::*,
-    types::{PyFloat, PyLong},
+    types::{PyFloat, PyInt},
 };
 use rand::Rng;
 
@@ -27,7 +27,7 @@ impl Repr for Infected {
 }
 
 #[pyclass]
-struct PyInfected {
+pub struct PyInfected {
     inner: Infected,
 }
 
@@ -53,15 +53,13 @@ impl PyInfected {
     }
 }
 
-impl IntoPy<PyObject> for Infected {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyInfected { inner: self }.into_py(py)
-    }
-}
+impl<'py> IntoPyObject<'py> for Infected {
+    type Target = PyInfected;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
-impl ToPyObject for Infected {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone().into_py(py)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyInfected { inner: self }.into_pyobject(py)
     }
 }
 
@@ -73,7 +71,7 @@ pub enum PySeed {
 
 impl<'source> FromPyObject<'source> for PySeed {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let res = if ob.is_instance_of::<PyLong>() {
+        let res = if ob.is_instance_of::<PyInt>() {
             Self::Number(ob.extract()?)
         } else if ob.is_instance_of::<PyFloat>() {
             Self::Probability(ob.extract()?)
@@ -99,7 +97,7 @@ impl IntoSeeds for PySeed {
 }
 
 py_algorithm_result!(AlgorithmResultSEIR, DynamicGraph, Infected, Infected);
-py_algorithm_result_new_ord_hash_eq!(AlgorithmResultSEIR, DynamicGraph, Infected, Infected);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultSEIR, DynamicGraph, Infected);
 
 impl From<SeedError> for PyErr {
     fn from(value: SeedError) -> Self {

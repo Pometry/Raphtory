@@ -9,6 +9,7 @@ use crate::{
             accumulator_id::accumulators::sum,
             compute_state::{ComputeState, ComputeStateVec},
         },
+        utils::errors::GraphError,
         Direction,
     },
     db::{
@@ -20,7 +21,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
+    prelude::*,
 };
 use ordered_float::OrderedFloat;
 
@@ -36,13 +37,13 @@ use ordered_float::OrderedFloat;
 ///   the weight is treated as positive.
 /// - In all other cases, the weight contribution is zero.
 ///
-/// Arguments:
+/// # Arguments
 /// - `v`: The node for which we want to compute the weight sum.
 /// - `name`: The name of the property which holds the edge weight.
 /// - `direction`: Specifies the direction of edges to consider (`IN`, `OUT`, or `BOTH`).
 ///
-/// Returns:
-/// Returns a `f64` which is the net sum of weights for the node considering the specified direction.
+/// # Returns
+/// An `f64` which is the net sum of weights for the node considering the specified direction.
 fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState>(
     v: &EvalNodeView<'graph, '_, G, (), GH, CS>,
     name: &str,
@@ -58,7 +59,7 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, C
                 prop.temporal().get(name).map(|val| {
                     val.values()
                         .into_iter()
-                        .map(|valval| valval.into_f64().unwrap_or(0.0f64))
+                        .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
             })
@@ -70,7 +71,7 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, C
                 prop.temporal().get(name).map(|val| {
                     val.values()
                         .into_iter()
-                        .map(|valval| valval.into_f64().unwrap_or(0.0f64))
+                        .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
             })
@@ -89,23 +90,53 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, C
 /// Incoming edges have a positive sum and outgoing edges have a negative sum
 /// It uses a compute context and tasks to achieve this.
 ///
-/// Arguments:
+/// # Arguments
 /// - `graph`: The graph on which the operation is to be performed.
 /// - `name`: The name of the property which holds the edge weight.
 /// - `threads`: An optional parameter to specify the number of threads to use.
 ///              If `None`, it defaults to a suitable number.
 ///
-/// Returns:
-/// Returns an `AlgorithmResult` which maps each node to its corresponding net weight sum.
+/// # Returns
+/// An [AlgorithmResult] which maps each node to its corresponding net weight sum.
 pub fn balance<G: StaticGraphViewOps>(
     graph: &G,
     name: String,
     direction: Direction,
     threads: Option<usize>,
-) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
+) -> Result<AlgorithmResult<G, f64, OrderedFloat<f64>>, GraphError> {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let min = sum(0);
     ctx.agg(min);
+
+    let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
+        Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
+        None => graph
+            .edge_meta()
+            .const_prop_meta()
+            .get_id(&name)
+            .map(|weight_id| {
+                graph
+                    .edge_meta()
+                    .const_prop_meta()
+                    .get_dtype(weight_id)
+                    .unwrap()
+            }),
+    };
+    match weight_type {
+        None => {
+            return Err(GraphError::InvalidProperty {
+                reason: "Edge property {name} does not exist".to_string(),
+            })
+        }
+        Some(weight_type) => {
+            if !weight_type.is_numeric() {
+                return Err(GraphError::InvalidProperty {
+                    reason: "Edge property {name} is not numeric".to_string(),
+                });
+            }
+        }
+    }
+
     let step1 = ATask::new(move |evv| {
         let res = balance_per_node(evv, &name, direction);
         evv.update(&min, res);
@@ -124,7 +155,12 @@ pub fn balance<G: StaticGraphViewOps>(
     );
 
     let results_type = std::any::type_name::<f64>();
-    AlgorithmResult::new(graph.clone(), "Balance", results_type, runner_result)
+    Ok(AlgorithmResult::new(
+        graph.clone(),
+        "Balance",
+        results_type,
+        runner_result,
+    ))
 }
 
 #[cfg(test)]
@@ -144,14 +180,14 @@ mod sum_weight_test {
         let graph = Graph::new();
 
         let vs = vec![
-            ("1", "2", 10.0, 1),
-            ("1", "4", 20.0, 2),
-            ("2", "3", 5.0, 3),
-            ("3", "2", 2.0, 4),
-            ("3", "1", 1.0, 5),
-            ("4", "3", 10.0, 6),
-            ("4", "1", 5.0, 7),
-            ("1", "5", 2.0, 8),
+            ("1", "2", 10, 1),
+            ("1", "4", 20, 2),
+            ("2", "3", 5, 3),
+            ("3", "2", 2, 4),
+            ("3", "1", 1, 5),
+            ("4", "3", 10, 6),
+            ("4", "1", 5, 7),
+            ("1", "5", 2, 8),
         ];
 
         for (src, dst, val, time) in &vs {
@@ -160,14 +196,14 @@ mod sum_weight_test {
                     *time,
                     *src,
                     *dst,
-                    [("value_dec".to_string(), Prop::F64(*val))],
+                    [("value_dec".to_string(), Prop::I32(*val))],
                     None,
                 )
                 .expect("Couldnt add edge");
         }
 
         test_storage!(&graph, |graph| {
-            let res = balance(graph, "value_dec".to_string(), Direction::BOTH, None);
+            let res = balance(graph, "value_dec".to_string(), Direction::BOTH, None).unwrap();
             let node_one = graph.node("1").unwrap();
             let node_two = graph.node("2").unwrap();
             let node_three = graph.node("3").unwrap();
@@ -182,7 +218,7 @@ mod sum_weight_test {
             ]);
             assert_eq!(res.get_all(), expected);
 
-            let res = balance(graph, "value_dec".to_string(), Direction::IN, None);
+            let res = balance(graph, "value_dec".to_string(), Direction::IN, None).unwrap();
             let expected = HashMap::from([
                 (node_one.clone(), 6.0),
                 (node_two.clone(), 12.0),
@@ -192,7 +228,7 @@ mod sum_weight_test {
             ]);
             assert_eq!(res.get_all(), expected);
 
-            let res = balance(graph, "value_dec".to_string(), Direction::OUT, None);
+            let res = balance(graph, "value_dec".to_string(), Direction::OUT, None).unwrap();
             let expected = HashMap::from([
                 (node_one, -32.0),
                 (node_two, -5.0),

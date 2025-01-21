@@ -22,7 +22,7 @@ use crate::{
     },
     serialise::{StableDecode, StableEncode},
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr};
+use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
@@ -92,11 +92,13 @@ impl<'source> FromPyObject<'source> for MaterializedGraph {
     }
 }
 
-impl IntoPy<PyObject> for Graph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
-            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-            .into_py(py)
+impl<'py> IntoPyObject<'py> for Graph {
+    type Target = PyGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
     }
 }
 
@@ -119,7 +121,7 @@ impl PyGraph {
     }
 }
 
-#[pyclass(module = "raphtory", frozen)]
+#[pyclass(module = "raphtory", name = "_GraphEncoder", frozen)]
 pub struct PyGraphEncoder;
 
 #[pymethods]
@@ -159,6 +161,13 @@ impl PyGraph {
         (PyGraphEncoder, (state,))
     }
 
+    /// Persist graph on disk
+    ///
+    /// Arguments:
+    ///     graph_dir (str | PathLike): the folder where the graph will be persisted
+    ///
+    /// Returns:
+    ///     Graph: a view of the persisted graph
     #[cfg(feature = "storage")]
     pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
         use crate::db::api::storage::graph::storage_ops::GraphStorage;
@@ -191,20 +200,25 @@ impl PyGraph {
         &self,
         timestamp: PyTime,
         id: GID,
-        properties: Option<HashMap<String, Prop>>,
+        properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
+        let props = properties
+            .into_iter()
+            .flat_map(|map| {
+                map.into_iter().map(|(k, v)| {
+                    k.extract::<String>()
+                        .and_then(|k| v.extract::<Prop>().map(move |v| (k, v)))
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         match secondary_index {
-            None => self
-                .graph
-                .add_node(timestamp, id, properties.unwrap_or_default(), node_type),
-            Some(secondary_index) => self.graph.add_node(
-                (timestamp, secondary_index),
-                id,
-                properties.unwrap_or_default(),
-                node_type,
-            ),
+            None => self.graph.add_node(timestamp, id, props, node_type),
+            Some(secondary_index) => {
+                self.graph
+                    .add_node((timestamp, secondary_index), id, props, node_type)
+            }
         }
     }
 
@@ -314,7 +328,7 @@ impl PyGraph {
     ///    dst (str|int): The id of the destination node.
     ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
     ///    layer (str, optional): The layer of the edge.
-    ///     secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     MutableEdge: The added edge.
@@ -349,9 +363,9 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
     ///     Node: A node object if the node was successfully imported.
@@ -372,12 +386,12 @@ impl PyGraph {
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
     ///     new_id (str|int): The new node id.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
-    ///     Node: A node object if the node was successfully imported.
+    ///     MutableNode: A node object if the node was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -395,9 +409,9 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -415,9 +429,9 @@ impl PyGraph {
     /// Arguments:
     ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
     ///     new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is True, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is False, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -439,12 +453,12 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edge (Edge): A Edge object representing the edge to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///     MutableEdge: An Edge object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -462,12 +476,12 @@ impl PyGraph {
     /// Arguments:
     ///     edge (Edge): A Edge object representing the edge to be imported.
     ///     new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///     Edge: An Edge object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -485,9 +499,9 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -504,13 +518,13 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///     new_ids (List[Tuple[int, int]]): The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -532,7 +546,7 @@ impl PyGraph {
     ///   id (str|int): the node id
     ///
     /// Returns:
-    ///   Node: The node object with the specified id, or None if the node does not exist
+    ///   MutableNode: The node object with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<Graph>> {
         self.graph.node(id)
     }
@@ -545,7 +559,7 @@ impl PyGraph {
     ///     dst (str|int): the destination node id
     ///
     /// Returns:
-    ///     Edge: the edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     MutableEdge: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<Graph, Graph>> {
         self.graph.edge(src, dst)
@@ -558,7 +572,7 @@ impl PyGraph {
     /// Returns all the node types in the graph.
     ///
     /// Returns:
-    /// List[str]
+    ///     List[str]: the node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
     }
@@ -568,18 +582,25 @@ impl PyGraph {
     /// # Example Usage:
     /// g.largest_connected_component()
     ///
-    /// # Returns:
-    /// Graph: sub-graph of the graph `g` containing the largest connected component
+    /// Returns:
+    ///     GraphView: sub-graph of the graph `g` containing the largest connected component
     ///
     pub fn largest_connected_component(&self) -> NodeSubgraph<Graph> {
         self.graph.largest_connected_component()
     }
 
-    /// Get persistent graph
+    /// View graph with persistent semantics
+    ///
+    /// Returns:
+    ///     PersistentGraph: the graph with persistent semantics applied
     pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
+    /// View graph with event semantics
+    ///
+    /// Returns:
+    ///     Graph: the graph with event semantics applied
     pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
@@ -590,11 +611,11 @@ impl PyGraph {
     ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -636,11 +657,11 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -683,11 +704,11 @@ impl PyGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -732,11 +753,11 @@ impl PyGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -779,10 +800,10 @@ impl PyGraph {
     /// Arguments:
     ///     df (DataFrame): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -818,10 +839,10 @@ impl PyGraph {
     /// Arguments:
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -858,10 +879,10 @@ impl PyGraph {
     ///     df (DataFrame): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -900,10 +921,10 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.

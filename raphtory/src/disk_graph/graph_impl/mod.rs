@@ -179,18 +179,18 @@ mod test {
         // let expected = 1;
         // assert_eq!(actual, expected);
 
-        let out_v_deg = w_g.nodes().out_degree().values().collect::<Vec<_>>();
+        let out_v_deg = w_g.nodes().out_degree().iter_values().collect::<Vec<_>>();
         assert_eq!(out_v_deg, vec![1, 0]);
 
         let w_g = g.window(-2, 0);
-        let out_v_deg = w_g.nodes().out_degree().values().collect::<Vec<_>>();
+        let out_v_deg = w_g.nodes().out_degree().iter_values().collect::<Vec<_>>();
         assert_eq!(out_v_deg, vec![2, 0]);
 
         let w_g = g.window(-2, 4);
-        let out_v_deg = w_g.nodes().out_degree().values().collect::<Vec<_>>();
+        let out_v_deg = w_g.nodes().out_degree().iter_values().collect::<Vec<_>>();
         assert_eq!(out_v_deg, vec![4, 0, 0, 0]);
 
-        let in_v_deg = w_g.nodes().in_degree().values().collect::<Vec<_>>();
+        let in_v_deg = w_g.nodes().in_degree().iter_values().collect::<Vec<_>>();
         assert_eq!(in_v_deg, vec![1, 1, 1, 1]);
     }
 
@@ -393,6 +393,7 @@ mod test {
             .temporal()
             .into_iter()
             .map(|(key, t_view)| (key.to_string(), t_view.into_iter().collect::<Vec<_>>()))
+            .filter(|(_, v)| v.len() > 0)
             .collect::<Vec<_>>();
 
         let expected = vec![

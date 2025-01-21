@@ -5,12 +5,12 @@ use crate::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 
-pub struct ConstProperties<'a, P: ConstPropertiesOps> {
+pub struct ConstantProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
     pub(crate) fn new(props: P) -> Self {
         Self {
             props,
@@ -21,7 +21,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
         self.props.const_prop_keys()
     }
 
-    pub fn values(&self) -> BoxedLIter<Prop> {
+    pub fn values(&self) -> BoxedLIter<Option<Prop>> {
         self.props.const_prop_values()
     }
 
@@ -47,7 +47,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<'a, P> {
     type Item = (ArcStr, Prop);
     type IntoIter = BoxedLIter<'a, Self::Item>;
 
@@ -55,23 +55,31 @@ impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstProperties<'a,
         Box::new(GenLockedIter::from(self, |const_prop| {
             let keys = const_prop.keys();
             let vals = const_prop.values();
-            Box::new(keys.into_iter().zip(vals))
+            Box::new(
+                keys.into_iter()
+                    .zip(vals)
+                    .filter_map(|(k, v)| Some((k, v?))),
+            )
         }))
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'a, P> {
     type Item = (ArcStr, Prop);
     type IntoIter = Box<dyn Iterator<Item = (ArcStr, Prop)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
         let vals = self.values();
-        Box::new(keys.into_iter().zip(vals))
+        Box::new(
+            keys.into_iter()
+                .zip(vals)
+                .filter_map(|(k, v)| Some((k, v?))),
+        )
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> PartialEq for ConstProperties<'a, P> {
+impl<'a, P: ConstPropertiesOps + Sync> PartialEq for ConstantProperties<'a, P> {
     fn eq(&self, other: &Self) -> bool {
         self.as_map() == other.as_map()
     }

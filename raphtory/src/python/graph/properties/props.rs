@@ -10,14 +10,14 @@ use crate::{
     },
     python::{
         graph::properties::{
-            PyConstProperties, PyConstPropsList, PyConstPropsListList, PyTemporalPropsList,
+            PyConstPropsList, PyConstPropsListList, PyConstantProperties, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
             repr::{iterator_dict_repr, Repr},
             wrappers::prop::PropValue,
         },
-        utils::{NumpyArray, PyGenericIterator},
+        utils::PyGenericIterator,
     },
 };
 use itertools::Itertools;
@@ -39,7 +39,7 @@ impl PartialEq for PyPropsComp {
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstProperties>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyConstantProperties>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
@@ -51,8 +51,8 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
     }
 }
 
-impl From<&PyConstProperties> for PyPropsComp {
-    fn from(value: &PyConstProperties) -> Self {
+impl From<&PyConstantProperties> for PyPropsComp {
+    fn from(value: &PyConstantProperties) -> Self {
         Self(value.as_dict())
     }
 }
@@ -124,7 +124,7 @@ impl PyProperties {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> NumpyArray {
+    pub fn values(&self) -> Vec<Option<Prop>> {
         self.props.values().collect()
     }
 
@@ -166,21 +166,35 @@ impl<P: Into<DynProperties>> From<P> for PyProperties {
     }
 }
 
-impl<P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPy<PyObject> for Properties<P> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyProperties::from(self).into_py(py)
+impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
+    for Properties<P>
+{
+    type Target = PyProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyProperties::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for Properties<DynamicGraph> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyProperties::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for Properties<DynamicGraph> {
+    type Target = PyProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyProperties::from(self).into_pyobject(py)
     }
 }
 
-impl IntoPy<PyObject> for DynProperties {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyProperties::from(self).into_py(py)
+impl<'py> IntoPyObject<'py> for DynProperties {
+    type Target = PyProperties;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyProperties::from(self).into_pyobject(py)
     }
 }
 
@@ -203,7 +217,7 @@ impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyConstPropsList>>() {
             Ok(sp.deref().into())
-        } else if let Ok(p) = ob.extract::<PyRef<PyPropsList>>() {
+        } else if let Ok(p) = ob.extract::<PyRef<PropertiesView>>() {
             Ok(p.deref().into())
         } else if let Ok(m) = ob.extract::<HashMap<ArcStr, PyPropValueListCmp>>() {
             Ok(Self(m))
@@ -225,8 +239,8 @@ impl From<&PyConstPropsList> for PyPropsListCmp {
     }
 }
 
-impl From<&PyPropsList> for PyPropsListCmp {
-    fn from(value: &PyPropsList) -> Self {
+impl From<&PropertiesView> for PyPropsListCmp {
+    fn from(value: &PropertiesView) -> Self {
         Self(
             value
                 .items()
@@ -237,11 +251,11 @@ impl From<&PyPropsList> for PyPropsListCmp {
     }
 }
 
-py_iterable_base!(PyPropsList, DynProperties, PyProperties);
-py_eq!(PyPropsList, PyPropsListCmp);
+py_iterable_base!(PropertiesView, DynProperties, PyProperties);
+py_eq!(PropertiesView, PyPropsListCmp);
 
 #[pymethods]
-impl PyPropsList {
+impl PropertiesView {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.

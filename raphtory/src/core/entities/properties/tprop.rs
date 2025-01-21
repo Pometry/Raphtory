@@ -1,18 +1,16 @@
 use crate::{
     core::{
-        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, DocumentInput, Prop, PropType,
+        entities::properties::tcell::TCell,
+        storage::{timeindex::TimeIndexEntry, TPropColumn},
+        utils::errors::GraphError,
+        DocumentInput, Prop, PropArray,
     },
-    db::{
-        api::storage::graph::tprop_storage_ops::TPropOps,
-        graph::{graph::Graph, views::deletion_graph::PersistentGraph},
-    },
+    db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
-// TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TProp {
@@ -29,38 +27,65 @@ pub enum TProp {
     F64(TCell<f64>),
     Bool(TCell<bool>),
     DTime(TCell<DateTime<Utc>>),
+    Array(TCell<PropArray>),
     NDTime(TCell<NaiveDateTime>),
-    Graph(TCell<Graph>),
-    PersistentGraph(TCell<PersistentGraph>),
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
 }
 
-impl TProp {
-    pub fn dtype(&self) -> PropType {
-        match self {
-            TProp::Empty => PropType::Empty,
-            TProp::Str(_) => PropType::Str,
-            TProp::U8(_) => PropType::U8,
-            TProp::U16(_) => PropType::U16,
-            TProp::I32(_) => PropType::I32,
-            TProp::I64(_) => PropType::I64,
-            TProp::U32(_) => PropType::U32,
-            TProp::U64(_) => PropType::U64,
-            TProp::F32(_) => PropType::F32,
-            TProp::F64(_) => PropType::F64,
-            TProp::Bool(_) => PropType::Bool,
-            TProp::NDTime(_) => PropType::NDTime,
-            TProp::Graph(_) => PropType::Graph,
-            TProp::PersistentGraph(_) => PropType::PersistentGraph,
-            TProp::Document(_) => PropType::Document,
-            TProp::List(_) => PropType::List,
-            TProp::Map(_) => PropType::Map,
-            TProp::DTime(_) => PropType::DTime,
+#[derive(Copy, Clone, Debug)]
+pub struct TPropCell<'a> {
+    t_cell: Option<&'a TCell<Option<usize>>>,
+    log: Option<&'a TPropColumn>,
+}
+
+impl<'a> TPropCell<'a> {
+    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
+        Self {
+            t_cell: Some(t_cell),
+            log,
         }
     }
 
+    fn iter_window_inner(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter_window(r.clone())
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
+}
+
+impl<'a> TPropOps<'a> for TPropCell<'a> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+        self.iter_window_inner(TimeIndexEntry::MIN..t).next_back()
+    }
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter()
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.iter_window_inner(r)
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        self.t_cell?.at(ti).and_then(|&id| self.log?.get(id?))
+    }
+}
+
+impl TProp {
     pub(crate) fn from(t: TimeIndexEntry, prop: Prop) -> Self {
         match prop {
             Prop::Str(value) => TProp::Str(TCell::new(t, value)),
@@ -75,8 +100,7 @@ impl TProp {
             Prop::Bool(value) => TProp::Bool(TCell::new(t, value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, value)),
             Prop::NDTime(value) => TProp::NDTime(TCell::new(t, value)),
-            Prop::Graph(value) => TProp::Graph(TCell::new(t, value)),
-            Prop::PersistentGraph(value) => TProp::PersistentGraph(TCell::new(t, value)),
+            Prop::Array(value) => TProp::Array(TCell::new(t, value)),
             Prop::Document(value) => TProp::Document(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
             Prop::Map(value) => TProp::Map(TCell::new(t, value)),
@@ -126,10 +150,7 @@ impl TProp {
                 (TProp::NDTime(cell), Prop::NDTime(a)) => {
                     cell.set(t, a);
                 }
-                (TProp::Graph(cell), Prop::Graph(a)) => {
-                    cell.set(t, a);
-                }
-                (TProp::PersistentGraph(cell), Prop::PersistentGraph(a)) => {
+                (TProp::Array(cell), Prop::Array(a)) => {
                     cell.set(t, a);
                 }
                 (TProp::Document(cell), Prop::Document(a)) => {
@@ -147,9 +168,7 @@ impl TProp {
         Ok(())
     }
 
-    pub(crate) fn iter_inner(
-        &self,
-    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+    pub(crate) fn iter_inner(&self) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => {
@@ -168,13 +187,9 @@ impl TProp {
             TProp::NDTime(cell) => {
                 Box::new(cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value))))
             }
-            TProp::Graph(cell) => Box::new(
+            TProp::Array(cell) => Box::new(
                 cell.iter()
-                    .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
-            ),
-            TProp::PersistentGraph(cell) => Box::new(
-                cell.iter()
-                    .map(|(t, value)| (*t, Prop::PersistentGraph(value.clone()))),
+                    .map(|(t, value)| (*t, Prop::Array(value.clone()))),
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter()
@@ -190,7 +205,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
+    pub(crate) fn iter_t(&self) -> BoxedLIter<(i64, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -212,13 +227,9 @@ impl TProp {
             TProp::NDTime(cell) => {
                 Box::new(cell.iter_t().map(|(t, value)| (t, Prop::NDTime(*value))))
             }
-            TProp::Graph(cell) => Box::new(
+            TProp::Array(cell) => Box::new(
                 cell.iter_t()
-                    .map(|(t, value)| (t, Prop::Graph(value.clone()))),
-            ),
-            TProp::PersistentGraph(cell) => Box::new(
-                cell.iter_t()
-                    .map(|(t, value)| (t, Prop::PersistentGraph(value.clone()))),
+                    .map(|(t, value)| (t, Prop::Array(value.clone()))),
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter_t()
@@ -238,7 +249,7 @@ impl TProp {
     pub(crate) fn iter_window_inner(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -288,13 +299,9 @@ impl TProp {
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::NDTime(*value))),
             ),
-            TProp::Graph(cell) => Box::new(
+            TProp::Array(cell) => Box::new(
                 cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
-            ),
-            TProp::PersistentGraph(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::PersistentGraph(value.clone()))),
+                    .map(|(t, value)| (*t, Prop::Array(value.clone()))),
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter_window(r)
@@ -328,12 +335,9 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Bool(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Bool(*v))),
             TProp::DTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::DTime(*v))),
             TProp::NDTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::NDTime(*v))),
-            TProp::Graph(cell) => cell
+            TProp::Array(cell) => cell
                 .last_before(t)
-                .map(|(t, v)| (t, Prop::Graph(v.clone()))),
-            TProp::PersistentGraph(cell) => cell
-                .last_before(t)
-                .map(|(t, v)| (t, Prop::PersistentGraph(v.clone()))),
+                .map(|(t, v)| (t, Prop::Array(v.clone()))),
             TProp::Document(cell) => cell
                 .last_before(t)
                 .map(|(t, v)| (t, Prop::Document(v.clone()))),
@@ -342,14 +346,14 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_inner()
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_window_inner(r)
     }
 
@@ -368,41 +372,31 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Bool(cell) => cell.at(ti).map(|v| Prop::Bool(*v)),
             TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
             TProp::NDTime(cell) => cell.at(ti).map(|v| Prop::NDTime(*v)),
-            TProp::Graph(cell) => cell.at(ti).map(|v| Prop::Graph(v.clone())),
-            TProp::PersistentGraph(cell) => cell.at(ti).map(|v| Prop::PersistentGraph(v.clone())),
+            TProp::Array(cell) => cell.at(ti).map(|v| Prop::Array(v.clone())),
             TProp::Document(cell) => cell.at(ti).map(|v| Prop::Document(v.clone())),
             TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
             TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
-        }
-    }
-
-    fn len(self) -> usize {
-        match self {
-            TProp::Empty => 0,
-            TProp::Str(v) => v.len(),
-            TProp::U8(v) => v.len(),
-            TProp::U16(v) => v.len(),
-            TProp::I32(v) => v.len(),
-            TProp::I64(v) => v.len(),
-            TProp::U32(v) => v.len(),
-            TProp::U64(v) => v.len(),
-            TProp::F32(v) => v.len(),
-            TProp::F64(v) => v.len(),
-            TProp::Bool(v) => v.len(),
-            TProp::DTime(v) => v.len(),
-            TProp::NDTime(v) => v.len(),
-            TProp::Graph(v) => v.len(),
-            TProp::PersistentGraph(v) => v.len(),
-            TProp::Document(v) => v.len(),
-            TProp::List(v) => v.len(),
-            TProp::Map(v) => v.len(),
         }
     }
 }
 
 #[cfg(test)]
 mod tprop_tests {
+    use crate::core::storage::lazy_vec::LazyVec;
+
     use super::*;
+
+    #[test]
+    fn t_prop_cell() {
+        let col = TPropColumn::Bool(LazyVec::from(0, true));
+        assert_eq!(col.get(0), Some(Prop::Bool(true)));
+
+        let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), Some(&col));
+
+        let actual = t_prop.iter().collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(TimeIndexEntry(0, 0), Prop::Bool(true))]);
+    }
 
     #[test]
     fn set_new_value_for_tprop_initialized_as_empty() {

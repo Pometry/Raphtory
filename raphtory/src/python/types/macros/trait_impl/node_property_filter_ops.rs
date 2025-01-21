@@ -11,7 +11,7 @@ macro_rules! impl_node_property_filter_ops {
         impl $obj {
             /// Return a filtered view that only includes nodes that satisfy the filter
             ///
-            /// Arguments
+            /// Arguments:
             ///     filter (PropertyFilter): The filter to apply to the node properties. Construct a
             ///                              filter using `Prop`.
             ///

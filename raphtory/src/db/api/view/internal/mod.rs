@@ -26,6 +26,7 @@ use std::{
 use crate::core::utils::errors::GraphError;
 #[cfg(feature = "search")]
 use crate::search::searcher::Searcher;
+use crate::{db::graph::views::deletion_graph::PersistentGraph, prelude::Graph};
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
@@ -132,6 +133,38 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
 /// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions for mutable and immutable views
 pub trait Immutable {}
 
+pub enum DynOrMutableGraph {
+    Dyn(DynamicGraph),
+    Mutable(MaterializedGraph),
+}
+pub trait IntoDynamicOrMutable: IntoDynamic {
+    fn into_dynamic_or_mutable(self) -> DynOrMutableGraph;
+}
+
+impl<G: IntoDynamic + Immutable> IntoDynamicOrMutable for G {
+    fn into_dynamic_or_mutable(self) -> DynOrMutableGraph {
+        DynOrMutableGraph::Dyn(self.into_dynamic())
+    }
+}
+
+impl IntoDynamicOrMutable for MaterializedGraph {
+    fn into_dynamic_or_mutable(self) -> DynOrMutableGraph {
+        DynOrMutableGraph::Mutable(self)
+    }
+}
+
+impl IntoDynamicOrMutable for Graph {
+    fn into_dynamic_or_mutable(self) -> DynOrMutableGraph {
+        DynOrMutableGraph::Mutable(self.into())
+    }
+}
+
+impl IntoDynamicOrMutable for PersistentGraph {
+    fn into_dynamic_or_mutable(self) -> DynOrMutableGraph {
+        DynOrMutableGraph::Mutable(self.into())
+    }
+}
+
 #[derive(Clone)]
 pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
@@ -204,10 +237,10 @@ mod test {
             boxed
                 .nodes()
                 .id()
-                .values()
+                .iter_values()
                 .filter_map(|v| v.as_u64())
                 .collect_vec(),
             vec![1]
-        )
+        );
     }
 }

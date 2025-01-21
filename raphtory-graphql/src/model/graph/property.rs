@@ -61,8 +61,12 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         Prop::I64(u) => GqlValue::Number(Number::from(*u)),
         Prop::U32(u) => GqlValue::Number(Number::from(*u)),
         Prop::U64(u) => GqlValue::Number(Number::from(*u)),
-        Prop::F32(u) => GqlValue::Number(Number::from_f64(*u as f64).unwrap()),
-        Prop::F64(u) => GqlValue::Number(Number::from_f64(*u).unwrap()),
+        Prop::F32(u) => Number::from_f64(*u as f64)
+            .map(|number| GqlValue::Number(number))
+            .unwrap_or(GqlValue::Null),
+        Prop::F64(u) => Number::from_f64(*u as f64)
+            .map(|number| GqlValue::Number(number))
+            .unwrap_or(GqlValue::Null),
         Prop::Bool(b) => GqlValue::Boolean(*b),
         Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(pp)).collect()),
         Prop::Map(m) => GqlValue::Object(
@@ -72,8 +76,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         ),
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::NDTime(t) => GqlValue::Number(t.and_utc().timestamp_millis().into()),
-        Prop::Graph(g) => GqlValue::String(g.to_string()),
-        Prop::PersistentGraph(g) => GqlValue::String(g.to_string()),
+        Prop::Array(a) => GqlValue::List(a.iter_prop().map(|p| prop_to_gql(&p)).collect()),
         Prop::Document(d) => GqlValue::String(d.content.to_owned()), // TODO: return GqlValue::Object ??
     }
 }
@@ -266,7 +269,7 @@ impl GqlProperties {
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
-                        Some((key, p).into())
+                        p.map(|prop| (key, prop).into())
                     } else {
                         None
                     }
@@ -275,7 +278,7 @@ impl GqlProperties {
             None => self
                 .props
                 .iter()
-                .map(|(k, p)| (k.to_string(), p).into())
+                .filter_map(|(k, p)| p.map(|prop| (k.to_string(), prop).into()))
                 .collect(),
         }
     }

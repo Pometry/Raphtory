@@ -36,10 +36,11 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Formatter},
+    hash::{Hash, Hasher},
     sync::Arc,
 };
-use std::hash::{Hash, Hasher};
 use crate::db::api::view::internal::CoreGraphOps;
 
 /// A view of an edge in the graph.
@@ -134,7 +135,35 @@ impl<
     > PartialEq<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
 {
     fn eq(&self, other: &EdgeView<G2, GH2>) -> bool {
-        self.id() == other.id()
+        self.id() == other.id() && self.edge.time() == other.edge.time()
+    }
+}
+
+impl<
+        'graph_1,
+        'graph_2,
+        G1: GraphViewOps<'graph_1>,
+        GH1: GraphViewOps<'graph_1>,
+        G2: GraphViewOps<'graph_2>,
+        GH2: GraphViewOps<'graph_2>,
+    > PartialOrd<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
+{
+    fn partial_cmp(&self, other: &EdgeView<G2, GH2>) -> Option<Ordering> {
+        Some(
+            self.id()
+                .cmp(&other.id())
+                .then(self.edge.time().cmp(&other.edge.time())),
+        )
+    }
+}
+
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord
+    for EdgeView<G1, GH1>
+{
+    fn cmp(&self, other: &EdgeView<G1, GH1>) -> Ordering {
+        self.id()
+            .cmp(&other.id())
+            .then(self.edge.time().cmp(&other.edge.time()))
     }
 }
 
@@ -177,7 +206,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 
     fn map_exploded<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -235,7 +264,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ///
     /// # Arguments
     ///
-    /// * `props` - Property key-value pairs to add
+    /// * `properties` - Property key-value pairs to add
     /// * `layer` - The layer to which properties should be added. If the edge view is restricted to a
     ///             single layer, 'None' will add the properties to that layer and 'Some("name")'
     ///             fails unless the layer matches the edge view. If the edge view is not restricted
@@ -243,7 +272,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
-        props: C,
+        properties: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
@@ -258,7 +287,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 dst: self.dst().name(),
             });
         }
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
         })?;
 
@@ -323,8 +352,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
     }
 
     fn const_prop_ids(&self) -> BoxedLIter<usize> {
-        self.graph
-            .const_edge_prop_ids(self.edge, self.graph.layer_ids().clone())
+        Box::new(0..self.graph.edge_meta().const_prop_meta().len())
     }
 
     fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
@@ -397,15 +425,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        let layer_ids = self.layer_ids();
-        self.graph
-            .edge_meta()
-            .temporal_prop_meta()
-            .get_id(name)
-            .filter(move |id| {
-                self.graph
-                    .has_temporal_edge_prop(self.edge, *id, &layer_ids)
-            })
+        self.graph.edge_meta().temporal_prop_meta().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
@@ -417,15 +437,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_ids = self.layer_ids();
-        Box::new(
-            self.graph
-                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
-                .filter(move |id| {
-                    self.graph
-                        .has_temporal_edge_prop(self.edge, *id, &layer_ids)
-                }),
-        )
+        Box::new(0..self.graph.edge_meta().temporal_prop_meta().len())
     }
 
     fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {

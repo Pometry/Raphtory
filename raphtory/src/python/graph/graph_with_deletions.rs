@@ -55,17 +55,19 @@ impl From<PersistentGraph> for PyPersistentGraph {
     }
 }
 
-impl IntoPy<PyObject> for PersistentGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(
+impl<'py> IntoPyObject<'py> for PersistentGraph {
+    type Target = PyPersistentGraph;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(
             py,
             (
                 PyPersistentGraph::from(self.clone()),
                 PyGraphView::from(self),
             ),
         )
-        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-        .into_py(py)
     }
 }
 
@@ -114,8 +116,8 @@ impl PyPersistentGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str | int): The id of the node.
-    ///    properties (dict): The properties of the node.
-    ///    node_type (str) : The optional string which will be used as a node type
+    ///    properties (PropInput, optional): The properties of the node.
+    ///    node_type (str, optional) : The optional string which will be used as a node type
     ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
@@ -150,12 +152,12 @@ impl PyPersistentGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str | int): The id of the node.
-    ///    properties (dict): The properties of the node.
-    ///    node_type (str) : The optional string which will be used as a node type
+    ///    properties (PropInput, optional): The properties of the node.
+    ///    node_type (str, optional) : The optional string which will be used as a node type
     ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
-    ///   MutableNode
+    ///   MutableNode: the newly created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -249,8 +251,8 @@ impl PyPersistentGraph {
     ///    timestamp (int): The timestamp of the edge.
     ///    src (str | int): The id of the source node.
     ///    dst (str | int): The id of the destination node.
-    ///    properties (dict): The properties of the edge, as a dict of string and properties
-    ///    layer (str): The layer of the edge.
+    ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties
+    ///    layer (str, optional): The layer of the edge.
     ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
@@ -288,11 +290,11 @@ impl PyPersistentGraph {
     ///   timestamp (int): The timestamp of the edge.
     ///   src (str | int): The id of the source node.
     ///   dst (str | int): The id of the destination node.
-    ///   layer (str): The layer of the edge. (optional)
-    ///   secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///   layer (str, optional): The layer of the edge.
+    ///   secondary_index (int, optional): The optional integer which will be used as a secondary index.
     ///
     /// Returns:
-    ///  The deleted edge
+    ///   MutableEdge: The deleted edge
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -321,7 +323,7 @@ impl PyPersistentGraph {
     ///   id (str | int): the node id
     ///
     /// Returns:
-    ///   The node with the specified id, or None if the node does not exist
+    ///   Optional[MutableNode]: The node with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<PersistentGraph>> {
         self.graph.node(id)
     }
@@ -334,7 +336,7 @@ impl PyPersistentGraph {
     ///     dst (str | int): the destination node id
     ///
     /// Returns:
-    ///     The edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     Optional[MutableEdge]: The edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(
         &self,
@@ -354,7 +356,7 @@ impl PyPersistentGraph {
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///     Node: A Node object if the node was successfully imported, and an error otherwise.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -378,7 +380,7 @@ impl PyPersistentGraph {
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///     Node: A Node object if the node was successfully imported, and an error otherwise.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -513,6 +515,7 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A vector of edge objects representing the edges to be imported.
+    ///     new_ids (list[Tuple[GID, GID]]): The new edge ids
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edges. Defaults to False.
     ///
     /// Returns:
@@ -538,16 +541,23 @@ impl PyPersistentGraph {
     /// Returns all the node types in the graph.
     ///
     /// Returns:
-    ///     A list of node types
+    ///     list[str]: A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
     }
 
     /// Get event graph
+    ///
+    /// Returns:
+    ///     Graph: the graph with event semantics applied
     pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
+    /// Get persistent graph
+    ///
+    /// Returns:
+    ///     PersistentGraph: the graph with persistent semantics applied
     pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
@@ -558,11 +568,11 @@ impl PyPersistentGraph {
     ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -602,11 +612,11 @@ impl PyPersistentGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -647,11 +657,11 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -694,11 +704,11 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -741,8 +751,8 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -769,8 +779,8 @@ impl PyPersistentGraph {
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
     ///     time (str): The column name for the update timestamps.
-    ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -803,10 +813,10 @@ impl PyPersistentGraph {
     /// Arguments:
     ///     df (DataFrame): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -840,10 +850,10 @@ impl PyPersistentGraph {
     /// Arguments:
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -878,10 +888,10 @@ impl PyPersistentGraph {
     ///     df (DataFrame): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -918,10 +928,10 @@ impl PyPersistentGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
+    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.

@@ -1,12 +1,11 @@
 use super::{resolve, timeindex::TimeIndex};
 use crate::{
     core::entities::{
-        edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
+        edges::edge_store::{EdgeLayer, EdgeStore},
         LayerIds,
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
-use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
@@ -276,28 +275,6 @@ impl<'a> EdgeRGuard<'a> {
         &self,
     ) -> impl Iterator<Item = (usize, impl Deref<Target = EdgeLayer> + '_)> + '_ {
         self.guard.props_iter(self.offset)
-    }
-
-    pub(crate) fn temp_prop_ids(
-        &self,
-        layer_id: Option<usize>,
-    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
-        if let Some(layer_id) = layer_id {
-            Box::new(
-                self.guard
-                    .props(self.offset, layer_id)
-                    .into_iter()
-                    .flat_map(|layer| layer.temporal_prop_ids()),
-            )
-        } else {
-            Box::new(
-                self.guard
-                    .props_iter(self.offset)
-                    .map(|(_, layer)| layer.temporal_prop_ids())
-                    .kmerge()
-                    .dedup(),
-            )
-        }
     }
 
     pub(crate) fn layer(&self, layer_id: usize) -> Option<impl Deref<Target = EdgeLayer> + '_> {

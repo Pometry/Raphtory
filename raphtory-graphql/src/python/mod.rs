@@ -1,13 +1,13 @@
-use crate::url_encode::{url_encode_graph, UrlDecodeError};
+use crate::url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::PyDict,
+    types::{PyDict, PyList, PyNone},
+    IntoPyObjectExt,
 };
 use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
 use serde_json::{Map, Number, Value as JsonValue};
-use std::collections::HashMap;
 
 pub mod client;
 pub mod global_plugins;
@@ -22,39 +22,39 @@ pub(crate) fn adapt_graphql_value(value: &ValueAccessor, py: Python) -> PyObject
     match value.as_value() {
         GraphqlValue::Number(number) => {
             if number.is_f64() {
-                number.as_f64().unwrap().to_object(py)
+                number.as_f64().unwrap().into_py_any(py).unwrap()
             } else if number.is_u64() {
-                number.as_u64().unwrap().to_object(py)
+                number.as_u64().unwrap().into_py_any(py).unwrap()
             } else {
-                number.as_i64().unwrap().to_object(py)
+                number.as_i64().unwrap().into_py_any(py).unwrap()
             }
         }
-        GraphqlValue::String(value) => value.to_object(py),
-        GraphqlValue::Boolean(value) => value.to_object(py),
+        GraphqlValue::String(value) => value.into_py_any(py).unwrap(),
+        GraphqlValue::Boolean(value) => value.into_py_any(py).unwrap(),
         value => panic!("graphql input value {value} has an unsupported type"),
     }
 }
 
-pub(crate) fn translate_from_python(py: Python, value: PyObject) -> PyResult<JsonValue> {
-    if let Ok(value) = value.extract::<i64>(py) {
+pub(crate) fn translate_from_python(value: Bound<PyAny>) -> PyResult<JsonValue> {
+    if let Ok(value) = value.extract::<i64>() {
         Ok(JsonValue::Number(value.into()))
-    } else if let Ok(value) = value.extract::<f64>(py) {
+    } else if let Ok(value) = value.extract::<f64>() {
         Ok(JsonValue::Number(Number::from_f64(value).unwrap()))
-    } else if let Ok(value) = value.extract::<bool>(py) {
+    } else if let Ok(value) = value.extract::<bool>() {
         Ok(JsonValue::Bool(value))
-    } else if let Ok(value) = value.extract::<String>(py) {
+    } else if let Ok(value) = value.extract::<String>() {
         Ok(JsonValue::String(value))
-    } else if let Ok(value) = value.extract::<Vec<PyObject>>(py) {
+    } else if let Ok(value) = value.extract::<Vec<Bound<PyAny>>>() {
         let mut vec = Vec::new();
         for item in value {
-            vec.push(translate_from_python(py, item)?);
+            vec.push(translate_from_python(item)?);
         }
         Ok(JsonValue::Array(vec))
-    } else if let Ok(value) = value.extract::<Bound<PyDict>>(py) {
+    } else if let Ok(value) = value.extract::<Bound<PyDict>>() {
         let mut map = Map::new();
         for (key, value) in value.iter() {
             let key = key.extract::<String>()?;
-            let value = translate_from_python(py, value.into_py(py))?;
+            let value = translate_from_python(value)?;
             map.insert(key, value);
         }
         Ok(JsonValue::Object(map))
@@ -65,54 +65,69 @@ pub(crate) fn translate_from_python(py: Python, value: PyObject) -> PyResult<Jso
 
 pub(crate) fn translate_map_to_python(
     py: Python,
-    input: HashMap<String, JsonValue>,
-) -> PyResult<HashMap<String, PyObject>> {
-    let mut output_dict = HashMap::new();
+    input: impl IntoIterator<Item = (String, serde_json::Value)>,
+) -> PyResult<Bound<PyDict>> {
+    let dict = PyDict::new(py);
     for (key, value) in input {
-        let py_value = translate_to_python(py, value)?;
-        output_dict.insert(key, py_value);
+        dict.set_item(key, translate_to_python(py, value)?)?;
     }
-
-    Ok(output_dict)
+    Ok(dict)
 }
 
-fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<PyObject> {
+fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<PyAny>> {
     match value {
         JsonValue::Number(num) => {
             if num.is_i64() {
-                Ok(num.as_i64().unwrap().into_py(py))
+                num.as_i64().unwrap().into_bound_py_any(py)
             } else if num.is_f64() {
-                Ok(num.as_f64().unwrap().into_py(py))
+                num.as_f64().unwrap().into_bound_py_any(py)
             } else {
                 Err(PyErr::new::<PyTypeError, _>("Unsupported number type"))
             }
         }
-        JsonValue::String(s) => Ok(s.into_py(py)),
+        JsonValue::String(s) => s.into_bound_py_any(py),
         JsonValue::Array(vec) => {
-            let mut list = Vec::new();
+            let list = PyList::empty(py);
             for item in vec {
-                list.push(translate_to_python(py, item)?);
+                list.append(translate_to_python(py, item)?)?;
             }
-            Ok(list.into_py(py))
+            Ok(list.into_any())
         }
-        JsonValue::Object(map) => {
-            let dict = PyDict::new_bound(py);
-            for (key, value) in map {
-                dict.set_item(key, translate_to_python(py, value)?)?;
-            }
-            Ok(dict.into())
-        }
-        JsonValue::Bool(b) => Ok(b.into_py(py)),
-        JsonValue::Null => Ok(py.None()),
+        JsonValue::Object(map) => Ok(translate_map_to_python(py, map)?.into_any()),
+        JsonValue::Bool(b) => b.into_bound_py_any(py),
+        JsonValue::Null => Ok(PyNone::get(py).to_owned().into_any()),
     }
 }
 
+/// Encode a graph using Base64 encoding
+///
+/// Arguments:
+///     graph (Graph | PersistentGraph): the graph
+///
+/// Returns:
+///     str: the encoded graph
 #[pyfunction]
 pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
     match result {
         Ok(s) => Ok(s),
         Err(e) => Err(PyValueError::new_err(format!("Error encoding: {:?}", e))),
+    }
+}
+
+/// Decode a Base64-encoded graph
+///
+/// Arguments:
+///     graph (str): the encoded graph
+///
+/// Returns:
+///     Union[Graph, PersistentGraph]: the decoded graph
+#[pyfunction]
+pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
+    let result = url_decode_graph(graph);
+    match result {
+        Ok(g) => Ok(g),
+        Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),
     }
 }
 

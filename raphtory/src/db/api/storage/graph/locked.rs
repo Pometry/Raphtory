@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{graph::tgraph::TemporalGraph, nodes::node_store::NodeStore, VID},
+    entities::{graph::tgraph::TemporalGraph, VID},
     storage::{
         raw_edges::{LockedEdges, WriteLockedEdges},
         ReadLockedStorage, WriteLockedNodes,
@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct LockedGraph {
-    pub(crate) nodes: Arc<ReadLockedStorage<NodeStore, VID>>,
+    pub(crate) nodes: Arc<ReadLockedStorage>,
     pub(crate) edges: Arc<LockedEdges>,
     pub(crate) graph: Arc<TemporalGraph>,
 }

@@ -22,7 +22,6 @@ use crate::{
     prelude::*,
     search::{
         edge_filter_executor::EdgeFilterExecutor, fields, graph_index::GraphIndex,
-        latest_value_collector::LatestValueCollector, node_filter_collector::NodeFilterCollector,
         node_filter_executor::NodeFilterExecutor,
     },
 };

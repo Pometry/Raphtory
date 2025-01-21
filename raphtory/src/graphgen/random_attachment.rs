@@ -61,7 +61,7 @@ pub fn random_attachment(
         rng = StdRng::from_entropy();
     }
     let mut latest_time = graph.latest_time().unwrap_or(0);
-    let mut ids = graph.nodes().id().values().collect::<Vec<_>>();
+    let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
     let mut max_id = next_id(graph, ids.iter().max().cloned());
 
     while ids.len() < edges_per_step {

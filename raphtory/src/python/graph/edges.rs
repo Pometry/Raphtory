@@ -11,7 +11,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::properties::{PyNestedPropsIterable, PyPropsList},
+        graph::properties::{PropertiesView, PyNestedPropsIterable},
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
@@ -55,10 +55,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for Edges<'static, G, GH>
+impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    IntoPyObject<'py> for Edges<'static, G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+    type Target = PyEdges;
+    type Output = Bound<'py, PyEdges>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let graph = self.graph.into_dynamic();
         let base_graph = self.base_graph.into_dynamic();
         let edges = self.edges;
@@ -69,7 +73,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
                 edges,
             },
         }
-        .into_py(py)
+        .into_pyobject(py)
     }
 }
 
@@ -147,7 +151,7 @@ impl PyEdges {
 
     /// Returns all properties of the edges
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let edges = self.edges.clone();
         (move || edges.properties()).into()
     }
@@ -336,11 +340,12 @@ impl PyEdges {
             .collect();
 
         Python::with_gil(|py| {
-            let pandas = PyModule::import_bound(py, "pandas")?;
-            let kwargs = PyDict::new_bound(py);
+            let pandas = PyModule::import(py, "pandas")?;
+            let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names)?;
-            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(&kwargs))?;
-            Ok(df.to_object(py))
+            Ok(pandas
+                .call_method("DataFrame", (edge_tuples,), Some(&kwargs))?
+                .unbind())
         })
     }
 }
@@ -351,7 +356,7 @@ impl Repr for PyEdges {
     }
 }
 
-#[pyclass(name = "NestedEdges")]
+#[pyclass(name = "NestedEdges", module = "raphtory")]
 pub struct PyNestedEdges {
     edges: NestedEdges<'static, DynamicGraph>,
 }
@@ -370,17 +375,21 @@ impl_iterable_mixin!(
     "edge"
 );
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for NestedEdges<'static, G, GH>
+impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    IntoPyObject<'py> for NestedEdges<'static, G, GH>
 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+    type Target = PyNestedEdges;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let edges = NestedEdges {
             graph: self.graph.into_dynamic(),
             nodes: self.nodes,
             base_graph: self.base_graph.into_dynamic(),
             edges: self.edges,
         };
-        PyNestedEdges { edges }.into_py(py)
+        PyNestedEdges { edges }.into_pyobject(py)
     }
 }
 

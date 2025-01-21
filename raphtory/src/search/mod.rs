@@ -28,7 +28,6 @@ pub mod graph_index;
 pub mod searcher;
 
 pub mod edge_index;
-pub mod latest_value_collector;
 pub mod node_filter_collector;
 pub mod node_index;
 pub mod property_index;

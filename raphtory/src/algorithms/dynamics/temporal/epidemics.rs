@@ -29,7 +29,7 @@ impl Probability {
 
 pub struct Number(pub usize);
 
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Infected {
     pub infected: i64,
     pub active: i64,
@@ -153,17 +153,25 @@ struct Infection {
 ///
 /// # Arguments
 ///
-/// * `graph` - the graph
-/// * `recovery_rate` - Optional recovery rate (actual recovery times are sampled from an exponential
+/// - `graph` - the graph
+/// - `recovery_rate` - Optional recovery rate (actual recovery times are sampled from an exponential
 ///                     distribution with this rate). If `None`, nodes never recover (i.e. SI model)
-/// * `incubation_rate` - Optional incubation rate (the time nodes take to transition from exposed to infected
+/// - `incubation_rate` - Optional incubation rate (the time nodes take to transition from exposed to infected
 ///                       is sampled from an exponential distribution with this rate). If `None`,
 ///                       the incubation time is `1`, i.e., an infected nodes becomes infectious at
 ///                       the next time step
-/// * `initial_infection` - time stamp for the initial infection events
-/// * `seeds` - Specify how to choose seeds, can be either a list of nodes, `Number(n: usize)` for
+/// - `initial_infection` - time stamp for the initial infection events
+/// - `seeds` - Specify how to choose seeds, can be either a list of nodes, `Number(n: usize)` for
 ///             sampling a fixed number `n` of seed nodes, or `Probability(p: f64)` in which case a node is initially infected with probability `p`.
-/// * `rng` - The random number generator to use
+/// - `rng` - The random number generator to use
+///
+/// # Returns
+///
+/// A [Result] wrapping an [AlgorithmResult] which contains a mapping of each vertex to an [Infected] object, which contains the following structure:
+/// - `infected`: the time stamp of the infection event
+/// - `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
+/// - `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
+///
 #[allow(non_snake_case)]
 pub fn temporal_SEIR<
     G: StaticGraphViewOps,
@@ -172,7 +180,7 @@ pub fn temporal_SEIR<
     R: Rng + ?Sized,
     T: TryIntoTime,
 >(
-    graph: &G,
+    g: &G,
     recovery_rate: Option<f64>,
     incubation_rate: Option<f64>,
     infection_prob: P,
@@ -184,7 +192,7 @@ where
     SeedError: From<P::Error>,
 {
     let infection_prob = infection_prob.try_into()?;
-    let seeds = seeds.into_initial_list(graph, rng)?;
+    let seeds = seeds.into_initial_list(g, rng)?;
     let recovery_dist = recovery_rate.map(Exp::new).transpose()?;
     let incubation_dist = incubation_rate.map(Exp::new).transpose()?;
     let infection_dist = Bernoulli::new(infection_prob.0).unwrap();
@@ -203,7 +211,7 @@ where
         let Reverse(next_event) = event_queue.pop().unwrap();
         if let Entry::Vacant(e) = states.entry(next_event.node) {
             // node not yet infected
-            let node = graph.node(next_event.node).unwrap();
+            let node = g.node(next_event.node).unwrap();
             let incubation_time = incubation_dist
                 .map(|dist| dist.sample(rng) as i64)
                 .unwrap_or(1);
@@ -234,7 +242,7 @@ where
         }
     }
     let result = AlgorithmResult::new(
-        graph.clone(),
+        g.clone(),
         "temporal_SEIR",
         "State",
         states.into_iter().map(|(k, v)| (k.0, v)).collect(),

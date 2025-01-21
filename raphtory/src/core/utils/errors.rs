@@ -10,6 +10,7 @@ use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
     entities::{properties::PropError, GID},
     storage::arc_str::ArcStr,
+    PropType,
 };
 use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 #[cfg(feature = "search")]
@@ -89,6 +90,8 @@ pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
+    #[error("Arrow-rs error: {0}")]
+    ArrowRs(#[from] arrow_schema::ArrowError),
     #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]
@@ -126,6 +129,9 @@ pub enum GraphError {
 
     #[error("PropertyType Error: {0}")]
     PropertyTypeError(#[from] PropError),
+
+    #[error("{reason}")]
+    InvalidProperty { reason: String },
 
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
     ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },
@@ -262,7 +268,6 @@ pub enum GraphError {
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
 
-    #[cfg(feature = "proto")]
     #[error("Failed to deserialise graph: {0}")]
     DeserialisationError(String),
 
@@ -289,6 +294,9 @@ pub enum GraphError {
 
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
+
+    #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
+    UnsupportedArrowDataType(PropType),
 
     #[error("Not supported")]
     NotSupported,

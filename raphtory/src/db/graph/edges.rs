@@ -64,6 +64,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G, GH> {
+    pub fn new(
+        graph: GH,
+        base_graph: G,
+        edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
+    ) -> Self {
+        Edges {
+            graph,
+            base_graph,
+            edges,
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = EdgeView<&G, &GH>> + '_ {
         let base_graph = &self.base_graph;
         let graph = &self.graph;
@@ -151,7 +163,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 
     fn map_exploded<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -304,7 +316,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 
     fn map_exploded<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
