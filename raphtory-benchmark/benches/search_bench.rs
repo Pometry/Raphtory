@@ -115,10 +115,10 @@ fn bench_search_nodes_by_name_raph(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64));
+    let filter = PropertyFilter::eq("p2", 2u64);
 
     c.bench_function("search_nodes_by_property_raph", |b| {
-        b.iter(|| graph.search_nodes(&filter, 5, 0).unwrap())
+        b.iter(|| graph.filter_nodes(filter.clone()).unwrap())
     });
 }
 
