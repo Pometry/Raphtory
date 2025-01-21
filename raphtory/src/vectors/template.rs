@@ -184,7 +184,6 @@ impl DocumentTemplate {
                         Box::new(std::iter::once(document.into()))
                     }
                     Err(error) => {
-                        println!("Template render failed for graph, skipping: {error}"); // TODO: remove, the error! call should be enough
                         error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
@@ -209,7 +208,6 @@ impl DocumentTemplate {
                         Box::new(std::iter::once(document.into()))
                     }
                     Err(error) => {
-                        println!("Template render failed for a node, skipping: {error}"); // TODO: remove, the error! call should be enough
                         error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
