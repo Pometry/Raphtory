@@ -22,11 +22,14 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, node_subgraph::NodeSubgraph,
+                cached_view::CachedView,
+                node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
+                property_filter::{CompositeEdgeFilter, CompositeNodeFilter},
             },
         },
     },
+    prelude::PropertyFilter,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -44,8 +47,6 @@ use std::{
     borrow::Borrow,
     sync::{atomic::Ordering, Arc},
 };
-use crate::db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter};
-use crate::prelude::PropertyFilter;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -149,13 +150,16 @@ pub trait SearchableGraphOps: Sized {
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
 
-    fn search_nodes_count(&self,
-                          // q: &str,
-                          filter: &CompositeNodeFilter,) -> Result<usize, GraphError>;
+    fn search_nodes_count(
+        &self,
+        // q: &str,
+        filter: &CompositeNodeFilter,
+    ) -> Result<usize, GraphError>;
 
-    fn search_edge_count(&self,
-                         // q: &str,
-                         filter: &CompositeEdgeFilter,
+    fn search_edges_count(
+        &self,
+        // q: &str,
+        filter: &CompositeEdgeFilter,
     ) -> Result<usize, GraphError>;
 
     fn fuzzy_search_nodes(
@@ -631,7 +635,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn search_nodes(
         &self,
-        // q: &str,
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
@@ -641,7 +644,6 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn search_edges(
         &self,
-        // q: &str,
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
@@ -649,18 +651,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         self.searcher()?.search_edges(self, filter, limit, offset)
     }
 
-    fn search_nodes_count(&self,
-                         filter: &CompositeNodeFilter,
-                         // q: &str
-    ) -> Result<usize, GraphError> {
+    fn search_nodes_count(&self, filter: &CompositeNodeFilter) -> Result<usize, GraphError> {
         self.searcher()?.search_nodes_count(self, filter)
     }
 
-    fn search_edge_count(&self,
-                         // q: &str,
-                         filter: &CompositeEdgeFilter,
-    ) -> Result<usize, GraphError> {
-        self.searcher()?.search_edge_count(self, filter)
+    fn search_edges_count(&self, filter: &CompositeEdgeFilter) -> Result<usize, GraphError> {
+        self.searcher()?.search_edges_count(self, filter)
     }
 
     fn fuzzy_search_nodes(

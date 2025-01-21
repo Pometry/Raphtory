@@ -153,46 +153,6 @@ impl<'a> Searcher<'a> {
         Some(e_view)
     }
 
-    pub fn event_graph_search_nodes<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        q: &str,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let searcher = self.index.node_index.reader.searcher();
-        let schema = self.index.node_index.index.schema();
-        let properties_field = schema.get_field(fields::PROPERTIES).unwrap();
-
-        let query_parser = self.index.node_parser()?;
-        let query = query_parser.parse_query(q)?;
-        println!("query = {:?}", query);
-
-        let tracked_properties = vec!["p2".to_string(), "p3".to_string()];
-
-        let time_query = RangeQuery::new_i64(fields::TIME.to_string(), 2..3);
-
-        let mut collector = LatestValueCollector::new(
-            properties_field,
-            tracked_properties.clone(),
-            searcher.clone(),
-        );
-
-        let top_docs = searcher.search(&time_query, &mut collector).unwrap();
-        println!("top docs: {:?}", top_docs);
-
-        // p:1 is it present && p3:3 is it present
-        for prop in tracked_properties {
-            if let Some((time, value)) = top_docs.get(&prop) {
-                println!("Latest value for {} is {} at time {}", prop, value, time);
-            } else {
-                println!("Property {} not found.", prop);
-            }
-        }
-
-        Ok(vec![])
-    }
-
     pub fn search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -230,7 +190,7 @@ impl<'a> Searcher<'a> {
         Ok(result.into_iter().collect_vec())
     }
 
-    pub fn search_edge_count<G: StaticGraphViewOps>(
+    pub fn search_edges_count<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &CompositeEdgeFilter,
@@ -1013,7 +973,7 @@ mod search_tests {
             .unwrap();
 
         let results = graph
-            .search_edge_count(filter)
+            .search_edges_count(filter)
             .expect("Failed to search for nodes");
 
         results

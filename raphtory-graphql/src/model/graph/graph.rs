@@ -26,7 +26,10 @@ use raphtory::{
                 TimeOps,
             },
         },
-        graph::node::NodeView,
+        graph::{
+            node::NodeView,
+            views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter},
+        },
     },
     prelude::*,
 };
@@ -722,52 +725,51 @@ impl GqlGraph {
     ////////////////////////
     // INDEX SEARCH     ////
     ////////////////////////
-    // TODO Fix this
-    // async fn search_nodes(
-    //     &self,
-    //     query: String,
-    //     limit: usize,
-    //     offset: usize,
-    // ) -> Result<Vec<Node>, GraphError> {
-    //     self.execute_search(|| {
-    //         Ok(self
-    //             .graph
-    //             .search_nodes(&query, limit, offset)
-    //             .into_iter()
-    //             .flatten()
-    //             .map(|vv| vv.into())
-    //             .collect())
-    //     })
-    //     .await
-    // }
+    async fn search_nodes(
+        &self,
+        filter: CompositeNodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<Node>, GraphError> {
+        self.execute_search(|| {
+            Ok(self
+                .graph
+                .search_nodes(&filter, limit, offset)
+                .into_iter()
+                .flatten()
+                .map(|vv| vv.into())
+                .collect())
+        })
+        .await
+    }
 
-    // async fn search_edges(
-    //     &self,
-    //     query: String,
-    //     limit: usize,
-    //     offset: usize,
-    // ) -> Result<Vec<Edge>, GraphError> {
-    //     self.execute_search(|| {
-    //         Ok(self
-    //             .graph
-    //             .search_edges(&query, limit, offset)
-    //             .into_iter()
-    //             .flatten()
-    //             .map(|vv| vv.into())
-    //             .collect())
-    //     })
-    //     .await
-    // }
+    async fn search_edges(
+        &self,
+        filter: CompositeEdgeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<Edge>, GraphError> {
+        self.execute_search(|| {
+            Ok(self
+                .graph
+                .search_edges(&filter, limit, offset)
+                .into_iter()
+                .flatten()
+                .map(|vv| vv.into())
+                .collect())
+        })
+        .await
+    }
 
-    // async fn search_nodes_count(&self, query: String) -> Result<usize, GraphError> {
-    //     self.execute_search(|| Ok(self.graph.search_node_count(&query).unwrap_or(0)))
-    //         .await
-    // }
+    async fn search_nodes_count(&self, filter: CompositeNodeFilter) -> Result<usize, GraphError> {
+        self.execute_search(|| Ok(self.graph.search_nodes_count(&filter).unwrap_or(0)))
+            .await
+    }
 
-    // async fn search_edge_count(&self, query: String) -> Result<usize, GraphError> {
-    //     self.execute_search(|| Ok(self.graph.search_edge_count(&query).unwrap_or(0)))
-    //         .await
-    // }
+    async fn search_edges_count(&self, filter: CompositeEdgeFilter) -> Result<usize, GraphError> {
+        self.execute_search(|| Ok(self.graph.search_edges_count(&filter).unwrap_or(0)))
+            .await
+    }
 
     async fn fuzzy_search_nodes(
         &self,
