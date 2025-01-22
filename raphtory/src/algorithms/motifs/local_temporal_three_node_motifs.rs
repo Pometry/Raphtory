@@ -338,7 +338,7 @@ pub fn temporal_three_node_motif<G>(
     g: &G,
     delta: i64,
     threads: Option<usize>,
-) -> NodeState<Vec<usize>, G>
+) -> NodeState<'static, Vec<usize>, G>
 where
     G: StaticGraphViewOps,
 {

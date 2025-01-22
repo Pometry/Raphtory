@@ -7,7 +7,6 @@ use crate::{
     python::{
         algorithm::max_weight_matching::PyMatching,
         graph::{
-            algorithm_result::AlgorithmResult,
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
@@ -59,7 +58,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyRef,
         PyPropertyFilter,
         PyWindowSet,
-        AlgorithmResult,
         GraphIndex
     );
 

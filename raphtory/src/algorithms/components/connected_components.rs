@@ -35,7 +35,7 @@ pub fn weakly_connected_components<G>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> NodeState<usize, G>
+) -> NodeState<'static, usize, G>
 where
     G: StaticGraphViewOps,
 {

@@ -7,12 +7,14 @@ use dynamic_graphql::{internal::TypeName, SimpleObject};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::algorithms::{
-    centrality::pagerank::unweighted_page_rank,
-    pathing::dijkstra::dijkstra_single_source_shortest_paths,
+use raphtory::{
+    algorithms::{
+        centrality::pagerank::unweighted_page_rank,
+        pathing::dijkstra::dijkstra_single_source_shortest_paths,
+    },
+    prelude::NodeViewOps,
 };
 use raphtory_api::core::Direction;
-use std::collections::HashMap;
 
 #[derive(SimpleObject)]
 pub(crate) struct PagerankOutput {
@@ -100,9 +102,8 @@ fn apply_pagerank<'b>(
         damping_factor,
     );
     let result = binding
-        .get_all_with_names()
         .into_iter()
-        .map(|pair| FieldValue::owned_any(PagerankOutput::from(pair)))
+        .map(|(node, value)| FieldValue::owned_any(PagerankOutput::from((node.name(), value))))
         .collect_vec();
     Ok(Some(FieldValue::list(result)))
 }
@@ -161,20 +162,20 @@ fn apply_shortest_path<'b>(
         .iter()
         .map(|v| v.string())
         .collect::<Result<Vec<&str>, _>>()?;
-    let binding: Result<HashMap<String, (f64, Vec<String>)>, &str> =
-        Ok(dijkstra_single_source_shortest_paths(
-            &entry_point.graph,
-            source,
-            targets,
-            None,
-            direction,
-        )?
-        .get_all_with_names());
+    let binding = dijkstra_single_source_shortest_paths(
+        &entry_point.graph,
+        source,
+        targets,
+        None,
+        direction,
+    )?;
     let result: Vec<FieldValue> = binding
         .into_iter()
-        .flat_map(|pair| {
-            pair.into_iter()
-                .map(|(key, value)| ShortestPathOutput::from((key.to_string(), value.1)))
+        .map(|(node, (_, path))| {
+            FieldValue::owned_any(ShortestPathOutput::from((
+                node.name(),
+                path.name().collect_vec(),
+            )))
         })
         .map(FieldValue::owned_any)
         .collect();

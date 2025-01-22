@@ -110,7 +110,7 @@ pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G) -> f64 {
 /// # Returns
 /// [AlgorithmResult] with string keys and float values mapping each node name to its reciprocity value.
 ///
-pub fn all_local_reciprocity<G: StaticGraphViewOps>(g: &G) -> NodeState<f64, G> {
+pub fn all_local_reciprocity<G: StaticGraphViewOps>(g: &G) -> NodeState<'static, f64, G> {
     let values: Vec<_> = g
         .nodes()
         .par_iter()

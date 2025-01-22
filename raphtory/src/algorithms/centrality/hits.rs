@@ -53,7 +53,7 @@ pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> NodeState<(f32, f32), G> {
+) -> NodeState<'static, (f32, f32), G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);

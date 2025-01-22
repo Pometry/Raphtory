@@ -3,8 +3,7 @@ use crate::{
         Infected, IntoSeeds, Number, Probability, SeedError,
     },
     core::entities::VID,
-    db::api::view::{DynamicGraph, StaticGraphViewOps},
-    py_algorithm_result, py_algorithm_result_new_ord_hash_eq,
+    db::api::view::StaticGraphViewOps,
     python::{
         types::repr::{Repr, StructReprBuilder},
         utils::{errors::adapt_err_value, PyNodeRef},
@@ -26,7 +25,7 @@ impl Repr for Infected {
     }
 }
 
-#[pyclass]
+#[pyclass(name = "Infected", frozen)]
 pub struct PyInfected {
     inner: Infected,
 }
@@ -63,6 +62,13 @@ impl<'py> IntoPyObject<'py> for Infected {
     }
 }
 
+impl<'py> FromPyObject<'py> for Infected {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let res = ob.downcast::<PyInfected>()?;
+        Ok(res.get().inner)
+    }
+}
+
 pub enum PySeed {
     List(Vec<PyNodeRef>),
     Number(usize),
@@ -95,10 +101,6 @@ impl IntoSeeds for PySeed {
         }
     }
 }
-
-py_algorithm_result!(AlgorithmResultSEIR, DynamicGraph, Infected, Infected);
-py_algorithm_result_new_ord_hash_eq!(AlgorithmResultSEIR, DynamicGraph, Infected);
-
 impl From<SeedError> for PyErr {
     fn from(value: SeedError) -> Self {
         adapt_err_value(&value)

@@ -10,7 +10,7 @@ use rayon::prelude::*;
 
 /// Return the position of the nodes after running Fruchterman Reingold algorithm on the `graph`
 pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
-    g: &'graph G,
+    g: &G,
     iter_count: u64,
     scale: f32,
     node_start_size: f32,

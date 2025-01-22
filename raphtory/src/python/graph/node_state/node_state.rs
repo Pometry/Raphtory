@@ -1,4 +1,5 @@
 use crate::{
+    algorithms::dynamics::temporal::epidemics::Infected,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -539,4 +540,42 @@ impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
     "NodeStateListDateTime",
     "list[datetime]"
+);
+
+impl_node_state_num!(NodeStateF64<f64>, "NodeStateF64", "float");
+
+impl_node_state_ord!(NodeStateSEIR<Infected>, "NodeStateSEIR", "Infected");
+
+impl_node_state!(
+    NodeStateNodes<Nodes<'static, DynamicGraph>>,
+    "NodeStateNodes",
+    "Nodes"
+);
+
+impl_node_state!(
+    NodeStateReachability<Vec<(i64, String)>>,
+    "NodeStateReachability",
+    "list[Tuple[int, str]]"
+);
+
+impl_node_state_ord!(NodeStateMotifs<Vec<usize>>, "NodeStateMotifs", "list[int]");
+
+impl_node_state_ord!(
+    NodeStateHits<(f32, f32)>,
+    "NodeStateHits",
+    "Tuple[float, float]"
+);
+
+impl_node_state!(
+    NodeStateWeightedSP<(f64, Nodes<'static, DynamicGraph>)>,
+    "NodeStateWeightedSP",
+    "Tuple[float, Nodes]"
+);
+
+impl_node_state!(NodeLayout<[f32; 2]>, "NodeLayout", "list[float]");
+
+impl_node_state!(
+    NodeStateListF64<Vec<f64>>,
+    "NodeStateListF64",
+    "list[float]"
 );

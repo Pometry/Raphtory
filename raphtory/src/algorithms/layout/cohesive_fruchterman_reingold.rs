@@ -23,7 +23,7 @@ use crate::{
 /// An [AlgorithmResult] containing a mapping between vertices and a [Vec2] of coordinates.
 ///
 pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
-    g: &'graph G,
+    g: &G,
     iter_count: u64,
     scale: f32,
     node_start_size: f32,

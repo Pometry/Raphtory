@@ -88,7 +88,7 @@ where
 ///
 /// An [AlgorithmResult] containing the mapping from each node to its component ID
 ///
-pub fn strongly_connected_components<G>(graph: &G) -> NodeState<usize, G>
+pub fn strongly_connected_components<G>(graph: &G) -> NodeState<'static, usize, G>
 where
     G: StaticGraphViewOps,
 {

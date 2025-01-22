@@ -17,7 +17,7 @@ use std::collections::{HashMap, VecDeque};
 ///
 /// A NodeState containing the betweenness centrality of each node.
 pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
-    g: &'graph G,
+    g: &G,
     k: Option<usize>,
     normalized: bool,
 ) -> NodeState<'graph, f64, G> {

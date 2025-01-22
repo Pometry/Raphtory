@@ -2,7 +2,6 @@
 
 use crate::{
     algorithms::{
-        algorithm_result::AlgorithmResult,
         bipartite::max_weight_matching::max_weight_matching as mwm,
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
@@ -57,17 +56,18 @@ use crate::{
         utils::{PyNodeRef, PyTime},
     },
 };
-use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::{entities::GID, Direction};
+use raphtory_api::core::Direction;
 use std::collections::HashSet;
 
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
-    algorithms::bipartite::max_weight_matching::Matching, core::utils::errors::GraphError,
-    db::api::state::NodeState, prelude::Graph,
+    algorithms::bipartite::max_weight_matching::Matching,
+    core::utils::errors::GraphError,
+    db::{api::state::NodeState, graph::nodes::Nodes},
+    prelude::Graph,
 };
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
@@ -104,13 +104,13 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object mapping nodes to their component ids.
+///     NodeStateUsize : Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
     graph: &PyGraphView,
     iter_count: usize,
-) -> AlgorithmResult<DynamicGraph, GID, GID> {
+) -> NodeState<'static, usize, DynamicGraph> {
     components::weakly_connected_components(&graph.graph, iter_count, None)
 }
 
@@ -122,12 +122,12 @@ pub fn weakly_connected_components(
 ///     graph (GraphView) : Raphtory graph
 ///
 /// Returns:
-///     list[list[int]] : List of strongly connected nodes identified by ids
+///     NodeStateUsize: Mapping of nodes to their component ids
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn strongly_connected_components(
     graph: &PyGraphView,
-) -> AlgorithmResult<DynamicGraph, usize, usize> {
+) -> NodeState<'static, usize, DynamicGraph> {
     components::strongly_connected_components(&graph.graph)
 }
 
@@ -144,10 +144,12 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 ///     graph (GraphView) : Raphtory graph
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'in-component'
+///     NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
 #[pyfunction]
 #[pyo3(signature = (graph))]
-pub fn in_components(graph: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>, Vec<GID>> {
+pub fn in_components(
+    graph: &PyGraphView,
+) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
     components::in_components(&graph.graph, None)
 }
 
@@ -170,10 +172,12 @@ pub fn in_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
 ///     graph (GraphView) : Raphtory graph
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
+///     NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
 #[pyfunction]
 #[pyo3(signature = (graph))]
-pub fn out_components(graph: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>, Vec<GID>> {
+pub fn out_components(
+    graph: &PyGraphView,
+) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
     components::out_components(&graph.graph, None)
 }
 
@@ -204,7 +208,7 @@ pub fn out_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
 ///         is less than the max diff value given.
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
+///     NodeStateF64: Mapping of nodes to their pagerank value.
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
 pub fn pagerank(
@@ -213,7 +217,7 @@ pub fn pagerank(
     max_diff: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
+) -> NodeState<'static, f64, DynamicGraph> {
     unweighted_page_rank(
         &graph.graph,
         Some(iter_count),
@@ -238,7 +242,7 @@ pub fn pagerank(
 ///     stop_nodes (Optional[list[NodeInput]]) : nodes at which a path shouldn't go any further
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
+///     NodeStateReachability: Mapping of nodes to their reachability history.
 #[pyfunction]
 #[pyo3(signature = (graph, max_hops, start_time, seed_nodes, stop_nodes=None))]
 pub fn temporally_reachable_nodes(
@@ -247,7 +251,7 @@ pub fn temporally_reachable_nodes(
     start_time: i64,
     seed_nodes: Vec<PyNodeRef>,
     stop_nodes: Option<Vec<PyNodeRef>>,
-) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
+) -> NodeState<'static, Vec<(i64, String)>, DynamicGraph> {
     temporal_reachability_rs(
         &graph.graph,
         None,
@@ -364,7 +368,7 @@ pub fn min_in_degree(graph: &PyGraphView) -> usize {
 
 #[pyfunction]
 pub fn global_reciprocity(graph: &PyGraphView) -> f64 {
-    global_reciprocity_rs(&graph.graph, None)
+    global_reciprocity_rs(&graph.graph)
 }
 
 /// Local reciprocity - measure of the symmetry of relationships associated with a node
@@ -375,13 +379,11 @@ pub fn global_reciprocity(graph: &PyGraphView) -> f64 {
 ///     graph (GraphView) : a directed Raphtory graph
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each node name to its reciprocity value.
+///     NodeStateF64: Mapping of nodes to their reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(
-    graph: &PyGraphView,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    all_local_reciprocity_rs(&graph.graph, None)
+pub fn all_local_reciprocity(graph: &PyGraphView) -> NodeState<'static, f64, DynamicGraph> {
+    all_local_reciprocity_rs(&graph.graph)
 }
 
 /// Computes the number of connected triplets within a graph
@@ -516,7 +518,7 @@ pub fn global_temporal_three_node_motif_multi(
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
-///     dict : A dictionary with node ids as keys and a 40d array of motif counts as values (in the same order as the global motif counts) with the number of each motif that node participates in.
+///     NodeStateMotifs: A mapping from nodes to lists of motif counts (40 counts in the same order as the global motif counts) with the number of each motif that node participates in.
 ///
 /// Notes:
 ///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
@@ -527,8 +529,8 @@ pub fn local_temporal_three_node_motifs(
     graph: &PyGraphView,
     delta: i64,
     threads: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, Vec<usize>> {
-    local_three_node_rs(&graph.graph, vec![delta], threads)
+) -> NodeState<'static, Vec<usize>, DynamicGraph> {
+    local_three_node_rs(&graph.graph, delta, threads)
 }
 
 /// HITS (Hubs and Authority) Algorithm:
@@ -545,14 +547,14 @@ pub fn local_temporal_three_node_motifs(
 ///     threads (int, optional): Number of threads to use
 ///
 /// Returns:
-///     AlgorithmResult: An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
+///     NodeStateHits: A mapping from nodes their hub and authority scores
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=20, threads=None))]
 pub fn hits(
     graph: &PyGraphView,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+) -> NodeState<'static, (f32, f32), DynamicGraph> {
     hits_rs(&graph.graph, iter_count, threads)
 }
 
@@ -567,20 +569,18 @@ pub fn hits(
 ///             * "out": Only consider outgoing edges.
 ///             * "in": Only consider incoming edges.
 ///             * "both": Consider both outgoing and incoming edges. This is the default.
-///     threads (int, optional): The number of threads to be used for parallel execution.
 ///
 /// Returns:
-///     AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated edge weights.
+///     NodeStateF64: Mapping of nodes to the computed sum of their associated edge weights.
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, name="weight".to_string(), direction=Direction::BOTH,  threads=None)]]
+#[pyo3[signature = (graph, name="weight".to_string(), direction=Direction::BOTH)]]
 pub fn balance(
     graph: &PyGraphView,
     name: String,
     direction: Direction,
-    threads: Option<usize>,
-) -> Result<AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>>, GraphError> {
-    balance_rs(&graph.graph, name.clone(), direction, threads)
+) -> Result<NodeState<'static, f64, DynamicGraph>, GraphError> {
+    balance_rs(&graph.graph, name.clone(), direction)
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized
@@ -589,17 +589,13 @@ pub fn balance(
 ///
 /// Arguments:
 ///     graph (GraphView): The graph view on which the operation is to be performed.
-///     threads (int, optional): The number of threads to be used for parallel execution.
 ///
 /// Returns:
-///     AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated degree centrality.
+///     NodeStateF64: Mapping of nodes to their associated degree centrality.
 #[pyfunction]
-#[pyo3[signature = (graph, threads=None)]]
-pub fn degree_centrality(
-    graph: &PyGraphView,
-    threads: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    degree_centrality_rs(&graph.graph, threads)
+#[pyo3[signature = (graph)]]
+pub fn degree_centrality(graph: &PyGraphView) -> NodeState<'static, f64, DynamicGraph> {
+    degree_centrality_rs(&graph.graph)
 }
 
 /// Returns the largest degree found in the graph
@@ -636,7 +632,7 @@ pub fn min_degree(graph: &PyGraphView) -> usize {
 ///     cutoff (int, optional): An optional cutoff level. The algorithm will stop if this level is reached.
 ///
 /// Returns:
-///     AlgorithmResult: Returns an `AlgorithmResult[str, list[str]]` containing the shortest paths from the source to all reachable nodes.
+///     NodeStateNodes: Mapping from end node to shortest path from the source node.
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, source, cutoff=None)]]
@@ -644,7 +640,7 @@ pub fn single_source_shortest_path(
     graph: &PyGraphView,
     source: PyNodeRef,
     cutoff: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
+) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
     single_source_shortest_path_rs(&graph.graph, source, cutoff)
 }
 
@@ -658,22 +654,18 @@ pub fn single_source_shortest_path(
 ///     weight (str): The name of the weight property for the edges. Defaults to "weight".
 ///
 /// Returns:
-///     AlgorithmResult: Returns an `AlgorithmResult` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
+///     NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, source, targets, direction=Direction::BOTH, weight="weight".to_string())]]
+#[pyo3[signature = (graph, source, targets, direction=Direction::BOTH, weight="weight")]]
 pub fn dijkstra_single_source_shortest_paths(
     graph: &PyGraphView,
     source: PyNodeRef,
     targets: Vec<PyNodeRef>,
     direction: Direction,
-    weight: Option<String>,
-) -> PyResult<AlgorithmResult<DynamicGraph, (f64, Vec<String>), (OrderedFloat<f64>, Vec<String>)>> {
-    match dijkstra_single_source_shortest_paths_rs(&graph.graph, source, targets, weight, direction)
-    {
-        Ok(result) => Ok(result),
-        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
-    }
+    weight: Option<&str>,
+) -> Result<NodeState<'static, (f64, Nodes<'static, DynamicGraph>), DynamicGraph>, GraphError> {
+    dijkstra_single_source_shortest_paths_rs(&graph.graph, source, targets, weight, direction)
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.
@@ -685,14 +677,14 @@ pub fn dijkstra_single_source_shortest_paths(
 ///     normalized (bool): Indicates whether to normalize the centrality values.
 ///
 /// Returns:
-///     AlgorithmResult: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+///     NodeStateF64: Mapping from nodes to their betweenness centrality.
 #[pyfunction]
 #[pyo3[signature = (graph, k=None, normalized=true)]]
 pub fn betweenness_centrality(
     graph: &PyGraphView,
     k: Option<usize>,
     normalized: bool,
-) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
+) -> NodeState<'static, f64, DynamicGraph> {
     betweenness_rs(&graph.graph, k, normalized)
 }
 
@@ -738,13 +730,10 @@ pub fn label_propagation(
 ///     rng_seed (int | None): optional seed for the random number generator
 ///
 /// Returns:
-///     AlgorithmResult: Returns an `Infected` object for each infected node with attributes
-///
-///     `infected`: the time stamp of the infection event
-///
-///     `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
-///
-///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
+///     NodeStateSEIR: Mapping from nodes to `Infected` objects for each infected node with attributes
+///         `infected`: the time stamp of the infection event
+///         `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
+///         `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
 ///
 #[pyfunction(name = "temporal_SEIR")]
 #[pyo3(signature = (graph, seeds, infection_prob, initial_infection, recovery_rate=None, incubation_rate=None, rng_seed=None))]
@@ -756,7 +745,7 @@ pub fn temporal_SEIR(
     recovery_rate: Option<f64>,
     incubation_rate: Option<f64>,
     rng_seed: Option<u64>,
-) -> Result<AlgorithmResult<DynamicGraph, Infected>, SeedError> {
+) -> Result<NodeState<'static, Infected, DynamicGraph>, SeedError> {
     let mut rng = match rng_seed {
         None => StdRng::from_entropy(),
         Some(seed) => StdRng::seed_from_u64(seed),
@@ -779,6 +768,9 @@ pub fn temporal_SEIR(
 ///     resolution (float): the resolution parameter for modularity
 ///     weight_prop (str | None): the edge property to use for weights (has to be float)
 ///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+///
+/// Returns:
+///     NodeStateUsize: Mapping of nodes to their community assignment
 #[pyfunction]
 #[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None)]]
 pub fn louvain(
@@ -786,7 +778,7 @@ pub fn louvain(
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
-) -> AlgorithmResult<DynamicGraph, usize> {
+) -> NodeState<'static, usize, DynamicGraph> {
     louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
 }
 
@@ -801,7 +793,7 @@ pub fn louvain(
 ///     dt (float | None): the time increment between iterations (default: 0.1)
 ///
 /// Returns:
-///     a dict with the position for each node as a list with two numbers [x, y]
+///     NodeLayout: A mapping from nodes to their [x, y] positions
 #[pyfunction]
 #[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
 pub fn fruchterman_reingold(
@@ -811,7 +803,7 @@ pub fn fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> AlgorithmResult<DynamicGraph, [f32; 2], [OrderedFloat<f32>; 2]> {
+) -> NodeState<'static, [f32; 2], DynamicGraph> {
     fruchterman_reingold_rs(
         &graph.graph,
         iterations,
@@ -832,7 +824,7 @@ pub fn fruchterman_reingold(
 ///     dt (float): Time step or movement factor in each iteration
 ///
 /// Returns:
-///     AlgorithmResult: Returns an AlgorithmResult containing a mapping between vertices and a pair of coordinates.
+///     NodeLayout: A mapping from nodes to their [x, y] positions
 ///
 #[pyfunction]
 #[pyo3[signature=(graph, iter_count=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
@@ -843,7 +835,7 @@ pub fn cohesive_fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> AlgorithmResult<DynamicGraph, [f32; 2], [OrderedFloat<f32>; 2]> {
+) -> NodeState<'static, [f32; 2], DynamicGraph> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,
         iter_count,
@@ -947,7 +939,7 @@ pub fn max_weight_matching(
 ///     threads (int, optional): The number of threads to be used for parallel execution.
 ///
 /// Returns:
-///     AlgorithmResult: Returns an AlgorithmResult containing the embedding vector of each node.
+///     NodeStateListF64: Mapping from nodes to embedding vectors.
 #[pyfunction]
 #[pyo3[signature = (graph, embedding_dim, normalization_strength, iter_weights, seed=None, threads=None)]]
 pub fn fast_rp(
@@ -957,7 +949,7 @@ pub fn fast_rp(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, Vec<f64>, Vec<OrderedFloat<f64>>> {
+) -> NodeState<'static, Vec<f64>, DynamicGraph> {
     fast_rp_rs(
         &graph.graph,
         embedding_dim,
