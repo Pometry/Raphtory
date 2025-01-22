@@ -25,7 +25,7 @@ use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
-    types::PyNotImplemented,
+    types::{PyDict, PyNotImplemented},
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{collections::HashMap, sync::Arc};
@@ -56,6 +56,19 @@ macro_rules! impl_node_state_ops {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
                     .iter_values()
                     .map($to_owned))
+            }
+
+            /// Get value for node
+            ///
+            /// Arguments:
+            ///     node (NodeInput): the node
+            #[doc = concat!("     default (Optional[", $py_value, "]): the default value. Defaults to None.")]
+            ///
+            /// Returns:
+            #[doc = concat!("     Optional[", $py_value, "]: the value for the node or the default value")]
+            #[pyo3(signature = (node, default=None::<$value>))]
+            fn get(&self, node: PyNodeRef, default: Option<$value>) -> Option<$value> {
+                self.inner.get_by_node(node).map($to_owned).or(default)
             }
 
             fn __getitem__(&self, node: PyNodeRef) -> PyResult<$value> {
@@ -107,6 +120,21 @@ macro_rules! impl_node_state_ops {
 
             fn __repr__(&self) -> String {
                 self.inner.repr()
+            }
+
+            /// Convert results to pandas DataFrame
+            ///
+            /// The DataFrame has two columns, "node" with the node ids and "value" with
+            /// the corresponding values.
+            ///
+            /// Returns:
+            ///     DataFrame: the pandas DataFrame
+            fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+                let pandas = PyModule::import(py, "pandas")?;
+                let columns = PyDict::new(py);
+                columns.set_item("node", self.inner.nodes().id())?;
+                columns.set_item("value", self.values())?;
+                pandas.call_method("DataFrame", (columns,), None)
             }
         }
     };
@@ -579,3 +607,6 @@ impl_node_state!(
     "NodeStateListF64",
     "list[float]"
 );
+
+#[pymethods]
+impl NodeStateUsize {}
