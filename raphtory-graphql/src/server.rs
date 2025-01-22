@@ -176,14 +176,11 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
-        self.data.vectorise_all_graphs_that_are_not().await?;
-
-        let work_dir = self.data.work_dir.clone();
+        // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.otlp_tracing_service_name.clone();
         let tp = config.tracing.tracer_provider();
-
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
@@ -202,6 +199,10 @@ impl GraphServer {
                 registry.try_init().ok();
             }
         };
+
+        self.data.vectorise_all_graphs_that_are_not().await?;
+        let work_dir = self.data.work_dir.clone();
+
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
@@ -266,6 +267,7 @@ impl GraphServer {
 }
 
 /// A Raphtory server handler
+#[derive(Debug)]
 pub struct RunningGraphServer {
     signal_sender: Sender<()>,
     server_result: JoinHandle<IoResult<()>>,

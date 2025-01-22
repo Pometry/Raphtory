@@ -10,6 +10,7 @@ use std::{
 
 pub type CacheStore = HashMap<u64, Embedding>;
 
+#[derive(Debug)]
 pub struct EmbeddingCache {
     cache: RwLock<CacheStore>, // TODO: double check that we really need a RwLock !!
     path: PathBuf,
