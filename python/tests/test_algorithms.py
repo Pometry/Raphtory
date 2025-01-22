@@ -230,7 +230,7 @@ def test_algo_result():
     c = actual[1]
     expected = {"1": c, "2": c, "3": c, "4": c, "5": c, "6": c, "7": c, "8": c}
     assert actual == expected
-    assert actual.get("not a node") == None
+    assert actual.get("not a node") is None
     expected_array = [
         (g.node("1"), c),
         (g.node("2"), c),
@@ -245,24 +245,21 @@ def test_algo_result():
     assert sorted(actual.top_k(8).items()) == expected_array
     assert len(actual.groups()[0][1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame
-    df = actual.to_df()
-    expected_result = pd.DataFrame({"Node": 1, "Value": [1]})
-    row_with_one = df[df["Node"] == 1]
-    row_with_one.reset_index(inplace=True, drop=True)
-    assert row_with_one.equals(expected_result)
+    df = actual.sorted_by_id().to_df()
+    expected_result = pd.DataFrame({"node": list(range(1, 9)), "value": [c] * 8})
+    assert df.equals(expected_result)
     # Algo Str u64
     actual = algorithms.weakly_connected_components(g)
-    all_res = actual.get_all_with_names()
-    sorted_res = {k: all_res[k] for k in sorted(all_res)}
-    assert sorted_res == {
-        "1": 1,
-        "2": 1,
-        "3": 1,
-        "4": 1,
-        "5": 1,
-        "6": 1,
-        "7": 1,
-        "8": 1,
+    c = actual[1]
+    assert actual == {
+        "1": c,
+        "2": c,
+        "3": c,
+        "4": c,
+        "5": c,
+        "6": c,
+        "7": c,
+        "8": c,
     }
     # algo str f64
     actual = algorithms.pagerank(g)
@@ -276,21 +273,22 @@ def test_algo_result():
         "7": 0.14074777909144864,
         "8": 0.11786468661230831,
     }
-    assert actual.get_all_with_names() == expected_result
+    assert actual == expected_result
     assert actual.get("Not a node") is None
     assert len(actual.to_df()) == 8
     # algo str vector
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
-    assert sorted(actual.get_all_with_names()) == [
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-    ]
+    assert actual == {
+        1: [(11, "start")],
+        3: [],
+        2: [(11, "1"), (11, "start"), (12, "1")],
+        4: [(12, "2")],
+        5: [(13, "2")],
+        6: [],
+        7: [],
+        8: [],
+    }
+    print(actual.to_df())
 
 
 def test_page_rank():
