@@ -21,7 +21,9 @@ use crate::db::{
 use either::Either;
 use rayon::iter::ParallelIterator;
 use std::{
+    collections::HashSet,
     fmt::{Debug, Formatter},
+    hash::{BuildHasher, Hash},
     marker::PhantomData,
     sync::Arc,
 };
@@ -33,6 +35,28 @@ pub struct Nodes<'graph, G, GH = G> {
     pub(crate) nodes: Option<Index<VID>>,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        V: AsNodeRef + Hash + Eq,
+        S: BuildHasher,
+    > PartialEq<HashSet<V, S>> for Nodes<'graph, G, GH>
+{
+    fn eq(&self, other: &HashSet<V, S>) -> bool {
+        self.len() == other.len() && other.iter().all(|o| self.contains(o))
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: AsNodeRef> PartialEq<Vec<V>>
+    for Nodes<'graph, G, GH>
+{
+    fn eq(&self, other: &Vec<V>) -> bool {
+        self.iter_refs()
+            .eq(other.iter().filter_map(|o| self.get(o).map(|n| n.node)))
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
@@ -204,11 +228,9 @@ where
 
     pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<G, GH>> {
         let vid = self.graph.internalise_node(node.as_node_ref())?;
-        Some(NodeView::new_one_hop_filtered(
-            self.base_graph.clone(),
-            self.graph.clone(),
-            vid,
-        ))
+        self.contains(vid).then(|| {
+            NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), vid)
+        })
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
@@ -239,6 +261,23 @@ where
 
     pub fn is_filtered(&self) -> bool {
         self.node_types_filter.is_some() || self.graph.nodes_filtered()
+    }
+
+    pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {
+        (&self.graph())
+            .node(node)
+            .filter(|node| {
+                self.node_types_filter
+                    .as_ref()
+                    .map(|filter| filter[node.node_type_id()])
+                    .unwrap_or(true)
+                    && self
+                        .nodes
+                        .as_ref()
+                        .map(|nodes| nodes.contains(&node.node))
+                        .unwrap_or(true)
+            })
+            .is_some()
     }
 }
 
