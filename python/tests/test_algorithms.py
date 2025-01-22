@@ -27,9 +27,9 @@ def gen_graph():
 def test_connected_components():
     g = gen_graph()
     actual = algorithms.weakly_connected_components(g, 20)
-    expected = {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1}
-    assert actual.get_all_with_names() == expected
-    assert actual.get("1") == 1
+    expected = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0}
+    assert actual == expected
+    assert actual["1"] == 0
 
 
 def test_largest_connected_component():
@@ -42,20 +42,20 @@ def test_largest_connected_component():
 
 def test_in_components():
     g = gen_graph()
-    actual = algorithms.in_components(g).get_all_with_names()
-    for key in actual:
-        actual[key].sort()
+    actual = algorithms.in_components(g)
     expected = {
-        "1": [],
-        "2": [1],
-        "3": [1],
-        "4": [1, 2, 5],
-        "5": [1, 2, 5],
-        "6": [1, 2, 4, 5],
-        "7": [1, 2, 4, 5],
-        "8": [1, 2, 5],
+        1: [],
+        2: [1],
+        3: [1],
+        4: [1, 2, 5],
+        5: [1, 2, 5],
+        6: [1, 2, 4, 5],
+        7: [1, 2, 4, 5],
+        8: [1, 2, 5],
     }
-    assert actual == expected
+    assert len(actual) == len(expected)
+    for k, v in expected.items():
+        assert actual[k].id.sorted() == v
 
 
 def test_in_component():
@@ -77,9 +77,7 @@ def test_in_component():
 
 def test_out_components():
     g = gen_graph()
-    actual = algorithms.out_components(g).get_all_with_names()
-    for key in actual:
-        actual[key].sort()
+    actual = algorithms.out_components(g)
     expected = {
         "1": [2, 3, 4, 5, 6, 7, 8],
         "2": [4, 5, 6, 7, 8],
@@ -90,7 +88,9 @@ def test_out_components():
         "7": [],
         "8": [],
     }
-    assert actual == expected
+    assert len(actual) == len(expected)
+    for k, v in expected.items():
+        assert actual[k].id.sorted() == v
 
 
 def test_out_component():
@@ -112,8 +112,8 @@ def test_out_component():
 
 def test_empty_algo():
     g = Graph()
-    assert algorithms.weakly_connected_components(g, 20).get_all_with_names() == {}
-    assert algorithms.pagerank(g, 20).get_all_with_names() == {}
+    assert algorithms.weakly_connected_components(g, 20) == {}
+    assert algorithms.pagerank(g, 20) == {}
 
 
 def test_algo_result_windowed_graph():
@@ -125,24 +125,30 @@ def test_algo_result_windowed_graph():
     g.add_edge(10, 10, 11, {})
 
     res_full_graph = algorithms.weakly_connected_components(g, 20)
-    assert sorted(res_full_graph.get_all_with_names().items()) == [
-        ("1", 1),
-        ("10", 10),
-        ("11", 10),
-        ("2", 1),
-        ("3", 3),
-        ("4", 3),
-        ("5", 5),
-        ("6", 5),
-    ]
+    c1 = res_full_graph[1]
+    c3 = res_full_graph[3]
+    c5 = res_full_graph[5]
+    c10 = res_full_graph[10]
+    expected_full_graph = {
+        1: c1,
+        2: c1,
+        3: c3,
+        4: c3,
+        5: c5,
+        6: c5,
+        10: c10,
+        11: c10,
+    }
+
+    assert res_full_graph == expected_full_graph
 
     g_window = g.window(0, 2)
     res_window = algorithms.weakly_connected_components(g_window, 20)
-    assert sorted(res_window.get_all_with_names().items()) == [("1", 1), ("2", 1)]
+    assert res_window == {1: res_window[1], 2: res_window[1]}
 
     g_window = g.window(2, 3)
     res_window = algorithms.weakly_connected_components(g_window, 20)
-    assert sorted(res_window.get_all_with_names().items()) == [("3", 3), ("4", 3)]
+    assert res_window == {3: res_window[3], 4: res_window[3]}
 
 
 def test_algo_result_layered_graph():
@@ -157,30 +163,44 @@ def test_algo_result_layered_graph():
     g_layer_three_five = g.layer("THREE-FIVE")
 
     res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
-    assert sorted(res_zero_two.get_all_with_names().items()) == [
-        ("1", 1),
-        ("2", 1),
-        ("3", 1),
-        ("4", 4),
-        ("5", 4),
-        ("6", 6),
-        ("7", 7),
-        ("8", 8),
-        ("9", 9),
-    ]
+    c1 = res_zero_two[1]
+    c2 = res_zero_two[4]
+    c3 = res_zero_two[6]
+    c4 = res_zero_two[7]
+    c5 = res_zero_two[8]
+    c6 = res_zero_two[9]
+
+    assert res_zero_two == {
+        1: c1,
+        2: c1,
+        3: c1,
+        4: c2,
+        5: c2,
+        6: c3,
+        7: c4,
+        8: c5,
+        9: c6,
+    }
 
     res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
-    assert sorted(res_three_five.get_all_with_names().items()) == [
-        ("1", 1),
-        ("2", 2),
-        ("3", 3),
-        ("4", 4),
-        ("5", 5),
-        ("6", 6),
-        ("7", 6),
-        ("8", 8),
-        ("9", 8),
-    ]
+    c1 = res_three_five[1]
+    c2 = res_three_five[2]
+    c3 = res_three_five[3]
+    c4 = res_three_five[4]
+    c5 = res_three_five[5]
+    c6 = res_three_five[6]
+    c7 = res_three_five[8]
+    assert res_three_five == {
+        1: c1,
+        2: c2,
+        3: c3,
+        4: c4,
+        5: c5,
+        6: c6,
+        7: c6,
+        8: c7,
+        9: c7,
+    }
 
 
 def test_algo_result_window_and_layered_graph():
@@ -195,33 +215,35 @@ def test_algo_result_window_and_layered_graph():
     g_layer_three_five = g.window(4, 5).layer("THREE-FIVE")
 
     res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
-    assert sorted(res_zero_two.get_all_with_names().items()) == [("1", 1), ("2", 1)]
+    c = res_zero_two[1]
+    assert res_zero_two == {1: c, 2: c}
 
     res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
-    assert sorted(res_three_five.get_all_with_names().items()) == [("8", 8), ("9", 8)]
+    c = res_three_five[8]
+    assert res_three_five == {8: c, 9: c}
 
 
 def test_algo_result():
     g = gen_graph()
 
     actual = algorithms.weakly_connected_components(g, 20)
-    expected = {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1}
-    assert actual.get_all_with_names() == expected
-    assert actual.get("1") == 1
+    c = actual[1]
+    expected = {"1": c, "2": c, "3": c, "4": c, "5": c, "6": c, "7": c, "8": c}
+    assert actual == expected
     assert actual.get("not a node") == None
     expected_array = [
-        (g.node("1"), 1),
-        (g.node("2"), 1),
-        (g.node("3"), 1),
-        (g.node("4"), 1),
-        (g.node("5"), 1),
-        (g.node("6"), 1),
-        (g.node("7"), 1),
-        (g.node("8"), 1),
+        (g.node("1"), c),
+        (g.node("2"), c),
+        (g.node("3"), c),
+        (g.node("4"), c),
+        (g.node("5"), c),
+        (g.node("6"), c),
+        (g.node("7"), c),
+        (g.node("8"), c),
     ]
-    assert actual.sort_by_node_name(False) == expected_array
-    assert sorted(actual.top_k(8)) == expected_array
-    assert len(actual.group_by()[1]) == 8
+    assert list(actual.sorted_by_id().items()) == expected_array
+    assert sorted(actual.top_k(8).items()) == expected_array
+    assert len(actual.groups()[0][1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame
     df = actual.to_df()
     expected_result = pd.DataFrame({"Node": 1, "Value": [1]})

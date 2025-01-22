@@ -36,8 +36,6 @@ use std::{iter, ops::Range};
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;
-#[cfg(feature = "storage")]
-use rayon::prelude::*;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
