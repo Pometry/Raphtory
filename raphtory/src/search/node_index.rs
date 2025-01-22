@@ -14,6 +14,7 @@ use crate::{
     prelude::*,
     search::{fields, index_properties, new_index, property_index::PropertyIndex, TOKENIZER},
 };
+use itertools::Itertools;
 use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
@@ -37,7 +38,8 @@ use tantivy::{
 pub struct NodeIndex {
     pub(crate) index: Arc<Index>,
     pub(crate) reader: IndexReader,
-    pub(crate) property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) constant_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
 }
 
 impl Debug for NodeIndex {
@@ -55,7 +57,8 @@ impl NodeIndex {
         Self {
             index: Arc::new(index),
             reader,
-            property_indexes: Arc::new(RwLock::new(Vec::new())),
+            constant_property_indexes: Arc::new(RwLock::new(Vec::new())),
+            temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -70,12 +73,21 @@ impl NodeIndex {
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let property_indexes = self
-            .property_indexes
+        let constant_property_indexes = self
+            .constant_property_indexes
             .read()
             .map_err(|_| GraphError::LockError)?;
 
-        for property_index in property_indexes.iter().flatten() {
+        for property_index in constant_property_indexes.iter().flatten() {
+            property_index.print()?;
+        }
+
+        let temporal_property_indexes = self
+            .temporal_property_indexes
+            .read()
+            .map_err(|_| GraphError::LockError)?;
+
+        for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
@@ -113,25 +125,34 @@ impl NodeIndex {
         meta: &Meta,
         prop_name: &str,
     ) -> Result<Arc<PropertyIndex>, GraphError> {
-        fn get_prop_id(meta: &Meta, prop_name: &str) -> Result<usize, GraphError> {
-            meta.temporal_prop_meta()
-                .get_id(prop_name)
-                .or_else(|| meta.const_prop_meta().get_id(prop_name))
-                .ok_or_else(|| GraphError::PropertyNotFound(prop_name.to_string()))
+        if let Some(prop_id) = meta.temporal_prop_meta().get_id(prop_name) {
+            let temporal_property_indexes = self
+                .temporal_property_indexes
+                .read()
+                .map_err(|_| GraphError::LockError)?;
+
+            if let Some(Some(property_index)) = temporal_property_indexes.get(prop_id) {
+                return Ok(Arc::from(property_index.clone()));
+            } else {
+                return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
+            }
         }
 
-        let property_indexes = self
-            .property_indexes
-            .read()
-            .map_err(|_| GraphError::LockError)?;
+        if let Some(prop_id) = meta.const_prop_meta().get_id(prop_name) {
+            let constant_property_indexes = self
+                .constant_property_indexes
+                .read()
+                .map_err(|_| GraphError::LockError)?;
 
-        let prop_id = get_prop_id(meta, prop_name)?;
-
-        if let Some(Some(property_index)) = property_indexes.get(prop_id) {
-            Ok(Arc::from(property_index.clone()))
-        } else {
-            Err(GraphError::PropertyIndexNotFound(prop_name.to_string()))
+            if let Some(Some(property_index)) = constant_property_indexes.get(prop_id) {
+                return Ok(Arc::from(property_index.clone()));
+            } else {
+                return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
+            }
         }
+
+        // Property not found in either meta
+        Err(GraphError::PropertyNotFound(prop_name.to_string()))
     }
 
     pub fn get_node_field(&self, field_name: &str) -> tantivy::Result<Field> {
@@ -202,21 +223,24 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type().unwrap_or_else(|| ArcStr::from(""));
 
-        let constant_properties: Vec<(ArcStr, usize, Prop)> =
-            self.collect_constant_properties(&node);
+        let constant_properties: &Vec<(ArcStr, usize, Prop)> =
+            &self.collect_constant_properties(&node);
 
         let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
             self.collect_temporal_properties(&node);
 
         for (time, temp_props) in &temporal_properties {
-            let properties = constant_properties
-                .iter()
-                .cloned()
-                .chain(temp_props.iter().cloned());
+            index_properties(
+                constant_properties.iter().cloned(),
+                self.constant_property_indexes.write()?,
+                *time,
+                fields::NODE_ID,
+                node_id,
+            )?;
 
             index_properties(
-                properties,
-                self.property_indexes.write()?,
+                temp_props.iter().cloned(),
+                self.temporal_property_indexes.write()?,
                 *time,
                 fields::NODE_ID,
                 node_id,
