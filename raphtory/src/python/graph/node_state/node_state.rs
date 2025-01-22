@@ -52,6 +52,27 @@ macro_rules! impl_node_state_ops {
                 self.inner.nodes()
             }
 
+            fn __eq__<'py>(
+                &self,
+                other: &Bound<'py, PyAny>,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+                let res = if let Ok(other) = other.downcast::<Self>() {
+                    let other = Bound::borrow(other);
+                    self.inner.iter_values().eq(other.inner.iter_values())
+                } else if let Ok(other) = other.extract::<Vec<$value>>() {
+                    self.inner.iter_values().map($to_owned).eq(other.into_iter())
+                } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
+                    (self.inner.len() == other.len()
+                        && other.into_iter().all(|(node, value)| {
+                            self.inner.get_by_node(node).map($to_owned) == Some(value)
+                        }))
+                } else {
+                    return Ok(PyNotImplemented::get(py).to_owned().into_any());
+                };
+                Ok(res.into_pyobject(py)?.to_owned().into_any())
+            }
+
             fn __iter__(&self) -> PyBorrowingIterator {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
                     .iter_values()
@@ -62,10 +83,10 @@ macro_rules! impl_node_state_ops {
             ///
             /// Arguments:
             ///     node (NodeInput): the node
-            #[doc = concat!("     default (Optional[", $py_value, "]): the default value. Defaults to None.")]
+            #[doc = concat!("    default (Optional[", $py_value, "]): the default value. Defaults to None.")]
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]: the value for the node or the default value")]
+            #[doc = concat!("    Optional[", $py_value, "]: the value for the node or the default value")]
             #[pyo3(signature = (node, default=None::<$value>))]
             fn get(&self, node: PyNodeRef, default: Option<$value>) -> Option<$value> {
                 self.inner.get_by_node(node).map($to_owned).or(default)
@@ -247,26 +268,6 @@ macro_rules! impl_node_state_ord_ops {
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
             }
 
-            fn __eq__<'py>(
-                &self,
-                other: &Bound<'py, PyAny>,
-                py: Python<'py>,
-            ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-                let res = if let Ok(other) = other.downcast::<Self>() {
-                    let other = Bound::borrow(other);
-                    self.inner.iter_values().eq(other.inner.iter_values())
-                } else if let Ok(other) = other.extract::<Vec<$value>>() {
-                    self.inner.iter_values().map($to_owned).eq(other.into_iter())
-                } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
-                    (self.inner.len() == other.len()
-                        && other.into_iter().all(|(node, value)| {
-                            self.inner.get_by_node(node).map($to_owned) == Some(value)
-                        }))
-                } else {
-                    return Ok(PyNotImplemented::get(py).to_owned().into_any());
-                };
-                Ok(res.into_pyobject(py)?.to_owned().into_any())
-            }
         }
     };
 }

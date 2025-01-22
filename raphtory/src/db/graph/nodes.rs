@@ -67,6 +67,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PartialEq for Nodes<'graph, G, GH> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.base_graph.core_graph().graph_id() == other.base_graph.core_graph().graph_id() {
+            // same storage, can use internal ids
+            self.iter_refs().eq(other.iter_refs())
+        } else {
+            // different storage, use external ids
+            self.id().iter_values().eq(other.id().iter_values())
+        }
+    }
+}
+
 impl<'graph, G: IntoDynamic, GH: IntoDynamic> Nodes<'graph, G, GH> {
     pub fn into_dyn(self) -> Nodes<'graph, DynamicGraph> {
         Nodes {

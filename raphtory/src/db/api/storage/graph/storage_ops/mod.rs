@@ -107,6 +107,13 @@ impl std::fmt::Display for GraphStorage {
 }
 
 impl GraphStorage {
+    pub fn graph_id(&self) -> usize {
+        match self {
+            GraphStorage::Mem(g) => Arc::as_ptr(&g.graph).addr(),
+            GraphStorage::Unlocked(g) => Arc::as_ptr(g).addr(),
+            GraphStorage::Disk(g) => Arc::as_ptr(g).addr(),
+        }
+    }
     #[inline(always)]
     pub fn is_immutable(&self) -> bool {
         match self {
