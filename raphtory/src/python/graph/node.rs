@@ -459,6 +459,12 @@ pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
 
+impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
+    }
+}
+
 impl_nodeviewops!(
     PyNodes,
     nodes,

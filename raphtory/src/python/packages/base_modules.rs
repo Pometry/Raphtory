@@ -111,7 +111,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         max_weight_matching
     );
 
-    add_classes!(&algorithm_module, PyMatching);
+    add_classes!(&algorithm_module, PyMatching, PyInfected);
     #[cfg(feature = "storage")]
     add_functions!(&algorithm_module, connected_components);
     Ok(algorithm_module)
@@ -152,4 +152,7 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
-use crate::python::{graph::properties::PropertiesView, types::wrappers::document::PyEmbedding};
+use crate::python::{
+    algorithm::epidemics::PyInfected, graph::properties::PropertiesView,
+    types::wrappers::document::PyEmbedding,
+};

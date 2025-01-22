@@ -82,11 +82,11 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 /// This function returns the number of pairs of neighbours of a given node which are themselves connected.
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-///     v (NodeInput) : node id or name
+///     graph (GraphView): Raphtory graph, this can be directed or undirected but will be treated as undirected
+///     v (NodeInput): node id or name
 ///
 /// Returns:
-///     int : number of triangles associated with node v
+///     int: number of triangles associated with node v
 ///
 #[pyfunction]
 #[pyo3(signature = (graph, v))]
@@ -100,11 +100,11 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 /// by an undirected path.
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph
-///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
+///     graph (GraphView): Raphtory graph
+///     iter_count (int): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     NodeStateUsize : Mapping of nodes to their component ids.
+///     NodeStateUsize: Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
@@ -119,7 +119,7 @@ pub fn weakly_connected_components(
 /// Partitions the graph into node sets which are mutually reachable by an directed path
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph
+///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
 ///     NodeStateUsize: Mapping of nodes to their component ids
@@ -141,7 +141,7 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph
+///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
 ///     NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
@@ -156,7 +156,7 @@ pub fn in_components(
 /// In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 ///
 /// Arguments:
-///     node (Node) : The node whose in-component we wish to calculate
+///     node (Node): The node whose in-component we wish to calculate
 ///
 /// Returns:
 ///    An array containing the Nodes within the given nodes in-component
@@ -169,7 +169,7 @@ pub fn in_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph
+///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
 ///     NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
@@ -184,7 +184,7 @@ pub fn out_components(
 /// Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 ///
 /// Arguments:
-///     node (Node) : The node whose out-component we wish to calculate
+///     node (Node): The node whose out-component we wish to calculate
 ///
 /// Returns:
 ///    NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
@@ -201,9 +201,9 @@ pub fn out_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
 /// is less than the max diff value given.
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph
-///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
-///     max_diff (Optional[float]) : Optional parameter providing an alternative stopping condition.
+///     graph (GraphView): Raphtory graph
+///     iter_count (int): Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
+///     max_diff (Optional[float]): Optional parameter providing an alternative stopping condition.
 ///         The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
 ///         is less than the max diff value given.
 ///
@@ -235,11 +235,11 @@ pub fn pagerank(
 /// a sequence of edges (v_i, v_i+1, t_i) with t_i < t_i+1 for i = 1, ... , k - 1.
 ///
 /// Arguments:
-///     graph (GraphView) : directed Raphtory graph
-///     max_hops (int) : maximum number of hops to propagate out
-///     start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-///     seed_nodes (list[NodeInput]) : list of node names or ids which should be the starting nodes
-///     stop_nodes (Optional[list[NodeInput]]) : nodes at which a path shouldn't go any further
+///     graph (GraphView): directed Raphtory graph
+///     max_hops (int): maximum number of hops to propagate out
+///     start_time (int): time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
+///     seed_nodes (list[NodeInput]): list of node names or ids which should be the starting nodes
+///     stop_nodes (Optional[list[NodeInput]]): nodes at which a path shouldn't go any further
 ///
 /// Returns:
 ///     NodeStateReachability: Mapping of nodes to their reachability history.
@@ -267,11 +267,11 @@ pub fn temporally_reachable_nodes(
 /// The proportion of pairs of neighbours of a node who are themselves connected.
 ///
 /// Arguments:
-///     graph (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     graph (GraphView): Raphtory graph, can be directed or undirected but will be treated as undirected.
 ///     v (NodeInput): node id or name
 ///
 /// Returns:
-///     float : the local clustering coefficient of node v in graph.
+///     float: the local clustering coefficient of node v in graph.
 #[pyfunction]
 pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option<f64> {
     local_clustering_coefficient_rs(&graph.graph, v)
@@ -283,10 +283,10 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 /// edges (given by N * (N-1) where N is the number of nodes).
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
-///     float : Directed graph density of graph.
+///     float: Directed graph density of graph.
 #[pyfunction]
 pub fn directed_graph_density(graph: &PyGraphView) -> f64 {
     directed_graph_density_rs(&graph.graph)
@@ -298,10 +298,10 @@ pub fn directed_graph_density(graph: &PyGraphView) -> f64 {
 /// the number of undirected edges divided by the number of nodes.
 ///
 /// Arguments:
-///     graph (GraphView) : a Raphtory graph
+///     graph (GraphView): a Raphtory graph
 ///
 /// Returns:
-///     float : the average degree of the nodes in the graph
+///     float: the average degree of the nodes in the graph
 #[pyfunction]
 pub fn average_degree(graph: &PyGraphView) -> f64 {
     average_degree_rs(&graph.graph)
@@ -310,10 +310,10 @@ pub fn average_degree(graph: &PyGraphView) -> f64 {
 /// The maximum out degree of any node in the graph.
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
-///     int : value of the largest outdegree
+///     int: value of the largest outdegree
 #[pyfunction]
 pub fn max_out_degree(graph: &PyGraphView) -> usize {
     max_out_degree_rs(&graph.graph)
@@ -322,10 +322,10 @@ pub fn max_out_degree(graph: &PyGraphView) -> usize {
 /// The maximum in degree of any node in the graph.
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
-///     int : value of the largest indegree
+///     int: value of the largest indegree
 #[pyfunction]
 pub fn max_in_degree(graph: &PyGraphView) -> usize {
     max_in_degree_rs(&graph.graph)
@@ -334,10 +334,10 @@ pub fn max_in_degree(graph: &PyGraphView) -> usize {
 /// The minimum out degree of any node in the graph.
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
-///     int : value of the smallest outdegree
+///     int: value of the smallest outdegree
 #[pyfunction]
 pub fn min_out_degree(graph: &PyGraphView) -> usize {
     min_out_degree_rs(&graph.graph)
@@ -346,10 +346,10 @@ pub fn min_out_degree(graph: &PyGraphView) -> usize {
 /// The minimum in degree of any node in the graph.
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
-///     int : value of the smallest indegree
+///     int: value of the smallest indegree
 #[pyfunction]
 pub fn min_in_degree(graph: &PyGraphView) -> usize {
     min_in_degree_rs(&graph.graph)
@@ -361,10 +361,10 @@ pub fn min_in_degree(graph: &PyGraphView) -> usize {
 /// graph and normalizes it by the total number of directed edges.
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
-///     float : reciprocity of the graph between 0 and 1.
+///     float: reciprocity of the graph between 0 and 1.
 
 #[pyfunction]
 pub fn global_reciprocity(graph: &PyGraphView) -> f64 {
@@ -376,7 +376,7 @@ pub fn global_reciprocity(graph: &PyGraphView) -> f64 {
 /// This measures the proportion of a node's outgoing edges which are reciprocated with an incoming edge.
 ///
 /// Arguments:
-///     graph (GraphView) : a directed Raphtory graph
+///     graph (GraphView): a directed Raphtory graph
 ///
 /// Returns:
 ///     NodeStateF64: Mapping of nodes to their reciprocity value.
@@ -392,10 +392,10 @@ pub fn all_local_reciprocity(graph: &PyGraphView) -> NodeState<'static, f64, Dyn
 /// A-B, B-C, C-A is formed of three connected triplets.
 ///
 /// Arguments:
-///     graph (GraphView) : a Raphtory graph, treated as undirected
+///     graph (GraphView): a Raphtory graph, treated as undirected
 ///
 /// Returns:
-///     int : the number of triplets in the graph
+///     int: the number of triplets in the graph
 #[pyfunction]
 pub fn triplet_count(graph: &PyGraphView) -> usize {
     crate::algorithms::motifs::triplet_count::triplet_count(&graph.graph, None)
@@ -407,10 +407,10 @@ pub fn triplet_count(graph: &PyGraphView) -> usize {
 /// Note that this is also known as transitivity and is different to the average clustering coefficient.
 ///
 /// Arguments:
-///     graph (GraphView) : a Raphtory graph, treated as undirected
+///     graph (GraphView): a Raphtory graph, treated as undirected
 ///
 /// Returns:
-///     float : the global clustering coefficient of the graph
+///     float: the global clustering coefficient of the graph
 ///
 /// See also:
 ///     [`Triplet Count`](triplet_count)
@@ -454,11 +454,11 @@ pub fn global_clustering_coefficient(graph: &PyGraphView) -> f64 {
 ///   8. i --> j, i --> k, k --> j
 ///
 /// Arguments:
-///     graph (GraphView) : A directed raphtory graph
+///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
-///     list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
+///     list: A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
 ///
 /// Notes:
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
@@ -477,9 +477,9 @@ pub fn global_temporal_three_node_motif(
 /// will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
 ///
 /// Arguments:
-///     graph (GraphView) : A directed raphtory graph
+///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Time period
-///     pivot_type (str) : node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
+///     pivot_type (str): node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 ///
 /// Returns:
 ///     Graph: Projected (unipartite) temporal graph.
@@ -496,11 +496,11 @@ pub fn temporal_bipartite_graph_projection(
 /// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
 ///
 /// Arguments:
-///     graph (GraphView) : A directed raphtory graph
+///     graph (GraphView): A directed raphtory graph
 ///     deltas(list[int]): A list of delta values to use.
 ///
 /// Returns:
-///     list[list[int]] : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
+///     list[list[int]]: A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
 #[pyfunction]
 #[pyo3(signature = (graph, deltas, threads=None))]
 pub fn global_temporal_three_node_motif_multi(
@@ -514,7 +514,7 @@ pub fn global_temporal_three_node_motif_multi(
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
 ///
 /// Arguments:
-///     graph (GraphView) : A directed raphtory graph
+///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
@@ -674,7 +674,7 @@ pub fn dijkstra_single_source_shortest_paths(
 ///     graph (GraphView): A reference to the graph.
 ///     k (int, optional): Specifies the number of nodes to consider for the centrality computation.
 ///         All nodes are considered by default.
-///     normalized (bool): Indicates whether to normalize the centrality values.
+///     normalized (bool): Indicates whether to normalize the centrality values. Defaults to True.
 ///
 /// Returns:
 ///     NodeStateF64: Mapping from nodes to their betweenness centrality.
