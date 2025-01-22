@@ -294,7 +294,7 @@ impl PyPersistentGraph {
     ///   secondary_index (int, optional): The optional integer which will be used as a secondary index.
     ///
     /// Returns:
-    ///  The deleted edge
+    ///   MutableEdge: The deleted edge
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -323,7 +323,7 @@ impl PyPersistentGraph {
     ///   id (str | int): the node id
     ///
     /// Returns:
-    ///   The node with the specified id, or None if the node does not exist
+    ///   Optional[MutableNode]: The node with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<PersistentGraph>> {
         self.graph.node(id)
     }
@@ -336,7 +336,7 @@ impl PyPersistentGraph {
     ///     dst (str | int): the destination node id
     ///
     /// Returns:
-    ///     The edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     Optional[MutableEdge]: The edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(
         &self,
@@ -356,7 +356,7 @@ impl PyPersistentGraph {
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///     Node: A Node object if the node was successfully imported, and an error otherwise.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -380,7 +380,7 @@ impl PyPersistentGraph {
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///     Node: A Node object if the node was successfully imported, and an error otherwise.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -515,6 +515,7 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A vector of edge objects representing the edges to be imported.
+    ///     new_ids (list[Tuple[GID, GID]]): The new edge ids
     ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edges. Defaults to False.
     ///
     /// Returns:
@@ -540,16 +541,23 @@ impl PyPersistentGraph {
     /// Returns all the node types in the graph.
     ///
     /// Returns:
-    ///     A list of node types
+    ///     list[str]: A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
     }
 
     /// Get event graph
+    ///
+    /// Returns:
+    ///     Graph: the graph with event semantics applied
     pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
+    /// Get persistent graph
+    ///
+    /// Returns:
+    ///     PersistentGraph: the graph with persistent semantics applied
     pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }

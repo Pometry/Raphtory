@@ -10,17 +10,17 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 motif_im_dir = Path(__file__).parents[1].absolute().as_posix() + "/motif-images/"
 
 
-def get_motif(xory: str, y: int):
+def _get_motif(xory: str, y: int):
     path = motif_im_dir + xory + str(y) + ".png"
     return plt.imread(path)
 
 
-def get_motif_labels(motif_map):
+def _get_motif_labels(motif_map):
     return np.vectorize(human_format)(motif_map)
 
 
-def offset_image(xory, coord, name, ax):
-    img = get_motif(xory, name)
+def _offset_image(xory, coord, name, ax):
+    img = _get_motif(xory, name)
     im = OffsetImage(img, zoom=0.04)
     im.image.axes = ax
 
@@ -51,10 +51,10 @@ def offset_image(xory, coord, name, ax):
     ax.add_artist(ab)
 
 
-def add_motifs_to_ax(ax):
+def _add_motifs_to_ax(ax):
     for i in range(6):
-        offset_image("x", i, i, ax)
-        offset_image("y", i, i, ax)
+        _offset_image("x", i, i, ax)
+        _offset_image("y", i, i, ax)
 
 
 def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
@@ -62,17 +62,17 @@ def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
     Out-of-the-box plotting of global motif counts corresponding to the layout in Motifs in Temporal Networks (Paranjape et al)
 
     Args:
-        motifs(list/np.array): 1 dimensional length-40 array of motifs, which should be the list of motifs returned from the `global_temporal_three_node_motifs` function in Raphtory.
+        motifs(list | np.ndarray): 1 dimensional length-40 array of motifs, which should be the list of motifs returned from the `global_temporal_three_node_motifs` function in Raphtory.
         **kwargs: arguments to
 
     Returns:
-        matplotlib.axes: ax item containing the heatmap with motif labels on the axes.
+        matplotlib.axes.Axes: ax item containing the heatmap with motif labels on the axes.
     """
     # import is here as it's a pretty niche function and not worth having a seaborn dependency for the whole project
     import seaborn as sns
 
     motif_matrix = to_motif_matrix(motifs)
-    labels = get_motif_labels(motif_matrix)
+    labels = _get_motif_labels(motif_matrix)
 
     ax = sns.heatmap(
         motif_matrix,
@@ -85,7 +85,7 @@ def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
         cbar_kws={"shrink": 1.0},
         **kwargs,
     )
-    add_motifs_to_ax(ax)
+    _add_motifs_to_ax(ax)
     ax.tick_params(axis="x", which="major", pad=50)
     ax.tick_params(axis="y", which="major", pad=50)
     plt.setp(ax.get_xticklabels(), visible=False)
@@ -99,10 +99,10 @@ def to_motif_matrix(motifs, data_type=int):
     Converts a 40d vector of global motifs to a 2d grid of motifs corresponding to the layout in Motifs in Temporal Networks (Paranjape et al)
 
     Args:
-        motifs(list/np.array): 1 dimensional length-40 array of motifs.
+        motifs(list | np.ndarray): 1 dimensional length-40 array of motifs.
 
     Returns:
-        numpy.array: 6x6 array of motifs whose ijth element is M_ij in Motifs in Temporal Networks (Paranjape et al).
+        np.ndarray: 6x6 array of motifs whose ijth element is M_ij in Motifs in Temporal Networks (Paranjape et al).
     """
     mapper = {
         0: (5, 5),
@@ -180,11 +180,10 @@ def cdf(observations, normalised=True):
 
     Args:
         observations(list): list of observations, should be numeric
-        normalised(boolean,optional): if true, y coordinates normalised such that y is the probability of finding a value less than or equal to x, if false y is the number of observations less than or equal to x.
+        normalised(bool): if true, y coordinates normalised such that y is the probability of finding a value less than or equal to x, if false y is the number of observations less than or equal to x. Defaults to True.
 
     Returns:
-        list(float): x coordinates for the cdf
-        list(float): y coordinates for the cdf
+        Tuple[np.ndarray, np.ndarray]: the x and y coordinates for the cdf
     """
     data = np.array(observations, dtype=object)
     N = len(observations)
@@ -203,11 +202,10 @@ def ccdf(observations, normalised=True):
 
     Args:
         observations(list): list of observations, should be numeric
-        normalised(boolean,optional): if true, y coordinates normalised such that y is the probability of finding a value greater than than or equal to x, if false y is the number of observations greater than or equal to x.
+        normalised(bool,optional): Defaults to True. If true, y coordinates normalised such that y is the probability of finding a value greater than than or equal to x, if false y is the number of observations greater than or equal to x.
 
     Returns:
-        list(float): x coordinates for the cdf
-        list(float): y coordinates for the cdf
+        Tuple[np.ndarray, np.ndarray]: x and y coordinates for the cdf
     """
     x, y = cdf(observations, normalised)
     if normalised:
@@ -224,8 +222,7 @@ def lorenz(observations):
         observations(list): list of observations, should be numeric
 
     Returns:
-        list(float): x coordinates for the cdf
-        list(float): y coordinates for the cdf
+        Tuple[np.ndarray, np.ndarray]: x and y coordinates for the cdf
     """
     tmp_arr = np.array(sorted(observations))
     # print(tmp_arr[0])

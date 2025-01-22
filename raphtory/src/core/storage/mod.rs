@@ -1,7 +1,4 @@
-use crate::{
-    core::entities::nodes::node_store::NodeStore,
-    db::graph::views::deletion_graph::PersistentGraph, prelude::Graph,
-};
+use crate::core::entities::nodes::node_store::NodeStore;
 use lazy_vec::LazyVec;
 use lock_api;
 use node_entry::NodePtr;
@@ -23,7 +20,7 @@ use std::{
     },
 };
 
-use super::{utils::errors::GraphError, DocumentInput, Prop};
+use super::{utils::errors::GraphError, DocumentInput, Prop, PropArray};
 
 pub mod lazy_vec;
 pub mod locked_view;
@@ -133,9 +130,7 @@ pub(crate) enum TPropColumn {
     F32(LazyVec<f32>),
     F64(LazyVec<f64>),
     Str(LazyVec<ArcStr>),
-    Graph(LazyVec<Graph>),
-    PGraph(LazyVec<PersistentGraph>),
-
+    Array(LazyVec<PropArray>),
     List(LazyVec<Arc<Vec<Prop>>>),
     Map(LazyVec<Arc<HashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
@@ -172,8 +167,7 @@ impl TPropColumn {
             (TPropColumn::F32(col), Prop::F32(v)) => col.set(index, v)?,
             (TPropColumn::F64(col), Prop::F64(v)) => col.set(index, v)?,
             (TPropColumn::Str(col), Prop::Str(v)) => col.set(index, v)?,
-            (TPropColumn::Graph(col), Prop::Graph(v)) => col.set(index, v)?,
-            (TPropColumn::PGraph(col), Prop::PersistentGraph(v)) => col.set(index, v)?,
+            (TPropColumn::Array(col), Prop::Array(v)) => col.set(index, v)?,
             (TPropColumn::U8(col), Prop::U8(v)) => col.set(index, v)?,
             (TPropColumn::U16(col), Prop::U16(v)) => col.set(index, v)?,
             (TPropColumn::I32(col), Prop::I32(v)) => col.set(index, v)?,
@@ -197,9 +191,7 @@ impl TPropColumn {
             (TPropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
             (TPropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
             (TPropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
-            (TPropColumn::Graph(col), Prop::Graph(v)) => col.push(Some(v)),
-            (TPropColumn::PGraph(col), Prop::PersistentGraph(v)) => col.push(Some(v)),
-            (TPropColumn::U8(col), Prop::U8(v)) => col.push(Some(v)),
+            (TPropColumn::Array(col), Prop::Array(v)) => col.push(Some(v)),
             (TPropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
             (TPropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
             (TPropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
@@ -222,8 +214,7 @@ impl TPropColumn {
                 Prop::F32(_) => *self = TPropColumn::F32(LazyVec::with_len(*len)),
                 Prop::F64(_) => *self = TPropColumn::F64(LazyVec::with_len(*len)),
                 Prop::Str(_) => *self = TPropColumn::Str(LazyVec::with_len(*len)),
-                Prop::Graph(_) => *self = TPropColumn::Graph(LazyVec::with_len(*len)),
-                Prop::PersistentGraph(_) => *self = TPropColumn::PGraph(LazyVec::with_len(*len)),
+                Prop::Array(_) => *self = TPropColumn::Array(LazyVec::with_len(*len)),
                 Prop::U8(_) => *self = TPropColumn::U8(LazyVec::with_len(*len)),
                 Prop::U16(_) => *self = TPropColumn::U16(LazyVec::with_len(*len)),
                 Prop::I32(_) => *self = TPropColumn::I32(LazyVec::with_len(*len)),
@@ -251,8 +242,7 @@ impl TPropColumn {
             TPropColumn::F32(col) => col.push(None),
             TPropColumn::F64(col) => col.push(None),
             TPropColumn::Str(col) => col.push(None),
-            TPropColumn::Graph(col) => col.push(None),
-            TPropColumn::PGraph(col) => col.push(None),
+            TPropColumn::Array(col) => col.push(None),
             TPropColumn::U8(col) => col.push(None),
             TPropColumn::U16(col) => col.push(None),
             TPropColumn::I32(col) => col.push(None),
@@ -276,10 +266,7 @@ impl TPropColumn {
             TPropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
             TPropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
             TPropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
-            TPropColumn::Graph(col) => col.get_opt(index).map(|prop| Prop::Graph(prop.clone())),
-            TPropColumn::PGraph(col) => col
-                .get_opt(index)
-                .map(|prop| Prop::PersistentGraph(prop.clone())),
+            TPropColumn::Array(col) => col.get_opt(index).map(|prop| Prop::Array(prop.clone())),
             TPropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
             TPropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
             TPropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
@@ -303,8 +290,7 @@ impl TPropColumn {
             TPropColumn::F32(col) => col.len(),
             TPropColumn::F64(col) => col.len(),
             TPropColumn::Str(col) => col.len(),
-            TPropColumn::Graph(col) => col.len(),
-            TPropColumn::PGraph(col) => col.len(),
+            TPropColumn::Array(col) => col.len(),
             TPropColumn::U8(col) => col.len(),
             TPropColumn::U16(col) => col.len(),
             TPropColumn::I32(col) => col.len(),

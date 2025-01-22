@@ -1,17 +1,17 @@
-use pyo3::prelude::*;
-
 use crate::{
-    add_classes,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{ops, LazyNodeState, NodeOp, NodeState, NodeStateOps, OrderedNodeStateOps},
+            state::{
+                ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
+                OrderedNodeStateOps,
+            },
             view::{
                 internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
                 StaticGraphViewOps,
             },
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
     py_borrowing_iter,
@@ -23,6 +23,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
     types::PyNotImplemented,
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
@@ -32,7 +33,7 @@ macro_rules! impl_node_state_ops {
     ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         impl $name {
             pub fn iter(&self) -> impl Iterator<Item = $value> + '_ {
-                self.inner.values().map($to_owned)
+                self.inner.iter_values().map($to_owned)
             }
         }
 
@@ -45,16 +46,14 @@ macro_rules! impl_node_state_ops {
             /// Iterate over nodes
             ///
             /// Returns:
-            ///     Iterator[Node]
-            fn nodes(&self) -> PyBorrowingIterator {
-                py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| {
-                    inner.nodes().map(|n| n.cloned())
-                })
+            ///     Nodes: The nodes
+            fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+                self.inner.nodes()
             }
 
             fn __iter__(&self) -> PyBorrowingIterator {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
-                    .values()
+                    .iter_values()
                     .map($to_owned))
             }
 
@@ -79,16 +78,20 @@ macro_rules! impl_node_state_ops {
                     })
             }
 
+            /// Iterate over items
+            ///
             /// Returns:
-            #[doc = concat!("     Iterator[Tuple[Node, ", $py_value, "]]")]
+            #[doc = concat!("     Iterator[Tuple[Node, ", $py_value, "]]: Iterator over items")]
             fn items(&self) -> PyBorrowingIterator {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
                     .iter()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v))))
             }
 
+            /// Iterate over values
+            ///
             /// Returns:
-            #[doc = concat!("     Iterator[",$py_value, "]")]
+            #[doc = concat!("     Iterator[",$py_value, "]: Iterator over values")]
             fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
             }
@@ -96,13 +99,28 @@ macro_rules! impl_node_state_ops {
             /// Sort results by node id
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": The sorted node state")]
             fn sorted_by_id(&self) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.sort_by_id()
             }
 
             fn __repr__(&self) -> String {
                 self.inner.repr()
+            }
+        }
+    };
+}
+
+macro_rules! impl_node_state_group_by_ops {
+    ($name:ident, $value:ty) => {
+        #[pymethods]
+        impl $name {
+            /// Group by value
+            ///
+            /// Returns:
+            ///     NodeGroups: The grouped nodes
+            fn groups(&self) -> NodeGroups<$value, DynamicGraph> {
+                self.inner.groups()
             }
         }
     };
@@ -118,7 +136,7 @@ macro_rules! impl_node_state_ord_ops {
             ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": Sorted node state")]
             #[pyo3(signature = (reverse = false))]
             fn sorted(&self, reverse: bool) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.sort_by_values(reverse)
@@ -130,7 +148,7 @@ macro_rules! impl_node_state_ord_ops {
             ///     k (int): The number of values to return
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": The k largest values as a node state")]
             fn top_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.top_k(k)
             }
@@ -141,7 +159,7 @@ macro_rules! impl_node_state_ord_ops {
             ///     k (int): The number of values to return
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": The k smallest values as a node state")]
             fn bottom_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
                 self.inner.bottom_k(k)
             }
@@ -149,7 +167,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return smallest value and corresponding node
             ///
             /// Returns:
-            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]")]
+            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and minimum value or `None` if empty")]
             fn min_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
                 self.inner
                     .min_item()
@@ -159,7 +177,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the minimum value
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]")]
+            #[doc = concat!("     Optional[", $py_value, "]: The minimum value or `None` if empty")]
             fn min(&self) -> Option<$value> {
                 self.inner.min().map($to_owned)
             }
@@ -167,7 +185,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return largest value and corresponding node
             ///
             /// Returns:
-            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]")]
+            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and maximum value or `None` if empty")]
             fn max_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
                 self.inner
                     .max_item()
@@ -177,7 +195,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the maximum value
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]")]
+            #[doc = concat!("     Optional[", $py_value, "]: The maximum value or `None` if empty")]
             fn max(&self) -> Option<$value> {
                 self.inner.max().map($to_owned)
             }
@@ -185,15 +203,15 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the median value
             ///
             /// Returns:
-            #[doc = concat!("     Optional[", $py_value, "]")]
+            #[doc = concat!("     Optional[", $py_value, "]:")]
             fn median(&self) -> Option<$value> {
                 self.inner.median().map($to_owned)
             }
 
-            /// Return medain value and corresponding node
+            /// Return median value and corresponding node
             ///
             /// Returns:
-            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]")]
+            #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The median value or `None` if empty")]
             fn median_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
                 self.inner
                     .median_item()
@@ -207,9 +225,9 @@ macro_rules! impl_node_state_ord_ops {
             ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
                 let res = if let Ok(other) = other.downcast::<Self>() {
                     let other = Bound::borrow(other);
-                    self.inner.values().eq(other.inner.values())
+                    self.inner.iter_values().eq(other.inner.iter_values())
                 } else if let Ok(other) = other.extract::<Vec<$value>>() {
-                    self.inner.values().map($to_owned).eq(other.into_iter())
+                    self.inner.iter_values().map($to_owned).eq(other.into_iter())
                 } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
                     (self.inner.len() == other.len()
                         && other.into_iter().all(|(node, value)| {
@@ -231,7 +249,7 @@ macro_rules! impl_node_state_num_ops {
             /// sum of values over all nodes
             ///
             /// Returns:
-            #[doc= concat!("        ", $py_value)]
+            #[doc= concat!("        ", $py_value, ": the sum")]
             fn sum(&self) -> $value {
                 self.inner.sum()
             }
@@ -239,7 +257,7 @@ macro_rules! impl_node_state_num_ops {
             /// mean of values over all nodes
             ///
             /// Returns:
-            ///     float
+            ///     float: mean value
             fn mean(&self) -> f64 {
                 self.inner.mean()
             }
@@ -266,7 +284,7 @@ macro_rules! impl_lazy_node_state {
             /// Compute all values and return the result as a node view
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed)]
+            #[doc = concat!("     ", $computed, ": the computed `NodeState`")]
             fn compute(
                 &self,
             ) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph, DynamicGraph> {
@@ -275,8 +293,8 @@ macro_rules! impl_lazy_node_state {
 
             /// Compute all values and return the result as a list
             ///
-            /// Returns
-            #[doc = concat!("     list[", $py_value, "]")]
+            /// Returns:
+            #[doc = concat!("     list[", $py_value, "]", ": all values as a list")]
             fn collect(&self) -> Vec<<$op as NodeOp>::Output> {
                 self.inner.collect()
             }
@@ -420,8 +438,10 @@ impl_lazy_node_state_num!(
     "int"
 );
 impl_one_hop!(DegreeView<ops::Degree>, "DegreeView");
+impl_node_state_group_by_ops!(DegreeView, usize);
 
 impl_node_state_num!(NodeStateUsize<usize>, "NodeStateUsize", "int");
+impl_node_state_group_by_ops!(NodeStateUsize, usize);
 
 impl_node_state_num!(NodeStateU64<u64>, "NodeStateU64", "int");
 
@@ -434,44 +454,52 @@ impl_lazy_node_state_ord!(
     "Optional[int]"
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
+impl_node_state_group_by_ops!(EarliestTimeView, Option<i64>);
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
 impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
+impl_node_state_group_by_ops!(LatestTimeView, Option<i64>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
+impl_node_state_group_by_ops!(NodeStateOptionI64, Option<i64>);
 
 impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
+impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
+impl_node_state_group_by_ops!(NodeStateString, String);
 
 type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
     EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
-    "Optional[Datetime]"
+    "Optional[datetime]"
 );
 impl_one_hop!(
     EarliestDateTimeView<EarliestDateTime>,
     "EarliestDateTimeView"
 );
+impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
 
 type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
     LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>,
     "NodeStateOptionDateTime",
-    "Optional[Datetime]"
+    "Optional[datetime]"
 );
 impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");
+impl_node_state_group_by_ops!(LatestDateTimeView, Option<DateTime<Utc>>);
 impl_node_state_ord!(
     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
     "NodeStateOptionDateTime",
-    "Optional[Datetime]"
+    "Optional[datetime]"
 );
+impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 impl_lazy_node_state_ord!(
     HistoryView<ops::History<DynamicGraph>>,
@@ -485,13 +513,13 @@ type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
     "NodeStateOptionListDateTime",
-    "Optional[list[Datetime]]"
+    "Optional[list[datetime]]"
 );
 impl_one_hop!(HistoryDateTimeView<HistoryDateTime>, "HistoryDateTimeView");
 impl_node_state_ord!(
     NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>,
     "NodeStateOptionListDateTime",
-    "Optional[list[Datetime]]"
+    "Optional[list[datetime]]"
 );
 
 impl_lazy_node_state_ord!(
@@ -499,41 +527,16 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionStr",
     "Optional[str]"
 );
+impl_node_state_group_by_ops!(NodeTypeView, Option<ArcStr>);
 impl_node_state_ord!(
     NodeStateOptionStr<Option<ArcStr>>,
     "NodeStateOptionStr",
     "Optional[str]"
 );
+impl_node_state_group_by_ops!(NodeStateOptionStr, Option<ArcStr>);
 
 impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
     "NodeStateListDateTime",
-    "list[Datetime]"
+    "list[datetime]"
 );
-
-pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
-    let m = PyModule::new(py, "node_state")?;
-    add_classes!(
-        &m,
-        DegreeView,
-        NodeStateUsize,
-        NodeStateU64,
-        IdView,
-        NodeStateGID,
-        EarliestTimeView,
-        LatestTimeView,
-        NameView,
-        NodeStateString,
-        EarliestDateTimeView,
-        LatestDateTimeView,
-        NodeStateOptionDateTime,
-        HistoryView,
-        NodeStateListI64,
-        HistoryDateTimeView,
-        NodeStateOptionListDateTime,
-        NodeTypeView,
-        NodeStateOptionStr,
-        NodeStateListDateTime
-    );
-    Ok(m)
-}

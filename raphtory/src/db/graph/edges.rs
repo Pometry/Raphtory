@@ -64,6 +64,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G, GH> {
+    pub fn new(
+        graph: GH,
+        base_graph: G,
+        edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
+    ) -> Self {
+        Edges {
+            graph,
+            base_graph,
+            edges,
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = EdgeView<&G, &GH>> + '_ {
         let base_graph = &self.base_graph;
         let graph = &self.graph;

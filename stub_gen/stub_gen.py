@@ -13,18 +13,18 @@ from types import (
     GetSetDescriptorType,
     MethodDescriptorType,
     ModuleType,
+    ClassMethodDescriptorType,
 )
 from typing import *
 
 from docstring_parser import parse, DocstringStyle, DocstringParam
+import builtins
 
 logger = logging.getLogger(__name__)
 fn_logger = logging.getLogger(__name__)
 cls_logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-
-TARGET_MODULES = ["raphtory", "builtins"]
 TAB = " " * 4
 
 MethodTypes = (
@@ -42,21 +42,30 @@ comment = """###################################################################
 #                                                                             #
 ###############################################################################\n"""
 
-imports = """
-from typing import *
-from raphtory import *
-from raphtory.algorithms import *
-from raphtory.vectors import *
-from raphtory.node_state import *
-from raphtory.graphql import *
-from raphtory.typing import *
-from datetime import datetime
-from pandas import DataFrame
-"""
+imports = ""
 
 # imports for type checking
 global_ns = {}
-exec(imports, global_ns)
+
+
+def is_builtin(name: str) -> bool:
+    """check if name is actually builtin"""
+    return hasattr(builtins, name)
+
+
+def set_imports(preamble: str):
+    """
+    Specify import statements that are added to each generated file
+
+    Arguments:
+        preamble: the import statements
+
+    Note that this string will be evaluated to create the global namespace for checking type annotations
+    """
+    global imports
+    global global_ns
+    imports = preamble
+    exec(imports, global_ns)
 
 
 def format_type(obj) -> str:
@@ -163,27 +172,19 @@ def clean_parameter(
 
 def clean_signature(
     sig: inspect.Signature,
-    is_method: bool,
     type_annotations: dict[str, dict[str, Any]],
     return_type: Optional[str] = None,
-) -> Tuple[str, Optional[str]]:
-    decorator = None
-    if is_method:
-        decorator = "@staticmethod"
-        if "cls" in sig.parameters:
-            decorator = "@classmethod"
-        if "self" in sig.parameters:
-            decorator = None
+) -> str:
 
     new_params = [clean_parameter(p, type_annotations) for p in sig.parameters.values()]
     for param_name, annotations in type_annotations.items():
-        fn_logger.warning(
+        fn_logger.error(
             f"parameter {param_name} appears in documentation but does not exist."
         )
     sig = sig.replace(parameters=new_params)
     if return_type is not None:
         sig = sig.replace(return_annotation=return_type)
-    return format_signature(sig), decorator
+    return format_signature(sig)
 
 
 def insert_self(signature: inspect.Signature) -> inspect.Signature:
@@ -203,12 +204,17 @@ def cls_signature(cls: type) -> Optional[inspect.Signature]:
         pass
 
 
-def from_module(obj, name: str) -> bool:
+def from_module(obj, obj_name: str, name: str) -> bool:
     module = inspect.getmodule(obj)
-    if module:
-        return module.__name__ == name or any(
-            module.__name__.startswith(target) for target in TARGET_MODULES
+    module_name = module.__name__ if module else None
+    if module_name == "builtins" and not is_builtin(obj_name):
+        logger.error(
+            f"{obj_name} has default module 'builtins', should be {repr(name)}"
         )
+        return True
+    if module_name == name:
+        return True
+    logger.debug(f"ignoring {obj_name} with module name {module_name}")
     return False
 
 
@@ -225,7 +231,7 @@ def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
 def extract_param_annotation(param: DocstringParam) -> dict:
     res = {}
     if param.type_name is None:
-        res["annotation"] = Any
+        res["annotation"] = "Any"
     else:
         type_val = param.type_name
         try:
@@ -234,6 +240,7 @@ def extract_param_annotation(param: DocstringParam) -> dict:
                 type_val = f"Optional[{type_val}]"
             res["annotation"] = type_val
         except Exception as e:
+            res["annotation"] = "Any"
             fn_logger.error(
                 f"Invalid annotation {repr(type_val)} for parameter {param.arg_name}: {e}"
             )
@@ -264,7 +271,10 @@ def extract_types(
                 param.arg_name: extract_param_annotation(param)
                 for param in parse_result.params
             }
-            if parse_result.returns is not None:
+            if (
+                parse_result.returns is not None
+                and parse_result.returns.type_name is not None
+            ):
                 return_type = parse_result.returns.type_name
                 try:
                     validate_annotation(return_type)
@@ -277,10 +287,26 @@ def extract_types(
                 return_type = None
             return type_annotations, return_type
         else:
+            fn_logger.warning(f"Missing documentation")
             return dict(), None
     except Exception as e:
         fn_logger.error(f"failed to parse docstring: {e}")
         return dict(), None
+
+
+def get_decorator(method):
+    if (inspect.ismethod(method) and inspect.isclass(method.__self__)) or isinstance(
+        method, ClassMethodDescriptorType
+    ):
+        return "@classmethod"
+
+    if inspect.isgetsetdescriptor(method):
+        return "@property"
+
+    if inspect.isfunction(method) or isinstance(method, BuiltinFunctionType):
+        return "@staticmethod"
+
+    return None
 
 
 def gen_fn(
@@ -297,12 +323,15 @@ def gen_fn(
         function, docs_overwrite, signature.return_annotation is signature.empty
     )
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
-    signature, decorator = clean_signature(
+    signature = clean_signature(
         signature,  # type: ignore
-        is_method,
         type_annotations,
         return_type,
     )
+    decorator = None
+    if is_method:
+        decorator = get_decorator(function)
+
     if name == "__new__":
         # new is special and not a class method
         decorator = None
@@ -310,13 +339,6 @@ def gen_fn(
     fn_str = f"{init_tab}def {name}{signature}:\n{docstr}"
 
     return f"{init_tab}{decorator}\n{fn_str}" if decorator else fn_str
-
-
-def gen_property(prop: GetSetDescriptorType, name: str) -> str:
-    prop_tab = TAB * 2
-    docstr = format_docstring(prop.__doc__, tab=prop_tab, ellipsis=True)
-
-    return f"{TAB}@property\n{TAB}def {name}(self):\n{docstr}"
 
 
 def gen_bases(cls: type) -> str:
@@ -329,7 +351,7 @@ def gen_bases(cls: type) -> str:
 
 def gen_class(cls: type, name) -> str:
     contents = list(vars(cls).items())
-    # contents.sort(key=lambda x: x[0])
+    contents.sort(key=lambda x: x[0])
     entities: list[str] = []
     global cls_logger
     global fn_logger
@@ -364,7 +386,14 @@ def gen_class(cls: type, name) -> str:
             if isinstance(entity, MethodTypes) or inspect.ismethoddescriptor(entity):
                 entities.append(gen_fn(entity, obj_name, is_method=True))
             elif isinstance(entity, GetSetDescriptorType):
-                entities.append(gen_property(entity, obj_name))
+                entities.append(
+                    gen_fn(
+                        entity,
+                        obj_name,
+                        is_method=True,
+                        signature_overwrite=insert_self(inspect.Signature()),
+                    )
+                )
             else:
                 logger.debug(f"ignoring {repr(obj_name)}: {repr(entity)}")
 
@@ -386,9 +415,11 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
     modules: List[(ModuleType, str)] = []
     path = path / name
     logger = logging.getLogger(log_path)
+    if "." in name:
+        logger.error("module name contains path separator '.'")
     for obj_name, obj in objs:
         if not obj_name.startswith("_"):
-            if isinstance(obj, type) and from_module(obj, name):
+            if isinstance(obj, type) and from_module(obj, obj_name, name):
                 stubs.append(gen_class(obj, obj_name))
             elif isinstance(obj, BuiltinFunctionType):
                 fn_logger = logger.getChild(obj_name)

@@ -15,6 +15,7 @@ use crate::{
     },
     prelude::*,
 };
+use indexmap::IndexSet;
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 
@@ -30,7 +31,7 @@ where
     Op::Output: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.values()).finish()
+        f.debug_list().entries(self.iter_values()).finish()
     }
 }
 
@@ -64,11 +65,15 @@ impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
 impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for LazyNodeState<'graph, Op, G, GH>
 {
-    type Item = Op::Output;
+    type Item = (NodeView<G, GH>, Op::Output);
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.into_values().into_dyn_boxed()
+        self.nodes
+            .clone()
+            .into_iter()
+            .zip(self.into_iter_values())
+            .into_dyn_boxed()
     }
 }
 
@@ -80,7 +85,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     }
 
     pub fn collect<C: FromParallelIterator<Op::Output>>(&self) -> C {
-        self.par_values().collect()
+        self.par_iter_values().collect()
     }
 
     pub fn collect_vec(&self) -> Vec<Op::Output> {
@@ -89,25 +94,22 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
 
     pub fn compute(&self) -> NodeState<'graph, Op::Output, G, GH> {
         if self.nodes.is_filtered() {
-            let (keys, values): (Vec<_>, Vec<_>) = self
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = self
                 .par_iter()
                 .map(|(node, value)| (node.node, value))
                 .unzip();
             NodeState::new(
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
-                values,
-                Some(Index::new(
-                    keys,
-                    self.nodes.base_graph.unfiltered_num_nodes(),
-                )),
+                values.into(),
+                Some(Index::new(keys)),
             )
         } else {
             let values = self.collect_vec();
             NodeState::new(
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
-                values,
+                values.into(),
                 None,
             )
         }
@@ -134,7 +136,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &self.nodes.base_graph
     }
 
-    fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a,
     {
@@ -144,7 +146,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a,
     {
@@ -154,14 +156,14 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
+    fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter_refs()
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
+    fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .par_iter_refs()
@@ -183,6 +185,10 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         self.nodes
             .iter()
             .map(move |node| (node, self.op.apply(&storage, node.node)))
+    }
+
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
+        self.nodes.clone()
     }
 
     fn par_iter<'a>(
@@ -275,7 +281,7 @@ mod test {
             op: arc_deg.clone(),
         };
 
-        let dyn_deg: Vec<_> = node_state_dyn.values().collect();
+        let dyn_deg: Vec<_> = node_state_dyn.iter_values().collect();
         assert_eq!(dyn_deg, [1, 1]);
         assert_eq!(arc_deg.apply(g.core_graph(), VID(0)), 1);
 

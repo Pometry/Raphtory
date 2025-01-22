@@ -217,7 +217,7 @@ impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyConstPropsList>>() {
             Ok(sp.deref().into())
-        } else if let Ok(p) = ob.extract::<PyRef<PyPropsList>>() {
+        } else if let Ok(p) = ob.extract::<PyRef<PropertiesView>>() {
             Ok(p.deref().into())
         } else if let Ok(m) = ob.extract::<HashMap<ArcStr, PyPropValueListCmp>>() {
             Ok(Self(m))
@@ -239,8 +239,8 @@ impl From<&PyConstPropsList> for PyPropsListCmp {
     }
 }
 
-impl From<&PyPropsList> for PyPropsListCmp {
-    fn from(value: &PyPropsList) -> Self {
+impl From<&PropertiesView> for PyPropsListCmp {
+    fn from(value: &PropertiesView) -> Self {
         Self(
             value
                 .items()
@@ -251,11 +251,11 @@ impl From<&PyPropsList> for PyPropsListCmp {
     }
 }
 
-py_iterable_base!(PyPropsList, DynProperties, PyProperties);
-py_eq!(PyPropsList, PyPropsListCmp);
+py_iterable_base!(PropertiesView, DynProperties, PyProperties);
+py_eq!(PropertiesView, PyPropsListCmp);
 
 #[pymethods]
-impl PyPropsList {
+impl PropertiesView {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.

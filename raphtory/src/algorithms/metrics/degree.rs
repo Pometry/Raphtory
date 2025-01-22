@@ -46,7 +46,7 @@
 use crate::{db::api::view::*, prelude::*};
 use rayon::prelude::*;
 
-/// The maximum degree of any node in the graph
+/// The largest degree
 pub fn max_degree<'graph, G: GraphViewOps<'graph>>(graph: &G) -> usize {
     graph.nodes().degree().max().unwrap_or(0)
 }
@@ -81,7 +81,7 @@ pub fn average_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> f64 
     let (deg_sum, count) = graph
         .nodes()
         .degree()
-        .par_values()
+        .par_iter_values()
         .fold_with((0usize, 0usize), |(deg_sum, count), deg| {
             (deg_sum + deg, count + 1)
         })

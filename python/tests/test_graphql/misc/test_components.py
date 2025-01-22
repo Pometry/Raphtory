@@ -8,9 +8,13 @@ def test_in_out_components():
 
     def sort_components(data):
         if "inComponent" in data:
-            data["inComponent"] = sorted(data["inComponent"], key=lambda x: x["name"])
+            data["inComponent"]["list"] = sorted(
+                data["inComponent"]["list"], key=lambda x: x["name"]
+            )
         if "outComponent" in data:
-            data["outComponent"] = sorted(data["outComponent"], key=lambda x: x["name"])
+            data["outComponent"]["list"] = sorted(
+                data["outComponent"]["list"], key=lambda x: x["name"]
+            )
 
     def prepare_for_comparison(structure):
         if "node" in structure:
@@ -25,23 +29,31 @@ def test_in_out_components():
           graph(path: "graph") {
             node(name: "3") {
               inComponent {
-                name
+                list {
+                  name
+                }
               }
               outComponent {
-                name
+                list {
+                  name
+                }
               }
             }
             window(start:1,end:6){
               node(name:"3"){
                 inComponent{
-                  name
+                  list {
+                    name
+                  }
                 }
               }
             }
             at(time:4){
               node(name:"4"){
                 outComponent{
-                  name
+                  list {
+                    name
+                  }
                 }
               }
             }
@@ -51,11 +63,19 @@ def test_in_out_components():
     result = {
         "graph": {
             "node": {
-                "inComponent": [{"name": "7"}, {"name": "1"}],
-                "outComponent": [{"name": "6"}, {"name": "4"}, {"name": "5"}],
+                "inComponent": {
+                    "list": [{"name": "7"}, {"name": "1"}],
+                },
+                "outComponent": {
+                    "list": [{"name": "6"}, {"name": "4"}, {"name": "5"}],
+                },
             },
-            "window": {"node": {"inComponent": [{"name": "1"}]}},
-            "at": {"node": {"outComponent": [{"name": "5"}]}},
+            "window": {
+                "node": {"inComponent": {"list": [{"name": "1"}]}},
+            },
+            "at": {
+                "node": {"outComponent": {"list": [{"name": "5"}]}},
+            },
         }
     }
     work_dir = tempfile.mkdtemp()

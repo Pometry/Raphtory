@@ -11,7 +11,10 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
 ]
-default-members = ["raphtory", "raphtory-graphql"]
+default-members = [
+    "raphtory",
+    "raphtory-graphql"
+]
 resolver = "2"
 
 [workspace.package]
@@ -55,6 +58,7 @@ serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 pyo3 = { version = "0.23.3", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.23.3"
+pyo3-arrow = "0.6"
 numpy = "0.23.0"
 itertools = "0.13.0"
 rand = "0.8.5"
@@ -83,7 +87,7 @@ rand_distr = "0.4.3"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
-dashmap = { version = "6.0.1", features = ["serde"] }
+dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
 enum_dispatch = "0.3.12"
 glam = "0.29.0"
 quad-rand = "0.2.1"
@@ -148,5 +152,7 @@ arrow = { version = "53.2.0" }
 arrow-buffer = { version = "53.2.0" }
 arrow-schema = { version = "53.2.0" }
 arrow-array = { version = "53.2.0" }
+arrow-data = { version = "53.2.0" }
+arrow-ipc = { version = "53.2.0" }
 moka = { version = "0.12.7", features = ["sync"] }
-hyperloglog = "1.0.2"
+indexmap = { version = "2.7.0", features = ["rayon"] }

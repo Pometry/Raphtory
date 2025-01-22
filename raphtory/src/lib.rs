@@ -117,7 +117,9 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
-                state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
+                state::{
+                    AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
+                },
                 view::{
                     EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
                     GraphViewOps, Layer, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,

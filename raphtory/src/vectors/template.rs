@@ -146,19 +146,18 @@ impl From<Prop> for Value {
             Prop::Str(value) => Value::from(value.0.to_owned()),
             Prop::DTime(value) => Value::from(value.timestamp_millis()),
             Prop::NDTime(value) => Value::from(value.and_utc().timestamp_millis()),
+            Prop::Array(value) => Value::from(value.to_vec_u8()),
             Prop::List(value) => value.iter().cloned().collect(),
             Prop::Map(value) => value
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
             Prop::Document(value) => Value::from(value.content),
-            Prop::Graph(value) => Value::from(value.to_string()),
-            Prop::PersistentGraph(value) => Value::from(value.to_string()),
         }
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DocumentTemplate {
     pub graph_template: Option<String>,
     pub node_template: Option<String>,

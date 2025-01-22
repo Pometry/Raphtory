@@ -9,8 +9,20 @@ use crate::{
 use rand::prelude::SliceRandom;
 use std::collections::HashMap;
 
+/// Louvain algorithm for community detection
+///
+/// # Arguments
+///
+/// - `g` (GraphView): the graph view
+/// - `resolution` (float): the resolution parameter for modularity
+/// - `weight_prop` (str | None): the edge property to use for weights (has to be float)
+/// - `tol` (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+///
+/// # Returns
+///
+///  An [AlgorithmResult] containing a mapping of vertices to cluster ID.
 pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
-    graph: &G,
+    g: &G,
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
@@ -18,13 +30,13 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     let tol = tol.unwrap_or(1e-8);
     let mut rng = rand::thread_rng();
     let mut modularity_state = M::new(
-        graph,
+        g,
         weight_prop,
         resolution,
-        Partition::new_singletons(graph.count_nodes()),
+        Partition::new_singletons(g.count_nodes()),
         tol,
     );
-    let mut global_partition: HashMap<_, _> = graph
+    let mut global_partition: HashMap<_, _> = g
         .nodes()
         .iter()
         .enumerate()
@@ -59,7 +71,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
             *c = partition.com(&VID(*c)).index();
         }
     }
-    AlgorithmResult::new(graph.clone(), "louvain", "usize", global_partition)
+    AlgorithmResult::new(g.clone(), "louvain", "usize", global_partition)
 }
 
 #[cfg(test)]

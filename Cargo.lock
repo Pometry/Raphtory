@@ -72,6 +72,7 @@ dependencies = [
  "const-random",
  "getrandom",
  "once_cell",
+ "serde",
  "version_check",
  "zerocopy",
 ]
@@ -412,6 +413,9 @@ name = "arrow-schema"
 version = "53.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b95513080e728e4cec37f1ff5af4f12c9688d47795d17cda80b6ec2cf74d4678"
+dependencies = [
+ "bitflags 2.6.0",
+]
 
 [[package]]
 name = "arrow-select"
@@ -884,12 +888,6 @@ name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
-
-[[package]]
-name = "bytecount"
-version = "0.6.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
 name = "bytemuck"
@@ -1452,6 +1450,7 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core",
+ "rayon",
  "serde",
 ]
 
@@ -2725,17 +2724,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperloglog"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b48034ab5d3a9461c667ec7e1dcfb2b0586de33d9b493b2c8592e6caab9145d"
-dependencies = [
- "bytecount",
- "rand",
- "siphasher",
-]
-
-[[package]]
 name = "iana-time-zone"
 version = "0.1.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2921,6 +2909,7 @@ checksum = "62f822373a4fe84d4bb149bf54e584a7f4abec90e072ed49cda0edea5b95471f"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
+ "rayon",
  "serde",
 ]
 
@@ -3657,6 +3646,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94caae805f998a07d33af06e6a3891e38556051b8045c615470a71590e13e78"
 dependencies = [
+ "half",
  "libc",
  "ndarray",
  "num-complex",
@@ -4586,6 +4576,7 @@ checksum = "e484fd2c8b4cb67ab05a318f1fd6fa8f199fcc30819f08f07d200809dba26c15"
 dependencies = [
  "cfg-if",
  "chrono",
+ "indexmap 2.7.0",
  "indoc",
  "inventory",
  "libc",
@@ -4596,6 +4587,23 @@ dependencies = [
  "pyo3-ffi",
  "pyo3-macros",
  "unindent",
+]
+
+[[package]]
+name = "pyo3-arrow"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6d66e6404efa94448d1648868170d9e50a9e6b4e9c3ec336605587af70ad28c"
+dependencies = [
+ "arrow",
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-schema",
+ "half",
+ "indexmap 2.7.0",
+ "numpy",
+ "pyo3",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4806,6 +4814,12 @@ dependencies = [
 name = "raphtory"
 version = "0.14.0"
 dependencies = [
+ "ahash",
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-data",
+ "arrow-ipc",
+ "arrow-schema",
  "async-openai",
  "async-trait",
  "bincode",
@@ -4822,7 +4836,7 @@ dependencies = [
  "futures-util",
  "glam",
  "hashbrown 0.15.2",
- "hyperloglog",
+ "indexmap 2.7.0",
  "indoc",
  "itertools 0.13.0",
  "kdam",
@@ -4850,6 +4864,7 @@ dependencies = [
  "prost-build",
  "prost-types",
  "pyo3",
+ "pyo3-arrow",
  "quad-rand",
  "quickcheck",
  "quickcheck_macros",
@@ -4863,7 +4878,6 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
- "sorted_vector_map",
  "streaming-stats",
  "tantivy",
  "tempfile",
@@ -4953,6 +4967,7 @@ dependencies = [
 name = "raphtory-graphql"
 version = "0.14.0"
 dependencies = [
+ "arrow-array",
  "async-graphql",
  "async-graphql-poem",
  "base64 0.22.1",

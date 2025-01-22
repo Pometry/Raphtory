@@ -23,7 +23,7 @@ use std::{
 };
 
 #[derive(Clone)]
-#[pyclass(name = "DiskGraphStorage", frozen)]
+#[pyclass(name = "DiskGraphStorage", frozen, module = "raphtory")]
 pub struct PyDiskGraph {
     pub graph: DiskGraphStorage,
 }
@@ -126,6 +126,12 @@ impl<'a> FromPyObject<'a> for PyParquetLayerCols {
 #[pymethods]
 impl PyGraph {
     /// save graph in disk_graph format and memory map the result
+    ///
+    /// Arguments:
+    ///     graph_dir (str | PathLike): folder where the graph will be saved
+    ///
+    /// Returns:
+    ///     DiskGraphStorage: the persisted disk graph storage
     pub fn persist_as_disk_graph(
         &self,
         graph_dir: PathBuf,

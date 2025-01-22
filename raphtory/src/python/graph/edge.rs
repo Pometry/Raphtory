@@ -153,16 +153,6 @@ impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
 /// An edge is a directed connection between two nodes.
 #[pymethods]
 impl PyEdge {
-    /// Rich Comparison for Node objects
-    // pub fn __richcmp__(&self, other: Borrowed<PyEdge>, op: CompareOp) -> Borrowed<PyAny> {
-    //     let py = other.py();
-    //     match op {
-    //         CompareOp::Eq => (self.edge.id() == other.id()).into_py(py),
-    //         CompareOp::Ne => (self.edge.id() != other.id()).into_py(py),
-    //         _ => py.NotImplemented(),
-    //     }
-    // }
-
     fn __eq__(&self, other: Bound<PyEdge>) -> bool {
         self.edge == other.get().edge
     }
@@ -229,7 +219,7 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     List[Datetime]
+    ///     List[datetime]
     ///
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.history_date_time()
@@ -246,35 +236,35 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is deleted
     ///
     /// Returns:
-    ///     List[Datetime]
+    ///     List[datetime]
     pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.deletions_date_time()
     }
 
     /// Check if the edge is currently valid (i.e., not deleted)
     /// Returns:
-    ///     bool
+    ///     bool:
     pub fn is_valid(&self) -> bool {
         self.edge.is_valid()
     }
 
     /// Check if the edge is currently active (i.e., has at least one update within this period)
     /// Returns:
-    ///     bool
+    ///     bool:
     pub fn is_active(&self) -> bool {
         self.edge.is_active()
     }
 
     /// Check if the edge is currently deleted
     /// Returns:
-    ///     bool
+    ///     bool:
     pub fn is_deleted(&self) -> bool {
         self.edge.is_deleted()
     }
 
     /// Check if the edge is on the same node
     /// Returns:
-    ///     bool
+    ///     bool:
     pub fn is_self_loop(&self) -> bool {
         self.edge.is_self_loop()
     }
@@ -300,7 +290,7 @@ impl PyEdge {
     /// Gets of earliest datetime of an edge.
     ///
     /// Returns:
-    ///     Datetime: the earliest datetime of an edge
+    ///     datetime: the earliest datetime of an edge
     #[getter]
     pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.edge.earliest_date_time()
@@ -318,7 +308,7 @@ impl PyEdge {
     /// Gets of latest datetime of an edge.
     ///
     /// Returns:
-    ///     Datetime: the latest datetime of an edge
+    ///     datetime: the latest datetime of an edge
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.edge.latest_date_time()
@@ -354,7 +344,7 @@ impl PyEdge {
     /// Gets the datetime of an exploded edge.
     ///
     /// Returns:
-    ///     Datetime: the datetime of an exploded edge
+    ///     datetime: the datetime of an exploded edge
     #[getter]
     pub fn date_time(&self) -> Option<DateTime<Utc>> {
         self.edge.date_time()

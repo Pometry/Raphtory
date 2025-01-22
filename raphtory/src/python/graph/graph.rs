@@ -121,7 +121,7 @@ impl PyGraph {
     }
 }
 
-#[pyclass(module = "raphtory", frozen)]
+#[pyclass(module = "raphtory", name = "_GraphEncoder", frozen)]
 pub struct PyGraphEncoder;
 
 #[pymethods]
@@ -161,6 +161,13 @@ impl PyGraph {
         (PyGraphEncoder, (state,))
     }
 
+    /// Persist graph on disk
+    ///
+    /// Arguments:
+    ///     graph_dir (str | PathLike): the folder where the graph will be persisted
+    ///
+    /// Returns:
+    ///     Graph: a view of the persisted graph
     #[cfg(feature = "storage")]
     pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
         use crate::db::api::storage::graph::storage_ops::GraphStorage;
@@ -321,7 +328,7 @@ impl PyGraph {
     ///    dst (str|int): The id of the destination node.
     ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
     ///    layer (str, optional): The layer of the edge.
-    ///     secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     MutableEdge: The added edge.
@@ -356,9 +363,9 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
     ///     Node: A node object if the node was successfully imported.
@@ -379,12 +386,12 @@ impl PyGraph {
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
     ///     new_id (str|int): The new node id.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
-    ///     Node: A node object if the node was successfully imported.
+    ///     MutableNode: A node object if the node was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -402,9 +409,9 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -422,9 +429,9 @@ impl PyGraph {
     /// Arguments:
     ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
     ///     new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is True, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is False, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -446,12 +453,12 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edge (Edge): A Edge object representing the edge to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///     MutableEdge: An Edge object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -469,12 +476,12 @@ impl PyGraph {
     /// Arguments:
     ///     edge (Edge): A Edge object representing the edge to be imported.
     ///     new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///     Edge: An Edge object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -492,9 +499,9 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -511,13 +518,13 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
-    ///     merge (bool): An optional boolean flag.
-    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
-    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///     new_ids (List[Tuple[int, int]]): The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
+    ///     merge (bool): An optional boolean flag. Defaults to False.
+    ///                   If merge is False, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is True, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -539,7 +546,7 @@ impl PyGraph {
     ///   id (str|int): the node id
     ///
     /// Returns:
-    ///   Node: The node object with the specified id, or None if the node does not exist
+    ///   MutableNode: The node object with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<Graph>> {
         self.graph.node(id)
     }
@@ -552,7 +559,7 @@ impl PyGraph {
     ///     dst (str|int): the destination node id
     ///
     /// Returns:
-    ///     Edge: the edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     MutableEdge: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<Graph, Graph>> {
         self.graph.edge(src, dst)
@@ -565,7 +572,7 @@ impl PyGraph {
     /// Returns all the node types in the graph.
     ///
     /// Returns:
-    /// List[str]
+    ///     List[str]: the node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
     }
@@ -575,18 +582,25 @@ impl PyGraph {
     /// # Example Usage:
     /// g.largest_connected_component()
     ///
-    /// # Returns:
-    /// Graph: sub-graph of the graph `g` containing the largest connected component
+    /// Returns:
+    ///     GraphView: sub-graph of the graph `g` containing the largest connected component
     ///
     pub fn largest_connected_component(&self) -> NodeSubgraph<Graph> {
         self.graph.largest_connected_component()
     }
 
-    /// Get persistent graph
+    /// View graph with persistent semantics
+    ///
+    /// Returns:
+    ///     PersistentGraph: the graph with persistent semantics applied
     pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
+    /// View graph with event semantics
+    ///
+    /// Returns:
+    ///     Graph: the graph with event semantics applied
     pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
