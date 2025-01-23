@@ -82,14 +82,6 @@ pub trait CacheOps: Sized {
 
 impl StableEncode for GraphStorage {
     fn encode_to_proto(&self) -> proto::Graph {
-        #[cfg(feature = "storage")]
-        if let GraphStorage::Disk(storage) = self {
-            assert!(
-                storage.inner.layers().len() <= 1,
-                "Disk based storage not supported right now because it doesn't have aligned edges"
-            );
-        }
-
         let storage = self.lock();
         let mut graph = proto::Graph::default();
 
@@ -842,60 +834,42 @@ mod proto_test {
             (
                 "properties".into(),
                 vec![
-                    Some(Prop::Map(
-                        vec![
-                            ("is_adult", Prop::Bool(true)),
-                            ("weight", Prop::F64(75.5)),
-                            (
-                                "children",
-                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
-                            ),
-                            ("height", Prop::F32(1.75)),
-                            ("name", Prop::str("Alice")),
-                            ("age", Prop::U32(47)),
-                            ("score", Prop::I32(27)),
-                        ]
-                        .into_iter()
-                        .map(|(k, v)| (k.into(), v))
-                        .collect::<HashMap<_, _>>()
-                        .into(),
-                    )),
-                    Some(Prop::Map(
-                        vec![
-                            ("is_adult", Prop::Bool(true)),
-                            ("age", Prop::U32(47)),
-                            ("name", Prop::str("Alice")),
-                            ("score", Prop::I32(27)),
-                            ("height", Prop::F32(1.75)),
-                            (
-                                "children",
-                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
-                            ),
-                            ("weight", Prop::F64(75.5)),
-                        ]
-                        .into_iter()
-                        .map(|(k, v)| (k.into(), v))
-                        .collect::<HashMap<_, _>>()
-                        .into(),
-                    )),
-                    Some(Prop::Map(
-                        vec![
-                            ("weight", Prop::F64(75.5)),
-                            ("name", Prop::str("Alice")),
-                            ("age", Prop::U32(47)),
-                            ("height", Prop::F32(1.75)),
-                            ("score", Prop::I32(27)),
-                            (
-                                "children",
-                                Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
-                            ),
-                            ("is_adult", Prop::Bool(true)),
-                        ]
-                        .into_iter()
-                        .map(|(k, v)| (k.into(), v))
-                        .collect::<HashMap<_, _>>()
-                        .into(),
-                    )),
+                    Some(Prop::map(vec![
+                        ("is_adult", Prop::Bool(true)),
+                        ("weight", Prop::F64(75.5)),
+                        (
+                            "children",
+                            Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                        ),
+                        ("height", Prop::F32(1.75)),
+                        ("name", Prop::str("Alice")),
+                        ("age", Prop::U32(47)),
+                        ("score", Prop::I32(27)),
+                    ])),
+                    Some(Prop::map(vec![
+                        ("is_adult", Prop::Bool(true)),
+                        ("age", Prop::U32(47)),
+                        ("name", Prop::str("Alice")),
+                        ("score", Prop::I32(27)),
+                        ("height", Prop::F32(1.75)),
+                        (
+                            "children",
+                            Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                        ),
+                        ("weight", Prop::F64(75.5)),
+                    ])),
+                    Some(Prop::map(vec![
+                        ("weight", Prop::F64(75.5)),
+                        ("name", Prop::str("Alice")),
+                        ("age", Prop::U32(47)),
+                        ("height", Prop::F32(1.75)),
+                        ("score", Prop::I32(27)),
+                        (
+                            "children",
+                            Prop::List(vec![Prop::str("Bob"), Prop::str("Charlie")].into()),
+                        ),
+                        ("is_adult", Prop::Bool(true)),
+                    ])),
                 ],
             ),
         ]
@@ -1453,12 +1427,7 @@ mod proto_test {
         ));
         props.push((
             "properties",
-            Prop::Map(Arc::new(
-                props
-                    .iter()
-                    .map(|(k, v)| (ArcStr::from(*k), v.clone()))
-                    .collect(),
-            )),
+            Prop::map(props.iter().map(|(k, v)| (ArcStr::from(*k), v.clone()))),
         ));
         let fmt = "%Y-%m-%d %H:%M:%S";
         props.push((

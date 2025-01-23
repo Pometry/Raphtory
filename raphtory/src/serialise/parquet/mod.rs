@@ -1,17 +1,19 @@
-use crate::db::api::storage::graph::storage_ops::GraphStorage;
-use crate::db::api::view::internal::CoreGraphOps;
 use crate::{
     core::{arrow_dtype_from_prop_type, utils::errors::GraphError},
-    db::api::mutation::internal::InternalAdditionOps,
-    io::{
-        arrow::df_loaders::NO_COLS,
-        parquet_loaders::{
-            load_edge_props_from_parquet, load_edges_from_parquet, load_graph_props_from_parquet,
-            load_node_props_from_parquet, load_nodes_from_parquet,
+    db::{
+        api::{
+            mutation::internal::InternalAdditionOps, storage::graph::storage_ops::GraphStorage,
+            view::internal::CoreGraphOps,
         },
+        graph::views::deletion_graph::PersistentGraph,
+    },
+    io::parquet_loaders::{
+        load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
+        load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
     },
     prelude::*,
     serialise::parquet::{
+        edges::encode_edge_deletions,
         graph::{encode_graph_cprop, encode_graph_tprop},
         model::get_id_type,
         nodes::{encode_nodes_cprop, encode_nodes_tprop},
@@ -27,15 +29,16 @@ use parquet::{
     basic::Compression,
     file::properties::WriterProperties,
 };
-use raphtory_api::core::entities::{properties::props::PropMapper, GidType};
+use raphtory_api::{
+    core::entities::{properties::props::PropMapper, GidType},
+    GraphType,
+};
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::{
     fs::File,
     ops::Range,
     path::{Path, PathBuf},
 };
-use crate::db::graph::views::deletion_graph::PersistentGraph;
-use crate::serialise::parquet::edges::encode_edge_deletions;
 
 mod edges;
 mod model;
@@ -68,32 +71,39 @@ const NODES_C_PATH: &str = "nodes_c";
 const GRAPH_T_PATH: &str = "graph_t";
 const GRAPH_C_PATH: &str = "graph_c";
 
+const GRAPH_TYPE: &str = "graph_type";
+
+const EVENT_GRAPH_TYPE: &str = "rap_event_graph";
+
+const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
+
 impl ParquetEncoder for Graph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().clone();
-        gs.encode_parquet(path)
+        encode_graph_storage(&gs, path, GraphType::EventGraph)
     }
 }
 
 impl ParquetEncoder for PersistentGraph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().clone();
-        gs.encode_parquet(path)
+        encode_graph_storage(&gs, path, GraphType::PersistentGraph)
     }
 }
 
-impl ParquetEncoder for GraphStorage {
-    fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        encode_edge_tprop(self, path.as_ref())?;
-        encode_edge_cprop(self, path.as_ref())?;
-        encode_edge_deletions(self, path.as_ref())?;
-        encode_nodes_tprop(self, path.as_ref())?;
-        encode_nodes_cprop(self, path.as_ref())?;
-        encode_graph_tprop(self, path.as_ref())?;
-        encode_graph_cprop(self, path.as_ref())?;
-
-        Ok(())
-    }
+fn encode_graph_storage(
+    g: &GraphStorage,
+    path: impl AsRef<Path>,
+    graph_type: GraphType,
+) -> Result<(), GraphError> {
+    encode_edge_tprop(g, path.as_ref())?;
+    encode_edge_cprop(g, path.as_ref())?;
+    encode_edge_deletions(g, path.as_ref())?;
+    encode_nodes_tprop(g, path.as_ref())?;
+    encode_nodes_cprop(g, path.as_ref())?;
+    encode_graph_tprop(g, path.as_ref())?;
+    encode_graph_cprop(g, graph_type, path.as_ref())?;
+    Ok(())
 }
 
 pub(crate) fn run_encode(
@@ -116,10 +126,12 @@ pub(crate) fn run_encode(
     std::fs::create_dir_all(&root_dir)?;
 
     if size > 0 {
-        let chunk_size = (size / rayon::current_num_threads()).max(size);
-        (0..size)
-            .step_by(chunk_size)
-            .enumerate()
+        let chunk_size = (size / rayon::current_num_threads()).max(128);
+        let iter = (0..size).step_by(chunk_size);
+
+        let num_digits = iter.len().to_string().len();
+
+        iter.enumerate()
             .par_bridge()
             .try_for_each(|(chunk, first)| {
                 let props = WriterProperties::builder()
@@ -127,7 +139,8 @@ pub(crate) fn run_encode(
                     .build();
                 let items = first..(first + chunk_size).min(size);
 
-                let node_file = File::create(root_dir.join(format!("{}.parquet", chunk)))?;
+                let node_file =
+                    File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
                 let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
 
                 let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
@@ -190,129 +203,173 @@ fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphEr
         .filter(|path| path.is_file() && path.extension().map_or(false, |ext| ext == "parquet")))
 }
 
-fn collect_prop_columns(path: &Path, exclude: &[&str]) -> Result<Vec<String>, GraphError> {
-    let prop_columns_fn = |path: &Path, exclude: &[&str]| -> Result<Vec<String>, GraphError> {
-        let reader = ArrowReaderMetadata::load(&File::open(path)?, Default::default())?;
-        let cols = reader
-            .schema()
-            .fields()
-            .iter()
-            .map(|f| f.name().to_string())
-            .filter(|f_name| !exclude.iter().any(|ex| ex == f_name))
-            .collect_vec();
-        Ok(cols)
-    };
+fn collect_prop_columns(
+    path: &Path,
+    exclude: &[&str],
+) -> Result<(Vec<String>, Option<GraphType>), GraphError> {
+    let prop_columns_fn =
+        |path: &Path, exclude: &[&str]| -> Result<(Vec<String>, Option<GraphType>), GraphError> {
+            let reader = ArrowReaderMetadata::load(&File::open(path)?, Default::default())?;
+            let cols = reader
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .filter(|f_name| !exclude.iter().any(|ex| ex == f_name))
+                .collect_vec();
+            let graph_type = reader
+                .metadata()
+                .file_metadata()
+                .key_value_metadata()
+                .and_then(|meta| {
+                    meta.iter()
+                        .find(|kv| &kv.key == GRAPH_TYPE)
+                        .and_then(|kv| kv.value.as_ref())
+                        .and_then(|v| match v.as_ref() {
+                            EVENT_GRAPH_TYPE => Some(GraphType::EventGraph),
+                            PERSISTENT_GRAPH_TYPE => Some(GraphType::PersistentGraph),
+                            _ => None,
+                        })
+                });
+            Ok((cols, graph_type))
+        };
     let mut prop_columns = vec![];
+    let mut g_type: Option<GraphType> = None;
     for path in ls_parquet_files(path)? {
-        prop_columns.extend_from_slice(&prop_columns_fn(&path, exclude)?);
+        let (columns, tpe) = prop_columns_fn(&path, exclude)?;
+        if g_type.is_none() {
+            g_type = tpe;
+        }
+        prop_columns.extend_from_slice(&columns);
     }
     prop_columns.sort();
     prop_columns.dedup();
-    Ok(prop_columns)
+    Ok((prop_columns, g_type))
 }
-impl ParquetDecoder for GraphStorage {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
-    {
-        let g = Graph::new();
-        let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];
-        let t_edge_path = path.as_ref().join(EDGES_T_PATH);
 
-        if std::fs::exists(&t_edge_path)? {
-            let t_prop_columns = collect_prop_columns(&t_edge_path, &exclude)?;
+fn decode_graph_storage(
+    path: impl AsRef<Path>,
+    expected_gt: GraphType,
+) -> Result<GraphStorage, GraphError> {
+    let g = Graph::new();
 
-            load_edges_from_parquet(
-                &g,
-                &t_edge_path,
-                TIME_COL,
-                SRC_COL,
-                DST_COL,
-                Some(&t_prop_columns),
-                NO_COLS,
-                None,
-                None,
-                Some(LAYER_COL),
-            )?;
-        }
+    let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
-        let c_edge_path = path.as_ref().join(EDGES_C_PATH);
-        if std::fs::exists(&c_edge_path)? {
-            let c_prop_columns = collect_prop_columns(&c_edge_path, &exclude)?;
+    let g_type = {
+        let exclude = vec![TIME_COL];
+        let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
+        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, None, Some(&c_props))?;
 
-            load_edge_props_from_parquet(
-                &g,
-                &c_edge_path,
-                SRC_COL,
-                DST_COL,
-                Some(&c_prop_columns),
-                None,
-                None,
-                Some(LAYER_COL),
-            )?;
-        }
+        g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
+    };
 
-        let t_node_path = path.as_ref().join(NODES_T_PATH);
-
-        if std::fs::exists(&t_node_path)? {
-            let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
-            let t_prop_columns = collect_prop_columns(&t_node_path, &exclude)?;
-
-            load_nodes_from_parquet(
-                &g,
-                &t_node_path,
-                TIME_COL,
-                NODE_ID,
-                None,
-                Some(TYPE_COL),
-                Some(&t_prop_columns),
-                None,
-                None,
-            )?;
-        }
-
-        let c_node_path = path.as_ref().join(NODES_C_PATH);
-        if std::fs::exists(&c_node_path)? {
-            let exclude = vec![NODE_ID, TYPE_COL];
-            let c_prop_columns = collect_prop_columns(&c_node_path, &exclude)?;
-
-            load_node_props_from_parquet(
-                &g,
-                &c_node_path,
-                NODE_ID,
-                None,
-                Some(TYPE_COL),
-                Some(&c_prop_columns),
-                None,
-            )?;
-        }
-
-        let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
-
-        if std::fs::exists(&t_graph_path)? {
-            let exclude = vec![TIME_COL];
-            let t_props = collect_prop_columns(&t_graph_path, &exclude)?;
-            load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, Some(&t_props), None)?;
-        }
-
-        let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
-
-        if std::fs::exists(&c_graph_path)? {
-            let exclude = vec![TIME_COL];
-            let t_props = collect_prop_columns(&c_graph_path, &exclude)?;
-            load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, None, Some(&t_props))?;
-        }
-
-        Ok(g.core_graph().clone())
+    if g_type != expected_gt {
+        return Err(GraphError::LoadFailure(format!(
+            "Expected graph type {:?}, got {:?}",
+            expected_gt, g_type
+        )));
     }
-}
 
+    let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
+
+    if std::fs::exists(&t_graph_path)? {
+        let exclude = vec![TIME_COL];
+        let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
+        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, Some(&t_props), None)?;
+    }
+
+    let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];
+    let t_edge_path = path.as_ref().join(EDGES_T_PATH);
+
+    if std::fs::exists(&t_edge_path)? {
+        let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
+
+        load_edges_from_parquet(
+            &g,
+            &t_edge_path,
+            TIME_COL,
+            SRC_COL,
+            DST_COL,
+            Some(&t_prop_columns),
+            None::<&[String]>,
+            None,
+            None,
+            Some(LAYER_COL),
+        )?;
+    }
+
+    let c_edge_path = path.as_ref().join(EDGES_C_PATH);
+    if std::fs::exists(&c_edge_path)? {
+        let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
+
+        load_edge_props_from_parquet(
+            &g,
+            &c_edge_path,
+            SRC_COL,
+            DST_COL,
+            Some(&c_prop_columns),
+            None,
+            None,
+            Some(LAYER_COL),
+        )?;
+    }
+
+    let d_edge_path = path.as_ref().join(EDGES_D_PATH);
+    if std::fs::exists(&d_edge_path)? {
+        load_edge_deletions_from_parquet(
+            g.core_graph(),
+            &d_edge_path,
+            TIME_COL,
+            SRC_COL,
+            DST_COL,
+            None,
+            Some(LAYER_COL),
+        )?;
+    }
+
+    let t_node_path = path.as_ref().join(NODES_T_PATH);
+
+    if std::fs::exists(&t_node_path)? {
+        let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
+        let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
+
+        load_nodes_from_parquet(
+            &g,
+            &t_node_path,
+            TIME_COL,
+            NODE_ID,
+            None,
+            Some(TYPE_COL),
+            Some(&t_prop_columns),
+            None,
+            None,
+        )?;
+    }
+
+    let c_node_path = path.as_ref().join(NODES_C_PATH);
+    if std::fs::exists(&c_node_path)? {
+        let exclude = vec![NODE_ID, TYPE_COL];
+        let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
+
+        load_node_props_from_parquet(
+            &g,
+            &c_node_path,
+            NODE_ID,
+            None,
+            Some(TYPE_COL),
+            Some(&c_prop_columns),
+            None,
+        )?;
+    }
+
+    Ok(g.core_graph().clone())
+}
 impl ParquetDecoder for Graph {
     fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
     where
         Self: Sized,
     {
-        let gs = GraphStorage::decode_parquet(path)?;
+        let gs = decode_graph_storage(path, GraphType::EventGraph)?;
         Ok(Graph::from_internal_graph(gs))
     }
 }
@@ -322,7 +379,7 @@ impl ParquetDecoder for PersistentGraph {
     where
         Self: Sized,
     {
-        let gs = GraphStorage::decode_parquet(path)?;
+        let gs = decode_graph_storage(path, GraphType::PersistentGraph)?;
         Ok(PersistentGraph::from_internal_graph(gs))
     }
 }
@@ -352,6 +409,7 @@ mod test {
         let g_fixture = GraphFixture {
             edges: vec![],
             no_props_edges: vec![(1, 1, 1)],
+            edge_deletions: vec![],
             edge_const_props: vec![
                 (
                     (0u64, 0u64),
@@ -500,6 +558,7 @@ mod test {
     fn edges_map4() {
         let g_fix = GraphFixture {
             edges: vec![(0, 0, 0, vec![("a".to_string(), Prop::U8(5))])],
+            edge_deletions: vec![(0, 0, 1)],
             no_props_edges: vec![],
             edge_const_props: vec![(
                 (0u64, 0u64),
@@ -530,6 +589,7 @@ mod test {
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);
     }
+
     #[test]
     fn nodes_props_1() {
         let dt = "2012-12-12 12:12:12+00:00"

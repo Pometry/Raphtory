@@ -132,7 +132,10 @@ pub mod prelude {
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 
     #[cfg(feature = "proto")]
-    pub use crate::serialise::{CacheOps, StableDecode, StableEncode};
+    pub use crate::serialise::{
+        parquet::{ParquetDecoder, ParquetEncoder},
+        CacheOps, StableDecode, StableEncode,
+    };
 }
 
 #[cfg(feature = "storage")]
@@ -196,7 +199,7 @@ mod test_utils {
             PropType::F64 => any::<f64>().prop_map(Prop::F64).boxed(),
             PropType::U8 => any::<u8>().prop_map(Prop::U8).boxed(),
             PropType::Bool => any::<bool>().prop_map(Prop::Bool).boxed(),
-            PropType::DTime => (1970..2024, 1..=12, 1..28, 0..24, 0..60, 0..60)
+            PropType::DTime => (1900..2024, 1..=12, 1..28, 0..24, 0..60, 0..60)
                 .prop_map(|(year, month, day, h, m, s)| {
                     Prop::DTime(
                         format!(
@@ -263,7 +266,7 @@ mod test_utils {
             let list = inner
                 .clone()
                 .prop_map(|p_type| PropType::List(Box::new(p_type)));
-            proptest::prop_oneof![dict, list]
+            prop_oneof![dict, list]
         })
     }
 
@@ -272,6 +275,7 @@ mod test_utils {
         pub nodes: NodeFixture,
         pub no_props_edges: Vec<(u64, u64, i64)>,
         pub edges: Vec<(u64, u64, i64, Vec<(String, Prop)>)>,
+        pub edge_deletions: Vec<(u64, u64, i64)>,
         pub edge_const_props: HashMap<(u64, u64), Vec<(String, Prop)>>,
     }
 
@@ -304,6 +308,7 @@ mod test_utils {
             Self {
                 nodes: node_fix,
                 edges: vec![],
+                edge_deletions: vec![],
                 no_props_edges: vec![],
                 edge_const_props: HashMap::new(),
             }
@@ -329,6 +334,7 @@ mod test_utils {
                     })
                     .collect(),
                 no_props_edges: vec![],
+                edge_deletions: vec![],
                 edge_const_props: HashMap::new(),
                 nodes: Default::default(),
             }
@@ -435,11 +441,15 @@ mod test_utils {
                     0..=len,
                 )
                 .prop_flat_map(move |edges| {
-                    proptest::collection::vec(
+                    let no_props = proptest::collection::vec(
                         (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
                         0..=len,
-                    )
-                    .prop_map(move |no_prop_edges| {
+                    );
+                    let del_edges = proptest::collection::vec(
+                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                        0..=len,
+                    );
+                    (no_props, del_edges).prop_map(move |(no_prop_edges, del_edges)| {
                         let edges = edges.clone();
                         let const_props = edges
                             .iter()
@@ -463,6 +473,7 @@ mod test_utils {
                         GraphFixture {
                             edges,
                             edge_const_props: const_props,
+                            edge_deletions: del_edges,
                             no_props_edges: no_prop_edges,
                             nodes: Default::default(),
                         }
@@ -499,6 +510,7 @@ mod test_utils {
                     .prop_map(move |nodes_f| GraphFixture {
                         nodes: nodes_f,
                         edges: edges.clone(),
+                        edge_deletions: vec![],
                         no_props_edges: no_props_edges.clone(),
                         edge_const_props: edge_const_props.clone(),
                     })
@@ -512,13 +524,7 @@ mod test_utils {
     ) -> impl Strategy<Value = Vec<(u64, Option<String>, Option<i64>)>> {
         (0..max_num_nodes).prop_flat_map(|num_nodes| {
             (0..num_nodes)
-                .map(|node| {
-                    (
-                        proptest::strategy::Just(node),
-                        any::<Option<String>>(),
-                        any::<Option<i64>>(),
-                    )
-                })
+                .map(|node| (Just(node), any::<Option<String>>(), any::<Option<i64>>()))
                 .collect_vec()
         })
     }
@@ -579,6 +585,12 @@ mod test_utils {
             } else {
                 let node = g.add_node(0, *node, NO_PROPS, None).unwrap();
                 node.update_constant_properties(c_props.clone()).unwrap();
+            }
+        }
+
+        for (src, dst, time) in &graph_fix.edge_deletions {
+            if let Some(edge) = g.edge(*src, *dst) {
+                edge.delete(*time, None).unwrap();
             }
         }
         g

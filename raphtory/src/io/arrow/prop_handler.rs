@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     core::{
         utils::errors::{GraphError, LoadError},
@@ -19,6 +17,7 @@ use polars_arrow::{
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 
 pub struct PropCols {
     prop_ids: Vec<usize>,
@@ -188,7 +187,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
                         col.get(i)
                             .map(|prop| (ArcStr::from(field.name.as_str()), prop))
                     })
-                    .collect::<HashMap<_, _>>();
+                    .collect::<FxHashMap<_, _>>();
                 props.push(Prop::Map(fields.into()));
             }
 
@@ -268,7 +267,7 @@ impl PropCol for Wrap<StructArray> {
                 let prop = lift_property_col(arr.as_ref()).get(i)?;
                 Some((ArcStr::from(field.name.as_str()), prop))
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
 
         (!fields.is_empty()).then(|| Prop::Map(fields.into()))
     }

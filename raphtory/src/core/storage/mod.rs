@@ -1,3 +1,4 @@
+use super::{utils::errors::GraphError, Prop, PropArray};
 use crate::core::entities::nodes::node_store::NodeStore;
 use lazy_vec::LazyVec;
 use lock_api;
@@ -8,9 +9,9 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
@@ -19,8 +20,6 @@ use std::{
         Arc,
     },
 };
-
-use super::{utils::errors::GraphError, Prop, PropArray};
 
 pub mod lazy_vec;
 pub mod locked_view;
@@ -132,7 +131,7 @@ pub(crate) enum TPropColumn {
     Str(LazyVec<ArcStr>),
     Array(LazyVec<PropArray>),
     List(LazyVec<Arc<Vec<Prop>>>),
-    Map(LazyVec<Arc<HashMap<ArcStr, Prop>>>),
+    Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
     DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
 }

@@ -1,20 +1,26 @@
 use std::path::Path;
 
 use super::*;
-use crate::core::utils::iter::GenLockedIter;
-use crate::db::{
-    api::{
-        storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-        view::internal::{CoreGraphOps, TimeSemantics},
+use crate::{
+    core::utils::iter::GenLockedIter,
+    db::{
+        api::{
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+            view::internal::{CoreGraphOps, TimeSemantics},
+        },
+        graph::edge::EdgeView,
     },
-    graph::edge::EdgeView,
+    serialise::parquet::model::ParquetDelEdge,
 };
-use crate::serialise::parquet::model::ParquetDelEdge;
 use arrow_schema::{DataType, Field};
 use model::ParquetCEdge;
-use raphtory_api::core::entities::{LayerIds, EID};
-use raphtory_api::core::storage::timeindex::TimeIndexIntoOps;
-use raphtory_api::iter::IntoDynBoxed;
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, EID},
+        storage::timeindex::TimeIndexIntoOps,
+    },
+    iter::IntoDynBoxed,
+};
 
 pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,
@@ -35,7 +41,7 @@ pub(crate) fn encode_edge_tprop(
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000.min(edges.len());
+            let row_group_size = 100_000;
             let all_layers = LayerIds::All;
 
             for edge_rows in edges
@@ -80,7 +86,7 @@ pub(crate) fn encode_edge_deletions(
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000.min(edges.len());
+            let row_group_size = 100_000;
             let g = g.lock();
             let g = &g;
             let g_edges = g.edges();

@@ -1,7 +1,7 @@
 use super::{Prop, DST_COL, LAYER_COL, NODE_ID, SRC_COL, TIME_COL, TYPE_COL};
 use crate::{
     db::{
-        api::view::StaticGraphViewOps,
+        api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -15,7 +15,6 @@ use serde::{
     ser::{Error, SerializeMap, SerializeSeq},
     Serialize,
 };
-use crate::db::api::storage::graph::storage_ops::GraphStorage;
 
 pub(crate) struct ParquetProp<'a>(pub &'a Prop);
 
@@ -134,7 +133,7 @@ pub(crate) struct ParquetDelEdge<'a, G> {
     pub del: TimeIndexEntry,
 }
 
-impl <'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
+impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

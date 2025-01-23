@@ -107,7 +107,7 @@ indoc = { workspace = true }
 prost-build = { workspace = true, optional = true }
 
 [features]
-default = ["io", "arrow"]
+default = []
 # Enables the graph loader io module
 io = [
     "dep:zip",
@@ -172,4 +172,6 @@ proto = [
     "dep:prost-build",
     "dep:memmap2",
     "dep:zip",
+    "arrow",
+    "io",
 ]

@@ -1,5 +1,6 @@
 use super::GraphStorage;
-use crate::db::api::view::internal::{GraphType, InternalMaterialize};
+use crate::db::api::view::internal::InternalMaterialize;
+use raphtory_api::GraphType;
 
 impl InternalMaterialize for GraphStorage {
     fn graph_type(&self) -> GraphType {

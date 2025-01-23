@@ -1,7 +1,10 @@
 use crate::{
     core::utils::{errors::GraphError, iter::GenLockedIter},
     db::{
-        api::{properties::internal::TemporalPropertiesRowView, view::internal::CoreGraphOps},
+        api::{
+            properties::internal::TemporalPropertiesRowView,
+            storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps,
+        },
         graph::node::NodeView,
     },
     serialise::parquet::{
@@ -13,9 +16,11 @@ use arrow_schema::{DataType, Field};
 use itertools::Itertools;
 use raphtory_api::{core::entities::VID, iter::IntoDynBoxed};
 use std::path::Path;
-use crate::db::api::storage::graph::storage_ops::GraphStorage;
 
-pub(crate) fn encode_nodes_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
+pub(crate) fn encode_nodes_tprop(
+    g: &GraphStorage,
+    path: impl AsRef<Path>,
+) -> Result<(), GraphError> {
     run_encode(
         g,
         g.node_meta().temporal_prop_meta(),
@@ -30,7 +35,7 @@ pub(crate) fn encode_nodes_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Re
             ]
         },
         |nodes, g, decoder, writer| {
-            let row_group_size = 100_000.min(nodes.len());
+            let row_group_size = 100_000;
 
             let cols = g
                 .node_meta()
@@ -71,7 +76,10 @@ pub(crate) fn encode_nodes_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Re
     )
 }
 
-pub(crate) fn encode_nodes_cprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
+pub(crate) fn encode_nodes_cprop(
+    g: &GraphStorage,
+    path: impl AsRef<Path>,
+) -> Result<(), GraphError> {
     run_encode(
         g,
         g.node_meta().const_prop_meta(),
@@ -85,7 +93,7 @@ pub(crate) fn encode_nodes_cprop(g: &GraphStorage, path: impl AsRef<Path>) -> Re
             ]
         },
         |nodes, g, decoder, writer| {
-            let row_group_size = 100_000.min(nodes.len());
+            let row_group_size = 100_000;
 
             for node_rows in nodes
                 .into_iter()

@@ -1,14 +1,18 @@
 use crate::{
     core::utils::errors::GraphError,
+    db::api::storage::graph::storage_ops::GraphStorage,
     prelude::{GraphViewOps, Prop},
-    serialise::parquet::{model::ParquetProp, run_encode, GRAPH_C_PATH, GRAPH_T_PATH, TIME_COL},
+    serialise::parquet::{
+        model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
+        PERSISTENT_GRAPH_TYPE, TIME_COL,
+    },
 };
 use arrow_schema::{DataType, Field};
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use parquet::format::KeyValue;
+use raphtory_api::{core::storage::arc_str::ArcStr, GraphType};
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
-use crate::db::api::storage::graph::storage_ops::GraphStorage;
 
 pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
     run_encode(
@@ -82,7 +86,11 @@ impl Serialize for Row {
     }
 }
 
-pub fn encode_graph_cprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
+pub fn encode_graph_cprop(
+    g: &GraphStorage,
+    graph_type: GraphType,
+    path: impl AsRef<Path>,
+) -> Result<(), GraphError> {
     run_encode(
         g,
         g.graph_meta().const_prop_meta(),
@@ -99,6 +107,17 @@ pub fn encode_graph_cprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
                 writer.write(&rb)?;
                 writer.flush()?;
             }
+
+            match graph_type {
+                GraphType::EventGraph => writer.append_key_value_metadata(KeyValue::new(
+                    GRAPH_TYPE.to_string(),
+                    Some(EVENT_GRAPH_TYPE.to_string()),
+                )),
+                GraphType::PersistentGraph => writer.append_key_value_metadata(KeyValue::new(
+                    GRAPH_TYPE.to_string(),
+                    Some(PERSISTENT_GRAPH_TYPE.to_string()),
+                )),
+            };
 
             Ok(())
         },

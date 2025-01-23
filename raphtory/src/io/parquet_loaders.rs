@@ -29,7 +29,7 @@ use std::{
 };
 
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
     S: AsRef<str>,
 >(
     graph: &G,
@@ -137,7 +137,7 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -177,7 +177,7 @@ pub fn load_node_props_from_parquet<
 }
 
 pub fn load_edge_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -210,7 +210,7 @@ pub fn load_edge_props_from_parquet<
             shared_const_properties,
             layer,
             layer_col,
-            graph.core_graph(),
+            graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }

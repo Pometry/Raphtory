@@ -1,11 +1,12 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{GraphType, InternalMaterialize, OneHopFilter},
+        api::view::internal::{InternalMaterialize, OneHopFilter},
         graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
     },
     prelude::GraphViewOps,
 };
+use raphtory_api::GraphType;
 
 pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(

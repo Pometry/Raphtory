@@ -24,7 +24,7 @@ pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option
 
 pub(crate) fn load_nodes_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -98,7 +98,7 @@ pub(crate) fn load_edges_from_pandas<
 
 pub(crate) fn load_node_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -128,7 +128,7 @@ pub(crate) fn load_node_props_from_pandas<
 
 pub(crate) fn load_edge_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,

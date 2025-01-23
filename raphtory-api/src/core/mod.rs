@@ -56,15 +56,12 @@ impl Display for PropType {
             PropType::Bool => "Bool",
             PropType::List(p_type) => return write!(f, "List<{}>", p_type),
             PropType::Map(p_type) => {
-                return write!(
-                    f,
-                    "{{ {} }}",
-                    p_type
-                        .iter()
-                        .map(|(k, v)| format!("{}: {}", k, v))
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                )
+                let mut types = p_type
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<String>>();
+                types.sort();
+                return write!(f, "Map{{ {} }}", types.join(", "));
             }
             PropType::NDTime => "NDTime",
             PropType::DTime => "DTime",
@@ -216,15 +213,15 @@ mod test {
     fn test_unify_types_ne() {
         let l = PropType::List(Box::new(PropType::U8));
         let r = PropType::List(Box::new(PropType::U16));
-        assert_eq!(unify_types(&l, &r, &mut false), Err(()));
+        assert!(unify_types(&l, &r, &mut false).is_err());
 
         let l = PropType::map([("a".to_string(), PropType::U8)]);
         let r = PropType::map([("a".to_string(), PropType::U16)]);
-        assert_eq!(unify_types(&l, &r, &mut false), Err(()));
+        assert!(unify_types(&l, &r, &mut false).is_err());
 
         let l = PropType::List(Box::new(PropType::U8));
         let r = PropType::List(Box::new(PropType::U16));
-        assert_eq!(unify_types(&l, &r, &mut false), Err(()));
+        assert!(unify_types(&l, &r, &mut false).is_err());
     }
 
     #[test]
@@ -248,7 +245,7 @@ mod test {
     fn test_unify_maps() {
         let l = PropType::map([("a".to_string(), PropType::U8)]);
         let r = PropType::map([("a".to_string(), PropType::U16)]);
-        assert_eq!(unify_types(&l, &r, &mut false), Err(()));
+        assert!(unify_types(&l, &r, &mut false).is_err());
 
         let l = PropType::map([("a".to_string(), PropType::U8)]);
         let r = PropType::map([("b".to_string(), PropType::U16)]);

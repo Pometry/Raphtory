@@ -40,6 +40,7 @@ use std::{
 use utils::errors::GraphError;
 
 use arrow_schema::{DataType, Field};
+use rustc_hash::FxHashMap;
 
 #[cfg(test)]
 extern crate core;
@@ -94,7 +95,7 @@ pub enum Prop {
     F64(f64),
     Bool(bool),
     List(Arc<Vec<Prop>>),
-    Map(Arc<HashMap<ArcStr, Prop>>),
+    Map(Arc<FxHashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Array(PropArray),
@@ -162,7 +163,7 @@ impl PartialOrd for Prop {
 
 impl Prop {
     pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, Prop)>) -> Self {
-        let h_map: HashMap<_, _> = vals.into_iter().map(|(k, v)| (k.into(), v)).collect();
+        let h_map: FxHashMap<_, _> = vals.into_iter().map(|(k, v)| (k.into(), v)).collect();
         Prop::Map(h_map.into())
     }
 
@@ -387,8 +388,8 @@ pub trait PropUnwrap: Sized {
         self.into_list().unwrap()
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>>;
-    fn unwrap_map(self) -> Arc<HashMap<ArcStr, Prop>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>>;
+    fn unwrap_map(self) -> Arc<FxHashMap<ArcStr, Prop>> {
         self.into_map().unwrap()
     }
 
@@ -450,7 +451,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_list())
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         self.and_then(|p| p.into_map())
     }
 
@@ -556,7 +557,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         if let Prop::Map(v) = self {
             Some(v)
         } else {
@@ -756,6 +757,12 @@ impl From<bool> for Prop {
 
 impl From<HashMap<ArcStr, Prop>> for Prop {
     fn from(value: HashMap<ArcStr, Prop>) -> Self {
+        Prop::Map(Arc::new(value.into_iter().collect()))
+    }
+}
+
+impl From<FxHashMap<ArcStr, Prop>> for Prop {
+    fn from(value: FxHashMap<ArcStr, Prop>) -> Self {
         Prop::Map(Arc::new(value))
     }
 }

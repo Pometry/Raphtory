@@ -9,8 +9,9 @@ use crate::{
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, iter, ops::Range, sync::Arc};
+use std::{iter, ops::Range, sync::Arc};
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TProp {
@@ -30,7 +31,7 @@ pub enum TProp {
     Array(TCell<PropArray>),
     NDTime(TCell<NaiveDateTime>),
     List(TCell<Arc<Vec<Prop>>>),
-    Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
+    Map(TCell<Arc<FxHashMap<ArcStr, Prop>>>),
 }
 
 #[derive(Copy, Clone, Debug)]

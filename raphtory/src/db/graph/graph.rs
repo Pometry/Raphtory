@@ -2382,12 +2382,11 @@ mod db_tests {
         );
 
         let data = vec![
-            ("key1".into(), Prop::I64(10)),
-            ("key2".into(), Prop::I64(20)),
-            ("key3".into(), Prop::I64(30)),
+            ("key1", Prop::I64(10)),
+            ("key2", Prop::I64(20)),
+            ("key3", Prop::I64(30)),
         ];
-        let props_map = data.into_iter().collect::<HashMap<_, _>>();
-        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::Map(Arc::from(props_map)))];
+        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::map(data))];
 
         g.add_constant_properties(as_props.clone()).unwrap();
 

@@ -20,7 +20,10 @@ use crate::{
         types::iterable::FromIterable,
         utils::{PyNodeRef, PyTime},
     },
-    serialise::{StableDecode, StableEncode},
+    serialise::{
+        parquet::{ParquetDecoder, ParquetEncoder},
+        StableDecode, StableEncode,
+    },
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
@@ -177,6 +180,28 @@ impl PyGraph {
         let storage = GraphStorage::Disk(Arc::new(disk_graph));
         let graph = Graph::from_internal_graph(storage);
         Ok(graph)
+    }
+
+    /// Persist graph to parquet files
+    ///
+    /// Arguments:
+    ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
+    ///
+    pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
+        self.graph.encode_parquet(graph_dir)
+    }
+
+    /// Read graph from parquet files
+    ///
+    /// Arguments:
+    ///    graph_dir (str | PathLike): the folder where the graph is stored as parquet
+    ///
+    /// Returns:
+    ///   Graph: a view of the graph
+    ///
+    #[staticmethod]
+    pub fn from_parquet(graph_dir: PathBuf) -> Result<Graph, GraphError> {
+        Graph::decode_parquet(graph_dir)
     }
 
     /// Adds a new node with the given id and properties to the graph.

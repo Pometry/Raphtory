@@ -1,19 +1,18 @@
 [workspace]
 members = [
     "raphtory",
-    # "raphtory-cypher",
-    # "raphtory-benchmark",
-    # "pometry-storage",
-    # "examples/rust",
-    # "examples/netflow",
-    # "examples/custom-gql-apis",
-    # "python",
-    # "raphtory-graphql",
+    "raphtory-cypher",
+    "raphtory-benchmark",
+    "pometry-storage",
+    "examples/rust",
+    "examples/netflow",
+    "examples/custom-gql-apis",
+    "python",
+    "raphtory-graphql",
     "raphtory-api",
 ]
 default-members = [
     "raphtory",
-    # "raphtory-graphql"
 ]
 resolver = "2"
 

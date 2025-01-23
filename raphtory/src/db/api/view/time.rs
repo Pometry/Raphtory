@@ -9,12 +9,11 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::GraphType;
 use std::{
     cmp::{max, min},
     marker::PhantomData,
 };
-
-use super::internal::GraphType;
 
 pub(crate) mod internal {
     use crate::{

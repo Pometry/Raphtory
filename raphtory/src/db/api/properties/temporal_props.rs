@@ -5,6 +5,7 @@ use crate::{
 use arrow_array::ArrayRef;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
+use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
     iter::Zip,
@@ -229,7 +230,7 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_list()
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         self.latest().into_map()
     }
 
