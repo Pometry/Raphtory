@@ -1,6 +1,9 @@
 # exclude .ipynb from stats
 *.ipynb linguist-documentation
 
+# exclude .html from stats
+*.html linguist-documentation
+
 # exclude docs from stats
 docs/* linguist-documentation
 
