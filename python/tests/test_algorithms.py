@@ -304,7 +304,7 @@ def test_page_rank():
         "7": 0.14074777909144864,
         "8": 0.11786468661230831,
     }
-    assert actual.get_all_with_names() == expected
+    assert actual == expected
 
 
 def test_temporal_reachability():
@@ -326,7 +326,7 @@ def test_temporal_reachability():
         "8": [],
     }
 
-    assert actual.get_all_with_names() == expected
+    assert actual == expected
 
 
 def test_degree_centrality():
@@ -339,7 +339,7 @@ def test_degree_centrality():
     g.add_edge(0, 1, 4, {})
     g.add_edge(0, 2, 3, {})
     g.add_edge(0, 2, 4, {})
-    assert degree_centrality(g).get_all_with_names() == {
+    assert degree_centrality(g) == {
         "1": 1.0,
         "2": 1.0,
         "3": 2 / 3,
@@ -374,17 +374,15 @@ def test_single_source_shortest_path():
     g.add_edge(0, 2, 4, {})
     res_one = single_source_shortest_path(g, 1, 1)
     res_two = single_source_shortest_path(g, 1, 2)
-    assert res_one.get_all_with_names() == {
+    assert res_one == {
         "1": ["1"],
         "2": ["1", "2"],
         "4": ["1", "4"],
     }
     assert (
-        res_two.get_all_with_names()
-        == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
+        res_two == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
     ) or (
-        res_two.get_all_with_names()
-        == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
+        res_two == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
     )
 
 
@@ -404,19 +402,19 @@ def test_dijsktra_shortest_paths():
     res_one = dijkstra_single_source_shortest_paths(g, "A", ["F"])
     res_two = dijkstra_single_source_shortest_paths(g, "B", ["D", "E", "F"])
     assert res_one.get("F")[0] == 8.0
-    assert res_one.get("F")[1] == ["A", "C", "E", "F"]
+    assert res_one.get("F")[1].name == ["A", "C", "E", "F"]
     assert res_two.get("D")[0] == 5.0
     assert res_two.get("F")[0] == 6.0
-    assert res_two.get("D")[1] == ["B", "C", "D"]
-    assert res_two.get("F")[1] == ["B", "C", "E", "F"]
+    assert res_two.get("D")[1].name == ["B", "C", "D"]
+    assert res_two.get("F")[1].name == ["B", "C", "E", "F"]
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(Exception) as excinfo:
         dijkstra_single_source_shortest_paths(g, "HH", ["F"])
-    assert "Source node not found" in str(excinfo.value)
+    assert "Node HH does not exist" in str(excinfo.value)
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(Exception) as excinfo:
         dijkstra_single_source_shortest_paths(g, "A", ["F"], weight="NO")
-    assert "Weight property not found on edges" in str(excinfo.value)
+    assert "Property NO does not exist" in str(excinfo.value)
 
 
 def test_betweenness_centrality():
@@ -442,7 +440,7 @@ def test_betweenness_centrality():
         g.add_edge(0, e[0], e[1], {})
 
     res = betweenness_centrality(g, normalized=False)
-    assert res.get_all_with_names() == {
+    assert res == {
         "0": 0.0,
         "1": 1.0,
         "2": 4.0,
@@ -452,7 +450,7 @@ def test_betweenness_centrality():
     }
 
     res = betweenness_centrality(g, normalized=True)
-    assert res.get_all_with_names() == {
+    assert res == {
         "0": 0.0,
         "1": 0.05,
         "2": 0.2,
@@ -484,13 +482,13 @@ def test_balance_algorithm():
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
-    result = algorithms.balance(g, "value_dec", "both", None).get_all_with_names()
+    result = algorithms.balance(g, "value_dec", "both")
     assert result == {"1": -26.0, "2": 7.0, "3": 12.0, "4": 5.0, "5": 2.0}
 
-    result = algorithms.balance(g, "value_dec", "in", None).get_all_with_names()
+    result = algorithms.balance(g, "value_dec", "in")
     assert result == {"1": 6.0, "2": 12.0, "3": 15.0, "4": 20.0, "5": 2.0}
 
-    result = algorithms.balance(g, "value_dec", "out", None).get_all_with_names()
+    result = algorithms.balance(g, "value_dec", "out")
     assert result == {"1": -32.0, "2": -5.0, "3": -3.0, "4": -15.0, "5": 0.0}
 
 
@@ -530,13 +528,11 @@ def test_temporal_SEIR():
     g.add_edge(4, 4, 5)
     # Should be seeded with 2 vertices
     res = algorithms.temporal_SEIR(g, 2, 1.0, 0, rng_seed=1)
-    seeded = [v for v in res.get_all_values() if v.infected == 0]
+    seeded = [v for v in res.values() if v.infected == 0]
     assert len(seeded) == 2
 
-    res = algorithms.temporal_SEIR(g, [1], 1.0, 0, rng_seed=1).sort_by_value(
-        reverse=False
-    )
-    for i, (n, v) in enumerate(res):
+    res = algorithms.temporal_SEIR(g, [1], 1.0, 0, rng_seed=1).sorted(reverse=False)
+    for i, (n, v) in enumerate(res.items()):
         assert n == g.node(i + 1)
         assert v.infected == i
 
@@ -584,7 +580,7 @@ def test_fast_rp():
     for src, dst, ts in edges:
         g.add_edge(ts, src, dst)
 
-    result = algorithms.fast_rp(g, 16, 1.0, [1.0, 1.0], 42).get_all_with_names()
+    result = algorithms.fast_rp(g, 16, 1.0, [1.0, 1.0], 42)
     baseline = {
         "7": [
             0.0,
