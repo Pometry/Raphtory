@@ -17,7 +17,10 @@ use crate::{
 };
 use indexmap::IndexSet;
 use rayon::prelude::*;
-use std::fmt::{Debug, Formatter};
+use std::{
+    borrow::Borrow,
+    fmt::{Debug, Formatter},
+};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
@@ -35,6 +38,27 @@ impl<
 {
     fn eq(&self, other: &[RHS]) -> bool {
         self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| b == &a)
+    }
+}
+
+impl<
+        'graph,
+        Op: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        RHS: NodeStateOps<'graph, OwnedValue = Op::Output>,
+    > PartialEq<RHS> for LazyNodeState<'graph, Op, G, GH>
+where
+    Op::Output: PartialEq,
+{
+    fn eq(&self, other: &RHS) -> bool {
+        self.len() == other.len()
+            && self.par_iter().all(|(node, value)| {
+                other
+                    .get_by_node(node)
+                    .map(|v| v.borrow() == &value)
+                    .unwrap_or(false)
+            })
     }
 }
 

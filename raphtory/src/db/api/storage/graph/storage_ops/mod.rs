@@ -107,10 +107,13 @@ impl std::fmt::Display for GraphStorage {
 }
 
 impl GraphStorage {
+    /// Unique id for the storage that can be used to check if two views point at the same underlying
+    /// graph (and hence have compatible VIDs)
     pub fn graph_id(&self) -> usize {
         match self {
             GraphStorage::Mem(g) => Arc::as_ptr(&g.graph).addr(),
             GraphStorage::Unlocked(g) => Arc::as_ptr(g).addr(),
+            #[cfg(feature = "storage")]
             GraphStorage::Disk(g) => Arc::as_ptr(g).addr(),
         }
     }

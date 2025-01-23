@@ -26,9 +26,10 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
     types::{PyDict, PyNotImplemented},
+    IntoPyObjectExt,
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 macro_rules! impl_node_state_ops {
     ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
@@ -58,8 +59,8 @@ macro_rules! impl_node_state_ops {
                 py: Python<'py>,
             ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
                 let res = if let Ok(other) = other.downcast::<Self>() {
-                    let other = Bound::borrow(other);
-                    self.inner.iter_values().eq(other.inner.iter_values())
+                    let other = Bound::get(other);
+                    self.inner == other.inner
                 } else if let Ok(other) = other.extract::<Vec<$value>>() {
                     self.inner.iter_values().map($to_owned).eq(other.into_iter())
                 } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
@@ -67,6 +68,25 @@ macro_rules! impl_node_state_ops {
                         && other.into_iter().all(|(node, value)| {
                             self.inner.get_by_node(node).map($to_owned) == Some(value)
                         }))
+                } else if let Ok(other) = other.downcast::<PyDict>() {
+                    self.inner.len() == other.len()
+                        && other.items().iter().all(|item| {
+                            if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
+                            {
+                                self.inner
+                                    .get_by_node(node_ref).map($to_owned)
+                                    .map(|l_value| {
+                                        if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
+                                            l_value_py.eq(value).unwrap_or(false)
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .unwrap_or(false)
+                            } else {
+                                false
+                            }
+                        })
                 } else {
                     return Ok(PyNotImplemented::get(py).to_owned().into_any());
                 };
@@ -356,6 +376,12 @@ macro_rules! impl_lazy_node_state {
                 $name::from(self).into_pyobject(py)
             }
         }
+
+        impl<'py> FromPyObject<'py> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.downcast::<$name>()?.get().inner().clone())
+            }
+        }
     };
 }
 
@@ -363,11 +389,11 @@ macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
-            inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+            inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>,
         }
 
         impl $name {
-            pub fn inner(&self) -> &Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>> {
+            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph, DynamicGraph> {
                 &self.inner
             }
         }
@@ -375,7 +401,7 @@ macro_rules! impl_node_state {
         impl_node_state_ops!(
             $name,
             $value,
-            Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+            NodeState<'static, $value, DynamicGraph, DynamicGraph>,
             |v: &$value| v.clone(),
             $computed,
             $py_value
@@ -383,15 +409,7 @@ macro_rules! impl_node_state {
 
         impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
-                $name {
-                    inner: inner.into(),
-                }
-            }
-        }
-
-        impl From<Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>> for $name {
-            fn from(inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>) -> Self {
-                $name { inner }
+                $name { inner: inner }
             }
         }
 
@@ -404,6 +422,12 @@ macro_rules! impl_node_state {
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 $name::from(self).into_pyobject(py)
+            }
+        }
+
+        impl<'py> FromPyObject<'py> for NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.downcast::<$name>()?.get().inner().clone())
             }
         }
     };
@@ -609,5 +633,38 @@ impl_node_state!(
     "list[float]"
 );
 
-#[pymethods]
-impl NodeStateUsize {}
+impl NodeStateNodes {
+    fn test<'py>(
+        &self,
+        other: &Bound<'py, PyAny>,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+        let res = if let Ok(other) = other.downcast::<Self>() {
+            let other = Bound::get(other);
+            self.inner == other.inner
+        } else if let Ok(other) = other.downcast::<PyDict>() {
+            self.inner.len() == other.len()
+                && other.items().iter().all(|item| {
+                    if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
+                    {
+                        self.inner
+                            .get_by_node(node_ref)
+                            .map(|v| v.clone())
+                            .map(|l_value| {
+                                if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
+                                    l_value_py.eq(value).unwrap_or(false)
+                                } else {
+                                    false
+                                }
+                            })
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+        } else {
+            return Ok(PyNotImplemented::get(py).to_owned().into_any());
+        };
+        Ok(res.into_pyobject(py)?.to_owned().into_any())
+    }
+}
