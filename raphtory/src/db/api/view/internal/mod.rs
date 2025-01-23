@@ -23,10 +23,12 @@ use std::{
     sync::Arc,
 };
 
-use crate::core::utils::errors::GraphError;
 #[cfg(feature = "search")]
 use crate::search::searcher::Searcher;
-use crate::{db::graph::views::deletion_graph::PersistentGraph, prelude::Graph};
+use crate::{
+    core::utils::errors::GraphError, db::graph::views::deletion_graph::PersistentGraph,
+    prelude::Graph,
+};
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;

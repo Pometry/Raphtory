@@ -11,6 +11,7 @@ use crate::{
     search::{property_index::PropertyIndex, query_builder::QueryBuilder},
 };
 use itertools::Itertools;
+use parking_lot::Mutex;
 use raphtory_api::core::{
     entities::properties::props::PropMapper, storage::arc_str::ArcStr, PropType,
 };
@@ -23,7 +24,7 @@ use tantivy::{
     query::Query,
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
-    Index, IndexReader, IndexSettings,
+    Index, IndexReader, IndexSettings, IndexWriter,
 };
 
 pub mod graph_index;
@@ -75,7 +76,7 @@ pub(crate) fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index
 pub fn initialize_property_indexes(
     property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     prop_meta: &PropMapper,
-) -> tantivy::Result<()> {
+) -> tantivy::Result<Vec<Option<Mutex<IndexWriter>>>> {
     let properties = prop_meta
         .get_keys()
         .into_iter()
@@ -89,6 +90,7 @@ pub fn initialize_property_indexes(
         .collect_vec();
 
     let mut prop_index_guard = property_indexes.write()?;
+    let mut writers: Vec<Option<Mutex<IndexWriter>>> = Vec::new();
 
     for (prop_name, prop_id, prop_type) in properties {
         // Resize the vector if needed
@@ -98,12 +100,14 @@ pub fn initialize_property_indexes(
 
         // Create a new PropertyIndex if it doesn't exist
         if prop_index_guard[prop_id].is_none() {
-            prop_index_guard[prop_id] =
-                Some(PropertyIndex::new(ArcStr::from(prop_name), prop_type));
+            let property_index = PropertyIndex::new(ArcStr::from(prop_name), prop_type);
+            let writer = property_index.index.writer(50_000_000)?;
+            writers.push(Some(Mutex::new(writer)));
+            prop_index_guard[prop_id] = Some(property_index);
         }
     }
 
-    Ok(())
+    Ok(writers)
 }
 
 fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
@@ -112,24 +116,24 @@ fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
     time: i64,
     field: &str,
     id: u64,
+    writers: &[Option<Mutex<IndexWriter>>],
 ) -> tantivy::Result<()>
 where
     I: Iterator<Item = (ArcStr, usize, Prop)>,
 {
     for (prop_name, prop_id, prop_value) in properties {
-        if let Some(property_index) = &mut property_indexes[prop_id] {
-            let prop_doc = property_index.create_document(
-                time,
-                field,
-                id,
-                prop_name.to_string(),
-                prop_value,
-            )?;
-
-            let mut prop_writer = property_index.index.writer(50_000_000)?;
-            prop_writer.add_document(prop_doc)?;
-            prop_writer.commit()?;
-            property_index.reader.reload()?;
+        if let Some(Some(writer_mutex)) = writers.get(prop_id) {
+            let mut prop_writer = writer_mutex.lock();
+            if let Some(property_index) = &mut property_indexes[prop_id] {
+                let prop_doc = property_index.create_document(
+                    time,
+                    field,
+                    id,
+                    prop_name.to_string(),
+                    prop_value,
+                )?;
+                prop_writer.add_document(prop_doc)?;
+            }
         }
     }
 

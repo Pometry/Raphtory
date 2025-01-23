@@ -1,18 +1,19 @@
 use crate::{
     core::{storage::timeindex::AsTime, utils::errors::GraphError},
     prelude::*,
-    search::{fields, new_index},
+    search::{fields, new_index, TOKENIZER},
 };
 use raphtory_api::core::{storage::arc_str::ArcStr, PropType};
 use std::{fmt::Debug, sync::Arc};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
-    schema::{Field, Schema, SchemaBuilder, Type, FAST, INDEXED, STORED, TEXT},
+    schema::{
+        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
+        FAST, INDEXED, STORED, TEXT,
+    },
     Document, Index, IndexReader, IndexSettings, TantivyDocument,
 };
-use tantivy::schema::{IndexRecordOption, TextFieldIndexing, TextOptions};
-use crate::search::TOKENIZER;
 
 #[derive(Clone)]
 pub struct PropertyIndex {
@@ -23,6 +24,7 @@ pub struct PropertyIndex {
 
 impl PropertyIndex {
     pub(crate) fn new(prop_name: ArcStr, prop_type: PropType) -> Self {
+        // println!("prop_name = {}", prop_name.to_string());
         let schema = Self::schema_builder(&*prop_name, prop_type).build();
         let (index, reader) = new_index(schema, IndexSettings::default());
         Self {

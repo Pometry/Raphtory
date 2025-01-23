@@ -1,4 +1,6 @@
-use crate::core::{entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop};
+use crate::core::{
+    entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop,
+};
 use itertools::Itertools;
 use std::{collections::HashSet, fmt, sync::Arc};
 

@@ -8,8 +8,8 @@ use crate::{
         },
         view::internal::{
             Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritIndexSearch,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
-            InternalLayerOps, NodeFilterOps, Static,
+            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+            InheritTimeSemantics, InternalLayerOps, NodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -20,7 +20,6 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
-use crate::db::api::view::internal::InheritNodeHistoryFilter;
 
 #[derive(Clone)]
 pub struct CachedView<G> {

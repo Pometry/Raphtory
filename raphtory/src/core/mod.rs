@@ -840,11 +840,23 @@ pub fn sort_comparable_props(mut props: Vec<&Prop>) -> Vec<&Prop> {
     // Filter out non-comparable props
     let mut comparable_props: Vec<_> = props
         .into_iter()
-        .filter(|p| matches!(p,
-            Prop::Str(_) | Prop::U8(_) | Prop::U16(_) | Prop::I32(_) | Prop::I64(_) |
-            Prop::U32(_) | Prop::U64(_) | Prop::F32(_) | Prop::F64(_) | Prop::Bool(_) |
-            Prop::NDTime(_) | Prop::DTime(_)
-        ))
+        .filter(|p| {
+            matches!(
+                p,
+                Prop::Str(_)
+                    | Prop::U8(_)
+                    | Prop::U16(_)
+                    | Prop::I32(_)
+                    | Prop::I64(_)
+                    | Prop::U32(_)
+                    | Prop::U64(_)
+                    | Prop::F32(_)
+                    | Prop::F64(_)
+                    | Prop::Bool(_)
+                    | Prop::NDTime(_)
+                    | Prop::DTime(_)
+            )
+        })
         .collect();
 
     // Sort the comparable props

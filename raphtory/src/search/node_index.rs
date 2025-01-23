@@ -19,6 +19,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use parking_lot::Mutex;
 use raphtory_api::core::{
     entities::properties::props::{Meta, PropMapper},
     storage::arc_str::ArcStr,
@@ -218,14 +219,12 @@ impl NodeIndex {
             })
     }
 
-    fn index_node<
-        'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    >(
+    fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
         node: NodeView<G, GH>,
         writer: &IndexWriter,
+        const_writers: &[Option<Mutex<IndexWriter>>],
+        temporal_writers: &[Option<Mutex<IndexWriter>>],
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
         let node_name = node.name();
@@ -243,6 +242,7 @@ impl NodeIndex {
                 *time,
                 fields::NODE_ID,
                 node_id,
+                const_writers,
             )?;
             index_properties(
                 temp_props.iter().cloned(),
@@ -250,6 +250,7 @@ impl NodeIndex {
                 *time,
                 fields::NODE_ID,
                 node_id,
+                temporal_writers,
             )?;
         }
 
@@ -279,28 +280,56 @@ impl NodeIndex {
     pub(crate) fn index_nodes(graph: &GraphStorage) -> tantivy::Result<NodeIndex> {
         let node_index = NodeIndex::new();
 
-        initialize_property_indexes(
+        // Initialize property indexes and get their writers
+        let const_writers = initialize_property_indexes(
             node_index.constant_property_indexes.clone(),
             graph.node_meta().const_prop_meta(),
         )?;
-        initialize_property_indexes(
+        let temporal_writers = initialize_property_indexes(
             node_index.temporal_property_indexes.clone(),
             graph.node_meta().temporal_prop_meta(),
         )?;
 
+        // Index nodes in parallel
         let mut writer = node_index.index.writer(100_000_000)?;
         let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             for v_id in v_ids {
                 if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
-                    node_index.index_node(node, &writer)?;
+                    node_index.index_node(node, &writer, &const_writers, &temporal_writers)?;
                 }
             }
             Ok::<(), TantivyError>(())
         })?;
 
+        // Commit writers
+        for writer_option in &const_writers {
+            if let Some(writer_mutex) = writer_option {
+                writer_mutex.lock().commit()?;
+            }
+        }
+        for writer_option in &temporal_writers {
+            if let Some(writer_mutex) = writer_option {
+                writer_mutex.lock().commit()?;
+            }
+        }
         writer.commit()?;
+
+        // Reload readers
+        {
+            let const_indexes = node_index.constant_property_indexes.read()?;
+            for property_index_option in const_indexes.iter().flatten() {
+                property_index_option.reader.reload()?;
+            }
+        }
+        {
+            let temporal_indexes = node_index.temporal_property_indexes.read()?;
+            for property_index_option in temporal_indexes.iter().flatten() {
+                property_index_option.reader.reload()?;
+            }
+        }
         node_index.reader.reload()?;
+
         Ok(node_index)
     }
 
@@ -316,9 +345,18 @@ impl NodeIndex {
             .expect("Node for internal id should exist.")
             .at(t.t());
 
+        let const_writers = initialize_property_indexes(
+            self.constant_property_indexes.clone(),
+            graph.node_meta().const_prop_meta(),
+        )?;
+        let temporal_writers = initialize_property_indexes(
+            self.temporal_property_indexes.clone(),
+            graph.node_meta().temporal_prop_meta(),
+        )?;
+
         let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));
         let mut writer_guard = writer.write();
-        self.index_node(node, &writer_guard)?;
+        self.index_node(node, &writer_guard, &const_writers, &temporal_writers)?;
         writer_guard.commit()?;
         self.reader.reload()?;
 

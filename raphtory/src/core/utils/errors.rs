@@ -1,4 +1,7 @@
-use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+use crate::{
+    core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
+    db::graph::views::property_filter::FilterOperator,
+};
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
@@ -18,7 +21,6 @@ use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
 use tracing::error;
-use crate::db::graph::views::property_filter::FilterOperator;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {

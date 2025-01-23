@@ -23,7 +23,10 @@ impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::{graph::assert_edges_equal, views::property_filter::PropertyFilter},
+        db::{
+            api::view::internal::InternalIndexSearch,
+            graph::{graph::assert_edges_equal, views::property_filter::PropertyFilter},
+        },
         prelude::*,
         test_utils::{
             add_node_props, build_edge_list, build_graph_from_edge_list, build_node_props,
@@ -32,7 +35,6 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
-    use crate::db::api::view::internal::InternalIndexSearch;
 
     #[test]
     fn test_node_property_filter_on_nodes() {
@@ -361,7 +363,7 @@ mod test {
             .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
             .unwrap();
         graph
-            .add_node(2, 1,[("p6", 6)], Some("fire_nation"))
+            .add_node(2, 1, [("p6", 6)], Some("fire_nation"))
             .unwrap();
         graph
             .add_node(2, 2, [("p4", 5)], Some("fire_nation"))

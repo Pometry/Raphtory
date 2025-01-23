@@ -26,7 +26,7 @@ use crate::{
             },
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
-                internal::{OneHopFilter, Static},
+                internal::{CoreGraphOps, OneHopFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
@@ -41,7 +41,6 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
-use crate::db::api::view::internal::CoreGraphOps;
 
 /// A view of an edge in the graph.
 #[derive(Copy, Clone)]
@@ -452,7 +451,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for EdgeView<G, GH> {}
 
 impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Hash
-for EdgeView<G1, GH1>
+    for EdgeView<G1, GH1>
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id().hash(state);

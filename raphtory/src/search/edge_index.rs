@@ -9,12 +9,16 @@ use crate::{
             properties::internal::ConstPropertiesOps, storage::graph::storage_ops::GraphStorage,
             view::internal::core_ops::CoreGraphOps,
         },
-        graph::{edge::EdgeView},
+        graph::edge::EdgeView,
     },
     prelude::*,
-    search::{fields, index_properties, new_index, property_index::PropertyIndex, TOKENIZER},
+    search::{
+        fields, index_properties, initialize_property_indexes, new_index,
+        property_index::PropertyIndex, TOKENIZER,
+    },
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use parking_lot::Mutex;
+use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
 use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::{
@@ -27,19 +31,18 @@ use tantivy::{
     collector::TopDocs,
     query::{AllQuery, TermQuery},
     schema::{
-        IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value, FAST,
-        INDEXED, STORED,
+        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value,
+        FAST, INDEXED, STORED,
     },
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
-use tantivy::schema::Field;
-use raphtory_api::core::entities::properties::props::Meta;
 
 #[derive(Clone)]
 pub struct EdgeIndex {
     pub(crate) index: Arc<Index>,
     pub(crate) reader: IndexReader,
-    pub(crate) property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) constant_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
 }
 
 impl Debug for EdgeIndex {
@@ -57,7 +60,8 @@ impl EdgeIndex {
         EdgeIndex {
             index: Arc::new(index),
             reader,
-            property_indexes: Arc::new(RwLock::new(Vec::new())),
+            constant_property_indexes: Arc::new(RwLock::new(Vec::new())),
+            temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -72,12 +76,21 @@ impl EdgeIndex {
             println!("Edge doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let property_indexes = self
-            .property_indexes
+        let constant_property_indexes = self
+            .constant_property_indexes
             .read()
             .map_err(|_| GraphError::LockError)?;
 
-        for property_index in property_indexes.iter().flatten() {
+        for property_index in constant_property_indexes.iter().flatten() {
+            property_index.print()?;
+        }
+
+        let temporal_property_indexes = self
+            .temporal_property_indexes
+            .read()
+            .map_err(|_| GraphError::LockError)?;
+
+        for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
@@ -121,25 +134,34 @@ impl EdgeIndex {
         meta: &Meta,
         prop_name: &str,
     ) -> Result<Arc<PropertyIndex>, GraphError> {
-        fn get_prop_id(meta: &Meta, prop_name: &str) -> Result<usize, GraphError> {
-            meta.temporal_prop_meta()
-                .get_id(prop_name)
-                .or_else(|| meta.const_prop_meta().get_id(prop_name))
-                .ok_or_else(|| GraphError::PropertyNotFound(prop_name.to_string()))
+        if let Some(prop_id) = meta.temporal_prop_meta().get_id(prop_name) {
+            let temporal_property_indexes = self
+                .temporal_property_indexes
+                .read()
+                .map_err(|_| GraphError::LockError)?;
+
+            if let Some(Some(property_index)) = temporal_property_indexes.get(prop_id) {
+                return Ok(Arc::from(property_index.clone()));
+            } else {
+                return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
+            }
         }
 
-        let property_indexes = self
-            .property_indexes
-            .read()
-            .map_err(|_| GraphError::LockError)?;
+        if let Some(prop_id) = meta.const_prop_meta().get_id(prop_name) {
+            let constant_property_indexes = self
+                .constant_property_indexes
+                .read()
+                .map_err(|_| GraphError::LockError)?;
 
-        let prop_id = get_prop_id(meta, prop_name)?;
-
-        if let Some(Some(property_index)) = property_indexes.get(prop_id) {
-            Ok(Arc::from(property_index.clone()))
-        } else {
-            Err(GraphError::PropertyIndexNotFound(prop_name.to_string()))
+            if let Some(Some(property_index)) = constant_property_indexes.get(prop_id) {
+                return Ok(Arc::from(property_index.clone()));
+            } else {
+                return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
+            }
         }
+
+        // Property not found in either meta
+        Err(GraphError::PropertyNotFound(prop_name.to_string()))
     }
 
     pub fn get_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {
@@ -162,6 +184,7 @@ impl EdgeIndex {
 
         let document = TantivyDocument::parse_json(&schema, &doc.to_string())?;
         // println!("Edge doc as json = {}", &document.to_json(schema));
+
         Ok(document)
     }
 
@@ -195,15 +218,12 @@ impl EdgeIndex {
             })
     }
 
-    fn index_edge<
-        'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        W: Deref<Target = IndexWriter>,
-    >(
+    fn index_edge<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
         edge: EdgeView<G, GH>,
-        writer: &W,
+        writer: &IndexWriter,
+        const_writers: &[Option<Mutex<IndexWriter>>],
+        temporal_writers: &[Option<Mutex<IndexWriter>>],
     ) -> tantivy::Result<()> {
         let edge_id = edge.edge.pid().as_u64();
         let src = edge.src().name();
@@ -211,22 +231,25 @@ impl EdgeIndex {
 
         let constant_properties: Vec<(ArcStr, usize, Prop)> =
             self.collect_constant_properties(&edge);
-
         let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
             self.collect_temporal_properties(&edge);
 
         for (time, temp_props) in &temporal_properties {
-            let properties = constant_properties
-                .iter()
-                .cloned()
-                .chain(temp_props.iter().cloned());
-
             index_properties(
-                properties,
-                self.property_indexes.write()?,
+                constant_properties.iter().cloned(),
+                self.constant_property_indexes.write()?,
                 *time,
                 fields::EDGE_ID,
-                edge_id
+                edge_id,
+                const_writers,
+            )?;
+            index_properties(
+                temp_props.iter().cloned(),
+                self.temporal_property_indexes.write()?,
+                *time,
+                fields::EDGE_ID,
+                edge_id,
+                temporal_writers,
             )?;
         }
 
@@ -253,28 +276,58 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edges(g: &GraphStorage) -> tantivy::Result<EdgeIndex> {
+    pub(crate) fn index_edges(graph: &GraphStorage) -> tantivy::Result<EdgeIndex> {
         let edge_index = EdgeIndex::new();
 
-        let writer = Arc::new(parking_lot::RwLock::new(
-            edge_index.index.writer(100_000_000)?,
-        ));
+        // Initialize property indexes and get their writers
+        let const_writers = initialize_property_indexes(
+            edge_index.constant_property_indexes.clone(),
+            graph.node_meta().const_prop_meta(),
+        )?;
+        let temporal_writers = initialize_property_indexes(
+            edge_index.temporal_property_indexes.clone(),
+            graph.node_meta().temporal_prop_meta(),
+        )?;
 
-        let locked_g = g.core_graph();
+        let writer = Arc::new(Mutex::new(edge_index.index.writer(100_000_000)?));
 
-        locked_g.edges_par(&g).try_for_each(|e_ref| {
-            let writer_lock = writer.clone();
+        let locked_g = graph.core_graph();
+        locked_g.edges_par(&graph).try_for_each(|e_ref| {
+            let writer_lock = Arc::clone(&writer);
             {
-                let writer_guard = writer_lock.read();
-                let e_view = EdgeView::new(g.clone(), e_ref);
-                edge_index.index_edge(e_view, &writer_guard)?;
+                let writer_guard = writer_lock.lock();
+                let e_view = EdgeView::new(graph.clone(), e_ref);
+                edge_index.index_edge(e_view, &writer_guard, &const_writers, &temporal_writers)?;
             }
             Ok::<(), TantivyError>(())
         })?;
 
-        let mut writer_guard = writer.write();
-        writer_guard.commit()?;
+        // Commit writers
+        for writer_option in &const_writers {
+            if let Some(writer_mutex) = writer_option {
+                writer_mutex.lock().commit()?;
+            }
+        }
+        for writer_option in &temporal_writers {
+            if let Some(writer_mutex) = writer_option {
+                writer_mutex.lock().commit()?;
+            }
+        }
+        writer.lock().commit()?;
 
+        // Reload readers
+        {
+            let const_indexes = edge_index.constant_property_indexes.read()?;
+            for property_index_option in const_indexes.iter().flatten() {
+                property_index_option.reader.reload()?;
+            }
+        }
+        {
+            let temporal_indexes = edge_index.temporal_property_indexes.read()?;
+            for property_index_option in temporal_indexes.iter().flatten() {
+                property_index_option.reader.reload()?;
+            }
+        }
         edge_index.reader.reload()?;
 
         Ok(edge_index)
@@ -294,9 +347,18 @@ impl EdgeIndex {
             .expect("Edge for internal id should exist.")
             .at(t.t());
 
+        let const_writers = initialize_property_indexes(
+            self.constant_property_indexes.clone(),
+            graph.node_meta().const_prop_meta(),
+        )?;
+        let temporal_writers = initialize_property_indexes(
+            self.temporal_property_indexes.clone(),
+            graph.node_meta().temporal_prop_meta(),
+        )?;
+
         let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));
         let mut writer_guard = writer.write();
-        self.index_edge(edge, &writer_guard)?;
+        self.index_edge(edge, &writer_guard, &const_writers, &temporal_writers)?;
         writer_guard.commit()?;
         self.reader.reload()?;
 

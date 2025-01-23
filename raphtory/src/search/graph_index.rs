@@ -150,7 +150,7 @@ mod graph_index_test {
             .add_edge(1, 1, 2, [("p1", 1), ("p2", 2)], Some("fire_nation"))
             .unwrap();
         graph
-            .add_edge(2, 1,  2,[("p6", 6)], Some("fire_nation"))
+            .add_edge(2, 1, 2, [("p6", 6)], Some("fire_nation"))
             .unwrap();
         graph
             .add_edge(2, 2, 3, [("p4", 5)], Some("fire_nation"))

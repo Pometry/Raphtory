@@ -15,10 +15,9 @@ use crate::{
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
+                PyConstProperties, PyConstantProperties, PyProperties, PyTemporalProp,
+                PyTemporalProperties,
             },
-            node::{PyMutableNode, PyNode, PyNodes},
-            properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
             views::graph_view::PyGraphView,
         },
         packages::{

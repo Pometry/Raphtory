@@ -13,14 +13,7 @@ use crate::{
                 Base,
             },
         },
-        graph::{
-            edge::EdgeView,
-            views::{
-                property_filter::{
-                    internal::InternalEdgeFilterOps,
-                },
-            },
-        },
+        graph::{edge::EdgeView, views::property_filter::internal::InternalEdgeFilterOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
 };

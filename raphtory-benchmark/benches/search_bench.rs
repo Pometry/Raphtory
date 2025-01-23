@@ -1,69 +1,95 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use once_cell::sync::Lazy;
+use rand::{seq::SliceRandom, thread_rng};
 use raphtory::{
     core::IntoProp,
     db::{
-        api::view::SearchableGraphOps,
-        graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+        api::view::{internal::InternalIndexSearch, SearchableGraphOps},
+        graph::views::{
+            deletion_graph::PersistentGraph,
+            property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+        },
     },
     prelude::{
         AdditionOps, EdgePropertyFilterOps, Graph, GraphViewOps, NodePropertyFilterOps,
-        NodeViewOps, PropertyFilter,
+        NodeViewOps, PropertyFilter, StableDecode,
     },
 };
+use std::{sync::Arc, time::Instant};
 
-fn setup_graph() -> Graph {
-    let graph = Graph::new();
-    graph
-        .add_node(1, 1, [("p1", "shivam_kapoor")], Some("fire_nation"))
-        .unwrap();
-    graph
-        .add_node(
-            2,
-            2,
-            [("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
-            Some("air_nomads"),
-        )
-        .unwrap();
-    graph
-        .add_node(3, 3, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
-        .unwrap();
-    graph.add_node(3, 4, [("p4", "pometry")], None).unwrap();
-    graph.add_node(4, 4, [("p5", 12u64)], None).unwrap();
+static GRAPH: Lazy<Arc<PersistentGraph>> = Lazy::new(|| {
+    // let graph = PersistentGraph::decode("/tmp/graphs/SPARK-22915").unwrap();
+    let graph = PersistentGraph::decode("/tmp/graphs/master").unwrap();
 
-    graph
-        .add_edge(1, 1, 2, [("ep1", "shivam_kapoor")], Some("pometry"))
-        .unwrap();
-    graph
-        .add_edge(
-            2,
-            2,
-            3,
-            [("ep1", "prop12".into_prop()), ("ep2", 2u64.into_prop())],
-            Some("network"),
-        )
-        .unwrap();
-    graph
-        .add_edge(3, 3, 1, [("ep2", 6u64), ("ep3", 1u64)], Some("disks"))
-        .unwrap();
+    let start = Instant::now();
+    let _ = graph.searcher().unwrap();
+    let duration = start.elapsed();
+    println!("Time taken to initialize graph and indexes: {:?}", duration);
 
-    graph
+    Arc::new(graph)
+});
+
+fn setup_graph() -> Arc<PersistentGraph> {
+    Arc::clone(&GRAPH)
+}
+
+fn get_node_names() -> Vec<&'static str> {
+    vec![
+        "SPARK-22644",
+        "SPARK-22882",
+        "smurakozi",
+        "SPARK-22915",
+        "SPARK-22883",
+        "gsomogyi",
+        "SPARK-22886",
+        "attilapiros",
+        "SPARK-22887",
+        "SPARK-22881",
+        "SPARK-22884",
+        "weichenxu123",
+        "SPARK-22885",
+        "josephkb",
+    ]
+}
+
+fn get_property_filters() -> Vec<PropertyFilter> {
+    vec![
+        PropertyFilter::eq("issuetype", "Test"),
+        PropertyFilter::eq("summary", "StructuredStreaming"),
+        PropertyFilter::eq("priority", "Major"),
+        // PropertyFilter::eq("description", "Transformers"),
+        // PropertyFilter::eq("duration", 1u64),
+        PropertyFilter::eq("Fix Version", "2.3.0"),
+        PropertyFilter::eq("resolution", "Fixed"),
+        PropertyFilter::eq("status", "Resolved"),
+    ]
 }
 
 fn bench_search_nodes_by_name(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeNodeFilter::Node(Filter::eq("node_name", "3"));
+    let node_names = get_node_names();
+    let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_name", |b| {
-        b.iter(|| graph.search_nodes(&filter, 5, 0).unwrap())
+        b.iter(|| {
+            let random_name = *node_names.choose(&mut rng).unwrap();
+            let filter = CompositeNodeFilter::Node(Filter::eq("node_name", random_name));
+            graph.search_nodes(&filter, 5, 0).unwrap();
+        })
     });
 }
 
 fn bench_search_nodes_by_property(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64));
+    let property_filters = get_property_filters();
 
     c.bench_function("search_nodes_by_property", |b| {
-        b.iter(|| graph.search_nodes(&filter, 5, 0).unwrap())
+        b.iter(|| {
+            let mut rng = thread_rng();
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            let filter = CompositeNodeFilter::Property(random_filter.clone());
+            graph.search_nodes(&filter, 5, 0).unwrap();
+        })
     });
 }
 
@@ -108,17 +134,25 @@ fn bench_search_edges_count(c: &mut Criterion) {
 
 fn bench_search_nodes_by_name_raph(c: &mut Criterion) {
     let graph = setup_graph();
+    let node_names = get_node_names();
+    let mut rng = thread_rng();
+
     c.bench_function("search_nodes_by_name_raph", |b| {
-        b.iter(|| graph.node(3).unwrap())
+        b.iter(|| {
+            let random_name = node_names.choose(&mut rng).unwrap();
+            graph.node(random_name).unwrap();
+        })
     });
 }
 
 fn bench_search_nodes_by_property_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = PropertyFilter::eq("p2", 2u64);
+    let mut rng = thread_rng();
+    let property_filters = get_property_filters();
+    let random_filter = property_filters.choose(&mut rng).unwrap();
 
     c.bench_function("search_nodes_by_property_raph", |b| {
-        b.iter(|| graph.filter_nodes(filter.clone()).unwrap())
+        b.iter(|| graph.filter_nodes(random_filter.clone()).unwrap())
     });
 }
 
@@ -160,20 +194,20 @@ criterion_group!(
     search_benches,
     bench_search_nodes_by_name,
     bench_search_nodes_by_property,
-    bench_search_nodes_count,
-    bench_search_edges_by_src_dst,
-    bench_search_edges_by_property,
-    bench_search_edges_count
+    // bench_search_nodes_count,
+    // bench_search_edges_by_src_dst,
+    // bench_search_edges_by_property,
+    // bench_search_edges_count
 );
 
 criterion_group!(
     search_benches_raph,
     bench_search_nodes_by_name_raph,
     bench_search_nodes_by_property_raph,
-    bench_search_nodes_count_raph,
-    bench_search_edges_by_src_dst_raph,
-    bench_search_edges_by_property_raph,
-    bench_search_edges_count_raph
+    //     bench_search_nodes_count_raph,
+    //     bench_search_edges_by_src_dst_raph,
+    //     bench_search_edges_by_property_raph,
+    //     bench_search_edges_count_raph
 );
 
 criterion_main!(search_benches, search_benches_raph);

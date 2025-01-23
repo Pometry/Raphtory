@@ -14,12 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::{
-            node::NodeView,
-            views::property_filter::{
-                internal::InternalNodePropertyFilterOps,
-            },
-        },
+        graph::{node::NodeView, views::property_filter::internal::InternalNodePropertyFilterOps},
     },
     prelude::{GraphViewOps, PropertyFilter},
 };

@@ -1,5 +1,5 @@
-use std::borrow::Cow;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use std::borrow::Cow;
 
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
@@ -109,7 +109,6 @@ impl<'b> NodeStorageEntry<'b> {
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
-
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.as_ref().degree(layers, dir)
     }

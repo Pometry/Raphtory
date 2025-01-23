@@ -1,7 +1,10 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
+        api::{
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+            view::{internal::CoreGraphOps, StaticGraphViewOps},
+        },
         graph::{
             edge::EdgeView,
             views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
@@ -21,7 +24,6 @@ use tantivy::{
     schema::{Field, Value},
     DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
 };
-use crate::db::api::view::internal::CoreGraphOps;
 
 #[derive(Clone, Copy)]
 pub struct EdgeFilterExecutor<'a> {
@@ -145,7 +147,9 @@ impl<'a> EdgeFilterExecutor<'a> {
             .edge_index
             .get_property_index(graph.edge_meta(), prop_name)?;
 
-        let (property_index, query) = self.query_builder.build_property_query::<G>(property_index, filter)?;
+        let (property_index, query) = self
+            .query_builder
+            .build_property_query::<G>(property_index, filter)?;
 
         // println!();
         // println!("Printing property index schema::start");
