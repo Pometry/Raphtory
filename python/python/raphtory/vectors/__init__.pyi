@@ -77,6 +77,14 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search
         """
 
+    def get_graph_documents(self) -> list[Document]:
+        """
+        Return all the graph level documents
+
+        Returns:
+          list[Document]: list of graph level documents
+        """
+
     def nodes_by_similarity(
         self,
         query: str | list,
