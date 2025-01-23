@@ -117,6 +117,7 @@ impl GraphStorage {
             GraphStorage::Disk(g) => Arc::as_ptr(g).addr(),
         }
     }
+
     #[inline(always)]
     pub fn is_immutable(&self) -> bool {
         match self {
