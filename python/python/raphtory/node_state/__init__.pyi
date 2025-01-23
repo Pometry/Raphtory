@@ -11,7 +11,6 @@ from typing import *
 from raphtory import *
 from raphtory.algorithms import *
 from raphtory.vectors import *
-from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
@@ -236,6 +235,18 @@ class DegreeView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
+        """
+
+    def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[int]): the default value. Defaults to None.
+
+        Returns:
+            Optional[int]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -477,6 +488,17 @@ class DegreeView(object):
                 int: the sum
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k largest values
@@ -569,6 +591,18 @@ class NodeStateUsize(object):
 
         Returns:
              NodeStateUsize: The k smallest values as a node state
+        """
+
+    def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[int]): the default value. Defaults to None.
+
+        Returns:
+            Optional[int]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -678,6 +712,17 @@ class NodeStateUsize(object):
                 int: the sum
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k largest values
@@ -737,6 +782,18 @@ class NodeStateU64(object):
 
         Returns:
              NodeStateU64: The k smallest values as a node state
+        """
+
+    def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[int]): the default value. Defaults to None.
+
+        Returns:
+            Optional[int]: the value for the node or the default value
         """
 
     def items(self) -> Iterator[Tuple[Node, int]]:
@@ -838,6 +895,17 @@ class NodeStateU64(object):
                 int: the sum
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateU64:
         """
         Compute the k largest values
@@ -897,6 +965,20 @@ class NodeStateOptionI64(object):
 
         Returns:
              NodeStateOptionI64: The k smallest values as a node state
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[Optional[int]] = None
+    ) -> Optional[Optional[int]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[int]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[int]]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -990,6 +1072,17 @@ class NodeStateOptionI64(object):
              NodeStateOptionI64: The sorted node state
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k largest values
@@ -1069,6 +1162,18 @@ class IdView(object):
              NodeStateGID: the computed `NodeState`
         """
 
+    def get(self, node: NodeInput, default: Optional[GID] = None) -> Optional[GID]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[GID]): the default value. Defaults to None.
+
+        Returns:
+            Optional[GID]: the value for the node or the default value
+        """
+
     def items(self) -> Iterator[Tuple[Node, GID]]:
         """
         Iterate over items
@@ -1150,6 +1255,17 @@ class IdView(object):
 
         Returns:
              NodeStateGID: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateGID:
@@ -1213,6 +1329,18 @@ class NodeStateGID(object):
              NodeStateGID: The k smallest values as a node state
         """
 
+    def get(self, node: NodeInput, default: Optional[GID] = None) -> Optional[GID]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[GID]): the default value. Defaults to None.
+
+        Returns:
+            Optional[GID]: the value for the node or the default value
+        """
+
     def items(self) -> Iterator[Tuple[Node, GID]]:
         """
         Iterate over items
@@ -1294,6 +1422,17 @@ class NodeStateGID(object):
 
         Returns:
              NodeStateGID: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateGID:
@@ -1488,6 +1627,20 @@ class EarliestTimeView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[Optional[int]] = None
+    ) -> Optional[Optional[int]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[int]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[int]]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -1711,6 +1864,17 @@ class EarliestTimeView(object):
 
         Returns:
              Optional[datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateOptionI64:
@@ -1942,6 +2106,20 @@ class LatestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[Optional[int]] = None
+    ) -> Optional[Optional[int]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[int]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[int]]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -2165,6 +2343,17 @@ class LatestTimeView(object):
              Optional[datetime]: The earliest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k largest values
@@ -2277,6 +2466,18 @@ class NameView(object):
              NodeStateString: the computed `NodeState`
         """
 
+    def get(self, node: NodeInput, default: Optional[str] = None) -> Optional[str]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[str]): the default value. Defaults to None.
+
+        Returns:
+            Optional[str]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -2366,6 +2567,17 @@ class NameView(object):
 
         Returns:
              NodeStateString: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateString:
@@ -2429,6 +2641,18 @@ class NodeStateString(object):
              NodeStateString: The k smallest values as a node state
         """
 
+    def get(self, node: NodeInput, default: Optional[str] = None) -> Optional[str]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[str]): the default value. Defaults to None.
+
+        Returns:
+            Optional[str]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -2518,6 +2742,17 @@ class NodeStateString(object):
 
         Returns:
              NodeStateString: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateString:
@@ -2712,6 +2947,20 @@ class EarliestDateTimeView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[Optional[datetime]] = None
+    ) -> Optional[Optional[datetime]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[datetime]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[datetime]]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -2935,6 +3184,17 @@ class EarliestDateTimeView(object):
 
         Returns:
              Optional[datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateOptionDateTime:
@@ -3166,6 +3426,20 @@ class LatestDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[Optional[datetime]] = None
+    ) -> Optional[Optional[datetime]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[datetime]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[datetime]]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -3389,6 +3663,17 @@ class LatestDateTimeView(object):
              Optional[datetime]: The earliest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k largest values
@@ -3485,6 +3770,20 @@ class NodeStateOptionDateTime(object):
              NodeStateOptionDateTime: The k smallest values as a node state
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[Optional[datetime]] = None
+    ) -> Optional[Optional[datetime]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[datetime]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[datetime]]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -3574,6 +3873,17 @@ class NodeStateOptionDateTime(object):
 
         Returns:
              NodeStateOptionDateTime: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateOptionDateTime:
@@ -3768,6 +4078,20 @@ class HistoryView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[list[int]] = None
+    ) -> Optional[list[int]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[int]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[int]]: the value for the node or the default value
         """
 
     def has_layer(self, name: str) -> bool:
@@ -3985,6 +4309,17 @@ class HistoryView(object):
              Optional[datetime]: The earliest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateListI64:
         """
         Compute the k largest values
@@ -4079,6 +4414,20 @@ class NodeStateListI64(object):
              NodeStateListI64: The k smallest values as a node state
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[list[int]] = None
+    ) -> Optional[list[int]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[int]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[int]]: the value for the node or the default value
+        """
+
     def items(self) -> Iterator[Tuple[Node, list[int]]]:
         """
         Iterate over items
@@ -4160,6 +4509,17 @@ class NodeStateListI64(object):
 
         Returns:
              NodeStateListI64: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateListI64:
@@ -4354,6 +4714,20 @@ class HistoryDateTimeView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
+    ) -> Optional[Optional[list[datetime]]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[list[datetime]]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[list[datetime]]]: the value for the node or the default value
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4571,6 +4945,17 @@ class HistoryDateTimeView(object):
              Optional[datetime]: The earliest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k largest values
@@ -4667,6 +5052,20 @@ class NodeStateOptionListDateTime(object):
              NodeStateOptionListDateTime: The k smallest values as a node state
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
+    ) -> Optional[Optional[list[datetime]]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[list[datetime]]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[list[datetime]]]: the value for the node or the default value
+        """
+
     def items(self) -> Iterator[Tuple[Node, Optional[list[datetime]]]]:
         """
         Iterate over items
@@ -4750,6 +5149,17 @@ class NodeStateOptionListDateTime(object):
              NodeStateOptionListDateTime: The sorted node state
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k largest values
@@ -4829,6 +5239,20 @@ class NodeTypeView(object):
              NodeStateOptionStr: the computed `NodeState`
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[Optional[str]] = None
+    ) -> Optional[Optional[str]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[str]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[str]]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -4918,6 +5342,17 @@ class NodeTypeView(object):
 
         Returns:
              NodeStateOptionStr: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
         """
 
     def top_k(self, k: int) -> NodeStateOptionStr:
@@ -4981,6 +5416,20 @@ class NodeStateOptionStr(object):
              NodeStateOptionStr: The k smallest values as a node state
         """
 
+    def get(
+        self, node: NodeInput, default: Optional[Optional[str]] = None
+    ) -> Optional[Optional[str]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[str]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[str]]: the value for the node or the default value
+        """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -5072,6 +5521,17 @@ class NodeStateOptionStr(object):
              NodeStateOptionStr: The sorted node state
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateOptionStr:
         """
         Compute the k largest values
@@ -5131,6 +5591,20 @@ class NodeStateListDateTime(object):
 
         Returns:
              NodeStateListDateTime: The k smallest values as a node state
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[list[datetime]] = None
+    ) -> Optional[list[datetime]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[datetime]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[datetime]]: the value for the node or the default value
         """
 
     def items(self) -> Iterator[Tuple[Node, list[datetime]]]:
@@ -5216,6 +5690,17 @@ class NodeStateListDateTime(object):
              NodeStateListDateTime: The sorted node state
         """
 
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
     def top_k(self, k: int) -> NodeStateListDateTime:
         """
         Compute the k largest values
@@ -5233,4 +5718,1132 @@ class NodeStateListDateTime(object):
 
         Returns:
              Iterator[list[datetime]]: Iterator over values
+        """
+
+class NodeStateWeightedSP(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(
+        self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None
+    ) -> Optional[Tuple[float, Nodes]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Tuple[float, Nodes]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Tuple[float, Nodes]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Tuple[float, Nodes]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, Tuple[float, Nodes]]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeStateWeightedSP:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateWeightedSP: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[Tuple[float, Nodes]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[Tuple[float, Nodes]]: Iterator over values
+        """
+
+class NodeStateF64(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def bottom_k(self, k: int) -> NodeStateF64:
+        """
+        Compute the k smallest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateF64: The k smallest values as a node state
+        """
+
+    def get(self, node: NodeInput, default: Optional[float] = None) -> Optional[float]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[float]): the default value. Defaults to None.
+
+        Returns:
+            Optional[float]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, float]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, float]]: Iterator over items
+        """
+
+    def max(self) -> Optional[float]:
+        """
+        Return the maximum value
+
+        Returns:
+             Optional[float]: The maximum value or `None` if empty
+        """
+
+    def max_item(self) -> Optional[Tuple[Node, float]]:
+        """
+        Return largest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, float]]: The Node and maximum value or `None` if empty
+        """
+
+    def mean(self) -> float:
+        """
+        mean of values over all nodes
+
+        Returns:
+            float: mean value
+        """
+
+    def median(self) -> Optional[float]:
+        """
+        Return the median value
+
+        Returns:
+             Optional[float]:
+        """
+
+    def median_item(self) -> Optional[Tuple[Node, float]]:
+        """
+        Return median value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, float]]: The median value or `None` if empty
+        """
+
+    def min(self) -> Optional[float]:
+        """
+        Return the minimum value
+
+        Returns:
+             Optional[float]: The minimum value or `None` if empty
+        """
+
+    def min_item(self) -> Optional[Tuple[Node, float]]:
+        """
+        Return smallest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, float]]: The Node and minimum value or `None` if empty
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted(self, reverse: bool = False) -> NodeStateF64:
+        """
+        Sort by value
+
+        Arguments:
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+
+        Returns:
+             NodeStateF64: Sorted node state
+        """
+
+    def sorted_by_id(self) -> NodeStateF64:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateF64: The sorted node state
+        """
+
+    def sum(self) -> float:
+        """
+        sum of values over all nodes
+
+        Returns:
+                float: the sum
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def top_k(self, k: int) -> NodeStateF64:
+        """
+        Compute the k largest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateF64: The k largest values as a node state
+        """
+
+    def values(self) -> Iterator[float]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[float]: Iterator over values
+        """
+
+class NodeStateNodes(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(self, node: NodeInput, default: Optional[Nodes] = None) -> Optional[Nodes]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Nodes]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Nodes]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Nodes]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, Nodes]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeStateNodes:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateNodes: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[Nodes]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[Nodes]: Iterator over values
+        """
+
+class NodeStateReachability(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(
+        self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None
+    ) -> Optional[list[Tuple[int, str]]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[Tuple[int, str]]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[Tuple[int, str]]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, list[Tuple[int, str]]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, list[Tuple[int, str]]]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeStateReachability:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateReachability: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[list[Tuple[int, str]]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[list[Tuple[int, str]]]: Iterator over values
+        """
+
+class NodeStateListF64(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(
+        self, node: NodeInput, default: Optional[list[float]] = None
+    ) -> Optional[list[float]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[float]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[float]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, list[float]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, list[float]]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeStateListF64:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateListF64: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[list[float]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[list[float]]: Iterator over values
+        """
+
+class NodeStateMotifs(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def bottom_k(self, k: int) -> NodeStateMotifs:
+        """
+        Compute the k smallest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateMotifs: The k smallest values as a node state
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[list[int]] = None
+    ) -> Optional[list[int]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[int]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[int]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, list[int]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, list[int]]]: Iterator over items
+        """
+
+    def max(self) -> Optional[list[int]]:
+        """
+        Return the maximum value
+
+        Returns:
+             Optional[list[int]]: The maximum value or `None` if empty
+        """
+
+    def max_item(self) -> Optional[Tuple[Node, list[int]]]:
+        """
+        Return largest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
+        """
+
+    def median(self) -> Optional[list[int]]:
+        """
+        Return the median value
+
+        Returns:
+             Optional[list[int]]:
+        """
+
+    def median_item(self) -> Optional[Tuple[Node, list[int]]]:
+        """
+        Return median value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, list[int]]]: The median value or `None` if empty
+        """
+
+    def min(self) -> Optional[list[int]]:
+        """
+        Return the minimum value
+
+        Returns:
+             Optional[list[int]]: The minimum value or `None` if empty
+        """
+
+    def min_item(self) -> Optional[Tuple[Node, list[int]]]:
+        """
+        Return smallest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, list[int]]]: The Node and minimum value or `None` if empty
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted(self, reverse: bool = False) -> NodeStateMotifs:
+        """
+        Sort by value
+
+        Arguments:
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+
+        Returns:
+             NodeStateMotifs: Sorted node state
+        """
+
+    def sorted_by_id(self) -> NodeStateMotifs:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateMotifs: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def top_k(self, k: int) -> NodeStateMotifs:
+        """
+        Compute the k largest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateMotifs: The k largest values as a node state
+        """
+
+    def values(self) -> Iterator[list[int]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[list[int]]: Iterator over values
+        """
+
+class NodeStateHits(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def bottom_k(self, k: int) -> NodeStateHits:
+        """
+        Compute the k smallest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateHits: The k smallest values as a node state
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[Tuple[float, float]] = None
+    ) -> Optional[Tuple[float, float]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Tuple[float, float]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Tuple[float, float]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Tuple[float, float]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, Tuple[float, float]]]: Iterator over items
+        """
+
+    def max(self) -> Optional[Tuple[float, float]]:
+        """
+        Return the maximum value
+
+        Returns:
+             Optional[Tuple[float, float]]: The maximum value or `None` if empty
+        """
+
+    def max_item(self) -> Optional[Tuple[Node, Tuple[float, float]]]:
+        """
+        Return largest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Tuple[float, float]]]: The Node and maximum value or `None` if empty
+        """
+
+    def median(self) -> Optional[Tuple[float, float]]:
+        """
+        Return the median value
+
+        Returns:
+             Optional[Tuple[float, float]]:
+        """
+
+    def median_item(self) -> Optional[Tuple[Node, Tuple[float, float]]]:
+        """
+        Return median value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Tuple[float, float]]]: The median value or `None` if empty
+        """
+
+    def min(self) -> Optional[Tuple[float, float]]:
+        """
+        Return the minimum value
+
+        Returns:
+             Optional[Tuple[float, float]]: The minimum value or `None` if empty
+        """
+
+    def min_item(self) -> Optional[Tuple[Node, Tuple[float, float]]]:
+        """
+        Return smallest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Tuple[float, float]]]: The Node and minimum value or `None` if empty
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted(self, reverse: bool = False) -> NodeStateHits:
+        """
+        Sort by value
+
+        Arguments:
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+
+        Returns:
+             NodeStateHits: Sorted node state
+        """
+
+    def sorted_by_id(self) -> NodeStateHits:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateHits: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def top_k(self, k: int) -> NodeStateHits:
+        """
+        Compute the k largest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateHits: The k largest values as a node state
+        """
+
+    def values(self) -> Iterator[Tuple[float, float]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[Tuple[float, float]]: Iterator over values
+        """
+
+class NodeStateSEIR(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def bottom_k(self, k: int) -> NodeStateSEIR:
+        """
+        Compute the k smallest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateSEIR: The k smallest values as a node state
+        """
+
+    def get(
+        self, node: NodeInput, default: Optional[Infected] = None
+    ) -> Optional[Infected]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Infected]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Infected]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Infected]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, Infected]]: Iterator over items
+        """
+
+    def max(self) -> Optional[Infected]:
+        """
+        Return the maximum value
+
+        Returns:
+             Optional[Infected]: The maximum value or `None` if empty
+        """
+
+    def max_item(self) -> Optional[Tuple[Node, Infected]]:
+        """
+        Return largest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Infected]]: The Node and maximum value or `None` if empty
+        """
+
+    def median(self) -> Optional[Infected]:
+        """
+        Return the median value
+
+        Returns:
+             Optional[Infected]:
+        """
+
+    def median_item(self) -> Optional[Tuple[Node, Infected]]:
+        """
+        Return median value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Infected]]: The median value or `None` if empty
+        """
+
+    def min(self) -> Optional[Infected]:
+        """
+        Return the minimum value
+
+        Returns:
+             Optional[Infected]: The minimum value or `None` if empty
+        """
+
+    def min_item(self) -> Optional[Tuple[Node, Infected]]:
+        """
+        Return smallest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Infected]]: The Node and minimum value or `None` if empty
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted(self, reverse: bool = False) -> NodeStateSEIR:
+        """
+        Sort by value
+
+        Arguments:
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+
+        Returns:
+             NodeStateSEIR: Sorted node state
+        """
+
+    def sorted_by_id(self) -> NodeStateSEIR:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateSEIR: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def top_k(self, k: int) -> NodeStateSEIR:
+        """
+        Compute the k largest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateSEIR: The k largest values as a node state
+        """
+
+    def values(self) -> Iterator[Infected]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[Infected]: Iterator over values
+        """
+
+class NodeLayout(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(
+        self, node: NodeInput, default: Optional[list[float]] = None
+    ) -> Optional[list[float]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[list[float]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[list[float]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, list[float]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, list[float]]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeLayout:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeLayout: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[list[float]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[list[float]]: Iterator over values
         """

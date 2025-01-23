@@ -12,7 +12,6 @@ from raphtory import *
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
-from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
