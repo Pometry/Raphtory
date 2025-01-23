@@ -632,39 +632,3 @@ impl_node_state!(
     "NodeStateListF64",
     "list[float]"
 );
-
-impl NodeStateNodes {
-    fn test<'py>(
-        &self,
-        other: &Bound<'py, PyAny>,
-        py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
-            let other = Bound::get(other);
-            self.inner == other.inner
-        } else if let Ok(other) = other.downcast::<PyDict>() {
-            self.inner.len() == other.len()
-                && other.items().iter().all(|item| {
-                    if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
-                    {
-                        self.inner
-                            .get_by_node(node_ref)
-                            .map(|v| v.clone())
-                            .map(|l_value| {
-                                if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
-                                    l_value_py.eq(value).unwrap_or(false)
-                                } else {
-                                    false
-                                }
-                            })
-                            .unwrap_or(false)
-                    } else {
-                        false
-                    }
-                })
-        } else {
-            return Ok(PyNotImplemented::get(py).to_owned().into_any());
-        };
-        Ok(res.into_pyobject(py)?.to_owned().into_any())
-    }
-}
