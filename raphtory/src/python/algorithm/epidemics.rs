@@ -25,23 +25,35 @@ impl Repr for Infected {
     }
 }
 
-#[pyclass(name = "Infected", frozen)]
+#[pyclass(name = "Infected", frozen, module = "raphtory.algorithms")]
 pub struct PyInfected {
     inner: Infected,
 }
 
 #[pymethods]
 impl PyInfected {
+    /// The timestamp at which the node was infected
+    ///
+    /// Returns:
+    ///     int:
     #[getter]
     fn infected(&self) -> i64 {
         self.inner.infected
     }
 
+    /// The timestamp at which the infected node started spreading the infection
+    ///
+    /// Returns:
+    ///     int:
     #[getter]
     fn active(&self) -> i64 {
         self.inner.active
     }
 
+    /// The timestamp at which the infected node stopped spreading the infection
+    ///
+    /// Returns:
+    ///     int:
     #[getter]
     fn recovered(&self) -> i64 {
         self.inner.recovered

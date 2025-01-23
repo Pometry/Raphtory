@@ -101,17 +101,17 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
-///     iter_count (int): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
+///     iter_count (int, optional): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
 ///     NodeStateUsize: Mapping of nodes to their component ids.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=9223372036854775807))]
+#[pyo3(signature = (graph, iter_count=None))]
 pub fn weakly_connected_components(
     graph: &PyGraphView,
-    iter_count: usize,
+    iter_count: Option<usize>,
 ) -> NodeState<'static, usize, DynamicGraph> {
-    components::weakly_connected_components(&graph.graph, iter_count, None)
+    components::weakly_connected_components(&graph.graph, iter_count.unwrap_or(usize::MAX), None)
 }
 
 /// Strongly connected components
@@ -159,7 +159,7 @@ pub fn in_components(
 ///     node (Node): The node whose in-component we wish to calculate
 ///
 /// Returns:
-///    An array containing the Nodes within the given nodes in-component
+///    NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
 #[pyfunction]
 #[pyo3(signature = (node))]
 pub fn in_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
@@ -202,10 +202,12 @@ pub fn out_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
-///     iter_count (int): Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
+///     iter_count (int): Maximum number of iterations to run. Note that this will terminate early if convergence is reached. Defaults to 20.
 ///     max_diff (Optional[float]): Optional parameter providing an alternative stopping condition.
 ///         The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
 ///         is less than the max diff value given.
+///     use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
+///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 ///
 /// Returns:
 ///     NodeStateF64: Mapping of nodes to their pagerank value.
@@ -456,9 +458,10 @@ pub fn global_clustering_coefficient(graph: &PyGraphView) -> f64 {
 /// Arguments:
 ///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+///     threads (int, optional): The number of threads to use when running the algorithm.
 ///
 /// Returns:
-///     list: A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
+///     list[int]: A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
 ///
 /// Notes:
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
@@ -497,7 +500,8 @@ pub fn temporal_bipartite_graph_projection(
 ///
 /// Arguments:
 ///     graph (GraphView): A directed raphtory graph
-///     deltas(list[int]): A list of delta values to use.
+///     deltas (list[int]): A list of delta values to use.
+///     threads (int, optional): The number of threads to use.
 ///
 /// Returns:
 ///     list[list[int]]: A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
@@ -543,7 +547,7 @@ pub fn local_temporal_three_node_motifs(
 ///
 /// Arguments:
 ///     graph (GraphView): Graph to run the algorithm on
-///     iter_count (int): How many iterations to run the algorithm
+///     iter_count (int): How many iterations to run the algorithm. Defaults to 20.
 ///     threads (int, optional): Number of threads to use
 ///
 /// Returns:
@@ -765,7 +769,7 @@ pub fn temporal_SEIR(
 ///
 /// Arguments:
 ///     graph (GraphView): the graph view
-///     resolution (float): the resolution parameter for modularity
+///     resolution (float): the resolution parameter for modularity. Defaults to 1.0.
 ///     weight_prop (str | None): the edge property to use for weights (has to be float)
 ///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
 ///
@@ -786,11 +790,11 @@ pub fn louvain(
 ///
 /// Arguments:
 ///     graph (GraphView): the graph view
-///     iterations (int | None): the number of iterations to run (default: 100)
-///     scale (float | None): the scale to apply (default: 1.0)
-///     node_start_size (float | None): the start node size to assign random positions (default: 1.0)
-///     cooloff_factor (float | None): the cool off factor for the algorithm (default: 0.95)
-///     dt (float | None): the time increment between iterations (default: 0.1)
+///     iterations (int | None): the number of iterations to run. Defaults to 100.
+///     scale (float | None): the scale to apply. Defaults to 1.0.
+///     node_start_size (float | None): the start node size to assign random positions. Defaults to 1.0.
+///     cooloff_factor (float | None): the cool off factor for the algorithm. Defaults to 0.95.
+///     dt (float | None): the time increment between iterations. Defaults to 0.1.
 ///
 /// Returns:
 ///     NodeLayout: A mapping from nodes to their [x, y] positions
@@ -817,11 +821,11 @@ pub fn fruchterman_reingold(
 /// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
-///     iter_count (int): The number of iterations to run
-///     scale (float): Global scaling factor to control the overall spread of the graph
-///     node_start_size (float): Initial size or movement range for nodes
-///     cooloff_factor (float): Factor to reduce node movement in later iterations, helping stabilize the layout
-///     dt (float): Time step or movement factor in each iteration
+///     iter_count (int): The number of iterations to run. Defaults to 100.
+///     scale (float): Global scaling factor to control the overall spread of the graph. Defaults to 1.0.
+///     node_start_size (float): Initial size or movement range for nodes. Defaults to 1.0.
+///     cooloff_factor (float): Factor to reduce node movement in later iterations, helping stabilize the layout. Defaults to 0.95.
+///     dt (float): Time step or movement factor in each iteration. Defaults to 0.1.
 ///
 /// Returns:
 ///     NodeLayout: A mapping from nodes to their [x, y] positions
@@ -902,13 +906,15 @@ pub fn temporal_rich_club_coefficient(
 ///     graph (GraphView): The graph to compute the maximum weight matching for
 ///     weight_prop (str, optional): The property on the edge to use for the weight. If not
 ///         provided,
-///     max_cardinality (bool): If set to true compute the maximum-cardinality matching
-///         with maximum weight among all maximum-cardinality matchings. Defaults to True.
-///     verify_optimum_flag (bool): If true prior to returning an additional routine
+///     max_cardinality (bool): If set to True, consider only maximum-cardinality matchings. Defaults to True.
+///         If True, finds the maximum-cardinality matching with maximum weight among all maximum-cardinality matchings,
+///         otherwise, finds the maximum weight matching irrespective of cardinality.
+///     verify_optimum_flag (bool): Whether the optimum should be verified. Defaults to False.
+///         If true prior to returning, an additional routine
 ///         to verify the optimal solution was found will be run after computing
 ///         the maximum weight matching. If it's true and the found matching is not
 ///         an optimal solution this function will panic. This option should
-///         normally be only set true during testing. Defaults to False.
+///         normally be only set true during testing.
 ///
 /// Returns:
 ///     Matching: The matching
