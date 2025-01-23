@@ -37,6 +37,11 @@ use std::{iter, ops::Range};
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;
 
+/// Check if two Graph views point at the same underlying storage
+pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
+    g1.core_graph().ptr_eq(&g2.core_graph())
+}
+
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
 pub trait CoreGraphOps: Send + Sync {

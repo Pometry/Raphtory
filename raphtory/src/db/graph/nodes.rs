@@ -15,7 +15,10 @@ use crate::{
 };
 
 use crate::db::{
-    api::state::{Index, NodeOp},
+    api::{
+        state::{Index, NodeOp},
+        view::internal::is_view_compatible,
+    },
     graph::{create_node_type_filter, views::node_subgraph::NodeSubgraph},
 };
 use either::Either;
@@ -69,7 +72,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PartialEq for Nodes<'graph, G, GH> {
     fn eq(&self, other: &Self) -> bool {
-        if self.base_graph.core_graph().graph_id() == other.base_graph.core_graph().graph_id() {
+        if is_view_compatible(&self.base_graph, &other.base_graph) {
             // same storage, can use internal ids
             self.iter_refs().eq(other.iter_refs())
         } else {
