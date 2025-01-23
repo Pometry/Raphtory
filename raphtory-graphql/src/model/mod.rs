@@ -235,7 +235,7 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let parent_graph = data.get_graph(parent_path)?.0.graph.materialize()?;
+        let parent_graph = data.get_graph(parent_path)?.0.graph;
         let new_subgraph = parent_graph.subgraph(nodes).materialize()?;
         if overwrite {
             let _ignored = data.delete_graph(&new_path);
