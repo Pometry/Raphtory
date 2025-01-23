@@ -11,11 +11,13 @@ use crate::{
     search::{property_index::PropertyIndex, query_builder::QueryBuilder},
 };
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::properties::props::PropMapper, storage::arc_str::ArcStr, PropType,
+};
 use std::{
     collections::HashSet,
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 use tantivy::{
     query::Query,
@@ -27,13 +29,13 @@ use tantivy::{
 pub mod graph_index;
 pub mod searcher;
 
+mod edge_filter_executor;
 pub mod edge_index;
 pub mod node_filter_collector;
+mod node_filter_executor;
 pub mod node_index;
 pub mod property_index;
 mod query_builder;
-mod node_filter_executor;
-mod edge_filter_executor;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -70,6 +72,40 @@ pub(crate) fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index
     (index, reader)
 }
 
+pub fn initialize_property_indexes(
+    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    prop_meta: &PropMapper,
+) -> tantivy::Result<()> {
+    let properties = prop_meta
+        .get_keys()
+        .into_iter()
+        .filter_map(|k| {
+            prop_meta.get_id(&*k).and_then(|prop_id| {
+                prop_meta
+                    .get_dtype(prop_id)
+                    .map(|prop_type| (k.to_string(), prop_id, prop_type))
+            })
+        })
+        .collect_vec();
+
+    let mut prop_index_guard = property_indexes.write()?;
+
+    for (prop_name, prop_id, prop_type) in properties {
+        // Resize the vector if needed
+        if prop_id >= prop_index_guard.len() {
+            prop_index_guard.resize(prop_id + 1, None);
+        }
+
+        // Create a new PropertyIndex if it doesn't exist
+        if prop_index_guard[prop_id].is_none() {
+            prop_index_guard[prop_id] =
+                Some(PropertyIndex::new(ArcStr::from(prop_name), prop_type));
+        }
+    }
+
+    Ok(())
+}
+
 fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
     properties: I,
     mut property_indexes: PI,
@@ -81,18 +117,6 @@ where
     I: Iterator<Item = (ArcStr, usize, Prop)>,
 {
     for (prop_name, prop_id, prop_value) in properties {
-        // Resize the vector if needed
-        if prop_id >= property_indexes.len() {
-            property_indexes.resize(prop_id + 1, None);
-        }
-
-        // Create a new PropertyIndex if it doesn't exist
-        if property_indexes[prop_id].is_none() {
-            let d_type = prop_value.dtype();
-            property_indexes[prop_id] = Some(PropertyIndex::new(prop_name.clone(), d_type));
-        }
-
-        // Add the property value to the existing PropertyIndex
         if let Some(property_index) = &mut property_indexes[prop_id] {
             let prop_doc = property_index.create_document(
                 time,

@@ -6,16 +6,24 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::ConstPropertiesOps, storage::graph::storage_ops::GraphStorage,
-            view::internal::InternalIndexSearch,
+            properties::internal::ConstPropertiesOps,
+            storage::graph::storage_ops::GraphStorage,
+            view::internal::{CoreGraphOps, InternalIndexSearch},
         },
         graph::node::NodeView,
     },
     prelude::*,
-    search::{fields, index_properties, new_index, property_index::PropertyIndex, TOKENIZER},
+    search::{
+        fields, index_properties, initialize_property_indexes, new_index,
+        property_index::PropertyIndex, TOKENIZER,
+    },
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::props::{Meta, PropMapper},
+    storage::arc_str::ArcStr,
+    PropType,
+};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
 use std::{
@@ -31,7 +39,8 @@ use tantivy::{
         Field, FieldType, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions,
         Type, Value, FAST, INDEXED, STORED,
     },
-    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
+    Document, HasLen, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument,
+    TantivyError, Term,
 };
 
 #[derive(Clone)]
@@ -213,11 +222,10 @@ impl NodeIndex {
         'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
-        W: Deref<Target = IndexWriter>,
     >(
         &self,
         node: NodeView<G, GH>,
-        writer: &W,
+        writer: &IndexWriter,
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
         let node_name = node.name();
@@ -225,7 +233,6 @@ impl NodeIndex {
 
         let constant_properties: &Vec<(ArcStr, usize, Prop)> =
             &self.collect_constant_properties(&node);
-
         let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
             self.collect_temporal_properties(&node);
 
@@ -237,7 +244,6 @@ impl NodeIndex {
                 fields::NODE_ID,
                 node_id,
             )?;
-
             index_properties(
                 temp_props.iter().cloned(),
                 self.temporal_property_indexes.write()?,
@@ -270,32 +276,31 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_nodes(g: &GraphStorage) -> tantivy::Result<NodeIndex> {
+    pub(crate) fn index_nodes(graph: &GraphStorage) -> tantivy::Result<NodeIndex> {
         let node_index = NodeIndex::new();
 
-        let writer = Arc::new(parking_lot::RwLock::new(
-            node_index.index.writer(100_000_000)?,
-        ));
-        let v_ids = (0..g.count_nodes()).collect::<Vec<_>>();
+        initialize_property_indexes(
+            node_index.constant_property_indexes.clone(),
+            graph.node_meta().const_prop_meta(),
+        )?;
+        initialize_property_indexes(
+            node_index.temporal_property_indexes.clone(),
+            graph.node_meta().temporal_prop_meta(),
+        )?;
+
+        let mut writer = node_index.index.writer(100_000_000)?;
+        let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
         v_ids.par_chunks(128).try_for_each(|v_ids| {
-            let writer_lock = writer.clone();
-            {
-                let writer_guard = writer_lock.read();
-                for v_id in v_ids {
-                    if let Some(node) = g.node(NodeRef::new((*v_id).into())) {
-                        node_index.index_node(node, &writer_guard)?;
-                    }
+            for v_id in v_ids {
+                if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
+                    node_index.index_node(node, &writer)?;
                 }
             }
-
             Ok::<(), TantivyError>(())
         })?;
 
-        let mut writer_guard = writer.write();
-        writer_guard.commit()?;
-
+        writer.commit()?;
         node_index.reader.reload()?;
-
         Ok(node_index)
     }
 
