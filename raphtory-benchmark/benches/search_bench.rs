@@ -355,7 +355,15 @@ fn bench_search_nodes_by_property_eq_raph(c: &mut Criterion) {
 
     c.bench_function("search_nodes_by_property_eq_raph", |b| {
         let random_filter = property_filters.choose(&mut rng).unwrap();
-        b.iter(|| graph.filter_nodes(random_filter.clone()).unwrap())
+        b.iter(|| {
+            graph
+                .filter_nodes(random_filter.clone())
+                .unwrap()
+                .nodes()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
+        })
     });
 }
 
