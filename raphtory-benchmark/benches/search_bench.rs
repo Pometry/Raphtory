@@ -123,6 +123,51 @@ fn get_property_filters_in() -> Vec<PropertyFilter> {
     ]
 }
 
+fn get_property_filters_not_in() -> Vec<PropertyFilter> {
+    vec![
+        PropertyFilter::not_any("issuetype", vec![Prop::Str("Test".into())]),
+        PropertyFilter::not_any(
+            "summary",
+            vec![
+                Prop::Str("StructuredStreaming".into()),
+                Prop::Str("Query".into()),
+            ],
+        ),
+        PropertyFilter::not_any(
+            "priority",
+            vec![
+                Prop::Str("Major".into()),
+                Prop::Str("Critical".into()),
+                Prop::Str("Trivial".into()),
+            ],
+        ),
+        PropertyFilter::not_any(
+            "description",
+            vec![
+                Prop::Str("Transformers".into()),
+                Prop::Str("SESSION".into()),
+            ],
+        ),
+        PropertyFilter::not_any("duration", vec![Prop::I64(1i64)]),
+        PropertyFilter::not_any(
+            "Fix Version",
+            vec![
+                Prop::Str("2.3.0".into()),
+                Prop::Str("4.0.0".into()),
+                Prop::Str("3.5.0".into()),
+            ],
+        ),
+        PropertyFilter::not_any(
+            "resolution",
+            vec![Prop::Str("Fixed".into()), Prop::Str("Duplicate".into())],
+        ),
+        PropertyFilter::not_any(
+            "status",
+            vec![Prop::Str("Resolved".into()), Prop::Str("Reopened".into())],
+        ),
+    ]
+}
+
 fn bench_search_nodes_by_name(c: &mut Criterion) {
     let graph = setup_graph();
     let node_names = get_node_names();
@@ -177,6 +222,20 @@ fn bench_search_nodes_by_property_in(c: &mut Criterion) {
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_in", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            let random_filter = CompositeNodeFilter::Property(random_filter.clone());
+            graph.search_nodes(&random_filter, 5, 0).unwrap();
+        })
+    });
+}
+
+fn bench_search_nodes_by_property_not_in(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_property_filters_not_in();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_nodes_by_property_not_in", |b| {
         b.iter(|| {
             let random_filter = property_filters.choose(&mut rng).unwrap();
             let random_filter = CompositeNodeFilter::Property(random_filter.clone());
@@ -326,6 +385,19 @@ fn bench_search_nodes_by_property_in_raph(c: &mut Criterion) {
     });
 }
 
+fn bench_search_nodes_by_property_not_in_raph(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_property_filters_not_in();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_nodes_by_property_not_in_raph", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            graph.filter_nodes(random_filter.clone()).unwrap();
+        })
+    });
+}
+
 fn bench_search_nodes_count_raph(c: &mut Criterion) {
     let graph = setup_graph();
     let mut rng = thread_rng();
@@ -384,6 +456,7 @@ criterion_group!(
     bench_search_nodes_by_property_eq,
     bench_search_nodes_by_property_ne,
     bench_search_nodes_by_property_in,
+    bench_search_nodes_by_property_not_in,
     bench_search_nodes_by_composite_property_filter_and,
     bench_search_nodes_by_composite_property_filter_or,
     bench_search_nodes_count,
@@ -398,6 +471,7 @@ criterion_group!(
     bench_search_nodes_by_property_eq_raph,
     bench_search_nodes_by_property_ne_raph,
     bench_search_nodes_by_property_in_raph,
+    bench_search_nodes_by_property_not_in_raph,
     bench_search_nodes_count_raph,
     // bench_search_edges_by_src_dst_raph,
     // bench_search_edges_by_property_raph,
