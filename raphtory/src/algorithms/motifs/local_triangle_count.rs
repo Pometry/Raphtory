@@ -87,7 +87,6 @@ mod triangle_count_tests {
         prelude::NO_PROPS,
         test_storage,
     };
-    use tracing::info;
 
     #[test]
     fn counts_triangles() {

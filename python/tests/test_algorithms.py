@@ -42,10 +42,9 @@ def test_local_clustering_coefficient():
         for i in range(1, 9)
     }
     assert actual == expected
-    actual = algorithms.local_clustering_coefficient_batch_intersection(g, None)
-    assert actual.get_all_with_names() == expected
-    actual = algorithms.local_clustering_coefficient_batch_path(g, None)
-    assert actual.get_all_with_names() == expected
+    actual = algorithms.local_clustering_coefficient_batch(g, list(range(1, 9)))
+    actual = {str(i): actual[i] for i in range(1, 9)}
+    assert actual == expected
 
 
 def test_connected_components():

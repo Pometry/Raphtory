@@ -51,7 +51,7 @@ tracing = { workspace = true }
 ahash = { workspace = true }
 
 # algorithms
-hyperloglog = { workspace = true }
+hyperloglogplus = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

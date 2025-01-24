@@ -126,10 +126,7 @@ mod triangle_count_tests {
 
     use super::*;
     use crate::{
-        db::{
-            api::mutation::AdditionOps,
-            graph::{graph::Graph, path},
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
         test_storage,
     };

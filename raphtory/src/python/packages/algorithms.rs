@@ -1,8 +1,10 @@
 #![allow(non_snake_case)]
 
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
-        bipartite::max_weight_matching::max_weight_matching as mwm,
+        bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
@@ -21,6 +23,11 @@ use crate::{
         },
         metrics::{
             balance::balance as balance_rs,
+            clustering_coefficient::{
+                global_clustering_coefficient::global_clustering_coefficient as global_clustering_coefficient_rs,
+                local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+                local_clustering_coefficient_batch::local_clustering_coefficient_batch as local_clustering_coefficient_batch_rs,
+            },
             degree::{
                 average_degree as average_degree_rs, max_degree as max_degree_rs,
                 max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
@@ -28,7 +35,6 @@ use crate::{
                 min_out_degree as min_out_degree_rs,
             },
             directed_graph_density::directed_graph_density as directed_graph_density_rs,
-            local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
             reciprocity::{
                 all_local_reciprocity as all_local_reciprocity_rs,
                 global_reciprocity as global_reciprocity_rs,
@@ -50,27 +56,52 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    core::utils::errors::GraphError,
+    db::{
+        api::{state::NodeState, view::internal::DynamicGraph},
+        graph::{node::NodeView, nodes::Nodes},
+    },
+    prelude::Graph,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
     },
 };
-use pyo3::prelude::*;
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
+use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
 use std::collections::HashSet;
 
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
-use crate::{
-    algorithms::bipartite::max_weight_matching::Matching,
-    core::utils::errors::GraphError,
-    db::{api::state::NodeState, graph::nodes::Nodes},
-    prelude::Graph,
-};
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
+/// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
+fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
+    // Handle None case
+    if param.is_none() {
+        return Ok(vec![]);
+    }
+
+    // If it's a single number (int or float)
+    if let Ok(single_node) = param.extract::<PyNodeRef>() {
+        return Ok(vec![single_node]);
+    }
+
+    // If it's a list
+    if let Ok(py_list) = param.downcast::<PyList>() {
+        let mut nodes = Vec::new();
+        for item in py_list.iter() {
+            // Extract each item as a float
+            let num = item.extract::<PyNodeRef>()?;
+            nodes.push(num);
+        }
+        return Ok(nodes);
+    }
+
+    // If none of the above cases match, return an error
+    Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+        "Expected None, a number, or a list of numbers",
+    ))
+}
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -279,6 +310,17 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
     local_clustering_coefficient_rs(&graph.graph, v)
 }
 
+#[pyfunction]
+pub fn local_clustering_coefficient_batch(
+    graph: &PyGraphView,
+    v: &Bound<PyAny>,
+) -> PyResult<NodeState<'static, f64, DynamicGraph>> {
+    match process_node_param(v) {
+        Ok(v) => Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)),
+        Err(e) => Err(e),
+    }
+}
+
 /// Graph density - measures how dense or sparse a graph is.
 ///
 /// The ratio of the number of directed edges in the graph to the total number of possible directed
@@ -418,7 +460,7 @@ pub fn triplet_count(graph: &PyGraphView) -> usize {
 ///     [`Triplet Count`](triplet_count)
 #[pyfunction]
 pub fn global_clustering_coefficient(graph: &PyGraphView) -> f64 {
-    crate::algorithms::metrics::clustering_coefficient::clustering_coefficient(&graph.graph)
+    global_clustering_coefficient_rs(&graph.graph)
 }
 
 /// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
