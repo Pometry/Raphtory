@@ -1,4 +1,5 @@
 use crate::{
+    algorithms::dynamics::temporal::epidemics::Infected,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -24,10 +25,11 @@ use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
-    types::PyNotImplemented,
+    types::{PyDict, PyNotImplemented},
+    IntoPyObjectExt,
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 macro_rules! impl_node_state_ops {
     ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
@@ -51,10 +53,63 @@ macro_rules! impl_node_state_ops {
                 self.inner.nodes()
             }
 
+            fn __eq__<'py>(
+                &self,
+                other: &Bound<'py, PyAny>,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+                let res = if let Ok(other) = other.downcast::<Self>() {
+                    let other = Bound::get(other);
+                    self.inner == other.inner
+                } else if let Ok(other) = other.extract::<Vec<$value>>() {
+                    self.inner.iter_values().map($to_owned).eq(other.into_iter())
+                } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
+                    (self.inner.len() == other.len()
+                        && other.into_iter().all(|(node, value)| {
+                            self.inner.get_by_node(node).map($to_owned) == Some(value)
+                        }))
+                } else if let Ok(other) = other.downcast::<PyDict>() {
+                    self.inner.len() == other.len()
+                        && other.items().iter().all(|item| {
+                            if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
+                            {
+                                self.inner
+                                    .get_by_node(node_ref).map($to_owned)
+                                    .map(|l_value| {
+                                        if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
+                                            l_value_py.eq(value).unwrap_or(false)
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .unwrap_or(false)
+                            } else {
+                                false
+                            }
+                        })
+                } else {
+                    return Ok(PyNotImplemented::get(py).to_owned().into_any());
+                };
+                Ok(res.into_pyobject(py)?.to_owned().into_any())
+            }
+
             fn __iter__(&self) -> PyBorrowingIterator {
                 py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
                     .iter_values()
                     .map($to_owned))
+            }
+
+            /// Get value for node
+            ///
+            /// Arguments:
+            ///     node (NodeInput): the node
+            #[doc = concat!("    default (Optional[", $py_value, "]): the default value. Defaults to None.")]
+            ///
+            /// Returns:
+            #[doc = concat!("    Optional[", $py_value, "]: the value for the node or the default value")]
+            #[pyo3(signature = (node, default=None::<$value>))]
+            fn get(&self, node: PyNodeRef, default: Option<$value>) -> Option<$value> {
+                self.inner.get_by_node(node).map($to_owned).or(default)
             }
 
             fn __getitem__(&self, node: PyNodeRef) -> PyResult<$value> {
@@ -106,6 +161,21 @@ macro_rules! impl_node_state_ops {
 
             fn __repr__(&self) -> String {
                 self.inner.repr()
+            }
+
+            /// Convert results to pandas DataFrame
+            ///
+            /// The DataFrame has two columns, "node" with the node ids and "value" with
+            /// the corresponding values.
+            ///
+            /// Returns:
+            ///     DataFrame: the pandas DataFrame
+            fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+                let pandas = PyModule::import(py, "pandas")?;
+                let columns = PyDict::new(py);
+                columns.set_item("node", self.inner.nodes().id())?;
+                columns.set_item("value", self.values())?;
+                pandas.call_method("DataFrame", (columns,), None)
             }
         }
     };
@@ -218,26 +288,6 @@ macro_rules! impl_node_state_ord_ops {
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
             }
 
-            fn __eq__<'py>(
-                &self,
-                other: &Bound<'py, PyAny>,
-                py: Python<'py>,
-            ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-                let res = if let Ok(other) = other.downcast::<Self>() {
-                    let other = Bound::borrow(other);
-                    self.inner.iter_values().eq(other.inner.iter_values())
-                } else if let Ok(other) = other.extract::<Vec<$value>>() {
-                    self.inner.iter_values().map($to_owned).eq(other.into_iter())
-                } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
-                    (self.inner.len() == other.len()
-                        && other.into_iter().all(|(node, value)| {
-                            self.inner.get_by_node(node).map($to_owned) == Some(value)
-                        }))
-                } else {
-                    return Ok(PyNotImplemented::get(py).to_owned().into_any());
-                };
-                Ok(res.into_pyobject(py)?.to_owned().into_any())
-            }
         }
     };
 }
@@ -326,6 +376,12 @@ macro_rules! impl_lazy_node_state {
                 $name::from(self).into_pyobject(py)
             }
         }
+
+        impl<'py> FromPyObject<'py> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.downcast::<$name>()?.get().inner().clone())
+            }
+        }
     };
 }
 
@@ -333,11 +389,11 @@ macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
-            inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+            inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>,
         }
 
         impl $name {
-            pub fn inner(&self) -> &Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>> {
+            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph, DynamicGraph> {
                 &self.inner
             }
         }
@@ -345,7 +401,7 @@ macro_rules! impl_node_state {
         impl_node_state_ops!(
             $name,
             $value,
-            Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+            NodeState<'static, $value, DynamicGraph, DynamicGraph>,
             |v: &$value| v.clone(),
             $computed,
             $py_value
@@ -353,15 +409,7 @@ macro_rules! impl_node_state {
 
         impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
-                $name {
-                    inner: inner.into(),
-                }
-            }
-        }
-
-        impl From<Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>> for $name {
-            fn from(inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>) -> Self {
-                $name { inner }
+                $name { inner: inner }
             }
         }
 
@@ -374,6 +422,12 @@ macro_rules! impl_node_state {
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 $name::from(self).into_pyobject(py)
+            }
+        }
+
+        impl<'py> FromPyObject<'py> for NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.downcast::<$name>()?.get().inner().clone())
             }
         }
     };
@@ -539,4 +593,42 @@ impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
     "NodeStateListDateTime",
     "list[datetime]"
+);
+
+impl_node_state_num!(NodeStateF64<f64>, "NodeStateF64", "float");
+
+impl_node_state_ord!(NodeStateSEIR<Infected>, "NodeStateSEIR", "Infected");
+
+impl_node_state!(
+    NodeStateNodes<Nodes<'static, DynamicGraph>>,
+    "NodeStateNodes",
+    "Nodes"
+);
+
+impl_node_state!(
+    NodeStateReachability<Vec<(i64, String)>>,
+    "NodeStateReachability",
+    "list[Tuple[int, str]]"
+);
+
+impl_node_state_ord!(NodeStateMotifs<Vec<usize>>, "NodeStateMotifs", "list[int]");
+
+impl_node_state_ord!(
+    NodeStateHits<(f32, f32)>,
+    "NodeStateHits",
+    "Tuple[float, float]"
+);
+
+impl_node_state!(
+    NodeStateWeightedSP<(f64, Nodes<'static, DynamicGraph>)>,
+    "NodeStateWeightedSP",
+    "Tuple[float, Nodes]"
+);
+
+impl_node_state!(NodeLayout<[f32; 2]>, "NodeLayout", "list[float]");
+
+impl_node_state!(
+    NodeStateListF64<Vec<f64>>,
+    "NodeStateListF64",
+    "list[float]"
 );

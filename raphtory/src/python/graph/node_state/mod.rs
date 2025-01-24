@@ -29,6 +29,15 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeTypeView,
         NodeStateOptionStr,
         NodeStateListDateTime,
+        NodeStateWeightedSP,
+        NodeStateF64,
+        NodeStateNodes,
+        NodeStateReachability,
+        NodeStateListF64,
+        NodeStateMotifs,
+        NodeStateHits,
+        NodeStateSEIR,
+        NodeLayout,
     );
     Ok(m)
 }

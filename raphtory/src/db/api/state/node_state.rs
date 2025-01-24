@@ -11,7 +11,14 @@ use crate::{
 };
 use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
-use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
+use std::{
+    borrow::Borrow,
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    hash::{BuildHasher, Hash},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct Index<K> {
@@ -99,11 +106,60 @@ pub struct NodeState<'graph, V, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync, G, GH> PartialEq<Vec<RHS>>
-    for NodeState<'graph, V, G, GH>
+impl<
+        'graph,
+        V: Debug + Clone + Send + Sync + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: Debug + GraphViewOps<'graph>,
+    > Debug for NodeState<'graph, V, G, GH>
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
+    PartialEq<Vec<RHS>> for NodeState<'graph, V, G, GH>
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values.par_iter().eq(other)
+    }
+}
+
+impl<
+        'graph,
+        V: Clone + Send + Sync + PartialEq + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        RHS: NodeStateOps<'graph, OwnedValue = V>,
+    > PartialEq<RHS> for NodeState<'graph, V, G, GH>
+{
+    fn eq(&self, other: &RHS) -> bool {
+        self.len() == other.len()
+            && self.par_iter().all(|(node, value)| {
+                other
+                    .get_by_node(node)
+                    .map(|v| v.borrow() == value)
+                    .unwrap_or(false)
+            })
+    }
+}
+
+impl<
+        'graph,
+        K: AsNodeRef,
+        RHS: Send + Sync,
+        V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+    > PartialEq<HashMap<K, RHS, S>> for NodeState<'graph, V, G, GH>
+{
+    fn eq(&self, other: &HashMap<K, RHS, S>) -> bool {
+        other.len() == self.len()
+            && other
+                .iter()
+                .all(|(k, rhs)| self.get_by_node(k).filter(|&lhs| lhs == rhs).is_some())
     }
 }
 
@@ -156,6 +212,41 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .collect(),
         };
         Self::new(graph.clone(), graph, values, index)
+    }
+
+    /// create a new empty NodeState
+    pub fn new_empty(graph: G) -> Self {
+        Self::new(graph.clone(), graph, [].into(), Some(Index::default()))
+    }
+
+    /// create a new NodeState from a list of values for the node (takes care of creating an index for
+    /// node filtering when needed)
+    pub fn new_from_values(graph: G, values: impl Into<Arc<[V]>>) -> Self {
+        let index = Index::for_graph(&graph);
+        Self::new(graph.clone(), graph, values.into(), index)
+    }
+
+    /// create a new NodeState from a HashMap of values
+    pub fn new_from_map<R, S: BuildHasher>(
+        graph: G,
+        mut values: HashMap<VID, R, S>,
+        map: impl Fn(R) -> V,
+    ) -> Self {
+        if values.len() == graph.count_nodes() {
+            let values: Vec<_> = graph
+                .nodes()
+                .iter()
+                .map(|node| map(values.remove(&node.node).unwrap()))
+                .collect();
+            Self::new_from_values(graph, values)
+        } else {
+            let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = graph
+                .nodes()
+                .iter()
+                .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
+                .unzip();
+            Self::new(graph.clone(), graph, values.into(), Some(Index::new(index)))
+        }
     }
 }
 

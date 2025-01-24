@@ -12,7 +12,10 @@ use rayon::prelude::*;
 use std::{borrow::Borrow, hash::Hash, iter::Sum};
 
 pub trait NodeStateOps<'graph>:
-    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)> + 'graph
+    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)>
+    + Send
+    + Sync
+    + 'graph
 {
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
