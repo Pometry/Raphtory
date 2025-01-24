@@ -9,7 +9,6 @@
 
 from typing import *
 from raphtory import *
-from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
@@ -26,7 +25,7 @@ def dijkstra_single_source_shortest_paths(
     targets: list[NodeInput],
     direction: Direction = "both",
     weight: str = "weight",
-) -> AlgorithmResult:
+) -> NodeStateWeightedSP:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -38,11 +37,11 @@ def dijkstra_single_source_shortest_paths(
         weight (str): The name of the weight property for the edges. Defaults to "weight".
 
     Returns:
-        AlgorithmResult: Returns an `AlgorithmResult` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
+        NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.
 
     """
 
-def global_reciprocity(graph: GraphView):
+def global_reciprocity(graph: GraphView) -> float:
     """
     Reciprocity - measure of the symmetry of relationships in a graph, the global reciprocity of
     the entire graph.
@@ -50,15 +49,15 @@ def global_reciprocity(graph: GraphView):
     graph and normalizes it by the total number of directed edges.
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        float : reciprocity of the graph between 0 and 1.
+        float: reciprocity of the graph between 0 and 1.
     """
 
 def betweenness_centrality(
     graph: GraphView, k: Optional[int] = None, normalized: bool = True
-) -> AlgorithmResult:
+) -> NodeStateF64:
     """
     Computes the betweenness centrality for nodes in a given graph.
 
@@ -66,27 +65,27 @@ def betweenness_centrality(
         graph (GraphView): A reference to the graph.
         k (int, optional): Specifies the number of nodes to consider for the centrality computation.
             All nodes are considered by default.
-        normalized (bool): Indicates whether to normalize the centrality values.
+        normalized (bool): Indicates whether to normalize the centrality values. Defaults to True.
 
     Returns:
-        AlgorithmResult: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+        NodeStateF64: Mapping from nodes to their betweenness centrality.
     """
 
-def all_local_reciprocity(graph: GraphView):
+def all_local_reciprocity(graph: GraphView) -> NodeStateF64:
     """
     Local reciprocity - measure of the symmetry of relationships associated with a node
 
     This measures the proportion of a node's outgoing edges which are reciprocated with an incoming edge.
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        AlgorithmResult : AlgorithmResult with string keys and float values mapping each node name to its reciprocity value.
+        NodeStateF64: Mapping of nodes to their reciprocity value.
 
     """
 
-def triplet_count(graph: GraphView):
+def triplet_count(graph: GraphView) -> int:
     """
     Computes the number of connected triplets within a graph
 
@@ -94,13 +93,13 @@ def triplet_count(graph: GraphView):
     A-B, B-C, C-A is formed of three connected triplets.
 
     Arguments:
-        graph (GraphView) : a Raphtory graph, treated as undirected
+        graph (GraphView): a Raphtory graph, treated as undirected
 
     Returns:
-        int : the number of triplets in the graph
+        int: the number of triplets in the graph
     """
 
-def local_triangle_count(graph: GraphView, v: NodeInput):
+def local_triangle_count(graph: GraphView, v: NodeInput) -> int:
     """
     Implementations of various graph algorithms that can be run on a graph.
 
@@ -111,15 +110,15 @@ def local_triangle_count(graph: GraphView, v: NodeInput):
     This function returns the number of pairs of neighbours of a given node which are themselves connected.
 
     Arguments:
-        graph (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-        v (NodeInput) : node id or name
+        graph (GraphView): Raphtory graph, this can be directed or undirected but will be treated as undirected
+        v (NodeInput): node id or name
 
     Returns:
-        int : number of triangles associated with node v
+        int: number of triangles associated with node v
 
     """
 
-def average_degree(graph: GraphView):
+def average_degree(graph: GraphView) -> float:
     """
     The average (undirected) degree of all nodes in the graph.
 
@@ -127,13 +126,13 @@ def average_degree(graph: GraphView):
     the number of undirected edges divided by the number of nodes.
 
     Arguments:
-        graph (GraphView) : a Raphtory graph
+        graph (GraphView): a Raphtory graph
 
     Returns:
-        float : the average degree of the nodes in the graph
+        float: the average degree of the nodes in the graph
     """
 
-def directed_graph_density(graph: GraphView):
+def directed_graph_density(graph: GraphView) -> float:
     """
     Graph density - measures how dense or sparse a graph is.
 
@@ -141,15 +140,13 @@ def directed_graph_density(graph: GraphView):
     edges (given by N * (N-1) where N is the number of nodes).
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        float : Directed graph density of graph.
+        float: Directed graph density of graph.
     """
 
-def degree_centrality(
-    graph: GraphView, threads: Optional[int] = None
-) -> AlgorithmResult:
+def degree_centrality(graph: GraphView) -> NodeStateF64:
     """
     Computes the degree centrality of all nodes in the graph. The values are normalized
     by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -157,10 +154,9 @@ def degree_centrality(
 
     Arguments:
         graph (GraphView): The graph view on which the operation is to be performed.
-        threads (int, optional): The number of threads to be used for parallel execution.
 
     Returns:
-        AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated degree centrality.
+        NodeStateF64: Mapping of nodes to their associated degree centrality.
     """
 
 def max_degree(graph: GraphView) -> int:
@@ -185,57 +181,57 @@ def min_degree(graph: GraphView) -> int:
         int: The smallest degree found
     """
 
-def max_out_degree(graph: GraphView):
+def max_out_degree(graph: GraphView) -> int:
     """
     The maximum out degree of any node in the graph.
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        int : value of the largest outdegree
+        int: value of the largest outdegree
     """
 
-def max_in_degree(graph: GraphView):
+def max_in_degree(graph: GraphView) -> int:
     """
     The maximum in degree of any node in the graph.
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        int : value of the largest indegree
+        int: value of the largest indegree
     """
 
-def min_out_degree(graph: GraphView):
+def min_out_degree(graph: GraphView) -> int:
     """
     The minimum out degree of any node in the graph.
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        int : value of the smallest outdegree
+        int: value of the smallest outdegree
     """
 
-def min_in_degree(graph: GraphView):
+def min_in_degree(graph: GraphView) -> int:
     """
     The minimum in degree of any node in the graph.
 
     Arguments:
-        graph (GraphView) : a directed Raphtory graph
+        graph (GraphView): a directed Raphtory graph
 
     Returns:
-        int : value of the smallest indegree
+        int: value of the smallest indegree
     """
 
 def pagerank(
     graph: GraphView,
     iter_count: int = 20,
     max_diff: Optional[float] = None,
-    use_l2_norm=True,
-    damping_factor=0.85,
-):
+    use_l2_norm: bool = True,
+    damping_factor: float = 0.85,
+) -> NodeStateF64:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -244,19 +240,21 @@ def pagerank(
     is less than the max diff value given.
 
     Arguments:
-        graph (GraphView) : Raphtory graph
-        iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
-        max_diff (Optional[float]) : Optional parameter providing an alternative stopping condition.
+        graph (GraphView): Raphtory graph
+        iter_count (int): Maximum number of iterations to run. Note that this will terminate early if convergence is reached. Defaults to 20.
+        max_diff (Optional[float]): Optional parameter providing an alternative stopping condition.
             The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
             is less than the max diff value given.
+        use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
+        damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 
     Returns:
-        AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
+        NodeStateF64: Mapping of nodes to their pagerank value.
     """
 
 def single_source_shortest_path(
     graph: GraphView, source: NodeInput, cutoff: Optional[int] = None
-) -> AlgorithmResult:
+) -> NodeStateNodes:
     """
     Calculates the single source shortest paths from a given source node.
 
@@ -266,11 +264,11 @@ def single_source_shortest_path(
         cutoff (int, optional): An optional cutoff level. The algorithm will stop if this level is reached.
 
     Returns:
-        AlgorithmResult: Returns an `AlgorithmResult[str, list[str]]` containing the shortest paths from the source to all reachable nodes.
+        NodeStateNodes: Mapping from end node to shortest path from the source node.
 
     """
 
-def global_clustering_coefficient(graph: GraphView):
+def global_clustering_coefficient(graph: GraphView) -> float:
     """
     Computes the global clustering coefficient of a graph. The global clustering coefficient is
     defined as the number of triangles in the graph divided by the number of triplets in the graph.
@@ -278,10 +276,10 @@ def global_clustering_coefficient(graph: GraphView):
     Note that this is also known as transitivity and is different to the average clustering coefficient.
 
     Arguments:
-        graph (GraphView) : a Raphtory graph, treated as undirected
+        graph (GraphView): a Raphtory graph, treated as undirected
 
     Returns:
-        float : the global clustering coefficient of the graph
+        float: the global clustering coefficient of the graph
 
     See also:
         [`Triplet Count`](triplet_count)
@@ -293,7 +291,7 @@ def temporally_reachable_nodes(
     start_time: int,
     seed_nodes: list[NodeInput],
     stop_nodes: Optional[list[NodeInput]] = None,
-):
+) -> NodeStateReachability:
     """
     Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 
@@ -302,14 +300,14 @@ def temporally_reachable_nodes(
     a sequence of edges (v_i, v_i+1, t_i) with t_i < t_i+1 for i = 1, ... , k - 1.
 
     Arguments:
-        graph (GraphView) : directed Raphtory graph
-        max_hops (int) : maximum number of hops to propagate out
-        start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-        seed_nodes (list[NodeInput]) : list of node names or ids which should be the starting nodes
-        stop_nodes (Optional[list[NodeInput]]) : nodes at which a path shouldn't go any further
+        graph (GraphView): directed Raphtory graph
+        max_hops (int): maximum number of hops to propagate out
+        start_time (int): time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
+        seed_nodes (list[NodeInput]): list of node names or ids which should be the starting nodes
+        stop_nodes (Optional[list[NodeInput]]): nodes at which a path shouldn't go any further
 
     Returns:
-        AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
+        NodeStateReachability: Mapping of nodes to their reachability history.
     """
 
 def temporal_bipartite_graph_projection(
@@ -320,31 +318,31 @@ def temporal_bipartite_graph_projection(
     will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
 
     Arguments:
-        graph (GraphView) : A directed raphtory graph
+        graph (GraphView): A directed raphtory graph
         delta (int): Time period
-        pivot_type (str) : node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
+        pivot_type (str): node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 
     Returns:
         Graph: Projected (unipartite) temporal graph.
     """
 
-def local_clustering_coefficient(graph: GraphView, v: NodeInput):
+def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
     """
     Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 
     The proportion of pairs of neighbours of a node who are themselves connected.
 
     Arguments:
-        graph (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+        graph (GraphView): Raphtory graph, can be directed or undirected but will be treated as undirected.
         v (NodeInput): node id or name
 
     Returns:
-        float : the local clustering coefficient of node v in graph.
+        float: the local clustering coefficient of node v in graph.
     """
 
 def weakly_connected_components(
-    graph: GraphView, iter_count: int = 9223372036854775807
-):
+    graph: GraphView, iter_count: Optional[int] = None
+) -> NodeStateUsize:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 
@@ -352,57 +350,57 @@ def weakly_connected_components(
     by an undirected path.
 
     Arguments:
-        graph (GraphView) : Raphtory graph
-        iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
+        graph (GraphView): Raphtory graph
+        iter_count (int, optional): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 
     Returns:
-        AlgorithmResult : AlgorithmResult object mapping nodes to their component ids.
+        NodeStateUsize: Mapping of nodes to their component ids.
     """
 
-def strongly_connected_components(graph: GraphView):
+def strongly_connected_components(graph: GraphView) -> NodeStateUsize:
     """
     Strongly connected components
 
     Partitions the graph into node sets which are mutually reachable by an directed path
 
     Arguments:
-        graph (GraphView) : Raphtory graph
+        graph (GraphView): Raphtory graph
 
     Returns:
-        list[list[int]] : List of strongly connected nodes identified by ids
+        NodeStateUsize: Mapping of nodes to their component ids
     """
 
-def in_components(graph: GraphView):
+def in_components(graph: GraphView) -> NodeStateNodes:
     """
     In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
     Arguments:
-        graph (GraphView) : Raphtory graph
+        graph (GraphView): Raphtory graph
 
     Returns:
-        AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'in-component'
+        NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
     """
 
-def in_component(node: Node):
+def in_component(node: Node) -> NodeStateUsize:
     """
     In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
     Arguments:
-        node (Node) : The node whose in-component we wish to calculate
+        node (Node): The node whose in-component we wish to calculate
 
     Returns:
-       An array containing the Nodes within the given nodes in-component
+       NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
     """
 
-def out_components(graph: GraphView):
+def out_components(graph: GraphView) -> NodeStateNodes:
     """
     Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
     Arguments:
-        graph (GraphView) : Raphtory graph
+        graph (GraphView): Raphtory graph
 
     Returns:
-        AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
+        NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
     """
 
 def out_component(node: Node) -> NodeStateUsize:
@@ -410,7 +408,7 @@ def out_component(node: Node) -> NodeStateUsize:
     Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
     Arguments:
-        node (Node) : The node whose out-component we wish to calculate
+        node (Node): The node whose out-component we wish to calculate
 
     Returns:
        NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
@@ -423,7 +421,7 @@ def fast_rp(
     iter_weights: list[float],
     seed: Optional[int] = None,
     threads: Optional[int] = None,
-) -> AlgorithmResult:
+) -> NodeStateListF64:
     """
     Computes embedding vectors for each vertex of an undirected/bidirectional graph according to the Fast RP algorithm.
     Original Paper: https://doi.org/10.48550/arXiv.1908.11512
@@ -436,10 +434,12 @@ def fast_rp(
         threads (int, optional): The number of threads to be used for parallel execution.
 
     Returns:
-        AlgorithmResult: Returns an AlgorithmResult containing the embedding vector of each node.
+        NodeStateListF64: Mapping from nodes to embedding vectors.
     """
 
-def global_temporal_three_node_motif(graph: GraphView, delta: int, threads=None):
+def global_temporal_three_node_motif(
+    graph: GraphView, delta: int, threads: Optional[int] = None
+) -> list[int]:
     """
     Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
     We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
@@ -476,11 +476,12 @@ def global_temporal_three_node_motif(graph: GraphView, delta: int, threads=None)
       8. i --> j, i --> k, k --> j
 
     Arguments:
-        graph (GraphView) : A directed raphtory graph
+        graph (GraphView): A directed raphtory graph
         delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+        threads (int, optional): The number of threads to use when running the algorithm.
 
     Returns:
-        list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
+        list[int]: A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
 
     Notes:
         This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
@@ -488,29 +489,32 @@ def global_temporal_three_node_motif(graph: GraphView, delta: int, threads=None)
     """
 
 def global_temporal_three_node_motif_multi(
-    graph: GraphView, deltas: list[int], threads=None
-):
+    graph: GraphView, deltas: list[int], threads: Optional[int] = None
+) -> list[list[int]]:
     """
     Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
 
     Arguments:
-        graph (GraphView) : A directed raphtory graph
-        deltas(list[int]): A list of delta values to use.
+        graph (GraphView): A directed raphtory graph
+        deltas (list[int]): A list of delta values to use.
+        threads (int, optional): The number of threads to use.
 
     Returns:
-        list[list[int]] : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
+        list[list[int]]: A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
     """
 
-def local_temporal_three_node_motifs(graph: GraphView, delta: int, threads=None):
+def local_temporal_three_node_motifs(
+    graph: GraphView, delta: int, threads=None
+) -> NodeStateMotifs:
     """
     Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
 
     Arguments:
-        graph (GraphView) : A directed raphtory graph
+        graph (GraphView): A directed raphtory graph
         delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 
     Returns:
-        dict : A dictionary with node ids as keys and a 40d array of motif counts as values (in the same order as the global motif counts) with the number of each motif that node participates in.
+        NodeStateMotifs: A mapping from nodes to lists of motif counts (40 counts in the same order as the global motif counts) with the number of each motif that node participates in.
 
     Notes:
         For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
@@ -519,7 +523,7 @@ def local_temporal_three_node_motifs(graph: GraphView, delta: int, threads=None)
 
 def hits(
     graph: GraphView, iter_count: int = 20, threads: Optional[int] = None
-) -> AlgorithmResult:
+) -> NodeStateHits:
     """
     HITS (Hubs and Authority) Algorithm:
 
@@ -531,19 +535,16 @@ def hits(
 
     Arguments:
         graph (GraphView): Graph to run the algorithm on
-        iter_count (int): How many iterations to run the algorithm
+        iter_count (int): How many iterations to run the algorithm. Defaults to 20.
         threads (int, optional): Number of threads to use
 
     Returns:
-        AlgorithmResult: An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
+        NodeStateHits: A mapping from nodes their hub and authority scores
     """
 
 def balance(
-    graph: GraphView,
-    name: str = "weight",
-    direction: Direction = "both",
-    threads: Optional[int] = None,
-) -> AlgorithmResult:
+    graph: GraphView, name: str = "weight", direction: Direction = "both"
+) -> NodeStateF64:
     """
     Sums the weights of edges in the graph based on the specified direction.
 
@@ -556,10 +557,9 @@ def balance(
                 * "out": Only consider outgoing edges.
                 * "in": Only consider incoming edges.
                 * "both": Consider both outgoing and incoming edges. This is the default.
-        threads (int, optional): The number of threads to be used for parallel execution.
 
     Returns:
-        AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated edge weights.
+        NodeStateF64: Mapping of nodes to the computed sum of their associated edge weights.
 
     """
 
@@ -586,7 +586,7 @@ def temporal_SEIR(
     recovery_rate: float | None = None,
     incubation_rate: float | None = None,
     rng_seed: int | None = None,
-) -> AlgorithmResult:
+) -> NodeStateSEIR:
     """
     Simulate an SEIR dynamic on the network
 
@@ -609,13 +609,10 @@ def temporal_SEIR(
         rng_seed (int | None): optional seed for the random number generator
 
     Returns:
-        AlgorithmResult: Returns an `Infected` object for each infected node with attributes
-
-        `infected`: the time stamp of the infection event
-
-        `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
-
-        `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
+        NodeStateSEIR: Mapping from nodes to `Infected` objects for each infected node with attributes
+            `infected`: the time stamp of the infection event
+            `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
+            `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
 
     """
 
@@ -624,15 +621,18 @@ def louvain(
     resolution: float = 1.0,
     weight_prop: str | None = None,
     tol: None | float = None,
-):
+) -> NodeStateUsize:
     """
     Louvain algorithm for community detection
 
     Arguments:
         graph (GraphView): the graph view
-        resolution (float): the resolution parameter for modularity
+        resolution (float): the resolution parameter for modularity. Defaults to 1.0.
         weight_prop (str | None): the edge property to use for weights (has to be float)
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+
+    Returns:
+        NodeStateUsize: Mapping of nodes to their community assignment
     """
 
 def fruchterman_reingold(
@@ -642,20 +642,20 @@ def fruchterman_reingold(
     node_start_size: float | None = 1.0,
     cooloff_factor: float | None = 0.95,
     dt: float | None = 0.1,
-):
+) -> NodeLayout:
     """
     Fruchterman Reingold layout algorithm
 
     Arguments:
         graph (GraphView): the graph view
-        iterations (int | None): the number of iterations to run (default: 100)
-        scale (float | None): the scale to apply (default: 1.0)
-        node_start_size (float | None): the start node size to assign random positions (default: 1.0)
-        cooloff_factor (float | None): the cool off factor for the algorithm (default: 0.95)
-        dt (float | None): the time increment between iterations (default: 0.1)
+        iterations (int | None): the number of iterations to run. Defaults to 100.
+        scale (float | None): the scale to apply. Defaults to 1.0.
+        node_start_size (float | None): the start node size to assign random positions. Defaults to 1.0.
+        cooloff_factor (float | None): the cool off factor for the algorithm. Defaults to 0.95.
+        dt (float | None): the time increment between iterations. Defaults to 0.1.
 
     Returns:
-        a dict with the position for each node as a list with two numbers [x, y]
+        NodeLayout: A mapping from nodes to their [x, y] positions
     """
 
 def cohesive_fruchterman_reingold(
@@ -665,19 +665,19 @@ def cohesive_fruchterman_reingold(
     node_start_size: float = 1.0,
     cooloff_factor: float = 0.95,
     dt: float = 0.1,
-) -> AlgorithmResult:
+) -> NodeLayout:
     """
     Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
     Arguments:
         graph (GraphView): A reference to the graph
-        iter_count (int): The number of iterations to run
-        scale (float): Global scaling factor to control the overall spread of the graph
-        node_start_size (float): Initial size or movement range for nodes
-        cooloff_factor (float): Factor to reduce node movement in later iterations, helping stabilize the layout
-        dt (float): Time step or movement factor in each iteration
+        iter_count (int): The number of iterations to run. Defaults to 100.
+        scale (float): Global scaling factor to control the overall spread of the graph. Defaults to 1.0.
+        node_start_size (float): Initial size or movement range for nodes. Defaults to 1.0.
+        cooloff_factor (float): Factor to reduce node movement in later iterations, helping stabilize the layout. Defaults to 0.95.
+        dt (float): Time step or movement factor in each iteration. Defaults to 0.1.
 
     Returns:
-        AlgorithmResult: Returns an AlgorithmResult containing a mapping between vertices and a pair of coordinates.
+        NodeLayout: A mapping from nodes to their [x, y] positions
 
     """
 
@@ -709,13 +709,15 @@ def max_weight_matching(
         graph (GraphView): The graph to compute the maximum weight matching for
         weight_prop (str, optional): The property on the edge to use for the weight. If not
             provided,
-        max_cardinality (bool): If set to true compute the maximum-cardinality matching
-            with maximum weight among all maximum-cardinality matchings. Defaults to True.
-        verify_optimum_flag (bool): If true prior to returning an additional routine
+        max_cardinality (bool): If set to True, consider only maximum-cardinality matchings. Defaults to True.
+            If True, finds the maximum-cardinality matching with maximum weight among all maximum-cardinality matchings,
+            otherwise, finds the maximum weight matching irrespective of cardinality.
+        verify_optimum_flag (bool): Whether the optimum should be verified. Defaults to False.
+            If true prior to returning, an additional routine
             to verify the optimal solution was found will be run after computing
             the maximum weight matching. If it's true and the found matching is not
             an optimal solution this function will panic. This option should
-            normally be only set true during testing. Defaults to False.
+            normally be only set true during testing.
 
     Returns:
         Matching: The matching
@@ -791,6 +793,37 @@ class Matching(object):
         Returns:
             Optional[Node]: The matched source node if it exists
 
+        """
+
+class Infected(object):
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def active(self) -> int:
+        """
+        The timestamp at which the infected node started spreading the infection
+
+        Returns:
+            int:
+        """
+
+    @property
+    def infected(self) -> int:
+        """
+        The timestamp at which the node was infected
+
+        Returns:
+            int:
+        """
+
+    @property
+    def recovered(self) -> int:
+        """
+        The timestamp at which the infected node stopped spreading the infection
+
+        Returns:
+            int:
         """
 
 def connected_components(graph): ...

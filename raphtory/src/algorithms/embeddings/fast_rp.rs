@@ -1,8 +1,10 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{entities::VID, state::compute_state::ComputeStateVec},
+    core::state::compute_state::ComputeStateVec,
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::NodeState,
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -11,9 +13,7 @@ use crate::{
         },
     },
 };
-use ordered_float::OrderedFloat;
 use rand::prelude::*;
-use rayon::prelude::*;
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
@@ -43,7 +43,7 @@ pub fn fast_rp<G>(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> AlgorithmResult<G, Vec<f64>, Vec<OrderedFloat<f64>>>
+) -> NodeState<'static, Vec<f64>, G>
 where
     G: StaticGraphViewOps,
 {
@@ -95,29 +95,18 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let res = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local: Vec<FastRPState>| {
-            g.nodes()
-                .par_iter()
-                .map(|node| {
-                    let VID(id) = node.node;
-                    let embedding = local[id].embedding_state.clone();
-                    (id, embedding)
-                })
-                .collect()
+            NodeState::new_from_eval_mapped(g.clone(), local, |v| v.embedding_state)
         },
         threads,
         num_iters,
         None,
         None,
-    );
-
-    // TODO: add flag to optionally normalize results
-    let results_type = std::any::type_name::<Vec<f64>>();
-    AlgorithmResult::new(g.clone(), "Fast RP", results_type, res)
+    )
 }
 
 #[cfg(test)]
@@ -319,11 +308,8 @@ mod fast_rp_test {
         ]);
 
         test_storage!(&graph, |graph| {
-            let results =
-                fast_rp(graph, 16, 1.0, vec![1.0, 1.0], Some(42), None).get_all_with_names();
-            for (v_id, embedding) in results {
-                assert_eq!(embedding, *baseline.get(v_id.as_str()).unwrap());
-            }
+            let results = fast_rp(graph, 16, 1.0, vec![1.0, 1.0], Some(42), None);
+            assert_eq!(results, baseline);
         });
     }
 

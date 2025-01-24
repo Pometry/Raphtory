@@ -1,19 +1,13 @@
-use std::collections::HashMap;
-
-use num_traits::abs;
-use ordered_float::OrderedFloat;
-
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::VID,
-        state::{
-            accumulator_id::accumulators::{max, sum},
-            compute_state::ComputeStateVec,
-        },
+    core::state::{
+        accumulator_id::accumulators::{max, sum},
+        compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::NodeState,
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -22,6 +16,7 @@ use crate::{
         },
     },
 };
+use num_traits::abs;
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -58,7 +53,7 @@ pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<G, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+) -> NodeState<'static, (f32, f32), G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -142,44 +137,18 @@ pub fn hits<G: StaticGraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (hub_scores, auth_scores) = runner.run(
+    runner.run(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
         |_, _, _, local| {
-            let mut hubs = HashMap::new();
-            let mut auths = HashMap::new();
-            let nodes = g.nodes();
-            for node in nodes {
-                let v_gid = node.name();
-                let VID(v_id) = node.node;
-                let hit = &local[v_id];
-                hubs.insert(v_gid.clone(), hit.hub_score);
-                auths.insert(v_gid, hit.auth_score);
-            }
-            (hubs, auths)
+            NodeState::new_from_eval_mapped(g.clone(), local, |h| (h.hub_score, h.auth_score))
         },
         threads,
         iter_count,
         None,
         None,
-    );
-
-    let mut results: HashMap<usize, (f32, f32)> = HashMap::new();
-
-    hub_scores.into_iter().for_each(|(k, v)| {
-        results.insert(g.node(k).unwrap().node.0, (v, 0.0));
-    });
-
-    auth_scores.into_iter().for_each(|(k, v)| {
-        let vid = g.node(k).unwrap().node.0;
-        let (a, _) = results.get(&vid).unwrap();
-        results.insert(vid, (*a, v));
-    });
-
-    let results_type = std::any::type_name::<(f32, f32)>();
-
-    AlgorithmResult::new(g.clone(), "Hits", results_type, results)
+    )
 }
 
 #[cfg(test)]
@@ -189,6 +158,7 @@ mod hits_tests {
         prelude::NO_PROPS,
         test_storage,
     };
+    use std::collections::HashMap;
 
     use super::*;
 
@@ -221,7 +191,7 @@ mod hits_tests {
             (8, 1),
         ]);
         test_storage!(&graph, |graph| {
-            let results = hits(graph, 20, None).get_all_with_names();
+            let results = hits(graph, 20, None);
 
             assert_eq!(
                 results,
