@@ -235,24 +235,21 @@ impl UpdateNodeTProps {
 }
 
 pub(crate) trait PropTypeExt {
-    fn p_type(&self) -> Option<i32>;
+    fn p_type(&self) -> SPropType;
     fn p_type2(&self) -> Option<&PType>;
 
-    fn prop_type(&self) -> Option<PropType> {
+    fn prop_type(&self) -> PropType {
         self.p_type2()
             .and_then(|p_type| as_prop_type2(*p_type))
-            .or_else(|| {
-                self.p_type()
-                    .as_ref()
-                    .and_then(|p_type| as_prop_type(prop_type_from_i32(*p_type)?))
-            })
+            .or_else(|| as_prop_type(self.p_type()))
+            .unwrap_or(PropType::Empty)
     }
 }
 
 impl PropTypeExt for NewNodeCProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -262,8 +259,8 @@ impl PropTypeExt for NewNodeCProp {
 
 impl PropTypeExt for NewNodeTProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -273,8 +270,8 @@ impl PropTypeExt for NewNodeTProp {
 
 impl PropTypeExt for NewEdgeCProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -284,8 +281,8 @@ impl PropTypeExt for NewEdgeCProp {
 
 impl PropTypeExt for NewEdgeTProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -295,8 +292,8 @@ impl PropTypeExt for NewEdgeTProp {
 
 impl PropTypeExt for NewGraphTProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {

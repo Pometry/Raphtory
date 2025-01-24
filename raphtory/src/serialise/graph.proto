@@ -40,35 +40,35 @@ message NewMeta {
   message NewGraphTProp {
     string name = 1;
     uint64 id = 2;
-    optional PropType.PropType p_type = 3 [deprecated=true];
+    PropType.PropType p_type = 3 [deprecated=true];
     PropType.PType p_type2 = 4;
   }
 
   message NewNodeCProp {
     string name = 1;
     uint64 id = 2;
-    optional PropType.PropType p_type = 3 [deprecated=true];
+    PropType.PropType p_type = 3 [deprecated=true];
     PropType.PType p_type2 = 4;
   }
 
   message NewNodeTProp {
     string name = 1;
     uint64 id = 2;
-    optional PropType.PropType p_type = 3[deprecated=true];
+    PropType.PropType p_type = 3[deprecated=true];
     PropType.PType p_type2 = 4;
   }
 
   message NewEdgeCProp {
     string name = 1;
     uint64 id = 2;
-    optional PropType.PropType p_type = 3[deprecated=true];
+    PropType.PropType p_type = 3[deprecated=true];
     PropType.PType p_type2 = 4;
   }
 
   message NewEdgeTProp {
     string name = 1;
     uint64 id = 2;
-    optional PropType.PropType p_type = 3 [deprecated=true];
+    PropType.PropType p_type = 3 [deprecated=true];
     PropType.PType p_type2 = 4;
   }
 
