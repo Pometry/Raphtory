@@ -58,7 +58,7 @@ fn get_property_filters() -> Vec<PropertyFilter> {
         PropertyFilter::eq("summary", "StructuredStreaming"),
         PropertyFilter::eq("priority", "Major"),
         // PropertyFilter::eq("description", "Transformers"),
-        // PropertyFilter::eq("duration", 1u64),
+        // PropertyFilter::eq("duration", 1i64),
         PropertyFilter::eq("Fix Version", "2.3.0"),
         PropertyFilter::eq("resolution", "Fixed"),
         PropertyFilter::eq("status", "Resolved"),
@@ -68,13 +68,19 @@ fn get_property_filters() -> Vec<PropertyFilter> {
 fn bench_search_nodes_by_name(c: &mut Criterion) {
     let graph = setup_graph();
     let node_names = get_node_names();
+
     let mut rng = thread_rng();
+    let filters: Vec<_> = (0..1000)
+        .map(|_| {
+            let random_name = *node_names.choose(&mut rng).unwrap();
+            CompositeNodeFilter::Node(Filter::eq("node_name", random_name))
+        })
+        .collect();
 
     c.bench_function("search_nodes_by_name", |b| {
         b.iter(|| {
-            let random_name = *node_names.choose(&mut rng).unwrap();
-            let filter = CompositeNodeFilter::Node(Filter::eq("node_name", random_name));
-            graph.search_nodes(&filter, 5, 0).unwrap();
+            let random_filter = filters.choose(&mut rng).unwrap();
+            graph.search_nodes(&random_filter, 5, 0).unwrap();
         })
     });
 }
@@ -82,53 +88,68 @@ fn bench_search_nodes_by_name(c: &mut Criterion) {
 fn bench_search_nodes_by_property(c: &mut Criterion) {
     let graph = setup_graph();
     let property_filters = get_property_filters();
+    let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property", |b| {
         b.iter(|| {
-            let mut rng = thread_rng();
             let random_filter = property_filters.choose(&mut rng).unwrap();
-            let filter = CompositeNodeFilter::Property(random_filter.clone());
-            graph.search_nodes(&filter, 5, 0).unwrap();
+            let random_filter = CompositeNodeFilter::Property(random_filter.clone());
+            graph.search_nodes(&random_filter, 5, 0).unwrap();
         })
     });
 }
 
 fn bench_search_nodes_count(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64));
+    let property_filters = get_property_filters();
+    let mut rng = thread_rng();
 
     c.bench_function("search_nodes_count", |b| {
-        b.iter(|| graph.search_nodes_count(&filter).unwrap())
+        let random_filter = property_filters.choose(&mut rng).unwrap();
+        let random_filter = CompositeNodeFilter::Property(random_filter.clone());
+        b.iter(|| graph.search_nodes_count(&random_filter).unwrap())
     });
 }
 
 fn bench_search_edges_by_src_dst(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeEdgeFilter::And(vec![
-        CompositeEdgeFilter::Edge(Filter::eq("from", "1")),
-        CompositeEdgeFilter::Edge(Filter::eq("to", "2")),
-    ]);
+    let node_names = get_node_names();
+    let mut rng = thread_rng();
 
     c.bench_function("search_edges_by_src_dst", |b| {
-        b.iter(|| graph.search_edges(&filter, 5, 0).unwrap())
+        b.iter(|| {
+            let random_src_name = *node_names.choose(&mut rng).unwrap();
+            let random_dst_name = *node_names.choose(&mut rng).unwrap();
+            let random_filter = CompositeEdgeFilter::And(vec![
+                CompositeEdgeFilter::Edge(Filter::eq("from", random_src_name)),
+                CompositeEdgeFilter::Edge(Filter::eq("to", random_dst_name)),
+            ]);
+            graph.search_edges(&random_filter, 5, 0).unwrap()
+        })
     });
 }
 
 fn bench_search_edges_by_property(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("ep2", 2u64));
+    let property_filters = get_property_filters();
+    let mut rng = thread_rng();
 
     c.bench_function("search_edges_by_property", |b| {
-        b.iter(|| graph.search_edges(&filter, 5, 0).unwrap())
+        let random_filter = property_filters.choose(&mut rng).unwrap();
+        let random_filter = CompositeEdgeFilter::Property(random_filter.clone());
+        b.iter(|| graph.search_edges(&random_filter, 5, 0).unwrap())
     });
 }
 
 fn bench_search_edges_count(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("ep2", 2u64));
+    let property_filters = get_property_filters();
+    let mut rng = thread_rng();
 
     c.bench_function("search_edges_count", |b| {
-        b.iter(|| graph.search_edges_count(&filter).unwrap())
+        let random_filter = property_filters.choose(&mut rng).unwrap();
+        let random_filter = CompositeEdgeFilter::Property(random_filter.clone());
+        b.iter(|| graph.search_edges_count(&random_filter).unwrap())
     });
 }
 
@@ -149,44 +170,61 @@ fn bench_search_nodes_by_property_raph(c: &mut Criterion) {
     let graph = setup_graph();
     let mut rng = thread_rng();
     let property_filters = get_property_filters();
-    let random_filter = property_filters.choose(&mut rng).unwrap();
 
     c.bench_function("search_nodes_by_property_raph", |b| {
+        let random_filter = property_filters.choose(&mut rng).unwrap();
         b.iter(|| graph.filter_nodes(random_filter.clone()).unwrap())
     });
 }
 
 fn bench_search_nodes_count_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = PropertyFilter::eq("p3", 1u64);
+    let mut rng = thread_rng();
+    let property_filters = get_property_filters();
 
     c.bench_function("search_nodes_count_raph", |b| {
-        b.iter(|| graph.filter_nodes(filter.clone()).iter().count())
+        let random_filter = property_filters.choose(&mut rng).unwrap();
+        b.iter(|| graph.filter_nodes(random_filter.clone()).iter().count())
     });
 }
 
 fn bench_search_edges_by_src_dst_raph(c: &mut Criterion) {
     let graph = setup_graph();
+    let node_names = get_node_names();
+    let mut rng = thread_rng();
+
     c.bench_function("search_edges_by_src_dst_raph", |b| {
-        b.iter(|| graph.edge("3", "1").unwrap())
+        b.iter(|| {
+            let random_src_name = *node_names.choose(&mut rng).unwrap();
+            let random_dst_name = *node_names.choose(&mut rng).unwrap();
+            graph.edge(random_src_name, random_dst_name).unwrap()
+        })
     });
 }
 
 fn bench_search_edges_by_property_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = PropertyFilter::eq("ep2", 2u64);
+    let mut rng = thread_rng();
+    let property_filters = get_property_filters();
 
     c.bench_function("search_edges_by_property_raph", |b| {
-        b.iter(|| graph.filter_edges(filter.clone()).unwrap())
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            graph.filter_edges(random_filter.clone()).unwrap()
+        })
     });
 }
 
 fn bench_search_edges_count_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let filter = PropertyFilter::eq("ep2", 2u64);
+    let mut rng = thread_rng();
+    let property_filters = get_property_filters();
 
     c.bench_function("search_edges_count_raph", |b| {
-        b.iter(|| graph.filter_edges(filter.clone()).iter().count())
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            graph.filter_edges(random_filter.clone()).iter().count()
+        })
     });
 }
 
@@ -194,20 +232,20 @@ criterion_group!(
     search_benches,
     bench_search_nodes_by_name,
     bench_search_nodes_by_property,
-    // bench_search_nodes_count,
-    // bench_search_edges_by_src_dst,
-    // bench_search_edges_by_property,
-    // bench_search_edges_count
+    bench_search_nodes_count,
+    bench_search_edges_by_src_dst,
+    bench_search_edges_by_property,
+    bench_search_edges_count
 );
 
 criterion_group!(
     search_benches_raph,
     bench_search_nodes_by_name_raph,
     bench_search_nodes_by_property_raph,
-    //     bench_search_nodes_count_raph,
-    //     bench_search_edges_by_src_dst_raph,
-    //     bench_search_edges_by_property_raph,
-    //     bench_search_edges_count_raph
+    bench_search_nodes_count_raph,
+    bench_search_edges_by_src_dst_raph,
+    bench_search_edges_by_property_raph,
+    bench_search_edges_count_raph
 );
 
 criterion_main!(search_benches, search_benches_raph);
