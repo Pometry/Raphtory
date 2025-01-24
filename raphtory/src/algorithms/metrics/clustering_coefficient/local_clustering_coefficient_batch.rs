@@ -1,10 +1,8 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
-    db::{
-        api::{
-            state::{Index, NodeState},
-            view::*,
-        },
+    db::api::{
+        state::{Index, NodeState},
+        view::*,
     },
 };
 use indexmap::IndexSet;
@@ -24,7 +22,6 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
 ) -> NodeState<'static, f64, G> {
-
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = v
         .par_iter()
         .filter_map(|n| {
