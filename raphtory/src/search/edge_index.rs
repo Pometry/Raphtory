@@ -280,11 +280,11 @@ impl EdgeIndex {
         // Initialize property indexes and get their writers
         let const_writers = initialize_property_indexes(
             edge_index.constant_property_indexes.clone(),
-            graph.node_meta().const_prop_meta(),
+            graph.edge_meta().const_prop_meta(),
         )?;
         let temporal_writers = initialize_property_indexes(
             edge_index.temporal_property_indexes.clone(),
-            graph.node_meta().temporal_prop_meta(),
+            graph.edge_meta().temporal_prop_meta(),
         )?;
 
         let writer = Arc::new(Mutex::new(edge_index.index.writer(100_000_000)?));
