@@ -109,23 +109,19 @@ impl NodeIndex {
         schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
         schema.add_text_field(
             fields::NODE_NAME,
-            TextOptions::default()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer(TOKENIZER)
-                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
-                .set_stored(),
+            TextOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(TOKENIZER)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
         schema.add_text_field(
             fields::NODE_TYPE,
-            TextOptions::default()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer(TOKENIZER)
-                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
-                .set_stored(),
+            TextOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(TOKENIZER)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
         schema
     }

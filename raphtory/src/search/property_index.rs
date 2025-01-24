@@ -58,44 +58,42 @@ impl PropertyIndex {
             PropType::Str => {
                 schema.add_text_field(
                     prop_name,
-                    TextOptions::default()
-                        .set_indexing_options(
-                            TextFieldIndexing::default()
-                                .set_tokenizer(TOKENIZER)
-                                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                        )
-                        .set_stored(),
+                    TextOptions::default().set_indexing_options(
+                        TextFieldIndexing::default()
+                            .set_tokenizer(TOKENIZER)
+                            .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                    ),
                 );
             }
             PropType::DTime => {
-                schema.add_date_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_date_field(prop_name, INDEXED | FAST);
             }
             PropType::U8 => {
-                schema.add_u64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_u64_field(prop_name, INDEXED | FAST);
             }
             PropType::U16 => {
-                schema.add_u64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_u64_field(prop_name, INDEXED | FAST);
             }
             PropType::U64 => {
-                schema.add_u64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_u64_field(prop_name, INDEXED | FAST);
             }
             PropType::I64 => {
-                schema.add_i64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_i64_field(prop_name, INDEXED | FAST);
             }
             PropType::I32 => {
-                schema.add_i64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_i64_field(prop_name, INDEXED | FAST);
             }
             PropType::F64 => {
-                schema.add_f64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_f64_field(prop_name, INDEXED | FAST);
             }
             PropType::F32 => {
-                schema.add_f64_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_f64_field(prop_name, INDEXED | FAST);
             }
             PropType::Bool => {
-                schema.add_bool_field(prop_name, INDEXED | FAST | STORED);
+                schema.add_bool_field(prop_name, INDEXED | FAST);
             }
             _ => {
-                schema.add_text_field(prop_name, TEXT | FAST | STORED);
+                schema.add_text_field(prop_name, TEXT | FAST);
             }
         }
 
