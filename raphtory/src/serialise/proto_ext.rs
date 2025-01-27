@@ -1,4 +1,7 @@
-use super::proto::{prop::Array, prop_type::Array as ArrayType};
+use super::proto::{
+    prop::Array,
+    prop_type::{Array as ArrayType, Scalar as ScalarType},
+};
 use crate::{
     core::{
         prop_array::PropArray, utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType,
@@ -63,39 +66,18 @@ fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
             })
         }
         _ => Some(PType {
-            kind: Some(proto::prop_type::p_type::Kind::Scalar(
-                as_proto_prop_type(p_type)?.into(),
-            )),
+            kind: Some(proto::prop_type::p_type::Kind::Scalar(ScalarType {
+                p_type: as_proto_prop_type(p_type)?.into(),
+            })),
         }),
-    }
-}
-
-fn prop_type_from_i32(i: i32) -> Option<SPropType> {
-    match i {
-        0 => Some(SPropType::Str),
-        1 => Some(SPropType::U8),
-        2 => Some(SPropType::U16),
-        3 => Some(SPropType::I32),
-        4 => Some(SPropType::I64),
-        5 => Some(SPropType::U32),
-        6 => Some(SPropType::U64),
-        7 => Some(SPropType::F32),
-        8 => Some(SPropType::F64),
-        9 => Some(SPropType::Bool),
-        10 => Some(SPropType::List),
-        11 => Some(SPropType::Map),
-        12 => Some(SPropType::NdTime),
-        16 => Some(SPropType::DTime),
-        15 => Some(SPropType::Document),
-        _ => None,
     }
 }
 
 fn as_prop_type2(p_type: PType) -> Option<PropType> {
     match p_type.kind? {
-        proto::prop_type::p_type::Kind::Scalar(p_type) => as_prop_type(prop_type_from_i32(p_type)?),
+        proto::prop_type::p_type::Kind::Scalar(scalar) => as_prop_type(scalar.p_type()),
         proto::prop_type::p_type::Kind::Array(array) => {
-            let p_type = as_prop_type(prop_type_from_i32(array.p_type)?)?;
+            let p_type = as_prop_type(array.p_type())?;
             Some(PropType::Array(Box::new(p_type)))
         }
     }
