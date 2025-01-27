@@ -220,8 +220,8 @@ impl EdgeIndex {
         &self,
         edge: EdgeView<G, GH>,
         writer: &IndexWriter,
-        const_writers: &[Option<Mutex<IndexWriter>>],
-        temporal_writers: &[Option<Mutex<IndexWriter>>],
+        const_writers: &[Option<IndexWriter>],
+        temporal_writers: &[Option<IndexWriter>],
     ) -> tantivy::Result<()> {
         let edge_id = edge.edge.pid().as_u64();
         let src = edge.src().name();
@@ -278,40 +278,38 @@ impl EdgeIndex {
         let edge_index = EdgeIndex::new();
 
         // Initialize property indexes and get their writers
-        let const_writers = initialize_property_indexes(
+        let mut const_writers = initialize_property_indexes(
             edge_index.constant_property_indexes.clone(),
             graph.node_meta().const_prop_meta(),
         )?;
-        let temporal_writers = initialize_property_indexes(
+        let mut temporal_writers = initialize_property_indexes(
             edge_index.temporal_property_indexes.clone(),
             graph.node_meta().temporal_prop_meta(),
         )?;
 
-        let writer = Arc::new(Mutex::new(edge_index.index.writer(100_000_000)?));
+        let mut writer = edge_index.index.writer(100_000_000)?;
 
         let locked_g = graph.core_graph();
         locked_g.edges_par(&graph).try_for_each(|e_ref| {
-            let writer_lock = Arc::clone(&writer);
             {
-                let writer_guard = writer_lock.lock();
                 let e_view = EdgeView::new(graph.clone(), e_ref);
-                edge_index.index_edge(e_view, &writer_guard, &const_writers, &temporal_writers)?;
+                edge_index.index_edge(e_view, &writer, &const_writers, &temporal_writers)?;
             }
             Ok::<(), TantivyError>(())
         })?;
 
         // Commit writers
-        for writer_option in &const_writers {
-            if let Some(writer_mutex) = writer_option {
-                writer_mutex.lock().commit()?;
+        for writer_option in &mut const_writers {
+            if let Some(const_writer) = writer_option {
+                const_writer.commit()?;
             }
         }
-        for writer_option in &temporal_writers {
-            if let Some(writer_mutex) = writer_option {
-                writer_mutex.lock().commit()?;
+        for writer_option in &mut temporal_writers {
+            if let Some(temporal_writer) = writer_option {
+                temporal_writer.commit()?;
             }
         }
-        writer.lock().commit()?;
+        writer.commit()?;
 
         // Reload readers
         {

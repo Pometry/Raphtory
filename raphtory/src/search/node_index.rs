@@ -219,8 +219,8 @@ impl NodeIndex {
         &self,
         node: NodeView<G, GH>,
         writer: &IndexWriter,
-        const_writers: &[Option<Mutex<IndexWriter>>],
-        temporal_writers: &[Option<Mutex<IndexWriter>>],
+        const_writers: &[Option<IndexWriter>],
+        temporal_writers: &[Option<IndexWriter>],
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
         let node_name = node.name();
@@ -277,11 +277,11 @@ impl NodeIndex {
         let node_index = NodeIndex::new();
 
         // Initialize property indexes and get their writers
-        let const_writers = initialize_property_indexes(
+        let mut const_writers = initialize_property_indexes(
             node_index.constant_property_indexes.clone(),
             graph.node_meta().const_prop_meta(),
         )?;
-        let temporal_writers = initialize_property_indexes(
+        let mut temporal_writers = initialize_property_indexes(
             node_index.temporal_property_indexes.clone(),
             graph.node_meta().temporal_prop_meta(),
         )?;
@@ -299,14 +299,14 @@ impl NodeIndex {
         })?;
 
         // Commit writers
-        for writer_option in &const_writers {
-            if let Some(writer_mutex) = writer_option {
-                writer_mutex.lock().commit()?;
+        for writer_option in &mut const_writers {
+            if let Some(const_writer) = writer_option {
+                const_writer.commit()?;
             }
         }
-        for writer_option in &temporal_writers {
-            if let Some(writer_mutex) = writer_option {
-                writer_mutex.lock().commit()?;
+        for writer_option in &mut temporal_writers {
+            if let Some(temporal_writer) = writer_option {
+                temporal_writer.commit()?;
             }
         }
         writer.commit()?;

@@ -76,7 +76,7 @@ pub(crate) fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index
 pub fn initialize_property_indexes(
     property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     prop_meta: &PropMapper,
-) -> tantivy::Result<Vec<Option<Mutex<IndexWriter>>>> {
+) -> tantivy::Result<Vec<Option<IndexWriter>>> {
     let properties = prop_meta
         .get_keys()
         .into_iter()
@@ -90,7 +90,7 @@ pub fn initialize_property_indexes(
         .collect_vec();
 
     let mut prop_index_guard = property_indexes.write()?;
-    let mut writers: Vec<Option<Mutex<IndexWriter>>> = Vec::new();
+    let mut writers: Vec<Option<IndexWriter>> = Vec::new();
 
     for (prop_name, prop_id, prop_type) in properties {
         // Resize the vector if needed
@@ -102,7 +102,7 @@ pub fn initialize_property_indexes(
         if prop_index_guard[prop_id].is_none() {
             let property_index = PropertyIndex::new(ArcStr::from(prop_name), prop_type);
             let writer = property_index.index.writer(50_000_000)?;
-            writers.push(Some(Mutex::new(writer)));
+            writers.push(Some(writer));
             prop_index_guard[prop_id] = Some(property_index);
         }
     }
@@ -116,14 +116,13 @@ fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
     time: i64,
     field: &str,
     id: u64,
-    writers: &[Option<Mutex<IndexWriter>>],
+    writers: &[Option<IndexWriter>],
 ) -> tantivy::Result<()>
 where
     I: Iterator<Item = (ArcStr, usize, Prop)>,
 {
     for (prop_name, prop_id, prop_value) in properties {
-        if let Some(Some(writer_mutex)) = writers.get(prop_id) {
-            let mut prop_writer = writer_mutex.lock();
+        if let Some(Some(prop_writer)) = writers.get(prop_id) {
             if let Some(property_index) = &mut property_indexes[prop_id] {
                 let prop_doc = property_index.create_document(
                     time,

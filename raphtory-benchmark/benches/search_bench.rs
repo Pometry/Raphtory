@@ -15,6 +15,7 @@ use raphtory::{
         NodeViewOps, PropertyFilter, StableDecode,
     },
 };
+use rayon::prelude::*;
 use std::{sync::Arc, time::Instant};
 
 static GRAPH: Lazy<Arc<PersistentGraph>> = Lazy::new(|| {
@@ -48,7 +49,7 @@ fn get_node_names() -> Vec<&'static str> {
         "SPARK-22884",
         "weichenxu123",
         "SPARK-22885",
-        // "josephkb",
+        "josephkb",
     ]
 }
 
@@ -171,18 +172,12 @@ fn get_property_filters_not_in() -> Vec<PropertyFilter> {
 fn bench_search_nodes_by_name(c: &mut Criterion) {
     let graph = setup_graph();
     let node_names = get_node_names();
-
     let mut rng = thread_rng();
-    let filters: Vec<_> = (0..1000)
-        .map(|_| {
-            let random_name = *node_names.choose(&mut rng).unwrap();
-            CompositeNodeFilter::Node(Filter::eq("node_name", random_name))
-        })
-        .collect();
 
     c.bench_function("search_nodes_by_name", |b| {
         b.iter(|| {
-            let random_filter = filters.choose(&mut rng).unwrap();
+            let random_name = node_names.choose(&mut rng).unwrap();
+            let random_filter = CompositeNodeFilter::Node(Filter::eq("node_name", *random_name));
             graph.search_nodes(&random_filter, 5, 0).unwrap();
         })
     });
@@ -251,13 +246,20 @@ fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
 
     c.bench_function("search_nodes_by_composite_property_filter_and", |b| {
         b.iter(|| {
-            let random_filter1 = property_filters.choose(&mut rng).unwrap();
-            let random_filter2 = property_filters.choose(&mut rng).unwrap();
-            let filter = CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Property(random_filter1.clone()),
-                CompositeNodeFilter::Property(random_filter2.clone()),
-            ]);
-            graph.search_nodes(&filter, 5, 0).unwrap();
+            let mut chosen_filters = property_filters
+                .choose_multiple(&mut rng, 2)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if chosen_filters.len() == 2 {
+                let random_filter1 = chosen_filters.pop().unwrap();
+                let random_filter2 = chosen_filters.pop().unwrap();
+                let filter = CompositeNodeFilter::And(vec![
+                    CompositeNodeFilter::Property(random_filter1),
+                    CompositeNodeFilter::Property(random_filter2),
+                ]);
+                graph.search_nodes(&filter, 5, 0).unwrap();
+            }
         })
     });
 }
@@ -269,13 +271,20 @@ fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
 
     c.bench_function("search_nodes_by_composite_property_filter_or", |b| {
         b.iter(|| {
-            let random_filter1 = property_filters.choose(&mut rng).unwrap();
-            let random_filter2 = property_filters.choose(&mut rng).unwrap();
-            let filter = CompositeNodeFilter::Or(vec![
-                CompositeNodeFilter::Property(random_filter1.clone()),
-                CompositeNodeFilter::Property(random_filter2.clone()),
-            ]);
-            graph.search_nodes(&filter, 5, 0).unwrap();
+            let mut chosen_filters = property_filters
+                .choose_multiple(&mut rng, 2)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if chosen_filters.len() == 2 {
+                let random_filter1 = chosen_filters.pop().unwrap();
+                let random_filter2 = chosen_filters.pop().unwrap();
+                let filter = CompositeNodeFilter::Or(vec![
+                    CompositeNodeFilter::Property(random_filter1),
+                    CompositeNodeFilter::Property(random_filter2),
+                ]);
+                graph.search_nodes(&filter, 5, 0).unwrap();
+            }
         })
     });
 }
@@ -299,14 +308,20 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
 
     c.bench_function("search_edges_by_src_dst", |b| {
         b.iter(|| {
-            let random_src_name = *node_names.choose(&mut rng).unwrap();
-            let random_dst_name = *node_names.choose(&mut rng).unwrap();
-            // println!("src = {}, dst = {}", random_src_name, random_dst_name);
-            let random_filter = CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Edge(Filter::eq("from", random_src_name)),
-                CompositeEdgeFilter::Edge(Filter::eq("to", random_dst_name)),
-            ]);
-            graph.search_edges(&random_filter, 5, 0).unwrap()
+            let mut chosen_names = node_names
+                .choose_multiple(&mut rng, 2)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if chosen_names.len() == 2 {
+                let random_src_name = chosen_names.pop().unwrap();
+                let random_dst_name = chosen_names.pop().unwrap();
+                let random_filter = CompositeEdgeFilter::And(vec![
+                    CompositeEdgeFilter::Edge(Filter::eq("from", random_src_name)),
+                    CompositeEdgeFilter::Edge(Filter::eq("to", random_dst_name)),
+                ]);
+                graph.search_edges(&random_filter, 5, 0).unwrap();
+            }
         })
     });
 }
@@ -355,7 +370,15 @@ fn bench_search_nodes_by_property_eq_raph(c: &mut Criterion) {
 
     c.bench_function("search_nodes_by_property_eq_raph", |b| {
         let random_filter = property_filters.choose(&mut rng).unwrap();
-        b.iter(|| graph.filter_nodes(random_filter.clone()).unwrap())
+        b.iter(|| {
+            graph
+                .filter_nodes(random_filter.clone())
+                .unwrap()
+                .nodes()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
+        })
     });
 }
 
@@ -367,7 +390,13 @@ fn bench_search_nodes_by_property_ne_raph(c: &mut Criterion) {
     c.bench_function("search_nodes_by_property_ne_raph", |b| {
         b.iter(|| {
             let random_filter = property_filters.choose(&mut rng).unwrap();
-            graph.filter_nodes(random_filter.clone()).unwrap();
+            graph
+                .filter_nodes(random_filter.clone())
+                .unwrap()
+                .nodes()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
         })
     });
 }
@@ -380,7 +409,13 @@ fn bench_search_nodes_by_property_in_raph(c: &mut Criterion) {
     c.bench_function("search_nodes_by_property_in_raph", |b| {
         b.iter(|| {
             let random_filter = property_filters.choose(&mut rng).unwrap();
-            graph.filter_nodes(random_filter.clone()).unwrap();
+            graph
+                .filter_nodes(random_filter.clone())
+                .unwrap()
+                .nodes()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
         })
     });
 }
@@ -393,7 +428,13 @@ fn bench_search_nodes_by_property_not_in_raph(c: &mut Criterion) {
     c.bench_function("search_nodes_by_property_not_in_raph", |b| {
         b.iter(|| {
             let random_filter = property_filters.choose(&mut rng).unwrap();
-            graph.filter_nodes(random_filter.clone()).unwrap();
+            graph
+                .filter_nodes(random_filter.clone())
+                .unwrap()
+                .nodes()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
         })
     });
 }
@@ -432,7 +473,13 @@ fn bench_search_edges_by_property_raph(c: &mut Criterion) {
     c.bench_function("search_edges_by_property_raph", |b| {
         b.iter(|| {
             let random_filter = property_filters.choose(&mut rng).unwrap();
-            graph.filter_edges(random_filter.clone()).unwrap()
+            graph
+                .filter_edges(random_filter.clone())
+                .unwrap()
+                .edges()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
         })
     });
 }
