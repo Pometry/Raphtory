@@ -1195,7 +1195,7 @@ mod views_test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
             let w = graph.window(0, 1);
-            let _ = degree_centrality(&w, None);
+            let _ = degree_centrality(&w);
         });
     }
 

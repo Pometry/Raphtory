@@ -1,5 +1,4 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::nodes::node_ref::AsNodeRef,
         state::{
@@ -8,7 +7,7 @@ use crate::{
         },
     },
     db::{
-        api::view::StaticGraphViewOps,
+        api::{state::NodeState, view::StaticGraphViewOps},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -21,6 +20,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
+use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
@@ -74,7 +74,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> AlgorithmResult<G, Vec<(i64, String)>, Vec<(i64, String)>> {
+) -> NodeState<'static, Vec<(i64, String)>, G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes
@@ -200,9 +200,8 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
         None,
         None,
     );
-
-    let results_type = std::any::type_name::<Vec<(i64, String)>>();
-    AlgorithmResult::new(g.clone(), "Temporal Reachability", results_type, result)
+    let result: FxHashMap<_, _> = result.into_iter().map(|(k, v)| (VID(k), v)).collect();
+    NodeState::new_from_map(g.clone(), result, |v| v)
 }
 
 #[cfg(test)]
@@ -248,7 +247,9 @@ mod generic_taint_tests {
             infected_nodes,
             stop_nodes,
         )
-        .get_all_with_names()
+        .into_iter()
+        .map(|(n, v)| (n.name(), v))
+        .collect()
     }
 
     #[test]

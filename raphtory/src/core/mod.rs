@@ -373,7 +373,7 @@ pub trait PropUnwrap: Sized {
         self.into_array().unwrap()
     }
 
-    fn as_f64(self) -> Option<f64>;
+    fn as_f64(&self) -> Option<f64>;
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -437,8 +437,8 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_array())
     }
 
-    fn as_f64(self) -> Option<f64> {
-        self.and_then(|p| p.as_f64())
+    fn as_f64(&self) -> Option<f64> {
+        self.as_ref().and_then(|p| p.as_f64())
     }
 }
 
@@ -563,16 +563,16 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn as_f64(self) -> Option<f64> {
+    fn as_f64(&self) -> Option<f64> {
         match self {
-            Prop::U8(v) => Some(v as f64),
-            Prop::U16(v) => Some(v as f64),
-            Prop::I32(v) => Some(v as f64),
-            Prop::I64(v) => Some(v as f64),
-            Prop::U32(v) => Some(v as f64),
-            Prop::U64(v) => Some(v as f64),
-            Prop::F32(v) => Some(v as f64),
-            Prop::F64(v) => Some(v),
+            Prop::U8(v) => Some(*v as f64),
+            Prop::U16(v) => Some(*v as f64),
+            Prop::I32(v) => Some(*v as f64),
+            Prop::I64(v) => Some(*v as f64),
+            Prop::U32(v) => Some(*v as f64),
+            Prop::U64(v) => Some(*v as f64),
+            Prop::F32(v) => Some(*v as f64),
+            Prop::F64(v) => Some(*v),
             _ => None,
         }
     }

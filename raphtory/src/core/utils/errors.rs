@@ -164,6 +164,9 @@ pub enum GraphError {
 
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
+
+    #[error("Property {0} does not exist")]
+    PropertyMissingError(String),
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,

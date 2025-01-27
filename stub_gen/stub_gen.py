@@ -5,6 +5,7 @@ import logging
 import textwrap
 import types
 from importlib.machinery import ExtensionFileLoader
+from itertools import chain
 from logging import ERROR
 from pathlib import Path
 from types import (
@@ -42,7 +43,7 @@ comment = """###################################################################
 #                                                                             #
 ###############################################################################\n"""
 
-imports = ""
+imports = []
 
 # imports for type checking
 global_ns = {}
@@ -53,19 +54,19 @@ def is_builtin(name: str) -> bool:
     return hasattr(builtins, name)
 
 
-def set_imports(preamble: str):
+def set_imports(preamble: list[str]):
     """
     Specify import statements that are added to each generated file
 
     Arguments:
-        preamble: the import statements
+        preamble: the list ofimport statements
 
     Note that this string will be evaluated to create the global namespace for checking type annotations
     """
     global imports
     global global_ns
     imports = preamble
-    exec(imports, global_ns)
+    exec("\n".join(imports), global_ns)
 
 
 def format_type(obj) -> str:
@@ -403,7 +404,19 @@ def gen_class(cls: type, name) -> str:
     return f"class {name}{bases}: \n{docstr}\n{str_entities}"
 
 
-def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
+def not_this_module_import(line: str, full_name: str) -> bool:
+    return (
+        f"from {full_name} import" not in line
+        and f"import {full_name}" != line
+        and f"import {full_name} " not in line
+    )
+
+
+def gen_module(
+    module: ModuleType, name: str, path: Path, log_path, full_name=None
+) -> None:
+    if full_name is None:
+        full_name = name
     global logger
     global fn_logger
     objs = vars(module)
@@ -428,13 +441,15 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
                 loader = getattr(obj, "__loader__", None)
                 if loader is None or isinstance(loader, ExtensionFileLoader):
                     modules.append((obj, obj_name))
-
-    stub_file = "\n".join([comment, imports, *stubs])
+    valid_imports = (
+        line for line in imports if not_this_module_import(line, full_name)
+    )
+    stub_file = "\n".join(chain([comment], valid_imports, stubs))
     path.mkdir(parents=True, exist_ok=True)
     file = path / "__init__.pyi"
     file.write_text(stub_file)
 
     for module, name in modules:
-        gen_module(module, name, path, f"{log_path}.{name}")
+        gen_module(module, name, path, f"{log_path}.{name}", f"{full_name}.{name}")
 
     return

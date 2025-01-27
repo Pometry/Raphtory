@@ -10,7 +10,6 @@
 from typing import *
 from raphtory import *
 from raphtory.algorithms import *
-from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
@@ -76,6 +75,14 @@ class VectorisedGraph(object):
 
         Returns:
           VectorSelection: The vector selection resulting from the search
+        """
+
+    def get_graph_documents(self) -> list[Document]:
+        """
+        Return all the graph level documents
+
+        Returns:
+          list[Document]: list of graph level documents
         """
 
     def nodes_by_similarity(
