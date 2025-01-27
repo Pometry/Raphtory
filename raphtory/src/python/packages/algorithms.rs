@@ -81,23 +81,19 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
         return Ok(vec![]);
     }
 
-    // If it's a single number (int or float)
     if let Ok(single_node) = param.extract::<PyNodeRef>() {
         return Ok(vec![single_node]);
     }
 
-    // If it's a list
     if let Ok(py_list) = param.downcast::<PyList>() {
         let mut nodes = Vec::new();
         for item in py_list.iter() {
-            // Extract each item as a float
             let num = item.extract::<PyNodeRef>()?;
             nodes.push(num);
         }
         return Ok(nodes);
     }
 
-    // If none of the above cases match, return an error
     Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
         "Expected None, a number, or a list of numbers",
     ))

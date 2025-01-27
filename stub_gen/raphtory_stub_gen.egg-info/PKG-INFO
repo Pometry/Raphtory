@@ -1,4 +1,0 @@
-Metadata-Version: 2.2
-Name: raphtory_stub_gen
-Version: 0.1.0
-Requires-Dist: docstring_parser>=0.15

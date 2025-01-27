@@ -71,18 +71,13 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
         nbors: FxHashSet<VID>,
     }
 
-    // let mut ctx: Context<G, ComputeStateVec> = graph.into();
-    //let neighbours_set = accumulators::hash_set::<VID>(0);
     let count = accumulators::sum::<usize>(1);
-
-    //ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
     let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, NborState>| {
         let mut nbors = FxHashSet::default();
         for t in s.neighbours() {
             if s.node < t.node {
-                //t.update(&neighbours_set, s.node);
                 nbors.insert(t.node);
             }
         }

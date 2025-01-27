@@ -1,7 +1,0 @@
-pyproject.toml
-stub_gen.py
-raphtory_stub_gen.egg-info/PKG-INFO
-raphtory_stub_gen.egg-info/SOURCES.txt
-raphtory_stub_gen.egg-info/dependency_links.txt
-raphtory_stub_gen.egg-info/requires.txt
-raphtory_stub_gen.egg-info/top_level.txt

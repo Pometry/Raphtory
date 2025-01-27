@@ -31,13 +31,7 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
                 .iter()
                 .filter(|nbor| nbor.degree() > 1 && nbor.node != s.node)
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0].node, nb[1].node) {
-                    true => Some(1),
-                    false => match graph.has_edge(nb[1].node, nb[0].node) {
-                        true => Some(1),
-                        false => None,
-                    },
-                })
+                .filter(|nb| graph.has_edge(nb[0], nb[1]) || graph.has_edge(nb[1], nb[0]))
                 .count() as f64;
             let mut degree = s.degree() as f64;
             if graph.has_edge(s.node, s.node) {
