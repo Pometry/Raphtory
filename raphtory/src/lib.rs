@@ -274,7 +274,7 @@ mod test_utils {
     pub struct GraphFixture {
         pub nodes: NodeFixture,
         pub no_props_edges: Vec<(u64, u64, i64)>,
-        pub edges: Vec<(u64, u64, i64, Vec<(String, Prop)>)>,
+        pub edges: Vec<(u64, u64, i64, Vec<(String, Prop)>, Option<&'static str>)>,
         pub edge_deletions: Vec<(u64, u64, i64)>,
         pub edge_const_props: HashMap<(u64, u64), Vec<(String, Prop)>>,
     }
@@ -315,7 +315,8 @@ mod test_utils {
         }
     }
 
-    impl<V, T, I: IntoIterator<Item = (V, V, T, Vec<(String, Prop)>)>> From<I> for GraphFixture
+    impl<V, T, I: IntoIterator<Item = (V, V, T, Vec<(String, Prop)>, Option<&'static str>)>> From<I>
+        for GraphFixture
     where
         u64: TryFrom<V>,
         i64: TryFrom<T>,
@@ -324,12 +325,13 @@ mod test_utils {
             Self {
                 edges: edges
                     .into_iter()
-                    .filter_map(|(src, dst, t, props)| {
+                    .filter_map(|(src, dst, t, props, layer)| {
                         Some((
                             src.try_into().ok()?,
                             dst.try_into().ok()?,
                             t.try_into().ok()?,
                             props,
+                            layer,
                         ))
                     })
                     .collect(),
@@ -437,6 +439,7 @@ mod test_utils {
                         i64::MIN..i64::MAX,
                         proptest::collection::vec(t_props, 1..7),
                         proptest::collection::vec(c_props, 1..3),
+                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
                     ),
                     0..=len,
                 )
@@ -453,13 +456,13 @@ mod test_utils {
                         let edges = edges.clone();
                         let const_props = edges
                             .iter()
-                            .into_group_map_by(|(src, dst, _, _, _)| (src, dst))
+                            .into_group_map_by(|(src, dst, _, _, _, _)| (src, dst))
                             .iter()
                             .map(|(&a, &ref b)| {
                                 let (src, dst) = a;
                                 let c_props = b
                                     .iter()
-                                    .flat_map(|(_, _, _, _, c)| c.clone())
+                                    .flat_map(|(_, _, _, _, c, _)| c.clone())
                                     .collect::<Vec<_>>();
                                 ((*src, *dst), c_props)
                             })
@@ -467,7 +470,9 @@ mod test_utils {
 
                         let edges = edges
                             .into_iter()
-                            .map(|(src, dst, time, t_props, _)| (src, dst, time, t_props))
+                            .map(|(src, dst, time, t_props, _, layer)| {
+                                (src, dst, time, t_props, layer)
+                            })
                             .collect::<Vec<_>>();
 
                         GraphFixture {
@@ -492,7 +497,7 @@ mod test_utils {
             let mut nodes = g_fixture
                 .edges
                 .iter()
-                .flat_map(|(src, dst, _, _)| [*src, *dst])
+                .flat_map(|(src, dst, _, _, _)| [*src, *dst])
                 .collect_vec();
             nodes.sort_unstable();
             nodes.dedup();
@@ -559,14 +564,14 @@ mod test_utils {
         for (src, dst, time) in &graph_fix.no_props_edges {
             g.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
         }
-        for (src, dst, time, props) in &graph_fix.edges {
-            g.add_edge(*time, src, dst, props.clone(), None).unwrap();
+        for (src, dst, time, props, layer) in &graph_fix.edges {
+            g.add_edge(*time, src, dst, props.clone(), *layer).unwrap();
         }
-        for (edge, props) in graph_fix.edge_const_props {
-            if let Some(edge) = g.edge(edge.0, edge.1) {
+        for ((src, dst), props) in graph_fix.edge_const_props {
+            if let Some(edge) = g.edge(src, dst) {
                 edge.update_constant_properties(props, None).unwrap();
             } else {
-                g.add_edge(0, edge.0, edge.1, NO_PROPS, None)
+                g.add_edge(0, src, dst, NO_PROPS, None)
                     .unwrap()
                     .update_constant_properties(props, None)
                     .unwrap();

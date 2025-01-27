@@ -142,19 +142,22 @@ pub(crate) fn encode_edge_cprop(
             vec![
                 Field::new(SRC_COL, id_type.clone(), false),
                 Field::new(DST_COL, id_type.clone(), false),
-                Field::new(LAYER_COL, DataType::Utf8, false),
+                Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },
         |edges, g, decoder, writer| {
             let row_group_size = 100_000.min(edges.len());
-            let all_layers = LayerIds::All;
+            let layers = 0..g.unfiltered_num_layers();
 
             for edge_rows in edges
                 .into_iter()
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    g.edge_layers(edge_ref, &all_layers)
+                    layers
+                        .clone()
+                        .into_iter()
+                        .map(move |l_id| edge_ref.at_layer(l_id))
                 })
                 .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)

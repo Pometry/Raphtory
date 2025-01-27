@@ -4,7 +4,6 @@ use crate::{
     io::arrow::dataframe::DFChunk,
 };
 use polars_arrow::array::Utf8Array;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::{
     iter::{
         plumbing::{Consumer, ProducerCallback, UnindexedConsumer},

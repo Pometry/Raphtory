@@ -388,7 +388,13 @@ impl ParquetDecoder for PersistentGraph {
 mod test {
     use super::*;
     use crate::{
-        db::graph::graph::assert_graph_equal,
+        db::{
+            api::{
+                storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+                view::internal::TimeSemantics,
+            },
+            graph::graph::assert_graph_equal,
+        },
         test_utils::{
             build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, GraphFixture,
             NodeFixture,
@@ -438,7 +444,7 @@ mod test {
             .unwrap();
         check_parquet_encoding(
             [
-                (0, 1, 12, vec![("one".to_string(), Prop::DTime(dt))]),
+                (0, 1, 12, vec![("one".to_string(), Prop::DTime(dt))], None),
                 (
                     1,
                     2,
@@ -451,6 +457,7 @@ mod test {
                             Prop::List(vec![Prop::I32(1), Prop::I32(2)].into()),
                         ),
                     ],
+                    Some("b"),
                 ),
                 (
                     2,
@@ -461,6 +468,7 @@ mod test {
                         ("one".to_string(), Prop::DTime(dt)),
                         ("five".to_string(), Prop::List(vec![Prop::str("a")].into())),
                     ],
+                    Some("a"),
                 ),
             ]
             .into(),
@@ -471,12 +479,19 @@ mod test {
     fn write_edges_empty_prop_first() {
         check_parquet_encoding(
             [
-                (0, 1, 12, vec![("a".to_string(), Prop::List(vec![].into()))]),
+                (
+                    0,
+                    1,
+                    12,
+                    vec![("a".to_string(), Prop::List(vec![].into()))],
+                    None,
+                ),
                 (
                     1,
                     2,
                     12,
                     vec![("a".to_string(), Prop::List(vec![Prop::str("aa")].into()))],
+                    None,
                 ),
             ]
             .into(),
@@ -494,6 +509,7 @@ mod test {
                 0,
                 0,
                 vec![("a".to_string(), Prop::List(vec![Prop::DTime(dt)].into()))],
+                None,
             )]
             .into(),
         );
@@ -512,6 +528,7 @@ mod test {
                     "a".to_string(),
                     Prop::map([("a", Prop::DTime(dt)), ("b", Prop::str("s"))]),
                 )],
+                None,
             )]
             .into(),
         );
@@ -526,12 +543,14 @@ mod test {
                     0,
                     0,
                     vec![("a".to_string(), Prop::map([("a", Prop::I32(1))]))],
+                    None,
                 ),
                 (
                     0,
                     0,
                     0,
                     vec![("a".to_string(), Prop::map([("b", Prop::str("x"))]))],
+                    None,
                 ),
             ]
             .into(),
@@ -542,12 +561,13 @@ mod test {
     fn edges_maps3() {
         check_parquet_encoding(
             [
-                (0, 0, 0, vec![("a".to_string(), Prop::U8(5))]),
+                (0, 0, 0, vec![("a".to_string(), Prop::U8(5))], None),
                 (
                     0,
                     0,
                     0,
                     vec![("b".to_string(), Prop::map([("c", Prop::U8(66))]))],
+                    None,
                 ),
             ]
             .into(),
@@ -557,7 +577,7 @@ mod test {
     #[test]
     fn edges_map4() {
         let g_fix = GraphFixture {
-            edges: vec![(0, 0, 0, vec![("a".to_string(), Prop::U8(5))])],
+            edges: vec![(0, 0, 0, vec![("a".to_string(), Prop::U8(5))], None)],
             edge_deletions: vec![(0, 0, 1)],
             no_props_edges: vec![],
             edge_const_props: vec![(
@@ -638,6 +658,29 @@ mod test {
             .into_iter()
             .collect();
         check_graph_props(nf)
+    }
+
+    #[test]
+    fn edge_props_1() {
+        let gp_fix = GraphFixture {
+            edge_const_props: vec![((0u64, 0u64), vec![("a".to_string(), Prop::I64(5))])]
+                .into_iter()
+                .collect(),
+            edge_deletions: vec![(6, 2, 4444)],
+            edges: vec![(
+                0,
+                0,
+                -67,
+                vec![
+                    ("x".to_string(), Prop::I64(5)),
+                    ("b".to_string(), Prop::Bool(false)),
+                ],
+                Some("a"),
+            )],
+            no_props_edges: vec![(7, 0, 469)],
+            nodes: NodeFixture::default(),
+        };
+        check_parquet_encoding(gp_fix);
     }
 
     #[test]

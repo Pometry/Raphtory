@@ -562,6 +562,7 @@ pub(crate) fn load_node_props_from_df<
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
+    let mut node_type_col_resolved = vec![];
 
     let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock()?;
@@ -580,18 +581,26 @@ pub(crate) fn load_node_props_from_df<
             |key, dtype| graph.resolve_node_property(key, dtype, true),
         )?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
-        let node_type_col_resolved = node_type_col.resolve(graph)?;
         let node_col = df.node_col(node_id_index)?;
 
         node_col_resolved.resize_with(df.len(), Default::default);
+        node_type_col_resolved.resize_with(df.len(), Default::default);
+
         node_col
             .par_iter()
             .zip(node_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
+            .zip(node_type_col.par_iter())
+            .zip(node_type_col_resolved.par_iter_mut())
+            .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
                 let vid = write_locked_graph
                     .resolve_node(gid)
                     .map_err(|_| LoadError::FatalError)?;
+                let node_type_res = write_locked_graph
+                    .resolve_node_type(node_type)
+                    .map_err(|_| LoadError::FatalError)?
+                    .inner();
+                *node_type_resolved = node_type_res;
                 if let Some(cache) = cache {
                     cache.resolve_node(vid, gid);
                 }

@@ -119,12 +119,9 @@ impl InternalAdditionOps for TemporalGraph {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
-        let out = self
-            .node_meta
+        self.node_meta
             .resolve_prop_id(prop, dtype.clone(), is_static)
-            .map_err(|e| e.into());
-        println!("resolve_node_property: const:{is_static} {prop}:{dtype:?} -> {out:?}");
-        out
+            .map_err(|e| e.into())
     }
 
     fn resolve_edge_property(
