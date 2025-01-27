@@ -82,6 +82,15 @@ impl<'a> WriteLockedGraph<'a> {
             .get_or_init(gid, || self.graph.storage.nodes.next_id())
     }
 
+    pub fn resolve_node_type(
+        &self,
+        node_type: Option<&str>,
+    ) -> Result<MaybeNew<usize>, GraphError> {
+        node_type
+            .map(|node_type| Ok(self.graph.node_meta.get_or_create_node_type_id(node_type)))
+            .unwrap_or_else(|| Ok(MaybeNew::Existing(0)))
+    }
+
     pub fn num_shards(&self) -> usize {
         self.nodes.num_shards().max(self.edges.num_shards())
     }
