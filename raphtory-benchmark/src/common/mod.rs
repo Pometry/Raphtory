@@ -575,7 +575,6 @@ pub fn run_graph_ops_benches(
 }
 
 pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
-    println!("graph: {graph}");
     bench(group, "proto_encode", None, |b: &mut Bencher| {
         b.iter_batched(
             || TempDir::new().unwrap(),
@@ -586,7 +585,6 @@ pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: G
 }
 
 pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
-    println!("graph: {graph}");
     let f = TempDir::new().unwrap();
     graph.encode(f.path()).unwrap();
     bench(group, "proto_decode", None, |b| {

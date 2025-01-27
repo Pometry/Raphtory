@@ -75,8 +75,6 @@ mod test {
         test_storage,
     };
     use proptest::prelude::*;
-    #[cfg(feature = "io")]
-    use tracing::info;
 
     #[cfg(feature = "io")]
     use raphtory_api::core::utils::logging::global_info_logger;
@@ -171,8 +169,8 @@ mod test {
             .unwrap();
 
         test_storage!(&graph, |graph| {
-            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
-            info!("{result:?}")
+            let _ = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+            // TODO: Add assertions
         });
     }
 }

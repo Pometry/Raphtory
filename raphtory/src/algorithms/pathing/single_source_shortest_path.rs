@@ -70,7 +70,6 @@ mod sssp_tests {
         test_storage,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
-    use tracing::info;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -120,8 +119,7 @@ mod sssp_tests {
             for (node, values) in expected {
                 assert_eq!(results.get_by_node(node).unwrap().name(), values);
             }
-            let binding = single_source_shortest_path(graph, 5, Some(4));
-            info!("{:?}", binding);
+            let _ = single_source_shortest_path(graph, 5, Some(4));
         });
     }
 }
