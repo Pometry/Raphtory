@@ -193,6 +193,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
 
             props.into_prop_list()
         }
+        DataType::Null => Prop::List(vec![].into()),
         dt => panic!("Data type not recognized {dt:?}"),
     }
 }
@@ -229,6 +230,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
             None => Ok(PropType::NDTime),
             Some(_) => Ok(PropType::DTime),
         },
+        DataType::Null => Ok(PropType::Empty),
         _ => Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
 }

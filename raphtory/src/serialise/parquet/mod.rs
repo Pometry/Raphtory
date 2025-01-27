@@ -291,7 +291,7 @@ fn decode_graph_storage(
             SRC_COL,
             DST_COL,
             Some(&t_prop_columns),
-            None::<&[String]>,
+            None,
             None,
             None,
             Some(LAYER_COL),

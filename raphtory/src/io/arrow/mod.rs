@@ -55,7 +55,7 @@ mod test {
             "src",
             "dst",
             Some(&["prop1", "prop2"]),
-            None::<&[String]>,
+            None,
             None,
             layer_name,
             layer_col,

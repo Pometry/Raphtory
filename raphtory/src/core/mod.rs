@@ -307,7 +307,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
         }
         PropType::Empty => {
             // this is odd, we'll just pick one and hope for the best
-            Ok(DataType::Utf8)
+            Ok(DataType::Null)
         }
     }
 }

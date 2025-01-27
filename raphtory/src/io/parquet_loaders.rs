@@ -79,14 +79,15 @@ pub fn load_nodes_from_parquet<
 
 pub fn load_edges_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    S: AsRef<str>,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[impl AsRef<str>]>,
-    constant_properties: Option<&[impl AsRef<str>]>,
+    properties: Option<&[S]>,
+    constant_properties: Option<&[S]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
