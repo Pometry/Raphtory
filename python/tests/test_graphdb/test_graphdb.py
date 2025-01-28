@@ -1031,6 +1031,16 @@ def create_graph_edge_properties():
     return g
 
 
+def test_edge_constant_properties_layers():
+    g = Graph()
+    g.add_edge(0, 1, 2, layer="a")
+    g.add_edge(0, 1, 2)
+    g.edge(1, 2).add_constant_properties({"test": 1})
+    constant_exploded = g.layer("a").edges.explode().properties.constant
+    assert constant_exploded.values() == [[None]]
+    assert constant_exploded.keys() == ["test"]
+
+
 def test_arrow_array_properties():
     g = Graph()
     days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
