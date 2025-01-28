@@ -1,4 +1,7 @@
-use super::proto::{prop::Array, prop_type::Array as ArrayType};
+use super::proto::{
+    prop::Array,
+    prop_type::{Array as ArrayType, Scalar as ScalarType},
+};
 use crate::{
     core::{
         prop_array::PropArray, utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType,
@@ -63,39 +66,18 @@ fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
             })
         }
         _ => Some(PType {
-            kind: Some(proto::prop_type::p_type::Kind::Scalar(
-                as_proto_prop_type(p_type)?.into(),
-            )),
+            kind: Some(proto::prop_type::p_type::Kind::Scalar(ScalarType {
+                p_type: as_proto_prop_type(p_type)?.into(),
+            })),
         }),
-    }
-}
-
-fn prop_type_from_i32(i: i32) -> Option<SPropType> {
-    match i {
-        0 => Some(SPropType::Str),
-        1 => Some(SPropType::U8),
-        2 => Some(SPropType::U16),
-        3 => Some(SPropType::I32),
-        4 => Some(SPropType::I64),
-        5 => Some(SPropType::U32),
-        6 => Some(SPropType::U64),
-        7 => Some(SPropType::F32),
-        8 => Some(SPropType::F64),
-        9 => Some(SPropType::Bool),
-        10 => Some(SPropType::List),
-        11 => Some(SPropType::Map),
-        12 => Some(SPropType::NdTime),
-        16 => Some(SPropType::DTime),
-        15 => Some(SPropType::Document),
-        _ => None,
     }
 }
 
 fn as_prop_type2(p_type: PType) -> Option<PropType> {
     match p_type.kind? {
-        proto::prop_type::p_type::Kind::Scalar(p_type) => as_prop_type(prop_type_from_i32(p_type)?),
+        proto::prop_type::p_type::Kind::Scalar(scalar) => as_prop_type(scalar.p_type()),
         proto::prop_type::p_type::Kind::Array(array) => {
-            let p_type = as_prop_type(prop_type_from_i32(array.p_type)?)?;
+            let p_type = as_prop_type(array.p_type())?;
             Some(PropType::Array(Box::new(p_type)))
         }
     }
@@ -235,24 +217,21 @@ impl UpdateNodeTProps {
 }
 
 pub(crate) trait PropTypeExt {
-    fn p_type(&self) -> Option<i32>;
+    fn p_type(&self) -> SPropType;
     fn p_type2(&self) -> Option<&PType>;
 
-    fn prop_type(&self) -> Option<PropType> {
+    fn prop_type(&self) -> PropType {
         self.p_type2()
             .and_then(|p_type| as_prop_type2(*p_type))
-            .or_else(|| {
-                self.p_type()
-                    .as_ref()
-                    .and_then(|p_type| as_prop_type(prop_type_from_i32(*p_type)?))
-            })
+            .or_else(|| as_prop_type(self.p_type()))
+            .unwrap_or(PropType::Empty)
     }
 }
 
 impl PropTypeExt for NewNodeCProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -262,8 +241,8 @@ impl PropTypeExt for NewNodeCProp {
 
 impl PropTypeExt for NewNodeTProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -273,8 +252,8 @@ impl PropTypeExt for NewNodeTProp {
 
 impl PropTypeExt for NewEdgeCProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -284,8 +263,8 @@ impl PropTypeExt for NewEdgeCProp {
 
 impl PropTypeExt for NewEdgeTProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {
@@ -295,8 +274,8 @@ impl PropTypeExt for NewEdgeTProp {
 
 impl PropTypeExt for NewGraphTProp {
     #[allow(deprecated)]
-    fn p_type(&self) -> Option<i32> {
-        self.p_type
+    fn p_type(&self) -> SPropType {
+        self.p_type()
     }
 
     fn p_type2(&self) -> Option<&PType> {

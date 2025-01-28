@@ -39,7 +39,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
     }
 
     pub fn contains(&self, key: &str) -> bool {
-        self.get(key).is_some()
+        self.props.get_const_prop_id(key).is_some()
     }
 
     pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
