@@ -156,4 +156,3 @@ arrow-data = { version = "53.2.0" }
 arrow-ipc = { version = "53.2.0" }
 moka = { version = "0.12.7", features = ["sync"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
-hyperloglogplus = "0.4.1"

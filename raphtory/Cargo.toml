@@ -50,9 +50,6 @@ bytemuck = { workspace = true }
 tracing = { workspace = true }
 ahash = { workspace = true }
 
-# algorithms
-hyperloglogplus = { workspace = true }
-
 # io optional dependencies
 csv = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }
