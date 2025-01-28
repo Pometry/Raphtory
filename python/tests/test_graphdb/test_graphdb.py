@@ -1041,6 +1041,15 @@ def test_edge_constant_properties_layers():
     assert constant_exploded.keys() == ["test"]
 
 
+def test_temporal_edge_properties_layers():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"test": 1}, layer="a")
+    g.add_edge(0, 1, 2)
+    temporal_exploded = g.default_layer().edges.explode().properties.temporal
+    assert temporal_exploded.keys() == ["test"]
+    assert temporal_exploded.values() == [[[]]]
+
+
 def test_arrow_array_properties():
     g = Graph()
     days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
