@@ -258,7 +258,8 @@ fn decode_graph_storage(
     let g_type = {
         let exclude = vec![TIME_COL];
         let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
-        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, None, Some(&c_props))?;
+        let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props)?;
 
         g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
     };
@@ -275,7 +276,8 @@ fn decode_graph_storage(
     if std::fs::exists(&t_graph_path)? {
         let exclude = vec![TIME_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
-        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, Some(&t_props), None)?;
+        let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[])?;
     }
 
     let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];

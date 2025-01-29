@@ -214,25 +214,16 @@ pub fn load_edge_deletions_from_parquet<
 
 pub fn load_graph_props_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
-    S: AsRef<str>,
 >(
     graph: &G,
     parquet_path: &Path,
     time: &str,
-    properties: Option<&[S]>,
-    constant_properties: Option<&[S]>,
+    properties: &[&str],
+    constant_properties: &[&str],
 ) -> Result<(), GraphError> {
-    let properties = properties
-        .into_iter()
-        .flat_map(|s| s.into_iter().map(|s| s.as_ref()))
-        .collect::<Vec<_>>();
-    let constant_properties = constant_properties
-        .into_iter()
-        .flat_map(|s| s.into_iter().map(|s| s.as_ref()))
-        .collect::<Vec<_>>();
     let mut cols_to_check = vec![time];
-    cols_to_check.extend(&properties);
-    cols_to_check.extend(&constant_properties);
+    cols_to_check.extend_from_slice(&properties);
+    cols_to_check.extend_from_slice(&constant_properties);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
