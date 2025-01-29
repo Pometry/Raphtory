@@ -30,7 +30,6 @@ use std::{
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
-    S: AsRef<str>,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -38,21 +37,13 @@ pub fn load_nodes_from_parquet<
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    properties: Option<&[S]>,
-    constant_properties: Option<&[S]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    let properties = properties
-        .into_iter()
-        .flat_map(|s| s.into_iter().map(|s| s.as_ref()))
-        .collect::<Vec<_>>();
-    let constant_properties = constant_properties
-        .into_iter()
-        .flat_map(|s| s.into_iter().map(|s| s.as_ref()))
-        .collect::<Vec<_>>();
     let mut cols_to_check = vec![id, time];
-    cols_to_check.extend(&properties);
-    cols_to_check.extend(&constant_properties);
+    cols_to_check.extend_from_slice(&properties);
+    cols_to_check.extend_from_slice(&constant_properties);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -64,8 +55,8 @@ pub fn load_nodes_from_parquet<
             df_view,
             time,
             id,
-            Some(&properties),
-            Some(&constant_properties),
+            &properties,
+            &constant_properties,
             shared_constant_properties,
             node_type,
             node_type_col,
@@ -79,39 +70,23 @@ pub fn load_nodes_from_parquet<
 
 pub fn load_edges_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
-    S: AsRef<str>,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[S]>,
-    constant_properties: Option<&[S]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
-    let properties = properties
-        .into_iter()
-        .flatten()
-        .map(|props| props.as_ref())
-        .collect::<Vec<_>>();
-    let constant_properties = constant_properties
-        .into_iter()
-        .flatten()
-        .map(|props| props.as_ref())
-        .collect::<Vec<_>>();
+    cols_to_check.extend_from_slice(&properties);
+    cols_to_check.extend_from_slice(&constant_properties);
 
-    for prop in &properties {
-        cols_to_check.push(&prop);
-    }
-
-    for prop in &constant_properties {
-        cols_to_check.push(&prop);
-    }
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
@@ -124,8 +99,8 @@ pub fn load_edges_from_parquet<
             time,
             src,
             dst,
-            Some(&properties),
-            Some(&constant_properties),
+            &properties,
+            &constant_properties,
             shared_constant_properties,
             layer,
             layer_col,
@@ -145,15 +120,12 @@ pub fn load_node_props_from_parquet<
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: Option<&[impl AsRef<str>]>,
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    let constant_properties = constant_properties
-        .into_iter()
-        .flat_map(|props| props.into_iter().map(|s| s.as_ref()))
-        .collect::<Vec<_>>();
     let mut cols_to_check = vec![id];
-    cols_to_check.extend(&constant_properties);
+    cols_to_check.extend_from_slice(&constant_properties);
+
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -167,7 +139,7 @@ pub fn load_node_props_from_parquet<
             id,
             node_type,
             node_type_col,
-            Some(&constant_properties),
+            &constant_properties,
             shared_constant_properties,
             graph,
         )
@@ -184,7 +156,7 @@ pub fn load_edge_props_from_parquet<
     parquet_path: &Path,
     src: &str,
     dst: &str,
-    constant_properties: Option<&[impl AsRef<str>]>,
+    constant_properties: &[&str],
     shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
@@ -193,12 +165,8 @@ pub fn load_edge_props_from_parquet<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    let constant_properties = constant_properties
-        .into_iter()
-        .flat_map(|props| props.into_iter().map(|s| s.as_ref()))
-        .collect::<Vec<_>>();
 
-    cols_to_check.extend(&constant_properties);
+    cols_to_check.extend_from_slice(&constant_properties);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
@@ -207,7 +175,7 @@ pub fn load_edge_props_from_parquet<
             df_view,
             src,
             dst,
-            Some(&constant_properties),
+            &constant_properties,
             shared_const_properties,
             layer,
             layer_col,

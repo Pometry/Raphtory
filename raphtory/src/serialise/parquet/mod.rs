@@ -283,6 +283,10 @@ fn decode_graph_storage(
 
     if std::fs::exists(&t_edge_path)? {
         let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
+        let t_prop_columns = t_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
 
         load_edges_from_parquet(
             &g,
@@ -290,8 +294,8 @@ fn decode_graph_storage(
             TIME_COL,
             SRC_COL,
             DST_COL,
-            Some(&t_prop_columns),
-            None,
+            &t_prop_columns,
+            &[],
             None,
             None,
             Some(LAYER_COL),
@@ -301,13 +305,17 @@ fn decode_graph_storage(
     let c_edge_path = path.as_ref().join(EDGES_C_PATH);
     if std::fs::exists(&c_edge_path)? {
         let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
+        let constant_properties = c_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
 
         load_edge_props_from_parquet(
             &g,
             &c_edge_path,
             SRC_COL,
             DST_COL,
-            Some(&c_prop_columns),
+            &constant_properties,
             None,
             None,
             Some(LAYER_COL),
@@ -332,6 +340,10 @@ fn decode_graph_storage(
     if std::fs::exists(&t_node_path)? {
         let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
+        let t_prop_columns = t_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
 
         load_nodes_from_parquet(
             &g,
@@ -340,8 +352,8 @@ fn decode_graph_storage(
             NODE_ID,
             None,
             Some(TYPE_COL),
-            Some(&t_prop_columns),
-            None,
+            &t_prop_columns,
+            &[],
             None,
         )?;
     }
@@ -350,6 +362,10 @@ fn decode_graph_storage(
     if std::fs::exists(&c_node_path)? {
         let exclude = vec![NODE_ID, TYPE_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
+        let c_prop_columns = c_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
 
         load_node_props_from_parquet(
             &g,
@@ -357,7 +373,7 @@ fn decode_graph_storage(
             NODE_ID,
             None,
             Some(TYPE_COL),
-            Some(&c_prop_columns),
+            &c_prop_columns,
             None,
         )?;
     }

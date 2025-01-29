@@ -57,16 +57,13 @@ pub(crate) fn load_nodes_from_df<
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
     node_id: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
-
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -224,16 +221,13 @@ pub(crate) fn load_edges_from_df<
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
-
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -525,12 +519,10 @@ pub(crate) fn load_node_props_from_df<
     node_id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: Option<&[&str]>,
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let constant_properties = constant_properties.unwrap_or(&[]);
-
     let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -650,18 +642,12 @@ pub(crate) fn load_edges_props_from_df<
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     src: &str,
     dst: &str,
-    constant_properties: Option<&[&str]>,
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: &[&str],
+    shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let constant_properties = constant_properties
-        .into_iter()
-        .flatten()
-        .map(|s| s.as_ref())
-        .collect::<Vec<_>>();
-
     let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -675,7 +661,7 @@ pub(crate) fn load_edges_props_from_df<
         None
     };
     let shared_constant_properties =
-        process_shared_properties(shared_constant_properties, |key, dtype| {
+        process_shared_properties(shared_const_properties, |key, dtype| {
             graph.resolve_edge_property(key, dtype, true)
         })?;
 
@@ -741,10 +727,6 @@ pub(crate) fn load_edges_props_from_df<
                 *resolved = vid;
                 Ok::<(), LoadError>(())
             })?;
-
-        write_locked_graph
-            .nodes
-            .resize(write_locked_graph.num_nodes());
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
@@ -1050,7 +1032,7 @@ mod tests {
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
@@ -1070,7 +1052,7 @@ mod tests {
             let cache_file = TempDir::new().unwrap();
             g.cache(cache_file.path()).unwrap();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
             let g = Graph::load_cached(cache_file.path()).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {

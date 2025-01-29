@@ -661,8 +661,9 @@ impl PyGraph {
         constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref());
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_nodes_from_pandas(
             &self.graph,
             df,
@@ -670,8 +671,8 @@ impl PyGraph {
             id,
             node_type,
             node_type_col,
-            properties.as_deref(),
-            constant_properties.as_deref(),
+            &properties,
+            &constant_properties,
             shared_constant_properties.as_ref(),
         )
     }
@@ -707,8 +708,9 @@ impl PyGraph {
         constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref());
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_nodes_from_parquet(
             &self.graph,
             parquet_path.as_path(),
@@ -716,8 +718,8 @@ impl PyGraph {
             id,
             node_type,
             node_type_col,
-            properties.as_deref(),
-            constant_properties.as_deref(),
+            &properties,
+            &constant_properties,
             shared_constant_properties.as_ref(),
         )
     }
@@ -755,16 +757,17 @@ impl PyGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref());
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_edges_from_pandas(
             &self.graph,
             df,
             time,
             src,
             dst,
-            properties.as_deref(),
-            constant_properties.as_deref(),
+            &properties,
+            &constant_properties,
             shared_constant_properties.as_ref(),
             layer,
             layer_col,
@@ -804,16 +807,17 @@ impl PyGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref());
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             time,
             src,
             dst,
-            properties.as_deref(),
-            constant_properties.as_deref(),
+            &properties,
+            &constant_properties,
             shared_constant_properties.as_ref(),
             layer,
             layer_col,
@@ -847,14 +851,15 @@ impl PyGraph {
         constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_node_props_from_pandas(
             &self.graph,
             df,
             id,
             node_type,
             node_type_col,
-            constant_properties.as_deref(),
+            &constant_properties,
             shared_constant_properties.as_ref(),
         )
     }
@@ -886,14 +891,15 @@ impl PyGraph {
         constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_node_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             id,
             node_type,
             node_type_col,
-            constant_properties.as_deref(),
+            &constant_properties,
             shared_constant_properties.as_ref(),
         )
     }
@@ -927,13 +933,14 @@ impl PyGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_edge_props_from_pandas(
             &self.graph,
             df,
             src,
             dst,
-            constant_properties.as_deref(),
+            &constant_properties,
             shared_constant_properties.as_ref(),
             layer,
             layer_col,
@@ -969,13 +976,14 @@ impl PyGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
+        let constant_properties =
+            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
         load_edge_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             src,
             dst,
-            constant_properties.as_deref(),
+            &constant_properties,
             shared_constant_properties.as_ref(),
             layer,
             layer_col,

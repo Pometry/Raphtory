@@ -194,7 +194,7 @@ impl PropMapper {
             Some(id) => {
                 let existing_dtype = self
                     .get_dtype(id)
-                    .expect("Existing id should always have a dtype"); // TODO: change this to return an error
+                    .expect("Existing id should always have a dtype");
                 if existing_dtype == dtype {
                     Ok(Some(id))
                 } else {
