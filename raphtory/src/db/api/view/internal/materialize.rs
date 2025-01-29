@@ -42,6 +42,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -90,6 +91,16 @@ impl MaterializedGraph {
     }
 }
 
+impl InternalIndexSearch for MaterializedGraph {
+    #[cfg(feature = "search")]
+    fn searcher(&self) -> Result<Searcher, GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.searcher(),
+            MaterializedGraph::PersistentGraph(g) => g.searcher(),
+        }
+    }
+}
+
 impl InternalDeletionOps for MaterializedGraph {
     fn internal_delete_edge(
         &self,
@@ -118,6 +129,34 @@ impl InternalDeletionOps for MaterializedGraph {
 }
 
 impl DeletionOps for MaterializedGraph {}
+
+impl NodeHistoryFilter for MaterializedGraph {
+    fn is_prop_update_available(&self, node_id: VID, time: TimeIndexEntry, prop_id: usize) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.is_prop_update_available(node_id, time, prop_id),
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_prop_update_available(node_id, time, prop_id)
+            }
+        }
+    }
+
+    fn is_prop_update_available_window(
+        &self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_prop_update_available_window(node_id, time, prop_id, w)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_prop_update_available_window(node_id, time, prop_id, w)
+            }
+        }
+    }
+}
 
 #[enum_dispatch]
 pub trait InternalMaterialize {

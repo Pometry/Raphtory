@@ -1,4 +1,7 @@
-use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+use crate::{
+    core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
+    db::graph::views::property_filter::FilterOperator,
+};
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
@@ -17,6 +20,7 @@ use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
+use tracing::error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -298,6 +302,27 @@ pub enum GraphError {
 
     #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
     UnsupportedArrowDataType(PropType),
+
+    #[error("Not supported")]
+    NotSupported,
+
+    #[error("Failed to acquire read lock")]
+    LockError,
+
+    #[error("Operator {0} requires a property value, but none was provided.")]
+    InvalidFilter(FilterOperator),
+
+    #[error("Property {0} not found in temporal or constant metadata")]
+    PropertyNotFound(String),
+
+    #[error("PropertyIndex not found for property {0}")]
+    PropertyIndexNotFound(String),
+
+    #[error("Tokenization is support only for str field type")]
+    UnsupportedFieldTypeForTokenization,
+
+    #[error("Not tokens found")]
+    NoTokensFound,
 }
 
 impl GraphError {

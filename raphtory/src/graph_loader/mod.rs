@@ -112,6 +112,7 @@ pub mod neo4j_examples;
 pub mod reddit_hyperlinks;
 pub mod stable_coins;
 pub mod sx_superuser_graph;
+pub mod raph_social;
 
 pub fn fetch_file(
     name: &str,

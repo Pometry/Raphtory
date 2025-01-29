@@ -14,7 +14,8 @@ use crate::{
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
+                PyConstProperties, PyConstantProperties, PyProperties, PyTemporalProp,
+                PyTemporalProperties,
             },
             views::graph_view::PyGraphView,
         },
@@ -58,6 +59,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyRef,
         PyPropertyFilter,
         PyWindowSet,
+        AlgorithmResult,
         GraphIndex
     );
 
