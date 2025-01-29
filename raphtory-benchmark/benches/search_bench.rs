@@ -18,9 +18,13 @@ use raphtory::{
 use rayon::prelude::*;
 use std::{sync::Arc, time::Instant};
 
-static GRAPH: Lazy<Arc<PersistentGraph>> = Lazy::new(|| {
-    // let graph = PersistentGraph::decode("/tmp/graphs/SPARK-22915").unwrap();
-    let graph = PersistentGraph::decode("/tmp/graphs/master").unwrap();
+static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
+    let data_dir = "/tmp/graphs/raph_social/rf0.1";
+    // let data_dir = "/tmp/graphs/raph_social/rf1.0";
+    let graph = Graph::decode(data_dir).unwrap();
+
+    println!("Nodes count = {}", graph.count_nodes());
+    println!("Edges count = {}", graph.count_edges());
 
     let start = Instant::now();
     let _ = graph.searcher().unwrap();
@@ -30,141 +34,233 @@ static GRAPH: Lazy<Arc<PersistentGraph>> = Lazy::new(|| {
     Arc::new(graph)
 });
 
-fn setup_graph() -> Arc<PersistentGraph> {
+fn setup_graph() -> Arc<Graph> {
     Arc::clone(&GRAPH)
 }
 
 fn get_node_names() -> Vec<&'static str> {
     vec![
-        "SPARK-22644",
-        "SPARK-22882",
-        "smurakozi",
-        "SPARK-22915",
-        "SPARK-22883",
-        "gsomogyi",
-        "SPARK-22886",
-        "attilapiros",
-        "SPARK-22887",
-        "SPARK-22881",
-        "SPARK-22884",
-        "weichenxu123",
-        "SPARK-22885",
-        "josephkb",
+        "forum_362",
+        "post_13707",
+        "comment_54312",
+        "comment_67046",
+        "person_2431",
+        "person_238",
+        "person_666",
+        "comment_5905",
+        "comment_13180",
+        "post_9227",
+        "post_3390",
+        "post_31007",
+        "person_243",
+        "comment_51777",
+        "forum_76",
+        "comment_29138",
+        "comment_39131",
+        "comment_64817",
+        "forum_15",
+        "forum_418",
+        "forum_328",
+        "forum_178",
+        "forum_75",
+        "post_3081",
     ]
 }
 
-fn get_property_filters_eq() -> Vec<PropertyFilter> {
+fn get_node_property_filters_eq() -> Vec<PropertyFilter> {
     vec![
-        PropertyFilter::eq("issuetype", "Test"),
-        PropertyFilter::eq("summary", "StructuredStreaming"),
-        PropertyFilter::eq("priority", "Major"),
-        PropertyFilter::eq("description", "Transformers"),
-        PropertyFilter::eq("duration", 1i64),
-        PropertyFilter::eq("Fix Version", "2.3.0"),
-        PropertyFilter::eq("resolution", "Fixed"),
-        PropertyFilter::eq("status", "Resolved"),
+        PropertyFilter::eq("first_name", "Calista"),
+        PropertyFilter::eq("last_name", "Williamson"),
+        PropertyFilter::eq("gender", "female"),
+        PropertyFilter::eq("title", "deleniti"),
+        // PropertyFilter::eq("creator_id", "Resolved"),
+        PropertyFilter::eq("location_ip", "178.87.115.183"),
+        PropertyFilter::eq("browser_used", "Edge"),
+        PropertyFilter::eq("content", "voluptatibus"),
+        PropertyFilter::eq("length", 100u64),
     ]
 }
 
-fn get_property_filters_ne() -> Vec<PropertyFilter> {
+fn get_node_property_filters_ne() -> Vec<PropertyFilter> {
     vec![
-        PropertyFilter::ne("issuetype", "Test"),
-        PropertyFilter::ne("summary", "StructuredStreaming"),
-        PropertyFilter::ne("priority", "Major"),
-        PropertyFilter::ne("description", "Transformers"),
-        PropertyFilter::ne("duration", 1i64),
-        PropertyFilter::ne("Fix Version", "2.3.0"),
-        PropertyFilter::ne("resolution", "Fixed"),
-        PropertyFilter::ne("status", "Resolved"),
+        PropertyFilter::eq("first_name", "Calista"),
+        PropertyFilter::eq("last_name", "Williamson"),
+        PropertyFilter::eq("gender", "female"),
+        PropertyFilter::eq("title", "deleniti"),
+        // PropertyFilter::eq("creator_id", "Resolved"),
+        PropertyFilter::eq("location_ip", "178.87.115.183"),
+        PropertyFilter::eq("browser_used", "Edge"),
+        PropertyFilter::eq("content", "voluptatibus"),
+        PropertyFilter::eq("length", 100u64),
     ]
 }
 
-fn get_property_filters_in() -> Vec<PropertyFilter> {
+fn get_node_property_filters_in() -> Vec<PropertyFilter> {
     vec![
-        PropertyFilter::any("issuetype", vec![Prop::Str("Test".into())]),
         PropertyFilter::any(
-            "summary",
+            "first_name",
+            vec![Prop::Str("Rowland".into()), Prop::Str("Heath".into())],
+        ),
+        PropertyFilter::any(
+            "last_name",
+            vec![Prop::Str("Buckridge".into()), Prop::Str("Pollich".into())],
+        ),
+        PropertyFilter::any("gender", vec![Prop::Str("male".into())]),
+        PropertyFilter::any(
+            "title",
             vec![
-                Prop::Str("StructuredStreaming".into()),
-                Prop::Str("Query".into()),
+                Prop::Str("optio".into()),
+                Prop::Str("dolorem".into()),
+            ],
+        ),
+        PropertyFilter::any("location_ip", vec![Prop::I64(1i64)]),
+        PropertyFilter::any(
+            "browser_used",
+            vec![
+                Prop::Str("Firefox".into()),
+                Prop::Str("Chrome".into()),
             ],
         ),
         PropertyFilter::any(
-            "priority",
-            vec![
-                Prop::Str("Major".into()),
-                Prop::Str("Critical".into()),
-                Prop::Str("Trivial".into()),
-            ],
+            "content",
+            vec![Prop::Str("sit".into()), Prop::Str("qui".into())],
         ),
         PropertyFilter::any(
-            "description",
-            vec![
-                Prop::Str("Transformers".into()),
-                Prop::Str("SESSION".into()),
-            ],
-        ),
-        PropertyFilter::any("duration", vec![Prop::I64(1i64)]),
-        PropertyFilter::any(
-            "Fix Version",
-            vec![
-                Prop::Str("2.3.0".into()),
-                Prop::Str("4.0.0".into()),
-                Prop::Str("3.5.0".into()),
-            ],
-        ),
-        PropertyFilter::any(
-            "resolution",
-            vec![Prop::Str("Fixed".into()), Prop::Str("Duplicate".into())],
-        ),
-        PropertyFilter::any(
-            "status",
-            vec![Prop::Str("Resolved".into()), Prop::Str("Reopened".into())],
+            "length",
+            vec![Prop::U64(100), Prop::U64(420)],
         ),
     ]
 }
 
-fn get_property_filters_not_in() -> Vec<PropertyFilter> {
+fn get_node_property_filters_not_in() -> Vec<PropertyFilter> {
     vec![
-        PropertyFilter::not_any("issuetype", vec![Prop::Str("Test".into())]),
-        PropertyFilter::not_any(
-            "summary",
+        PropertyFilter::any(
+            "first_name",
+            vec![Prop::Str("Rowland".into()), Prop::Str("Heath".into())],
+        ),
+        PropertyFilter::any(
+            "last_name",
+            vec![Prop::Str("Buckridge".into()), Prop::Str("Pollich".into())],
+        ),
+        PropertyFilter::any("gender", vec![Prop::Str("male".into())]),
+        PropertyFilter::any(
+            "title",
             vec![
-                Prop::Str("StructuredStreaming".into()),
-                Prop::Str("Query".into()),
+                Prop::Str("optio".into()),
+                Prop::Str("dolorem".into()),
+            ],
+        ),
+        PropertyFilter::any("location_ip", vec![Prop::I64(1i64)]),
+        PropertyFilter::any(
+            "browser_used",
+            vec![
+                Prop::Str("Firefox".into()),
+                Prop::Str("Chrome".into()),
+            ],
+        ),
+        PropertyFilter::any(
+            "content",
+            vec![Prop::Str("sit".into()), Prop::Str("qui".into())],
+        ),
+        PropertyFilter::any(
+            "length",
+            vec![Prop::U64(100), Prop::U64(420)],
+        ),
+    ]
+}
+
+fn get_edge_property_filters_eq() -> Vec<PropertyFilter> {
+    vec![
+        PropertyFilter::eq("is_moderator", false),
+        PropertyFilter::eq("activity_score", 2.0695148555643916f64),
+        PropertyFilter::eq("is_featured", true),
+        PropertyFilter::eq("likes_count", 254u64),
+        PropertyFilter::eq("comments_count", 70u64),
+        PropertyFilter::eq("is_edited", false),
+        PropertyFilter::eq("upvotes", 70u64),
+        PropertyFilter::eq("reply_count", 100u64),
+    ]
+}
+
+fn get_edge_property_filters_ne() -> Vec<PropertyFilter> {
+    vec![
+        PropertyFilter::eq("is_moderator", false),
+        PropertyFilter::eq("activity_score", 2.0695148555643916f64),
+        PropertyFilter::eq("is_featured", true),
+        PropertyFilter::eq("likes_count", 254u64),
+        PropertyFilter::eq("comments_count", 70u64),
+        PropertyFilter::eq("is_edited", false),
+        PropertyFilter::eq("upvotes", 70u64),
+        PropertyFilter::eq("reply_count", 100u64),
+    ]
+}
+
+fn get_edge_property_filters_in() -> Vec<PropertyFilter> {
+    vec![
+        PropertyFilter::any(
+            "is_moderator",
+            vec![Prop::Bool(true)],
+        ),
+        PropertyFilter::any(
+            "activity_score",
+            vec![Prop::F64(2.0695148555643916f64)],
+        ),
+        PropertyFilter::any("is_featured", vec![Prop::Bool(true)]),
+        PropertyFilter::any(
+            "likes_count",
+            vec![
+                Prop::U64(254u64)
+            ],
+        ),
+        PropertyFilter::any("comments_count", vec![Prop::U64(70u64)]),
+        PropertyFilter::any(
+            "is_edited",
+            vec![
+                Prop::Bool(false),
+            ],
+        ),
+        PropertyFilter::any(
+            "upvotes",
+            vec![Prop::U64(70u64)],
+        ),
+        PropertyFilter::any(
+            "reply_count",
+            vec![Prop::U64(100u64)],
+        ),
+    ]
+}
+
+fn get_edge_property_filters_not_in() -> Vec<PropertyFilter> {
+    vec![
+        PropertyFilter::not_any(
+            "is_moderator",
+            vec![Prop::Bool(true)],
+        ),
+        PropertyFilter::not_any(
+            "activity_score",
+            vec![Prop::F64(2.0695148555643916f64)],
+        ),
+        PropertyFilter::not_any("is_featured", vec![Prop::Bool(true)]),
+        PropertyFilter::not_any(
+            "likes_count",
+            vec![
+                Prop::U64(254u64)
+            ],
+        ),
+        PropertyFilter::not_any("comments_count", vec![Prop::U64(70u64)]),
+        PropertyFilter::not_any(
+            "is_edited",
+            vec![
+                Prop::Bool(false),
             ],
         ),
         PropertyFilter::not_any(
-            "priority",
-            vec![
-                Prop::Str("Major".into()),
-                Prop::Str("Critical".into()),
-                Prop::Str("Trivial".into()),
-            ],
+            "upvotes",
+            vec![Prop::U64(70u64)],
         ),
         PropertyFilter::not_any(
-            "description",
-            vec![
-                Prop::Str("Transformers".into()),
-                Prop::Str("SESSION".into()),
-            ],
-        ),
-        PropertyFilter::not_any("duration", vec![Prop::I64(1i64)]),
-        PropertyFilter::not_any(
-            "Fix Version",
-            vec![
-                Prop::Str("2.3.0".into()),
-                Prop::Str("4.0.0".into()),
-                Prop::Str("3.5.0".into()),
-            ],
-        ),
-        PropertyFilter::not_any(
-            "resolution",
-            vec![Prop::Str("Fixed".into()), Prop::Str("Duplicate".into())],
-        ),
-        PropertyFilter::not_any(
-            "status",
-            vec![Prop::Str("Resolved".into()), Prop::Str("Reopened".into())],
+            "reply_count",
+            vec![Prop::U64(100u64)],
         ),
     ]
 }
@@ -185,7 +281,7 @@ fn bench_search_nodes_by_name(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_eq(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_eq", |b| {
@@ -199,7 +295,7 @@ fn bench_search_nodes_by_property_eq(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_ne(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_ne();
+    let property_filters = get_node_property_filters_ne();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_ne", |b| {
@@ -213,7 +309,7 @@ fn bench_search_nodes_by_property_ne(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_in(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_in();
+    let property_filters = get_node_property_filters_in();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_in", |b| {
@@ -227,7 +323,7 @@ fn bench_search_nodes_by_property_in(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_not_in(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_not_in();
+    let property_filters = get_node_property_filters_not_in();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_not_in", |b| {
@@ -241,7 +337,7 @@ fn bench_search_nodes_by_property_not_in(c: &mut Criterion) {
 
 fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_composite_property_filter_and", |b| {
@@ -266,7 +362,7 @@ fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
 
 fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_composite_property_filter_or", |b| {
@@ -291,7 +387,7 @@ fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
 
 fn bench_search_nodes_count(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_count", |b| {
@@ -326,21 +422,111 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
     });
 }
 
-fn bench_search_edges_by_property(c: &mut Criterion) {
+fn bench_search_edges_by_property_eq(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_edge_property_filters_eq();
     let mut rng = thread_rng();
 
-    c.bench_function("search_edges_by_property", |b| {
+    c.bench_function("search_edges_by_property_eq", |b| {
         let random_filter = property_filters.choose(&mut rng).unwrap();
         let random_filter = CompositeEdgeFilter::Property(random_filter.clone());
         b.iter(|| graph.search_edges(&random_filter, 5, 0).unwrap())
     });
 }
 
+fn bench_search_edges_by_property_ne(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_edge_property_filters_ne();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_edges_by_property_ne", |b| {
+        let random_filter = property_filters.choose(&mut rng).unwrap();
+        let random_filter = CompositeEdgeFilter::Property(random_filter.clone());
+        b.iter(|| graph.search_edges(&random_filter, 5, 0).unwrap())
+    });
+}
+
+fn bench_search_edges_by_property_in(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_edge_property_filters_in();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_edges_by_property_in", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            let random_filter = CompositeEdgeFilter::Property(random_filter.clone());
+            graph.search_edges(&random_filter, 5, 0).unwrap();
+        })
+    });
+}
+
+fn bench_search_edges_by_property_not_in(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_edge_property_filters_not_in();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_edges_by_property_not_in", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            let random_filter = CompositeEdgeFilter::Property(random_filter.clone());
+            graph.search_edges(&random_filter, 5, 0).unwrap();
+        })
+    });
+}
+
+fn bench_search_edges_by_composite_property_filter_and(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_edge_property_filters_eq();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_edges_by_composite_property_filter_and", |b| {
+        b.iter(|| {
+            let mut chosen_filters = property_filters
+                .choose_multiple(&mut rng, 2)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if chosen_filters.len() == 2 {
+                let random_filter1 = chosen_filters.pop().unwrap();
+                let random_filter2 = chosen_filters.pop().unwrap();
+                let filter = CompositeEdgeFilter::And(vec![
+                    CompositeEdgeFilter::Property(random_filter1),
+                    CompositeEdgeFilter::Property(random_filter2),
+                ]);
+                graph.search_edges(&filter, 5, 0).unwrap();
+            }
+        })
+    });
+}
+
+fn bench_search_edges_by_composite_property_filter_or(c: &mut Criterion) {
+    let graph = setup_graph();
+    let property_filters = get_edge_property_filters_eq();
+    let mut rng = thread_rng();
+
+    c.bench_function("search_edges_by_composite_property_filter_or", |b| {
+        b.iter(|| {
+            let mut chosen_filters = property_filters
+                .choose_multiple(&mut rng, 2)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if chosen_filters.len() == 2 {
+                let random_filter1 = chosen_filters.pop().unwrap();
+                let random_filter2 = chosen_filters.pop().unwrap();
+                let filter = CompositeEdgeFilter::Or(vec![
+                    CompositeEdgeFilter::Property(random_filter1),
+                    CompositeEdgeFilter::Property(random_filter2),
+                ]);
+                graph.search_edges(&filter, 5, 0).unwrap();
+            }
+        })
+    });
+}
+
 fn bench_search_edges_count(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_edge_property_filters_eq();
     let mut rng = thread_rng();
 
     c.bench_function("search_edges_count", |b| {
@@ -366,7 +552,7 @@ fn bench_search_nodes_by_name_raph(c: &mut Criterion) {
 fn bench_search_nodes_by_property_eq_raph(c: &mut Criterion) {
     let graph = setup_graph();
     let mut rng = thread_rng();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
 
     c.bench_function("search_nodes_by_property_eq_raph", |b| {
         let random_filter = property_filters.choose(&mut rng).unwrap();
@@ -384,7 +570,7 @@ fn bench_search_nodes_by_property_eq_raph(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_ne_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_ne();
+    let property_filters = get_node_property_filters_ne();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_ne_raph", |b| {
@@ -403,7 +589,7 @@ fn bench_search_nodes_by_property_ne_raph(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_in_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_in();
+    let property_filters = get_node_property_filters_in();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_in_raph", |b| {
@@ -422,7 +608,7 @@ fn bench_search_nodes_by_property_in_raph(c: &mut Criterion) {
 
 fn bench_search_nodes_by_property_not_in_raph(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_property_filters_not_in();
+    let property_filters = get_node_property_filters_not_in();
     let mut rng = thread_rng();
 
     c.bench_function("search_nodes_by_property_not_in_raph", |b| {
@@ -442,7 +628,7 @@ fn bench_search_nodes_by_property_not_in_raph(c: &mut Criterion) {
 fn bench_search_nodes_count_raph(c: &mut Criterion) {
     let graph = setup_graph();
     let mut rng = thread_rng();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
 
     c.bench_function("search_nodes_count_raph", |b| {
         let random_filter = property_filters.choose(&mut rng).unwrap();
@@ -459,18 +645,74 @@ fn bench_search_edges_by_src_dst_raph(c: &mut Criterion) {
         b.iter(|| {
             let random_src_name = *node_names.choose(&mut rng).unwrap();
             let random_dst_name = *node_names.choose(&mut rng).unwrap();
-            println!("src = {}, dst = {}", random_src_name, random_dst_name);
-            graph.edge(random_src_name, random_dst_name).unwrap()
+            graph.edge(random_src_name, random_dst_name)
         })
     });
 }
 
-fn bench_search_edges_by_property_raph(c: &mut Criterion) {
+fn bench_search_edges_by_property_eq_raph(c: &mut Criterion) {
     let graph = setup_graph();
     let mut rng = thread_rng();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_edge_property_filters_eq();
 
-    c.bench_function("search_edges_by_property_raph", |b| {
+    c.bench_function("search_edges_by_property_eq_raph", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            graph
+                .filter_edges(random_filter.clone())
+                .unwrap()
+                .edges()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
+        })
+    });
+}
+
+fn bench_search_edges_by_property_ne_raph(c: &mut Criterion) {
+    let graph = setup_graph();
+    let mut rng = thread_rng();
+    let property_filters = get_edge_property_filters_ne();
+
+    c.bench_function("search_edges_by_property_ne_raph", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            graph
+                .filter_edges(random_filter.clone())
+                .unwrap()
+                .edges()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
+        })
+    });
+}
+
+fn bench_search_edges_by_property_in_raph(c: &mut Criterion) {
+    let graph = setup_graph();
+    let mut rng = thread_rng();
+    let property_filters = get_edge_property_filters_in();
+
+    c.bench_function("search_edges_by_property_in_raph", |b| {
+        b.iter(|| {
+            let random_filter = property_filters.choose(&mut rng).unwrap();
+            graph
+                .filter_edges(random_filter.clone())
+                .unwrap()
+                .edges()
+                .into_iter()
+                .take(5)
+                .collect::<Vec<_>>()
+        })
+    });
+}
+
+fn bench_search_edges_by_property_not_in_raph(c: &mut Criterion) {
+    let graph = setup_graph();
+    let mut rng = thread_rng();
+    let property_filters = get_edge_property_filters_not_in();
+
+    c.bench_function("search_edges_by_property_not_in_raph", |b| {
         b.iter(|| {
             let random_filter = property_filters.choose(&mut rng).unwrap();
             graph
@@ -487,7 +729,7 @@ fn bench_search_edges_by_property_raph(c: &mut Criterion) {
 fn bench_search_edges_count_raph(c: &mut Criterion) {
     let graph = setup_graph();
     let mut rng = thread_rng();
-    let property_filters = get_property_filters_eq();
+    let property_filters = get_node_property_filters_eq();
 
     c.bench_function("search_edges_count_raph", |b| {
         b.iter(|| {
@@ -508,8 +750,13 @@ criterion_group!(
     bench_search_nodes_by_composite_property_filter_or,
     bench_search_nodes_count,
     bench_search_edges_by_src_dst,
-    // bench_search_edges_by_property,
-    // bench_search_edges_count
+    bench_search_edges_by_property_eq,
+    bench_search_edges_by_property_ne,
+    bench_search_edges_by_property_in,
+    bench_search_edges_by_property_not_in,
+    bench_search_edges_by_composite_property_filter_and,
+    bench_search_edges_by_composite_property_filter_or,
+    bench_search_edges_count
 );
 
 criterion_group!(
@@ -520,9 +767,12 @@ criterion_group!(
     bench_search_nodes_by_property_in_raph,
     bench_search_nodes_by_property_not_in_raph,
     bench_search_nodes_count_raph,
-    // bench_search_edges_by_src_dst_raph,
-    // bench_search_edges_by_property_raph,
-    // bench_search_edges_count_raph
+    bench_search_edges_by_src_dst_raph,
+    bench_search_edges_by_property_eq_raph,
+    bench_search_edges_by_property_ne_raph,
+    bench_search_edges_by_property_in_raph,
+    bench_search_edges_by_property_not_in_raph,
+    bench_search_edges_count_raph
 );
 
 criterion_main!(search_benches, search_benches_raph);
