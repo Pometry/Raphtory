@@ -4917,11 +4917,8 @@ dependencies = [
 name = "raphtory-benchmark"
 version = "0.14.0"
 dependencies = [
- "clap",
  "criterion",
- "csv",
- "flate2",
- "pometry-storage",
+ "once_cell",
  "rand",
  "raphtory",
  "raphtory-api",
