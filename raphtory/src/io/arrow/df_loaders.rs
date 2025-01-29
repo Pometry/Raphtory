@@ -815,81 +815,6 @@ pub(crate) fn load_edges_props_from_df<
         let _ = pb.update(df.len());
     }
     Ok(())
-
-    // let constant_properties = constant_properties
-    //     .into_iter()
-    //     .flat_map(|s| s.into_iter().map(|s| s.as_ref()))
-    //     .collect::<Vec<_>>();
-    // let constant_properties_indices = constant_properties
-    //     .iter()
-    //     .map(|name| df_view.get_index(name.as_ref()))
-    //     .collect::<Result<Vec<_>, GraphError>>()?;
-    // let src_index = df_view.get_index(src)?;
-    // let dst_index = df_view.get_index(dst)?;
-    // let layer_index = if let Some(layer_col) = layer_col {
-    //     Some(df_view.get_index(layer_col.as_ref()))
-    // } else {
-    //     None
-    // };
-    // let layer_index = layer_index.transpose()?;
-    // #[cfg(feature = "python")]
-    // let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
-    // let shared_constant_properties = match shared_constant_properties {
-    //     None => {
-    //         vec![]
-    //     }
-    //     Some(props) => props
-    //         .iter()
-    //         .map(|(key, prop)| {
-    //             Ok((
-    //                 graph
-    //                     .resolve_edge_property(key, prop.dtype(), true)?
-    //                     .inner(),
-    //                 prop.clone(),
-    //             ))
-    //         })
-    //         .collect::<Result<Vec<_>, GraphError>>()?,
-    // };
-
-    // for chunk in df_view.chunks {
-    //     let df = chunk?;
-    //     let const_prop_iter = combine_properties(
-    //         &constant_properties,
-    //         &constant_properties_indices,
-    //         &df,
-    //         |name, dtype| graph.resolve_edge_property(name, dtype, true),
-    //     )?;
-
-    //     let layer = lift_layer_col(layer, layer_index, &df)?;
-    //     let src_col = lift_node_col(src_index, &df)?;
-    //     let dst_col = lift_node_col(dst_index, &df)?;
-    //     src_col
-    //         .par_iter()
-    //         .zip(dst_col.par_iter())
-    //         .zip(layer.par_iter())
-    //         .zip(const_prop_iter.par_rows())
-    //         .try_for_each(|(((src, dst), layer), cprops)| {
-    //             let src = src.ok_or(LoadError::MissingSrcError)?;
-    //             let dst = dst.ok_or(LoadError::MissingDstError)?;
-    //             let e = graph
-    //                 .edge(src, dst)
-    //                 .ok_or_else(|| GraphError::EdgeMissingError {
-    //                     src: src.to_owned(),
-    //                     dst: dst.to_owned(),
-    //                 })?;
-    //             let layer_id = graph.resolve_layer(layer)?.inner();
-    //             let props = cprops
-    //                 .chain(shared_constant_properties.iter().cloned())
-    //                 .collect::<Vec<_>>();
-    //             if !props.is_empty() {
-    //                 graph.internal_add_constant_edge_properties(e.edge.pid(), layer_id, &props)?;
-    //             }
-    //             Ok::<(), GraphError>(())
-    //         })?;
-    //     #[cfg(feature = "python")]
-    //     let _ = pb.update(df.len());
-    // }
-    // Ok(())
 }
 
 #[cfg(test)]
@@ -999,7 +924,7 @@ mod tests {
                     "src",
                     "dst",
                     Some(&["int_prop", "str_prop"]),
-                    None::<&[String]>,
+                    None,
                     None,
                     Some(edge_list.layer),
                     None,
