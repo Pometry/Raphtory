@@ -1,14 +1,12 @@
-use raphtory_api::core::entities::GID;
-use tracing::warn;
-
 use crate::{
     algorithms::components::connected_components::weakly_connected_components,
     db::{
         api::view::{GraphViewOps, StaticGraphViewOps},
         graph::views::node_subgraph::NodeSubgraph,
     },
-    prelude::Graph,
+    prelude::{Graph, NodeStateGroupBy},
 };
+use raphtory_api::core::entities::VID;
 
 /// Gives the large connected component of a graph.
 /// The large connected component is the largest (i.e., with the highest number of nodes)
@@ -33,30 +31,14 @@ impl LargestConnectedComponent for Graph {
     where
         Self: StaticGraphViewOps,
     {
-        let mut connected_components_map =
-            weakly_connected_components(self, usize::MAX, None).group_by();
-        let mut lcc_key: GID = GID::U64(0);
-        let mut key_length = 0;
-        let mut is_tie = false;
+        let connected_components = weakly_connected_components(self, usize::MAX, None).groups();
 
-        for (key, value) in &connected_components_map {
-            let length = value.len();
-            if length > key_length {
-                key_length = length;
-                lcc_key = key.clone();
-                is_tie = false;
-            } else if length == key_length {
-                is_tie = true
-            }
-        }
-        if is_tie {
-            warn!("Warning: The graph has two or more connected components that are both the largest. \
-            The returned component has been picked arbitrarily.");
-        }
-        return match connected_components_map.remove(&lcc_key) {
-            Some(nodes) => self.subgraph(nodes),
-            None => self.subgraph(self.nodes()),
-        };
+        let lcc = connected_components
+            .into_iter_subgraphs()
+            .map(|(_, subgraph)| subgraph)
+            .max_by(|l, r| l.count_nodes().cmp(&r.count_nodes()));
+
+        lcc.unwrap_or(self.subgraph(Vec::<VID>::new()))
     }
 }
 

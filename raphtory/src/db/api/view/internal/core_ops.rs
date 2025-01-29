@@ -36,8 +36,11 @@ use std::{iter, ops::Range};
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;
-#[cfg(feature = "storage")]
-use rayon::prelude::*;
+
+/// Check if two Graph views point at the same underlying storage
+pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
+    g1.core_graph().ptr_eq(&g2.core_graph())
+}
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
@@ -441,7 +444,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.active(w),
             NodeAdditions::Range(index) => index.active(w),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w.clone())),
+            NodeAdditions::Col(index) => index.iter().any(|index| index.active(w.clone())),
         }
     }
 
@@ -459,7 +462,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.first(),
             NodeAdditions::Range(index) => index.first(),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
+            NodeAdditions::Col(index) => index.iter().flat_map(|index| index.first()).min(),
         }
     }
 
@@ -468,7 +471,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.last(),
             NodeAdditions::Range(index) => index.last(),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
+            NodeAdditions::Col(index) => index.iter().flat_map(|index| index.last()).max(),
         }
     }
 

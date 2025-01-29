@@ -39,3 +39,4 @@ dev = ["docstring_parser >= 0.16", "pandas-stubs"]
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
+include = ["motif-images/*"]

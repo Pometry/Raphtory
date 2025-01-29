@@ -1,19 +1,21 @@
+use indexmap::IndexSet;
+use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
+use rand_distr::{Distribution, Exp};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
     fmt::Debug,
 };
 
-use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
-use rand_distr::{Distribution, Exp};
-
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::{nodes::node_ref::AsNodeRef, VID},
         utils::time::{error::ParseTimeError, TryIntoTime},
     },
-    db::api::view::StaticGraphViewOps,
+    db::api::{
+        state::{Index, NodeState},
+        view::StaticGraphViewOps,
+    },
     prelude::*,
 };
 
@@ -187,7 +189,7 @@ pub fn temporal_SEIR<
     initial_infection: T,
     seeds: S,
     rng: &mut R,
-) -> Result<AlgorithmResult<G, Infected>, SeedError>
+) -> Result<NodeState<'static, Infected, G>, SeedError>
 where
     SeedError: From<P::Error>,
 {
@@ -241,13 +243,13 @@ where
             }
         }
     }
-    let result = AlgorithmResult::new(
+    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
+    Ok(NodeState::new(
         g.clone(),
-        "temporal_SEIR",
-        "State",
-        states.into_iter().map(|(k, v)| (k.0, v)).collect(),
-    );
-    Ok(result)
+        g.clone(),
+        values.into(),
+        Some(Index::new(index)),
+    ))
 }
 
 #[cfg(test)]
@@ -416,8 +418,7 @@ mod test {
             temporal_SEIR(&g, Some(recovery_rate), None, p, 0, Number(1), &mut rng).unwrap();
 
         assert!(res_mem
-            .get_all()
             .iter()
-            .all(|(key, val)| res_arrow.get(key.id()).unwrap() == val));
+            .all(|(key, val)| res_arrow.get_by_node(key.id()).unwrap() == val));
     }
 }

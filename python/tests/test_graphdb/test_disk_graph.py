@@ -126,16 +126,16 @@ def test_disk_graph():
         20,
         print_result=False,
     )
-    assert len(list(actual.get_all_with_names())) == 1624
+    assert len(list(actual)) == 1624
 
     # Doesn't work yet (was silently running on only the first layer before but now actually panics because of lack of multilayer edge views)
     # actual = measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result=False)
-    # assert len(list(actual.get_all_with_names())) == 1624
+    # assert len(list(actual)) == 1624
 
     actual = measure(
         "Page Rank", algorithms.pagerank, g.layer("netflow"), 100, print_result=False
     )
-    assert len(list(actual.get_all_with_names())) == 1624
+    assert len(list(actual)) == 1624
 
 
 def test_disk_graph_type_filter():

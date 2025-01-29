@@ -3176,10 +3176,7 @@ mod db_tests {
 
         test_storage!(&graph, |graph| {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
-            assert_eq!(
-                weakly_connected_components(&wl, 10, None).get_all_values(),
-                vec![GID::U64(1); 4]
-            );
+            assert_eq!(weakly_connected_components(&wl, 10, None).groups().len(), 1);
         });
     }
 

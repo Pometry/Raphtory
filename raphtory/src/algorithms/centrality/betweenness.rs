@@ -1,10 +1,8 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::entities::VID,
-    db::graph::node::NodeView,
+    db::{api::state::NodeState, graph::node::NodeView},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use ordered_float::OrderedFloat;
 use std::collections::{HashMap, VecDeque};
 
 /// Computes the betweenness centrality for nodes in a given graph.
@@ -17,14 +15,14 @@ use std::collections::{HashMap, VecDeque};
 ///
 /// # Returns
 ///
-/// An [AlgorithmResult] containing the betweenness centrality of each node.
+/// A NodeState containing the betweenness centrality of each node.
 pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
-    g: &'graph G,
+    g: &G,
     k: Option<usize>,
     normalized: bool,
-) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
+) -> NodeState<'graph, f64, G> {
     // Initialize a hashmap to store betweenness centrality values.
-    let mut betweenness: HashMap<usize, f64> = HashMap::new();
+    let mut betweenness: Vec<f64> = vec![0.0; g.unfiltered_num_nodes()];
 
     // Get the nodes and the total number of nodes in the graph.
     let nodes = g.nodes();
@@ -86,8 +84,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
                 delta.insert(*v, new_delta_v);
             }
             if w != node.node.0 {
-                let updated_betweenness = betweenness.entry(w).or_insert(0.0);
-                *updated_betweenness += delta[&w];
+                betweenness[w] += delta[&w];
             }
         }
     }
@@ -96,20 +93,11 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     if normalized {
         let factor = 1.0 / ((n as f64 - 1.0) * (n as f64 - 2.0));
         for node in nodes.iter() {
-            betweenness
-                .entry(node.node.0)
-                .and_modify(|v| *v *= factor)
-                .or_insert(0.0f64);
-        }
-    } else {
-        for node in nodes.iter() {
-            betweenness.entry(node.node.0).or_insert(0.0f64);
+            betweenness[node.node.index()] *= factor;
         }
     }
 
-    // Construct and return the AlgorithmResult
-    let results_type = std::any::type_name::<f64>();
-    AlgorithmResult::new(g.clone(), "Betweenness", results_type, betweenness)
+    NodeState::new_from_eval(g.clone(), betweenness)
 }
 
 #[cfg(test)]
@@ -148,7 +136,7 @@ mod betweenness_centrality_test {
             expected.insert("6".to_string(), 0.0);
 
             let res = betweenness_centrality(graph, None, false);
-            assert_eq!(res.get_all_with_names(), expected);
+            assert_eq!(res, expected);
 
             let mut expected: HashMap<String, f64> = HashMap::new();
             expected.insert("1".to_string(), 0.0);
@@ -158,7 +146,7 @@ mod betweenness_centrality_test {
             expected.insert("5".to_string(), 0.0);
             expected.insert("6".to_string(), 0.0);
             let res = betweenness_centrality(graph, None, true);
-            assert_eq!(res.get_all_with_names(), expected);
+            assert_eq!(res, expected);
         });
     }
 }

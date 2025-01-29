@@ -32,6 +32,7 @@ use crate::{
             properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{
+            iterable::FromIterable,
             repr::StructReprBuilder,
             wrappers::{iterables::*, prop::PyPropertyFilter},
         },
@@ -58,7 +59,7 @@ use python::{
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
 use rayon::{iter::IntoParallelIterator, prelude::*};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
@@ -454,9 +455,16 @@ impl PyMutableNode {
 }
 
 /// A list of nodes that can be iterated over.
+#[derive(Clone)]
 #[pyclass(name = "Nodes", module = "raphtory", frozen)]
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
+}
+
+impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
+    }
 }
 
 impl_nodeviewops!(
@@ -517,6 +525,13 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
     }
 }
 
+#[derive(FromPyObject)]
+pub enum PyNodesCmp {
+    Set(HashSet<PyNodeRef>),
+    Iter(FromIterable<PyNodeRef>),
+    Nodes(PyNodes),
+}
+
 /// Operations on a list of nodes.
 /// These use all the same functions as a normal node except it returns a list of results.
 #[pymethods]
@@ -528,13 +543,21 @@ impl PyNodes {
     ///
     /// Returns:
     ///   bool: True if the nodes are equal, false otherwise.
-    fn __eq__(&self, other: &PyNodes) -> bool {
-        for (v1, v2) in self.nodes.iter().zip(other.nodes.iter()) {
-            if v1.id() != v2.id() {
-                return false;
+    fn __eq__(&self, other: PyNodesCmp) -> bool {
+        match other {
+            PyNodesCmp::Iter(nodes) => {
+                nodes.len() == self.nodes.len()
+                    && self
+                        .nodes
+                        .iter()
+                        .eq(nodes.iter().flat_map(|node_ref| self.nodes.get(node_ref)))
+            }
+            PyNodesCmp::Nodes(nodes) => self.nodes == nodes.nodes,
+            PyNodesCmp::Set(nodes) => {
+                nodes.len() == self.nodes.len()
+                    && nodes.iter().all(|node_ref| self.nodes.contains(node_ref))
             }
         }
-        true
     }
 
     /// The node ids
