@@ -31,9 +31,10 @@ impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
 
     fn try_from(graph: &GraphStorage) -> Result<Self, Self::Error> {
         let node_index = NodeIndex::index_nodes(graph)?;
-        let edge_index = EdgeIndex::index_edges(graph)?;
-
         // node_index.print()?;
+
+        let edge_index = EdgeIndex::index_edges(graph)?;
+        // edge_index.print()?;
 
         Ok(GraphIndex {
             node_index,
