@@ -17,7 +17,7 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use raphtory::algorithms::metrics::clustering_coefficient::clustering_coefficient;
+/// use raphtory::algorithms::metrics::clustering_coefficient::global_clustering_coefficient::global_clustering_coefficient;
 /// use raphtory::prelude::*;
 /// let graph = Graph::new();
 ///  let edges = vec![
@@ -31,11 +31,11 @@ use crate::{
 ///  for (src, dst) in edges {
 ///      graph.add_edge(0, src, dst, NO_PROPS, None).expect("Unable to add edge");
 ///  }
-///  let results = clustering_coefficient(&graph.at(1));
+///  let results = global_clustering_coefficient(&graph.at(1));
 ///  println!("global_clustering_coefficient: {}", results);
 /// ```
 ///
-pub fn clustering_coefficient<G: StaticGraphViewOps>(g: &G) -> f64 {
+pub fn global_clustering_coefficient<G: StaticGraphViewOps>(g: &G) -> f64 {
     let tc_val = triangle_count(g, None);
     let output = triplet_count(g, None);
 
@@ -90,7 +90,7 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = clustering_coefficient(graph);
+            let results = global_clustering_coefficient(graph);
             assert_eq!(results, 0.3);
         });
     }

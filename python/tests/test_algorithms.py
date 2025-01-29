@@ -20,8 +20,31 @@ def gen_graph():
     g.add_edge(5, 4, 6, {})
     g.add_edge(15, 4, 7, {})
     g.add_edge(10, 4, 7, {})
+    g.add_edge(11, 4, 7, {})
     g.add_edge(10, 5, 8, {})
     return g
+
+
+def test_local_clustering_coefficient():
+    g = gen_graph()
+    expected = {
+        "1": 0.0,
+        "2": 0.3333333333333333,
+        "3": 0.0,
+        "4": 0.16666666666666666,
+        "5": 0.3333333333333333,
+        "6": 0.0,
+        "7": 0.0,
+        "8": 0.0,
+    }
+    actual = {
+        str(i): algorithms.local_clustering_coefficient(g, g.node(i))
+        for i in range(1, 9)
+    }
+    assert actual == expected
+    actual = algorithms.local_clustering_coefficient_batch(g, list(range(1, 9)))
+    actual = {str(i): actual[i] for i in range(1, 9)}
+    assert actual == expected
 
 
 def test_connected_components():

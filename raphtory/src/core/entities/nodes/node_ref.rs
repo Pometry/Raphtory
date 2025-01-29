@@ -8,7 +8,7 @@ pub enum NodeRef<'a> {
     External(GidRef<'a>),
 }
 
-pub trait AsNodeRef {
+pub trait AsNodeRef: Send + Sync {
     fn as_node_ref(&self) -> NodeRef;
 
     fn into_gid(self) -> Either<GID, VID>
