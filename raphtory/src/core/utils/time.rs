@@ -188,6 +188,14 @@ impl Default for Interval {
     }
 }
 
+impl TryFrom<String> for Interval {
+    type Error = ParseTimeError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
 impl TryFrom<&str> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
