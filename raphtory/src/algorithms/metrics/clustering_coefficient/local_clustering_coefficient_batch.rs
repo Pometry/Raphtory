@@ -55,7 +55,6 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
 mod clustering_coefficient_tests {
     use super::local_clustering_coefficient_batch;
     use crate::{
-        algorithms::centrality::pagerank::page_rank_tests::assert_eq_f64,
         db::{
             api::{mutation::AdditionOps, view::*},
             graph::graph::Graph,
