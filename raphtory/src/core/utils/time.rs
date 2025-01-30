@@ -307,7 +307,92 @@ impl Interval {
         };
         Ok(duration)
     }
+
+    pub fn discrete(num: u64) -> Self {
+        Interval {
+            epoch_alignment: false,
+            size: IntervalSize::Discrete(num)
+        }
+    }
+
+    pub fn milliseconds(ms: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::milliseconds(ms)),
+        }
+    }
+
+    pub fn seconds(seconds: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::seconds(seconds)),
+        }
+    }
+
+    pub fn minutes(minutes: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::minutes(minutes)),
+        }
+    }
+
+    pub fn hours(hours: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::hours(hours)),
+        }
+    }
+
+    pub fn days(days: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::days(days)),
+        }
+    }
+
+    pub fn weeks(weeks: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::weeks(weeks)),
+        }
+    }
+
+    pub fn months(months: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::months(months),
+        }
+    }
+
+    pub fn years(years: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::months(12 * years),
+        }
+    }
+
+    pub fn and(&self, other: &Self) -> Result<Self,  IntervalTypeError> {
+        match (self.size, other.size) {
+            (IntervalSize::Discrete(l), IntervalSize::Discrete(r)) => {
+                Ok(Interval {
+                    epoch_alignment: false,
+                    size: IntervalSize::Discrete(l + r),
+                })
+            },
+            (IntervalSize::Temporal {..}, IntervalSize::Temporal {..}) => {
+                Ok(Interval {
+                    epoch_alignment: true,
+                    size: self.size.add_temporal(other.size)
+                })
+            }
+            (_, _) => Err(IntervalTypeError())
+        }
+    }
 }
+
+#[derive(thiserror::Error, Debug)]
+#[error("Discrete and temporal intervals cannot be combined")]
+pub struct IntervalTypeError();
 
 impl Sub<Interval> for i64 {
     type Output = i64;
