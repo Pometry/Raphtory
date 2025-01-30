@@ -127,6 +127,10 @@ mod test {
                     "list_prop",
                     Prop::List(vec![Prop::F64(1.1), Prop::F64(2.2), Prop::F64(3.3)].into()),
                 ),
+                (
+                    "map_prop",
+                    Prop::map([("a", Prop::F64(1.0)), ("b", Prop::F64(2.0))]),
+                ),
                 ("cost_b", Prop::F64(76.0)),
             ],
             Some("b"),
@@ -171,10 +175,15 @@ mod test {
             (
                 "b".to_string(),
                 vec![
-                    (("list_prop", "List"), ["[1.1, 2.2, 3.3]"]).into(),
+                    (("list_prop", "List<F64>"), ["[1.1, 2.2, 3.3]"]).into(),
                     (("cost_b", "F64"), ["76"]).into(),
                     (("str_prop", "Str"), ["hello"]).into(),
                     (("bool_prop", "Bool"), ["true"]).into(),
+                    (
+                        ("map_prop", "Map{ a: F64, b: F64 }"),
+                        ["{\"a\": 1, \"b\": 2}"],
+                    )
+                        .into(),
                 ],
             ),
         ];

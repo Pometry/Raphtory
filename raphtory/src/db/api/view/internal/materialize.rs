@@ -37,9 +37,12 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{
-    entities::GidType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+use raphtory_api::{
+    core::{
+        entities::GidType,
+        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+    },
+    GraphType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -59,11 +62,6 @@ use serde::{Deserialize, Serialize};
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
-}
-
-pub enum GraphType {
-    EventGraph,
-    PersistentGraph,
 }
 
 impl Static for MaterializedGraph {}

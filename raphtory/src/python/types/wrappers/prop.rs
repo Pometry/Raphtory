@@ -1,6 +1,5 @@
-use super::document::PyDocument;
 use crate::{
-    core::{prop_array::PropArray, utils::errors::GraphError, DocumentInput, Prop},
+    core::{prop_array::PropArray, utils::errors::GraphError, Prop},
     db::graph::views::property_filter::internal::{
         InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
     },
@@ -36,7 +35,6 @@ impl<'py> IntoPyObject<'py> for Prop {
                     py.None().into_bound(py)
                 }
             }
-            Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
@@ -66,12 +64,6 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
-        }
-        if let Ok(d) = ob.extract::<PyDocument>() {
-            return Ok(Prop::Document(DocumentInput {
-                content: d.content,
-                life: d.life,
-            }));
         }
         if let Ok(list) = ob.extract() {
             return Ok(Prop::List(Arc::new(list)));
@@ -103,7 +95,6 @@ impl Repr for Prop {
             Prop::DTime(v) => v.repr(),
             Prop::NDTime(v) => v.repr(),
             Prop::Array(v) => format!("{:?}", v),
-            Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),

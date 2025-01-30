@@ -185,7 +185,7 @@ def test_node_property_filter_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop5: expected List but actual type is I64"
+    expected_error_message = "PropertyType Error: Wrong type for property prop5: expected List(I64) but actual type is I64"
     run_graphql_error_test(query, expected_error_message, graph())
 
 

@@ -25,6 +25,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
+use raphtory_api::GraphType;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{

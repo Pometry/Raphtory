@@ -5,3 +5,9 @@ pub mod core;
 pub mod python;
 
 pub mod iter;
+
+#[derive(PartialOrd, PartialEq, Debug)]
+pub enum GraphType {
+    EventGraph,
+    PersistentGraph,
+}

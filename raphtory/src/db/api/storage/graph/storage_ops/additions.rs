@@ -120,7 +120,7 @@ impl InternalAdditionOps for TemporalGraph {
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
         self.node_meta
-            .resolve_prop_id(prop, dtype, is_static)
+            .resolve_prop_id(prop, dtype.clone(), is_static)
             .map_err(|e| e.into())
     }
 
