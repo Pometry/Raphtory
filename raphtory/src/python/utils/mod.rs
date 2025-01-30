@@ -161,7 +161,7 @@ impl IntoTime for PyTime {
     }
 }
 
-pub(crate) struct PyInterval {
+pub struct PyInterval {
     interval: Result<Interval, ParseTimeError>,
 }
 
