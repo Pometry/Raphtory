@@ -141,7 +141,7 @@ pub trait TimeOps<'graph>:
     /// An expanding window is a window that grows by `step` size at each iteration.
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
+        Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 
@@ -155,7 +155,7 @@ pub trait TimeOps<'graph>:
         step: Option<I>,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
+        Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 }
@@ -242,7 +242,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
+        Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
@@ -263,7 +263,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         step: Option<I>,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
+        Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
