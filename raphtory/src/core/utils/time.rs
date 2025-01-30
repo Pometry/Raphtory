@@ -2,7 +2,10 @@ use crate::core::utils::time::error::{ParseTimeError::InvalidDateTimeString, *};
 use chrono::{DateTime, Duration, Months, NaiveDate, NaiveDateTime, TimeZone};
 use itertools::{Either, Itertools};
 use regex::Regex;
-use std::ops::{Add, Sub};
+use std::{
+    convert::Infallible,
+    ops::{Add, Sub},
+};
 
 pub mod error {
     use chrono::ParseError;
@@ -27,6 +30,12 @@ pub mod error {
         NegativeInt,
         #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
         InvalidDateTimeString(String),
+    }
+}
+
+impl From<Infallible> for ParseTimeError {
+    fn from(value: Infallible) -> Self {
+        match value {}
     }
 }
 
