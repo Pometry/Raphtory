@@ -1,17 +1,16 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use once_cell::sync::Lazy;
 use rand::{seq::SliceRandom, thread_rng};
 use raphtory::{
-    core::{IntoProp, Prop},
+    core::{ Prop},
     db::{
         api::view::{internal::InternalIndexSearch, SearchableGraphOps},
         graph::views::{
-            deletion_graph::PersistentGraph,
             property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
         },
     },
     prelude::{
-        AdditionOps, EdgePropertyFilterOps, Graph, GraphViewOps, NodePropertyFilterOps,
+        EdgePropertyFilterOps, Graph, GraphViewOps, NodePropertyFilterOps,
         NodeViewOps, PropertyFilter, StableDecode,
     },
 };
@@ -55,7 +54,7 @@ fn get_node_names() -> Vec<&'static str> {
         "person_243",
         "comment_51777",
         "forum_76",
-        "comment_29138",
+        "comment_29138", // nodes which 1 million comments
         "comment_39131",
         "comment_64817",
         "forum_15",
@@ -64,6 +63,15 @@ fn get_node_names() -> Vec<&'static str> {
         "forum_178",
         "forum_75",
         "post_3081",
+    ]
+}
+
+fn get_node_types() -> Vec<&'static str> {
+    vec![
+        "post",
+        "comment",
+        "forum",
+        "person",
     ]
 }
 
@@ -303,183 +311,332 @@ fn get_edge_property_filters_not_in() -> Vec<PropertyFilter> {
     ]
 }
 
-fn bench_search_nodes_by_name(c: &mut Criterion) {
+fn bench_search_nodes_by_property_filter<F>(c: &mut Criterion, bench_name: &str, filter_fn: F)
+where
+    F: Fn() -> Vec<PropertyFilter> + Copy,
+{
     let graph = setup_graph();
-    let node_names = get_node_names();
+    let property_filters = filter_fn();
     let mut rng = thread_rng();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| property_filters.choose(&mut rng).unwrap().clone())
+        .collect();
 
-    c.bench_function("search_nodes_by_name", |b| {
+    let mut group = c.benchmark_group(bench_name);
+
+    group.bench_function("search_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
         b.iter_batched(
             || {
-                let random_name = node_names.choose(&mut rng).unwrap().clone();
+                let random_filter = iter.next().unwrap().clone();
+                CompositeNodeFilter::Property(random_filter)
+            },
+            |random_filter| {
+                graph.search_nodes(&random_filter, 5, 0).unwrap();
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("raph_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || iter.next().unwrap().clone(),
+            |random_filter| {
+                graph
+                    .filter_nodes(random_filter)
+                    .unwrap()
+                    .nodes()
+                    .into_iter()
+                    .take(5)
+                    .collect::<Vec<_>>()
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.finish();
+}
+
+macro_rules! bench_search_nodes_by_property_filter {
+    ($fn_name:ident, $filter_fn:expr) => {
+        fn $fn_name(c: &mut Criterion) {
+            bench_search_nodes_by_property_filter(c, stringify!($fn_name), $filter_fn);
+        }
+    };
+}
+
+fn bench_search_nodes_by_property_filter_count<F>(c: &mut Criterion, bench_name: &str, filter_fn: F)
+where
+    F: Fn() -> Vec<PropertyFilter> + Copy,
+{
+    let graph = setup_graph();
+    let property_filters = filter_fn();
+    let mut rng = thread_rng();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| property_filters.choose(&mut rng).unwrap().clone())
+        .collect();
+
+    let mut group = c.benchmark_group(bench_name);
+
+    group.bench_function("search_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || {
+                let random_filter = iter.next().unwrap().clone();
+                CompositeNodeFilter::Property(random_filter)
+            },
+            |random_filter| graph.search_nodes_count(&random_filter),
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("raph_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || iter.next().unwrap().clone(),
+            |random_filter| graph.filter_nodes(random_filter.clone()).iter().count(),
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.finish();
+}
+
+macro_rules! bench_search_nodes_by_property_filter_count {
+    ($fn_name:ident, $filter_fn:expr) => {
+        fn $fn_name(c: &mut Criterion) {
+            bench_search_nodes_by_property_filter_count(c, stringify!($fn_name), $filter_fn);
+        }
+    };
+}
+
+fn bench_search_edges_by_property_filter<F>(c: &mut Criterion, bench_name: &str, filter_fn: F)
+where
+    F: Fn() -> Vec<PropertyFilter> + Copy,
+{
+    let graph = setup_graph();
+    let property_filters = filter_fn();
+    let mut rng = thread_rng();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| property_filters.choose(&mut rng).unwrap().clone())
+        .collect();
+
+    let mut group = c.benchmark_group(bench_name);
+
+    group.bench_function("search_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || {
+                let random_filter = iter.next().unwrap().clone();
+                CompositeEdgeFilter::Property(random_filter)
+            },
+            |random_filter| {
+                graph.search_edges(&random_filter, 5, 0).unwrap();
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("raph_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || iter.next().unwrap().clone(),
+            |random_filter| {
+                graph
+                    .filter_edges(random_filter)
+                    .unwrap()
+                    .edges()
+                    .into_iter()
+                    .take(5)
+                    .collect::<Vec<_>>()
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.finish();
+}
+
+macro_rules! bench_search_edges_by_property_filter {
+    ($fn_name:ident, $filter_fn:expr) => {
+        fn $fn_name(c: &mut Criterion) {
+            bench_search_edges_by_property_filter(c, stringify!($fn_name), $filter_fn);
+        }
+    };
+}
+
+fn bench_search_edges_by_property_filter_count<F>(c: &mut Criterion, bench_name: &str, filter_fn: F)
+where
+    F: Fn() -> Vec<PropertyFilter> + Copy,
+{
+    let graph = setup_graph();
+    let property_filters = filter_fn();
+    let mut rng = thread_rng();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| property_filters.choose(&mut rng).unwrap().clone())
+        .collect();
+
+    let mut group = c.benchmark_group(bench_name);
+
+    group.bench_function("search_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || {
+                let random_filter = iter.next().unwrap().clone();
+                CompositeEdgeFilter::Property(random_filter)
+            },
+            |random_filter| graph.search_edges_count(&random_filter),
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("raph_api", |b| {
+        let mut iter = sample_inputs.iter().cycle();
+        b.iter_batched(
+            || iter.next().unwrap().clone(),
+            |random_filter| graph.filter_edges(random_filter.clone()).iter().count(),
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.finish();
+}
+
+macro_rules! bench_search_edges_by_property_filter_count {
+    ($fn_name:ident, $filter_fn:expr) => {
+        fn $fn_name(c: &mut Criterion) {
+            bench_search_edges_by_property_filter_count(c, stringify!($fn_name), $filter_fn);
+        }
+    };
+}
+
+fn bench_search_nodes_by_name(c: &mut Criterion) {
+    let graph = setup_graph();
+    let mut rng = thread_rng();
+    let node_names = get_node_names();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| node_names.choose(&mut rng).unwrap().clone())
+        .collect();
+
+    let mut group = c.benchmark_group("bench_search_nodes_by_name");
+
+    group.bench_function("search_api", |b| {
+        b.iter_batched(
+            || {
+                let mut iter = sample_inputs.iter().cycle();
+                let random_name = iter.next().unwrap().clone();
                 CompositeNodeFilter::Node(Filter::eq("node_name", random_name))
             },
             |random_filter| {
                 graph.search_nodes(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("raph_api", |b| {
+        b.iter_batched(
+            || {
+                let mut iter = sample_inputs.iter().cycle();
+                iter.next().unwrap().clone()
+            },
+            |random_name| graph.node(random_name)
+            ,
+            BatchSize::SmallInput,
         )
     });
 }
 
-fn bench_search_nodes_by_property_eq(c: &mut Criterion) {
+fn bench_search_nodes_by_node_type(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
+    let node_types = get_node_names();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| node_types.choose(&mut rng).unwrap().clone())
+        .collect();
 
-    c.bench_function("search_nodes_by_property_eq", |b| {
+    let mut group = c.benchmark_group("bench_search_nodes_by_node_type");
+
+    group.bench_function("search_api", |b| {
         b.iter_batched(
             || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
+                let mut iter = sample_inputs.iter().cycle();
+                let random_node_type = iter.next().unwrap().clone();
+                CompositeNodeFilter::Node(Filter::eq("node_type", random_node_type))
             },
             |random_filter| {
                 graph.search_nodes(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
-}
 
-fn bench_search_nodes_by_property_ne(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_ne();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_ne", |b| {
+    group.bench_function("raph_api", |b| {
         b.iter_batched(
             || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
+                let mut iter = sample_inputs.iter().cycle();
+                iter.next().unwrap().clone()
             },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
+            |random_node_type| {
+                graph.nodes().type_filter(&[random_node_type])
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
 }
 
-fn bench_search_nodes_by_property_le(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_le();
-    let mut rng = thread_rng();
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_eq,
+    get_node_property_filters_eq
+);
 
-    c.bench_function("search_nodes_by_property_le", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_ne,
+    get_node_property_filters_ne
+);
 
-fn bench_search_nodes_by_property_lt(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_lt();
-    let mut rng = thread_rng();
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_le,
+    get_node_property_filters_le
+);
 
-    c.bench_function("search_nodes_by_property_lt", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_lt,
+    get_node_property_filters_lt
+);
 
-fn bench_search_nodes_by_property_ge(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_ge();
-    let mut rng = thread_rng();
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_ge,
+    get_node_property_filters_ge
+);
 
-    c.bench_function("search_nodes_by_property_ge", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_gt,
+    get_node_property_filters_gt
+);
 
-fn bench_search_nodes_by_property_gt(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_gt();
-    let mut rng = thread_rng();
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_in,
+    get_node_property_filters_in
+);
 
-    c.bench_function("search_nodes_by_property_gt", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
+bench_search_nodes_by_property_filter!(
+    bench_search_nodes_by_property_not_in,
+    get_node_property_filters_not_in
+);
 
-fn bench_search_nodes_by_property_in(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_in();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_in", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_not_in(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_not_in();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_not_in", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
+bench_search_nodes_by_property_filter_count!(
+    bench_search_nodes_count,
+    get_node_property_filters_eq
+);
 
 fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
     let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
 
-    c.bench_function("search_nodes_by_composite_property_filter_and", |b| {
+    c.bench_function("bench_search_nodes_by_composite_property_filter_and", |b| {
         b.iter_batched(
             || {
                 let random_filter1 = property_filters.choose(&mut rng).unwrap();
@@ -492,7 +649,7 @@ fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
             |random_filter| {
                 graph.search_nodes(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
 }
@@ -502,7 +659,7 @@ fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
     let property_filters = get_node_property_filters_eq();
     let mut rng = thread_rng();
 
-    c.bench_function("search_nodes_by_composite_property_filter_or", |b| {
+    c.bench_function("bench_search_nodes_by_composite_property_filter_or", |b| {
         b.iter_batched(
             || {
                 let random_filter1 = property_filters.choose(&mut rng).unwrap();
@@ -515,211 +672,105 @@ fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
             |random_filter| {
                 graph.search_nodes(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_count(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_eq();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_count", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_nodes_count(&random_filter).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
 }
 
 fn bench_search_edges_by_src_dst(c: &mut Criterion) {
     let graph = setup_graph();
-    let node_names = get_node_names();
     let mut rng = thread_rng();
+    let node_names = get_node_names();
+    let sample_inputs: Vec<_> = (0..100)
+        .map(|_| {
+            (
+                node_names.choose(&mut rng).unwrap().clone(),
+                node_names.choose(&mut rng).unwrap().clone(),
+            )
+        })
+        .collect();
 
-    c.bench_function("search_edges_by_src_dst", |b| {
+    let mut group = c.benchmark_group("bench_search_edges_by_src_dst");
+
+    group.bench_function("search_api", |b| {
         b.iter_batched(
             || {
-                let random_src_name = node_names.choose(&mut rng).unwrap();
-                let random_dst_name = node_names.choose(&mut rng).unwrap();
+                let mut iter = sample_inputs.iter().cycle();
+                let random_name = iter.next().unwrap().clone();
+                let random_src_name = random_name.0;
+                let random_dst_name = random_name.1;
                 CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Edge(Filter::eq("from", *random_src_name)),
-                    CompositeEdgeFilter::Edge(Filter::eq("to", *random_dst_name)),
+                    CompositeEdgeFilter::Edge(Filter::eq("from", random_src_name)),
+                    CompositeEdgeFilter::Edge(Filter::eq("to", random_dst_name)),
                 ])
             },
             |random_filter| {
                 graph.search_edges(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
-}
 
-fn bench_search_edges_by_property_eq(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_eq();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_eq", |b| {
+    group.bench_function("raph_api", |b| {
         b.iter_batched(
             || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
+                let mut iter = sample_inputs.iter().cycle();
+                iter.next().unwrap().clone()
             },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
+            |random_name| {
+                let random_src_name = random_name.0;
+                let random_dst_name = random_name.1;
+                graph.edge(random_src_name, random_dst_name)
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
 }
 
-fn bench_search_edges_by_property_ne(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_ne();
-    let mut rng = thread_rng();
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_eq,
+    get_edge_property_filters_eq
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_ne,
+    get_edge_property_filters_ne
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_le,
+    get_edge_property_filters_le
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_lt,
+    get_edge_property_filters_lt
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_ge,
+    get_edge_property_filters_ge
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_gt,
+    get_edge_property_filters_gt
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_in,
+    get_edge_property_filters_in
+);
+bench_search_edges_by_property_filter!(
+    bench_search_edges_by_property_not_in,
+    get_edge_property_filters_not_in
+);
 
-    c.bench_function("search_edges_by_property_ne", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_le(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_le();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_le", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_lt(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_lt();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_lt", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_ge(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_ge();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_ge", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_gt(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_gt();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_gt", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_in(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_in();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_in", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_not_in(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_not_in();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_property_not_in", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges(&random_filter, 5, 2).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
+bench_search_edges_by_property_filter_count!(
+    bench_search_edges_count,
+    get_edge_property_filters_eq
+);
 
 fn bench_search_edges_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
     let property_filters = get_edge_property_filters_eq();
     let mut rng = thread_rng();
 
-    c.bench_function("search_edges_by_composite_property_filter_and", |b| {
+    c.bench_function("bench_search_edges_by_composite_property_filter_and", |b| {
         b.iter_batched(
             || {
                 let random_filter1 = property_filters.choose(&mut rng).unwrap();
@@ -732,7 +783,7 @@ fn bench_search_edges_by_composite_property_filter_and(c: &mut Criterion) {
             |random_filter| {
                 graph.search_edges(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
 }
@@ -742,7 +793,7 @@ fn bench_search_edges_by_composite_property_filter_or(c: &mut Criterion) {
     let property_filters = get_edge_property_filters_eq();
     let mut rng = thread_rng();
 
-    c.bench_function("search_edges_by_composite_property_filter_or", |b| {
+    c.bench_function("bench_search_edges_by_composite_property_filter_or", |b| {
         b.iter_batched(
             || {
                 let random_filter1 = property_filters.choose(&mut rng).unwrap();
@@ -755,438 +806,7 @@ fn bench_search_edges_by_composite_property_filter_or(c: &mut Criterion) {
             |random_filter| {
                 graph.search_edges(&random_filter, 5, 0).unwrap();
             },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_count(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_edge_property_filters_eq();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_count", |b| {
-        b.iter_batched(
-            || {
-                let random_filter = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Property(random_filter.clone())
-            },
-            |random_filter| {
-                graph.search_edges_count(&random_filter).unwrap();
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_name_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let node_names = get_node_names();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_name_raph", |b| {
-        b.iter_batched(
-            || node_names.choose(&mut rng).unwrap(),
-            |random_name| graph.node(*random_name),
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_eq_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_node_property_filters_eq();
-
-    c.bench_function("search_nodes_by_property_eq_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_ne_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_ne();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_ne_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_le_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_le();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_le_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_lt_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_lt();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_lt_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_ge_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_ge();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_ge_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_gt_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_gt();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_gt_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_in_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_in();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_in_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_by_property_not_in_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let property_filters = get_node_property_filters_not_in();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_nodes_by_property_not_in_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_nodes(random_filter.clone())
-                    .unwrap()
-                    .nodes()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_nodes_count_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_node_property_filters_eq();
-
-    c.bench_function("search_nodes_count_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| graph.filter_nodes(random_filter.clone()).iter().count(),
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_src_dst_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let node_names = get_node_names();
-    let mut rng = thread_rng();
-
-    c.bench_function("search_edges_by_src_dst_raph", |b| {
-        b.iter_batched(
-            || {
-                let random_src_name = *node_names.choose(&mut rng).unwrap();
-                let random_dst_name = *node_names.choose(&mut rng).unwrap();
-                (random_src_name, random_dst_name)
-            },
-            |(random_src_name, random_dst_name)| graph.edge(random_src_name, random_dst_name),
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_eq_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_eq();
-
-    c.bench_function("search_edges_by_property_eq_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_ne_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_ne();
-
-    c.bench_function("search_edges_by_property_ne_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_le_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_le();
-
-    c.bench_function("search_edges_by_property_le_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_lt_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_lt();
-
-    c.bench_function("search_edges_by_property_lt_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_ge_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_ge();
-
-    c.bench_function("search_edges_by_property_ge_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_gt_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_node_property_filters_gt();
-
-    c.bench_function("search_edges_by_property_gt_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_in_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_in();
-
-    c.bench_function("search_edges_by_property_in_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_by_property_not_in_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_edge_property_filters_not_in();
-
-    c.bench_function("search_edges_by_property_not_in_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| {
-                graph
-                    .filter_edges(random_filter.clone())
-                    .unwrap()
-                    .edges()
-                    .into_iter()
-                    .take(5)
-                    .collect::<Vec<_>>()
-            },
-            criterion::BatchSize::SmallInput,
-        )
-    });
-}
-
-fn bench_search_edges_count_raph(c: &mut Criterion) {
-    let graph = setup_graph();
-    let mut rng = thread_rng();
-    let property_filters = get_node_property_filters_eq();
-
-    c.bench_function("search_edges_count_raph", |b| {
-        b.iter_batched(
-            || property_filters.choose(&mut rng).unwrap(),
-            |random_filter| graph.filter_edges(random_filter.clone()).iter().count(),
-            criterion::BatchSize::SmallInput,
+            BatchSize::SmallInput,
         )
     });
 }
@@ -1194,6 +814,8 @@ fn bench_search_edges_count_raph(c: &mut Criterion) {
 criterion_group!(
     search_benches,
     bench_search_nodes_by_name,
+    bench_search_nodes_by_node_type,
+    bench_search_nodes_count,
     bench_search_nodes_by_property_eq,
     bench_search_nodes_by_property_ne,
     bench_search_nodes_by_property_le,
@@ -1204,8 +826,8 @@ criterion_group!(
     bench_search_nodes_by_property_not_in,
     bench_search_nodes_by_composite_property_filter_and,
     bench_search_nodes_by_composite_property_filter_or,
-    bench_search_nodes_count,
     bench_search_edges_by_src_dst,
+    bench_search_edges_count,
     bench_search_edges_by_property_eq,
     bench_search_edges_by_property_ne,
     bench_search_edges_by_property_le,
@@ -1216,31 +838,8 @@ criterion_group!(
     bench_search_edges_by_property_not_in,
     bench_search_edges_by_composite_property_filter_and,
     bench_search_edges_by_composite_property_filter_or,
-    bench_search_edges_count
 );
 
-criterion_group!(
-    search_benches_raph,
-    bench_search_nodes_by_name_raph,
-    bench_search_nodes_by_property_eq_raph,
-    bench_search_nodes_by_property_ne_raph,
-    bench_search_nodes_by_property_in_raph,
-    bench_search_nodes_by_property_le_raph,
-    bench_search_nodes_by_property_lt_raph,
-    bench_search_nodes_by_property_ge_raph,
-    bench_search_nodes_by_property_gt_raph,
-    bench_search_nodes_by_property_not_in_raph,
-    bench_search_nodes_count_raph,
-    bench_search_edges_by_src_dst_raph,
-    bench_search_edges_by_property_eq_raph,
-    bench_search_edges_by_property_ne_raph,
-    bench_search_edges_by_property_le_raph,
-    bench_search_edges_by_property_lt_raph,
-    bench_search_edges_by_property_ge_raph,
-    bench_search_edges_by_property_gt_raph,
-    bench_search_edges_by_property_in_raph,
-    bench_search_edges_by_property_not_in_raph,
-    bench_search_edges_count_raph
-);
+criterion_main!(search_benches);
 
-criterion_main!(search_benches, search_benches_raph);
+// TODO: Add is_some, is_none, tests
