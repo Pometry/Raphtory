@@ -283,6 +283,20 @@ impl TryFrom<i64> for Interval {
     }
 }
 
+pub trait TryIntoInterval {
+    fn try_into_interval(self) -> Result<Interval, ParseTimeError>;
+}
+
+impl<T> TryIntoInterval for T
+where
+    Interval: TryFrom<T>,
+    ParseTimeError: From<<Interval as TryFrom<T>>::Error>,
+{
+    fn try_into_interval(self) -> Result<Interval, ParseTimeError> {
+        Ok(self.try_into()?)
+    }
+}
+
 impl Interval {
     /// Return an option because there might be no exact translation to millis for some intervals
     pub fn to_millis(&self) -> Option<u64> {
@@ -311,7 +325,7 @@ impl Interval {
     pub fn discrete(num: u64) -> Self {
         Interval {
             epoch_alignment: false,
-            size: IntervalSize::Discrete(num)
+            size: IntervalSize::Discrete(num),
         }
     }
 
@@ -371,21 +385,17 @@ impl Interval {
         }
     }
 
-    pub fn and(&self, other: &Self) -> Result<Self,  IntervalTypeError> {
+    pub fn and(&self, other: &Self) -> Result<Self, IntervalTypeError> {
         match (self.size, other.size) {
-            (IntervalSize::Discrete(l), IntervalSize::Discrete(r)) => {
-                Ok(Interval {
-                    epoch_alignment: false,
-                    size: IntervalSize::Discrete(l + r),
-                })
-            },
-            (IntervalSize::Temporal {..}, IntervalSize::Temporal {..}) => {
-                Ok(Interval {
-                    epoch_alignment: true,
-                    size: self.size.add_temporal(other.size)
-                })
-            }
-            (_, _) => Err(IntervalTypeError())
+            (IntervalSize::Discrete(l), IntervalSize::Discrete(r)) => Ok(Interval {
+                epoch_alignment: false,
+                size: IntervalSize::Discrete(l + r),
+            }),
+            (IntervalSize::Temporal { .. }, IntervalSize::Temporal { .. }) => Ok(Interval {
+                epoch_alignment: true,
+                size: self.size.add_temporal(other.size),
+            }),
+            (_, _) => Err(IntervalTypeError()),
         }
     }
 }
