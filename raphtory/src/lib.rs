@@ -567,15 +567,15 @@ mod test_utils {
         for (src, dst, time, props, layer) in &graph_fix.edges {
             g.add_edge(*time, src, dst, props.clone(), *layer).unwrap();
         }
-        for ((src, dst), props) in graph_fix.edge_const_props {
-            if let Some(edge) = g.edge(src, dst) {
-                edge.update_constant_properties(props, None).unwrap();
-            } else {
-                g.add_edge(0, src, dst, NO_PROPS, None)
-                    .unwrap()
-                    .update_constant_properties(props, None)
-                    .unwrap();
+        for (src, dst, time) in &graph_fix.edge_deletions {
+            if let Some(edge) = g.edge(*src, *dst) {
+                edge.delete(*time, None).unwrap();
             }
+        }
+
+        for ((src, dst), props) in graph_fix.edge_const_props {
+            let edge = g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+            edge.update_constant_properties(props, None).unwrap();
         }
         for (node, t, t_props) in &graph_fix.nodes.nodes {
             if let Some(n) = g.node(*node) {
@@ -593,11 +593,6 @@ mod test_utils {
             }
         }
 
-        for (src, dst, time) in &graph_fix.edge_deletions {
-            if let Some(edge) = g.edge(*src, *dst) {
-                edge.delete(*time, None).unwrap();
-            }
-        }
         g
     }
 
