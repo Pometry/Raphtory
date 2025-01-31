@@ -162,8 +162,11 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
-    pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, Prop)>) -> Self {
-        let h_map: FxHashMap<_, _> = vals.into_iter().map(|(k, v)| (k.into(), v)).collect();
+    pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {
+        let h_map: FxHashMap<_, _> = vals
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
         Prop::Map(h_map.into())
     }
 
