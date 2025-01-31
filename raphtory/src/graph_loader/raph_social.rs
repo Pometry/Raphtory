@@ -90,6 +90,10 @@ pub struct CommentPost {
     pub reply_count: u64,
 }
 
+fn gen_timestamp(rng: &mut impl Rng) -> i64 {
+    rng.gen_range(946684800000..1609459200000) // Random timestamp from 2000 to 2020
+}
+
 pub fn generate_data_write_to_csv(
     output_dir: &str,
     num_people: usize,
@@ -104,18 +108,11 @@ pub fn generate_data_write_to_csv(
     // Create writers for each file
     let mut people_writer = Writer::from_path(format!("{}/people.csv", output_dir))?;
     let mut forums_writer = Writer::from_path(format!("{}/forums.csv", output_dir))?;
-    let mut person_forum_writer =
-        Writer::from_path(format!("{}/person_forum.csv", output_dir))?;
+    let mut person_forum_writer = Writer::from_path(format!("{}/person_forum.csv", output_dir))?;
     let mut posts_writer = Writer::from_path(format!("{}/posts.csv", output_dir))?;
-    let mut post_forum_writer =
-        Writer::from_path(format!("{}/post_forum.csv", output_dir))?;
+    let mut post_forum_writer = Writer::from_path(format!("{}/post_forum.csv", output_dir))?;
     let mut comments_writer = Writer::from_path(format!("{}/comments.csv", output_dir))?;
-    let mut comment_post_writer =
-        Writer::from_path(format!("{}/comment_post.csv", output_dir))?;
-
-    fn gen_timestamp(rng: &mut impl Rng) -> i64 {
-        rng.gen_range(946684800000..1609459200000) // Random timestamp from 2000 to 2020
-    }
+    let mut comment_post_writer = Writer::from_path(format!("{}/comment_post.csv", output_dir))?;
 
     // People iterator
     for i in 1..=num_people {
@@ -148,15 +145,13 @@ pub fn generate_data_write_to_csv(
     for i in 1..=num_people {
         let membership_count = rng.gen_range(1..=3);
         for _ in 0..membership_count {
-            person_forum_writer.serialize(
-                PersonForum {
-                    person_id: format!("person_{}", i),
-                    forum_id: format!("forum_{}", rng.gen_range(1..=num_forums)),
-                    is_moderator: rng.gen_bool(0.1),
-                    join_date: gen_timestamp(&mut rng),
-                    activity_score: rng.gen_range(0.0..100.0),
-                },
-            )?;
+            person_forum_writer.serialize(PersonForum {
+                person_id: format!("person_{}", i),
+                forum_id: format!("forum_{}", rng.gen_range(1..=num_forums)),
+                is_moderator: rng.gen_bool(0.1),
+                join_date: gen_timestamp(&mut rng),
+                activity_score: rng.gen_range(0.0..100.0),
+            })?;
         }
     }
     person_forum_writer.flush()?;
@@ -203,16 +198,14 @@ pub fn generate_data_write_to_csv(
             content: Sentence(5..15).fake(),
             length: rng.gen_range(50..500),
         })?;
-        comment_post_writer.serialize(
-            CommentPost {
-                comment_id: format!("comment_{}", i),
-                post_id: format!("post_{}", rng.gen_range(1..=num_posts)),
-                creation_date, // Use comment's creation date
-                is_edited: rng.gen_bool(0.1),
-                upvotes: rng.gen_range(0..200),
-                reply_count: rng.gen_range(0..20),
-            },
-        )?;
+        comment_post_writer.serialize(CommentPost {
+            comment_id: format!("comment_{}", i),
+            post_id: format!("post_{}", rng.gen_range(1..=num_posts)),
+            creation_date, // Use comment's creation date
+            is_edited: rng.gen_bool(0.1),
+            upvotes: rng.gen_range(0..200),
+            reply_count: rng.gen_range(0..20),
+        })?;
     }
     comments_writer.flush()?;
     comment_post_writer.flush()?;
@@ -262,7 +255,9 @@ where
     );
 }
 
-pub fn load_and_save_raph_social_graph(output_dir: &str) -> Graph {
+pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dyn Error>> {
+    fs::create_dir_all(output_dir)?;
+
     let csv_paths = [
         ("people", "people.csv"),
         ("forums", "forums.csv"),
@@ -273,11 +268,10 @@ pub fn load_and_save_raph_social_graph(output_dir: &str) -> Graph {
         ("comment_post", "comment_post.csv"),
     ]
     .iter()
-    .map(|(key, file)| (*key, PathBuf::from(output_dir).join(file)))
+    .map(|(key, file)| (*key, PathBuf::from(data_dir).join(file)))
     .collect::<HashMap<&str, PathBuf>>();
 
     let g = Graph::new();
-    let now = Instant::now();
 
     // Load nodes
     load_nodes(&g, &csv_paths["people"], |person: Person, g| {
@@ -391,26 +385,229 @@ pub fn load_and_save_raph_social_graph(output_dir: &str) -> Graph {
         .expect("Failed to add edge");
     });
 
-    let data_dir = "/tmp/graphs/raph_social/rf0.1";
-    g.encode(data_dir).expect("Failed to save graph");
+    g.encode(output_dir).expect("Failed to save graph");
 
-    g
+    Ok(g)
+}
+
+pub fn generate_data_load_graph_save(
+    output_dir: &str,
+    num_people: usize,
+    num_forums: usize,
+    num_posts: usize,
+    num_comments: usize,
+) -> Result<(), Box<dyn Error>> {
+    fs::create_dir_all(output_dir)?;
+
+    let mut rng = thread_rng();
+    let graph = Graph::new();
+
+    // People
+    for i in 1..=num_people {
+        let person_id = format!("person_{}", i);
+        let creation_date = gen_timestamp(&mut rng);
+
+        graph
+            .add_node(
+                DateTime::from_timestamp(creation_date, 0).unwrap(),
+                person_id.clone(),
+                NO_PROPS,
+                Some("person"),
+            )
+            .expect("Failed to add person node")
+            .add_constant_properties([
+                (
+                    "first_name",
+                    Prop::Str(ArcStr::from(FirstName().fake::<String>())),
+                ),
+                (
+                    "last_name",
+                    Prop::Str(ArcStr::from(LastName().fake::<String>())),
+                ),
+                (
+                    "gender",
+                    Prop::Str(ArcStr::from(if rng.gen_bool(0.5) {
+                        "male"
+                    } else {
+                        "female"
+                    })),
+                ),
+                ("birthday", Prop::I64(gen_timestamp(&mut rng))),
+            ])
+            .expect("Failed to add person properties");
+    }
+
+    // Forums
+    for i in 1..=num_forums {
+        let forum_id = format!("forum_{}", i);
+        let creation_date = gen_timestamp(&mut rng);
+
+        graph
+            .add_node(
+                DateTime::from_timestamp(creation_date, 0).unwrap(),
+                forum_id.clone(),
+                NO_PROPS,
+                Some("forum"),
+            )
+            .expect("Failed to add forum node")
+            .add_constant_properties([(
+                "title",
+                Prop::Str(ArcStr::from(Sentence(1..3).fake::<String>())),
+            )])
+            .expect("Failed to add forum properties");
+    }
+
+    // Person Forum
+    for i in 1..=num_people {
+        let person_id = format!("person_{}", i);
+        let membership_count = rng.gen_range(1..=3);
+        for _ in 0..membership_count {
+            let forum_id = format!("forum_{}", rng.gen_range(1..=num_forums));
+            graph
+                .add_edge(
+                    DateTime::from_timestamp(gen_timestamp(&mut rng), 0).unwrap(),
+                    person_id.clone(),
+                    forum_id.clone(),
+                    [
+                        ("activity_score", Prop::F64(rng.gen_range(0.0..100.0))),
+                        ("is_moderator", Prop::Bool(rng.gen_bool(0.1))),
+                    ],
+                    None,
+                )
+                .expect("Failed to add person-forum edge");
+        }
+    }
+
+    // Posts, Post Forum
+    for i in 1..=num_posts {
+        let post_id = format!("post_{}", i);
+        let creator_id = format!("person_{}", rng.gen_range(1..=num_people));
+        let creation_date = gen_timestamp(&mut rng);
+
+        graph
+            .add_node(
+                DateTime::from_timestamp(creation_date, 0).unwrap(),
+                post_id.clone(),
+                [
+                    (
+                        "content",
+                        Prop::Str(ArcStr::from(Sentence(5..15).fake::<String>())),
+                    ),
+                    ("length", Prop::U64(rng.gen_range(20..200))),
+                    (
+                        "location_ip",
+                        Prop::Str(ArcStr::from(IP().fake::<String>())),
+                    ),
+                    (
+                        "browser_used",
+                        Prop::Str(ArcStr::from(
+                            ["Chrome", "Firefox", "Safari", "Edge"]
+                                .choose(&mut rng)
+                                .unwrap()
+                                .to_string(),
+                        )),
+                    ),
+                ],
+                Some("post"),
+            )
+            .expect("Failed to add post node")
+            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
+            .expect("Failed to add post properties");
+
+        let forum_id = format!("forum_{}", rng.gen_range(1..=num_forums));
+        graph
+            .add_edge(
+                DateTime::from_timestamp(creation_date, 0).unwrap(),
+                post_id.clone(),
+                forum_id.clone(),
+                [
+                    ("is_featured", Prop::Bool(rng.gen_bool(0.2))),
+                    ("likes_count", Prop::U64(rng.gen_range(0..500))),
+                    ("comments_count", Prop::U64(rng.gen_range(0..200))),
+                ],
+                None,
+            )
+            .expect("Failed to add post-forum edge");
+    }
+
+    // Comments, Comment Forum
+    for i in 1..=num_comments {
+        let comment_id = format!("comment_{}", i);
+        let creator_id = format!("person_{}", rng.gen_range(1..=num_people));
+        let creation_date = gen_timestamp(&mut rng);
+
+        graph
+            .add_node(
+                DateTime::from_timestamp(creation_date, 0).unwrap(),
+                comment_id.clone(),
+                [
+                    (
+                        "content",
+                        Prop::Str(ArcStr::from(Sentence(5..15).fake::<String>())),
+                    ),
+                    ("length", Prop::U64(rng.gen_range(50..500))),
+                    (
+                        "location_ip",
+                        Prop::Str(ArcStr::from(IP().fake::<String>())),
+                    ),
+                    (
+                        "browser_used",
+                        Prop::Str(ArcStr::from(
+                            ["Chrome", "Firefox", "Safari", "Edge"]
+                                .choose(&mut rng)
+                                .unwrap()
+                                .to_string(),
+                        )),
+                    ),
+                ],
+                Some("comment"),
+            )
+            .expect("Failed to add comment node")
+            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
+            .expect("Failed to add comment properties");
+
+        let post_id = format!("post_{}", rng.gen_range(1..=num_posts));
+        graph
+            .add_edge(
+                DateTime::from_timestamp(creation_date, 0).unwrap(),
+                comment_id.clone(),
+                post_id.clone(),
+                [
+                    ("is_edited", Prop::Bool(rng.gen_bool(0.1))),
+                    ("upvotes", Prop::U64(rng.gen_range(0..200))),
+                    ("reply_count", Prop::U64(rng.gen_range(0..20))),
+                ],
+                None,
+            )
+            .expect("Failed to add comment-post edge");
+    }
+
+    graph.encode(output_dir).expect("Failed to save graph");
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod test_raph_social {
-    use crate::{
-        graph_loader::raph_social::{generate_data_write_to_csv, load_and_save_raph_social_graph},
+    use crate::graph_loader::raph_social::{
+        generate_data_load_graph_save, generate_data_write_to_csv, load_graph_save,
     };
 
     #[test]
-    fn test_generate_fake() {
+    fn test_generate_data_write_to_csv() {
         generate_data_write_to_csv("output", 3000, 500, 70000, 100_000).unwrap();
     }
 
     #[test]
-    fn test_raph_social_graph_load() {
-        let output_dir = "output";
-        load_and_save_raph_social_graph(output_dir);
+    fn test_load_graph_save() {
+        let data_dir = "output";
+        let output_dir = "/tmp/graphs/raph_social/rf0.1";
+        load_graph_save(data_dir, output_dir).unwrap();
+    }
+
+    #[test]
+    fn test_generate_data_load_graph_save() {
+        generate_data_load_graph_save("/tmp/graphs/raph_social/rf0.1", 3000, 500, 70000, 100_000)
+            .unwrap();
     }
 }
