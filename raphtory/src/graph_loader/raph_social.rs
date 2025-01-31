@@ -19,8 +19,8 @@ use fake::{
 };
 use itertools::Itertools;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
-use serde::{Deserialize, Serialize};
-use std::{error::Error, io::Write};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{collections::HashMap, error::Error, fmt::Debug, io::Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Person {
@@ -90,7 +90,7 @@ pub struct CommentPost {
     pub reply_count: u64,
 }
 
-pub fn generate_fake_data(
+pub fn generate_data_write_to_csv(
     output_dir: &str,
     num_people: usize,
     num_forums: usize,
@@ -105,13 +105,13 @@ pub fn generate_fake_data(
     let mut people_writer = Writer::from_path(format!("{}/people.csv", output_dir))?;
     let mut forums_writer = Writer::from_path(format!("{}/forums.csv", output_dir))?;
     let mut person_forum_writer =
-        Writer::from_path(format!("{}/person_forum_relationships.csv", output_dir))?;
+        Writer::from_path(format!("{}/person_forum.csv", output_dir))?;
     let mut posts_writer = Writer::from_path(format!("{}/posts.csv", output_dir))?;
     let mut post_forum_writer =
-        Writer::from_path(format!("{}/post_forum_relationships.csv", output_dir))?;
+        Writer::from_path(format!("{}/post_forum.csv", output_dir))?;
     let mut comments_writer = Writer::from_path(format!("{}/comments.csv", output_dir))?;
     let mut comment_post_writer =
-        Writer::from_path(format!("{}/comment_post_relationships.csv", output_dir))?;
+        Writer::from_path(format!("{}/comment_post.csv", output_dir))?;
 
     fn gen_timestamp(rng: &mut impl Rng) -> i64 {
         rng.gen_range(946684800000..1609459200000) // Random timestamp from 2000 to 2020
@@ -220,261 +220,176 @@ pub fn generate_fake_data(
     Ok(())
 }
 
+fn load_nodes<T, F>(graph: &Graph, path: &PathBuf, load_fn: F)
+where
+    T: DeserializeOwned + Debug + Send + Sync,
+    F: Fn(T, &Graph) + Send + Sync,
+{
+    let now = Instant::now();
+    CsvLoader::new(path.clone())
+        .set_header(true)
+        .set_delimiter(",")
+        .load_into_graph(graph, load_fn)
+        .expect("Failed to load graph from CSV");
+
+    println!(
+        "Loaded nodes from {} with {} nodes, {} edges in {} seconds",
+        path.to_str().unwrap(),
+        graph.count_nodes(),
+        graph.count_edges(),
+        now.elapsed().as_secs()
+    );
+}
+
+fn load_edges<T, F>(graph: &Graph, path: &PathBuf, load_fn: F)
+where
+    T: DeserializeOwned + Debug + Send + Sync,
+    F: Fn(T, &Graph) + Send + Sync,
+{
+    let now = Instant::now();
+    CsvLoader::new(path.clone())
+        .set_header(true)
+        .set_delimiter(",")
+        .load_into_graph(graph, load_fn)
+        .expect("Failed to load graph from CSV");
+
+    println!(
+        "Loaded edges from {} with {} nodes, {} edges in {} seconds",
+        path.to_str().unwrap(),
+        graph.count_nodes(),
+        graph.count_edges(),
+        now.elapsed().as_secs()
+    );
+}
+
 pub fn load_and_save_raph_social_graph(output_dir: &str) -> Graph {
-    let people_csv_path = PathBuf::from(output_dir).join("people.csv");
-    let forums_csv_path = PathBuf::from(output_dir).join("forums.csv");
-    let posts_csv_path = PathBuf::from(output_dir).join("posts.csv");
-    let comments_csv_path = PathBuf::from(output_dir).join("comments.csv");
-    let person_forum_csv_path = PathBuf::from(output_dir).join("person_forum_relationships.csv");
-    let post_forum_csv_path = PathBuf::from(output_dir).join("post_forum_relationships.csv");
-    let comment_post_csv_path = PathBuf::from(output_dir).join("comment_post_relationships.csv");
+    let csv_paths = [
+        ("people", "people.csv"),
+        ("forums", "forums.csv"),
+        ("posts", "posts.csv"),
+        ("comments", "comments.csv"),
+        ("person_forum", "person_forum.csv"),
+        ("post_forum", "post_forum.csv"),
+        ("comment_post", "comment_post.csv"),
+    ]
+    .iter()
+    .map(|(key, file)| (*key, PathBuf::from(output_dir).join(file)))
+    .collect::<HashMap<&str, PathBuf>>();
 
     let g = Graph::new();
     let now = Instant::now();
 
-    CsvLoader::new(people_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |person: Person, g: &Graph| {
-            let id = person.id;
-            let first_name = person.first_name;
-            let last_name = person.last_name;
-            let gender = person.gender;
-            let birthday = person.birthday;
-            let creation_date = person.creation_date;
+    // Load nodes
+    load_nodes(&g, &csv_paths["people"], |person: Person, g| {
+        g.add_node(
+            DateTime::from_timestamp(person.creation_date, 0).unwrap(),
+            person.id.clone(),
+            NO_PROPS,
+            Some("person"),
+        )
+        .expect("Failed to add node")
+        .add_constant_properties([
+            ("first_name", Prop::Str(ArcStr::from(person.first_name))),
+            ("last_name", Prop::Str(ArcStr::from(person.last_name))),
+            ("gender", Prop::Str(ArcStr::from(person.gender))),
+            ("birthday", Prop::I64(person.birthday)),
+        ])
+        .expect("Failed to add node static property");
+    });
 
-            g.add_node(
-                DateTime::from_timestamp(creation_date, 0).unwrap(),
-                id.clone(),
-                NO_PROPS,
-                Some("person"),
-            )
-            .expect("Failed to add node")
-            .add_constant_properties([
-                ("first_name", Prop::Str(ArcStr::from(first_name))),
-                ("last_name", Prop::Str(ArcStr::from(last_name))),
-                ("gender", Prop::Str(ArcStr::from(gender))),
-                ("birthday", Prop::I64(birthday)),
-            ])
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
+    load_nodes(&g, &csv_paths["forums"], |forum: Forum, g| {
+        g.add_node(
+            DateTime::from_timestamp(forum.creation_date, 0).unwrap(),
+            forum.id.clone(),
+            NO_PROPS,
+            Some("forum"),
+        )
+        .expect("Failed to add node")
+        .add_constant_properties([("title", Prop::Str(ArcStr::from(forum.title)))])
+        .expect("Failed to add node static property");
+    });
 
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        people_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
+    load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
+        g.add_node(
+            DateTime::from_timestamp(post.creation_date, 0).unwrap(),
+            post.id.clone(),
+            [
+                ("content", Prop::Str(ArcStr::from(post.content))),
+                ("length", Prop::U64(post.length)),
+                ("location_ip", Prop::Str(ArcStr::from(post.location_ip))),
+                ("browser_used", Prop::Str(ArcStr::from(post.browser_used))),
+            ],
+            Some("post"),
+        )
+        .expect("Failed to add node")
+        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
+        .expect("Failed to add node static property");
+    });
 
-    CsvLoader::new(forums_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |forum: Forum, g: &Graph| {
-            let id = forum.id;
-            let title = forum.title;
-            let creation_date = forum.creation_date;
+    load_nodes(&g, &csv_paths["comments"], |comment: Comment, g| {
+        g.add_node(
+            DateTime::from_timestamp(comment.creation_date, 0).unwrap(),
+            comment.id.clone(),
+            [
+                ("content", Prop::Str(ArcStr::from(comment.content))),
+                ("length", Prop::U64(comment.length)),
+                ("location_ip", Prop::Str(ArcStr::from(comment.location_ip))),
+                (
+                    "browser_used",
+                    Prop::Str(ArcStr::from(comment.browser_used)),
+                ),
+            ],
+            Some("comment"),
+        )
+        .expect("Failed to add node")
+        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(comment.creator_id)))])
+        .expect("Failed to add node static property");
+    });
 
-            g.add_node(
-                DateTime::from_timestamp(creation_date, 0).unwrap(),
-                id.clone(),
-                NO_PROPS,
-                Some("forum"),
-            )
-            .expect("Failed to add node")
-            .add_constant_properties([("title", Prop::Str(ArcStr::from(title)))])
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
+    // Load edges
+    load_edges(&g, &csv_paths["person_forum"], |rel: PersonForum, g| {
+        g.add_edge(
+            DateTime::from_timestamp(rel.join_date, 0).unwrap(),
+            rel.person_id.clone(),
+            rel.forum_id.clone(),
+            [
+                ("activity_score", Prop::F64(rel.activity_score)),
+                ("is_moderator", Prop::Bool(rel.is_moderator)),
+            ],
+            None,
+        )
+        .expect("Failed to add edge");
+    });
 
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        forums_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
+    load_edges(&g, &csv_paths["post_forum"], |rel: PostForum, g| {
+        g.add_edge(
+            DateTime::from_timestamp(rel.creation_date, 0).unwrap(),
+            rel.post_id.clone(),
+            rel.forum_id.clone(),
+            [
+                ("is_featured", Prop::Bool(rel.is_featured)),
+                ("likes_count", Prop::U64(rel.likes_count)),
+                ("comments_count", Prop::U64(rel.comments_count)),
+            ],
+            None,
+        )
+        .expect("Failed to add edge");
+    });
 
-    CsvLoader::new(posts_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |post: Post, g: &Graph| {
-            let id = post.id;
-            let creator_id = post.creator_id;
-            let creation_date = post.creation_date;
-            let location_ip = post.location_ip;
-            let browser_used = post.browser_used;
-            let content = post.content;
-            let length = post.length;
-
-            g.add_node(
-                DateTime::from_timestamp(creation_date, 0).unwrap(),
-                id.clone(),
-                [
-                    ("content", Prop::Str(ArcStr::from(content))),
-                    ("length", Prop::U64(length)),
-                    ("location_ip", Prop::Str(ArcStr::from(location_ip))),
-                    ("browser_used", Prop::Str(ArcStr::from(browser_used))),
-                ],
-                Some("post"),
-            )
-            .expect("Failed to add node")
-            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(creator_id)))])
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
-
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        posts_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
-
-    CsvLoader::new(comments_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |comment: Comment, g: &Graph| {
-            let id = comment.id;
-            let creator_id = comment.creator_id;
-            let creation_date = comment.creation_date;
-            let location_ip = comment.location_ip;
-            let browser_used = comment.browser_used;
-            let content = comment.content;
-            let length = comment.length;
-
-            g.add_node(
-                DateTime::from_timestamp(creation_date, 0).unwrap(),
-                id.clone(),
-                [
-                    ("content", Prop::Str(ArcStr::from(content))),
-                    ("length", Prop::U64(length)),
-                    ("location_ip", Prop::Str(ArcStr::from(location_ip))),
-                    ("browser_used", Prop::Str(ArcStr::from(browser_used))),
-                ],
-                Some("comment"),
-            )
-            .expect("Failed to add node")
-            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(creator_id)))])
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
-
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        comments_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
-
-    CsvLoader::new(person_forum_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |person_forum: PersonForum, g: &Graph| {
-            let person_id = person_forum.person_id;
-            let forum_id = person_forum.forum_id;
-            let is_moderator = person_forum.is_moderator;
-            let join_date = person_forum.join_date;
-            let activity_score = person_forum.activity_score;
-
-            g.add_edge(
-                DateTime::from_timestamp(join_date, 0).unwrap(),
-                person_id.clone(),
-                forum_id.clone(),
-                [
-                    ("activity_score", Prop::F64(activity_score)),
-                    ("is_moderator", Prop::Bool(is_moderator)),
-                ],
-                None,
-            )
-            .expect("Failed to add node")
-            .add_constant_properties(NO_PROPS, None)
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
-
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        person_forum_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
-
-    CsvLoader::new(post_forum_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |post_forum: PostForum, g: &Graph| {
-            let post_id = post_forum.post_id;
-            let forum_id = post_forum.forum_id;
-            let creation_date = post_forum.creation_date;
-            let is_featured = post_forum.is_featured;
-            let likes_count = post_forum.likes_count;
-            let comments_count = post_forum.comments_count;
-
-            g.add_edge(
-                DateTime::from_timestamp(creation_date, 0).unwrap(),
-                post_id.clone(),
-                forum_id.clone(),
-                [
-                    ("is_featured", Prop::Bool(is_featured)),
-                    ("likes_count", Prop::U64(likes_count)),
-                    ("comments_count", Prop::U64(comments_count)),
-                ],
-                None,
-            )
-            .expect("Failed to add node")
-            .add_constant_properties(NO_PROPS, None)
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
-
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        person_forum_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
-
-    CsvLoader::new(comment_post_csv_path.clone())
-        .set_header(true)
-        .set_delimiter(",")
-        .load_into_graph(&g, |comment_post: CommentPost, g: &Graph| {
-            let comment_id = comment_post.comment_id;
-            let post_id = comment_post.post_id;
-            let creation_date = comment_post.creation_date;
-            let is_edited = comment_post.is_edited;
-            let upvotes = comment_post.upvotes;
-            let reply_count = comment_post.reply_count;
-
-            g.add_edge(
-                DateTime::from_timestamp(creation_date, 0).unwrap(),
-                comment_id.clone(),
-                post_id.clone(),
-                [
-                    ("is_edited", Prop::Bool(is_edited)),
-                    ("upvotes", Prop::U64(upvotes)),
-                    ("reply_count", Prop::U64(reply_count)),
-                ],
-                None,
-            )
-            .expect("Failed to add node")
-            .add_constant_properties(NO_PROPS, None)
-            .expect("Failed to add node static property");
-        })
-        .expect("Failed to load graph from CSV data files");
-
-    println!(
-        "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
-        person_forum_csv_path.clone().as_path().to_str().unwrap(),
-        g.count_nodes(),
-        g.count_edges(),
-        now.elapsed().as_secs()
-    );
+    load_edges(&g, &csv_paths["comment_post"], |rel: CommentPost, g| {
+        g.add_edge(
+            DateTime::from_timestamp(rel.creation_date, 0).unwrap(),
+            rel.comment_id.clone(),
+            rel.post_id.clone(),
+            [
+                ("is_edited", Prop::Bool(rel.is_edited)),
+                ("upvotes", Prop::U64(rel.upvotes)),
+                ("reply_count", Prop::U64(rel.reply_count)),
+            ],
+            None,
+        )
+        .expect("Failed to add edge");
+    });
 
     let data_dir = "/tmp/graphs/raph_social/rf0.1";
     g.encode(data_dir).expect("Failed to save graph");
@@ -484,12 +399,13 @@ pub fn load_and_save_raph_social_graph(output_dir: &str) -> Graph {
 
 #[cfg(test)]
 mod test_raph_social {
-    use crate::{graph_loader::raph_social::load_and_save_raph_social_graph, prelude::Graph};
-    use crate::graph_loader::raph_social::generate_fake_data;
+    use crate::{
+        graph_loader::raph_social::{generate_data_write_to_csv, load_and_save_raph_social_graph},
+    };
 
     #[test]
     fn test_generate_fake() {
-        generate_fake_data("output", 3000, 500, 70000, 100_000).unwrap();
+        generate_data_write_to_csv("output", 3000, 500, 70000, 100_000).unwrap();
     }
 
     #[test]
