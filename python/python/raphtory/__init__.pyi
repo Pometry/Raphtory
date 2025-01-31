@@ -843,6 +843,19 @@ class Graph(GraphView):
             Graph: the graph with event semantics applied
         """
 
+    @staticmethod
+    def from_parquet(graph_dir: str | PathLike) -> Graph:
+        """
+        Read graph from parquet files
+
+        Arguments:
+           graph_dir (str | PathLike): the folder where the graph is stored as parquet
+
+        Returns:
+          Graph: a view of the graph
+
+        """
+
     def get_all_node_types(self) -> List[str]:
         """
         Returns all the node types in the graph.
@@ -1344,6 +1357,15 @@ class Graph(GraphView):
 
         Returns:
             Graph: a view of the persisted graph
+        """
+
+    def to_parquet(self, graph_dir: str | PathLike):
+        """
+        Persist graph to parquet files
+
+        Arguments:
+            graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
+
         """
 
     def update_constant_properties(self, properties: PropInput) -> None:

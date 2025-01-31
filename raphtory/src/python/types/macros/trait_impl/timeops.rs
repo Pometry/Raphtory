@@ -64,7 +64,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            fn expanding(&self, step: $crate::python::utils::PyInterval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, $crate::core::utils::time::error::ParseTimeError> {
+            fn expanding(&self, step: $crate::core::utils::time::Interval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, $crate::core::utils::time::error::ParseTimeError> {
                 self.$field.expanding(step)
             }
 
@@ -82,8 +82,8 @@ macro_rules! impl_timeops {
             #[pyo3(signature = (window, step=None))]
             fn rolling(
                 &self,
-                window: $crate::python::utils::PyInterval,
-                step: Option<$crate::python::utils::PyInterval>,
+                window:$crate::core::utils::time::Interval,
+                step: Option<$crate::core::utils::time::Interval>,
             ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, $crate::core::utils::time::error::ParseTimeError> {
                 self.$field.rolling(window, step)
             }
