@@ -42,6 +42,13 @@ impl fmt::Display for FilterOperator {
 }
 
 impl FilterOperator {
+    pub fn is_strictly_numeric_operation(&self) -> bool {
+        matches!(
+            self,
+            FilterOperator::Lt | FilterOperator::Le | FilterOperator::Gt | FilterOperator::Ge
+        )
+    }
+
     fn operation<T>(&self) -> impl Fn(&T, &T) -> bool
     where
         T: ?Sized + PartialEq + PartialOrd,
