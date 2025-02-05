@@ -257,6 +257,7 @@ fn inner_collection(value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ str: \"{}\" }}", value),
         Prop::NDTime(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::Decimal(value) => format!("{{ decimal: {} }}", value),
     }
 }
 
@@ -301,6 +302,7 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::Decimal(value) => format!("{{ key: \"{}\", value: {{ decimal: \"{}\" }} }}", key, value),
     }
 }
 

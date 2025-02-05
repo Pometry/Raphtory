@@ -3,6 +3,7 @@ use crate::{
     db::api::state::{LazyNodeState, NodeOp, NodeState},
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
 use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
@@ -189,6 +190,12 @@ impl Repr for &str {
 }
 
 impl Repr for NaiveDateTime {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl Repr for BigDecimal {
     fn repr(&self) -> String {
         self.to_string()
     }

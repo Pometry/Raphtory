@@ -3,6 +3,8 @@ use crate::{
     db::api::storage::graph::tprop_storage_ops::TPropOps,
     prelude::Prop,
 };
+use bigdecimal::{num_bigint::BigInt, BigDecimal};
+use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{
     chunked_array::{bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol},
     prelude::ArrayOps,
@@ -43,6 +45,59 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
                 .get(t_index)
                 .eq(ti)
                 .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
+    }
+}
+
+fn scale(dt: Option<&ArrowDataType>) -> Option<u32> {
+    if let ArrowDataType::Decimal(_, scale) = dt? {
+        Some((*scale).try_into().unwrap())
+    } else {
+        panic!("Expected decimal type")
+    }
+}
+
+impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedPrimitiveCol<'a, i128>, TimeIndexEntry> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+        let scale = scale(self.data_type())?;
+        self.iter_window_inner(TimeIndexEntry::MIN..t)
+            .filter_map(|(t, v)| v.map(|v| (t, v)))
+            .next_back()
+            .map(move |(t, v)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
+    }
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        let scale = scale(self.data_type());
+        let (props, timestamps) = self.into_inner();
+        timestamps.into_iter().zip(props).filter_map(move |(t, v)| {
+            v.zip(scale)
+                .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
+        })
+    }
+
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        let scale = scale(self.data_type());
+        self.iter_window_inner(r).filter_map(move |(t, v)| {
+            v.zip(scale)
+                .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
+        })
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        let scale = scale(self.data_type())?;
+        let (props, timestamps) = self.into_inner();
+        let t_index = timestamps.position(ti);
+        if t_index < timestamps.len() {
+            timestamps.get(t_index).eq(ti).then(|| {
+                props
+                    .get(t_index)
+                    .map(|v| BigDecimal::new(BigInt::from(v), scale.into()).into())
+            })?
         } else {
             None
         }
@@ -164,6 +219,7 @@ macro_rules! for_all {
             DiskTProp::Str32($pattern) => $result,
             DiskTProp::I32($pattern) => $result,
             DiskTProp::I64($pattern) => $result,
+            DiskTProp::I128($pattern) => $result,
             DiskTProp::U8($pattern) => $result,
             DiskTProp::U16($pattern) => $result,
             DiskTProp::U32($pattern) => $result,

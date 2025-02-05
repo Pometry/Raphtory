@@ -9,9 +9,21 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
     python::types::repr::Repr,
 };
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    sync::GILOnceCell,
+    types::{PyBool, PyType},
+    IntoPyObjectExt,
+};
 use pyo3_arrow::PyArray;
 use std::{collections::HashSet, ops::Deref, sync::Arc};
+
+static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
 
 impl<'py> IntoPyObject<'py> for Prop {
     type Target = PyAny;
@@ -43,6 +55,10 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
             Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+            Prop::Decimal(d) => {
+                let decl_cls = get_decimal_cls(py)?;
+                decl_cls.call1((d.to_string(),))?
+            }
         })
     }
 }
@@ -103,6 +119,7 @@ impl Repr for Prop {
             Prop::F32(v) => v.repr(),
             Prop::List(v) => v.repr(),
             Prop::Map(v) => v.repr(),
+            Prop::Decimal(v) => v.repr(),
         }
     }
 }

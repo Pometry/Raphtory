@@ -152,6 +152,7 @@ impl From<Prop> for Value {
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
+            Prop::Decimal(value) => Value::from(value.to_string()),
         }
     }
 }
