@@ -3,10 +3,8 @@ use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    DocId, Score, SegmentReader,
+    Score, SegmentReader,
 };
-
-use crate::{db::api::view::StaticGraphViewOps, search::fields};
 
 pub struct UniqueNodeFilterCollector<TCollector>
 where
