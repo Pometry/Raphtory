@@ -38,6 +38,9 @@ pub enum PropType {
     NDTime,
     DTime,
     Array(Box<PropType>),
+    Decimal {
+        scale: i64,
+    },
 }
 
 impl Display for PropType {
@@ -66,6 +69,7 @@ impl Display for PropType {
             PropType::NDTime => "NDTime",
             PropType::DTime => "DTime",
             PropType::Array(p_type) => return write!(f, "Array<{}>", p_type),
+            PropType::Decimal { scale } => return write!(f, "Decimal({})", scale),
         };
 
         write!(f, "{}", type_str)

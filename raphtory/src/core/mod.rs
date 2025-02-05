@@ -25,6 +25,7 @@
 //!
 
 use arrow_array::{ArrayRef, ArrowPrimitiveType};
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -99,6 +100,7 @@ pub enum Prop {
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Array(PropArray),
+    Decimal(BigDecimal),
 }
 
 impl Hash for Prop {
@@ -134,6 +136,7 @@ impl Hash for Prop {
                     prop.hash(state);
                 }
             }
+            Prop::Decimal(d) => d.hash(state),
         }
     }
 }
@@ -215,6 +218,9 @@ impl Prop {
                 PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
             }
             Prop::DTime(_) => PropType::DTime,
+            Prop::Decimal(d) => PropType::Decimal {
+                scale: d.as_bigint_and_scale().1,
+            },
         }
     }
 
@@ -308,6 +314,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(DataType::Struct(fields.into()))
         }
+        PropType::Decimal { scale } => Ok(DataType::Decimal128(96, *scale as i8)), // not sure why 96 here
         PropType::Empty => {
             // this is odd, we'll just pick one and hope for the best
             Ok(DataType::Null)
@@ -407,6 +414,8 @@ pub trait PropUnwrap: Sized {
     }
 
     fn as_f64(&self) -> Option<f64>;
+
+    fn into_decimal(self) -> Option<BigDecimal>;
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -468,6 +477,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn as_f64(&self) -> Option<f64> {
         self.as_ref().and_then(|p| p.as_f64())
+    }
+
+    fn into_decimal(self) -> Option<BigDecimal> {
+        self.and_then(|p| p.into_decimal())
     }
 }
 
@@ -597,6 +610,14 @@ impl PropUnwrap for Prop {
             _ => None,
         }
     }
+
+    fn into_decimal(self) -> Option<BigDecimal> {
+        if let Prop::Decimal(d) = self {
+            Some(d)
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for Prop {
@@ -653,6 +674,7 @@ impl Display for Prop {
                         .join(", ")
                 )
             }
+            Prop::Decimal(d) => write!(f, "Decimal({})", d.as_bigint_and_scale().1),
         }
     }
 }
@@ -719,6 +741,12 @@ impl From<u16> for Prop {
 impl From<i64> for Prop {
     fn from(i: i64) -> Self {
         Prop::I64(i)
+    }
+}
+
+impl From<BigDecimal> for Prop {
+    fn from(d: BigDecimal) -> Self {
+        Prop::Decimal(d)
     }
 }
 

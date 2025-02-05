@@ -7,6 +7,7 @@ use crate::{
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
 use rustc_hash::FxHashMap;
@@ -32,6 +33,7 @@ pub enum TProp {
     NDTime(TCell<NaiveDateTime>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<FxHashMap<ArcStr, Prop>>>),
+    Decimal(TCell<BigDecimal>),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -103,6 +105,7 @@ impl TProp {
             Prop::Array(value) => TProp::Array(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
             Prop::Map(value) => TProp::Map(TCell::new(t, value)),
+            Prop::Decimal(value) => TProp::Decimal(TCell::new(t, value)),
         }
     }
 
@@ -194,6 +197,10 @@ impl TProp {
             TProp::Map(cell) => {
                 Box::new(cell.iter().map(|(t, value)| (*t, Prop::Map(value.clone()))))
             }
+            TProp::Decimal(cell) => Box::new(
+                cell.iter()
+                    .map(|(t, value)| (*t, Prop::Decimal(value.clone()))),
+            ),
         }
     }
 
@@ -230,6 +237,10 @@ impl TProp {
             TProp::Map(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (t, Prop::Map(value.clone()))),
+            ),
+            TProp::Decimal(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (t, Prop::Decimal(value.clone()))),
             ),
         }
     }
@@ -299,6 +310,10 @@ impl TProp {
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::Map(value.clone()))),
             ),
+            TProp::Decimal(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::Decimal(value.clone()))),
+            ),
         }
     }
 }
@@ -324,6 +339,9 @@ impl<'a> TPropOps<'a> for &'a TProp {
                 .map(|(t, v)| (t, Prop::Array(v.clone()))),
             TProp::List(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::List(v.clone()))),
             TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Map(v.clone()))),
+            TProp::Decimal(cell) => cell
+                .last_before(t)
+                .map(|(t, v)| (t, Prop::Decimal(v.clone()))),
         }
     }
 
@@ -356,6 +374,7 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Array(cell) => cell.at(ti).map(|v| Prop::Array(v.clone())),
             TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
             TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
+            TProp::Decimal(cell) => cell.at(ti).map(|v| Prop::Decimal(v.clone())),
         }
     }
 }
