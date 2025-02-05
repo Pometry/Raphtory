@@ -160,7 +160,7 @@ storage = [
     "dep:memmap2",
     "dep:tempfile",
     "polars-arrow?/io_ipc",
-    # "polars-arrow?/arrow_rs",
+    "polars-arrow?/arrow_rs",
 ]
 arrow = [
     "dep:polars-arrow",
