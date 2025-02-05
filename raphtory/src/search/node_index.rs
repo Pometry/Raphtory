@@ -74,7 +74,7 @@ impl NodeIndex {
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = self.reader.searcher();
-        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
+        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
 
         println!("Total node doc count: {}", top_docs.len());
 
@@ -130,7 +130,7 @@ impl NodeIndex {
         &self,
         meta: &Meta,
         prop_name: &str,
-    ) -> Result<Arc<PropertyIndex>, GraphError> {
+    ) -> Result<(Arc<PropertyIndex>, usize), GraphError> {
         if let Some(prop_id) = meta.temporal_prop_meta().get_id(prop_name) {
             let temporal_property_indexes = self
                 .temporal_property_indexes
@@ -138,7 +138,7 @@ impl NodeIndex {
                 .map_err(|_| GraphError::LockError)?;
 
             if let Some(Some(property_index)) = temporal_property_indexes.get(prop_id) {
-                return Ok(Arc::from(property_index.clone()));
+                return Ok((Arc::from(property_index.clone()), prop_id));
             } else {
                 return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
             }
@@ -151,7 +151,7 @@ impl NodeIndex {
                 .map_err(|_| GraphError::LockError)?;
 
             if let Some(Some(property_index)) = constant_property_indexes.get(prop_id) {
-                return Ok(Arc::from(property_index.clone()));
+                return Ok((Arc::from(property_index.clone()), prop_id));
             } else {
                 return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
             }

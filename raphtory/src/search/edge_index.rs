@@ -67,7 +67,7 @@ impl EdgeIndex {
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = self.reader.searcher();
-        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
+        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
 
         println!("Total edge doc count: {}", top_docs.len());
 

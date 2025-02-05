@@ -311,13 +311,18 @@ pub trait TimeSemantics {
 }
 
 pub trait NodeHistoryFilter {
-    fn is_prop_update_available(&self, node_id: VID, time: TimeIndexEntry, prop_id: usize) -> bool;
+    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool;
+
+    fn is_update_available_window(&self, node_id: VID, time: TimeIndexEntry, w: Range<i64>)
+        -> bool;
+
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool;
 
     fn is_prop_update_available_window(
         &self,
+        prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        prop_id: usize,
         w: Range<i64>,
     ) -> bool;
 }
@@ -329,19 +334,35 @@ where
     <G as Base>::Base: NodeHistoryFilter,
 {
     #[inline]
-    fn is_prop_update_available(&self, node_id: VID, time: TimeIndexEntry, prop_id: usize) -> bool {
-        self.is_prop_update_available(node_id, time, prop_id)
+    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.base().is_update_available(node_id, time)
+    }
+
+    #[inline]
+    fn is_update_available_window(
+        &self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.base().is_update_available_window(node_id, time, w)
+    }
+
+    #[inline]
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.base().is_prop_update_available(prop_id, node_id, time)
     }
 
     #[inline]
     fn is_prop_update_available_window(
         &self,
+        prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        prop_id: usize,
         w: Range<i64>,
     ) -> bool {
-        self.is_prop_update_available_window(node_id, time, prop_id, w)
+        self.base()
+            .is_prop_update_available_window(prop_id, node_id, time, w)
     }
 }
 

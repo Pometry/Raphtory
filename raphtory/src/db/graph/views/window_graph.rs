@@ -52,16 +52,17 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritIndexSearch,
-                    InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, ListOps,
-                    NodeFilterOps, NodeList, Static, TimeSemantics,
+                    Base, DelegateTimeSemantics, EdgeFilterOps, EdgeList, Immutable,
+                    InheritCoreOps, InheritIndexSearch, InheritLayerOps, InheritMaterialize,
+                    InheritNodeHistoryFilter, ListOps, NodeFilterOps, NodeHistoryFilter, NodeList,
+                    Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
         },
         graph::graph::graph_equal,
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
@@ -113,6 +114,10 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 
 impl<G> WindowedGraph<G> {
     #[inline(always)]
+    fn window_bound(&self) -> Range<i64> {
+        self.start_bound()..self.end_bound()
+    }
+
     fn start_bound(&self) -> i64 {
         self.start.unwrap_or(i64::MIN)
     }
@@ -133,7 +138,37 @@ impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
+    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.graph
+            .is_update_available_window(node_id, time, self.window_bound())
+    }
+
+    fn is_update_available_window(
+        &self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph.is_update_available_window(node_id, time, w)
+    }
+
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.graph
+            .is_prop_update_available_window(prop_id, node_id, time, self.window_bound())
+    }
+
+    fn is_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_prop_update_available_window(prop_id, node_id, time, w)
+    }
+}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 

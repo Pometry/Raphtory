@@ -32,11 +32,13 @@ pub mod searcher;
 
 mod edge_filter_executor;
 pub mod edge_index;
+mod entity_property_filter_collector;
 pub mod node_filter_collector;
 mod node_filter_executor;
 pub mod node_index;
 pub mod property_index;
 mod query_builder;
+mod unique_entity_filter_collector;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";

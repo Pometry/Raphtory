@@ -7,17 +7,21 @@ use crate::{
             views::property_filter::{CompositeNodeFilter, Filter},
         },
     },
-    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
-    search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
+    prelude::{
+        GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter, TimeOps,
+    },
+    search::{
+        entity_property_filter_collector::EntityPropertyFilterCollector, fields,
+        graph_index::GraphIndex, query_builder::QueryBuilder,
+        unique_entity_filter_collector::UniqueEntityFilterCollector,
+    },
 };
-use itertools::Itertools;
-use raphtory_api::core::entities::{GID, VID};
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 use tantivy::{
-    collector::{FilterCollector, TopDocs},
+    collector::TopDocs,
     query::Query,
     schema::{Field, Value},
-    DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
+    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -38,29 +42,41 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         query: Box<dyn Query>,
-        index: &Arc<Index>,
         reader: &IndexReader,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
+        let collector = UniqueEntityFilterCollector::new(
+            fields::NODE_ID.to_string(),
+            TopDocs::with_limit(limit).and_offset(offset),
+        );
+        let unique_node_ids = searcher.search(&query, &collector)?;
+        let results = self.resolve_nodes(graph, unique_node_ids);
+        Ok(results)
+    }
 
-        // println!("query = {:?}", query);
-        let top_docs =
-            searcher.search(&query, &self.node_id_filter_collector(graph, limit, offset))?;
-        // println!();
-        // Self::print_docs(&searcher, &query, &top_docs);
-        // println!();
-
-        let node_id = index.schema().get_field(fields::NODE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
-            .collect::<Vec<_>>();
-
+    fn execute_filter_property_query<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        query: Box<dyn Query>,
+        prop_id: usize,
+        reader: &IndexReader,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+        let searcher = reader.searcher();
+        let collector = EntityPropertyFilterCollector::new(
+            prop_id,
+            fields::NODE_ID.to_string(),
+            UniqueEntityFilterCollector::new(
+                fields::NODE_ID.to_string(),
+                TopDocs::with_limit(limit).and_offset(offset),
+            ),
+            graph.clone(),
+        );
+        let unique_node_ids = searcher.search(&query, &collector)?;
+        let results = self.resolve_nodes(graph, unique_node_ids);
         Ok(results)
     }
 
@@ -82,7 +98,7 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<HashSet<NodeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
-        let property_index = self
+        let (property_index, prop_id) = self
             .index
             .node_index
             .get_property_index(graph.node_meta(), prop_name)?;
@@ -97,10 +113,10 @@ impl<'a> NodeFilterExecutor<'a> {
         // println!();
 
         let results = match query {
-            Some(query) => self.execute_filter_nodes_query(
+            Some(query) => self.execute_filter_property_query(
                 graph,
                 query,
-                &property_index.index,
+                prop_id,
                 &property_index.reader,
                 limit,
                 offset,
@@ -132,7 +148,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
     ) -> Result<usize, GraphError> {
         let prop_name = &filter.prop_name;
-        let property_index = self
+        let (property_index, _prop_id) = self
             .index
             .node_index
             .get_property_index(graph.node_meta(), prop_name)?;
@@ -176,14 +192,9 @@ impl<'a> NodeFilterExecutor<'a> {
         // println!();
 
         let results = match query {
-            Some(query) => self.execute_filter_nodes_query(
-                graph,
-                query,
-                &node_index.index,
-                &node_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                self.execute_filter_nodes_query(graph, query, &node_index.reader, limit, offset)?
+            }
             None => {
                 vec![]
             }
@@ -315,21 +326,6 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
-    fn node_id_filter_collector<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        limit: usize,
-        offset: usize,
-    ) -> FilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-        let graph = graph.clone();
-        FilterCollector::new(
-            fields::NODE_ID.to_string(),
-            move |node_id: u64| graph.has_node(VID(node_id as usize)),
-            ranking,
-        )
-    }
-
     fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
@@ -345,11 +341,28 @@ impl<'a> NodeFilterExecutor<'a> {
         graph.node(node_id)
     }
 
-    fn print_docs(
-        searcher: &Searcher,
-        query: &Box<dyn Query>,
-        top_docs: &Vec<(Score, DocAddress)>,
-    ) {
+    fn resolve_nodes<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        node_ids: Vec<u64>,
+    ) -> Vec<NodeView<G, G>> {
+        let res = node_ids
+            .into_iter()
+            .filter_map(|id| {
+                let node_id = NodeRef::Internal((id as usize).into());
+                graph.node(node_id)
+            })
+            .collect::<Vec<_>>();
+
+        // println!(
+        //     "node_ids = {:?}",
+        //     res.iter().map(|n| n.name()).collect_vec()
+        // );
+
+        res
+    }
+
+    fn print_docs(searcher: &Searcher, top_docs: &Vec<(Score, DocAddress)>) {
         // println!("Top Docs (debugging):");
         // println!("Query:{:?}", query,);
         for (score, doc_address) in top_docs {
