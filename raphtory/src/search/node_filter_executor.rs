@@ -16,6 +16,7 @@ use crate::{
         unique_entity_filter_collector::UniqueEntityFilterCollector,
     },
 };
+use itertools::Itertools;
 use std::collections::HashSet;
 use tantivy::{
     collector::TopDocs,
@@ -50,9 +51,10 @@ impl<'a> NodeFilterExecutor<'a> {
         let collector = UniqueEntityFilterCollector::new(
             fields::NODE_ID.to_string(),
             TopDocs::with_limit(limit).and_offset(offset),
+            reader.clone(),
         );
-        let unique_node_ids = searcher.search(&query, &collector)?;
-        let results = self.resolve_nodes(graph, unique_node_ids);
+        let node_ids = searcher.search(&query, &collector)?;
+        let results = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
         Ok(results)
     }
 
@@ -72,11 +74,12 @@ impl<'a> NodeFilterExecutor<'a> {
             UniqueEntityFilterCollector::new(
                 fields::NODE_ID.to_string(),
                 TopDocs::with_limit(limit).and_offset(offset),
+                reader.clone(),
             ),
             graph.clone(),
         );
-        let unique_node_ids = searcher.search(&query, &collector)?;
-        let results = self.resolve_nodes(graph, unique_node_ids);
+        let node_ids = searcher.search(&query, &collector)?;
+        let results = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
         Ok(results)
     }
 
@@ -326,40 +329,30 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
-    fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
+    fn resolve_nodes_from_search_results<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        node_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<NodeView<G>> {
-        let node_id: usize = doc
-            .get_first(node_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let node_id = NodeRef::Internal(node_id.into());
-        graph.node(node_id)
-    }
+        searcher: &Searcher,
+        node_ids: Vec<(Score, DocAddress)>,
+    ) -> tantivy::Result<Vec<NodeView<G>>> {
+        let schema = searcher.schema();
+        let node_id_field = schema.get_field(fields::NODE_ID)?;
 
-    fn resolve_nodes<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        node_ids: Vec<u64>,
-    ) -> Vec<NodeView<G, G>> {
-        let res = node_ids
+        let nodes = node_ids
             .into_iter()
-            .filter_map(|id| {
-                let node_id = NodeRef::Internal((id as usize).into());
+            .filter_map(|(_score, doc_address)| {
+                let doc = searcher.doc::<TantivyDocument>(doc_address).ok()?;
+                let node_id: usize = doc
+                    .get_first(node_id_field)
+                    .and_then(|value| value.as_u64())?
+                    .try_into()
+                    .ok()?;
+                let node_id = NodeRef::Internal(node_id.into());
                 graph.node(node_id)
             })
             .collect::<Vec<_>>();
 
-        // println!(
-        //     "node_ids = {:?}",
-        //     res.iter().map(|n| n.name()).collect_vec()
-        // );
-
-        res
+        Ok(nodes)
     }
 
     fn print_docs(searcher: &Searcher, top_docs: &Vec<(Score, DocAddress)>) {
