@@ -626,20 +626,6 @@ mod test {
     }
 
     #[test]
-    fn decimal() {
-        let how_many_digits = i128::MAX.to_string().len();
-        let i: i128 = 104447267751554560119000000000;
-        let j: i128 = 104447267751554560119000000000;
-        println!(
-            "digits: {}, max_digits: {how_many_digits}",
-            i.to_string().len()
-        );
-        // let a = 79228162514264337593543950335;
-        let d = rust_decimal::Decimal::from_scientific("104447267751554560119.000000000");
-        assert!(d.is_ok())
-    }
-
-    #[test]
     fn edge_sanity_bad() {
         let edges = vec![
             (0, 85, -8744527736816607775),

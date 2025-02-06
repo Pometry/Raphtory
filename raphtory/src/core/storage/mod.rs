@@ -175,6 +175,7 @@ impl TPropColumn {
             (TPropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
             (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
             (TPropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
+            (TPropColumn::Decimal(col), Prop::Decimal(v)) => col.set(index, v)?,
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())
@@ -198,6 +199,7 @@ impl TPropColumn {
             (TPropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
             (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
             (TPropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
+            (TPropColumn::Decimal(col), Prop::Decimal(v)) => col.push(Some(v)),
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())

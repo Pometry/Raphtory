@@ -9,6 +9,7 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
     python::types::repr::Repr,
 };
+use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
@@ -17,7 +18,7 @@ use pyo3::{
     IntoPyObjectExt,
 };
 use pyo3_arrow::PyArray;
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, str::FromStr, sync::Arc};
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
@@ -71,6 +72,18 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::I64(v));
+        }
+        if let Ok(v) = ob.extract::<i128>() {
+            return Ok(Prop::Decimal(BigDecimal::from(v)));
+        }
+        if ob.get_type().name()?.contains("Decimal")? {
+            // this sits before f64, otherwise it will be picked up as f64
+            let py_str = &ob.str()?;
+            let rs_str = &py_str.to_cow()?;
+
+            return Ok(Prop::Decimal(BigDecimal::from_str(&rs_str).map_err(
+                |_| PyTypeError::new_err(format!("Could not convert {} to Decimal", rs_str)),
+            )?));
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::F64(v));

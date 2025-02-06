@@ -164,6 +164,9 @@ impl TProp {
                 (TProp::Map(cell), Prop::Map(a)) => {
                     cell.set(t, a);
                 }
+                (TProp::Decimal(cell), Prop::Decimal(a)) => {
+                    cell.set(t, a);
+                }
                 _ => return Err(GraphError::IncorrectPropertyType),
             };
         }

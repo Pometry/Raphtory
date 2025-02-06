@@ -101,49 +101,49 @@ pub fn arrow_array_from_props(
     match prop_type {
         PropType::Str => {
             let array: Utf8Array<i64> = props.map(|prop| prop.into_str()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::U8 => {
             let array: PrimitiveArray<u8> = props.map(|prop| prop.into_u8()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::U16 => {
             let array: PrimitiveArray<u16> = props.map(|prop| prop.into_u16()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::I32 => {
             let array: PrimitiveArray<i32> = props.map(|prop| prop.into_i32()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::I64 => {
             let array: PrimitiveArray<i64> = props.map(|prop| prop.into_i64()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::U32 => {
             let array: PrimitiveArray<u32> = props.map(|prop| prop.into_u32()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::U64 => {
             let array: PrimitiveArray<u64> = props.map(|prop| prop.into_u64()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::F32 => {
             let array: PrimitiveArray<f32> = props.map(|prop| prop.into_f32()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::F64 => {
             let array: PrimitiveArray<f64> = props.map(|prop| prop.into_f64()).collect();
-            (array.null_count() > 0).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::Bool => {
             let array: BooleanArray = props.map(|prop| prop.into_bool()).collect();
-            array.iter().any(|v| v.is_some()).then_some(array.boxed())
+            (array.null_count() != array.len()).then_some(array.boxed())
         }
         PropType::Decimal { scale } => {
             let array: PrimitiveArray<i128> = props
                 .map(|prop| prop.into_decimal().and_then(|d| d.to_ref().to_i128()))
                 .collect();
-            (array.null_count() > 0)
+            (array.null_count() != array.len())
                 .then_some(array.to(DataType::Decimal(38, scale as usize)).boxed())
         }
         PropType::Empty
