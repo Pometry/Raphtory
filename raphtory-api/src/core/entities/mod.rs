@@ -265,6 +265,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
     }
 }
 
+impl<'a> From<&'a str> for GidRef<'a> {
+    fn from(value: &'a str) -> Self {
+        GidRef::Str(value)
+    }
+}
+
 impl<'a> GidRef<'a> {
     pub fn dtype(self) -> GidType {
         match self {
