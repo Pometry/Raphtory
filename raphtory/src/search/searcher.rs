@@ -290,16 +290,229 @@ mod search_tests {
         use crate::{
             core::{IntoProp, Prop},
             db::{
-                api::view::SearchableGraphOps,
+                api::view::{
+                    internal::{CoreGraphOps, InternalIndexSearch, NodeHistoryFilter},
+                    SearchableGraphOps,
+                },
                 graph::views::property_filter::{CompositeNodeFilter, Filter},
             },
-            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{
+                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeStateOps, NodeViewOps,
+                PropertyFilter, StableDecode, TimeOps,
+            },
+            search::searcher::search_tests::PersistentGraph,
         };
+        use itertools::Itertools;
+        use raphtory_api::core::entities::VID;
+        use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+        use crate::db::api::storage::graph::nodes::node_storage_ops::NodeStorageOps;
+        use crate::db::api::storage::graph::tprop_storage_ops::TPropOps;
+
+        #[test]
+        fn test_last_before() {
+            let w = 6..7;
+
+            let graph = PersistentGraph::new();
+            graph
+                .add_node(5, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            let nse = graph.core_node_entry(VID(0));
+            let prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let r = nse
+                .tprop(prop_id)
+                .last_before(TimeIndexEntry::start(w.start));
+            println!("last_before = {:?}", r);
+
+
+            let graph = PersistentGraph::new();
+            graph
+                .add_node(5, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            let nse = graph.core_node_entry(VID(0));
+            let prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let r = nse
+                .tprop(prop_id)
+                .last_before(TimeIndexEntry::start(w.start));
+            println!("last_before = {:?}", r);
+
+
+            let graph = PersistentGraph::new();
+            graph
+                .add_node(2, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(3, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            let nse = graph.core_node_entry(VID(0));
+            let prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let r = nse
+                .tprop(prop_id)
+                .last_before(TimeIndexEntry::start(w.start));
+            println!("last_before = {:?}", r);
+        }
+
+        #[test]
+        fn test_is_update_available() {
+            let graph = PersistentGraph::new();
+            // graph
+            //     .add_node(1, "N4", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(2, "N4", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(2, "N3", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(3, "N4", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(4, "N4", [("p1", Prop::U64(2u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(6, "N1", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(7, "N2", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+            // graph
+            //     .add_node(8, "N5", [("p1", Prop::U64(1u64))], None)
+            //     .unwrap();
+
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            println!("graph node count = {}", graph.count_nodes());
+            println!("N5 found = {}", graph.has_node("N5"));
+            println!("N5 found = {}", graph.node("N5").is_some());
+            println!("N4 found = {}", graph.node(VID(0)).is_some());
+            println!("N3 found = {}", graph.node(VID(1)).is_some());
+            println!("N1 found = {}", graph.node(VID(2)).is_some());
+            println!("N2 found = {}", graph.node(VID(3)).is_some());
+            println!("N5 found = {}", graph.node(VID(4)).is_some());
+
+            let p1_prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+            println!(
+                "is graph update available = {}, t = {}",
+                graph.window(6, 8).is_prop_update_available(
+                    p1_prop_id,
+                    graph.node("N1").unwrap().node,
+                    3.into(),
+                ),
+                3
+            );
+            println!(
+                "is graph update available = {}, t = {}",
+                graph.window(6, 8).is_prop_update_available(
+                    p1_prop_id,
+                    graph.node("N2").unwrap().node,
+                    3.into(),
+                ),
+                3
+            );
+            println!(
+                "is graph update available = {}, t = {}",
+                graph.window(6, 8).is_prop_update_available(
+                    p1_prop_id,
+                    graph.node("N3").unwrap().node,
+                    3.into(),
+                ),
+                3
+            );
+            println!(
+                "is graph update available = {}, t = {}",
+                graph.window(6, 8).is_prop_update_available(
+                    p1_prop_id,
+                    graph.node("N4").unwrap().node,
+                    3.into(),
+                ),
+                3
+            );
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let mut results = graph
+                .window(6, 9)
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+
+            println!("results = {:?}", results);
+        }
 
         fn search_nodes_by_composite_filter(filter: &CompositeNodeFilter) -> Vec<String> {
             let graph = Graph::new();
             graph
-                .add_node(1, 1, [("p1", "shivam_kapoor")], Some("fire_nation"))
+                .add_node(
+                    1,
+                    1,
+                    [
+                        ("p1", "shivam_kapoor".into_prop()),
+                        ("p9", 5u64.into_prop()),
+                    ],
+                    Some("fire_nation"),
+                )
                 .unwrap();
             graph
                 .add_node(
@@ -310,13 +523,35 @@ mod search_tests {
                 )
                 .unwrap();
             graph
+                .add_node(
+                    3,
+                    1,
+                    [
+                        ("p1", "shivam_kapoor".into_prop()),
+                        ("p9", 5u64.into_prop()),
+                    ],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
                 .add_node(3, 3, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(
+                    4,
+                    1,
+                    [
+                        ("p1", "shivam_kapoor".into_prop()),
+                        ("p9", 5u64.into_prop()),
+                    ],
+                    Some("fire_nation"),
+                )
                 .unwrap();
             graph.add_node(3, 4, [("p4", "pometry")], None).unwrap();
             graph.add_node(4, 4, [("p5", 12u64)], None).unwrap();
 
             let mut results = graph
-                .search_nodes(&filter, 5, 0)
+                .search_nodes(&filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
