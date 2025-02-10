@@ -218,9 +218,9 @@ impl TimeSemantics for PersistentGraph {
         let v = self.core_node_entry(v);
         let additions = v.additions();
         if additions.first_t()? <= start {
-            Some(additions.range_t(start..end).first_t().unwrap_or(start))
+            Some(start)
         } else {
-            None
+            additions.range_t(start..end).first_t()
         }
     }
 
@@ -1289,5 +1289,15 @@ mod test_deletions {
 
         assert_eq!(g.window(-1, 0).earliest_time(), None);
         assert_eq!(g.window(-1, 0).latest_time(), None);
+    }
+
+    #[test]
+    fn test_node_earliest_time_window() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(4, 1, 3, NO_PROPS, None).unwrap();
+
+        assert_eq!(g.window(2, 7).node(3).unwrap().earliest_time(), Some(4));
+        assert_eq!(g.window(2, 7).node(1).unwrap().earliest_time(), Some(2));
     }
 }
