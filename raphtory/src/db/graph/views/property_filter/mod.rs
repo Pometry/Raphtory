@@ -2,7 +2,9 @@ use crate::core::{
     entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop,
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashSet, fmt, sync::Arc};
+use strsim::levenshtein;
 
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
@@ -21,6 +23,10 @@ pub enum FilterOperator {
     NotIn,
     IsSome,
     IsNone,
+    FuzzySearch {
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    },
 }
 
 impl fmt::Display for FilterOperator {
@@ -33,9 +39,19 @@ impl fmt::Display for FilterOperator {
             FilterOperator::Gt => ">",
             FilterOperator::Ge => ">=",
             FilterOperator::In => "IN",
-            FilterOperator::NotIn => "NOT IN",
-            FilterOperator::IsSome => "IS SOME",
-            FilterOperator::IsNone => "IS NONE",
+            FilterOperator::NotIn => "NOT_IN",
+            FilterOperator::IsSome => "IS_SOME",
+            FilterOperator::IsNone => "IS_NONE",
+            FilterOperator::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            } => {
+                return write!(
+                    f,
+                    "FUZZY_SEARCH({},{})",
+                    levenshtein_distance, prefix_match
+                );
+            }
         };
         write!(f, "{}", operator)
     }
@@ -64,6 +80,18 @@ impl FilterOperator {
         }
     }
 
+    pub fn fuzzy_search(
+        &self,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> impl Fn(&str, &str) -> bool {
+        move |left: &str, right: &str| {
+            let levenshtein_match = levenshtein(left, right) <= levenshtein_distance;
+            let prefix_match = prefix_match && right.starts_with(left);
+            levenshtein_match || prefix_match
+        }
+    }
+
     fn collection_operation<T>(&self) -> impl Fn(&HashSet<T>, &T) -> bool
     where
         T: Eq + std::hash::Hash,
@@ -89,6 +117,16 @@ impl FilterOperator {
                 | FilterOperator::Le
                 | FilterOperator::Gt
                 | FilterOperator::Ge => right.map_or(false, |r| self.operation()(r, l)),
+                FilterOperator::FuzzySearch {
+                    levenshtein_distance,
+                    prefix_match,
+                } => right.map_or(false, |r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => {
+                        let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
+                        fuzzy_fn(l, r)
+                    }
+                    _ => unreachable!(),
+                }),
                 _ => unreachable!(),
             },
             PropertyFilterValue::Set(l) => match self {
@@ -106,6 +144,13 @@ impl FilterOperator {
                 FilterOperator::Eq | FilterOperator::Ne => {
                     right.map_or(false, |r| self.operation()(r, l))
                 }
+                FilterOperator::FuzzySearch {
+                    levenshtein_distance,
+                    prefix_match,
+                } => right.map_or(false, |r| {
+                    let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
+                    fuzzy_fn(l, r)
+                }),
                 _ => unreachable!(),
             },
             FilterValue::Set(l) => match self {
@@ -238,6 +283,22 @@ impl PropertyFilter {
         }
     }
 
+    pub fn fuzzy_search(
+        prop_name: impl Into<String>,
+        prop_value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> Self {
+        Self {
+            prop_name: prop_name.into(),
+            prop_value: PropertyFilterValue::Single(Prop::Str(ArcStr::from(prop_value.into()))),
+            operator: FilterOperator::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            },
+        }
+    }
+
     pub fn resolve_temporal_prop_ids(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
         if let PropertyFilterValue::Single(value) = &self.prop_value {
             Ok(meta
@@ -336,6 +397,22 @@ impl Filter {
         }
     }
 
+    pub fn fuzzy_search(
+        field_name: impl Into<String>,
+        field_value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            },
+        }
+    }
+
     pub fn matches(&self, node_value: Option<&str>) -> bool {
         self.operator.apply(&self.field_value, node_value)
     }
@@ -352,8 +429,8 @@ pub enum CompositeNodeFilter {
 impl fmt::Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Property(filter) => write!(f, "NODE_PROPERTY({})", filter),
+            CompositeNodeFilter::Node(filter) => write!(f, "NODE({})", filter),
             CompositeNodeFilter::And(filters) => {
                 let formatted = filters
                     .iter()
@@ -385,8 +462,8 @@ pub enum CompositeEdgeFilter {
 impl fmt::Display for CompositeEdgeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::Property(filter) => write!(f, "EDGE_PROPERTY({})", filter),
+            CompositeEdgeFilter::Edge(filter) => write!(f, "EDGE({})", filter),
             CompositeEdgeFilter::And(filters) => {
                 let formatted = filters
                     .iter()
@@ -418,12 +495,12 @@ mod test_composite_filters {
     #[test]
     fn test_composite_node_filter() {
         assert_eq!(
-            "p2 == 2",
+            "NODE_PROPERTY(p2 == 2)",
             CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
         );
 
         assert_eq!(
-            "((node_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 IN [2, 10]))) OR (node_name == pometry) OR (p5 == 9)",
+            "((NODE(node_type NOT_IN [fire_nation, water_tribe])) AND (NODE_PROPERTY(p2 == 2)) AND (NODE_PROPERTY(p1 == 1)) AND ((NODE_PROPERTY(p3 <= 5)) OR (NODE_PROPERTY(p4 IN [2, 10])))) OR (NODE(node_name == pometry)) OR (NODE_PROPERTY(p5 == 9))",
             CompositeNodeFilter::Or(vec![
                 CompositeNodeFilter::And(vec![
                     CompositeNodeFilter::Node(Filter::not_any(
@@ -440,6 +517,20 @@ mod test_composite_filters {
                 CompositeNodeFilter::Node(Filter::eq("node_name", "pometry")),
                 CompositeNodeFilter::Property(PropertyFilter::eq("p5", 9u64)),
             ])
+                .to_string()
+        );
+
+        assert_eq!(
+            "(NODE(name FUZZY_SEARCH(1,true) shivam)) AND (NODE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
+            CompositeNodeFilter::And(vec![
+                CompositeNodeFilter::Node(Filter::fuzzy_search("name", "shivam", 1, true)),
+                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
+                    "nation",
+                    "air_nomad",
+                    1,
+                    false,
+                )),
+            ])
             .to_string()
         );
     }
@@ -447,12 +538,12 @@ mod test_composite_filters {
     #[test]
     fn test_composite_edge_filter() {
         assert_eq!(
-            "p2 == 2",
+            "EDGE_PROPERTY(p2 == 2)",
             CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
         );
 
         assert_eq!(
-            "((edge_type NOT IN [fire_nation, water_tribe]) AND (p2 == 2) AND (p1 == 1) AND ((p3 <= 5) OR (p4 IN [2, 10]))) OR (from == pometry) OR (p5 == 9)",
+            "((EDGE(edge_type NOT_IN [fire_nation, water_tribe])) AND (EDGE_PROPERTY(p2 == 2)) AND (EDGE_PROPERTY(p1 == 1)) AND ((EDGE_PROPERTY(p3 <= 5)) OR (EDGE_PROPERTY(p4 IN [2, 10])))) OR (EDGE(from == pometry)) OR (EDGE_PROPERTY(p5 == 9))",
             CompositeEdgeFilter::Or(vec![
                 CompositeEdgeFilter::And(vec![
                     CompositeEdgeFilter::Edge(Filter::not_any(
@@ -470,6 +561,20 @@ mod test_composite_filters {
                 CompositeEdgeFilter::Property(PropertyFilter::eq("p5", 9u64)),
             ])
                 .to_string()
+        );
+
+        assert_eq!(
+            "(EDGE(name FUZZY_SEARCH(1,true) shivam)) AND (EDGE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
+            CompositeEdgeFilter::And(vec![
+                CompositeEdgeFilter::Edge(Filter::fuzzy_search("name", "shivam", 1, true)),
+                CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
+                    "nation",
+                    "air_nomad",
+                    1,
+                    false,
+                )),
+            ])
+            .to_string()
         );
     }
 }
