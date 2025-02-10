@@ -717,8 +717,9 @@ impl NodeHistoryFilter for PersistentGraph {
     }
 
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
-        let nse = self.0.core_node_entry(node_id);
-        nse.tprop(prop_id).at(&time).is_some()
+        // let nse = self.0.core_node_entry(node_id);
+        // nse.tprop(prop_id).at(&time).is_some()
+        true
     }
 
     fn is_prop_update_available_window(
@@ -737,7 +738,7 @@ impl NodeHistoryFilter for PersistentGraph {
             let x = nse
                 .tprop(prop_id)
                 .last_before(TimeIndexEntry::start(w.start))
-                .map(|(t, _)| time.eq(&t))
+                .map(|(t, _)| time.t().eq(&t.t()))
                 .unwrap_or(false);
             x
         }

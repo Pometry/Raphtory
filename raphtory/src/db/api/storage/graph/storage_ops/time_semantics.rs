@@ -556,8 +556,9 @@ impl NodeHistoryFilter for GraphStorage {
     }
 
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
-        let nse = self.core_node_entry(node_id);
-        nse.tprop(prop_id).at(&time).is_some()
+        // let nse = self.core_node_entry(node_id);
+        // nse.tprop(prop_id).at(&time).is_some()
+        true
     }
 
     fn is_prop_update_available_window(

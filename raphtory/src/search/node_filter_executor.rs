@@ -11,12 +11,17 @@ use crate::{
         GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter, TimeOps,
     },
     search::{
-        entity_property_filter_collector::EntityPropertyFilterCollector, fields,
-        graph_index::GraphIndex, query_builder::QueryBuilder,
-        unique_entity_filter_collector::UniqueEntityFilterCollector,
+        collectors::{
+            unique_filter_collector::UniqueFilterCollector,
+            window_filter_collector::WindowFilterCollector,
+        },
+        fields,
+        graph_index::GraphIndex,
+        query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
+use raphtory_api::core::entities::VID;
 use std::collections::HashSet;
 use tantivy::{
     collector::TopDocs,
@@ -24,6 +29,7 @@ use tantivy::{
     schema::{Field, Value},
     DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
+use crate::search::collectors::property_filter_collector::PropertyFilterCollector;
 
 #[derive(Clone, Copy)]
 pub struct NodeFilterExecutor<'a> {
@@ -48,14 +54,15 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        let collector = UniqueEntityFilterCollector::new(
+        let collector = UniqueFilterCollector::new(
             fields::NODE_ID.to_string(),
             TopDocs::with_limit(limit).and_offset(offset),
             reader.clone(),
+            graph.clone(),
         );
         let node_ids = searcher.search(&query, &collector)?;
-        let results = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
-        Ok(results)
+        let nodes = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
+        Ok(nodes)
     }
 
     fn execute_filter_property_query<G: StaticGraphViewOps>(
@@ -68,19 +75,12 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        let collector = EntityPropertyFilterCollector::new(
-            prop_id,
-            fields::NODE_ID.to_string(),
-            UniqueEntityFilterCollector::new(
-                fields::NODE_ID.to_string(),
-                TopDocs::with_limit(limit).and_offset(offset),
-                reader.clone(),
-            ),
-            graph.clone(),
-        );
+        // WindowFilterCollector(UniqueFilterCollector(PropertyFilterCollector))
+        let collector =
+            WindowFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
         let node_ids = searcher.search(&query, &collector)?;
-        let results = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
-        Ok(results)
+        let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
+        Ok(nodes.into_iter().skip(offset).take(limit).collect())
     }
 
     fn execute_filter_count_query(
@@ -99,7 +99,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<HashSet<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
         let (property_index, prop_id) = self
             .index
@@ -134,15 +134,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 .collect(),
         };
 
-        let unique_results: HashSet<_> = results.into_iter().collect();
-
-        // println!(
-        //     "prop filter: {:?}, result: {:?}",
-        //     filter,
-        //     unique_results.iter().map(|n| n.name()).collect_vec()
-        // );
-
-        Ok(unique_results)
+        Ok(results)
     }
 
     fn filter_count_property_index<G: StaticGraphViewOps>(
@@ -181,7 +173,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &Filter,
         limit: usize,
         offset: usize,
-    ) -> Result<HashSet<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
         // println!();
@@ -203,15 +195,7 @@ impl<'a> NodeFilterExecutor<'a> {
             }
         };
 
-        let unique_results: HashSet<_> = results.into_iter().collect();
-
-        // println!(
-        //     "node filter: {:?}, result: {:?}",
-        //     filter,
-        //     unique_results.iter().map(|n| n.name()).collect_vec()
-        // );
-
-        Ok(unique_results)
+        Ok(results)
     }
 
     fn filter_count_node_index(&self, filter: &Filter) -> Result<usize, GraphError> {
@@ -231,7 +215,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<HashSet<NodeView<G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         match filter {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
@@ -244,9 +228,14 @@ impl<'a> NodeFilterExecutor<'a> {
 
                 for sub_filter in filters {
                     let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
+
                     results = Some(
                         results
-                            .map(|r: HashSet<_>| r.intersection(&sub_result).cloned().collect())
+                            .map(|r: Vec<_>| {
+                                r.into_iter()
+                                    .filter(|item| sub_result.contains(item))
+                                    .collect::<Vec<_>>() // Ensure intersection results stay in a Vec
+                            })
                             .unwrap_or(sub_result),
                     );
                 }
@@ -254,7 +243,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 Ok(results.unwrap_or_default())
             }
             CompositeNodeFilter::Or(filters) => {
-                let mut results = HashSet::new();
+                let mut results = Vec::new();
 
                 for sub_filter in filters {
                     let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
@@ -329,16 +318,16 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
-    fn resolve_nodes_from_search_results<'graph, G: GraphViewOps<'graph>>(
+    fn resolve_nodes_from_search_results<'graph, G: StaticGraphViewOps>(
         &self,
         graph: &G,
         searcher: &Searcher,
-        node_ids: Vec<(Score, DocAddress)>,
+        docs: Vec<(Score, DocAddress)>,
     ) -> tantivy::Result<Vec<NodeView<G>>> {
         let schema = searcher.schema();
         let node_id_field = schema.get_field(fields::NODE_ID)?;
 
-        let nodes = node_ids
+        let nodes = docs
             .into_iter()
             .filter_map(|(_score, doc_address)| {
                 let doc = searcher.doc::<TantivyDocument>(doc_address).ok()?;
@@ -347,11 +336,23 @@ impl<'a> NodeFilterExecutor<'a> {
                     .and_then(|value| value.as_u64())?
                     .try_into()
                     .ok()?;
-                let node_id = NodeRef::Internal(node_id.into());
-                graph.node(node_id)
+                let entity_id = VID(node_id);
+                graph.node(entity_id)
             })
             .collect::<Vec<_>>();
 
+        Ok(nodes)
+    }
+
+    fn resolve_nodes_from_node_ids<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        node_ids: HashSet<u64>,
+    ) -> tantivy::Result<Vec<NodeView<G>>> {
+        let nodes = node_ids
+            .into_iter()
+            .filter_map(|id| graph.node(VID(id as usize)))
+            .collect_vec();
         Ok(nodes)
     }
 
