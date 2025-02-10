@@ -123,6 +123,7 @@ fn get<'a>(disk_col: &DiskTProp<'a, TimeIndexEntry>, row: usize) -> Option<Prop>
         DiskTProp::Bool(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::Str64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::Str32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
+        DiskTProp::Str(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::I32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::I64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::U8(tprop_column) => tprop_column.get(row).map(|p| p.into()),
