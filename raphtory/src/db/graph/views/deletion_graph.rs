@@ -111,6 +111,16 @@ fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool 
         .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
 }
 
+fn last_prop_value_before<'a>(
+    t: TimeIndexEntry,
+    props: impl TPropOps<'a>,
+    deletions: impl TimeIndexOps<IndexType = TimeIndexEntry>,
+) -> Option<(TimeIndexEntry, Prop)> {
+    props
+        .last_before(t) // inclusive
+        .filter(|(last_t, _)| !deletions.active(*last_t..t))
+}
+
 impl PersistentGraph {
     pub fn new() -> Self {
         Self::default()
@@ -257,6 +267,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
+        // FIXME: Should this also return addition at start of the window if the node is alive?
         self.0.node_history_window(v, w)
     }
 
@@ -270,6 +281,7 @@ impl TimeSemantics for PersistentGraph {
         w: Option<Range<i64>>,
     ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
         // if window exists, we need to add the first row before the window
+        // FIXME: this doesn't work correctly for multiple updates at the start of the window
         if let Some(w) = w {
             let t = TimeIndexEntry::start(w.start.saturating_add(1));
             let first_row = self.core_node_entry(v).as_ref().last_before_row(t);
@@ -336,6 +348,7 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
+        // FIXME: these have different semantics from properties and always include the last exploded edge at the start of the window, even if the edge was updated.
         match layer_ids {
             LayerIds::None => 0,
             LayerIds::All => (0..self.unfiltered_num_layers())
@@ -635,26 +648,42 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
-        GenLockedIter::from(entry, |entry| {
-            entry
-                .temporal_prop_iter(&layer_ids, prop_id)
-                .map(|(l, prop)| {
-                    let first_prop = prop
-                        .last_before(TimeIndexEntry::start(start.saturating_add(1)))
-                        .filter(|(t, _)| {
-                            !entry
-                                .deletions(l)
-                                .active(*t..TimeIndexEntry::start(start.saturating_add(1)))
-                        })
+        match e.time() {
+            Some(t) => {
+                if (start..end).contains(&t.t()) {
+                    GenLockedIter::from(entry, move |entry| {
+                        entry
+                            .temporal_prop_iter(&layer_ids, prop_id)
+                            .filter_map(move |(layer_id, props)| {
+                                last_prop_value_before(t.next(), props, entry.deletions(layer_id))
+                                    .map(|(_, v)| (t, v))
+                            })
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed()
+                } else {
+                    iter::empty().into_dyn_boxed()
+                }
+            }
+            None => GenLockedIter::from(entry, |entry| {
+                entry
+                    .temporal_prop_iter(&layer_ids, prop_id)
+                    .map(|(l, prop)| {
+                        let first_prop = last_prop_value_before(
+                            TimeIndexEntry::start(start.saturating_add(1)),
+                            prop.clone(),
+                            entry.deletions(l),
+                        )
                         .map(|(_, v)| (TimeIndexEntry::start(start), v));
-                    first_prop.into_iter().chain(
-                        prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)),
-                    )
-                })
-                .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
-                .into_dyn_boxed()
-        })
-        .into_dyn_boxed()
+                        first_prop.into_iter().chain(
+                            prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)),
+                        )
+                    })
+                    .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed(),
+        }
     }
 
     fn temporal_edge_prop_at(
@@ -668,8 +697,7 @@ impl TimeSemantics for PersistentGraph {
         let res = entry
             .temporal_prop_iter(&layer_ids, id)
             .filter_map(|(layer_id, prop)| {
-                prop.last_before(t.next()) // inclusive
-                    .filter(|(last_t, _)| !entry.deletions(layer_id).active(*last_t..t.next())) // check with inclusive window
+                last_prop_value_before(t.next(), prop, entry.deletions(layer_id)) // check with inclusive window
                     .map(|(_, v)| v)
             })
             .next();
@@ -1299,5 +1327,22 @@ mod test_deletions {
 
         assert_eq!(g.window(2, 7).node(3).unwrap().earliest_time(), Some(4));
         assert_eq!(g.window(2, 7).node(1).unwrap().earliest_time(), Some(2));
+    }
+
+    #[test]
+    fn test_exploded_edge_window() {
+        let g = PersistentGraph::new();
+        g.add_edge(1, 0, 1, [("test", 1i64)], None).unwrap();
+        g.add_edge(3, 0, 1, [("test", 3i64)], None).unwrap();
+        g.add_edge(4, 0, 1, [("test", 4i64)], None).unwrap();
+
+        let prop_values = g
+            .window(2, 5)
+            .edges()
+            .explode()
+            .properties()
+            .map(|props| props.get("test").unwrap_i64())
+            .collect::<Vec<_>>();
+        assert_eq!(prop_values, [1, 3, 4]);
     }
 }
