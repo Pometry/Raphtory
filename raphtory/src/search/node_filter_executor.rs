@@ -59,7 +59,7 @@ impl<'a> NodeFilterExecutor<'a> {
             reader.clone(),
             graph.clone(),
         );
-        let node_ids = searcher.search(&query, &collector)?;
+        let node_ids = searcher.search(&query, &collector)?; // TODO: Need to debug this
         let node_ids = searcher.search(&query, &TopDocs::with_limit(limit).and_offset(offset))?;
         let nodes = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
         Ok(nodes)
@@ -75,7 +75,6 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        // WindowFilterCollector(UniqueFilterCollector(PropertyFilterCollector))
         let collector =
             WindowFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
         let node_ids = searcher.search(&query, &collector)?;
@@ -83,7 +82,7 @@ impl<'a> NodeFilterExecutor<'a> {
         Ok(nodes.into_iter().skip(offset).take(limit).collect())
     }
 
-    fn execute_filter_count_query(
+    fn execute_filter_nodes_count_query(
         &self,
         query: Box<dyn Query>,
         reader: &IndexReader,
@@ -91,6 +90,20 @@ impl<'a> NodeFilterExecutor<'a> {
         let searcher = reader.searcher();
         let docs_count = searcher.search(&query, &tantivy::collector::Count)?;
         Ok(docs_count)
+    }
+
+    fn execute_filter_property_count_query<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        prop_id: usize,
+        query: Box<dyn Query>,
+        reader: &IndexReader,
+    ) -> Result<usize, GraphError> {
+        let searcher = reader.searcher();
+        let collector =
+            WindowFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
+        let docs_count = searcher.search(&query, &collector)?;
+        Ok(docs_count.len())
     }
 
     fn filter_property_index<G: StaticGraphViewOps>(
@@ -108,12 +121,6 @@ impl<'a> NodeFilterExecutor<'a> {
         let (property_index, query) = self
             .query_builder
             .build_property_query::<G>(property_index, filter)?;
-
-        // println!();
-        // println!("Printing property index schema::start");
-        // Self::print_schema(&property_index.index.schema());
-        // println!("Printing property index schema::end");
-        // println!();
 
         let results = match query {
             Some(query) => self.execute_filter_property_query(
@@ -143,7 +150,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
     ) -> Result<usize, GraphError> {
         let prop_name = &filter.prop_name;
-        let (property_index, _prop_id) = self
+        let (property_index, prop_id) = self
             .index
             .node_index
             .get_property_index(graph.node_meta(), prop_name)?;
@@ -151,14 +158,13 @@ impl<'a> NodeFilterExecutor<'a> {
             .query_builder
             .build_property_query::<G>(property_index, filter)?;
 
-        // println!();
-        // println!("Printing property index schema::start");
-        // Self::print_schema(&property_index.index.schema());
-        // println!("Printing property index schema::end");
-        // println!();
-
         let results = match query {
-            Some(query) => self.execute_filter_count_query(query, &property_index.reader)?,
+            Some(query) => self.execute_filter_property_count_query(
+                graph,
+                prop_id,
+                query,
+                &property_index.reader,
+            )?,
             None => 0,
         };
 
@@ -176,16 +182,6 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
-        // println!();
-        // println!("Printing node index::start");
-        // node_index.print()?;
-        // println!("Printing node index::end");
-        // println!();
-        // println!("Printing node index schema::start");
-        // Self::print_schema(&node_index.index.schema());
-        // println!("Printing node index schema::end");
-        // println!();
-
         let results = match query {
             Some(query) => {
                 self.execute_filter_nodes_query(graph, query, &node_index.reader, limit, offset)?
@@ -202,7 +198,7 @@ impl<'a> NodeFilterExecutor<'a> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
         let results = match query {
-            Some(query) => self.execute_filter_count_query(query, &node_index.reader)?,
+            Some(query) => self.execute_filter_nodes_count_query(query, &node_index.reader)?,
             None => 0,
         };
 

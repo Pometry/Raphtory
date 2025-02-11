@@ -1437,6 +1437,19 @@ mod views_test {
             results
         }
 
+        fn search_nodes_count_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: G,
+            w: Range<i64>,
+            filter: &CompositeNodeFilter,
+        ) -> usize {
+            let graph = init_graph(graph);
+            let results = graph
+                .window(w.start, w.end)
+                .search_nodes_count(&filter)
+                .expect("Failed to search for nodes");
+            results
+        }
+
         #[test]
         fn test_search_nodes_windowed_graph() {
             let graph = Graph::new();
@@ -1447,12 +1460,21 @@ mod views_test {
         }
 
         #[test]
-        fn test_search_nodes_windowed_persistent_graph() {
+        fn test_search_nodes_count_windowed_graph() {
+            let graph = Graph::new();
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_count_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, 4);
+        }
+
+        #[test]
+        fn test_search_nodes_count_windowed_persistent_graph() {
             let graph = PersistentGraph::new();
             let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+            let results = search_nodes_count_by_composite_filter(graph, 6..9, &filter);
 
-            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+            assert_eq!(results, 6);
         }
     }
 }
