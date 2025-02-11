@@ -96,6 +96,7 @@ impl PropType {
                 | PropType::I64
                 | PropType::F32
                 | PropType::F64
+                | PropType::Decimal { .. }
         )
     }
 

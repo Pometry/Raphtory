@@ -159,6 +159,7 @@ impl PartialOrd for Prop {
             (Prop::NDTime(a), Prop::NDTime(b)) => a.partial_cmp(b),
             (Prop::DTime(a), Prop::DTime(b)) => a.partial_cmp(b),
             (Prop::List(a), Prop::List(b)) => a.partial_cmp(b),
+            (Prop::Decimal(a), Prop::Decimal(b)) => a.partial_cmp(b),
             _ => None,
         }
     }
@@ -239,6 +240,7 @@ impl Prop {
             (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a + b)),
             (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a + b)),
             (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + b.as_ref()).into())),
+            (Prop::Decimal(a), Prop::Decimal(b)) => Some(Prop::Decimal(a + b)),
             _ => None,
         }
     }
@@ -267,8 +269,11 @@ impl Prop {
             (Prop::I64(a), Prop::I64(b)) if b != 0 => Some(Prop::I64(a / b)),
             (Prop::U32(a), Prop::U32(b)) if b != 0 => Some(Prop::U32(a / b)),
             (Prop::U64(a), Prop::U64(b)) if b != 0 => Some(Prop::U64(a / b)),
-            (Prop::F32(a), Prop::F32(b)) if b != 0.0 => Some(Prop::F32(a / b)),
-            (Prop::F64(a), Prop::F64(b)) if b != 0.0 => Some(Prop::F64(a / b)),
+            (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a / b)),
+            (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a / b)),
+            (Prop::Decimal(a), Prop::Decimal(b)) if b != BigDecimal::from(0) => {
+                Some(Prop::Decimal(a / b))
+            }
             _ => None,
         }
     }
@@ -314,7 +319,8 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(DataType::Struct(fields.into()))
         }
-        PropType::Decimal { scale } => Ok(DataType::Decimal128(96, *scale as i8)), // not sure why 96 here
+        // 38 comes from herehttps://arrow.apache.org/docs/python/generated/pyarrow.decimal128.html
+        PropType::Decimal { scale } => Ok(DataType::Decimal128(38, (*scale).try_into().unwrap())),
         PropType::Empty => {
             // this is odd, we'll just pick one and hope for the best
             Ok(DataType::Null)
@@ -334,6 +340,9 @@ pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
         DataType::Float32 => PropType::F32,
         DataType::Float64 => PropType::F64,
         DataType::Boolean => PropType::Bool,
+        DataType::Decimal128(_, scale) => PropType::Decimal {
+            scale: *scale as i64,
+        },
         DataType::List(field) => {
             let d_type = field.data_type();
             PropType::Array(Box::new(prop_type_from_arrow_dtype(&d_type)))
