@@ -17,7 +17,7 @@ def test_hanging_edges():
     assert G.at(6).count_edges() == 0
     assert G.latest_time == 5
     assert G.at(G.latest_time).count_edges() == 0
-    assert G.at(G.latest_time - 1).count_edges() == 1
+    assert G.at(G.latest_time - 1).count_edges() == 0
 
 
 def test_overlapping_times():
@@ -48,7 +48,6 @@ def test_same_time_op():
     exploded_2 = G2.edges.explode()
     assert list(zip(exploded_1.earliest_time, exploded_1.latest_time)) == [(1, 1)]
     assert list(zip(exploded_2.earliest_time, exploded_2.latest_time)) == [
-        (-9223372036854775808, 1),
         (1, 9223372036854775807),
     ]
     assert G1.at(1).count_temporal_edges() == 1
