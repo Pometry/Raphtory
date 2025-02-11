@@ -308,29 +308,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        match layer_ids {
-            LayerIds::None => 0,
-            LayerIds::All => (0..self.unfiltered_num_layers())
-                .into_par_iter()
-                .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
-                .sum(),
-            LayerIds::One(id) => {
-                let additions = edge.additions(*id);
-                let deletions = edge.deletions(*id);
-                let a_first = additions.first().unwrap_or(TimeIndexEntry::MAX);
-                let d_first = deletions.first().unwrap_or(TimeIndexEntry::MAX);
-                if d_first < a_first {
-                    additions.len() + 1
-                } else {
-                    additions.len()
-                }
-            }
-            LayerIds::Multiple(layers) => layers
-                .clone()
-                .par_iter()
-                .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
-                .sum(),
-        }
+        self.0.edge_exploded_count(edge, layer_ids)
     }
 
     fn edge_exploded_count_window(
@@ -364,23 +342,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
-        let edge = self.0.core_edge(e.pid());
-
-        let alive_layers: Vec<_> = edge
-            .updates_iter(&layer_ids.constrain_from_edge(e))
-            .filter_map(
-                |(l, additions, deletions)| match (additions.first(), deletions.first()) {
-                    (Some(a), Some(d)) => (d < a).then_some(l),
-                    (None, Some(_)) => Some(l),
-                    _ => None,
-                },
-            )
-            .collect();
-        alive_layers
-            .into_iter()
-            .map(move |l| e.at(i64::MIN.into()).at_layer(l))
-            .chain(self.0.edge_exploded(e, layer_ids))
-            .into_dyn_boxed()
+        self.0.edge_exploded(e, layer_ids)
     }
 
     fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
@@ -1137,17 +1099,22 @@ mod test_deletions {
         check_deleted(&e.layers("1").unwrap());
     }
 
+    /// Each layer is handled individually, deletions in one layer do not have an effect on other layers.
+    /// Layers that have only deletions are ignored
     #[test]
     fn test_explode_multiple_layers() {
         let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
         g.delete_edge(1, 1, 2, Some("1")).unwrap();
         g.delete_edge(2, 1, 2, Some("2")).unwrap();
         g.delete_edge(3, 1, 2, Some("3")).unwrap();
 
         let e = g.edge(1, 2).unwrap();
-        assert_eq!(e.explode().iter().count(), 3);
-        assert_eq!(e.before(4).explode().iter().count(), 3);
-        assert_eq!(e.window(2, 3).explode().iter().count(), 1);
+        assert_eq!(e.explode().iter().count(), 2);
+        assert_eq!(e.before(4).explode().iter().count(), 2);
+        assert_eq!(e.window(1, 3).explode().iter().count(), 1);
+        assert_eq!(e.window(2, 3).explode().iter().count(), 0);
     }
 
     #[test]
@@ -1335,6 +1302,32 @@ mod test_deletions {
             .map(|props| props.get("test").unwrap_i64())
             .collect::<Vec<_>>();
         assert_eq!(prop_values, [1, 3, 4]);
+    }
+
+    /// Repeated deletions are ignored, only the first one is relevant. Subsequent deletions do not
+    /// create exploded edges
+    #[test]
+    fn test_repeated_deletions() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.delete_edge(2, 0, 1, None).unwrap();
+        g.delete_edge(4, 0, 1, None).unwrap();
+
+        let e = g.edge(0, 1).unwrap();
+        let ex_earliest_t = e.explode().earliest_time().collect_vec();
+        assert_eq!(ex_earliest_t, [Some(0)]);
+    }
+
+    /// Only additions create exploded edges
+    #[test]
+    fn test_only_deletions() {
+        let g = PersistentGraph::new();
+        g.delete_edge(2, 0, 1, None).unwrap();
+        g.delete_edge(4, 0, 1, None).unwrap();
+
+        let e = g.edge(0, 1).unwrap();
+        let ex_earliest_t = e.explode().earliest_time().collect_vec();
+        assert_eq!(ex_earliest_t, []);
     }
 
     /// Deletions only bring an edge into the window if they fall inside the window, not if the fall
