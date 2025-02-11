@@ -2,9 +2,9 @@ use crate::{
     core::entities::nodes::node_ref::NodeRef, db::api::view::StaticGraphViewOps,
     prelude::NodeViewOps, search::fields,
 };
+use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use std::collections::HashSet;
-use itertools::Itertools;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
@@ -33,7 +33,7 @@ where
             field,
             collector,
             reader,
-            graph
+            graph,
         }
     }
 }

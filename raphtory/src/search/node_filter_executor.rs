@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::{
         api::view::{internal::CoreGraphOps, StaticGraphViewOps},
         graph::{
@@ -29,7 +29,6 @@ use tantivy::{
     schema::{Field, Value},
     DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
-use crate::search::collectors::property_filter_collector::PropertyFilterCollector;
 
 #[derive(Clone, Copy)]
 pub struct NodeFilterExecutor<'a> {
@@ -61,6 +60,7 @@ impl<'a> NodeFilterExecutor<'a> {
             graph.clone(),
         );
         let node_ids = searcher.search(&query, &collector)?;
+        let node_ids = searcher.search(&query, &TopDocs::with_limit(limit).and_offset(offset))?;
         let nodes = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
         Ok(nodes)
     }

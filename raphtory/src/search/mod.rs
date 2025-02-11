@@ -30,13 +30,13 @@ use tantivy::{
 pub mod graph_index;
 pub mod searcher;
 
+mod collectors;
 mod edge_filter_executor;
 pub mod edge_index;
 mod node_filter_executor;
 pub mod node_index;
 pub mod property_index;
 mod query_builder;
-mod collectors;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";

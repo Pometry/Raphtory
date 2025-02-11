@@ -18,7 +18,7 @@ use std::{
 };
 use tantivy::{
     query::{
-        AllQuery, BooleanQuery, Occur,
+        AllQuery, BooleanQuery, FuzzyTermQuery, Occur,
         Occur::{Must, MustNot, Should},
         PhraseQuery, Query, RangeQuery, TermQuery,
     },
@@ -65,6 +65,10 @@ impl<'a> QueryBuilder<'a> {
                     FilterOperator::Ge => {
                         create_ge_query(prop_name.to_string(), prop_field_type, terms)
                     }
+                    FilterOperator::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => create_fuzzy_search_query(terms, levenshtein_distance, prefix_match),
                     _ => unreachable!(),
                 }
             }
@@ -103,6 +107,10 @@ impl<'a> QueryBuilder<'a> {
                 match operator {
                     FilterOperator::Eq => create_eq_query(terms),
                     FilterOperator::Ne => create_ne_query(terms),
+                    FilterOperator::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => create_fuzzy_search_query(terms, levenshtein_distance, prefix_match),
                     _ => unreachable!(),
                 }
             }
@@ -393,5 +401,31 @@ fn create_not_in_query(sub_queries: Vec<(Occur, Box<dyn Query>)>) -> Option<Box<
         ])))
     } else {
         None
+    }
+}
+
+fn create_fuzzy_search_query(
+    terms: Vec<Term>,
+    levenshtein_distance: &usize,
+    prefix_match: &bool,
+) -> Option<Box<dyn Query>> {
+    match terms.len() {
+        0 => None,
+        1 => {
+            if *prefix_match {
+                Some(Box::new(FuzzyTermQuery::new_prefix(
+                    terms[0].clone(),
+                    (*levenshtein_distance) as u8,
+                    true,
+                )))
+            } else {
+                Some(Box::new(FuzzyTermQuery::new(
+                    terms[0].clone(),
+                    (*levenshtein_distance) as u8,
+                    true,
+                )))
+            }
+        }
+        _ => Some(Box::new(PhraseQuery::new(terms))), // TODO: Refer composite filter fuzzy searching based on strsim::levenshtein
     }
 }

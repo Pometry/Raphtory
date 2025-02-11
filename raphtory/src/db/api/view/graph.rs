@@ -136,7 +136,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn search_nodes(
         &self,
-        // q: &str,
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
@@ -144,31 +143,20 @@ pub trait SearchableGraphOps: Sized {
 
     fn search_edges(
         &self,
-        // q: &str,
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
 
-    fn search_nodes_count(
-        &self,
-        // q: &str,
-        filter: &CompositeNodeFilter,
-    ) -> Result<usize, GraphError>;
+    fn search_nodes_count(&self, filter: &CompositeNodeFilter) -> Result<usize, GraphError>;
 
-    fn search_edges_count(
-        &self,
-        // q: &str,
-        filter: &CompositeEdgeFilter,
-    ) -> Result<usize, GraphError>;
+    fn search_edges_count(&self, filter: &CompositeEdgeFilter) -> Result<usize, GraphError>;
 
     fn fuzzy_search_nodes(
         &self,
-        q: &str,
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
     fn fuzzy_search_edges(
@@ -675,14 +663,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn fuzzy_search_nodes(
         &self,
-        q: &str,
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
         self.searcher()?
-            .fuzzy_search_nodes(self, q, limit, offset, prefix, levenshtein_distance)
+            .fuzzy_search_nodes(self, filter, limit, offset)
     }
 
     fn fuzzy_search_edges(

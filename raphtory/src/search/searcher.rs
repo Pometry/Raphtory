@@ -190,42 +190,15 @@ impl<'a> Searcher<'a> {
     pub fn fuzzy_search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        q: &str,
+        filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let searcher = self.index.node_index.reader.searcher();
-        let mut query_parser = self.index.node_parser()?;
+        let result = self
+            .node_filter_executor
+            .filter_nodes(graph, filter, limit, offset)?;
 
-        self.index
-            .node_index
-            .index
-            .schema()
-            .fields()
-            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
-
-        let query = query_parser.parse_query(q)?;
-
-        let top_docs =
-            searcher.search(&query, &self.node_filter_collector(graph, limit, offset))?;
-
-        let node_id = self
-            .index
-            .node_index
-            .index
-            .schema()
-            .get_field(fields::NODE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_node_from_search_result(graph, node_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
+        Ok(result.into_iter().collect_vec())
     }
 
     pub fn fuzzy_search_edges<G: StaticGraphViewOps>(
@@ -247,6 +220,7 @@ impl<'a> Searcher<'a> {
             .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
 
         let query = query_parser.parse_query(q)?;
+        println!("query = {:?}", query);
 
         let top_docs =
             searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
@@ -290,9 +264,14 @@ mod search_tests {
         use crate::{
             core::{IntoProp, Prop},
             db::{
-                api::view::{
-                    internal::{CoreGraphOps, InternalIndexSearch, NodeHistoryFilter},
-                    SearchableGraphOps,
+                api::{
+                    storage::graph::{
+                        nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
+                    },
+                    view::{
+                        internal::{CoreGraphOps, InternalIndexSearch, NodeHistoryFilter},
+                        SearchableGraphOps,
+                    },
                 },
                 graph::views::property_filter::{CompositeNodeFilter, Filter},
             },
@@ -303,10 +282,7 @@ mod search_tests {
             search::searcher::search_tests::PersistentGraph,
         };
         use itertools::Itertools;
-        use raphtory_api::core::entities::VID;
-        use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-        use crate::db::api::storage::graph::nodes::node_storage_ops::NodeStorageOps;
-        use crate::db::api::storage::graph::tprop_storage_ops::TPropOps;
+        use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry};
 
         #[test]
         fn test_last_before() {
@@ -327,7 +303,6 @@ mod search_tests {
                 .last_before(TimeIndexEntry::start(w.start));
             println!("last_before = {:?}", r);
 
-
             let graph = PersistentGraph::new();
             graph
                 .add_node(5, "N1", [("p1", Prop::U64(2u64))], None)
@@ -342,7 +317,6 @@ mod search_tests {
                 .tprop(prop_id)
                 .last_before(TimeIndexEntry::start(w.start));
             println!("last_before = {:?}", r);
-
 
             let graph = PersistentGraph::new();
             graph
@@ -561,6 +535,35 @@ mod search_tests {
             results
         }
 
+        fn fuzzy_search_nodes_by_composite_filter(filter: &CompositeNodeFilter) -> Vec<String> {
+            let graph = Graph::new();
+            graph
+                .add_node(
+                    1,
+                    "pometry",
+                    [("p1", "tango".into_prop())],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+                .add_node(
+                    1,
+                    "shivam_kapoor",
+                    [("p1", "charlie_bravo".into_prop())],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+
+            let mut results = graph
+                .fuzzy_search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
         #[test]
         fn test_search_nodes_by_composite_filter() {
             let filter = CompositeNodeFilter::And(vec![
@@ -754,6 +757,65 @@ mod search_tests {
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["4"]);
         }
+
+        #[test]
+        fn test_fuzzy_search() {
+            let filter = CompositeNodeFilter::Node(Filter::fuzzy_search(
+                "node_name",
+                "shivam_kapoor",
+                2,
+                false,
+            ));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, vec!["shivam_kapoor"]);
+
+            let filter =
+                CompositeNodeFilter::Node(Filter::fuzzy_search("node_name", "pomet", 2, false));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, vec!["pometry"]);
+        }
+
+        #[test]
+        fn test_fuzzy_search_prefix_match() {
+            let filter =
+                CompositeNodeFilter::Node(Filter::fuzzy_search("node_name", "pome", 2, false));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, Vec::<String>::new());
+
+            let filter =
+                CompositeNodeFilter::Node(Filter::fuzzy_search("node_name", "pome", 2, true));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, vec!["pometry"]);
+        }
+
+        #[test]
+        fn test_fuzzy_search_property() {
+            let filter =
+                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search("p1", "tano", 2, false));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, vec!["pometry"]);
+        }
+
+        #[test]
+        fn test_fuzzy_search_property_prefix_match() {
+            let filter =
+                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search("p1", "char", 2, false));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, Vec::<String>::new());
+
+            let filter =
+                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search("p1", "char", 2, true));
+            let results = fuzzy_search_nodes_by_composite_filter(&filter);
+            assert_eq!(results, vec!["shivam_kapoor"]);
+        }
+
+        // #[test]
+        // fn test_fuzzy_search2() {
+        //     let graph = Graph::new();
+        //     graph
+        //         .fuzzy_search_edges("from:shivam kapoor", 5, 0, true, 1)
+        //         .unwrap();
+        // }
     }
 
     #[cfg(test)]

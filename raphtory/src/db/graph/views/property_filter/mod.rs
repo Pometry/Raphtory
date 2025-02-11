@@ -46,11 +46,7 @@ impl fmt::Display for FilterOperator {
                 levenshtein_distance,
                 prefix_match,
             } => {
-                return write!(
-                    f,
-                    "FUZZY_SEARCH({},{})",
-                    levenshtein_distance, prefix_match
-                );
+                return write!(f, "FUZZY_SEARCH({},{})", levenshtein_distance, prefix_match);
             }
         };
         write!(f, "{}", operator)
@@ -491,6 +487,7 @@ mod test_composite_filters {
         db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
         prelude::PropertyFilter,
     };
+    use raphtory_api::core::storage::arc_str::ArcStr;
 
     #[test]
     fn test_composite_node_filter() {
@@ -576,5 +573,47 @@ mod test_composite_filters {
             ])
             .to_string()
         );
+    }
+
+    #[test]
+    fn test_fuzzy_search() {
+        let filter = Filter::fuzzy_search("name", "pomet", 2, false);
+        assert!(filter.matches(Some("pometry")));
+
+        let filter = Filter::fuzzy_search("name", "shivam_kapoor", 2, false);
+        assert!(filter.matches(Some("shivam_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
+        assert!(filter.matches(Some("shivam_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
+        assert!(filter.matches(Some("shivam_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
+        assert!(!filter.matches(Some("shivam1_kapoor2")));
+    }
+
+    #[test]
+    fn test_fuzzy_search_prefix_match() {
+        let filter = Filter::fuzzy_search("name", "pome", 2, false);
+        assert!(!filter.matches(Some("pometry")));
+
+        let filter = Filter::fuzzy_search("name", "pome", 2, true);
+        assert!(filter.matches(Some("pometry")));
+    }
+
+    #[test]
+    fn test_fuzzy_search_property() {
+        let filter = PropertyFilter::fuzzy_search("prop", "pomet", 2, false);
+        assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
+    }
+
+    #[test]
+    fn test_fuzzy_search_property_prefix_match() {
+        let filter = PropertyFilter::fuzzy_search("prop", "pome", 2, false);
+        assert!(!filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
+
+        let filter = PropertyFilter::fuzzy_search("prop", "pome", 2, true);
+        assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 }
