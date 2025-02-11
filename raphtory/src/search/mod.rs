@@ -1,22 +1,15 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
-    db::{
-        api::{
-            properties::internal::{ConstPropertiesOps, PropertiesOps},
-            view::StaticGraphViewOps,
-        },
-        graph::{edge::EdgeView, node::NodeView},
+    core::Prop,
+    db::api::{
+        properties::internal::{ConstPropertiesOps, PropertiesOps},
+        view::StaticGraphViewOps,
     },
-    prelude::{GraphViewOps, NodeViewOps, PropertyFilter},
-    search::{property_index::PropertyIndex, query_builder::QueryBuilder},
+    prelude::{GraphViewOps, NodeViewOps},
+    search::property_index::PropertyIndex,
 };
 use itertools::Itertools;
-use parking_lot::Mutex;
-use raphtory_api::core::{
-    entities::properties::props::PropMapper, storage::arc_str::ArcStr, PropType,
-};
+use raphtory_api::core::{entities::properties::props::PropMapper, storage::arc_str::ArcStr};
 use std::{
-    collections::HashSet,
     ops::{Deref, DerefMut},
     sync::{Arc, RwLock},
 };

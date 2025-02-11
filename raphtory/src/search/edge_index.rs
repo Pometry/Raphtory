@@ -17,14 +17,12 @@ use crate::{
         property_index::PropertyIndex, TOKENIZER,
     },
 };
-use parking_lot::Mutex;
 use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
 use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Formatter},
-    ops::Deref,
     sync::{Arc, RwLock},
 };
 use tantivy::{

@@ -1351,4 +1351,108 @@ mod views_test {
             );
         });
     }
+
+    #[cfg(test)]
+    mod search_tests {
+        use crate::{
+            core::Prop,
+            db::{
+                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                graph::views::{
+                    deletion_graph::PersistentGraph, property_filter::CompositeNodeFilter,
+                },
+            },
+            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+        };
+        use std::ops::Range;
+
+        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+        }
+
+        fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: G,
+            w: Range<i64>,
+            filter: &CompositeNodeFilter,
+        ) -> Vec<String> {
+            let graph = init_graph(graph);
+            let mut results = graph
+                .window(w.start, w.end)
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_graph() {
+            let graph = Graph::new();
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_persistent_graph() {
+            let graph = PersistentGraph::new();
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+        }
+    }
 }

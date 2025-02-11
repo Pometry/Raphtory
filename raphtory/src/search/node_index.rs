@@ -19,26 +19,20 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use parking_lot::Mutex;
-use raphtory_api::core::{
-    entities::properties::props::{Meta, PropMapper},
-    storage::arc_str::ArcStr,
-    PropType,
-};
+use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
     sync::{Arc, RwLock},
 };
 use tantivy::{
     collector::TopDocs,
-    query::{AllQuery, BooleanQuery, TermQuery},
+    query::{AllQuery, TermQuery},
     schema::{
-        Field, FieldType, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions,
-        Type, Value, FAST, INDEXED, STORED,
+        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value,
+        FAST, INDEXED, STORED,
     },
     Document, HasLen, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument,
     TantivyError, Term,
