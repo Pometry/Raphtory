@@ -102,8 +102,8 @@ impl<'a> NodeFilterExecutor<'a> {
         let searcher = reader.searcher();
         let collector =
             WindowFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
-        let docs_count = searcher.search(&query, &collector)?;
-        Ok(docs_count.len())
+        let nodes = searcher.search(&query, &collector)?;
+        Ok(nodes.len())
     }
 
     fn filter_property_index<G: StaticGraphViewOps>(

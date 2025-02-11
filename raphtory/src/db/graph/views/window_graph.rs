@@ -1353,7 +1353,7 @@ mod views_test {
     }
 
     #[cfg(test)]
-    mod search_tests {
+    mod search_window_graph_tests {
         use crate::{
             core::Prop,
             db::{
@@ -1457,6 +1457,15 @@ mod views_test {
             let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
 
             assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_persistent_graph() {
+            let graph = PersistentGraph::new();
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
         }
 
         #[test]
