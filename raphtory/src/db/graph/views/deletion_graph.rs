@@ -388,15 +388,15 @@ impl TimeSemantics for PersistentGraph {
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         e.time().map(|ti| ti.t()).or_else(|| {
             let entry = self.core_edge(e.pid());
-            if edge_alive_at_start(entry.as_ref(), i64::MIN, layer_ids) {
-                Some(i64::MIN)
-            } else {
-                entry
-                    .additions_iter(layer_ids)
-                    .map(|(_, a)| a.first_t())
-                    .flatten()
-                    .min()
-            }
+            entry
+                .additions_iter(layer_ids)
+                .filter_map(|(_, a)| a.first_t())
+                .chain(
+                    entry
+                        .deletions_iter(layer_ids)
+                        .filter_map(|(_, d)| d.first_t()),
+                )
+                .min()
         })
     }
 
@@ -412,8 +412,14 @@ impl TimeSemantics for PersistentGraph {
         } else {
             entry
                 .additions_iter(&layer_ids)
-                .map(|(_, a)| a.range_t(w.clone()).first_t())
-                .flatten()
+                .filter_map(|(_, a)| a.range_t(w.clone()).first_t())
+                .chain(
+                    entry
+                        .deletions_iter(&layer_ids)
+                        .filter_map(|(_, d)| d.range_t(w.start.saturating_add(1)..w.end).first_t()),
+                    // deletions only matter if they fall in the interior of the window but
+                    // are ignored if they happen at the start of the window
+                )
                 .min()
         }
     }
@@ -800,18 +806,18 @@ mod test_deletions {
     fn test_timestamps() {
         let g = PersistentGraph::new();
         let e = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
-        assert_eq!(e.earliest_time().unwrap(), 1);
-        assert_eq!(e.latest_time(), Some(i64::MAX));
+        assert_eq!(e.earliest_time().unwrap(), 1); // time of first addition
+        assert_eq!(e.latest_time(), Some(i64::MAX)); // not deleted so alive forever
         g.delete_edge(10, 1, 2, None).unwrap();
-        assert_eq!(e.latest_time().unwrap(), 10);
+        assert_eq!(e.latest_time().unwrap(), 10); // deleted, so time of last deletion
 
         g.delete_edge(10, 3, 4, None).unwrap();
         let e = g.edge(3, 4).unwrap();
-        assert_eq!(e.earliest_time(), Some(i64::MIN));
+        assert_eq!(e.earliest_time(), Some(10)); // only deleted, earliest and latest time are the same
         assert_eq!(e.latest_time().unwrap(), 10);
         g.add_edge(1, 3, 4, [("test", "test")], None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10);
-        assert_eq!(e.earliest_time().unwrap(), 1);
+        assert_eq!(e.earliest_time().unwrap(), 1); // added so timestamp is now the first addition
     }
 
     #[test]
@@ -967,7 +973,7 @@ mod test_deletions {
     fn test_ordering_of_addition_and_deletion() {
         let g = PersistentGraph::new();
 
-        //deletion before addition (edge exists from (-inf,1) and (1, inf)
+        //deletion before addition (deletion has no effect and edge exists (1, inf)
         g.delete_edge(1, 1, 2, None).unwrap();
         let e_1_2 = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
 
@@ -980,10 +986,10 @@ mod test_deletions {
         assert_eq!(e_1_2.at(2).properties().get("test").unwrap_str(), "test");
 
         assert_eq!(e_3_4.at(0).properties().get("test"), None);
-        assert_eq!(e_3_4.at(2).properties().get("test"), None); // TODO: should this show the property or not?
+        assert_eq!(e_3_4.at(2).properties().get("test"), None);
         assert_eq!(e_3_4.at(3).properties().get("test"), None);
 
-        assert!(g.window(0, 1).has_edge(1, 2));
+        assert!(!g.window(0, 1).has_edge(1, 2));
         assert!(!g.window(0, 2).has_edge(3, 4));
         assert!(g.window(1, 2).has_edge(1, 2));
         assert!(g.window(2, 3).has_edge(3, 4));
@@ -1023,32 +1029,6 @@ mod test_deletions {
         );
     }
 
-    #[test]
-    fn test_deletion_multiple_layers() {
-        let g = PersistentGraph::new();
-
-        g.add_edge(1, 1, 2, NO_PROPS, Some("1")).unwrap();
-        g.delete_edge(2, 1, 2, Some("2")).unwrap();
-        g.delete_edge(10, 1, 2, Some("1")).unwrap();
-        g.add_edge(10, 1, 2, NO_PROPS, Some("2")).unwrap();
-
-        let e = g.edge(1, 2).unwrap();
-        let e_layer_1 = e.layers("1").unwrap();
-        let e_layer_2 = e.layers("2").unwrap();
-
-        for t in 0..11 {
-            assert!(g.at(t).has_edge(1, 2));
-        }
-
-        assert!(e.is_valid());
-        assert!(!e_layer_1.is_valid());
-        assert!(e_layer_2.is_valid());
-        assert!(!e_layer_1.at(10).is_valid());
-        for t in 0..11 {
-            assert!(e.at(t).is_valid());
-        }
-    }
-
     fn check_valid<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(e: &EdgeView<G, GH>) {
         assert!(e.is_valid());
         assert!(!e.is_deleted());
@@ -1065,6 +1045,39 @@ mod test_deletions {
         let g = e.graph.at(t); // latest view of the graph
         assert!(!g.has_edge(e.src(), e.dst()));
         assert!(g.edge(e.src(), e.dst()).is_none());
+    }
+
+    #[test]
+    fn test_deletion_multiple_layers() {
+        let g = PersistentGraph::new();
+
+        g.add_edge(1, 1, 2, NO_PROPS, Some("1")).unwrap();
+        g.delete_edge(2, 1, 2, Some("2")).unwrap();
+        g.delete_edge(10, 1, 2, Some("1")).unwrap();
+        g.add_edge(10, 1, 2, NO_PROPS, Some("2")).unwrap();
+
+        let e = g.edge(1, 2).unwrap();
+        let e_layer_1 = e.layers("1").unwrap();
+        let e_layer_2 = e.layers("2").unwrap();
+
+        assert!(!g.at(0).has_edge(1, 2));
+        check_deleted(&e.at(0));
+        for t in 1..13 {
+            assert!(g.at(t).has_edge(1, 2));
+            check_valid(&e.at(t));
+        }
+
+        check_valid(&e);
+
+        check_deleted(&e_layer_1);
+        check_deleted(&e_layer_1.at(10));
+        check_valid(&e_layer_1.at(9));
+        check_valid(&e_layer_1.at(1));
+        check_deleted(&e_layer_1.at(0));
+
+        check_valid(&e_layer_2);
+        check_deleted(&e_layer_2.at(9));
+        check_valid(&e_layer_2.at(10));
     }
 
     #[test]
@@ -1302,6 +1315,32 @@ mod test_deletions {
             .map(|props| props.get("test").unwrap_i64())
             .collect::<Vec<_>>();
         assert_eq!(prop_values, [1, 3, 4]);
+    }
+
+    /// This is a weird edge case
+    ///
+    /// An edge deletion creates the corresponding nodes so they should be alive from that point on.
+    /// We might consider changing the exact semantics here...
+    #[test]
+    fn test_node_earliest_latest_time_edge_deletion_only() {
+        let g = PersistentGraph::new();
+        g.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(g.node(0).unwrap().earliest_time(), Some(10));
+        assert_eq!(g.node(1).unwrap().earliest_time(), Some(10));
+        assert_eq!(g.node(0).unwrap().latest_time(), Some(i64::MAX));
+        assert_eq!(g.node(1).unwrap().latest_time(), Some(i64::MAX));
+    }
+
+    /// For an edge the earliest time is the time of the first update (either addition or deletion)
+    ///
+    /// The latest time is the time stamp of the last deletion if the last update is a deletion or
+    /// i64::MAX otherwise.
+    #[test]
+    fn test_edge_earliest_latest_time_edge_deletion_only() {
+        let g = PersistentGraph::new();
+        g.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(g.edge(0, 1).unwrap().earliest_time(), Some(10));
+        assert_eq!(g.edge(0, 1).unwrap().latest_time(), Some(10));
     }
 
     /// Repeated deletions are ignored, only the first one is relevant. Subsequent deletions do not
