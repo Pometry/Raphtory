@@ -4862,6 +4862,7 @@ dependencies = [
  "minijinja-contrib",
  "neo4rs",
  "num",
+ "num-bigint",
  "num-integer",
  "num-traits",
  "numpy",
