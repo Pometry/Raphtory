@@ -66,19 +66,9 @@ fn alive_before<
     deletions: &D,
     t: i64,
 ) -> bool {
-    let first_addition = additions.first();
-    let first_deletion = deletions.first();
     let last_addition_before_start = additions.range_t(i64::MIN..t).last();
     let last_deletion_before_start = deletions.range_t(i64::MIN..t).last();
-
-    let only_deleted = match (first_addition, first_deletion) {
-        (Some(a), Some(d)) => d < a && d >= t.into(),
-        (None, Some(d)) => d >= t.into(),
-        (Some(_), None) => false,
-        (None, None) => false,
-    };
-    // None is less than any value (see test below)
-    only_deleted || last_addition_before_start > last_deletion_before_start
+    last_addition_before_start > last_deletion_before_start
 }
 
 fn alive_at<
@@ -258,8 +248,10 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        // includes edge if it is alive at the start of the window or added during the window
-        edge.active(layer_ids, w.clone()) || edge_alive_at_start(edge, w.start, layer_ids)
+        // includes edge if it is alive at the start of the window or added during the window or deleted inside the window
+        edge.added(layer_ids, w.clone())
+            || edge.deleted(layer_ids, w.start.saturating_add(1)..w.end)
+            || edge_alive_at_start(edge, w.start, layer_ids)
     }
 
     fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
@@ -267,7 +259,6 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
-        // FIXME: Should this also return addition at start of the window if the node is alive?
         self.0.node_history_window(v, w)
     }
 
@@ -1344,5 +1335,27 @@ mod test_deletions {
             .map(|props| props.get("test").unwrap_i64())
             .collect::<Vec<_>>();
         assert_eq!(prop_values, [1, 3, 4]);
+    }
+
+    /// Deletions only bring an edge into the window if they fall inside the window, not if the fall
+    /// onto the start of the window. The edge is already considered deleted at the time of the
+    /// deletion event, not at the next step.
+    #[test]
+    fn test_only_deletions_window() {
+        let g = PersistentGraph::new();
+        g.delete_edge(1, 0, 1, None).unwrap();
+
+        // the edge exists
+        assert!(g.has_edge(0, 1));
+
+        // the deletion falls inside the window so the edge exists
+        assert!(g.window(0, 2).has_edge(0, 1));
+
+        // the deletion falls on the start of the window so the edge is already deleted and does not exist
+        assert!(!g.window(1, 2).has_edge(0, 1));
+
+        // windows that don't contain the deletion event don't have the edge
+        assert!(!g.window(0, 1).has_edge(0, 1));
+        assert!(!g.window(2, 3).has_edge(0, 1));
     }
 }

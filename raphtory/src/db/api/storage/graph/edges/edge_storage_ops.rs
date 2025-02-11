@@ -146,7 +146,14 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn out_ref(self) -> EdgeRef;
 
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+    /// Check if the edge was added in any of the layers during the time interval
+    fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+
+    /// Check if the edge was deleted in any of the layers during the time interval
+    fn deleted(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        self.deletions_iter(layer_ids)
+            .any(|(_, deletions)| deletions.active_t(w.clone()))
+    }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
@@ -289,7 +296,7 @@ impl<'a> MemEdge<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+    fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self
@@ -301,7 +308,7 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
                 .is_some(),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .any(|l_id| self.active(&LayerIds::One(l_id), w.clone())),
+                .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
         }
     }
 

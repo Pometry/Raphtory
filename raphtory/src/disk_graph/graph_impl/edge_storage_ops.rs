@@ -19,7 +19,7 @@ use rayon::prelude::*;
 use std::{iter, ops::Range};
 
 impl<'a> EdgeStorageOps<'a> for Edge<'a> {
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+    fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.has_layer(layer_ids) && {
             match layer_ids {
                 LayerIds::None => false,
@@ -29,7 +29,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
                 LayerIds::One(l_id) => self.get_additions::<i64>(*l_id).active_t(w),
                 LayerIds::Multiple(layers) => layers
                     .iter()
-                    .any(|l_id| self.active(&LayerIds::One(l_id), w.clone())),
+                    .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
             }
         }
     }

@@ -45,8 +45,8 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().out_ref()
     }
 
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
-        self.as_ref().active(layer_ids, w)
+    fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        self.as_ref().added(layer_ids, w)
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {

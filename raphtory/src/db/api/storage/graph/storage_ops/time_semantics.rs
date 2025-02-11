@@ -98,7 +98,7 @@ impl TimeSemantics for GraphStorage {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        edge.active(layer_ids, w)
+        edge.added(layer_ids, w)
     }
 
     fn node_history<'a>(&'a self, v: VID) -> BoxedLIter<'a, TimeIndexEntry> {
