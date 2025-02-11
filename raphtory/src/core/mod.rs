@@ -27,6 +27,7 @@
 use arrow_array::{ArrayRef, ArrowPrimitiveType};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use entities::properties::props::validate_prop;
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,7 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use storage::lazy_vec::IllegalSet;
 use utils::errors::GraphError;
 
 use arrow_schema::{DataType, Field};
@@ -103,6 +105,8 @@ pub enum Prop {
     Decimal(BigDecimal),
 }
 
+pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
+
 impl Hash for Prop {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -166,6 +170,11 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, IllegalSet<Option<Prop>>> {
+        let prop = Prop::Decimal(bd);
+        validate_prop(0, prop)
+    }
+
     pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {
         let h_map: FxHashMap<_, _> = vals
             .into_iter()

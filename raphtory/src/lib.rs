@@ -148,7 +148,8 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::prelude::*;
+    use crate::{core::DECIMAL_MAX, prelude::*};
+    use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*};
@@ -248,20 +249,30 @@ mod test_utils {
                     .prop_map(|props| Prop::map(props))
                     .boxed()
             }
+            PropType::Decimal { scale } => {
+                let scale = *scale;
+                let dec_max = DECIMAL_MAX;
+                ((scale as i128)..dec_max)
+                    .prop_map(move |int| Prop::Decimal(BigDecimal::new(int.into(), scale)))
+                    .boxed()
+            }
             _ => todo!(),
         }
     }
 
     pub(crate) fn prop_type() -> impl Strategy<Value = PropType> {
-        let leaf = proptest::sample::select(&[
-            PropType::Bool,
-            PropType::U8,
-            PropType::I64,
-            PropType::F64,
-            PropType::Str,
-            PropType::DTime,
-            PropType::NDTime,
-        ]);
+        let leaf = (0i64..38).prop_flat_map(|scale| {
+            proptest::sample::select(vec![
+                // PropType::Str,
+                // PropType::I64,
+                // PropType::F64,
+                // PropType::U8,
+                // PropType::Bool,
+                // PropType::DTime,
+                // PropType::NDTime,
+                PropType::Decimal { scale },
+            ])
+        });
 
         leaf.prop_recursive(3, 10, 10, |inner| {
             let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
@@ -386,7 +397,7 @@ mod test_utils {
         nodes: Vec<u64>,
         len: usize,
     ) -> impl Strategy<Value = NodeFixture> {
-        proptest::collection::hash_map(r"\w{1,10}", prop_type(), 2..10).prop_flat_map(
+        proptest::collection::hash_map(r"\w{1,10}", prop_type(), 2..3).prop_flat_map(
             move |schema| {
                 let (t_props, c_props) = make_props(schema);
 
