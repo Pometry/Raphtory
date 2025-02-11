@@ -771,43 +771,43 @@ impl GqlGraph {
     //         .await
     // }
 
-    async fn fuzzy_search_nodes(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Result<Vec<Node>, GraphError> {
-        self.execute_search(|| {
-            Ok(self
-                .graph
-                .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
-                .into_iter()
-                .flatten()
-                .map(|vv| vv.into())
-                .collect())
-        })
-        .await
-    }
+    // async fn fuzzy_search_nodes(
+    //     &self,
+    //     query: String,
+    //     limit: usize,
+    //     offset: usize,
+    //     prefix: bool,
+    //     levenshtein_distance: u8,
+    // ) -> Result<Vec<Node>, GraphError> {
+    //     self.execute_search(|| {
+    //         Ok(self
+    //             .graph
+    //             .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
+    //             .into_iter()
+    //             .flatten()
+    //             .map(|vv| vv.into())
+    //             .collect())
+    //     })
+    //     .await
+    // }
 
-    async fn fuzzy_search_edges(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Result<Vec<Edge>, GraphError> {
-        self.execute_search(|| {
-            Ok(self
-                .graph
-                .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
-                .into_iter()
-                .flatten()
-                .map(|vv| vv.into())
-                .collect())
-        })
-        .await
-    }
+    // async fn fuzzy_search_edges(
+    //     &self,
+    //     query: String,
+    //     limit: usize,
+    //     offset: usize,
+    //     prefix: bool,
+    //     levenshtein_distance: u8,
+    // ) -> Result<Vec<Edge>, GraphError> {
+    //     self.execute_search(|| {
+    //         Ok(self
+    //             .graph
+    //             .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
+    //             .into_iter()
+    //             .flatten()
+    //             .map(|vv| vv.into())
+    //             .collect())
+    //     })
+    //     .await
+    // }
 }

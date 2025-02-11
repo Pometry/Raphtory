@@ -1,9 +1,5 @@
 use crate::{
-    core::{
-        entities::{nodes::node_ref::NodeRef, EID, VID},
-        storage::timeindex::AsTime,
-        utils::errors::GraphError,
-    },
+    core::{storage::timeindex::AsTime, utils::errors::GraphError},
     db::{
         api::{
             properties::internal::TemporalPropertiesOps,
@@ -21,20 +17,14 @@ use crate::{
     },
     prelude::*,
     search::{
-        edge_filter_executor::EdgeFilterExecutor, fields, graph_index::GraphIndex,
+        edge_filter_executor::EdgeFilterExecutor, graph_index::GraphIndex,
         node_filter_executor::NodeFilterExecutor,
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{fmt::Debug, ops::Deref};
-use tantivy::{
-    collector::{FilterCollector, TopDocs},
-    query::{Query, QueryParser, RangeQuery},
-    schema::{Field, Schema, Value, FAST, INDEXED, STORED},
-    Document, Index, TantivyDocument,
-};
+use tantivy::{query::Query, schema::Value, Document};
 
 #[derive(Copy, Clone)]
 pub struct Searcher<'a> {
@@ -53,92 +43,6 @@ impl<'a> Searcher<'a> {
             node_filter_executor: node_query_executor,
             edge_filter_executor: edge_query_executor,
         }
-    }
-
-    // For persistent graph , we need 3 args: node id, time of the event, and the prop id
-    // Dedup: unique results returned from the query itself
-    fn node_filter_collector<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        limit: usize,
-        offset: usize,
-    ) -> FilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-        let graph = graph.clone();
-        FilterCollector::new(
-            fields::NODE_ID.to_string(),
-            move |node_id: u64| graph.has_node(VID(node_id as usize)),
-            ranking,
-        )
-    }
-
-    fn edge_filter_collector<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        limit: usize,
-        offset: usize,
-    ) -> FilterCollector<TopDocs, impl Fn(u64) -> bool + Clone, u64> {
-        let ranking = TopDocs::with_limit(limit).and_offset(offset);
-        let graph = graph.clone();
-        FilterCollector::new(
-            fields::EDGE_ID.to_string(),
-            move |edge_id: u64| {
-                let core_edge = graph.core_edge(EID(edge_id as usize));
-                let layer_ids = graph.layer_ids();
-                graph.filter_edge(core_edge.as_ref(), layer_ids)
-                    && (!graph.nodes_filtered()
-                        || (graph.filter_node(
-                            graph.core_node_entry(core_edge.src()).as_ref(),
-                            layer_ids,
-                        ) && graph.filter_node(
-                            graph.core_node_entry(core_edge.dst()).as_ref(),
-                            layer_ids,
-                        )))
-            },
-            ranking,
-        )
-    }
-
-    fn resolve_node_from_search_result<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        node_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<NodeView<G>> {
-        let node_id: usize = doc
-            .get_first(node_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let node_id = NodeRef::Internal(node_id.into());
-        graph.node(node_id)
-    }
-
-    fn resolve_edge_from_search_result<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        edge_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<EdgeView<G>> {
-        let edge_id: usize = doc
-            .get_first(edge_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let core_edge = graph.core_edge(EID(edge_id));
-        let layer_ids = graph.layer_ids();
-        if !graph.filter_edge(core_edge.as_ref(), layer_ids) {
-            return None;
-        }
-        if graph.nodes_filtered() {
-            if !graph.filter_node(graph.core_node_entry(core_edge.src()).as_ref(), layer_ids)
-                || !graph.filter_node(graph.core_node_entry(core_edge.dst()).as_ref(), layer_ids)
-            {
-                return None;
-            }
-        }
-        let e_view = EdgeView::new(graph.clone(), core_edge.out_ref());
-        Some(e_view)
     }
 
     pub fn search_nodes<G: StaticGraphViewOps>(
@@ -204,45 +108,20 @@ impl<'a> Searcher<'a> {
     pub fn fuzzy_search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        q: &str,
+        filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let searcher = self.index.edge_index.reader.searcher();
-        let mut query_parser = self.index.edge_parser()?;
-        self.index
-            .edge_index
-            .index
-            .schema()
-            .fields()
-            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
+        let result = self
+            .edge_filter_executor
+            .filter_edges(graph, filter, limit, offset)?;
 
-        let query = query_parser.parse_query(q)?;
-        println!("query = {:?}", query);
-
-        let top_docs =
-            searcher.search(&query, &self.edge_filter_collector(graph, limit, offset))?;
-
-        let edge_id = self
-            .index
-            .edge_index
-            .index
-            .schema()
-            .get_field(fields::EDGE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
+        Ok(result.into_iter().collect_vec())
     }
 }
 
+// TODO: Fuzzy search tests are non exhaustive because the search semantics are still undecided.
+//  See Query Builder.
 #[cfg(test)]
 mod search_tests {
     use super::*;
@@ -808,14 +687,6 @@ mod search_tests {
             let results = fuzzy_search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["shivam_kapoor"]);
         }
-
-        // #[test]
-        // fn test_fuzzy_search2() {
-        //     let graph = Graph::new();
-        //     graph
-        //         .fuzzy_search_edges("from:shivam kapoor", 5, 0, true, 1)
-        //         .unwrap();
-        // }
     }
 
     #[cfg(test)]
@@ -1028,13 +899,6 @@ mod search_tests {
             let results = search_nodes_count_by_composite_filter(&filter);
             assert_eq!(results, 2);
         }
-
-        // #[test]
-        // fn search_count_nodes_for_property_is_none() {
-        //     let filter = CompositeNodeFilter::Property(PropertyFilter::is_none("p2"));
-        //     let results = search_nodes_count_by_composite_filter(&filter);
-        //     assert_eq!(results, 1);
-        // }
     }
 
     #[cfg(test)]
@@ -1043,7 +907,7 @@ mod search_tests {
             core::{IntoProp, Prop},
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::property_filter::{CompositeEdgeFilter, Filter},
+                graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
@@ -1068,6 +932,49 @@ mod search_tests {
 
             let mut results = graph
                 .search_edges(&filter, 5, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|e| (e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+
+            results
+        }
+
+        fn fuzzy_search_edges_by_composite_filter(
+            filter: &CompositeEdgeFilter,
+        ) -> Vec<(String, String)> {
+            let graph = Graph::new();
+            graph
+                .add_edge(
+                    1,
+                    "shivam",
+                    "raphtory",
+                    [("p1", "tango")],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+                .add_edge(
+                    2,
+                    "raphtory",
+                    "pometry",
+                    [("p1", "charlie".into_prop()), ("p2", 2u64.into_prop())],
+                    Some("air_nomads"),
+                )
+                .unwrap();
+            graph
+                .add_edge(
+                    3,
+                    "pometry",
+                    "shivam",
+                    [("p2", 6u64.into_prop()), ("p1", "classic".into_prop())],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+
+            let mut results = graph
+                .fuzzy_search_edges(&filter, 5, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|e| (e.src().name(), e.dst().name()))
@@ -1299,6 +1206,50 @@ mod search_tests {
             ]);
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("3".into(), "1".into())]);
+        }
+
+        #[test]
+        fn test_fuzzy_search() {
+            let filter = CompositeEdgeFilter::Edge(Filter::fuzzy_search("from", "shiva", 2, false));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
+
+            let filter = CompositeEdgeFilter::Edge(Filter::fuzzy_search("to", "pomet", 2, false));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
+        }
+
+        #[test]
+        fn test_fuzzy_search_prefix_match() {
+            let filter = CompositeEdgeFilter::Edge(Filter::fuzzy_search("to", "pome", 2, false));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, Vec::<(String, String)>::new());
+
+            let filter = CompositeEdgeFilter::Edge(Filter::fuzzy_search("to", "pome", 2, true));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
+        }
+
+        #[test]
+        fn test_fuzzy_search_property() {
+            let filter =
+                CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search("p1", "tano", 2, false));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
+        }
+
+        #[test]
+        fn test_fuzzy_search_property_prefix_match() {
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
+                "p1", "charl", 1, false,
+            ));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, Vec::<(String, String)>::new());
+
+            let filter =
+                CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search("p1", "charl", 1, true));
+            let results = fuzzy_search_edges_by_composite_filter(&filter);
+            assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
     }
 
