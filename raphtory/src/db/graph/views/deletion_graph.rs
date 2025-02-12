@@ -376,7 +376,6 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        // FIXME: these have different semantics from properties and always include the last exploded edge at the start of the window, even if the edge was updated.
         match layer_ids {
             LayerIds::None => 0,
             LayerIds::All => (0..self.unfiltered_num_layers())
@@ -1507,7 +1506,9 @@ mod test_deletions {
                 .map(|p| p.get("test").unwrap_i64())
                 .collect_vec(),
             [1, 2]
-        )
+        );
+        assert_eq!(e.at(0).history(), [0, 0]);
+        assert_eq!(e.history(), [0, 0]);
     }
 
     #[test]
@@ -1535,7 +1536,70 @@ mod test_deletions {
                 .map(|p| p.get("test").unwrap_i64())
                 .collect_vec(),
             [2, 4]
-        )
+        );
+        assert_eq!(e.history(), [2, 4]);
+        assert!(e.deletions().is_empty());
+    }
+
+    #[test]
+    fn persistence_if_not_updated_at_start() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
+        g.add_edge(4, 0, 1, [("test", 4i64)], None).unwrap();
+
+        let e = g.edge(0, 1).unwrap().window(1, 5);
+
+        assert_eq!(e.properties().get("test").unwrap_i64(), 4);
+        assert_eq!(
+            e.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(1, Prop::I64(1)), (2, Prop::I64(2)), (4, Prop::I64(4))]
+        );
+        assert_eq!(
+            e.explode()
+                .properties()
+                .map(|p| p.get("test").unwrap_i64())
+                .collect_vec(),
+            [1, 2, 4]
+        );
+        assert_eq!(e.history(), [2, 4]); // is this actually what we want?
+        assert!(e.deletions().is_empty());
+    }
+
+    #[test]
+    fn no_persistence_if_deleted() {
+        let g = PersistentGraph::new();
+        g.add_edge(-1, 0, 1, [("test", 1i64)], None).unwrap();
+        g.delete_edge(0, 0, 1, None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
+        g.add_edge(4, 0, 1, [("test", 4i64)], None).unwrap();
+
+        let e = g.edge(0, 1).unwrap().window(1, 5);
+
+        assert_eq!(e.properties().get("test").unwrap_i64(), 4);
+        assert_eq!(
+            e.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(2, Prop::I64(2)), (4, Prop::I64(4))]
+        );
+        assert_eq!(
+            e.explode()
+                .properties()
+                .map(|p| p.get("test").unwrap_i64())
+                .collect_vec(),
+            [2, 4]
+        );
+        assert_eq!(e.history(), [2, 4]);
+        assert!(e.deletions().is_empty());
     }
 
     #[test]
