@@ -1544,6 +1544,7 @@ mod test_deletions {
         g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
         g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
         g.delete_edge(2, 0, 1, None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 3i64)], None).unwrap();
         g.add_edge(4, 0, 1, [("test", 4i64)], None).unwrap();
 
         let e = g.edge(0, 1).unwrap().window(2, 5);
@@ -1556,7 +1557,7 @@ mod test_deletions {
                 .unwrap()
                 .iter()
                 .collect_vec(),
-            [(4, Prop::I64(4))]
+            [(2, Prop::I64(3)), (4, Prop::I64(4))]
         );
 
         assert_eq!(
@@ -1564,10 +1565,10 @@ mod test_deletions {
                 .properties()
                 .map(|p| p.get("test").unwrap_i64())
                 .collect_vec(),
-            [4]
+            [3, 4]
         );
 
         assert!(e.deletions().is_empty());
-        assert_eq!(e.history(), [4])
+        assert_eq!(e.history(), [2, 4])
     }
 }

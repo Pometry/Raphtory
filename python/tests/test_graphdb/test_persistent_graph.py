@@ -50,7 +50,9 @@ def test_same_time_op():
     assert list(zip(exploded_2.earliest_time, exploded_2.latest_time)) == [
         (1, 9223372036854775807),
     ]
-    assert G1.at(1).count_temporal_edges() == 1
+    # added then deleted means edge does not exist at 1
+    assert G1.at(1).count_temporal_edges() == 0
+    # deleted then added means update is included
     assert G2.at(1).count_temporal_edges() == 1
 
 
