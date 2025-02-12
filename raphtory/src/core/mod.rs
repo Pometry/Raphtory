@@ -25,7 +25,9 @@
 //!
 
 use arrow_array::{ArrayRef, ArrowPrimitiveType};
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use entities::properties::props::validate_prop;
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
@@ -37,6 +39,7 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use storage::lazy_vec::IllegalSet;
 use utils::errors::GraphError;
 
 use arrow_schema::{DataType, Field};
@@ -99,7 +102,10 @@ pub enum Prop {
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Array(PropArray),
+    Decimal(BigDecimal),
 }
+
+pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 
 impl Hash for Prop {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -134,6 +140,7 @@ impl Hash for Prop {
                     prop.hash(state);
                 }
             }
+            Prop::Decimal(d) => d.hash(state),
         }
     }
 }
@@ -156,12 +163,18 @@ impl PartialOrd for Prop {
             (Prop::NDTime(a), Prop::NDTime(b)) => a.partial_cmp(b),
             (Prop::DTime(a), Prop::DTime(b)) => a.partial_cmp(b),
             (Prop::List(a), Prop::List(b)) => a.partial_cmp(b),
+            (Prop::Decimal(a), Prop::Decimal(b)) => a.partial_cmp(b),
             _ => None,
         }
     }
 }
 
 impl Prop {
+    pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, IllegalSet<Option<Prop>>> {
+        let prop = Prop::Decimal(bd);
+        validate_prop(0, prop)
+    }
+
     pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {
         let h_map: FxHashMap<_, _> = vals
             .into_iter()
@@ -215,6 +228,9 @@ impl Prop {
                 PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
             }
             Prop::DTime(_) => PropType::DTime,
+            Prop::Decimal(d) => PropType::Decimal {
+                scale: d.as_bigint_and_scale().1,
+            },
         }
     }
 
@@ -233,6 +249,7 @@ impl Prop {
             (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a + b)),
             (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a + b)),
             (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + b.as_ref()).into())),
+            (Prop::Decimal(a), Prop::Decimal(b)) => Some(Prop::Decimal(a + b)),
             _ => None,
         }
     }
@@ -261,8 +278,11 @@ impl Prop {
             (Prop::I64(a), Prop::I64(b)) if b != 0 => Some(Prop::I64(a / b)),
             (Prop::U32(a), Prop::U32(b)) if b != 0 => Some(Prop::U32(a / b)),
             (Prop::U64(a), Prop::U64(b)) if b != 0 => Some(Prop::U64(a / b)),
-            (Prop::F32(a), Prop::F32(b)) if b != 0.0 => Some(Prop::F32(a / b)),
-            (Prop::F64(a), Prop::F64(b)) if b != 0.0 => Some(Prop::F64(a / b)),
+            (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a / b)),
+            (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a / b)),
+            (Prop::Decimal(a), Prop::Decimal(b)) if b != BigDecimal::from(0) => {
+                Some(Prop::Decimal(a / b))
+            }
             _ => None,
         }
     }
@@ -308,6 +328,8 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(DataType::Struct(fields.into()))
         }
+        // 38 comes from herehttps://arrow.apache.org/docs/python/generated/pyarrow.decimal128.html
+        PropType::Decimal { scale } => Ok(DataType::Decimal128(38, (*scale).try_into().unwrap())),
         PropType::Empty => {
             // this is odd, we'll just pick one and hope for the best
             Ok(DataType::Null)
@@ -327,6 +349,9 @@ pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
         DataType::Float32 => PropType::F32,
         DataType::Float64 => PropType::F64,
         DataType::Boolean => PropType::Bool,
+        DataType::Decimal128(_, scale) => PropType::Decimal {
+            scale: *scale as i64,
+        },
         DataType::List(field) => {
             let d_type = field.data_type();
             PropType::Array(Box::new(prop_type_from_arrow_dtype(&d_type)))
@@ -407,6 +432,8 @@ pub trait PropUnwrap: Sized {
     }
 
     fn as_f64(&self) -> Option<f64>;
+
+    fn into_decimal(self) -> Option<BigDecimal>;
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -468,6 +495,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn as_f64(&self) -> Option<f64> {
         self.as_ref().and_then(|p| p.as_f64())
+    }
+
+    fn into_decimal(self) -> Option<BigDecimal> {
+        self.and_then(|p| p.into_decimal())
     }
 }
 
@@ -597,6 +628,14 @@ impl PropUnwrap for Prop {
             _ => None,
         }
     }
+
+    fn into_decimal(self) -> Option<BigDecimal> {
+        if let Prop::Decimal(d) = self {
+            Some(d)
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for Prop {
@@ -653,6 +692,7 @@ impl Display for Prop {
                         .join(", ")
                 )
             }
+            Prop::Decimal(d) => write!(f, "Decimal({})", d.as_bigint_and_scale().1),
         }
     }
 }
@@ -719,6 +759,12 @@ impl From<u16> for Prop {
 impl From<i64> for Prop {
     fn from(i: i64) -> Self {
         Prop::I64(i)
+    }
+}
+
+impl From<BigDecimal> for Prop {
+    fn from(d: BigDecimal) -> Self {
+        Prop::Decimal(d)
     }
 }
 

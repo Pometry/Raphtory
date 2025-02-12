@@ -360,7 +360,7 @@ impl DiskGraphStorage {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use itertools::Itertools;
     use polars_arrow::{
@@ -378,6 +378,8 @@ mod test {
         db::graph::graph::assert_graph_equal,
         prelude::*,
     };
+
+    use super::{graph_impl::ParquetLayerCols, DiskGraphStorage};
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
         edges
@@ -568,6 +570,46 @@ mod test {
     fn edge_sanity_fail1() {
         let edges = vec![(0, 17, 0), (1, 0, -1), (17, 0, 0)];
         edges_sanity_check_inner(edges, 4, 4, 4)
+    }
+
+    #[test]
+    fn load_decimal_column() {
+        let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("resources/test/data_0.parquet")
+            .to_string_lossy()
+            .to_string();
+
+        let graph_dir = tempfile::tempdir().unwrap();
+
+        let layer_parquet_cols = vec![ParquetLayerCols {
+            parquet_dir: parquet_file_path.as_ref(),
+            layer: "large",
+            src_col: "from_address",
+            dst_col: "to_address",
+            time_col: "block_timestamp",
+            exclude_edge_props: vec![],
+        }];
+        let dgs = DiskGraphStorage::load_from_parquets(
+            graph_dir.path(),
+            layer_parquet_cols,
+            None,
+            100,
+            100,
+            1,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let g = dgs.into_graph();
+        let actual = g
+            .edges()
+            .properties()
+            .into_iter()
+            .flat_map(|props| props.temporal().into_iter())
+            .flat_map(|(_, view)| view.into_iter())
+            .collect::<Vec<_>>();
+        assert!(!actual.is_empty());
     }
 
     #[test]

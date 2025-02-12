@@ -6,10 +6,11 @@ use crate::{
             timeindex::TimeIndexEntry,
         },
         utils::errors::GraphError,
-        Prop,
+        Prop, DECIMAL_MAX,
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::Hash};
 
@@ -98,6 +99,20 @@ impl Props {
 
     pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + Sync + '_ {
         self.temporal_props.filled_ids()
+    }
+}
+
+pub(crate) fn validate_prop(prop_id: usize, prop: Prop) -> Result<Prop, IllegalSet<Option<Prop>>> {
+    match prop {
+        Prop::Decimal(ref bd) => {
+            let (bint, scale) = bd.as_bigint_and_exponent();
+            if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
+                Ok(prop)
+            } else {
+                Err(IllegalSet::new(prop_id, None, Some(prop)))
+            }
+        }
+        _ => Ok(prop),
     }
 }
 

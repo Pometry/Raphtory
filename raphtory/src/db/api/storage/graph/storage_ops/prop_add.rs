@@ -5,7 +5,10 @@ use raphtory_api::core::{
 
 use super::GraphStorage;
 use crate::{
-    core::{entities::graph::tgraph::TemporalGraph, utils::errors::GraphError},
+    core::{
+        entities::{graph::tgraph::TemporalGraph, properties::props::validate_prop},
+        utils::errors::GraphError,
+    },
     db::api::{
         mutation::internal::InternalPropertyAdditionOps,
         storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
@@ -42,6 +45,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     ) -> Result<(), GraphError> {
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
+            let prop = validate_prop(*prop_id, prop)?;
             self.graph_meta.add_prop(t, *prop_id, prop)?;
         }
         self.update_time(t);
@@ -51,6 +55,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
+            let prop = validate_prop(*id, prop)?;
             self.graph_meta.add_constant_prop(*id, prop)?;
         }
         Ok(())
@@ -62,6 +67,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     ) -> Result<(), GraphError> {
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
+            let prop = validate_prop(*id, prop)?;
             self.graph_meta.update_constant_prop(*id, prop)?;
         }
         Ok(())
@@ -75,6 +81,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
+            let prop = validate_prop(*prop_id, prop)?;
             node.as_mut()
                 .add_constant_prop(*prop_id, prop)
                 .map_err(|err| {
@@ -99,6 +106,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
+            let prop = validate_prop(*prop_id, prop)?;
             node.as_mut().update_constant_prop(*prop_id, prop)?;
         }
         Ok(())
@@ -115,6 +123,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
             for (prop_id, prop) in props {
                 let prop = self.process_prop_value(prop);
+                let prop = validate_prop(*prop_id, prop)?;
                 edge_layer
                     .add_constant_prop(*prop_id, prop)
                     .map_err(|err| {
@@ -145,6 +154,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
             for (prop_id, prop) in props {
                 let prop = self.process_prop_value(prop);
+                let prop = validate_prop(*prop_id, prop)?;
                 edge_layer.update_constant_prop(*prop_id, prop)?;
             }
             Ok(())
