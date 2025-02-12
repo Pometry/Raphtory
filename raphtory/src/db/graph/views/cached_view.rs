@@ -284,4 +284,215 @@ mod test {
             check(&edge_list);
         })
     }
+
+    #[cfg(test)]
+    mod search_cached_view_graph_tests {
+        use crate::{
+            core::Prop,
+            db::{
+                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                graph::views::{
+                    deletion_graph::PersistentGraph, property_filter::CompositeNodeFilter,
+                },
+            },
+            prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
+        };
+        use std::ops::Range;
+
+        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], Some("air_nomad"))
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], Some("water_tribe"))
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], Some("water_tribe"))
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], Some("fire_nation"))
+                .unwrap();
+
+            graph
+        }
+
+        fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            filter: &CompositeNodeFilter,
+        ) -> Vec<String> {
+            let cv = graph.cache_view();
+            let mut results = cv
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        fn search_nodes_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            w: Range<i64>,
+            filter: &CompositeNodeFilter,
+        ) -> Vec<String> {
+            let cv = graph.cache_view();
+            let mut results = cv
+                .window(w.start, w.end)
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        fn search_nodes_count_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            filter: &CompositeNodeFilter,
+        ) -> usize {
+            let cv = graph.cache_view();
+            let results = cv
+                .search_nodes_count(&filter)
+                .expect("Failed to search for nodes");
+            results
+        }
+
+        fn search_nodes_count_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            w: Range<i64>,
+            filter: &CompositeNodeFilter,
+        ) -> usize {
+            let cv = graph.cache_view();
+            let results = cv
+                .window(w.start, w.end)
+                .search_nodes_count(&filter)
+                .expect("Failed to search for nodes");
+            results
+        }
+
+        #[test]
+        fn test_search_nodes_cached_view_graph() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_cached_view_graph() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_cached_view_graph() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_persistent_cached_view_graph() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+        }
+
+        #[test]
+        fn test_search_nodes_count_cached_view_graph() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_count_by_composite_filter(&graph, &filter);
+            assert_eq!(results, 8);
+        }
+
+        #[test]
+        fn test_search_nodes_count_windowed_cached_view_graph() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_count_by_composite_filter_w(&graph, 6..9, &filter);
+            assert_eq!(results, 4);
+        }
+
+        #[test]
+        fn test_search_nodes_count_persistent_cached_view_graph() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_count_by_composite_filter(&graph, &filter);
+            assert_eq!(results, 8);
+        }
+
+        #[test]
+        fn test_search_nodes_count_windowed_persistent_cached_view_graph() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_count_by_composite_filter_w(&graph, 6..9, &filter);
+            assert_eq!(results, 6);
+        }
+    }
 }
