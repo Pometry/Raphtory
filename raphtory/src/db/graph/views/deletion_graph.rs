@@ -1070,7 +1070,7 @@ mod test_deletions {
         assert!(!g.window(0, 1).has_edge(1, 2));
         assert!(!g.window(0, 2).has_edge(3, 4));
         assert!(g.window(1, 2).has_edge(1, 2));
-        assert!(g.window(2, 3).has_edge(3, 4));
+        assert!(!g.window(2, 3).has_edge(3, 4)); // deleted at start of window
         assert!(!g.window(3, 4).has_edge(3, 4));
     }
 
@@ -1569,6 +1569,9 @@ mod test_deletions {
         );
         assert_eq!(e.history(), [2, 4]); // is this actually what we want?
         assert!(e.deletions().is_empty());
+        assert_eq!(g.window(1, 5).count_temporal_edges(), 3);
+        assert_eq!(g.window(2, 5).count_temporal_edges(), 2);
+        assert_eq!(g.window(3, 5).count_temporal_edges(), 2);
     }
 
     #[test]
@@ -1600,6 +1603,9 @@ mod test_deletions {
         );
         assert_eq!(e.history(), [2, 4]);
         assert!(e.deletions().is_empty());
+        assert_eq!(g.window(0, 5).count_temporal_edges(), 2);
+        assert_eq!(g.window(1, 5).count_temporal_edges(), 2);
+        assert_eq!(g.window(3, 5).count_temporal_edges(), 2);
     }
 
     #[test]
@@ -1633,6 +1639,9 @@ mod test_deletions {
         );
 
         assert!(e.deletions().is_empty());
-        assert_eq!(e.history(), [2, 4])
+        assert_eq!(e.history(), [2, 4]);
+        assert_eq!(g.window(1, 5).count_temporal_edges(), 4);
+        assert_eq!(g.window(2, 5).count_temporal_edges(), 2);
+        assert_eq!(g.window(3, 5).count_temporal_edges(), 2);
     }
 }
