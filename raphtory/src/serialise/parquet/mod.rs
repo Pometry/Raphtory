@@ -425,33 +425,24 @@ mod test {
     }
 
     #[test]
+    #[ignore = "This is broken because of polars-parquet"]
     fn node_temp_props_decimal() {
         let nodes = NodeFixture {
             nodes: vec![(
                 0,
                 0,
                 vec![(
-                    "ᛯY".to_string(),
+                    "Y".to_string(),
                     Prop::List(
                         vec![
                             Prop::List(
                                 vec![
                                     Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("13e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("13e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("13e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("13e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("13e-13").unwrap(),
-                                    // ),
+                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
+                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
+                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
+                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
+                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
                                 ]
                                 .into(),
                             ),
@@ -472,30 +463,54 @@ mod test {
                                         )
                                         .unwrap(),
                                     ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("94016349560001117444902279806303521844e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("84910690243002010022611521070762324633e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("31555839249842363263204026650232450040e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("86230621933535017744166139882102600331e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("8814065867434113836260276824023976656e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("5911907249021330427648764706320440531e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("86835517758183724431483793853154818250e-13").unwrap(),
-                                    // ),
-                                    // Prop::Decimal(
-                                    //     BigDecimal::from_str("89347387369804528029924787786630755616e-13").unwrap(),
-                                    // ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "94016349560001117444902279806303521844e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "84910690243002010022611521070762324633e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "31555839249842363263204026650232450040e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "86230621933535017744166139882102600331e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "8814065867434113836260276824023976656e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "5911907249021330427648764706320440531e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "86835517758183724431483793853154818250e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
+                                    Prop::Decimal(
+                                        BigDecimal::from_str(
+                                            "89347387369804528029924787786630755616e-13",
+                                        )
+                                        .unwrap(),
+                                    ),
                                 ]
                                 .into(),
                             ),
@@ -818,7 +833,7 @@ mod test {
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(vec![0, 1], 1))| {
+        proptest!(|(nodes in build_nodes_dyn(vec![0, 1, 2, 3, 4, 5, 6, 7 ,8, 9], 10))| {
             check_parquet_encoding(nodes.into());
         });
     }
