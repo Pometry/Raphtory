@@ -351,7 +351,19 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.0.edge_history_window(e, layer_ids, w)
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let entry = self.core_edge(e.pid());
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .updates_iter(&layer_ids)
+                .map(|(_, additions, deletions)| {
+                    let window = interior_window(w.clone(), &deletions);
+                    additions.into_range(window).into_iter()
+                })
+                .kmerge()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
@@ -1436,7 +1448,7 @@ mod test_deletions {
         assert_eq!(ex_earliest_t, []);
     }
 
-    /// Deletions only bring an edge into the window if they fall inside the window, not if the fall
+    /// Deletions only bring an edge into the window if they fall inside the window, not if they fall
     /// onto the start of the window. The edge is already considered deleted at the time of the
     /// deletion event, not at the next step.
     #[test]
@@ -1456,5 +1468,106 @@ mod test_deletions {
         // windows that don't contain the deletion event don't have the edge
         assert!(!g.window(0, 1).has_edge(0, 1));
         assert!(!g.window(2, 3).has_edge(0, 1));
+    }
+
+    #[test]
+    fn test_multiple_updates_at_start() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
+        g.add_edge(0, 0, 1, [("test", 2i64)], None).unwrap();
+
+        let e = g.edge(0, 1).unwrap();
+        assert_eq!(e.properties().get("test").unwrap_i64(), 2);
+        assert_eq!(
+            e.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(0, Prop::I64(1)), (0, Prop::I64(2))]
+        );
+
+        assert_eq!(e.at(0).properties().get("test").unwrap_i64(), 2);
+        assert_eq!(
+            e.at(0)
+                .properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(0, Prop::I64(1)), (0, Prop::I64(2))]
+        );
+
+        assert_eq!(
+            e.at(0)
+                .explode()
+                .properties()
+                .map(|p| p.get("test").unwrap_i64())
+                .collect_vec(),
+            [1, 2]
+        )
+    }
+
+    #[test]
+    fn no_persistence_if_updated_at_start() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
+        g.add_edge(4, 0, 1, [("test", 4i64)], None).unwrap();
+
+        let e = g.edge(0, 1).unwrap().window(2, 5);
+
+        assert_eq!(e.properties().get("test").unwrap_i64(), 4);
+        assert_eq!(
+            e.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(2, Prop::I64(2)), (4, Prop::I64(4))]
+        );
+        assert_eq!(
+            e.explode()
+                .properties()
+                .map(|p| p.get("test").unwrap_i64())
+                .collect_vec(),
+            [2, 4]
+        )
+    }
+
+    #[test]
+    fn test_deletion_at_start() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
+        g.delete_edge(2, 0, 1, None).unwrap();
+        g.add_edge(4, 0, 1, [("test", 4i64)], None).unwrap();
+
+        let e = g.edge(0, 1).unwrap().window(2, 5);
+
+        assert_eq!(e.properties().get("test").unwrap_i64(), 4);
+        assert_eq!(
+            e.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(4, Prop::I64(4))]
+        );
+
+        assert_eq!(
+            e.explode()
+                .properties()
+                .map(|p| p.get("test").unwrap_i64())
+                .collect_vec(),
+            [4]
+        );
+
+        assert!(e.deletions().is_empty());
+        assert_eq!(e.history(), [4])
     }
 }
