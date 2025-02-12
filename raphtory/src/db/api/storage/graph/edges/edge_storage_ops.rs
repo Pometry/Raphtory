@@ -28,6 +28,7 @@ use std::ops::Range;
 use pometry_storage::timestamps::TimeStamps;
 use raphtory_api::iter::BoxedLIter;
 
+#[derive(Clone)]
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
     Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),

@@ -40,7 +40,10 @@ use std::{
 ///
 /// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
-/// it is considered active at any point in the window.
+/// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by secondary index) is a deletion,
+/// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
+///
+///
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
@@ -71,7 +74,7 @@ fn alive_before<
     last_addition_before_start > last_deletion_before_start
 }
 
-fn alive_at<
+fn has_persisted_event<
     A: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
     D: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
 >(
@@ -79,15 +82,9 @@ fn alive_at<
     deletions: &D,
     t: i64,
 ) -> bool {
-    let deleted_at_start = match (
-        deletions.range_t(t..t.saturating_add(1)).first(),
-        additions.range_t(t..t.saturating_add(1)).first(),
-    ) {
-        (Some(d), Some(a)) => d < a,
-        (Some(_), None) => true,
-        _ => false,
-    };
-    !deleted_at_start && alive_before(additions, deletions, t)
+    let active_at_start =
+        deletions.active_t(t..t.saturating_add(1)) || additions.active_t(t..t.saturating_add(1));
+    !active_at_start && alive_before(additions, deletions, t)
 }
 
 fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
@@ -96,11 +93,13 @@ fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
 }
 
 fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
-    // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
+    // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
     e.updates_iter(layer_ids)
-        .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
+        .any(|(_, additions, deletions)| alive_before(&additions, &deletions, t.saturating_add(1)))
 }
 
+/// Get the last update of a property before `t` (exclusive), taking deletions into account.
+/// The update is only returned if the edge was not deleted since.
 fn last_prop_value_before<'a>(
     t: TimeIndexEntry,
     props: impl TPropOps<'a>,
@@ -109,6 +108,53 @@ fn last_prop_value_before<'a>(
     props
         .last_before(t) // inclusive
         .filter(|(last_t, _)| !deletions.active(*last_t..t))
+}
+
+/// Gets the potentially persisted property value at a point in time
+///
+/// Persisted value can only exist if there is no update at time `t` and the edge is not deleted at time `t`
+/// and if it exists it is the last value of the property before `t` as computed by `last_prop_value_before`.
+fn persisted_prop_value_at<'a>(
+    t: i64,
+    props: impl TPropOps<'a>,
+    deletions: impl TimeIndexOps<IndexType = TimeIndexEntry>,
+) -> Option<Prop> {
+    if props.clone().active(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
+        None
+    } else {
+        last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
+    }
+}
+
+/// The effective start of a window such that an edge is considered alive if there are any addition events within this window
+///
+/// The idea is as follows:
+///     - if there are no deletion events at or before the start of the window, the edge is alive
+///       if it was added at any point before the end of the window
+///     - if there  are deletion events at or before the start, only events after the last such deletion are relevant
+///     
+fn effective_search_start(
+    start: i64,
+    deletions: impl TimeIndexOps<IndexType = TimeIndexEntry>,
+) -> TimeIndexEntry {
+    deletions
+        .range_t(i64::MIN..start.saturating_add(1))
+        .last()
+        .map(|t| t.next())
+        .unwrap_or(TimeIndexEntry::MIN)
+}
+
+/// Exclude anything from the window that happens before the last deletion at the start of the window
+fn interior_window(
+    w: Range<i64>,
+    deletions: &impl TimeIndexOps<IndexType = TimeIndexEntry>,
+) -> Range<TimeIndexEntry> {
+    let start = deletions
+        .range_t(w.start..w.start.saturating_add(1))
+        .last()
+        .map(|t| t.next())
+        .unwrap_or(TimeIndexEntry::start(w.start));
+    start..TimeIndexEntry::start(w.end)
 }
 
 impl PersistentGraph {
@@ -248,8 +294,9 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        // includes edge if it is alive at the start of the window or added during the window or deleted inside the window
-        edge.added(layer_ids, w.clone())
+        // If an edge has any event in the interior (both end exclusive) of the window it is always included.
+        // Additionally, the edge is included if the last event at or before the start of the window was an addition.
+        edge.added(layer_ids, w.start.saturating_add(1)..w.end)
             || edge.deleted(layer_ids, w.start.saturating_add(1)..w.end)
             || edge_alive_at_start(edge, w.start, layer_ids)
     }
@@ -327,8 +374,9 @@ impl TimeSemantics for PersistentGraph {
             LayerIds::One(id) => {
                 let additions = edge.additions(*id);
                 let deletions = edge.deletions(*id);
-                let mut len = additions.range_t(w.clone()).len();
-                if alive_at(&additions, &deletions, w.start) {
+                let actual_window = interior_window(w.clone(), &deletions);
+                let mut len = additions.range(actual_window).len();
+                if has_persisted_event(&additions, &deletions, w.start) {
                     len += 1
                 }
                 len
@@ -359,17 +407,29 @@ impl TimeSemantics for PersistentGraph {
             return Box::new(iter::empty());
         }
         let edge = self.0.core_edge(e.pid());
+        let layer_ids = layer_ids.constrain_from_edge(e);
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(&layer_ids.constrain_from_edge(e))
+            .updates_iter(&layer_ids)
             .filter_map(|(l, additions, deletions)| {
-                alive_at(&additions, &deletions, w.start).then_some(l)
+                has_persisted_event(&additions, &deletions, w.start).then_some(l)
             })
             .collect();
         alive_layers
             .into_iter()
             .map(move |l| e.at(w.start.into()).at_layer(l))
-            .chain(self.0.edge_window_exploded(e, w, layer_ids))
+            .chain(GenLockedIter::from(edge, move |edge| {
+                edge.updates_iter(&layer_ids)
+                    .map(move |(l, additions, deletions)| {
+                        let window = interior_window(w.clone(), &deletions);
+                        additions
+                            .into_range(window)
+                            .into_iter()
+                            .map(move |t| e.at(t).at_layer(l))
+                    })
+                    .kmerge_by(|e1, e2| e1.time() <= e2.time())
+                    .into_dyn_boxed()
+            }))
             .into_dyn_boxed()
     }
 
@@ -406,21 +466,26 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
-        let entry = self.core_edge(e.pid());
-        if edge_alive_at_start(entry.as_ref(), w.start, &layer_ids) {
-            Some(w.start)
-        } else {
-            entry
-                .additions_iter(&layer_ids)
-                .filter_map(|(_, a)| a.range_t(w.clone()).first_t())
-                .chain(
+        match e.time_t() {
+            Some(t) => w.contains(&t).then_some(t),
+            None => {
+                let entry = self.core_edge(e.pid());
+                if edge_alive_at_start(entry.as_ref(), w.start, &layer_ids) {
+                    Some(w.start)
+                } else {
                     entry
-                        .deletions_iter(&layer_ids)
-                        .filter_map(|(_, d)| d.range_t(w.start.saturating_add(1)..w.end).first_t()),
-                    // deletions only matter if they fall in the interior of the window but
-                    // are ignored if they happen at the start of the window
-                )
-                .min()
+                        .updates_iter(&layer_ids)
+                        .flat_map(|(_, additions, deletions)| {
+                            let window = interior_window(w.clone(), &deletions);
+                            additions
+                                .range(window.clone())
+                                .first_t()
+                                .into_iter()
+                                .chain(deletions.range(window).first_t())
+                        })
+                        .min()
+                }
+            }
         }
     }
 
@@ -463,10 +528,11 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
     ) -> Option<i64> {
         let edge = self.core_edge(e.pid());
+        let layer_ids = layer_ids.constrain_from_edge(e);
         match e.time().map(|ti| ti.t()) {
             Some(t) => {
                 let t_start = t.saturating_add(1);
-                edge.updates_par_iter(layer_ids)
+                edge.updates_iter(&layer_ids)
                     .map(|(_, a, d)| {
                         // last time for exploded edge is next addition or deletion
                         min(
@@ -481,15 +547,13 @@ impl TimeSemantics for PersistentGraph {
                 if edge_alive_at_end(entry.as_ref(), w.end, &layer_ids) {
                     return Some(w.end - 1);
                 }
+                // window for deletions has start exclusive
                 entry
-                    .updates_par_iter(layer_ids)
-                    .flat_map(|(_, additions, deletions)| {
-                        let last_deletion = deletions.range_t(w.clone()).last()?;
-                        if last_deletion.t() > w.start || additions.active_t(w.clone()) {
-                            Some(last_deletion.t())
-                        } else {
-                            None
-                        }
+                    .deletions_iter(&layer_ids)
+                    .filter_map(|(_, d)| {
+                        d.range_t(w.start.saturating_add(1)..w.end)
+                            .last_t()
+                            .filter(|t| w.contains(t))
                     })
                     .max()
             }
@@ -512,6 +576,8 @@ impl TimeSemantics for PersistentGraph {
         .into_dyn_boxed()
     }
 
+    /// Note that the window for deletions considers the start as exclusive for consistency with
+    /// the other semantics (i.e., the actual window starts after the last deletion at the start)
     fn edge_deletion_history_window<'a>(
         &'a self,
         e: EdgeRef,
@@ -522,7 +588,7 @@ impl TimeSemantics for PersistentGraph {
         GenLockedIter::from(entry, |entry| {
             entry
                 .deletions_iter(&layer_ids)
-                .map(|(_, d)| d.into_range_t(w.clone()).into_iter())
+                .map(|(_, d)| d.into_range_t(w.start.saturating_add(1)..w.end).into_iter())
                 .kmerge()
                 .into_dyn_boxed()
         })
@@ -561,6 +627,7 @@ impl TimeSemantics for PersistentGraph {
         start: i64,
         end: i64,
     ) -> BoxedLIter<(i64, Prop)> {
+        // FIXME: needs persistent semantics
         self.0.temporal_prop_iter_window(prop_id, start, end)
     }
 
@@ -570,6 +637,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        // FIXME: needs persistent semantics
         self.0.temporal_prop_vec_window(prop_id, start, end)
     }
     fn temporal_node_prop_hist(
@@ -607,35 +675,32 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
+        let layer_ids = layer_ids.constrain_from_edge(e);
         match e.time() {
-            Some(t) => {
-                if (start..end).contains(&t.t()) {
-                    GenLockedIter::from(entry, move |entry| {
-                        entry
-                            .temporal_prop_iter(&layer_ids, prop_id)
-                            .filter_map(move |(layer_id, props)| {
-                                last_prop_value_before(t.next(), props, entry.deletions(layer_id))
-                                    .map(|(_, v)| (t, v))
-                            })
-                            .into_dyn_boxed()
+            Some(t) => GenLockedIter::from(entry, move |entry| {
+                entry
+                    .temporal_prop_iter(&layer_ids, prop_id)
+                    .filter_map(move |(layer_id, props)| {
+                        let actual_window = interior_window(start..end, &entry.deletions(layer_id));
+                        if actual_window.contains(&t) {
+                            last_prop_value_before(t.next(), props, entry.deletions(layer_id))
+                                .map(|(_, v)| (t, v))
+                        } else {
+                            None
+                        }
                     })
                     .into_dyn_boxed()
-                } else {
-                    iter::empty().into_dyn_boxed()
-                }
-            }
+            })
+            .into_dyn_boxed(),
             None => GenLockedIter::from(entry, |entry| {
                 entry
                     .temporal_prop_iter(&layer_ids, prop_id)
                     .map(|(l, prop)| {
-                        let first_prop = last_prop_value_before(
-                            TimeIndexEntry::start(start.saturating_add(1)),
-                            prop.clone(),
-                            entry.deletions(l),
-                        )
-                        .map(|(_, v)| (TimeIndexEntry::start(start), v));
+                        let first_prop =
+                            persisted_prop_value_at(start, prop.clone(), entry.deletions(l))
+                                .map(|v| (TimeIndexEntry::start(start), v));
                         first_prop.into_iter().chain(
-                            prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)),
+                            prop.iter_window(interior_window(start..end, &entry.deletions(l))),
                         )
                     })
                     .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
@@ -653,13 +718,15 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
     ) -> Option<Prop> {
         let entry = self.core_edge(e.pid());
+        let layer_ids = layer_ids.constrain_from_edge(e);
         let res = entry
             .temporal_prop_iter(&layer_ids, id)
             .filter_map(|(layer_id, prop)| {
-                last_prop_value_before(t.next(), prop, entry.deletions(layer_id)) // check with inclusive window
-                    .map(|(_, v)| v)
+                last_prop_value_before(t.next(), prop, entry.deletions(layer_id))
+                // check with inclusive window
             })
-            .next();
+            .max_by_key(|(t, _)| *t)
+            .map(|(_, v)| v);
         res
     }
 
