@@ -126,24 +126,6 @@ fn persisted_prop_value_at<'a>(
     }
 }
 
-/// The effective start of a window such that an edge is considered alive if there are any addition events within this window
-///
-/// The idea is as follows:
-///     - if there are no deletion events at or before the start of the window, the edge is alive
-///       if it was added at any point before the end of the window
-///     - if there  are deletion events at or before the start, only events after the last such deletion are relevant
-///     
-fn effective_search_start(
-    start: i64,
-    deletions: impl TimeIndexOps<IndexType = TimeIndexEntry>,
-) -> TimeIndexEntry {
-    deletions
-        .range_t(i64::MIN..start.saturating_add(1))
-        .last()
-        .map(|t| t.next())
-        .unwrap_or(TimeIndexEntry::MIN)
-}
-
 /// Exclude anything from the window that happens before the last deletion at the start of the window
 fn interior_window(
     w: Range<i64>,
@@ -321,10 +303,27 @@ impl TimeSemantics for PersistentGraph {
         // if window exists, we need to add the first row before the window
         // FIXME: this doesn't work correctly for multiple updates at the start of the window
         if let Some(w) = w {
-            let t = TimeIndexEntry::start(w.start.saturating_add(1));
-            let first_row = self.core_node_entry(v).as_ref().last_before_row(t);
+            let node = self.core_node_entry(v);
+            let first_row = if node.additions().active_t(i64::MIN..w.start) {
+                Some(
+                    (0..self.node_meta().temporal_prop_meta().len())
+                        .filter_map(|prop_id| {
+                            let prop = node.tprop(prop_id);
+                            if prop.active(w.start..w.start.saturating_add(1)) {
+                                None
+                            } else {
+                                prop.last_before(TimeIndexEntry::start(w.start))
+                                    .map(|(_, v)| (prop_id, v))
+                            }
+                        })
+                        .collect_vec(),
+                )
+            } else {
+                None
+            };
             Box::new(
-                std::iter::once(first_row)
+                first_row
+                    .into_iter()
                     .map(move |row| (TimeIndexEntry::start(w.start), row))
                     .chain(self.0.node_history_rows(v, Some(w))),
             )
@@ -764,9 +763,12 @@ mod test_deletions {
         },
         prelude::*,
         test_storage,
+        test_utils::{build_edge_list, build_graph, build_graph_from_edge_list, build_graph_strat},
     };
     use itertools::Itertools;
+    use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::GID;
+    use std::ops::Range;
 
     #[test]
     fn test_nodes() {
@@ -910,6 +912,61 @@ mod test_deletions {
             g.count_temporal_edges()
         );
         assert_graph_equal(&g.materialize().unwrap(), &g);
+    }
+
+    #[test]
+    fn materialize_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10))| {
+            let g = build_graph(graph_f).persistent_graph();
+            let gm = g.materialize().unwrap();
+            assert_graph_equal(&g, &gm);
+        })
+    }
+
+    #[test]
+    fn materialize_window_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(2, 1), w in any::<Range<i64>>())| {
+            let g = build_graph(graph_f).persistent_graph();
+            let gw = g.window(w.start, w.end);
+            let gmw = gw.materialize().unwrap();
+            assert_graph_equal(&gw, &gmw);
+        })
+    }
+
+    #[test]
+    fn test_materialize_window_start_before_node_add() {
+        let g = PersistentGraph::new();
+        g.add_node(-1, 0, [("test", "test")], None).unwrap();
+        // g.add_node(5, 0, [("test", "blob")], None).unwrap();
+        // g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        let gw = g.window(-5, 8);
+        let gmw = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn test_materialize_constant_edge_props() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.add_constant_properties([("test", "test")], None).unwrap();
+        g.delete_edge(1, 1, 2, None).unwrap();
+
+        let gw = g.after(1);
+        let gmw = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn test_constant_properties_multiple_layers() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.add_constant_properties([("test", "test")], None).unwrap();
+        g.delete_edge(1, 1, 2, None).unwrap();
+        println!("{:?}", g.edge(1, 2).unwrap().properties().constant());
+        let gw = g.after(1);
+        println!("{:?}", gw.edge(1, 2).unwrap().properties().constant())
     }
 
     #[test]

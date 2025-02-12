@@ -509,13 +509,14 @@ mod test_utils {
                     edges,
                     edge_const_props,
                     no_props_edges,
+                    edge_deletions,
                     ..
                 } = g_fixture;
                 build_nodes_dyn(nodes, 10)
                     .prop_map(move |nodes_f| GraphFixture {
                         nodes: nodes_f,
                         edges: edges.clone(),
-                        edge_deletions: vec![],
+                        edge_deletions: edge_deletions.clone(),
                         no_props_edges: no_props_edges.clone(),
                         edge_const_props: edge_const_props.clone(),
                     })
