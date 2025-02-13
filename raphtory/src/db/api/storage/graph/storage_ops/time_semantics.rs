@@ -533,7 +533,7 @@ impl TimeSemantics for GraphStorage {
                 entry
                     .temporal_prop_iter(&layer_ids, prop_id)
                     .map(|(_, p)| p.iter())
-                    .kmerge()
+                    .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
                     .into_dyn_boxed()
             })
             .into_dyn_boxed(),
