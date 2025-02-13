@@ -1,5 +1,5 @@
 use crate::{
-    core::Prop,
+    core::{utils::errors::GraphError, Prop},
     db::api::{
         properties::internal::{ConstPropertiesOps, PropertiesOps},
         view::StaticGraphViewOps,
@@ -8,7 +8,10 @@ use crate::{
     search::property_index::PropertyIndex,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::props::PropMapper, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::props::{Meta, PropMapper},
+    storage::arc_str::ArcStr,
+};
 use std::{
     ops::{Deref, DerefMut},
     sync::{Arc, RwLock},
@@ -66,7 +69,7 @@ pub(crate) fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index
     (index, reader)
 }
 
-pub fn initialize_property_indexes(
+fn initialize_property_indexes(
     property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     prop_meta: &PropMapper,
 ) -> tantivy::Result<Vec<Option<IndexWriter>>> {
@@ -130,4 +133,38 @@ where
     }
 
     Ok(())
+}
+
+fn get_property_index(
+    constant_property_indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    temporal_property_indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    meta: &Meta,
+    prop_name: &str,
+) -> Result<(Arc<PropertyIndex>, usize), GraphError> {
+    if let Some(prop_id) = meta.temporal_prop_meta().get_id(prop_name) {
+        return temporal_property_indexes
+            .read()
+            .map_err(|_| GraphError::LockError)?
+            .get(prop_id)
+            .and_then(|opt| opt.as_ref())
+            .cloned()
+            .map(Arc::from)
+            .map(|index| (index, prop_id))
+            .ok_or_else(|| GraphError::PropertyIndexNotFound(prop_name.to_string()));
+    }
+
+    if let Some(prop_id) = meta.const_prop_meta().get_id(prop_name) {
+        return constant_property_indexes
+            .read()
+            .map_err(|_| GraphError::LockError)?
+            .get(prop_id)
+            .and_then(|opt| opt.as_ref())
+            .cloned()
+            .map(Arc::from)
+            .map(|index| (index, prop_id))
+            .ok_or_else(|| GraphError::PropertyIndexNotFound(prop_name.to_string()));
+    }
+
+    // Property not found in either meta
+    Err(GraphError::PropertyNotFound(prop_name.to_string()))
 }

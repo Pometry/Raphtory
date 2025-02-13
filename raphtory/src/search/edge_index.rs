@@ -14,7 +14,7 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, index_properties, initialize_property_indexes, new_index,
+        fields, get_property_index, index_properties, initialize_property_indexes, new_index,
         property_index::PropertyIndex, TOKENIZER,
     },
 };
@@ -124,41 +124,6 @@ impl EdgeIndex {
             ),
         );
         schema
-    }
-
-    pub fn get_property_index(
-        &self,
-        meta: &Meta,
-        prop_name: &str,
-    ) -> Result<Arc<PropertyIndex>, GraphError> {
-        if let Some(prop_id) = meta.temporal_prop_meta().get_id(prop_name) {
-            let temporal_property_indexes = self
-                .temporal_property_indexes
-                .read()
-                .map_err(|_| GraphError::LockError)?;
-
-            if let Some(Some(property_index)) = temporal_property_indexes.get(prop_id) {
-                return Ok(Arc::from(property_index.clone()));
-            } else {
-                return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
-            }
-        }
-
-        if let Some(prop_id) = meta.const_prop_meta().get_id(prop_name) {
-            let constant_property_indexes = self
-                .constant_property_indexes
-                .read()
-                .map_err(|_| GraphError::LockError)?;
-
-            if let Some(Some(property_index)) = constant_property_indexes.get(prop_id) {
-                return Ok(Arc::from(property_index.clone()));
-            } else {
-                return Err(GraphError::PropertyIndexNotFound(prop_name.to_string()));
-            }
-        }
-
-        // Property not found in either meta
-        Err(GraphError::PropertyNotFound(prop_name.to_string()))
     }
 
     pub fn get_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {

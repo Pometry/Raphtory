@@ -13,7 +13,7 @@ use crate::{
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields,
+        fields, get_property_index,
         graph_index::GraphIndex,
         query_builder::QueryBuilder,
     },
@@ -85,10 +85,12 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
-        let (property_index, prop_id) = self
-            .index
-            .node_index
-            .get_property_index(graph.node_meta(), prop_name)?;
+        let (property_index, prop_id) = get_property_index(
+            &self.index.node_index.constant_property_indexes,
+            &self.index.node_index.temporal_property_indexes,
+            graph.node_meta(),
+            prop_name,
+        )?;
         let (property_index, query) = self
             .query_builder
             .build_property_query::<G>(property_index, filter)?;
