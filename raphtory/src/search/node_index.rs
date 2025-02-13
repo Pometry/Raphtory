@@ -197,6 +197,7 @@ impl NodeIndex {
                 *time,
                 fields::NODE_ID,
                 node_id,
+                None,
                 const_writers,
             )?;
             index_properties(
@@ -205,6 +206,7 @@ impl NodeIndex {
                 *time,
                 fields::NODE_ID,
                 node_id,
+                None,
                 temporal_writers,
             )?;
         }

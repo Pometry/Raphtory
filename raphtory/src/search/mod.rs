@@ -42,7 +42,7 @@ pub(in crate::search) mod fields {
     pub const EDGE_ID: &str = "edge_id";
     pub const SOURCE: &str = "from";
     pub const DESTINATION: &str = "to";
-    pub const EDGE_TYPE: &str = "edge_type";
+    pub const LAYER_ID: &str = "layer_id";
     pub const PROPERTIES: &str = "properties";
 }
 
@@ -112,6 +112,7 @@ fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
     time: i64,
     field: &str,
     id: u64,
+    layer_id: Option<usize>,
     writers: &[Option<IndexWriter>],
 ) -> tantivy::Result<()>
 where
@@ -124,6 +125,7 @@ where
                     time,
                     field,
                     id,
+                    layer_id,
                     prop_name.to_string(),
                     prop_value,
                 )?;

@@ -53,6 +53,7 @@ impl PropertyIndex {
         schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
         schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
         schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+        schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
 
         match prop_type {
             PropType::Str => {
@@ -118,6 +119,7 @@ impl PropertyIndex {
         time: i64,
         field_id: &str,
         id: u64,
+        layer_id: Option<usize>,
         prop_name: String,
         prop_value: Prop,
     ) -> tantivy::Result<TantivyDocument> {
@@ -129,6 +131,10 @@ impl PropertyIndex {
         let mut document = TantivyDocument::new();
         document.add_i64(field_time, time);
         document.add_u64(field_id, id);
+        if let Some(layer_id) = layer_id {
+            let field_layer_id = schema.get_field(fields::LAYER_ID)?;
+            document.add_u64(field_layer_id, layer_id as u64);
+        }
 
         match prop_value {
             Prop::Str(v) => {
