@@ -148,7 +148,7 @@ mod test_utils {
     use crate::prelude::*;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
-    use proptest::{arbitrary::any, prelude::*};
+    use proptest::{arbitrary::any, prelude::*, sample::SizeRange};
     use raphtory_api::core::PropType;
     use std::collections::HashMap;
     #[cfg(feature = "storage")]
@@ -251,11 +251,11 @@ mod test_utils {
 
     pub(crate) fn prop_type() -> impl Strategy<Value = PropType> {
         let leaf = proptest::sample::select(&[
-            PropType::Str,
+            PropType::Bool,
+            PropType::U8,
             PropType::I64,
             PropType::F64,
-            PropType::U8,
-            PropType::Bool,
+            PropType::Str,
             PropType::DTime,
             PropType::NDTime,
         ]);
@@ -266,7 +266,7 @@ mod test_utils {
             let list = inner
                 .clone()
                 .prop_map(|p_type| PropType::List(Box::new(p_type)));
-            prop_oneof![dict, list]
+            prop_oneof![list, dict]
         })
     }
 
@@ -345,37 +345,38 @@ mod test_utils {
 
     fn make_props(
         schema: HashMap<String, PropType>,
-    ) -> (BoxedStrategy<(String, Prop)>, BoxedStrategy<(String, Prop)>) {
-        let schema_vec = schema.into_iter().collect_vec();
+    ) -> (
+        BoxedStrategy<Vec<(String, Prop)>>,
+        BoxedStrategy<Vec<(String, Prop)>>,
+    ) {
+        let mut iter = schema.iter();
+
         // split in half, one temporal one constant
-        let t_prop_s = schema_vec
-            .iter()
-            .take(schema_vec.len() / 2)
-            .cloned()
-            .collect::<HashMap<_, _>>();
-        let c_prop_s = schema_vec
-            .iter()
-            .skip(schema_vec.len() / 2)
-            .cloned()
-            .collect::<HashMap<_, _>>();
+        let t_prop_s = (&mut iter)
+            .take(schema.len() / 2)
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<_>>();
+        let c_prop_s = iter
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<_>>();
 
-        let make_props = |props: &HashMap<String, PropType>| {
-            props
-                .clone()
-                .into_iter()
-                .map(|(name, p_type)| {
-                    prop(&p_type)
-                        .prop_map(move |prop| (name.clone(), prop))
-                        .boxed()
-                })
-                .collect_vec()
-        };
+        let num_tprops = t_prop_s.len();
+        let num_cprops = c_prop_s.len();
 
-        let t_props = make_props(&t_prop_s);
-        let t_props = proptest::sample::select(t_props).prop_flat_map(|prop| prop);
-
-        let c_props = make_props(&c_prop_s);
-        let c_props = proptest::sample::select(c_props).prop_flat_map(|prop| prop);
+        let t_props =
+            proptest::sample::subsequence(t_prop_s, 0..num_tprops).prop_flat_map(|schema| {
+                schema
+                    .into_iter()
+                    .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
+                    .collect::<Vec<_>>()
+            });
+        let c_props =
+            proptest::sample::subsequence(c_prop_s, 0..num_cprops).prop_flat_map(|schema| {
+                schema
+                    .into_iter()
+                    .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
+                    .collect::<Vec<_>>()
+            });
         (t_props.boxed(), c_props.boxed())
     }
     pub(crate) fn build_nodes_dyn(
@@ -390,8 +391,8 @@ mod test_utils {
                     (
                         proptest::sample::select(nodes.clone()),
                         i64::MIN..i64::MAX,
-                        proptest::collection::vec(t_props, 1..7),
-                        proptest::collection::vec(c_props, 1..3),
+                        t_props,
+                        c_props,
                     ),
                     0..=len,
                 )
@@ -428,8 +429,8 @@ mod test_utils {
         num_nodes: usize,
     ) -> impl Strategy<Value = GraphFixture> {
         let num_nodes = num_nodes as u64;
-        let edges = proptest::collection::hash_map(r"\w{1,10}", prop_type(), 2..10).prop_flat_map(
-            move |schema| {
+        let edges = proptest::collection::hash_map(any::<String>(), prop_type(), 0..10)
+            .prop_flat_map(move |schema| {
                 let (t_props, c_props) = make_props(schema);
 
                 proptest::collection::vec(
@@ -437,8 +438,8 @@ mod test_utils {
                         0..num_nodes,
                         0..num_nodes,
                         i64::MIN..i64::MAX,
-                        proptest::collection::vec(t_props, 1..7),
-                        proptest::collection::vec(c_props, 1..3),
+                        t_props,
+                        c_props,
                         proptest::sample::select(vec![Some("a"), Some("b"), None]),
                     ),
                     0..=len,
@@ -484,8 +485,7 @@ mod test_utils {
                         }
                     })
                 })
-            },
-        );
+            });
         edges
     }
 

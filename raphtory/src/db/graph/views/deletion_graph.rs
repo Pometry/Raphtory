@@ -841,7 +841,7 @@ mod test_deletions {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
-    use raphtory_api::core::entities::GID;
+    use raphtory_api::core::{entities::GID, unify_types};
     use std::ops::Range;
 
     #[test]
@@ -1005,6 +1005,33 @@ mod test_deletions {
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);
         })
+    }
+
+    #[test]
+    fn materialize_broken_time() {
+        let g = PersistentGraph::new();
+        g.add_edge(
+            -7868307470600541330,
+            0,
+            0,
+            [("test", Prop::map([("x", "y")]))],
+            Some("a"),
+        )
+        .unwrap();
+        g.add_edge(
+            -8675512464616562592,
+            0,
+            0,
+            [("test", Prop::map([("z", "hi")]))],
+            None,
+        )
+        .unwrap();
+        g.edge(0, 0)
+            .unwrap()
+            .add_constant_properties([("other", "b")], None)
+            .unwrap();
+        let gw = g.window(-7549523977641994620, -995047120251067629);
+        assert_graph_equal(&gw, &gw.materialize().unwrap())
     }
 
     #[test]
