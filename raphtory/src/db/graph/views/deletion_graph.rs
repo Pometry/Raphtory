@@ -748,6 +748,80 @@ impl TimeSemantics for PersistentGraph {
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.0.temporal_edge_prop_hist(e, prop_id, layer_ids)
     }
+
+    #[inline]
+    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop> {
+        self.0.constant_edge_prop(e, id, layer_ids)
+    }
+
+    fn constant_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let layer_ids: &LayerIds = &layer_ids;
+        let edge = self.core_edge(e.pid());
+        let edge = edge.as_ref();
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => match self.unfiltered_num_layers() {
+                0 => None,
+                1 => {
+                    if self.include_edge_window(edge, w, &LayerIds::One(0)) {
+                        edge.constant_prop_layer(0, id)
+                    } else {
+                        None
+                    }
+                }
+                _ => {
+                    let mut values = edge
+                        .layer_ids_iter(layer_ids)
+                        .filter_map(|layer_id| {
+                            if self.include_edge_window(edge, w.clone(), &LayerIds::One(layer_id)) {
+                                edge.constant_prop_layer(layer_id, id)
+                                    .map(|v| (self.get_layer_name(layer_id), v))
+                            } else {
+                                None
+                            }
+                        })
+                        .peekable();
+                    if values.peek().is_some() {
+                        Some(Prop::map(values))
+                    } else {
+                        None
+                    }
+                }
+            },
+            LayerIds::One(layer_id) => {
+                if self.include_edge_window(edge, w, &LayerIds::One(*layer_id)) {
+                    edge.constant_prop_layer(*layer_id, id)
+                } else {
+                    None
+                }
+            }
+            LayerIds::Multiple(_) => {
+                let mut values = edge
+                    .layer_ids_iter(layer_ids)
+                    .filter_map(|layer_id| {
+                        if self.include_edge_window(edge, w.clone(), &LayerIds::One(layer_id)) {
+                            edge.constant_prop_layer(layer_id, id)
+                                .map(|v| (self.get_layer_name(layer_id), v))
+                        } else {
+                            None
+                        }
+                    })
+                    .peekable();
+                if values.peek().is_some() {
+                    Some(Prop::map(values))
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -763,7 +837,7 @@ mod test_deletions {
         },
         prelude::*,
         test_storage,
-        test_utils::{build_edge_list, build_graph, build_graph_from_edge_list, build_graph_strat},
+        test_utils::{build_graph, build_graph_strat},
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
@@ -957,6 +1031,7 @@ mod test_deletions {
         assert_graph_equal(&gw, &gmw);
     }
 
+    ///
     #[test]
     fn test_constant_properties_multiple_layers() {
         let g = PersistentGraph::new();
@@ -964,9 +1039,35 @@ mod test_deletions {
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         e.add_constant_properties([("test", "test")], None).unwrap();
         g.delete_edge(1, 1, 2, None).unwrap();
-        println!("{:?}", g.edge(1, 2).unwrap().properties().constant());
+        assert_eq!(
+            g.edge(1, 2)
+                .unwrap()
+                .properties()
+                .constant()
+                .iter()
+                .collect_vec(),
+            [("test".into(), Prop::map([("_default", "test")]))]
+        );
         let gw = g.after(1);
-        println!("{:?}", gw.edge(1, 2).unwrap().properties().constant())
+        assert!(gw
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .constant()
+            .iter()
+            .next()
+            .is_none());
+        let g_before = g.before(1);
+        assert_eq!(
+            g_before
+                .edge(1, 2)
+                .unwrap()
+                .properties()
+                .constant()
+                .iter()
+                .collect_vec(),
+            [("test".into(), Prop::map([("_default", "test")]))]
+        );
     }
 
     #[test]

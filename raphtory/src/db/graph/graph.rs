@@ -3842,4 +3842,17 @@ mod db_tests {
         let result = g.create_node(1, 1, [("test".to_string(), Prop::Bool(true))], None);
         assert!(matches!(result, Err(GraphError::NodeExistsError(id)) if id == GID::U64(1)));
     }
+
+    #[test]
+    fn test_materialize_constant_edge_props() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.add_constant_properties([("test", "test")], None).unwrap();
+        g.add_edge(10, 1, 2, NO_PROPS, Some("a")).unwrap();
+
+        let gw = g.after(1);
+        let gmw = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gmw);
+    }
 }

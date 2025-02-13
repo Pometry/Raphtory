@@ -254,7 +254,7 @@ impl<'a> MemEdge<'a> {
     }
 
     #[inline]
-    pub fn props(&self, layer_id: usize) -> Option<&Props> {
+    pub fn props(self, layer_id: usize) -> Option<&'a Props> {
         self.edges
             .props(self.offset, layer_id)
             .and_then(|el| el.props())
@@ -288,11 +288,6 @@ impl<'a> MemEdge<'a> {
                 .get_deletions(layer_id)
                 .filter(|t_index| !t_index.is_empty())
                 .is_some()
-    }
-
-    pub fn temporal_prop_layer_inner(self, layer_id: usize, prop_id: usize) -> Option<&'a TProp> {
-        let layer = self.edges.props(self.offset, layer_id)?;
-        layer.temporal_property(prop_id)
     }
 }
 
@@ -380,7 +375,8 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
 
     #[inline(always)]
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
-        self.temporal_prop_layer_inner(layer_id, prop_id)
+        self.props(layer_id)
+            .and_then(|props| props.temporal_prop(prop_id))
             .unwrap_or(&TProp::Empty)
     }
 

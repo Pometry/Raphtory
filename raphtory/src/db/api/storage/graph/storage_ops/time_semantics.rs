@@ -539,4 +539,118 @@ impl TimeSemantics for GraphStorage {
             .into_dyn_boxed(),
         }
     }
+
+    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop> {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let layer_ids: &LayerIds = &layer_ids;
+        let entry = self.core_edge(e.pid());
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => match self.unfiltered_num_layers() {
+                0 => None,
+                1 => entry.constant_prop_layer(0, id),
+                _ => {
+                    let mut values = entry
+                        .layer_ids_iter(layer_ids)
+                        .filter_map(|layer_id| {
+                            entry
+                                .constant_prop_layer(layer_id, id)
+                                .map(|v| (self.get_layer_name(layer_id), v))
+                        })
+                        .peekable();
+                    if values.peek().is_some() {
+                        Some(Prop::map(values))
+                    } else {
+                        None
+                    }
+                }
+            },
+            LayerIds::One(layer_id) => entry.constant_prop_layer(*layer_id, id),
+            LayerIds::Multiple(_) => {
+                let mut values = entry
+                    .layer_ids_iter(layer_ids)
+                    .filter_map(|layer_id| {
+                        entry
+                            .constant_prop_layer(layer_id, id)
+                            .map(|v| (self.get_layer_name(layer_id), v))
+                    })
+                    .peekable();
+                if values.peek().is_some() {
+                    Some(Prop::map(values))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn constant_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let layer_ids: &LayerIds = &layer_ids;
+        let entry = self.core_edge(e.pid());
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => match self.unfiltered_num_layers() {
+                0 => None,
+                1 => {
+                    if entry.additions(0).active_t(w) {
+                        entry.constant_prop_layer(0, id)
+                    } else {
+                        None
+                    }
+                }
+                _ => {
+                    let mut values = entry
+                        .layer_ids_iter(layer_ids)
+                        .filter_map(|layer_id| {
+                            if entry.additions(layer_id).active_t(w.clone()) {
+                                entry
+                                    .constant_prop_layer(layer_id, id)
+                                    .map(|v| (self.get_layer_name(layer_id), v))
+                            } else {
+                                None
+                            }
+                        })
+                        .peekable();
+                    if values.peek().is_some() {
+                        Some(Prop::map(values))
+                    } else {
+                        None
+                    }
+                }
+            },
+            LayerIds::One(layer_id) => {
+                if entry.additions(*layer_id).active_t(w) {
+                    entry.constant_prop_layer(*layer_id, id)
+                } else {
+                    None
+                }
+            }
+            LayerIds::Multiple(_) => {
+                let mut values = entry
+                    .layer_ids_iter(layer_ids)
+                    .filter_map(|layer_id| {
+                        if entry.additions(layer_id).active_t(w.clone()) {
+                            entry
+                                .constant_prop_layer(layer_id, id)
+                                .map(|v| (self.get_layer_name(layer_id), v))
+                        } else {
+                            None
+                        }
+                    })
+                    .peekable();
+                if values.peek().is_some() {
+                    Some(Prop::map(values))
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }

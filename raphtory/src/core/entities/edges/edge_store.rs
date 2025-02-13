@@ -1,8 +1,5 @@
 use crate::core::{
-    entities::{
-        properties::{props::Props, tprop::TProp},
-        EID, VID,
-    },
+    entities::{properties::props::Props, EID, VID},
     storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Prop,
@@ -84,14 +81,6 @@ impl EdgeLayer {
     pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
         let props = self.props.get_or_insert_with(Props::new);
         props.update_constant_prop(prop_id, prop)
-    }
-
-    pub(crate) fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
-    }
-
-    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-        self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
 }
 
