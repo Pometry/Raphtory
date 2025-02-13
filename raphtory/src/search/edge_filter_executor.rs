@@ -10,20 +10,25 @@ use crate::{
             views::property_filter::{CompositeEdgeFilter, Filter},
         },
     },
-    prelude::{EdgePropertyFilterOps, GraphViewOps, NodeViewOps, PropertyFilter},
+    prelude::{EdgePropertyFilterOps, GraphViewOps, NodeViewOps, PropertyFilter, ResetFilter},
     search::{
-        collectors::edge_property_filter_collector::EdgePropertyFilterCollector, fields,
-        graph_index::GraphIndex, query_builder::QueryBuilder,
+        collectors::{
+            edge_property_filter_collector::EdgePropertyFilterCollector,
+            unique_entity_filter_collector::UniqueEntityFilterCollector,
+        },
+        fields,
+        graph_index::GraphIndex,
+        query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::EID;
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 use tantivy::{
     collector::{FilterCollector, TopDocs},
     query::Query,
-    schema::{Field, Value},
-    DocAddress, Document, Index, IndexReader, Score, Searcher, TantivyDocument,
+    schema::Value,
+    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -44,30 +49,21 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         query: Box<dyn Query>,
-        index: &Arc<Index>,
         reader: &IndexReader,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
+        let collector = UniqueEntityFilterCollector::new(
+            fields::EDGE_ID.to_string(),
+            TopDocs::with_limit(limit).and_offset(offset),
+            reader.clone(),
+            graph.clone(),
+        );
+        let docs = searcher.search(&query, &collector)?;
+        let edges = self.resolve_edge_from_search_result(graph, &searcher, docs)?;
 
-        // println!("query = {:?}", query);
-        let top_docs =
-            searcher.search(&query, &self.edge_id_filter_collector(graph, limit, offset))?;
-        // println!();
-        // Self::print_docs(&searcher, &query, &top_docs);
-        // println!();
-
-        let edge_id = index.schema().get_field(fields::EDGE_ID)?;
-
-        let results = top_docs
-            .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
-            .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_edge_from_search_result(graph, edge_id, doc))
-            .collect::<Vec<_>>();
-
-        Ok(results)
+        Ok(edges)
     }
 
     // fn execute_filter_property_query<G: StaticGraphViewOps>(
@@ -93,32 +89,20 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<HashSet<EdgeView<G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
         let property_index = self
             .index
             .edge_index
             .get_property_index(graph.edge_meta(), prop_name)?;
-
         let (property_index, query) = self
             .query_builder
             .build_property_query::<G>(property_index, filter)?;
 
-        // println!();
-        // println!("Printing property index schema::start");
-        // Self::print_schema(&property_index.index.schema());
-        // println!("Printing property index schema::end");
-        // println!();
-
         let results = match query {
-            Some(query) => self.execute_filter_edge_query(
-                graph,
-                query,
-                &property_index.index,
-                &property_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                self.execute_filter_edge_query(graph, query, &property_index.reader, limit, offset)?
+            }
             // None => graph
             //     .edges()
             //     .filter_edges(filter.clone())?
@@ -130,18 +114,7 @@ impl<'a> EdgeFilterExecutor<'a> {
             None => vec![],
         };
 
-        let unique_results: HashSet<_> = results.into_iter().collect();
-
-        // println!(
-        //     "prop filter: {:?}, result: {:?}",
-        //     filter,
-        //     unique_results
-        //         .iter()
-        //         .map(|n| format!("{} -> {}", n.src(), n.dst()))
-        //         .collect_vec()
-        // );
-
-        Ok(unique_results)
+        Ok(results)
     }
 
     fn filter_edge_index<G: StaticGraphViewOps>(
@@ -150,43 +123,17 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &Filter,
         limit: usize,
         offset: usize,
-    ) -> Result<HashSet<EdgeView<G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
 
-        // println!();
-        // println!("Printing node index::start");
-        // edge_index.print()?;
-        // println!("Printing node index::end");
-        // println!();
-        // println!("Printing node index schema::start");
-        // Self::print_schema(&edge_index.index.schema());
-        // println!("Printing node index schema::end");
-        // println!();
-
         let results = match query {
-            Some(query) => self.execute_filter_edge_query(
-                graph,
-                query,
-                &edge_index.index,
-                &edge_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                self.execute_filter_edge_query(graph, query, &edge_index.reader, limit, offset)?
+            }
             None => vec![],
         };
 
-        let unique_results: HashSet<_> = results.into_iter().collect();
-
-        // println!(
-        //     "edge filter: {:?}, result: {:?}",
-        //     filter,
-        //     unique_results
-        //         .iter()
-        //         .map(|e| format!("{} -> {}", e.src(), e.dst()))
-        //         .collect_vec()
-        // );
-
-        Ok(unique_results)
+        Ok(results)
     }
 
     pub fn filter_edges<G: StaticGraphViewOps>(
@@ -195,7 +142,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<HashSet<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         match filter {
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
@@ -210,7 +157,11 @@ impl<'a> EdgeFilterExecutor<'a> {
                     let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
                     results = Some(
                         results
-                            .map(|r: HashSet<_>| r.intersection(&sub_result).cloned().collect())
+                            .map(|r: Vec<_>| {
+                                r.into_iter()
+                                    .filter(|item| sub_result.contains(item))
+                                    .collect::<Vec<_>>() // Ensure intersection results stay in a Vec
+                            })
                             .unwrap_or(sub_result),
                     );
                 }
@@ -218,7 +169,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                 Ok(results.unwrap_or_default())
             }
             CompositeEdgeFilter::Or(filters) => {
-                let mut results = HashSet::new();
+                let mut results = Vec::new();
 
                 for sub_filter in filters {
                     let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
@@ -260,28 +211,27 @@ impl<'a> EdgeFilterExecutor<'a> {
     fn resolve_edge_from_search_result<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        edge_id: Field,
-        doc: TantivyDocument,
-    ) -> Option<EdgeView<G>> {
-        let edge_id: usize = doc
-            .get_first(edge_id)
-            .and_then(|value| value.as_u64())?
-            .try_into()
-            .ok()?;
-        let core_edge = graph.core_edge(EID(edge_id));
-        let layer_ids = graph.layer_ids();
-        if !graph.filter_edge(core_edge.as_ref(), layer_ids) {
-            return None;
-        }
-        if graph.nodes_filtered() {
-            if !graph.filter_node(graph.core_node_entry(core_edge.src()).as_ref(), layer_ids)
-                || !graph.filter_node(graph.core_node_entry(core_edge.dst()).as_ref(), layer_ids)
-            {
-                return None;
-            }
-        }
-        let e_view = EdgeView::new(graph.clone(), core_edge.out_ref());
-        Some(e_view)
+        searcher: &Searcher,
+        docs: Vec<(Score, DocAddress)>,
+    ) -> tantivy::Result<Vec<EdgeView<G>>> {
+        let schema = searcher.schema();
+        let edge_id_field = schema.get_field(fields::EDGE_ID)?;
+
+        let edges = docs
+            .into_iter()
+            .filter_map(|(_score, doc_address)| {
+                let doc = searcher.doc::<TantivyDocument>(doc_address).ok()?;
+                let edge_id: usize = doc
+                    .get_first(edge_id_field)
+                    .and_then(|value| value.as_u64())?
+                    .try_into()
+                    .ok()?;
+                let e_ref = graph.core_edge(EID(edge_id));
+                graph.edge(e_ref.src(), e_ref.dst())
+            })
+            .collect::<Vec<_>>();
+
+        Ok(edges)
     }
 
     fn resolve_edges_from_edge_ids<G: StaticGraphViewOps>(
@@ -292,10 +242,8 @@ impl<'a> EdgeFilterExecutor<'a> {
         let edges = edge_ids
             .into_iter()
             .filter_map(|id| {
-                let eid = EID(id as usize);
-                let src = graph.core_edge(eid).src();
-                let dst = graph.core_edge(eid).dst();
-                graph.edge(src, dst)
+                let e_ref = graph.core_edge(EID(id as usize));
+                graph.edge(e_ref.src(), e_ref.dst())
             })
             .collect_vec();
         Ok(edges)

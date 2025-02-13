@@ -230,7 +230,8 @@ impl EdgeIndex {
         for edge in edge.explode_layers() {
             let layer_name = edge
                 .layer_name()
-                .map_err(|e| TantivyError::InternalError(e.to_string()))?.to_string();
+                .map_err(|e| TantivyError::InternalError(e.to_string()))?
+                .to_string();
 
             let layer_id = graph.get_layer_id(&layer_name);
 

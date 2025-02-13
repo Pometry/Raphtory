@@ -35,13 +35,10 @@ pub struct Searcher<'a> {
 
 impl<'a> Searcher<'a> {
     pub(crate) fn new(index: &'a GraphIndex) -> Self {
-        let node_query_executor = NodeFilterExecutor::new(index);
-        let edge_query_executor = EdgeFilterExecutor::new(index);
-
         Self {
             index,
-            node_filter_executor: node_query_executor,
-            edge_filter_executor: edge_query_executor,
+            node_filter_executor: NodeFilterExecutor::new(index),
+            edge_filter_executor: EdgeFilterExecutor::new(index),
         }
     }
 
@@ -102,8 +99,10 @@ impl<'a> Searcher<'a> {
     }
 }
 
-// TODO: Fuzzy search tests are non exhaustive because the search semantics are still undecided.
-//  See Query Builder.
+// TODO: Fuzzy search tests are non exhaustive because the fuzzy search
+//  semantics are still undecided. See Query Builder.
+// TODO: All search tests in graph views (db/graph/views) should include
+//  comparisons to filter apis results.
 #[cfg(test)]
 mod search_tests {
     use super::*;
@@ -641,18 +640,35 @@ mod search_tests {
             core::{IntoProp, Prop},
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+                graph::views::{
+                    deletion_graph::PersistentGraph,
+                    property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+                },
             },
-            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{
+                AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
+                NodePropertyFilterOps, NodeViewOps, PropertyFilter, TimeOps,
+            },
         };
+        use itertools::Itertools;
 
         fn search_edges_by_composite_filter(filter: &CompositeEdgeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();
+
             graph
                 .add_edge(1, 1, 2, [("p1", "shivam_kapoor")], Some("fire_nation"))
                 .unwrap();
             graph
-                .add_edge(2, 1, 2, [("p2", 4u64)], Some("earth"))
+                .add_edge(
+                    2,
+                    1,
+                    2,
+                    [
+                        ("p1", "shivam_kapoor".into_prop()),
+                        ("p2", 4u64.into_prop()),
+                    ],
+                    Some("fire_nation"),
+                )
                 .unwrap();
             graph
                 .add_edge(
@@ -765,7 +781,10 @@ mod search_tests {
         fn search_edges_for_src_from_eq() {
             let filter = CompositeEdgeFilter::Edge(Filter::eq("from", "2"));
             let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, vec![("2".into(), "3".into())]);
+            assert_eq!(
+                results,
+                vec![("2".into(), "1".into()), ("2".into(), "3".into())]
+            );
         }
 
         #[test]
@@ -774,7 +793,11 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -815,7 +838,11 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -830,7 +857,11 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("1".into(), "2".into()), ("2".into(), "3".into())]
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into())
+                ]
             );
         }
 
@@ -840,7 +871,11 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -855,7 +890,14 @@ mod search_tests {
         fn search_edges_for_property_ne() {
             let filter = CompositeEdgeFilter::Property(PropertyFilter::ne("p2", 2u64));
             let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, vec![("3".into(), "1".into())]);
+            assert_eq!(
+                results,
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("3".into(), "1".into())
+                ]
+            );
         }
 
         #[test]
@@ -864,7 +906,12 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -874,7 +921,12 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -882,7 +934,14 @@ mod search_tests {
         fn search_edges_for_property_gt() {
             let filter = CompositeEdgeFilter::Property(PropertyFilter::gt("p2", 2u64));
             let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, vec![("3".into(), "1".into())]);
+            assert_eq!(
+                results,
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("3".into(), "1".into())
+                ]
+            );
         }
 
         #[test]
@@ -891,7 +950,12 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -900,7 +964,10 @@ mod search_tests {
             let filter =
                 CompositeEdgeFilter::Property(PropertyFilter::any("p2", vec![Prop::U64(6)]));
             let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, vec![("3".into(), "1".into())]);
+            assert_eq!(
+                results,
+                vec![("2".into(), "1".into()), ("3".into(), "1".into())]
+            );
 
             let filter = CompositeEdgeFilter::Property(PropertyFilter::any(
                 "p2",
@@ -909,7 +976,11 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 
@@ -918,7 +989,10 @@ mod search_tests {
             let filter =
                 CompositeEdgeFilter::Property(PropertyFilter::not_any("p2", vec![Prop::U64(6)]));
             let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, vec![("2".into(), "3".into())]);
+            assert_eq!(
+                results,
+                vec![("1".into(), "2".into()), ("2".into(), "3".into())]
+            );
         }
 
         #[test]
@@ -927,7 +1001,12 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "3".into()), ("3".into(), "1".into())]
+                vec![
+                    ("1".into(), "2".into()),
+                    ("2".into(), "1".into()),
+                    ("2".into(), "3".into()),
+                    ("3".into(), "1".into())
+                ]
             );
         }
 

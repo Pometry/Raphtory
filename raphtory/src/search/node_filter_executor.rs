@@ -22,10 +22,8 @@ use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use std::collections::HashSet;
 use tantivy::{
-    collector::TopDocs,
-    query::Query,
-    schema::{Field, Value},
-    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
+    collector::TopDocs, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
+    Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -202,8 +200,7 @@ impl<'a> NodeFilterExecutor<'a> {
                     .and_then(|value| value.as_u64())?
                     .try_into()
                     .ok()?;
-                let entity_id = VID(node_id);
-                graph.node(entity_id)
+                graph.node(VID(node_id))
             })
             .collect::<Vec<_>>();
 
