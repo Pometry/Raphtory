@@ -38,7 +38,8 @@ where
     TCollector::Child: SegmentCollector<Fruit = Vec<(Score, DocAddress)>>,
     G: StaticGraphViewOps,
 {
-    type Fruit = Vec<(Score, DocAddress)>;
+    // type Fruit = Vec<(Score, DocAddress)>;
+    type Fruit = HashSet<u64>;
     type Child = UniqueFilterSegmentCollector<TCollector::Child, G>;
 
     fn for_segment(
@@ -72,7 +73,7 @@ where
         segment_fruits: Vec<<Self::Child as SegmentCollector>::Fruit>,
     ) -> tantivy::Result<Self::Fruit> {
         let mut global_seen_entities: HashSet<u64> = HashSet::new();
-        let mut unique_docs = Vec::new();
+        // let mut unique_docs = Vec::new();
 
         let searcher = self.reader.searcher();
         let schema = searcher.schema();
@@ -100,12 +101,13 @@ where
                 // let doc = searcher.doc::<TantivyDocument>(doc_address)?;
                 // println!("doc = {:?}", doc.to_json(schema));
                 if global_seen_entities.insert(entity_id) {
-                    unique_docs.push((score, doc_address));
+                    // unique_docs.push((score, doc_address));
                 }
             }
         }
 
-        Ok(unique_docs)
+        // Ok(unique_docs)
+        Ok(global_seen_entities)
     }
 }
 

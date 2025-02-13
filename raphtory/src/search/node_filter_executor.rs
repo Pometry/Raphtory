@@ -55,8 +55,8 @@ impl<'a> NodeFilterExecutor<'a> {
             reader.clone(),
             graph.clone(),
         );
-        let docs = searcher.search(&query, &collector)?;
-        let nodes = self.resolve_nodes_from_search_results(graph, &searcher, docs)?;
+        let node_ids = searcher.search(&query, &collector)?;
+        let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
         Ok(nodes)
     }
 

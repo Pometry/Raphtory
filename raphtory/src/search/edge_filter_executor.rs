@@ -60,8 +60,8 @@ impl<'a> EdgeFilterExecutor<'a> {
             reader.clone(),
             graph.clone(),
         );
-        let docs = searcher.search(&query, &collector)?;
-        let edges = self.resolve_edge_from_search_result(graph, &searcher, docs)?;
+        let edge_ids = searcher.search(&query, &collector)?;
+        let edges = self.resolve_edges_from_edge_ids(graph, edge_ids)?;
 
         Ok(edges)
     }
