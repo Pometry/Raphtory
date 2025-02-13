@@ -1,18 +1,12 @@
-use crate::{
-    core::entities::nodes::node_ref::NodeRef, db::api::view::StaticGraphViewOps,
-    prelude::NodeViewOps, search::fields,
-};
-use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use crate::{db::api::view::StaticGraphViewOps, search::fields};
 use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    schema::Value,
-    DocAddress, Document, IndexReader, Score, Searcher, SegmentReader, TantivyDocument,
+    DocAddress, IndexReader, Score, Searcher, SegmentReader,
 };
 
-pub struct UniqueFilterCollector<TCollector, G>
+pub struct UniqueEntityFilterCollector<TCollector, G>
 where
     TCollector: Collector<Fruit = Vec<(Score, DocAddress)>> + Send + Sync,
     G: StaticGraphViewOps,
@@ -23,7 +17,7 @@ where
     graph: G,
 }
 
-impl<TCollector, G> UniqueFilterCollector<TCollector, G>
+impl<TCollector, G> UniqueEntityFilterCollector<TCollector, G>
 where
     TCollector: Collector<Fruit = Vec<(Score, DocAddress)>> + Send + Sync,
     G: StaticGraphViewOps,
@@ -38,7 +32,7 @@ where
     }
 }
 
-impl<TCollector, G> Collector for UniqueFilterCollector<TCollector, G>
+impl<TCollector, G> Collector for UniqueEntityFilterCollector<TCollector, G>
 where
     TCollector: Collector<Fruit = Vec<(Score, DocAddress)>> + Send + Sync,
     TCollector::Child: SegmentCollector<Fruit = Vec<(Score, DocAddress)>>,
@@ -82,9 +76,9 @@ where
 
         let searcher = self.reader.searcher();
         let schema = searcher.schema();
-        let node_id_field = schema.get_field(fields::NODE_ID)?;
 
         let mut all_docs = segment_fruits
+            .clone()
             .into_iter()
             .flatten()
             .collect::<Vec<(Score, DocAddress)>>();
@@ -104,6 +98,7 @@ where
                 .and_then(|col| col.values_for_doc(doc_address.doc_id).next())
             {
                 // let doc = searcher.doc::<TantivyDocument>(doc_address)?;
+                // println!("doc = {:?}", doc.to_json(schema));
                 if global_seen_entities.insert(entity_id) {
                     unique_docs.push((score, doc_address));
                 }
@@ -135,12 +130,8 @@ where
             .column_opt_entity_id
             .as_ref()
             .and_then(|col| col.values_for_doc(doc_id).next());
-        let opt_time = self
-            .column_opt_time
-            .as_ref()
-            .and_then(|col| col.values_for_doc(doc_id).next());
 
-        if let (Some(time), Some(entity_id)) = (opt_time, opt_entity_id) {
+        if let Some(entity_id) = opt_entity_id {
             if self.seen_entities.insert(entity_id) {
                 self.segment_collector.collect(doc_id, score);
             }

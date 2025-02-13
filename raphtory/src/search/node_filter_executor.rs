@@ -10,8 +10,8 @@ use crate::{
     prelude::{GraphViewOps, NodePropertyFilterOps, PropertyFilter, ResetFilter},
     search::{
         collectors::{
-            unique_filter_collector::UniqueFilterCollector,
             node_property_filter_collector::NodePropertyFilterCollector,
+            unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
         fields,
         graph_index::GraphIndex,
@@ -51,14 +51,13 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        let collector = UniqueFilterCollector::new(
+        let collector = UniqueEntityFilterCollector::new(
             fields::NODE_ID.to_string(),
             TopDocs::with_limit(limit).and_offset(offset),
             reader.clone(),
             graph.clone(),
         );
-        let docs = searcher.search(&query, &collector)?; // TODO: Need to debug this
-        let docs = searcher.search(&query, &TopDocs::with_limit(limit).and_offset(offset))?;
+        let docs = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_search_results(graph, &searcher, docs)?;
         Ok(nodes)
     }

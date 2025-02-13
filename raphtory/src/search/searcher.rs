@@ -138,11 +138,10 @@ mod search_tests {
             },
             prelude::{
                 AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeStateOps, NodeViewOps,
-                PropertyFilter, StableDecode, TimeOps,
+                PropertyFilter, TimeOps,
             },
             search::searcher::search_tests::PersistentGraph,
         };
-        use itertools::Itertools;
         use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry};
 
         #[test]
@@ -198,34 +197,6 @@ mod search_tests {
         #[test]
         fn test_is_update_available() {
             let graph = PersistentGraph::new();
-            // graph
-            //     .add_node(1, "N4", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(2, "N4", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(2, "N3", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(3, "N4", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(4, "N4", [("p1", Prop::U64(2u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(6, "N1", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(7, "N2", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-            // graph
-            //     .add_node(8, "N5", [("p1", Prop::U64(1u64))], None)
-            //     .unwrap();
-
             graph
                 .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
                 .unwrap();
@@ -277,13 +248,6 @@ mod search_tests {
                 .unwrap();
 
             println!("graph node count = {}", graph.count_nodes());
-            println!("N5 found = {}", graph.has_node("N5"));
-            println!("N5 found = {}", graph.node("N5").is_some());
-            println!("N4 found = {}", graph.node(VID(0)).is_some());
-            println!("N3 found = {}", graph.node(VID(1)).is_some());
-            println!("N1 found = {}", graph.node(VID(2)).is_some());
-            println!("N2 found = {}", graph.node(VID(3)).is_some());
-            println!("N5 found = {}", graph.node(VID(4)).is_some());
 
             let p1_prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
             println!(
