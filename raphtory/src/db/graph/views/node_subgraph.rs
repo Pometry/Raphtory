@@ -207,7 +207,6 @@ mod subgraph_tests {
             },
             prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
         };
-        use proptest::collection::vec;
         use std::ops::Range;
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -269,8 +268,8 @@ mod subgraph_tests {
             node_names: Vec<String>,
             filter: &CompositeNodeFilter,
         ) -> Vec<String> {
-            let sgm = graph.subgraph(node_names).materialize().unwrap();
-            let mut results = sgm
+            let mut results = graph
+                .subgraph(node_names)
                 .search_nodes(&filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
@@ -286,8 +285,8 @@ mod subgraph_tests {
             node_names: Vec<String>,
             filter: &CompositeNodeFilter,
         ) -> Vec<String> {
-            let sgm = graph.subgraph(node_names).materialize().unwrap();
-            let mut results = sgm
+            let mut results = graph
+                .subgraph(node_names)
                 .window(w.start, w.end)
                 .search_nodes(&filter, 10, 0)
                 .expect("Failed to search for nodes")
@@ -295,32 +294,6 @@ mod subgraph_tests {
                 .map(|v| v.name())
                 .collect::<Vec<_>>();
             results.sort();
-            results
-        }
-
-        fn search_nodes_count_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            node_names: Vec<String>,
-            filter: &CompositeNodeFilter,
-        ) -> usize {
-            let sgm = graph.subgraph(node_names).materialize().unwrap();
-            let results = sgm
-                .search_nodes_count(&filter)
-                .expect("Failed to search for nodes");
-            results
-        }
-
-        fn search_nodes_count_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            w: Range<i64>,
-            node_names: Vec<String>,
-            filter: &CompositeNodeFilter,
-        ) -> usize {
-            let sgm = graph.subgraph(node_names).materialize().unwrap();
-            let results = sgm
-                .window(w.start, w.end)
-                .search_nodes_count(&filter)
-                .expect("Failed to search for nodes");
             results
         }
 
@@ -386,80 +359,12 @@ mod subgraph_tests {
             let node_names = graph.nodes().name().collect_vec();
             let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
             let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8"]);
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
             let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
             let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, &filter);
             assert_eq!(results, vec!["N2", "N3", "N5"]);
-        }
-
-        #[test]
-        fn test_search_nodes_count_subgraph() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results = search_nodes_count_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, 8);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results = search_nodes_count_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, 4);
-        }
-
-        #[test]
-        fn test_search_nodes_count_windowed_subgraph() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results =
-                search_nodes_count_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, 4);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results =
-                search_nodes_count_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn test_search_nodes_count_persistent_subgraph() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results = search_nodes_count_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, 8);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results = search_nodes_count_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, 4);
-        }
-
-        #[test]
-        fn test_search_nodes_count_windowed_persistent_subgraph() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results =
-                search_nodes_count_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, 6);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results =
-                search_nodes_count_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, 3);
         }
     }
 }

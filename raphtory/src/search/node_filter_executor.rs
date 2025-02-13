@@ -7,9 +7,7 @@ use crate::{
             views::property_filter::{CompositeNodeFilter, Filter},
         },
     },
-    prelude::{
-        GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter, TimeOps,
-    },
+    prelude::{GraphViewOps, NodePropertyFilterOps, PropertyFilter, ResetFilter},
     search::{
         collectors::{
             unique_filter_collector::UniqueFilterCollector,
@@ -59,9 +57,9 @@ impl<'a> NodeFilterExecutor<'a> {
             reader.clone(),
             graph.clone(),
         );
-        let node_ids = searcher.search(&query, &collector)?; // TODO: Need to debug this
-        let node_ids = searcher.search(&query, &TopDocs::with_limit(limit).and_offset(offset))?;
-        let nodes = self.resolve_nodes_from_search_results(graph, &searcher, node_ids)?;
+        let docs = searcher.search(&query, &collector)?; // TODO: Need to debug this
+        let docs = searcher.search(&query, &TopDocs::with_limit(limit).and_offset(offset))?;
+        let nodes = self.resolve_nodes_from_search_results(graph, &searcher, docs)?;
         Ok(nodes)
     }
 
@@ -80,30 +78,6 @@ impl<'a> NodeFilterExecutor<'a> {
         let node_ids = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
         Ok(nodes.into_iter().skip(offset).take(limit).collect())
-    }
-
-    fn execute_filter_nodes_count_query(
-        &self,
-        query: Box<dyn Query>,
-        reader: &IndexReader,
-    ) -> Result<usize, GraphError> {
-        let searcher = reader.searcher();
-        let docs_count = searcher.search(&query, &tantivy::collector::Count)?;
-        Ok(docs_count)
-    }
-
-    fn execute_filter_property_count_query<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        prop_id: usize,
-        query: Box<dyn Query>,
-        reader: &IndexReader,
-    ) -> Result<usize, GraphError> {
-        let searcher = reader.searcher();
-        let collector =
-            WindowFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
-        let nodes = searcher.search(&query, &collector)?;
-        Ok(nodes.len())
     }
 
     fn filter_property_index<G: StaticGraphViewOps>(
@@ -144,35 +118,6 @@ impl<'a> NodeFilterExecutor<'a> {
         Ok(results)
     }
 
-    fn filter_count_property_index<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &PropertyFilter,
-    ) -> Result<usize, GraphError> {
-        let prop_name = &filter.prop_name;
-        let (property_index, prop_id) = self
-            .index
-            .node_index
-            .get_property_index(graph.node_meta(), prop_name)?;
-        let (property_index, query) = self
-            .query_builder
-            .build_property_query::<G>(property_index, filter)?;
-
-        let results = match query {
-            Some(query) => self.execute_filter_property_count_query(
-                graph,
-                prop_id,
-                query,
-                &property_index.reader,
-            )?,
-            None => 0,
-        };
-
-        // println!("filter = {}, count = {}", filter, results);
-
-        Ok(results)
-    }
-
     fn filter_node_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -189,17 +134,6 @@ impl<'a> NodeFilterExecutor<'a> {
             None => {
                 vec![]
             }
-        };
-
-        Ok(results)
-    }
-
-    fn filter_count_node_index(&self, filter: &Filter) -> Result<usize, GraphError> {
-        let (node_index, query) = self.query_builder.build_node_query(filter)?;
-
-        let results = match query {
-            Some(query) => self.execute_filter_nodes_count_query(query, &node_index.reader)?,
-            None => 0,
         };
 
         Ok(results)
@@ -247,69 +181,6 @@ impl<'a> NodeFilterExecutor<'a> {
                 }
 
                 Ok(results)
-            }
-        }
-    }
-
-    pub fn filter_count<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeNodeFilter,
-    ) -> Result<usize, GraphError> {
-        match filter {
-            CompositeNodeFilter::Property(filter) => {
-                self.filter_count_property_index(graph, filter)
-            }
-            CompositeNodeFilter::Node(filter) => self.filter_count_node_index(filter),
-            CompositeNodeFilter::And(filters) => {
-                let mut seen_ids: Option<HashSet<String>> = None;
-
-                for sub_filter in filters {
-                    let sub_count = self.filter_count(graph, sub_filter)?;
-                    let effective_limit = std::cmp::max(sub_count, 1);
-
-                    let sub_results = self
-                        .filter_nodes(graph, sub_filter, effective_limit, 0)?
-                        .into_iter()
-                        .map(|node| node.name())
-                        .collect::<HashSet<_>>();
-
-                    seen_ids = Some(
-                        seen_ids
-                            .map(|ids| ids.intersection(&sub_results).cloned().collect())
-                            .unwrap_or(sub_results), // Initialize if not already done.
-                    );
-
-                    // Early exit if the intersection is empty.
-                    if let Some(ref ids) = seen_ids {
-                        if ids.is_empty() {
-                            return Ok(0);
-                        }
-                    }
-                }
-
-                Ok(seen_ids.map_or(0, |ids| ids.len()))
-            }
-            CompositeNodeFilter::Or(filters) => {
-                let mut total_count = 0;
-                let mut seen_ids = HashSet::new();
-
-                for sub_filter in filters {
-                    let sub_count = self.filter_count(graph, sub_filter)?;
-                    let effective_limit = std::cmp::max(sub_count, 1);
-
-                    if sub_count > 0 {
-                        let sub_results =
-                            self.filter_nodes(graph, sub_filter, effective_limit, 0)?;
-                        for node in sub_results {
-                            if seen_ids.insert(node.id()) {
-                                total_count += 1; // Count only unique results
-                            }
-                        }
-                    }
-                }
-
-                Ok(total_count)
             }
         }
     }

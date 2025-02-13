@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use once_cell::sync::Lazy;
 use rand::{
     seq::{IteratorRandom, SliceRandom},
@@ -579,66 +579,6 @@ macro_rules! bench_search_nodes_by_property_filter {
     };
 }
 
-fn bench_search_nodes_by_property_filter_count<F>(
-    c: &mut Criterion,
-    bench_name: &str,
-    graph: &Graph,
-    filter_op: FilterOperator,
-) {
-    let property_filters = get_random_node_property_filters(graph, filter_op);
-
-    let mut group = c.benchmark_group(bench_name);
-
-    group.bench_function("search_api", |b| {
-        let mut iter = property_filters.iter().cycle();
-        b.iter_batched(
-            || {
-                let random_filter = iter.next().unwrap().clone();
-                CompositeNodeFilter::Property(random_filter)
-            },
-            |random_filter| graph.search_nodes_count(&random_filter),
-            BatchSize::SmallInput,
-        )
-    });
-
-    group.bench_function("raph_api", |b| {
-        let mut iter = property_filters.iter().cycle();
-        b.iter_batched(
-            || iter.next().unwrap().clone(),
-            |random_filter| graph.filter_nodes(random_filter.clone()).iter().count(),
-            BatchSize::SmallInput,
-        )
-    });
-
-    group.finish();
-}
-
-macro_rules! bench_search_nodes_by_property_filter_count {
-    ($fn_name:ident) => {
-        fn $fn_name(c: &mut Criterion) {
-            let graph = setup_graph();
-            let filter_op: FilterOperator =
-                match stringify!($fn_name).trim_start_matches("bench_search_nodes_count_") {
-                    "eq" => FilterOperator::Eq,
-                    "ne" => FilterOperator::Ne,
-                    "le" => FilterOperator::Le,
-                    "lt" => FilterOperator::Lt,
-                    "ge" => FilterOperator::Ge,
-                    "gt" => FilterOperator::Gt,
-                    "in" => FilterOperator::In,
-                    "not_in" => FilterOperator::NotIn,
-                    _ => panic!("Unknown filter type in function name"),
-                };
-            bench_search_nodes_by_property_filter_count::<FilterOperator>(
-                c,
-                stringify!($fn_name),
-                &graph,
-                filter_op,
-            );
-        }
-    };
-}
-
 fn bench_search_edges_by_property_filter<F>(
     c: &mut Criterion,
     bench_name: &str,
@@ -700,66 +640,6 @@ macro_rules! bench_search_edges_by_property_filter {
                     _ => panic!("Unknown filter type in function name"),
                 };
             bench_search_edges_by_property_filter::<FilterOperator>(
-                c,
-                stringify!($fn_name),
-                &graph,
-                filter_op,
-            );
-        }
-    };
-}
-
-fn bench_search_edges_by_property_filter_count<F>(
-    c: &mut Criterion,
-    bench_name: &str,
-    graph: &Graph,
-    filter_op: FilterOperator,
-) {
-    let property_filters = get_random_edge_property_filters(&graph, filter_op);
-
-    let mut group = c.benchmark_group(bench_name);
-
-    group.bench_function("search_api", |b| {
-        let mut iter = property_filters.iter().cycle();
-        b.iter_batched(
-            || {
-                let random_filter = iter.next().unwrap().clone();
-                CompositeEdgeFilter::Property(random_filter)
-            },
-            |random_filter| graph.search_edges_count(&random_filter),
-            BatchSize::SmallInput,
-        )
-    });
-
-    group.bench_function("raph_api", |b| {
-        let mut iter = property_filters.iter().cycle();
-        b.iter_batched(
-            || iter.next().unwrap().clone(),
-            |random_filter| graph.filter_edges(random_filter.clone()).iter().count(),
-            BatchSize::SmallInput,
-        )
-    });
-
-    group.finish();
-}
-
-macro_rules! bench_search_edges_by_property_filter_count {
-    ($fn_name:ident) => {
-        fn $fn_name(c: &mut Criterion) {
-            let graph = setup_graph();
-            let filter_op: FilterOperator =
-                match stringify!($fn_name).trim_start_matches("bench_search_edges_count_") {
-                    "eq" => FilterOperator::Eq,
-                    "ne" => FilterOperator::Ne,
-                    "le" => FilterOperator::Le,
-                    "lt" => FilterOperator::Lt,
-                    "ge" => FilterOperator::Ge,
-                    "gt" => FilterOperator::Gt,
-                    "in" => FilterOperator::In,
-                    "not_in" => FilterOperator::NotIn,
-                    _ => panic!("Unknown filter type in function name"),
-                };
-            bench_search_edges_by_property_filter_count::<FilterOperator>(
                 c,
                 stringify!($fn_name),
                 &graph,
@@ -837,7 +717,6 @@ fn bench_search_nodes_by_node_type(c: &mut Criterion) {
     });
 }
 
-bench_search_nodes_by_property_filter_count!(bench_search_nodes_count_eq);
 bench_search_nodes_by_property_filter!(bench_search_nodes_by_property_eq);
 bench_search_nodes_by_property_filter!(bench_search_nodes_by_property_ne);
 bench_search_nodes_by_property_filter!(bench_search_nodes_by_property_le);
@@ -934,7 +813,6 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
     });
 }
 
-bench_search_edges_by_property_filter_count!(bench_search_edges_count_eq);
 bench_search_edges_by_property_filter!(bench_search_edges_by_property_eq);
 bench_search_edges_by_property_filter!(bench_search_edges_by_property_ne);
 bench_search_edges_by_property_filter!(bench_search_edges_by_property_le);
@@ -994,7 +872,6 @@ criterion_group!(
     search_benches,
     bench_search_nodes_by_name,
     bench_search_nodes_by_node_type,
-    bench_search_nodes_count_eq,
     bench_search_nodes_by_property_eq,
     bench_search_nodes_by_property_ne,
     bench_search_nodes_by_property_le,
@@ -1006,7 +883,6 @@ criterion_group!(
     bench_search_nodes_by_composite_property_filter_and,
     bench_search_nodes_by_composite_property_filter_or,
     bench_search_edges_by_src_dst,
-    bench_search_edges_count_eq,
     bench_search_edges_by_property_eq,
     bench_search_edges_by_property_ne,
     bench_search_edges_by_property_le,

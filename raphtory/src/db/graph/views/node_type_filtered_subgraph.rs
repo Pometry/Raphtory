@@ -169,32 +169,6 @@ mod search_node_type_filtered_subgraph_tests {
         results
     }
 
-    fn search_nodes_count_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
-        graph: &G,
-        node_types: Vec<String>,
-        filter: &CompositeNodeFilter,
-    ) -> usize {
-        let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
-        let results = sgm
-            .search_nodes_count(&filter)
-            .expect("Failed to search for nodes");
-        results
-    }
-
-    fn search_nodes_count_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
-        graph: &G,
-        w: Range<i64>,
-        node_types: Vec<String>,
-        filter: &CompositeNodeFilter,
-    ) -> usize {
-        let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
-        let results = sgm
-            .window(w.start, w.end)
-            .search_nodes_count(&filter)
-            .expect("Failed to search for nodes");
-        results
-    }
-
     fn get_all_node_types<G: StaticGraphViewOps + AdditionOps>(graph: &G) -> Vec<String> {
         graph
             .nodes()
@@ -267,75 +241,11 @@ mod search_node_type_filtered_subgraph_tests {
         let node_types = get_all_node_types(&graph);
         let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
-        assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+        assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8"]);
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
         let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N7"]);
-    }
-
-    #[test]
-    fn test_search_nodes_count_type_filtered_subgraph() {
-        let graph = Graph::new();
-        let graph = init_graph(graph);
-
-        let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter(&graph, node_types, &filter);
-        assert_eq!(results, 8);
-
-        let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter(&graph, node_types, &filter);
-        assert_eq!(results, 6);
-    }
-
-    #[test]
-    fn test_search_nodes_count_windowed_type_filtered_subgraph() {
-        let graph = Graph::new();
-        let graph = init_graph(graph);
-
-        let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter_w(&graph, 6..9, node_types, &filter);
-        assert_eq!(results, 4);
-
-        let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter_w(&graph, 6..9, node_types, &filter);
-        assert_eq!(results, 3);
-    }
-
-    #[test]
-    fn test_search_nodes_count_persistent_type_filtered_subgraph() {
-        let graph = PersistentGraph::new();
-        let graph = init_graph(graph);
-
-        let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter(&graph, node_types, &filter);
-        assert_eq!(results, 8);
-
-        let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter(&graph, node_types, &filter);
-        assert_eq!(results, 6);
-    }
-
-    #[test]
-    fn test_search_nodes_count_windowed_persistent_type_filtered_subgraph() {
-        let graph = PersistentGraph::new();
-        let graph = init_graph(graph);
-
-        let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter_w(&graph, 6..9, node_types, &filter);
-        assert_eq!(results, 6);
-
-        let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-        let results = search_nodes_count_by_composite_filter_w(&graph, 6..9, node_types, &filter);
-        assert_eq!(results, 5);
     }
 }

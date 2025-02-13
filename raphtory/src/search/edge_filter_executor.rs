@@ -7,16 +7,20 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
+            node::NodeView,
             views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
         },
     },
     prelude::{
         EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyFilter, ResetFilter,
     },
-    search::{fields, graph_index::GraphIndex, query_builder::QueryBuilder},
+    search::{
+        collectors::window_filter_collector::WindowFilterCollector, fields,
+        graph_index::GraphIndex, query_builder::QueryBuilder,
+    },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::EID;
+use raphtory_api::core::entities::{EID, VID};
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{FilterCollector, TopDocs},
@@ -69,15 +73,22 @@ impl<'a> EdgeFilterExecutor<'a> {
         Ok(results)
     }
 
-    fn execute_filter_count_query(
-        &self,
-        query: Box<dyn Query>,
-        reader: &IndexReader,
-    ) -> Result<usize, GraphError> {
-        let searcher = reader.searcher();
-        let docs_count = searcher.search(&query, &tantivy::collector::Count)?;
-        Ok(docs_count)
-    }
+    // fn execute_filter_property_query<G: StaticGraphViewOps>(
+    //     &self,
+    //     graph: &G,
+    //     query: Box<dyn Query>,
+    //     prop_id: usize,
+    //     reader: &IndexReader,
+    //     limit: usize,
+    //     offset: usize,
+    // ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    //     let searcher = reader.searcher();
+    //     let collector =
+    //         WindowFilterCollector::new(fields::EDGE_ID.to_string(), prop_id, graph.clone());
+    //     let edge_ids = searcher.search(&query, &collector)?;
+    //     // let edges = self.resolve_nodes_from_node_ids(graph, edge_ids)?;
+    //     Ok(edges.into_iter().skip(offset).take(limit).collect())
+    // }
 
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
@@ -136,37 +147,6 @@ impl<'a> EdgeFilterExecutor<'a> {
         Ok(unique_results)
     }
 
-    fn filter_count_property_index<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &PropertyFilter,
-    ) -> Result<usize, GraphError> {
-        let prop_name = &filter.prop_name;
-        let property_index = self
-            .index
-            .edge_index
-            .get_property_index(graph.edge_meta(), prop_name)?;
-
-        let (property_index, query) = self
-            .query_builder
-            .build_property_query::<G>(property_index, filter)?;
-
-        // println!();
-        // println!("Printing property index schema::start");
-        // Self::print_schema(&property_index.index.schema());
-        // println!("Printing property index schema::end");
-        // println!();
-
-        let results = match query {
-            Some(query) => self.execute_filter_count_query(query, &property_index.reader)?,
-            None => 0,
-        };
-
-        // println!("filter = {}, count = {}", filter, results);
-
-        Ok(results)
-    }
-
     fn filter_edge_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -212,17 +192,6 @@ impl<'a> EdgeFilterExecutor<'a> {
         Ok(unique_results)
     }
 
-    fn filter_count_edge_index(&self, filter: &Filter) -> Result<usize, GraphError> {
-        let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
-
-        let results = match query {
-            Some(query) => self.execute_filter_count_query(query, &edge_index.reader)?,
-            None => 0,
-        };
-
-        Ok(results)
-    }
-
     pub fn filter_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -260,52 +229,6 @@ impl<'a> EdgeFilterExecutor<'a> {
                 }
 
                 Ok(results)
-            }
-        }
-    }
-
-    pub fn filter_count<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeEdgeFilter,
-    ) -> Result<usize, GraphError> {
-        match filter {
-            CompositeEdgeFilter::Property(filter) => {
-                self.filter_count_property_index(graph, filter)
-            }
-            CompositeEdgeFilter::Edge(filter) => self.filter_count_edge_index(filter),
-            CompositeEdgeFilter::And(filters) => {
-                let mut results = None;
-
-                for sub_filter in filters {
-                    let sub_count = self.filter_count(graph, sub_filter)?;
-                    results = Some(
-                        results
-                            .map(|count| std::cmp::min(count, sub_count))
-                            .unwrap_or(sub_count),
-                    );
-                }
-
-                Ok(results.unwrap_or(0))
-            }
-            CompositeEdgeFilter::Or(filters) => {
-                let mut total_count = 0;
-                let mut seen_ids = HashSet::new();
-
-                for sub_filter in filters {
-                    let sub_count = self.filter_count(graph, sub_filter)?;
-
-                    if sub_count > 0 {
-                        let sub_results = self.filter_edges(graph, sub_filter, sub_count, 0)?;
-                        for edge in sub_results {
-                            if seen_ids.insert(edge.id()) {
-                                total_count += 1; // Count only unique results
-                            }
-                        }
-                    }
-                }
-
-                Ok(total_count)
             }
         }
     }
@@ -362,6 +285,23 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
         let e_view = EdgeView::new(graph.clone(), core_edge.out_ref());
         Some(e_view)
+    }
+
+    fn resolve_edges_from_edge_ids<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        edge_ids: HashSet<u64>,
+    ) -> tantivy::Result<Vec<EdgeView<G>>> {
+        let edges = edge_ids
+            .into_iter()
+            .filter_map(|id| {
+                let eid = EID(id as usize);
+                let src = graph.core_edge(eid).src();
+                let dst = graph.core_edge(eid).dst();
+                graph.edge(src, dst)
+            })
+            .collect_vec();
+        Ok(edges)
     }
 
     fn print_docs(

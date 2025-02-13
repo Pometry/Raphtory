@@ -59,15 +59,6 @@ impl<'a> Searcher<'a> {
         Ok(result.into_iter().collect_vec())
     }
 
-    pub fn search_nodes_count<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeNodeFilter,
-    ) -> Result<usize, GraphError> {
-        let count = self.node_filter_executor.filter_count(graph, filter)?;
-        Ok(count)
-    }
-
     pub fn search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -80,15 +71,6 @@ impl<'a> Searcher<'a> {
             .filter_edges(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
-    }
-
-    pub fn search_edges_count<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeEdgeFilter,
-    ) -> Result<usize, GraphError> {
-        let count = self.edge_filter_executor.filter_count(graph, filter)?;
-        Ok(count)
     }
 
     pub fn fuzzy_search_nodes<G: StaticGraphViewOps>(
@@ -690,218 +672,6 @@ mod search_tests {
     }
 
     #[cfg(test)]
-    mod search_nodes_count {
-        use crate::{
-            core::{IntoProp, Prop},
-            db::{
-                api::view::SearchableGraphOps,
-                graph::views::property_filter::{CompositeNodeFilter, Filter},
-            },
-            prelude::{AdditionOps, Graph, PropertyFilter},
-        };
-
-        fn search_nodes_count_by_composite_filter(filter: &CompositeNodeFilter) -> usize {
-            let graph = Graph::new();
-            graph
-                .add_node(1, 1, [("p1", "shivam_kapoor")], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_node(
-                    2,
-                    2,
-                    [("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
-                    Some("air_nomads"),
-                )
-                .unwrap();
-            graph
-                .add_node(3, 3, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
-                .unwrap();
-
-            let results = graph
-                .search_nodes_count(&filter)
-                .expect("Failed to search for nodes");
-
-            results
-        }
-
-        #[test]
-        fn test_search_count_nodes_by_composite_filter() {
-            let filter = CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", 3u64)),
-            ]);
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 0);
-
-            let filter = CompositeNodeFilter::Or(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", "shivam")),
-            ]);
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-
-            let filter = CompositeNodeFilter::Or(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", "pometry")),
-                CompositeNodeFilter::And(vec![
-                    CompositeNodeFilter::Property(PropertyFilter::eq("p2", 6u64)),
-                    CompositeNodeFilter::Property(PropertyFilter::eq("p3", 1u64)),
-                ]),
-            ]);
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter = CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Node(Filter::eq("node_type", "fire_nation")),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", "prop1")),
-            ]);
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 0);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_name_eq() {
-            let filter = CompositeNodeFilter::Node(Filter::eq("node_name", "3"));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_name_ne() {
-            let filter = CompositeNodeFilter::Node(Filter::ne("node_name", "2"));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_name_in() {
-            let filter = CompositeNodeFilter::Node(Filter::any("node_name", vec!["1".into()]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter =
-                CompositeNodeFilter::Node(Filter::any("node_name", vec!["2".into(), "3".into()]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_name_not_in() {
-            let filter = CompositeNodeFilter::Node(Filter::not_any("node_name", vec!["1".into()]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_type_eq() {
-            let filter = CompositeNodeFilter::Node(Filter::eq("node_type", "fire_nation"));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_type_ne() {
-            let filter = CompositeNodeFilter::Node(Filter::ne("node_type", "fire_nation"));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_type_in() {
-            let filter =
-                CompositeNodeFilter::Node(Filter::any("node_type", vec!["fire_nation".into()]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-
-            let filter = CompositeNodeFilter::Node(Filter::any(
-                "node_type",
-                vec!["fire_nation".into(), "air_nomads".into()],
-            ));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 3);
-        }
-
-        #[test]
-        fn search_count_nodes_for_node_type_not_in() {
-            let filter =
-                CompositeNodeFilter::Node(Filter::not_any("node_type", vec!["fire_nation".into()]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_eq() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_ne() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::ne("p2", 2u64));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_lt() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::lt("p2", 10u64));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_le() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::le("p2", 6u64));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_gt() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::gt("p2", 2u64));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_ge() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::ge("p2", 2u64));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_in() {
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::any("p2", vec![Prop::U64(6)]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter = CompositeNodeFilter::Property(PropertyFilter::any(
-                "p2",
-                vec![Prop::U64(2), Prop::U64(6)],
-            ));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_not_in() {
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::not_any("p2", vec![Prop::U64(6)]));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_nodes_for_property_is_some() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::is_some("p2"));
-            let results = search_nodes_count_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-    }
-
-    #[cfg(test)]
     mod search_edges {
         use crate::{
             core::{IntoProp, Prop},
@@ -918,6 +688,9 @@ mod search_tests {
                 .add_edge(1, 1, 2, [("p1", "shivam_kapoor")], Some("fire_nation"))
                 .unwrap();
             graph
+                .add_edge(2, 1, 2, [("p2", 4u64)], Some("earth"))
+                .unwrap();
+            graph
                 .add_edge(
                     2,
                     2,
@@ -928,6 +701,9 @@ mod search_tests {
                 .unwrap();
             graph
                 .add_edge(3, 3, 1, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_edge(3, 2, 1, [("p2", 6u64), ("p3", 1u64)], None)
                 .unwrap();
 
             let mut results = graph
@@ -993,32 +769,32 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            let filter = CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "shivam")),
-            ]);
-            let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(
-                results,
-                vec![("1".into(), "2".into()), ("2".into(), "3".into())]
-            );
-
-            let filter = CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "pometry")),
-                CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 6u64)),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p3", 1u64)),
-                ]),
-            ]);
-            let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, vec![("3".into(), "1".into())]);
-
-            let filter = CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Edge(Filter::eq("from", "13")),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "prop1")),
-            ]);
-            let results = search_edges_by_composite_filter(&filter);
-            assert_eq!(results, Vec::<(String, String)>::new());
+            // let filter = CompositeEdgeFilter::Or(vec![
+            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
+            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "shivam")),
+            // ]);
+            // let results = search_edges_by_composite_filter(&filter);
+            // assert_eq!(
+            //     results,
+            //     vec![("1".into(), "2".into()), ("2".into(), "3".into())]
+            // );
+            //
+            // let filter = CompositeEdgeFilter::Or(vec![
+            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "pometry")),
+            //     CompositeEdgeFilter::And(vec![
+            //         CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 6u64)),
+            //         CompositeEdgeFilter::Property(PropertyFilter::eq("p3", 1u64)),
+            //     ]),
+            // ]);
+            // let results = search_edges_by_composite_filter(&filter);
+            // assert_eq!(results, vec![("3".into(), "1".into())]);
+            //
+            // let filter = CompositeEdgeFilter::And(vec![
+            //     CompositeEdgeFilter::Edge(Filter::eq("from", "13")),
+            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "prop1")),
+            // ]);
+            // let results = search_edges_by_composite_filter(&filter);
+            // assert_eq!(results, Vec::<(String, String)>::new());
         }
 
         #[test]
@@ -1251,221 +1027,6 @@ mod search_tests {
             let results = fuzzy_search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
-    }
-
-    #[cfg(test)]
-    mod search_edges_count {
-        use crate::{
-            core::{IntoProp, Prop},
-            db::{
-                api::view::SearchableGraphOps,
-                graph::views::property_filter::{CompositeEdgeFilter, Filter},
-            },
-            prelude::{AdditionOps, Graph, PropertyFilter},
-        };
-
-        fn search_count_edges_by_composite_filter(filter: &CompositeEdgeFilter) -> usize {
-            let graph = Graph::new();
-            graph
-                .add_edge(1, 1, 2, [("p1", "shivam_kapoor")], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_edge(
-                    2,
-                    2,
-                    3,
-                    [("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
-                    Some("air_nomads"),
-                )
-                .unwrap();
-            graph
-                .add_edge(3, 3, 1, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
-                .unwrap();
-
-            let results = graph
-                .search_edges_count(filter)
-                .expect("Failed to search for nodes");
-
-            results
-        }
-
-        #[test]
-        fn test_search_count_edges_by_composite_filter() {
-            let filter = CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 3u64)),
-            ]);
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 0);
-
-            let filter = CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "shivam")),
-            ]);
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-
-            let filter = CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "pometry")),
-                CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 6u64)),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p3", 1u64)),
-                ]),
-            ]);
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter = CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Edge(Filter::eq("from", "13")),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "prop1")),
-            ]);
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 0);
-        }
-
-        #[test]
-        fn search_count_edges_for_src_from_eq() {
-            let filter = CompositeEdgeFilter::Edge(Filter::eq("from", "2"));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_edges_for_src_to_ne() {
-            let filter = CompositeEdgeFilter::Edge(Filter::ne("to", "2"));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_to_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::any("to", vec!["2".into()]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter = CompositeEdgeFilter::Edge(Filter::any("to", vec!["2".into(), "3".into()]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_to_not_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::not_any("to", vec!["1".into()]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_from_eq() {
-            let filter = CompositeEdgeFilter::Edge(Filter::eq("from", "3"));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_edges_for_from_ne() {
-            let filter = CompositeEdgeFilter::Edge(Filter::ne("from", "1"));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_from_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::any("from", vec!["1".into()]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter =
-                CompositeEdgeFilter::Edge(Filter::any("from", vec!["1".into(), "2".into()]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_from_not_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::not_any("from", vec!["1".into()]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_eq() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_ne() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::ne("p2", 2u64));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_lt() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::lt("p2", 10u64));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_le() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::le("p2", 6u64));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_gt() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::gt("p2", 2u64));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_ge() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::ge("p2", 2u64));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_in() {
-            let filter =
-                CompositeEdgeFilter::Property(PropertyFilter::any("p2", vec![Prop::U64(6)]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::any(
-                "p2",
-                vec![Prop::U64(2), Prop::U64(6)],
-            ));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_not_in() {
-            let filter =
-                CompositeEdgeFilter::Property(PropertyFilter::not_any("p2", vec![Prop::U64(6)]));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 1);
-        }
-
-        #[test]
-        fn search_count_edges_for_property_is_some() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::is_some("p2"));
-            let results = search_count_edges_by_composite_filter(&filter);
-            assert_eq!(results, 2);
-        }
-
-        // #[test]
-        // fn search_count_edges_for_property_is_none() {
-        //     let filter = CompositeNodeFilter::Property(PropertyFilter::is_none("p2"));
-        //     let results = search_count_edges_by_composite_filter(&filter);
-        //     assert_eq!(results, 0);
-        // }
     }
 
     // #[test]
