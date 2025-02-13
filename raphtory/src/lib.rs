@@ -148,7 +148,7 @@ mod test_utils {
     use crate::prelude::*;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
-    use proptest::{arbitrary::any, prelude::*, sample::SizeRange};
+    use proptest::{arbitrary::any, prelude::*};
     use raphtory_api::core::PropType;
     use std::collections::HashMap;
     #[cfg(feature = "storage")]

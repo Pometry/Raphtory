@@ -841,7 +841,7 @@ mod test_deletions {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
-    use raphtory_api::core::{entities::GID, unify_types};
+    use raphtory_api::core::{entities::GID};
     use std::ops::Range;
 
     #[test]
