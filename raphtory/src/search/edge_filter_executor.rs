@@ -7,20 +7,17 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            node::NodeView,
-            views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+            views::property_filter::{CompositeEdgeFilter, Filter},
         },
     },
-    prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyFilter, ResetFilter,
-    },
+    prelude::{EdgePropertyFilterOps, GraphViewOps, NodeViewOps, PropertyFilter},
     search::{
-        collectors::window_filter_collector::WindowFilterCollector, fields,
+        collectors::edge_property_filter_collector::EdgePropertyFilterCollector, fields,
         graph_index::GraphIndex, query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::{EID, VID};
+use raphtory_api::core::entities::EID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{FilterCollector, TopDocs},

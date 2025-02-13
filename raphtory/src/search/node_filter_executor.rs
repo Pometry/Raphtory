@@ -11,7 +11,7 @@ use crate::{
     search::{
         collectors::{
             unique_filter_collector::UniqueFilterCollector,
-            window_filter_collector::WindowFilterCollector,
+            node_property_filter_collector::NodePropertyFilterCollector,
         },
         fields,
         graph_index::GraphIndex,
@@ -74,7 +74,7 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
         let collector =
-            WindowFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
+            NodePropertyFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
         let node_ids = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
         Ok(nodes.into_iter().skip(offset).take(limit).collect())
