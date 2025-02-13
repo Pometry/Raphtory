@@ -6,10 +6,11 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::ConstPropertiesOps, storage::graph::storage_ops::GraphStorage,
-            view::internal::core_ops::CoreGraphOps,
+            properties::internal::ConstPropertiesOps,
+            storage::graph::storage_ops::GraphStorage,
+            view::internal::{core_ops::CoreGraphOps, InternalLayerOps},
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, edges::Edges},
     },
     prelude::*,
     search::{
@@ -216,6 +217,7 @@ impl EdgeIndex {
 
     fn index_edge<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
+        graph: &GraphStorage,
         edge: EdgeView<G, GH>,
         writer: &IndexWriter,
         const_writers: &[Option<IndexWriter>],
@@ -225,28 +227,39 @@ impl EdgeIndex {
         let src = edge.src().name();
         let dst = edge.dst().name();
 
-        let constant_properties: Vec<(ArcStr, usize, Prop)> =
-            self.collect_constant_properties(&edge);
-        let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
-            self.collect_temporal_properties(&edge);
+        for edge in edge.explode_layers() {
+            let layer_name = edge
+                .layer_name()
+                .map_err(|e| TantivyError::InternalError(e.to_string()))?.to_string();
 
-        for (time, temp_props) in &temporal_properties {
-            index_properties(
-                constant_properties.iter().cloned(),
-                self.constant_property_indexes.write()?,
-                *time,
-                fields::EDGE_ID,
-                edge_id,
-                const_writers,
-            )?;
-            index_properties(
-                temp_props.iter().cloned(),
-                self.temporal_property_indexes.write()?,
-                *time,
-                fields::EDGE_ID,
-                edge_id,
-                temporal_writers,
-            )?;
+            let layer_id = graph.get_layer_id(&layer_name);
+
+            let constant_properties: Vec<(ArcStr, usize, Prop)> =
+                self.collect_constant_properties(&edge);
+
+            let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
+                self.collect_temporal_properties(&edge);
+
+            for (time, temp_props) in &temporal_properties {
+                index_properties(
+                    constant_properties.iter().cloned(),
+                    self.constant_property_indexes.write()?,
+                    *time,
+                    fields::EDGE_ID,
+                    edge_id,
+                    layer_id,
+                    const_writers,
+                )?;
+                index_properties(
+                    temp_props.iter().cloned(),
+                    self.temporal_property_indexes.write()?,
+                    *time,
+                    fields::EDGE_ID,
+                    edge_id,
+                    layer_id,
+                    temporal_writers,
+                )?;
+            }
         }
 
         // Check if the edge document is already in the index,
@@ -291,7 +304,7 @@ impl EdgeIndex {
         locked_g.edges_par(&graph).try_for_each(|e_ref| {
             {
                 let e_view = EdgeView::new(graph.clone(), e_ref);
-                edge_index.index_edge(e_view, &writer, &const_writers, &temporal_writers)?;
+                edge_index.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
             }
             Ok::<(), TantivyError>(())
         })?;
@@ -352,7 +365,13 @@ impl EdgeIndex {
 
         let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));
         let mut writer_guard = writer.write();
-        self.index_edge(edge, &writer_guard, &const_writers, &temporal_writers)?;
+        self.index_edge(
+            graph,
+            edge,
+            &writer_guard,
+            &const_writers,
+            &temporal_writers,
+        )?;
         writer_guard.commit()?;
         self.reader.reload()?;
 
