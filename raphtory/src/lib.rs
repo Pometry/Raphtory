@@ -364,14 +364,14 @@ mod test_utils {
         let num_cprops = c_prop_s.len();
 
         let t_props =
-            proptest::sample::subsequence(t_prop_s, 0..num_tprops).prop_flat_map(|schema| {
+            proptest::sample::subsequence(t_prop_s, 0..=num_tprops).prop_flat_map(|schema| {
                 schema
                     .into_iter()
                     .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
                     .collect::<Vec<_>>()
             });
         let c_props =
-            proptest::sample::subsequence(c_prop_s, 0..num_cprops).prop_flat_map(|schema| {
+            proptest::sample::subsequence(c_prop_s, 0..=num_cprops).prop_flat_map(|schema| {
                 schema
                     .into_iter()
                     .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
