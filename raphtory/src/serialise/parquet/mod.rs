@@ -726,14 +726,14 @@ mod test {
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
-        proptest!(|(edges in build_edge_list_dyn(10, 10))| {
+        proptest!(|(edges in build_edge_list_dyn(10, 10, true))| {
             check_parquet_encoding(edges);
         });
     }
 
     #[test]
     fn write_graph_to_parquet() {
-        proptest!(|(edges in build_graph_strat(10, 10))| {
+        proptest!(|(edges in build_graph_strat(10, 10, true))| {
             check_parquet_encoding(edges);
         })
     }

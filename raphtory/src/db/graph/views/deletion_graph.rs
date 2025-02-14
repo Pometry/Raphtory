@@ -990,7 +990,7 @@ mod test_deletions {
 
     #[test]
     fn materialize_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(10, 10))| {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
             let g = build_graph(graph_f).persistent_graph();
             let gm = g.materialize().unwrap();
             assert_graph_equal(&g, &gm);
@@ -999,7 +999,7 @@ mod test_deletions {
 
     #[test]
     fn materialize_window_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(2, 1), w in any::<Range<i64>>())| {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = build_graph(graph_f).persistent_graph();
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();

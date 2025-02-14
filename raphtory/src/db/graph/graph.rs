@@ -436,10 +436,11 @@ mod db_tests {
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
-        test_utils::test_graph,
+        test_utils::{build_graph, build_graph_strat, test_graph},
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
+    use proptest::{arbitrary::any, proptest};
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
         entities::{GID, VID},
@@ -3854,5 +3855,15 @@ mod db_tests {
         let gw = g.after(1);
         let gmw = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn materialize_window_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, false), w in any::<Range<i64>>())| {
+            let g = build_graph(graph_f);
+            let gw = g.window(w.start, w.end);
+            let gmw = gw.materialize().unwrap();
+            assert_graph_equal(&gw, &gmw);
+        })
     }
 }

@@ -427,6 +427,7 @@ mod test_utils {
     pub(crate) fn build_edge_list_dyn(
         len: usize,
         num_nodes: usize,
+        del_edges: bool,
     ) -> impl Strategy<Value = GraphFixture> {
         let num_nodes = num_nodes as u64;
         let edges = proptest::collection::hash_map(any::<String>(), prop_type(), 0..10)
@@ -449,9 +450,10 @@ mod test_utils {
                         (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
                         0..=len,
                     );
+                    let del_len = if del_edges { len } else { 0 };
                     let del_edges = proptest::collection::vec(
                         (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=len,
+                        0..=del_len,
                     );
                     (no_props, del_edges).prop_map(move |(no_prop_edges, del_edges)| {
                         let edges = edges.clone();
@@ -492,8 +494,9 @@ mod test_utils {
     pub(crate) fn build_graph_strat(
         len: usize,
         num_nodes: usize,
+        del_edges: bool,
     ) -> impl Strategy<Value = GraphFixture> {
-        build_edge_list_dyn(len, num_nodes).prop_flat_map(|g_fixture| {
+        build_edge_list_dyn(len, num_nodes, del_edges).prop_flat_map(|g_fixture| {
             let mut nodes = g_fixture
                 .edges
                 .iter()
