@@ -37,6 +37,18 @@ def test_overlapping_times():
     assert list(zip(exploded.earliest_time, exploded.latest_time)) == [(1, 5), (3, 7)]
 
 
+def test_node_updates_at_same_time():
+    g = PersistentGraph()
+
+    g.add_node(1, 1, properties={"prop1": 1})  # false
+    g.add_node(2, 1, properties={"prop1": 2})  # true
+    g.add_node(2, 1, properties={"prop1": 3})  # true
+    g.add_node(8, 1, properties={"prop1": 4})  # false
+    g.add_node(9, 1, properties={"prop1": 5})  # false
+
+    print(g.window(2, 10).node(1).properties.temporal.get("prop1").values())
+
+
 def test_same_time_op():
     G1 = PersistentGraph()
     G1.add_edge(1, 1, 2, properties={"message": "hi"})

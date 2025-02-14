@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
         utils::iter::GenLockedIter,
         Prop,
     },
@@ -301,7 +301,6 @@ impl TimeSemantics for PersistentGraph {
         w: Option<Range<i64>>,
     ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
         // if window exists, we need to add the first row before the window
-        // FIXME: this doesn't work correctly for multiple updates at the start of the window
         if let Some(w) = w {
             let node = self.core_node_entry(v);
             let first_row = if node.additions().active_t(i64::MIN..w.start) {
@@ -667,10 +666,10 @@ impl TimeSemantics for PersistentGraph {
         let node = self.core_node_entry(v);
         GenLockedIter::from(node, move |node| {
             let prop = node.tprop(prop_id);
-            prop.last_before(TimeIndexEntry::start(start.saturating_add(1)))
+            persisted_prop_value_at(start, prop, TimeIndex::Empty)
                 .into_iter()
-                .map(move |(_, v)| (TimeIndexEntry::start(start), v))
-                .chain(prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)))
+                .map(move |v| (TimeIndexEntry::start(start), v))
+                .chain(prop.iter_window(TimeIndexEntry::range(start..end)))
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -1828,5 +1827,29 @@ mod test_deletions {
         assert_eq!(g.window(1, 5).count_temporal_edges(), 4);
         assert_eq!(g.window(2, 5).count_temporal_edges(), 2);
         assert_eq!(g.window(3, 5).count_temporal_edges(), 2);
+    }
+
+    #[test]
+    fn multiple_node_updates_at_same_time() {
+        let g = PersistentGraph::new();
+
+        g.add_node(1, 1, [("prop1", 1)], None).unwrap();
+        g.add_node(2, 1, [("prop1", 2)], None).unwrap();
+        g.add_node(2, 1, [("prop1", 3)], None).unwrap();
+        g.add_node(8, 1, [("prop1", 4)], None).unwrap();
+        g.add_node(9, 1, [("prop1", 5)], None).unwrap();
+
+        assert_eq!(
+            g.window(2, 10)
+                .node(1)
+                .unwrap()
+                .properties()
+                .temporal()
+                .get("prop1")
+                .unwrap()
+                .values()
+                .collect_vec(),
+            [Prop::I32(2), Prop::I32(3), Prop::I32(4), Prop::I32(5)]
+        )
     }
 }
