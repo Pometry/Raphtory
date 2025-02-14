@@ -40,11 +40,13 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            self.graph_meta.add_prop(t, *prop_id, prop)?;
+        if !props.is_empty() {
+            for (prop_id, prop) in props {
+                let prop = self.process_prop_value(prop);
+                self.graph_meta.add_prop(t, *prop_id, prop)?;
+            }
+            self.update_time(t);
         }
-        self.update_time(t);
         Ok(())
     }
 

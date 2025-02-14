@@ -28,6 +28,7 @@ use std::ops::Range;
 use pometry_storage::timestamps::TimeStamps;
 use raphtory_api::iter::BoxedLIter;
 
+#[derive(Clone)]
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
     Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),
@@ -146,7 +147,14 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn out_ref(self) -> EdgeRef;
 
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+    /// Check if the edge was added in any of the layers during the time interval
+    fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+
+    /// Check if the edge was deleted in any of the layers during the time interval
+    fn deleted(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        self.deletions_iter(layer_ids)
+            .any(|(_, deletions)| deletions.active_t(w.clone()))
+    }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
@@ -246,7 +254,7 @@ impl<'a> MemEdge<'a> {
     }
 
     #[inline]
-    pub fn props(&self, layer_id: usize) -> Option<&Props> {
+    pub fn props(self, layer_id: usize) -> Option<&'a Props> {
         self.edges
             .props(self.offset, layer_id)
             .and_then(|el| el.props())
@@ -281,15 +289,10 @@ impl<'a> MemEdge<'a> {
                 .filter(|t_index| !t_index.is_empty())
                 .is_some()
     }
-
-    pub fn temporal_prop_layer_inner(self, layer_id: usize, prop_id: usize) -> Option<&'a TProp> {
-        let layer = self.edges.props(self.offset, layer_id)?;
-        layer.temporal_property(prop_id)
-    }
 }
 
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+    fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self
@@ -301,7 +304,7 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
                 .is_some(),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .any(|l_id| self.active(&LayerIds::One(l_id), w.clone())),
+                .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
         }
     }
 
@@ -372,7 +375,8 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
 
     #[inline(always)]
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
-        self.temporal_prop_layer_inner(layer_id, prop_id)
+        self.props(layer_id)
+            .and_then(|props| props.temporal_prop(prop_id))
             .unwrap_or(&TProp::Empty)
     }
 

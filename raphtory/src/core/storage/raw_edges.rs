@@ -294,10 +294,6 @@ impl<'a> EdgeRGuard<'a> {
     ) -> impl Iterator<Item = (usize, impl Deref<Target = EdgeLayer> + '_)> + '_ {
         self.guard.props_iter(self.offset)
     }
-
-    pub(crate) fn layer(&self, layer_id: usize) -> Option<impl Deref<Target = EdgeLayer> + '_> {
-        self.guard.props(self.offset, layer_id)
-    }
 }
 
 #[derive(Debug)]

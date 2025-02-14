@@ -375,7 +375,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
         self.graph
-            .get_const_edge_prop(self.edge, id, self.graph.layer_ids().clone())
+            .constant_edge_prop(self.edge, id, self.graph.layer_ids())
     }
 }
 
