@@ -636,7 +636,7 @@ impl TimeSemantics for PersistentGraph {
         start: i64,
         end: i64,
     ) -> BoxedLIter<(i64, Prop)> {
-        // FIXME: needs persistent semantics
+        // FIXME: needs persistent semantics (see #1779)
         self.0.temporal_prop_iter_window(prop_id, start, end)
     }
 
@@ -646,7 +646,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
-        // FIXME: needs persistent semantics
+        // FIXME: needs persistent semantics (see #1779)
         self.0.temporal_prop_vec_window(prop_id, start, end)
     }
     fn temporal_node_prop_hist(
@@ -1037,8 +1037,8 @@ mod test_deletions {
     fn test_materialize_window_start_before_node_add() {
         let g = PersistentGraph::new();
         g.add_node(-1, 0, [("test", "test")], None).unwrap();
-        // g.add_node(5, 0, [("test", "blob")], None).unwrap();
-        // g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        g.add_node(5, 0, [("test", "blob")], None).unwrap();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
         let gw = g.window(-5, 8);
         let gmw = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gmw);
