@@ -306,6 +306,9 @@ pub enum GraphError {
 
     #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
     UnsupportedArrowDataType(PropType),
+
+    #[error("More than one filter set within a FilterCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these filters as individual objects in the order you want them to execute.")]
+    TooManyFiltersSet,
 }
 
 impl GraphError {

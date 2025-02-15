@@ -4,7 +4,9 @@ use crate::{
         graph::{
             edge::Edge,
             edges::GqlEdges,
-            filtering::{FilterCondition, FilterProperty, FilterWindow, Operator},
+            filtering::{
+                FilterCollection, FilterCondition, FilterProperty, FilterWindow, Operator,
+            },
             node::Node,
             nodes::GqlNodes,
             property::GqlProperties,
@@ -638,6 +640,109 @@ impl GqlGraph {
             return_view = return_view
                 .edge_filter(edge_filter.property, edge_filter.condition)
                 .await?;
+        }
+
+        Ok(return_view)
+    }
+
+    async fn filters(&self, filters: Vec<FilterCollection>) -> Result<GqlGraph, GraphError> {
+        let mut return_view: GqlGraph =
+            GqlGraph::new(self.path.clone(), self.graph.clone(), self.index.clone());
+
+        for filter in filters {
+            let mut count = 0;
+            if let Some(_) = filter.default_layer {
+                count += 1;
+                return_view = return_view.default_layer().await;
+            }
+            if let Some(layers) = filter.layers {
+                count += 1;
+                return_view = return_view.layers(layers).await;
+            }
+            if let Some(layers) = filter.exclude_layers {
+                count += 1;
+                return_view = return_view.exclude_layers(layers).await;
+            }
+            if let Some(layer) = filter.layer {
+                count += 1;
+                return_view = return_view.layer(layer).await;
+            }
+            if let Some(layer) = filter.exclude_layer {
+                count += 1;
+                return_view = return_view.exclude_layer(layer).await;
+            }
+            if let Some(nodes) = filter.subgraph {
+                count += 1;
+                return_view = return_view.subgraph(nodes).await;
+            }
+            if let Some(nodes) = filter.subgraph_id {
+                count += 1;
+                return_view = return_view.subgraph_id(nodes).await;
+            }
+            if let Some(types) = filter.subgraph_node_types {
+                count += 1;
+                return_view = return_view.subgraph_node_types(types).await;
+            }
+            if let Some(nodes) = filter.exclude_nodes {
+                count += 1;
+                return_view = return_view.exclude_nodes(nodes).await;
+            }
+            if let Some(nodes) = filter.exclude_nodes_id {
+                count += 1;
+                return_view = return_view.exclude_nodes_id(nodes).await;
+            }
+            if let Some(window) = filter.window {
+                count += 1;
+                return_view = return_view.window(window.start, window.end).await;
+            }
+            if let Some(time) = filter.at {
+                count += 1;
+                return_view = return_view.at(time).await;
+            }
+            if let Some(_) = filter.latest {
+                count += 1;
+                return_view = return_view.latest().await;
+            }
+            if let Some(_) = filter.snapshot_latest {
+                count += 1;
+                return_view = return_view.snapshot_latest().await;
+            }
+            if let Some(time) = filter.before {
+                count += 1;
+                return_view = return_view.before(time).await;
+            }
+            if let Some(time) = filter.after {
+                count += 1;
+                return_view = return_view.after(time).await;
+            }
+            if let Some(window) = filter.shrink_window {
+                count += 1;
+                return_view = return_view.shrink_window(window.start, window.end).await;
+            }
+            if let Some(time) = filter.shrink_start {
+                count += 1;
+                return_view = return_view.shrink_start(time).await;
+            }
+            if let Some(time) = filter.shrink_end {
+                count += 1;
+                return_view = return_view.shrink_end(time).await;
+            }
+            if let Some(node_filter) = filter.node_filter {
+                count += 1;
+                return_view = return_view
+                    .node_filter(node_filter.property, node_filter.condition)
+                    .await?;
+            }
+            if let Some(edge_filter) = filter.edge_filter {
+                count += 1;
+                return_view = return_view
+                    .edge_filter(edge_filter.property, edge_filter.condition)
+                    .await?;
+            }
+
+            if count > 1 {
+                return Err(GraphError::TooManyFiltersSet);
+            }
         }
 
         Ok(return_view)
