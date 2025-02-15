@@ -3,11 +3,20 @@ use crate::{
     db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+};
 
 pub struct ConstantProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
+}
+
+impl<'a, P: ConstPropertiesOps + Sync> Debug for ConstantProperties<'a, P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
 }
 
 impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {

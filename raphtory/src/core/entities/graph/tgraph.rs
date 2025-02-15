@@ -24,16 +24,13 @@ use crate::{
 use dashmap::DashSet;
 use either::Either;
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, GidRef},
+    entities::GidRef,
     input::input_node::InputNode,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Borrow, collections::HashMap, fmt::Debug, hash::BuildHasherDefault,
-    sync::atomic::AtomicUsize,
-};
+use std::{fmt::Debug, hash::BuildHasherDefault, sync::atomic::AtomicUsize};
 
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
@@ -199,60 +196,6 @@ impl TemporalGraph {
     #[inline]
     pub(crate) fn graph_latest_time(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
-    }
-
-    pub(crate) fn core_get_const_edge_prop(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<Prop> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        let entry = self.storage.edge_entry(e.pid());
-        match layer_ids.borrow() {
-            LayerIds::None => None,
-            LayerIds::All => {
-                if self.num_layers() == 1 {
-                    // iterator has at most 1 element
-                    entry
-                        .layer_iter()
-                        .next()
-                        .and_then(|(_, data)| data.const_prop(prop_id).cloned())
-                } else {
-                    let prop_map: HashMap<_, _> = entry
-                        .layer_iter()
-                        .flat_map(|(id, data)| {
-                            data.const_prop(prop_id)
-                                .map(|p| (self.get_layer_name(id), p.clone()))
-                        })
-                        .collect();
-                    if prop_map.is_empty() {
-                        None
-                    } else {
-                        Some(prop_map.into())
-                    }
-                }
-            }
-            LayerIds::One(id) => entry
-                .layer(*id)
-                .and_then(|l| l.const_prop(prop_id).cloned()),
-            LayerIds::Multiple(ids) => {
-                let prop_map: HashMap<_, _> = ids
-                    .iter()
-                    .flat_map(|id| {
-                        entry.layer(id).and_then(|data| {
-                            data.const_prop(prop_id)
-                                .map(|p| (self.get_layer_name(id), p.clone()))
-                        })
-                    })
-                    .collect();
-                if prop_map.is_empty() {
-                    None
-                } else {
-                    Some(prop_map.into())
-                }
-            }
-        }
     }
 
     #[inline]

@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
             nodes::node_ref::{AsNodeRef, NodeRef},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, GID, VID,
