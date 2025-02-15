@@ -1,5 +1,8 @@
 use crate::model::{
-    graph::{node::Node, FilterCondition, Operator},
+    graph::{
+        filtering::{FilterCondition, Operator},
+        node::Node,
+    },
     sorting::{NodeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
