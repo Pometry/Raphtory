@@ -5,7 +5,7 @@ use crate::{
             edge::Edge,
             edges::GqlEdges,
             filtering::{
-                FilterCollection, FilterCondition, FilterProperty, FilterWindow, Operator,
+                FilterCondition, GraphViewCollection, Operator,
             },
             node::Node,
             nodes::GqlNodes,
@@ -526,214 +526,99 @@ impl GqlGraph {
         }
     }
 
-    async fn filter(
-        &self,
-        default_layer: Option<bool>,
-        layers: Option<Vec<String>>,
-        exclude_layers: Option<Vec<String>>,
-        layer: Option<String>,
-        exclude_layer: Option<String>,
-        subgraph: Option<Vec<String>>,
-        subgraph_id: Option<Vec<u64>>,
-        subgraph_node_types: Option<Vec<String>>,
-        exclude_nodes: Option<Vec<String>>,
-        exclude_nodes_id: Option<Vec<u64>>,
-        window: Option<FilterWindow>,
-        at: Option<i64>,
-        latest: Option<bool>,
-        snapshot_latest: Option<bool>,
-        before: Option<i64>,
-        after: Option<i64>,
-        shrink_window: Option<FilterWindow>,
-        shrink_start: Option<i64>,
-        shrink_end: Option<i64>,
-        node_filter: Option<FilterProperty>,
-        edge_filter: Option<FilterProperty>,
-    ) -> Result<GqlGraph, GraphError> {
-        let mut return_view =
-            GqlGraph::new(self.path.clone(), self.graph.clone(), self.index.clone());
-
-        // Apply default layer if specified
-        if let Some(true) = default_layer {
-            return_view = return_view.default_layer().await;
-        }
-
-        // Apply layers inclusion filter
-        if let Some(layers) = layers {
-            return_view = return_view.layers(layers).await;
-        }
-
-        // Apply layer exclusion filter
-        if let Some(exclude_layers) = exclude_layers {
-            return_view = return_view.exclude_layers(exclude_layers).await;
-        }
-
-        // Apply single layer filter
-        if let Some(layer) = layer {
-            return_view = return_view.layer(layer).await;
-        }
-
-        // Apply single layer exclusion
-        if let Some(exclude_layer) = exclude_layer {
-            return_view = return_view.exclude_layer(exclude_layer).await;
-        }
-
-        // Apply subgraph filters
-        if let Some(subgraph) = subgraph {
-            return_view = return_view.subgraph(subgraph).await;
-        }
-        if let Some(subgraph_id) = subgraph_id {
-            return_view = return_view.subgraph_id(subgraph_id).await;
-        }
-        if let Some(subgraph_node_types) = subgraph_node_types {
-            return_view = return_view.subgraph_node_types(subgraph_node_types).await;
-        }
-
-        // Apply node exclusions
-        if let Some(exclude_nodes) = exclude_nodes {
-            return_view = return_view.exclude_nodes(exclude_nodes).await;
-        }
-        if let Some(exclude_nodes_id) = exclude_nodes_id {
-            return_view = return_view.exclude_nodes_id(exclude_nodes_id).await;
-        }
-
-        // Apply time filters
-        if let Some(window) = window {
-            return_view = return_view.window(window.start, window.end).await;
-        }
-        if let Some(at) = at {
-            return_view = return_view.at(at).await;
-        }
-        if let Some(true) = latest {
-            return_view = return_view.latest().await;
-        }
-        if let Some(_) = snapshot_latest {
-            return_view = return_view.snapshot_latest().await;
-        }
-        if let Some(before) = before {
-            return_view = return_view.before(before).await;
-        }
-        if let Some(after) = after {
-            return_view = return_view.after(after).await;
-        }
-
-        // Apply shrinking window filters
-        if let Some(shrink_window) = shrink_window {
-            return_view = return_view
-                .shrink_window(shrink_window.start, shrink_window.end)
-                .await;
-        }
-        if let Some(shrink_start) = shrink_start {
-            return_view = return_view.shrink_start(shrink_start).await;
-        }
-        if let Some(shrink_end) = shrink_end {
-            return_view = return_view.shrink_end(shrink_end).await;
-        }
-
-        // Apply node and edge property filters
-        if let Some(node_filter) = node_filter {
-            return_view = return_view
-                .node_filter(node_filter.property, node_filter.condition)
-                .await?;
-        }
-        if let Some(edge_filter) = edge_filter {
-            return_view = return_view
-                .edge_filter(edge_filter.property, edge_filter.condition)
-                .await?;
-        }
-
-        Ok(return_view)
-    }
-
-    async fn filters(&self, filters: Vec<FilterCollection>) -> Result<GqlGraph, GraphError> {
+    async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
         let mut return_view: GqlGraph =
             GqlGraph::new(self.path.clone(), self.graph.clone(), self.index.clone());
 
-        for filter in filters {
+        for view in views {
             let mut count = 0;
-            if let Some(_) = filter.default_layer {
+            if let Some(_) = view.default_layer {
                 count += 1;
                 return_view = return_view.default_layer().await;
             }
-            if let Some(layers) = filter.layers {
+            if let Some(layers) = view.layers {
                 count += 1;
                 return_view = return_view.layers(layers).await;
             }
-            if let Some(layers) = filter.exclude_layers {
+            if let Some(layers) = view.exclude_layers {
                 count += 1;
                 return_view = return_view.exclude_layers(layers).await;
             }
-            if let Some(layer) = filter.layer {
+            if let Some(layer) = view.layer {
                 count += 1;
                 return_view = return_view.layer(layer).await;
             }
-            if let Some(layer) = filter.exclude_layer {
+            if let Some(layer) = view.exclude_layer {
                 count += 1;
                 return_view = return_view.exclude_layer(layer).await;
             }
-            if let Some(nodes) = filter.subgraph {
+            if let Some(nodes) = view.subgraph {
                 count += 1;
                 return_view = return_view.subgraph(nodes).await;
             }
-            if let Some(nodes) = filter.subgraph_id {
+            if let Some(nodes) = view.subgraph_id {
                 count += 1;
                 return_view = return_view.subgraph_id(nodes).await;
             }
-            if let Some(types) = filter.subgraph_node_types {
+            if let Some(types) = view.subgraph_node_types {
                 count += 1;
                 return_view = return_view.subgraph_node_types(types).await;
             }
-            if let Some(nodes) = filter.exclude_nodes {
+            if let Some(nodes) = view.exclude_nodes {
                 count += 1;
                 return_view = return_view.exclude_nodes(nodes).await;
             }
-            if let Some(nodes) = filter.exclude_nodes_id {
+            if let Some(nodes) = view.exclude_nodes_id {
                 count += 1;
                 return_view = return_view.exclude_nodes_id(nodes).await;
             }
-            if let Some(window) = filter.window {
+            if let Some(window) = view.window {
                 count += 1;
                 return_view = return_view.window(window.start, window.end).await;
             }
-            if let Some(time) = filter.at {
+            if let Some(time) = view.at {
                 count += 1;
                 return_view = return_view.at(time).await;
             }
-            if let Some(_) = filter.latest {
+            if let Some(_) = view.latest {
                 count += 1;
                 return_view = return_view.latest().await;
             }
-            if let Some(_) = filter.snapshot_latest {
+            if let Some(time) = view.snapshot_at {
+                count += 1;
+                return_view = return_view.snapshot_at(time).await;
+            }
+            if let Some(_) = view.snapshot_latest {
                 count += 1;
                 return_view = return_view.snapshot_latest().await;
             }
-            if let Some(time) = filter.before {
+            if let Some(time) = view.before {
                 count += 1;
                 return_view = return_view.before(time).await;
             }
-            if let Some(time) = filter.after {
+            if let Some(time) = view.after {
                 count += 1;
                 return_view = return_view.after(time).await;
             }
-            if let Some(window) = filter.shrink_window {
+            if let Some(window) = view.shrink_window {
                 count += 1;
                 return_view = return_view.shrink_window(window.start, window.end).await;
             }
-            if let Some(time) = filter.shrink_start {
+            if let Some(time) = view.shrink_start {
                 count += 1;
                 return_view = return_view.shrink_start(time).await;
             }
-            if let Some(time) = filter.shrink_end {
+            if let Some(time) = view.shrink_end {
                 count += 1;
                 return_view = return_view.shrink_end(time).await;
             }
-            if let Some(node_filter) = filter.node_filter {
+            if let Some(node_filter) = view.node_filter {
                 count += 1;
                 return_view = return_view
                     .node_filter(node_filter.property, node_filter.condition)
                     .await?;
             }
-            if let Some(edge_filter) = filter.edge_filter {
+            if let Some(edge_filter) = view.edge_filter {
                 count += 1;
                 return_view = return_view
                     .edge_filter(edge_filter.property, edge_filter.condition)
@@ -741,7 +626,7 @@ impl GqlGraph {
             }
 
             if count > 1 {
-                return Err(GraphError::TooManyFiltersSet);
+                return Err(GraphError::TooManyViewsSet);
             }
         }
 
