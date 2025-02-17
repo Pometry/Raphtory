@@ -124,183 +124,15 @@ mod search_tests {
         use crate::{
             core::{IntoProp, Prop},
             db::{
-                api::{
-                    storage::graph::{
-                        nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
-                    },
-                    view::{
-                        internal::{CoreGraphOps, InternalIndexSearch, NodeHistoryFilter},
-                        SearchableGraphOps,
-                    },
-                },
+                api::view::{internal::InternalIndexSearch, SearchableGraphOps},
                 graph::views::property_filter::{CompositeNodeFilter, Filter},
             },
             prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeStateOps, NodeViewOps,
-                PropertyFilter, TimeOps,
+                AdditionOps, EdgeViewOps, Graph, NodeStateOps, NodeViewOps, PropertyFilter, TimeOps,
             },
             search::searcher::search_tests::PersistentGraph,
         };
-        use raphtory_api::core::{
-            entities::VID,
-            storage::timeindex::{AsTime, TimeIndexEntry},
-        };
-
-        #[test]
-        fn test_last_before() {
-            let w = 6..7;
-
-            let graph = PersistentGraph::new();
-            graph
-                .add_node(5, "N1", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            let nse = graph.core_node_entry(VID(0));
-            let prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
-            let r = nse
-                .tprop(prop_id)
-                .last_before(TimeIndexEntry::start(w.start));
-            println!("last_before = {:?}", r);
-
-            let graph = PersistentGraph::new();
-            graph
-                .add_node(5, "N1", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N1", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            let nse = graph.core_node_entry(VID(0));
-            let prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
-            let r = nse
-                .tprop(prop_id)
-                .last_before(TimeIndexEntry::start(w.start));
-            println!("last_before = {:?}", r);
-
-            let graph = PersistentGraph::new();
-            graph
-                .add_node(2, "N1", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-            graph
-                .add_node(3, "N1", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            let nse = graph.core_node_entry(VID(0));
-            let prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
-            let r = nse
-                .tprop(prop_id)
-                .last_before(TimeIndexEntry::start(w.start));
-            println!("last_before = {:?}", r);
-        }
-
-        #[test]
-        fn test_is_update_available() {
-            let graph = PersistentGraph::new();
-            graph
-                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-            graph
-                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            println!("graph node count = {}", graph.count_nodes());
-
-            let p1_prop_id = graph.node_meta().temporal_prop_meta().get_id("p1").unwrap();
-            println!(
-                "is graph update available = {}, t = {}",
-                graph.window(6, 8).is_prop_update_available(
-                    p1_prop_id,
-                    graph.node("N1").unwrap().node,
-                    3.into(),
-                ),
-                3
-            );
-            println!(
-                "is graph update available = {}, t = {}",
-                graph.window(6, 8).is_prop_update_available(
-                    p1_prop_id,
-                    graph.node("N2").unwrap().node,
-                    3.into(),
-                ),
-                3
-            );
-            println!(
-                "is graph update available = {}, t = {}",
-                graph.window(6, 8).is_prop_update_available(
-                    p1_prop_id,
-                    graph.node("N3").unwrap().node,
-                    3.into(),
-                ),
-                3
-            );
-            println!(
-                "is graph update available = {}, t = {}",
-                graph.window(6, 8).is_prop_update_available(
-                    p1_prop_id,
-                    graph.node("N4").unwrap().node,
-                    3.into(),
-                ),
-                3
-            );
-
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let mut results = graph
-                .window(6, 9)
-                .search_nodes(&filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| v.name())
-                .collect::<Vec<_>>();
-            results.sort();
-
-            println!("results = {:?}", results);
-        }
+        use raphtory_api::core::storage::timeindex::AsTime;
 
         fn search_nodes_by_composite_filter(filter: &CompositeNodeFilter) -> Vec<String> {
             let graph = Graph::new();
@@ -635,6 +467,74 @@ mod search_tests {
             let results = fuzzy_search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["shivam_kapoor"]);
         }
+
+        // More tests for windowed graph and other graph views can be found in their respective files
+        // under src/db/graph/views
+        #[test]
+        fn test_search_nodes_windowed_graph() {
+            let graph = PersistentGraph::new();
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let mut results = graph
+                .window(6, 9)
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+        }
     }
 
     #[cfg(test)]
@@ -752,32 +652,35 @@ mod search_tests {
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            // let filter = CompositeEdgeFilter::Or(vec![
-            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "shivam")),
-            // ]);
-            // let results = search_edges_by_composite_filter(&filter);
-            // assert_eq!(
-            //     results,
-            //     vec![("1".into(), "2".into()), ("2".into(), "3".into())]
-            // );
-            //
-            // let filter = CompositeEdgeFilter::Or(vec![
-            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "pometry")),
-            //     CompositeEdgeFilter::And(vec![
-            //         CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 6u64)),
-            //         CompositeEdgeFilter::Property(PropertyFilter::eq("p3", 1u64)),
-            //     ]),
-            // ]);
-            // let results = search_edges_by_composite_filter(&filter);
-            // assert_eq!(results, vec![("3".into(), "1".into())]);
-            //
-            // let filter = CompositeEdgeFilter::And(vec![
-            //     CompositeEdgeFilter::Edge(Filter::eq("from", "13")),
-            //     CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "prop1")),
-            // ]);
-            // let results = search_edges_by_composite_filter(&filter);
-            // assert_eq!(results, Vec::<(String, String)>::new());
+            let filter = CompositeEdgeFilter::Or(vec![
+                CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
+                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "shivam")),
+            ]);
+            let results = search_edges_by_composite_filter(&filter);
+            assert_eq!(
+                results,
+                vec![("1".into(), "2".into()), ("2".into(), "3".into())]
+            );
+
+            let filter = CompositeEdgeFilter::Or(vec![
+                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "pometry")),
+                CompositeEdgeFilter::And(vec![
+                    CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 6u64)),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq("p3", 1u64)),
+                ]),
+            ]);
+            let results = search_edges_by_composite_filter(&filter);
+            assert_eq!(
+                results,
+                vec![("2".into(), "1".into()), ("3".into(), "1".into())]
+            );
+
+            let filter = CompositeEdgeFilter::And(vec![
+                CompositeEdgeFilter::Edge(Filter::eq("from", "13")),
+                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "prop1")),
+            ]);
+            let results = search_edges_by_composite_filter(&filter);
+            assert_eq!(results, Vec::<(String, String)>::new());
         }
 
         #[test]
