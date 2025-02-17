@@ -119,7 +119,8 @@ fn persisted_prop_value_at<'a>(
     props: impl TPropOps<'a>,
     deletions: impl TimeIndexOps<IndexType = TimeIndexEntry>,
 ) -> Option<Prop> {
-    if props.clone().active(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
+    if props.clone().active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1))
+    {
         None
     } else {
         last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
@@ -308,7 +309,7 @@ impl TimeSemantics for PersistentGraph {
                     (0..self.node_meta().temporal_prop_meta().len())
                         .filter_map(|prop_id| {
                             let prop = node.tprop(prop_id);
-                            if prop.active(w.start..w.start.saturating_add(1)) {
+                            if prop.active_t(w.start..w.start.saturating_add(1)) {
                                 None
                             } else {
                                 prop.last_before(TimeIndexEntry::start(w.start))
@@ -822,6 +823,58 @@ impl TimeSemantics for PersistentGraph {
         }
     }
 }
+
+impl NodeHistoryFilter for PersistentGraph {
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        // let nse = self.0.core_node_entry(node_id);
+        // nse.tprop(prop_id).at(&time).is_some()
+        true
+    }
+
+    fn is_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        if time.t() >= w.end {
+            false
+        } else if w.contains(&time.t()) {
+            true
+        } else {
+            let nse = self.0.core_node_entry(node_id);
+            let x = nse
+                .tprop(prop_id)
+                .last_before(TimeIndexEntry::start(w.start))
+                .map(|(t, _)| time.t().eq(&t.t()))
+                .unwrap_or(false);
+            x
+        }
+    }
+
+    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.0.is_prop_update_latest(prop_id, node_id, time)
+    }
+
+    fn is_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        time.t() < w.end && {
+            let nse = self.0.core_node_entry(node_id);
+            let x = nse
+                .tprop(prop_id)
+                .active(time.next()..TimeIndexEntry::start(w.end));
+            !x
+        }
+    }
+}
+
+impl InheritIndexSearch for PersistentGraph {}
 
 #[cfg(test)]
 mod test_deletions {
@@ -1851,5 +1904,178 @@ mod test_deletions {
                 .collect_vec(),
             [Prop::I32(2), Prop::I32(3), Prop::I32(4), Prop::I32(5)]
         )
+    }
+}
+
+#[cfg(test)]
+mod test_node_history_filter_persistent_graph {
+    use crate::{
+        core::Prop,
+        db::{
+            api::view::{
+                internal::{CoreGraphOps, NodeHistoryFilter},
+                StaticGraphViewOps,
+            },
+            graph::views::deletion_graph::PersistentGraph,
+        },
+        prelude::{AdditionOps, GraphViewOps},
+    };
+    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+
+    fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+        graph
+            .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+        graph
+            .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+
+        graph
+    }
+
+    #[test]
+    fn test_is_prop_update_latest() {
+        let g = PersistentGraph::new();
+        let g = init_graph(g);
+
+        let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+
+        let node_id = g.node("N1").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(7));
+        assert!(bool);
+
+        let node_id = g.node("N2").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
+        assert!(!bool);
+
+        let node_id = g.node("N3").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(8));
+        assert!(bool);
+
+        let node_id = g.node("N4").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(9));
+        assert!(bool);
+
+        let node_id = g.node("N5").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+        assert!(!bool);
+
+        let node_id = g.node("N6").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+        assert!(!bool);
+        let node_id = g.node("N6").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
+        assert!(bool);
+
+        let node_id = g.node("N7").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
+        assert!(!bool);
+        let node_id = g.node("N7").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+        assert!(bool);
+
+        let node_id = g.node("N8").unwrap().node;
+        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
+        assert!(!bool);
+    }
+
+    #[test]
+    fn test_is_prop_update_latest_w() {
+        let g = PersistentGraph::new();
+        let g = init_graph(g);
+
+        let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+        let w = 6..9;
+
+        let node_id = g.node("N1").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(7), w.clone());
+        assert!(bool);
+
+        let node_id = g.node("N2").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(6), w.clone());
+        assert!(!bool);
+
+        let node_id = g.node("N3").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(8), w.clone());
+        assert!(bool);
+
+        let node_id = g.node("N4").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(9), w.clone());
+        assert!(!bool);
+
+        let node_id = g.node("N5").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(5), w.clone());
+        assert!(!bool);
+
+        let node_id = g.node("N6").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(5), w.clone());
+        assert!(!bool);
+        let node_id = g.node("N6").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(6), w.clone());
+        assert!(bool);
+
+        let node_id = g.node("N7").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(3), w.clone());
+        assert!(!bool);
+        let node_id = g.node("N7").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(5), w.clone());
+        assert!(bool);
+
+        let node_id = g.node("N8").unwrap().node;
+        let bool =
+            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(3), w.clone());
+        assert!(!bool);
     }
 }

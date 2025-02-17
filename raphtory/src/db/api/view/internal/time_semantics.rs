@@ -324,6 +324,67 @@ pub trait TimeSemantics {
     ) -> Option<Prop>;
 }
 
+pub trait NodeHistoryFilter {
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool;
+
+    fn is_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool;
+
+    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool;
+
+    fn is_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool;
+}
+
+pub trait InheritNodeHistoryFilter: Base {}
+
+impl<G: InheritNodeHistoryFilter> NodeHistoryFilter for G
+where
+    <G as Base>::Base: NodeHistoryFilter,
+{
+    #[inline]
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.base().is_prop_update_available(prop_id, node_id, time)
+    }
+
+    #[inline]
+    fn is_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.base()
+            .is_prop_update_available_window(prop_id, node_id, time, w)
+    }
+
+    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.base().is_prop_update_latest(prop_id, node_id, time)
+    }
+
+    fn is_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.base()
+            .is_prop_update_latest_window(prop_id, node_id, time, w)
+    }
+}
+
 pub trait InheritTimeSemantics: Base {}
 
 impl<G: InheritTimeSemantics> DelegateTimeSemantics for G

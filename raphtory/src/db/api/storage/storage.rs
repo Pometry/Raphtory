@@ -17,9 +17,18 @@ use crate::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
         storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{Base, InheritViewOps},
+        view::{internal::InternalIndexSearch, Base, InheritViewOps},
     },
 };
+
+use crate::db::api::{
+    storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+    view::internal::InheritNodeHistoryFilter,
+};
+#[cfg(feature = "search")]
+use crate::search::{graph_index::GraphIndex, searcher::Searcher};
+#[cfg(feature = "proto")]
+use crate::serialise::GraphFolder;
 #[cfg(feature = "proto")]
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
@@ -38,7 +47,9 @@ pub struct Storage {
     #[cfg(feature = "proto")]
     #[serde(skip)]
     pub(crate) cache: OnceCell<GraphWriter>,
-    // search index (tantivy)
+    #[cfg(feature = "search")]
+    #[serde(skip)]
+    pub(crate) index: OnceCell<GraphIndex>,
     // vector index
 }
 
@@ -63,6 +74,8 @@ impl Storage {
             graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_locks))),
             #[cfg(feature = "proto")]
             cache: OnceCell::new(),
+            #[cfg(feature = "search")]
+            index: OnceCell::new(),
         }
     }
 
@@ -71,6 +84,8 @@ impl Storage {
             graph,
             #[cfg(feature = "proto")]
             cache: OnceCell::new(),
+            #[cfg(feature = "search")]
+            index: OnceCell::new(),
         }
     }
 
@@ -81,7 +96,62 @@ impl Storage {
             map_fn(cache)
         }
     }
+
+    #[cfg(feature = "search")]
+    #[inline]
+    fn if_index(
+        &self,
+        map_fn: impl FnOnce(&GraphIndex) -> Result<(), GraphError>,
+    ) -> Result<(), GraphError> {
+        if let Some(index) = self.index.get() {
+            map_fn(index)
+        } else {
+            Ok(())
+        }
+    }
 }
+
+#[cfg(feature = "proto")]
+impl Storage {
+    /// Initialise the cache by pointing it at a proto file.
+    /// Future updates will be appended to the cache.
+    pub(crate) fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        self.cache.get_or_try_init(|| {
+            let file = path.get_appendable_graph_file()?;
+            Ok::<_, GraphError>(GraphWriter::new(file))
+        })?;
+        Ok(())
+    }
+
+    /// Get the cache writer if it is initialised.
+    pub(crate) fn get_cache(&self) -> Option<&GraphWriter> {
+        self.cache.get()
+    }
+}
+
+#[cfg(feature = "search")]
+impl Storage {
+    pub(crate) fn get_or_create_index(&self) -> Result<&GraphIndex, GraphError> {
+        self.index
+            .get_or_try_init(|| Ok::<_, GraphError>(GraphIndex::try_from(&self.graph)?))
+    }
+
+    pub(crate) fn index(&self) -> Option<&GraphIndex> {
+        self.index.get()
+    }
+}
+
+impl InternalIndexSearch for Storage {
+    #[inline]
+    #[cfg(feature = "search")]
+    fn searcher(&self) -> Result<Searcher, GraphError> {
+        let index = self.get_or_create_index()?;
+        Ok(Searcher::new(index))
+    }
+}
+
+impl InheritNodeHistoryFilter for Storage {}
+
 impl InheritViewOps for Storage {}
 
 impl InternalAdditionOps for Storage {
@@ -223,6 +293,9 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.add_node_update(&self.graph, t, v))?;
+
         Ok(())
     }
 
@@ -242,6 +315,9 @@ impl InternalAdditionOps for Storage {
             cache.add_edge_update(t, id.inner(), props, layer);
         });
 
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.add_edge_update(&self.graph, id.inner(), t, src, dst, layer))?;
+
         Ok(id)
     }
 
@@ -256,6 +332,14 @@ impl InternalAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_update(t, edge, props, layer));
+
+        #[cfg(feature = "search")]
+        self.if_index(|index| {
+            let ee = self.graph.edge_entry(edge);
+            let src = ee.src();
+            let dst = ee.dst();
+            index.add_edge_update(&self.graph, edge, t, src, dst, layer)
+        })?;
 
         Ok(())
     }

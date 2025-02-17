@@ -14,14 +14,13 @@ use raphtory::{
             mutation::internal::InheritMutationOps,
             storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{CoreGraphOps, Static},
+                internal::{CoreGraphOps, InheritIndexSearch, InheritNodeHistoryFilter, Static},
                 Base, InheritViewOps, MaterializedGraph,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps},
-    search::IndexedGraph,
     serialise::GraphFolder,
     vectors::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
@@ -31,7 +30,6 @@ use raphtory::{
 #[derive(Clone)]
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
-    pub index: Option<IndexedGraph<MaterializedGraph>>,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
     folder: OnceCell<GraphFolder>,
 }
@@ -39,12 +37,10 @@ pub struct GraphWithVectors {
 impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
-        index: Option<IndexedGraph<MaterializedGraph>>,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
     ) -> Self {
         Self {
             graph,
-            index,
             vectors,
             folder: Default::default(),
         }
@@ -112,7 +108,6 @@ impl GraphWithVectors {
 
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
-        index: bool,
         embedding: Arc<dyn EmbeddingFunction>,
         cache: Arc<Option<EmbeddingCache>>,
     ) -> Result<Self, GraphError> {
@@ -133,7 +128,6 @@ impl GraphWithVectors {
         println!("Graph loaded = {}", folder.get_original_path_str());
         Ok(Self {
             graph: graph.clone(),
-            index: index.then(|| graph.into()),
             vectors,
             folder: OnceCell::with_value(folder.clone().into()),
         })
@@ -165,7 +159,12 @@ impl Base for GraphWithVectors {
 impl Static for GraphWithVectors {}
 
 impl InheritViewOps for GraphWithVectors {}
+
+impl InheritNodeHistoryFilter for GraphWithVectors {}
+
 impl InheritMutationOps for GraphWithVectors {}
+
+impl InheritIndexSearch for GraphWithVectors {}
 
 impl DeletionOps for GraphWithVectors {}
 

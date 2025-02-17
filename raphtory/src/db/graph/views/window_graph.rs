@@ -52,15 +52,17 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
+                    Base, DelegateTimeSemantics, EdgeFilterOps, EdgeList, Immutable,
+                    InheritCoreOps, InheritIndexSearch, InheritLayerOps, InheritMaterialize,
+                    InheritNodeHistoryFilter, ListOps, NodeFilterOps, NodeHistoryFilter, NodeList,
+                    Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
         },
         graph::graph::graph_equal,
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
@@ -112,6 +114,10 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 
 impl<G> WindowedGraph<G> {
     #[inline(always)]
+    fn window_bound(&self) -> Range<i64> {
+        self.start_bound()..self.end_bound()
+    }
+
     fn start_bound(&self) -> i64 {
         self.start.unwrap_or(i64::MIN)
     }
@@ -129,6 +135,42 @@ impl<G> WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
+    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.graph
+            .is_prop_update_available_window(prop_id, node_id, time, self.window_bound())
+    }
+
+    fn is_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_prop_update_available_window(prop_id, node_id, time, w)
+    }
+
+    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.graph
+            .is_prop_update_latest_window(prop_id, node_id, time, self.window_bound())
+    }
+
+    fn is_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_prop_update_latest_window(prop_id, node_id, time, w)
+    }
+}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
@@ -1325,5 +1367,216 @@ mod views_test {
                 [vec![], vec![0, 4], vec![0], vec![0],]
             );
         });
+    }
+
+    #[cfg(all(test, feature = "search"))]
+    mod search_nodes_window_graph_tests {
+        use crate::{
+            core::Prop,
+            db::{
+                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                graph::views::{
+                    deletion_graph::PersistentGraph, property_filter::CompositeNodeFilter,
+                },
+            },
+            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+        };
+        use std::ops::Range;
+
+        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+        }
+
+        fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: G,
+            w: Range<i64>,
+            filter: &CompositeNodeFilter,
+        ) -> Vec<String> {
+            let graph = init_graph(graph);
+            let mut results = graph
+                .window(w.start, w.end)
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_graph() {
+            let graph = Graph::new();
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_windowed_persistent_graph() {
+            let graph = PersistentGraph::new();
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+        }
+    }
+
+    #[cfg(all(test, feature = "search"))]
+    mod search_edges_window_graph_tests {
+        use crate::{
+            core::Prop,
+            db::{
+                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                graph::views::{
+                    deletion_graph::PersistentGraph, property_filter::CompositeEdgeFilter,
+                },
+            },
+            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+        };
+        use std::ops::Range;
+
+        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+            graph
+                .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+        }
+
+        fn search_edges_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: G,
+            w: Range<i64>,
+            filter: &CompositeEdgeFilter,
+        ) -> Vec<String> {
+            let graph = init_graph(graph);
+            let mut results = graph
+                .window(w.start, w.end)
+                .search_edges(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        #[test]
+        fn test_search_edges_windowed_graph() {
+            let graph = Graph::new();
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N6->N7"]);
+        }
+
+        #[test]
+        fn test_search_edges_windowed_persistent_graph() {
+            let graph = PersistentGraph::new();
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(graph, 6..9, &filter);
+
+            assert_eq!(
+                results,
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8"]
+            );
+        }
     }
 }

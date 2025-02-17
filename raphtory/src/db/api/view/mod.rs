@@ -3,7 +3,7 @@
 mod edge;
 mod edge_property_filter;
 mod exploded_edge_property_filter;
-mod graph;
+pub(crate) mod graph;
 pub mod internal;
 mod layer;
 pub(crate) mod node;
