@@ -656,19 +656,6 @@ impl TimeSemantics for GraphStorage {
 }
 
 impl NodeHistoryFilter for GraphStorage {
-    fn is_update_available(&self, _node_id: VID, _time: TimeIndexEntry) -> bool {
-        true
-    }
-
-    fn is_update_available_window(
-        &self,
-        _node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> bool {
-        w.contains(&time.t())
-    }
-
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
         // let nse = self.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()

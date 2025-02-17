@@ -9,7 +9,7 @@ use crate::{
     },
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::DeletionOps,
-    serialise::incremental::InternalStorage,
+    serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
 #[cfg(feature = "storage")]
@@ -69,7 +69,7 @@ pub fn load_nodes_from_parquet<
 }
 
 pub fn load_edges_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalStorage,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,

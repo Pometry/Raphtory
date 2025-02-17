@@ -128,25 +128,6 @@ impl InternalDeletionOps for MaterializedGraph {
 impl DeletionOps for MaterializedGraph {}
 
 impl NodeHistoryFilter for MaterializedGraph {
-    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.is_update_available(node_id, time),
-            MaterializedGraph::PersistentGraph(g) => g.is_update_available(node_id, time),
-        }
-    }
-
-    fn is_update_available_window(
-        &self,
-        node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.is_update_available_window(node_id, time, w),
-            MaterializedGraph::PersistentGraph(g) => g.is_update_available_window(node_id, time, w),
-        }
-    }
-
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => g.is_prop_update_available(prop_id, node_id, time),

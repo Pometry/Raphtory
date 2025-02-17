@@ -825,36 +825,6 @@ impl TimeSemantics for PersistentGraph {
 }
 
 impl NodeHistoryFilter for PersistentGraph {
-    fn is_update_available(&self, _node_id: VID, _time: TimeIndexEntry) -> bool {
-        true
-    }
-
-    fn is_update_available_window(
-        &self,
-        node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> bool {
-        if time.t() >= w.end {
-            false
-        } else if w.contains(&time.t()) {
-            true
-        } else {
-            let node = self.0.core_node_entry(node_id);
-            node.prop_ids()
-                .filter_map(|prop_id| {
-                    let refreshed_node = self.0.core_node_entry(node_id);
-                    let x = refreshed_node
-                        .tprop(prop_id)
-                        .last_before(TimeIndexEntry::start(w.start));
-                    x
-                })
-                .map(|(t, _)| t)
-                .max()
-                .map_or(false, |t| time.eq(&t))
-        }
-    }
-
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
         // let nse = self.0.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()

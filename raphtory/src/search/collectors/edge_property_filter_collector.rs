@@ -1,15 +1,18 @@
 use crate::{
     db::api::{
         storage::graph::{edges::edge_storage_ops::EdgeStorageOps, tprop_storage_ops::TPropOps},
-        view::{internal::GraphType, StaticGraphViewOps},
+        view::StaticGraphViewOps,
     },
     prelude::{NodeViewOps, TimeOps},
     search::fields,
 };
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::EID,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::EID,
+        storage::timeindex::{AsTime, TimeIndexEntry},
+    },
+    GraphType,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::{HashMap, HashSet};

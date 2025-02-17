@@ -325,11 +325,6 @@ pub trait TimeSemantics {
 }
 
 pub trait NodeHistoryFilter {
-    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool;
-
-    fn is_update_available_window(&self, node_id: VID, time: TimeIndexEntry, w: Range<i64>)
-        -> bool;
-
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool;
 
     fn is_prop_update_available_window(
@@ -357,21 +352,6 @@ impl<G: InheritNodeHistoryFilter> NodeHistoryFilter for G
 where
     <G as Base>::Base: NodeHistoryFilter,
 {
-    #[inline]
-    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool {
-        self.base().is_update_available(node_id, time)
-    }
-
-    #[inline]
-    fn is_update_available_window(
-        &self,
-        node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> bool {
-        self.base().is_update_available_window(node_id, time, w)
-    }
-
     #[inline]
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
         self.base().is_prop_update_available(prop_id, node_id, time)

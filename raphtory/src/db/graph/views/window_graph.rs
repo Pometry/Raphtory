@@ -139,20 +139,6 @@ impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
-    fn is_update_available(&self, node_id: VID, time: TimeIndexEntry) -> bool {
-        self.graph
-            .is_update_available_window(node_id, time, self.window_bound())
-    }
-
-    fn is_update_available_window(
-        &self,
-        node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> bool {
-        self.graph.is_update_available_window(node_id, time, w)
-    }
-
     fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
         self.graph
             .is_prop_update_available_window(prop_id, node_id, time, self.window_bound())
