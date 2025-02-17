@@ -172,6 +172,32 @@ impl NodeHistoryFilter for MaterializedGraph {
             }
         }
     }
+
+    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.is_prop_update_latest(prop_id, node_id, time),
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_prop_update_latest(prop_id, node_id, time)
+            }
+        }
+    }
+
+    fn is_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_prop_update_latest_window(prop_id, node_id, time, w)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_prop_update_latest_window(prop_id, node_id, time, w)
+            }
+        }
+    }
 }
 
 #[enum_dispatch]

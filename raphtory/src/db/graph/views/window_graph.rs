@@ -168,6 +168,22 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
         self.graph
             .is_prop_update_available_window(prop_id, node_id, time, w)
     }
+
+    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+        self.graph
+            .is_prop_update_latest_window(prop_id, node_id, time, self.window_bound())
+    }
+
+    fn is_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_prop_update_latest_window(prop_id, node_id, time, w)
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}

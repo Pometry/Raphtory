@@ -12,13 +12,9 @@ use raphtory::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
-            view::{
-                internal::{InheritIndexSearch, InheritNodeHistoryFilter, Static},
-                Base, InheritViewOps, MaterializedGraph,
-            },
             storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{CoreGraphOps, Static},
+                internal::{CoreGraphOps, InheritIndexSearch, InheritNodeHistoryFilter, Static},
                 Base, InheritViewOps, MaterializedGraph,
             },
         },
