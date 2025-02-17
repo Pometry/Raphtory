@@ -70,8 +70,12 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        let collector =
-            NodePropertyFilterCollector::new(fields::NODE_ID.to_string(), prop_id, graph.clone());
+        let collector = NodePropertyFilterCollector::new(
+            fields::NODE_ID.to_string(),
+            prop_id,
+            reader.clone(),
+            graph.clone(),
+        );
         let node_ids = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
         Ok(nodes.into_iter().skip(offset).take(limit).collect())

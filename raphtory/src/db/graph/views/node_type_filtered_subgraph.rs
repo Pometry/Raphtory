@@ -69,6 +69,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
     }
 }
 
+// TODO: We don't need to materialize the subgraph. Refer: https://github.com/Pometry/Raphtory/issues/1948
 #[cfg(test)]
 mod search_nodes_node_type_filtered_subgraph_tests {
     use crate::{
@@ -241,7 +242,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         let node_types = get_all_node_types(&graph);
         let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
-        assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8"]);
+        assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
         let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
@@ -250,6 +251,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
     }
 }
 
+// TODO: We don't need to materialize the subgraph. Refer: https://github.com/Pometry/Raphtory/issues/1948
 #[cfg(test)]
 mod search_edges_node_type_filtered_subgraph_tests {
     use crate::{
@@ -351,7 +353,6 @@ mod search_edges_node_type_filtered_subgraph_tests {
     ) -> Vec<String> {
         let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
         let mut results = sgm
-            // .subgraph_node_types(node_types)
             .search_edges(&filter, 10, 0)
             .expect("Failed to search for nodes")
             .into_iter()
@@ -369,7 +370,6 @@ mod search_edges_node_type_filtered_subgraph_tests {
     ) -> Vec<String> {
         let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
         let mut results = sgm
-            // .subgraph_node_types(node_types)
             .window(w.start, w.end)
             .search_edges(&filter, 10, 0)
             .expect("Failed to search for nodes")
@@ -454,7 +454,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
         let results = search_edges_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(
             results,
-            vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"]
+            vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8"]
         );
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];

@@ -1,17 +1,14 @@
 use crate::{
     db::api::{
-        storage::graph::{
-            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            tprop_storage_ops::TPropOps,
-        },
+        storage::graph::{edges::edge_storage_ops::EdgeStorageOps, tprop_storage_ops::TPropOps},
         view::{internal::GraphType, StaticGraphViewOps},
     },
-    prelude::TimeOps,
+    prelude::{NodeViewOps, TimeOps},
     search::fields,
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{EID, VID},
+    entities::EID,
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -57,11 +54,15 @@ where
     ) -> tantivy::Result<Self::Child> {
         let column_opt_time = segment_reader.fast_fields().column_opt(fields::TIME)?;
         let column_opt_entity_id = segment_reader.fast_fields().column_opt(&self.field)?;
+        let column_opt_layer_id = segment_reader.fast_fields().column_opt(fields::LAYER_ID)?;
 
         Ok(EdgePropertyFilterSegmentCollector {
+            prop_id: self.prop_id,
             column_opt_time,
             column_opt_entity_id,
+            column_opt_layer_id,
             segment_ord: segment_local_id,
+            reader: self.reader.clone(),
             unique_entity_ids: HashMap::new(),
             graph: self.graph.clone(),
         })
@@ -82,12 +83,13 @@ where
         for (entity_id, (time, doc_addr)) in segment_fruits.into_iter().flatten() {
             global_unique_entity_ids
                 .entry(entity_id)
-                .and_modify(|existing_time| {
+                .and_modify(|(existing_time, existing_doc_addr)| {
                     // If "time" against entity_id in global list is None,
                     // ignore it because we only care of uniqueness for entries within window
-                    if let ((Some(existing_time), _), Some(new_time)) = (existing_time, time) {
+                    if let (Some(existing_time), Some(new_time)) = (existing_time, time) {
                         if new_time > *existing_time {
                             *existing_time = new_time;
+                            *existing_doc_addr = doc_addr;
                         }
                     }
                 })
@@ -118,13 +120,16 @@ where
                         {
                             let available = t
                                 .map(|t| {
-                                    let eid = EID(id as usize);
-                                    let ese = self.graph.core_edge(eid);
+                                    let ese = self.graph.core_edge(EID(id as usize));
                                     let bool = ese
                                         .temporal_prop_layer(layer_id as usize, self.prop_id)
                                         .last_before(TimeIndexEntry::start(start))
-                                        .map(|(t, _)| t.t().eq(&t.t()))
+                                        .map(|(tie, _)| tie.t().eq(&t))
                                         .unwrap_or(false);
+                                    // let searcher = self.reader.searcher();
+                                    // let schema = searcher.schema();
+                                    // let doc = searcher.doc::<TantivyDocument>(doc_addr).unwrap();
+                                    // println!("doc = {:?}", doc.to_json(schema));
                                     bool
                                 })
                                 // "t" is none for entity_ids that are already within window.
@@ -148,9 +153,12 @@ where
 }
 
 pub struct EdgePropertyFilterSegmentCollector<G> {
+    prop_id: usize,
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
+    column_opt_layer_id: Option<Column<u64>>,
     segment_ord: u32,
+    reader: IndexReader,
     unique_entity_ids: HashMap<u64, (Option<i64>, DocAddress)>,
     graph: G,
 }
@@ -170,45 +178,59 @@ where
             .column_opt_entity_id
             .as_ref()
             .and_then(|col| col.values_for_doc(doc_id).next());
+        let opt_layer_id = self
+            .column_opt_layer_id
+            .as_ref()
+            .and_then(|col| col.values_for_doc(doc_id).next());
 
         let doc_addr = DocAddress::new(self.segment_ord, doc_id);
 
-        if let (Some(time), Some(entity_id)) = (opt_time, opt_entity_id) {
-            match (self.graph.start(), self.graph.end()) {
-                (Some(start), Some(end)) => {
-                    match self.graph.graph_type() {
-                        GraphType::EventGraph => {
-                            if time >= start && time < end {
-                                self.unique_entity_ids
-                                    .entry(entity_id)
-                                    .or_insert((None, doc_addr));
+        if let (Some(time), Some(entity_id), Some(layer_id)) =
+            (opt_time, opt_entity_id, opt_layer_id)
+        {
+            // This check limits docs that have layer_id from the list of layered graph layer_ids only
+            let found_layer = self.graph.layer_ids().find(layer_id as usize).is_some();
+            if found_layer {
+                match (self.graph.start(), self.graph.end()) {
+                    (Some(start), Some(end)) => {
+                        match self.graph.graph_type() {
+                            GraphType::EventGraph => {
+                                if time >= start && time < end {
+                                    self.unique_entity_ids
+                                        .entry(entity_id)
+                                        .or_insert((None, doc_addr));
+                                }
                             }
-                        }
-                        GraphType::PersistentGraph => {
-                            if time >= start && time < end {
-                                // If doc with "time" within window is seen later than doc with "time" before start
-                                // it must take precedence
-                                self.unique_entity_ids.insert(entity_id, (None, doc_addr));
-                            } else if time < start {
-                                self.unique_entity_ids
-                                    .entry(entity_id)
-                                    .and_modify(|(last_time, _)| {
-                                        if let Some(last) = last_time {
-                                            if time > *last {
-                                                *last = time;
+                            GraphType::PersistentGraph => {
+                                if time >= start && time < end {
+                                    // If doc with "time" within window is seen later than doc with "time" before start
+                                    // it must take precedence
+                                    self.unique_entity_ids.insert(entity_id, (None, doc_addr));
+                                } else if time < start {
+                                    // let searcher = self.reader.searcher();
+                                    // let schema = searcher.schema();
+                                    // let doc = searcher.doc::<TantivyDocument>(doc_addr).unwrap();
+                                    self.unique_entity_ids
+                                        .entry(entity_id)
+                                        .and_modify(|(last_time, last_doc_addr)| {
+                                            if let Some(last) = last_time {
+                                                if time > *last {
+                                                    *last = time;
+                                                    *last_doc_addr = doc_addr;
+                                                }
                                             }
-                                        }
-                                    })
-                                    .or_insert((Some(time), doc_addr));
+                                        })
+                                        .or_insert((Some(time), doc_addr));
+                                }
                             }
                         }
                     }
-                }
-                _ => {
-                    // Non-windowed graph docs are collected without any conditions
-                    self.unique_entity_ids
-                        .entry(entity_id)
-                        .or_insert((None, doc_addr));
+                    _ => {
+                        // Non-windowed graph docs are collected without any conditions
+                        self.unique_entity_ids
+                            .entry(entity_id)
+                            .or_insert((None, doc_addr));
+                    }
                 }
             }
         }

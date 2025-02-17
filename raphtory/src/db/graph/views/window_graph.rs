@@ -1452,7 +1452,7 @@ mod views_test {
             let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
             let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
 
-            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8"]);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
         }
     }
 
@@ -1558,7 +1558,7 @@ mod views_test {
 
             assert_eq!(
                 results,
-                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"]
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8"]
             );
         }
     }

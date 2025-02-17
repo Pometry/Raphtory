@@ -141,7 +141,10 @@ mod search_tests {
             },
             search::searcher::search_tests::PersistentGraph,
         };
-        use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry};
+        use raphtory_api::core::{
+            entities::VID,
+            storage::timeindex::{AsTime, TimeIndexEntry},
+        };
 
         #[test]
         fn test_last_before() {

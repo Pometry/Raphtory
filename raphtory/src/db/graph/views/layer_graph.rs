@@ -226,4 +226,502 @@ mod test_layers {
             assert!(!e.valid_layers("1").has_layer("2"));
         });
     }
+
+    #[cfg(test)]
+    mod search_nodes_layer_graph_tests {
+        use crate::{
+            core::Prop,
+            db::{
+                api::view::{
+                    internal::{CoreGraphOps, InternalLayerOps},
+                    SearchableGraphOps, StaticGraphViewOps,
+                },
+                graph::views::{
+                    deletion_graph::PersistentGraph, property_filter::CompositeNodeFilter,
+                },
+            },
+            prelude::{
+                AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps,
+                PropertyFilter, TimeOps,
+            },
+        };
+        use itertools::Itertools;
+        use raphtory_api::iter::BoxedLIter;
+        use std::ops::Range;
+
+        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+            graph
+                .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+
+            graph
+                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+
+            graph
+                .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], Some("air_nomad"))
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], Some("water_tribe"))
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], Some("water_tribe"))
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], Some("fire_nation"))
+                .unwrap();
+
+            graph
+        }
+
+        fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            filter: &CompositeNodeFilter,
+            layers: Vec<String>,
+        ) -> Vec<String> {
+            let lgv = graph
+                .layers(layers.clone())
+                .expect("Failed to get graph for layers");
+            let mut results = lgv
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        fn search_nodes_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            w: Range<i64>,
+            filter: &CompositeNodeFilter,
+            layers: Vec<String>,
+        ) -> Vec<String> {
+            let lgv = graph
+                .layers(layers.clone())
+                .expect("Failed to get graph for layers");
+
+            let mut results = lgv
+                .window(w.start, w.end)
+                .search_nodes(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| v.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        // Layers don't have any effect on the number of nodes in a graph.
+        // In other words, it is as good as applying no layer filters.
+        #[test]
+        fn test_search_nodes_layer_graph() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_layer_graph_w() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_layer_graph() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_layer_graph_w() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+        }
+    }
+
+    #[cfg(test)]
+    mod search_edges_layer_graph_tests {
+        use crate::{
+            core::Prop,
+            db::{
+                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                graph::views::{
+                    deletion_graph::PersistentGraph,
+                    property_filter::{CompositeEdgeFilter, CompositeNodeFilter},
+                },
+            },
+            prelude::{
+                AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps,
+                PropertyFilter, TimeOps,
+            },
+        };
+        use std::ops::Range;
+
+        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+            graph
+                .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+
+            graph
+                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+
+            graph
+                .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+                .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
+                .unwrap();
+            graph
+                .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
+                .unwrap();
+
+            graph
+        }
+
+        fn search_edges_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            filter: &CompositeEdgeFilter,
+            layers: Vec<String>,
+        ) -> Vec<String> {
+            let lgv = graph
+                .layers(layers.clone())
+                .expect("Failed to get graph for layers");
+            let mut results = lgv
+                .search_edges(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        fn search_edges_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
+            graph: &G,
+            w: Range<i64>,
+            filter: &CompositeEdgeFilter,
+            layers: Vec<String>,
+        ) -> Vec<String> {
+            let lgv = graph
+                .layers(layers.clone())
+                .expect("Failed to get graph for layers");
+            let mut results = lgv
+                .window(w.start, w.end)
+                .search_edges(&filter, 10, 0)
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        #[test]
+        fn test_search_edges_layer_graph() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec![
+                    "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1"
+                ]
+            );
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1"]
+            );
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(results, vec!["N1->N2", "N6->N7", "N7->N8"]);
+        }
+
+        #[test]
+        fn test_search_edges_layer_graph_w() {
+            let graph = Graph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N6->N7"]);
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N2->N3", "N3->N4"]);
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1->N2", "N6->N7"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_layer_graph() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec![
+                    "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1"
+                ]
+            );
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1"]
+            );
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter(&graph, &filter, layers);
+            assert_eq!(results, vec!["N1->N2", "N6->N7", "N7->N8"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_layer_graph_w() {
+            let graph = PersistentGraph::new();
+            let graph = init_graph(graph);
+
+            let layers = vec!["layer1".into(), "layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter, layers);
+
+            // Why is the edge N8 -> N1 included in the results?
+            // The reason edge N8 -> N1 is included as part of the results because of following two semantic reasons:
+            //     .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
+            //     .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
+            // 1. As per layer graph semantics, every edge update belongs to a particular layer (or '_default' if no layer specified).
+            //     This means the last_before is computed per layer and not across layers. In other words, when computing
+            //     last_before for (N8->N1, layer1) and window(6, 9), t = 3 is the correct last before edge update timestamp and not t = 4
+            //     because t=4 edge update is in layer2.
+            // 2. Since the search is conducted across both the layers i.e., layer1 and layer2, the results are union of
+            //     results from both layer1 and layer2.
+            assert_eq!(
+                results,
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"]
+            );
+
+            let layers = vec!["layer1".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(
+                results,
+                vec!["N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"]
+            );
+
+            let layers = vec!["layer2".into()];
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter, layers);
+            assert_eq!(results, vec!["N1->N2", "N6->N7", "N7->N8"]);
+        }
+    }
 }

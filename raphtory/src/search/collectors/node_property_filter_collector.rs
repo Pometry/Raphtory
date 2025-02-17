@@ -1,9 +1,6 @@
 use crate::{
     db::api::{
-        storage::graph::{
-            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            tprop_storage_ops::TPropOps,
-        },
+        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
         view::{internal::GraphType, StaticGraphViewOps},
     },
     prelude::TimeOps,
@@ -11,7 +8,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{EID, VID},
+    entities::VID,
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -19,12 +16,13 @@ use std::collections::{HashMap, HashSet};
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    Score, SegmentReader,
+    DocAddress, Document, IndexReader, Score, SegmentReader, TantivyDocument,
 };
 
 pub struct NodePropertyFilterCollector<G> {
     prop_id: usize,
     field: String,
+    reader: IndexReader,
     graph: G,
 }
 
@@ -32,10 +30,11 @@ impl<G> NodePropertyFilterCollector<G>
 where
     G: StaticGraphViewOps,
 {
-    pub fn new(field: String, prop_id: usize, graph: G) -> Self {
+    pub fn new(field: String, prop_id: usize, reader: IndexReader, graph: G) -> Self {
         Self {
             field,
             prop_id,
+            reader,
             graph,
         }
     }
@@ -62,6 +61,7 @@ where
             segment_ord: segment_local_id,
             unique_entity_ids: HashMap::new(),
             graph: self.graph.clone(),
+            reader: self.reader.clone(),
         })
     }
 
@@ -109,7 +109,7 @@ where
                                 let bool = nse
                                     .tprop(self.prop_id)
                                     .last_before(TimeIndexEntry::start(start))
-                                    .map(|(t, _)| t.t().eq(&t.t()))
+                                    .map(|(tie, _)| tie.t().eq(&t))
                                     .unwrap_or(false);
                                 bool
                             })
@@ -136,6 +136,7 @@ pub struct NodePropertyFilterSegmentCollector<G> {
     segment_ord: u32,
     unique_entity_ids: HashMap<u64, Option<i64>>,
     graph: G,
+    reader: IndexReader,
 }
 
 impl<G> SegmentCollector for NodePropertyFilterSegmentCollector<G>
@@ -153,6 +154,11 @@ where
             .column_opt_entity_id
             .as_ref()
             .and_then(|col| col.values_for_doc(doc_id).next());
+
+        // let searcher = self.reader.searcher();
+        // let schema = searcher.schema();
+        // let doc = searcher.doc::<TantivyDocument>(DocAddress::new(self.segment_ord, doc_id)).unwrap();
+        // println!("doc = {:?}", doc.to_json(schema));
 
         if let (Some(time), Some(entity_id)) = (opt_time, opt_entity_id) {
             match (self.graph.start(), self.graph.end()) {
