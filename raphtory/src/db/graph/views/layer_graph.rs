@@ -227,7 +227,7 @@ mod test_layers {
         });
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "search"))]
     mod search_nodes_layer_graph_tests {
         use crate::{
             core::Prop,
@@ -497,7 +497,7 @@ mod test_layers {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "search"))]
     mod search_edges_layer_graph_tests {
         use crate::{
             core::Prop,

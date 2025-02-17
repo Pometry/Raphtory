@@ -70,7 +70,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
 }
 
 // TODO: We don't need to materialize the subgraph. Refer: https://github.com/Pometry/Raphtory/issues/1948
-#[cfg(test)]
+#[cfg(all(test, feature = "search"))]
 mod search_nodes_node_type_filtered_subgraph_tests {
     use crate::{
         core::Prop,
@@ -252,7 +252,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
 }
 
 // TODO: We don't need to materialize the subgraph. Refer: https://github.com/Pometry/Raphtory/issues/1948
-#[cfg(test)]
+#[cfg(all(test, feature = "search"))]
 mod search_edges_node_type_filtered_subgraph_tests {
     use crate::{
         core::Prop,

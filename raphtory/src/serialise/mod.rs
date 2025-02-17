@@ -2,6 +2,7 @@ use memmap2::Mmap;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 pub(crate) mod incremental;
+pub(crate) mod parquet;
 mod proto_ext;
 mod serialise;
 

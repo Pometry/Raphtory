@@ -1,10 +1,11 @@
 use crate::{
-    core::{DocumentInput, Prop, PropType, PropUnwrap},
+    core::{Prop, PropType, PropUnwrap},
     db::api::{properties::internal::PropertiesOps, view::BoxedLIter},
 };
 use arrow_array::ArrayRef;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
+use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
     iter::Zip,
@@ -229,7 +230,7 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_list()
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         self.latest().into_map()
     }
 
@@ -239,10 +240,6 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()
-    }
-
-    fn into_document(self) -> Option<DocumentInput> {
-        self.latest().into_document()
     }
 
     fn as_f64(&self) -> Option<f64> {

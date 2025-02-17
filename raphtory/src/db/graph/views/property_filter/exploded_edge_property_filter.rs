@@ -464,4 +464,18 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .filter(move |(ti, _)| self.filter(e, *ti, self.layer_ids()))
             .into_dyn_boxed()
     }
+
+    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop> {
+        self.graph.constant_edge_prop(e, id, layer_ids)
+    }
+
+    fn constant_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        self.graph.constant_edge_prop_window(e, id, layer_ids, w)
+    }
 }

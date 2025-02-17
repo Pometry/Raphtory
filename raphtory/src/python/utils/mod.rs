@@ -9,7 +9,7 @@ use crate::{
             GidRef,
         },
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
+        utils::time::{Interval, IntoTime, TryIntoTime},
         Prop, PropUnwrap,
     },
     db::api::view::*,
@@ -161,42 +161,19 @@ impl IntoTime for PyTime {
     }
 }
 
-pub(crate) struct PyInterval {
-    interval: Result<Interval, ParseTimeError>,
-}
-
-impl PyInterval {
-    fn new<I>(interval: I) -> Self
-    where
-        I: TryInto<Interval, Error = ParseTimeError>,
-    {
-        Self {
-            interval: interval.try_into(),
-        }
-    }
-}
-
-impl<'source> FromPyObject<'source> for PyInterval {
+impl<'source> FromPyObject<'source> for Interval {
     fn extract_bound(interval: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let string = interval.extract::<String>();
-        let result = string.map(|string| PyInterval::new(string.as_str()));
+        if let Ok(string) = interval.extract::<String>() {
+            return Ok(string.try_into()?);
+        };
 
-        let result = result.or_else(|_| {
-            let number = interval.extract::<u64>();
-            number.map(PyInterval::new)
-        });
+        if let Ok(number) = interval.extract::<u64>() {
+            return Ok(number.try_into()?);
+        };
 
-        result.map_err(|_| {
-            let message = format!("interval '{interval}' must be a str or an unsigned integer");
-            PyTypeError::new_err(message)
-        })
-    }
-}
-
-impl TryFrom<PyInterval> for Interval {
-    type Error = ParseTimeError;
-    fn try_from(value: PyInterval) -> Result<Self, Self::Error> {
-        value.interval
+        Err(PyTypeError::new_err(format!(
+            "interval '{interval}' must be a str or an unsigned integer"
+        )))
     }
 }
 

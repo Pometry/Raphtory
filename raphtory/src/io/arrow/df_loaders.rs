@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::LayerIds,
+        entities::{nodes::node_ref::AsNodeRef, LayerIds},
         utils::errors::{GraphError, LoadError},
         PropType,
     },
@@ -8,11 +8,10 @@ use crate::{
     io::arrow::{
         dataframe::{DFChunk, DFView},
         layer_col::{lift_layer_col, lift_node_type_col},
-        node_col::lift_node_col,
         prop_handler::*,
     },
     prelude::*,
-    serialise::incremental::InternalStorage,
+    serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
 #[cfg(feature = "python")]
@@ -53,21 +52,18 @@ fn process_shared_properties(
 }
 
 pub(crate) fn load_nodes_from_df<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
     node_id: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
-
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -95,6 +91,17 @@ pub(crate) fn load_nodes_from_df<
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
+    let mut node_col_resolved = vec![];
+    let mut node_type_col_resolved = vec![];
+
+    let cache = graph.get_cache();
+    let mut write_locked_graph = graph.write_lock()?;
+    let cache_shards = cache.map(|cache| {
+        (0..write_locked_graph.num_shards())
+            .map(|_| cache.fork())
+            .collect::<Vec<_>>()
+    });
+
     let mut start_id = graph.reserve_event_ids(df_view.num_rows)?;
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -108,38 +115,98 @@ pub(crate) fn load_nodes_from_df<
             |key, dtype| graph.resolve_node_property(key, dtype, true),
         )?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
+
         let time_col = df.time_col(time_index)?;
         let node_col = df.node_col(node_id_index)?;
 
+        node_col_resolved.resize_with(df.len(), Default::default);
+        node_type_col_resolved.resize_with(df.len(), Default::default);
+
         node_col
             .par_iter()
-            .zip(time_col.par_iter())
+            .zip(node_col_resolved.par_iter_mut())
             .zip(node_type_col.par_iter())
-            .zip(prop_cols.par_rows())
-            .zip(const_prop_cols.par_rows())
-            .enumerate()
-            .try_for_each(|(id, ((((node, time), node_type), t_props), c_props))| {
-                let node = node.ok_or(LoadError::MissingNodeError)?;
-                let time = time.ok_or(LoadError::MissingTimeError)?;
-                let node_id = match node_type {
-                    None => graph.resolve_node(node)?.inner(),
-                    Some(node_type) => graph
-                        .resolve_node_and_type(node, node_type)?
-                        .inner()
-                        .0
-                        .inner(),
-                };
-                let t = TimeIndexEntry(time, start_id + id);
-                let t_props: Vec<_> = t_props.collect();
-                graph.internal_add_node(t, node_id, &t_props)?;
-                let c_props: Vec<_> = c_props
-                    .chain(shared_constant_properties.iter().cloned())
-                    .collect();
-                if !c_props.is_empty() {
-                    graph.internal_add_constant_node_properties(node_id, &c_props)?;
+            .zip(node_type_col_resolved.par_iter_mut())
+            .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = write_locked_graph
+                    .resolve_node(gid)
+                    .map_err(|_| LoadError::FatalError)?;
+                let node_type_res = write_locked_graph
+                    .resolve_node_type(node_type)
+                    .map_err(|_| LoadError::FatalError)?
+                    .inner();
+                *node_type_resolved = node_type_res;
+                if let Some(cache) = cache {
+                    cache.resolve_node(vid, gid);
                 }
-                Ok::<(), GraphError>(())
+                *resolved = vid.inner();
+                Ok::<(), LoadError>(())
             })?;
+
+        let g = write_locked_graph.graph;
+        let update_time = |time| g.update_time(time);
+
+        write_locked_graph
+            .nodes
+            .resize(write_locked_graph.num_nodes());
+
+        write_locked_graph
+            .nodes
+            .par_iter_mut()
+            .try_for_each(|mut shard| {
+                let mut t_props = vec![];
+                let mut c_props = vec![];
+
+                for (idx, (((vid, time), node_type), gid)) in node_col_resolved
+                    .iter()
+                    .zip(time_col.iter())
+                    .zip(node_type_col_resolved.iter())
+                    .zip(node_col.iter())
+                    .enumerate()
+                {
+                    let shard_id = shard.shard_id();
+                    let node_exists = if let Some(mut_node) = shard.get_mut(*vid) {
+                        mut_node.init(*vid, gid);
+                        mut_node.node_type = *node_type;
+                        t_props.clear();
+                        t_props.extend(prop_cols.iter_row(idx));
+
+                        c_props.clear();
+                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_constant_properties);
+
+                        if let Some(caches) = cache_shards.as_ref() {
+                            let cache = &caches[shard_id];
+                            cache.add_node_update(
+                                TimeIndexEntry(time, start_id + idx),
+                                *vid,
+                                &t_props,
+                            );
+                            cache.add_node_cprops(*vid, &c_props);
+                        }
+
+                        for (id, prop) in c_props.drain(..) {
+                            mut_node.add_constant_prop(id, prop)?;
+                        }
+
+                        true
+                    } else {
+                        false
+                    };
+
+                    if node_exists {
+                        let t = TimeIndexEntry(time, start_id + idx);
+                        update_time(t);
+                        let prop_i = shard.t_prop_log_mut().push(t_props.drain(..))?;
+                        if let Some(mut_node) = shard.get_mut(*vid) {
+                            mut_node.update_t_prop_time(t, prop_i);
+                        }
+                    }
+                }
+                Ok::<_, GraphError>(())
+            })?;
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
         start_id += df.len();
@@ -148,23 +215,19 @@ pub(crate) fn load_nodes_from_df<
 }
 
 pub(crate) fn load_edges_from_df<
-    'a,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalStorage,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
-
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -197,7 +260,7 @@ pub(crate) fn load_edges_from_df<
     let mut dst_col_resolved = vec![];
     let mut eid_col_resolved = vec![];
 
-    let cache = graph.storage().get_cache();
+    let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock()?;
     let cache_shards = cache.map(|cache| {
         (0..write_locked_graph.num_shards())
@@ -207,11 +270,11 @@ pub(crate) fn load_edges_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
+        let prop_cols = combine_properties(&properties, &properties_indices, &df, |key, dtype| {
             graph.resolve_edge_property(key, dtype, false)
         })?;
         let const_prop_cols = combine_properties(
-            constant_properties,
+            &constant_properties,
             &constant_properties_indices,
             &df,
             |key, dtype| graph.resolve_edge_property(key, dtype, true),
@@ -450,74 +513,123 @@ pub(crate) fn load_edge_deletions_from_df<
 
 pub(crate) fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: Option<&[&str]>,
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let constant_properties = constant_properties.unwrap_or(&[]);
     let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
-    let node_id_index = df_view.get_index(node_id)?;
+
     let node_type_index = if let Some(node_type_col) = node_type_col {
-        Some(df_view.get_index(node_type_col.as_ref())?)
+        Some(df_view.get_index(node_type_col.as_ref()))
     } else {
         None
     };
-    let shared_constant_properties = match shared_constant_properties {
-        Some(props) => props
-            .iter()
-            .map(|(name, prop)| {
-                Ok((
-                    graph
-                        .resolve_node_property(name, prop.dtype(), true)?
-                        .inner(),
-                    prop.clone(),
-                ))
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?,
-        None => vec![],
-    };
+    let node_type_index = node_type_index.transpose()?;
+
+    let node_id_index = df_view.get_index(node_id)?;
+
+    let shared_constant_properties =
+        process_shared_properties(shared_constant_properties, |key, dtype| {
+            graph.resolve_node_property(key, dtype, true)
+        })?;
+
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
+
+    let mut node_col_resolved = vec![];
+    let mut node_type_col_resolved = vec![];
+
+    let cache = graph.get_cache();
+    let mut write_locked_graph = graph.write_lock()?;
+    let cache_shards = cache.map(|cache| {
+        (0..write_locked_graph.num_shards())
+            .map(|_| cache.fork())
+            .collect::<Vec<_>>()
+    });
+
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_props = combine_properties(
+        let const_prop_cols = combine_properties(
             constant_properties,
             &constant_properties_indices,
             &df,
-            |name, dtype| graph.resolve_node_property(name, dtype, true),
+            |key, dtype| graph.resolve_node_property(key, dtype, true),
         )?;
-        let node_col = df.node_col(node_id_index)?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
+        let node_col = df.node_col(node_id_index)?;
+
+        node_col_resolved.resize_with(df.len(), Default::default);
+        node_type_col_resolved.resize_with(df.len(), Default::default);
 
         node_col
             .par_iter()
+            .zip(node_col_resolved.par_iter_mut())
             .zip(node_type_col.par_iter())
-            .zip(const_props.par_rows())
-            .try_for_each(|((node_id, node_type), cprops)| {
-                let node_id = node_id.ok_or(LoadError::MissingNodeError)?;
-                let node = graph
-                    .node(node_id)
-                    .ok_or_else(|| GraphError::NodeMissingError(node_id.to_owned()))?;
-                if let Some(node_type) = node_type {
-                    node.set_node_type(node_type)?;
+            .zip(node_type_col_resolved.par_iter_mut())
+            .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = write_locked_graph
+                    .resolve_node(gid)
+                    .map_err(|_| LoadError::FatalError)?;
+                let node_type_res = write_locked_graph
+                    .resolve_node_type(node_type)
+                    .map_err(|_| LoadError::FatalError)?
+                    .inner();
+                *node_type_resolved = node_type_res;
+                if let Some(cache) = cache {
+                    cache.resolve_node(vid, gid);
                 }
-                let props = cprops
-                    .chain(shared_constant_properties.iter().cloned())
-                    .collect::<Vec<_>>();
-                if !props.is_empty() {
-                    graph.internal_add_constant_node_properties(node.node, &props)?;
-                }
-                Ok::<(), GraphError>(())
+                *resolved = vid.inner();
+                Ok::<(), LoadError>(())
             })?;
+
+        write_locked_graph
+            .nodes
+            .resize(write_locked_graph.num_nodes());
+
+        write_locked_graph
+            .nodes
+            .par_iter_mut()
+            .try_for_each(|mut shard| {
+                let mut c_props = vec![];
+
+                for (idx, ((vid, node_type), gid)) in node_col_resolved
+                    .iter()
+                    .zip(node_type_col_resolved.iter())
+                    .zip(node_col.iter())
+                    .enumerate()
+                {
+                    let shard_id = shard.shard_id();
+                    if let Some(mut_node) = shard.get_mut(*vid) {
+                        mut_node.init(*vid, gid);
+                        mut_node.node_type = *node_type;
+
+                        c_props.clear();
+                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_constant_properties);
+
+                        if let Some(caches) = cache_shards.as_ref() {
+                            let cache = &caches[shard_id];
+                            cache.add_node_cprops(*vid, &c_props);
+                        }
+
+                        for (id, prop) in c_props.drain(..) {
+                            mut_node.add_constant_prop(id, prop)?;
+                        }
+                    };
+                }
+                Ok::<_, GraphError>(())
+            })?;
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
@@ -525,85 +637,162 @@ pub(crate) fn load_node_props_from_df<
 }
 
 pub(crate) fn load_edges_props_from_df<
-    'a,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     src: &str,
     dst: &str,
-    constant_properties: Option<&[&str]>,
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: &[&str],
+    shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let constant_properties = constant_properties.unwrap_or(&[]);
     let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
+
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let layer_index = if let Some(layer_col) = layer_col {
-        Some(df_view.get_index(layer_col.as_ref()))
+        Some(df_view.get_index(layer_col.as_ref())?)
     } else {
         None
     };
-    let layer_index = layer_index.transpose()?;
+    let shared_constant_properties =
+        process_shared_properties(shared_const_properties, |key, dtype| {
+            graph.resolve_edge_property(key, dtype, true)
+        })?;
+
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
-    let shared_constant_properties = match shared_constant_properties {
-        None => {
-            vec![]
-        }
-        Some(props) => props
-            .iter()
-            .map(|(key, prop)| {
-                Ok((
-                    graph
-                        .resolve_edge_property(key, prop.dtype(), true)?
-                        .inner(),
-                    prop.clone(),
-                ))
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?,
-    };
+    #[cfg(feature = "python")]
+    let _ = pb.update(0);
+
+    let mut src_col_resolved = vec![];
+    let mut dst_col_resolved = vec![];
+    let mut eid_col_resolved = vec![];
+
+    let cache = graph.get_cache();
+    let mut write_locked_graph = graph.write_lock()?;
+    let cache_shards = cache.map(|cache| {
+        (0..write_locked_graph.num_shards())
+            .map(|_| cache.fork())
+            .collect::<Vec<_>>()
+    });
+
+    let g = write_locked_graph.graph;
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_iter = combine_properties(
-            constant_properties,
+        let const_prop_cols = combine_properties(
+            &constant_properties,
             &constant_properties_indices,
             &df,
-            |name, dtype| graph.resolve_edge_property(name, dtype, true),
+            |key, dtype| graph.resolve_edge_property(key, dtype, true),
         )?;
-
         let layer = lift_layer_col(layer, layer_index, &df)?;
-        let src_col = lift_node_col(src_index, &df)?;
-        let dst_col = lift_node_col(dst_index, &df)?;
+        let layer_col_resolved = layer.resolve(graph)?;
+
+        let src_col = df.node_col(src_index)?;
+        src_col.validate(graph, LoadError::MissingSrcError)?;
+
+        let dst_col = df.node_col(dst_index)?;
+        dst_col.validate(graph, LoadError::MissingDstError)?;
+
+        // It's our graph, no one else can change it
+        src_col_resolved.resize_with(df.len(), Default::default);
         src_col
             .par_iter()
-            .zip(dst_col.par_iter())
-            .zip(layer.par_iter())
-            .zip(const_prop_iter.par_rows())
-            .try_for_each(|(((src, dst), layer), cprops)| {
-                let src = src.ok_or(LoadError::MissingSrcError)?;
-                let dst = dst.ok_or(LoadError::MissingDstError)?;
-                let e = graph
-                    .edge(src, dst)
-                    .ok_or_else(|| GraphError::EdgeMissingError {
-                        src: src.to_owned(),
-                        dst: dst.to_owned(),
-                    })?;
-                let layer_id = graph.resolve_layer(layer)?.inner();
-                let props = cprops
-                    .chain(shared_constant_properties.iter().cloned())
-                    .collect::<Vec<_>>();
-                if !props.is_empty() {
-                    graph.internal_add_constant_edge_properties(e.edge.pid(), layer_id, &props)?;
+            .zip(src_col_resolved.par_iter_mut())
+            .try_for_each(|(gid, resolved)| {
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = g
+                    .resolve_node_ref(gid.as_node_ref())
+                    .ok_or(LoadError::MissingNodeError)?;
+                *resolved = vid;
+                Ok::<(), LoadError>(())
+            })?;
+
+        dst_col_resolved.resize_with(df.len(), Default::default);
+        dst_col
+            .par_iter()
+            .zip(dst_col_resolved.par_iter_mut())
+            .try_for_each(|(gid, resolved)| {
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = g
+                    .resolve_node_ref(gid.as_node_ref())
+                    .ok_or(LoadError::MissingNodeError)?;
+                *resolved = vid;
+                Ok::<(), LoadError>(())
+            })?;
+
+        // resolve all the edges
+        eid_col_resolved.resize_with(df.len(), Default::default);
+        let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
+        write_locked_graph
+            .nodes
+            .par_iter_mut()
+            .try_for_each(|shard| {
+                for (row, (src, dst)) in src_col_resolved
+                    .iter()
+                    .zip(dst_col_resolved.iter())
+                    .enumerate()
+                {
+                    if let Some(src_node) = shard.get(*src) {
+                        // we know this is here
+                        let EID(eid) = src_node
+                            .find_edge_eid(*dst, &LayerIds::All)
+                            .ok_or(LoadError::MissingEdgeError(*src, *dst))?;
+                        eid_col_shared[row].store(eid, Ordering::Relaxed);
+                    }
+                }
+                Ok::<_, LoadError>(())
+            })?;
+
+        write_locked_graph
+            .edges
+            .par_iter_mut()
+            .try_for_each(|mut shard| {
+                let mut c_props = vec![];
+                for (idx, (eid, layer)) in eid_col_resolved
+                    .iter()
+                    .zip(layer_col_resolved.iter())
+                    .enumerate()
+                {
+                    let shard_id = shard.shard_id();
+                    if let Some(mut edge) = shard.get_mut(*eid) {
+                        c_props.clear();
+                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_constant_properties);
+
+                        if let Some(caches) = cache_shards.as_ref() {
+                            let cache = &caches[shard_id];
+                            cache.add_edge_cprops(*eid, *layer, &c_props);
+                        }
+
+                        if !c_props.is_empty() {
+                            let edge_layer = edge.layer_mut(*layer);
+
+                            for (id, prop) in c_props.drain(..) {
+                                edge_layer.update_constant_prop(id, prop)?;
+                            }
+                        }
+                    }
                 }
                 Ok::<(), GraphError>(())
             })?;
+
+        if let Some(cache) = cache {
+            cache.write()?;
+        }
+        if let Some(cache_shards) = cache_shards.as_ref() {
+            for cache in cache_shards {
+                cache.write()?;
+            }
+        }
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
@@ -716,8 +905,8 @@ mod tests {
                     "time",
                     "src",
                     "dst",
-                    Some(&["int_prop", "str_prop"]),
-                    None,
+                    &["int_prop", "str_prop"],
+                    &[],
                     None,
                     Some(edge_list.layer),
                     None,
@@ -843,7 +1032,7 @@ mod tests {
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
@@ -863,7 +1052,7 @@ mod tests {
             let cache_file = TempDir::new().unwrap();
             g.cache(cache_file.path()).unwrap();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
             let g = Graph::load_cached(cache_file.path()).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
@@ -875,4 +1064,72 @@ mod tests {
             assert_graph_equal(&g, &g2);
         })
     }
+}
+
+pub(crate) fn load_graph_props_from_df<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+    time: &str,
+    properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
+    graph: &G,
+) -> Result<(), GraphError> {
+    let properties = properties.unwrap_or(&[]);
+    let constant_properties = constant_properties.unwrap_or(&[]);
+
+    let properties_indices = properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+    let constant_properties_indices = constant_properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+
+    let time_index = df_view.get_index(time)?;
+
+    #[cfg(feature = "python")]
+    let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
+
+    let mut start_id = graph.reserve_event_ids(df_view.num_rows)?;
+
+    for chunk in df_view.chunks {
+        let df = chunk?;
+        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
+            graph.resolve_graph_property(key, dtype, false)
+        })?;
+        let const_prop_cols = combine_properties(
+            constant_properties,
+            &constant_properties_indices,
+            &df,
+            |key, dtype| graph.resolve_graph_property(key, dtype, true),
+        )?;
+        let time_col = df.time_col(time_index)?;
+
+        time_col
+            .par_iter()
+            .zip(prop_cols.par_rows())
+            .zip(const_prop_cols.par_rows())
+            .enumerate()
+            .try_for_each(|(id, ((time, t_props), c_props))| {
+                let time = time.ok_or(LoadError::MissingTimeError)?;
+                let t = TimeIndexEntry(time, start_id + id);
+                let t_props: Vec<_> = t_props.collect();
+                if !t_props.is_empty() {
+                    graph.internal_add_properties(t, &t_props)?;
+                }
+
+                let c_props: Vec<_> = c_props.collect();
+
+                if !c_props.is_empty() {
+                    graph.internal_add_constant_properties(&c_props)?;
+                }
+                Ok::<(), GraphError>(())
+            })?;
+        #[cfg(feature = "python")]
+        let _ = pb.update(df.len());
+        start_id += df.len();
+    }
+    Ok(())
 }

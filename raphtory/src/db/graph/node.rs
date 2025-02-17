@@ -67,7 +67,7 @@ impl<'a, G: Clone, GH: Clone> NodeView<&'a G, &'a GH> {
     }
 }
 
-impl<G, GH> AsNodeRef for NodeView<G, GH> {
+impl<G: Send + Sync, GH: Send + Sync> AsNodeRef for NodeView<G, GH> {
     fn as_node_ref(&self) -> NodeRef {
         NodeRef::Internal(self.node)
     }

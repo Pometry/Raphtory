@@ -195,7 +195,7 @@ mod subgraph_tests {
         });
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "search"))]
     mod search_nodes_node_subgraph_tests {
         use crate::{
             core::Prop,
@@ -368,7 +368,7 @@ mod subgraph_tests {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "search"))]
     mod search_edges_node_subgraph_tests {
         use crate::{
             core::Prop,

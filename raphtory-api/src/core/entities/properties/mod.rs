@@ -2,7 +2,7 @@ use crate::core::PropType;
 
 pub mod props;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PropError {
     #[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
     PropertyTypeError {

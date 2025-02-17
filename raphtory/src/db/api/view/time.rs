@@ -9,12 +9,11 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::GraphType;
 use std::{
     cmp::{max, min},
     marker::PhantomData,
 };
-
-use super::internal::GraphType;
 
 pub(crate) mod internal {
     use crate::{
@@ -142,8 +141,9 @@ pub trait TimeOps<'graph>:
     /// An expanding window is a window that grows by `step` size at each iteration.
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
-        I: TryInto<Interval, Error = ParseTimeError>;
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`
     /// using a rolling window. The last window may fall partially outside the range of the data/view.
@@ -155,8 +155,9 @@ pub trait TimeOps<'graph>:
         step: Option<I>,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
-        I: TryInto<Interval, Error = ParseTimeError>;
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 }
 
 impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
@@ -241,8 +242,9 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
-        I: TryInto<Interval, Error = ParseTimeError>,
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
         let parent = self.clone();
         match (self.timeline_start(), self.timeline_end()) {
@@ -261,8 +263,9 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         step: Option<I>,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
-        Self: Sized + Clone + 'static,
-        I: TryInto<Interval, Error = ParseTimeError>,
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
         let parent = self.clone();
         match (self.timeline_start(), self.timeline_end()) {

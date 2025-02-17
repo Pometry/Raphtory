@@ -1,3 +1,4 @@
+use super::{utils::errors::GraphError, Prop, PropArray};
 use crate::core::entities::nodes::node_store::NodeStore;
 use lazy_vec::LazyVec;
 use lock_api;
@@ -8,9 +9,9 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
@@ -19,8 +20,6 @@ use std::{
         Arc,
     },
 };
-
-use super::{utils::errors::GraphError, DocumentInput, Prop, PropArray};
 
 pub mod lazy_vec;
 pub mod locked_view;
@@ -132,10 +131,9 @@ pub(crate) enum TPropColumn {
     Str(LazyVec<ArcStr>),
     Array(LazyVec<PropArray>),
     List(LazyVec<Arc<Vec<Prop>>>),
-    Map(LazyVec<Arc<HashMap<ArcStr, Prop>>>),
+    Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
     DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
-    Document(LazyVec<DocumentInput>),
 }
 
 impl Default for TPropColumn {
@@ -175,7 +173,6 @@ impl TPropColumn {
             (TPropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
             (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
             (TPropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
-            (TPropColumn::Document(col), Prop::Document(v)) => col.set(index, v)?,
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())
@@ -185,6 +182,7 @@ impl TPropColumn {
         self.init_empty_col(&prop)?;
         match (self, prop) {
             (TPropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
+            (TPropColumn::U8(col), Prop::U8(v)) => col.push(Some(v)),
             (TPropColumn::I64(col), Prop::I64(v)) => col.push(Some(v)),
             (TPropColumn::U32(col), Prop::U32(v)) => col.push(Some(v)),
             (TPropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
@@ -198,7 +196,6 @@ impl TPropColumn {
             (TPropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
             (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
             (TPropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
-            (TPropColumn::Document(col), Prop::Document(v)) => col.push(Some(v)),
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())
@@ -222,7 +219,6 @@ impl TPropColumn {
                 Prop::Map(_) => *self = TPropColumn::Map(LazyVec::with_len(*len)),
                 Prop::NDTime(_) => *self = TPropColumn::NDTime(LazyVec::with_len(*len)),
                 Prop::DTime(_) => *self = TPropColumn::DTime(LazyVec::with_len(*len)),
-                Prop::Document(_) => *self = TPropColumn::Document(LazyVec::with_len(*len)),
             },
             _ => {}
         }
@@ -250,7 +246,6 @@ impl TPropColumn {
             TPropColumn::Map(col) => col.push(None),
             TPropColumn::NDTime(col) => col.push(None),
             TPropColumn::DTime(col) => col.push(None),
-            TPropColumn::Document(col) => col.push(None),
             TPropColumn::Empty(count) => {
                 *count += 1;
             }
@@ -274,9 +269,6 @@ impl TPropColumn {
             TPropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
             TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(prop.clone())),
             TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(prop.clone())),
-            TPropColumn::Document(col) => {
-                col.get_opt(index).map(|prop| Prop::Document(prop.clone()))
-            }
             TPropColumn::Empty(_) => None,
         }
     }
@@ -298,7 +290,6 @@ impl TPropColumn {
             TPropColumn::Map(col) => col.len(),
             TPropColumn::NDTime(col) => col.len(),
             TPropColumn::DTime(col) => col.len(),
-            TPropColumn::Document(col) => col.len(),
             TPropColumn::Empty(count) => *count,
         }
     }

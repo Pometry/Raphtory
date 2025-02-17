@@ -139,11 +139,10 @@ pub fn arrow_array_from_props(
             array.iter().any(|v| v.is_some()).then_some(array.boxed())
         }
         PropType::Empty
-        | PropType::List
-        | PropType::Map
+        | PropType::List(_)
+        | PropType::Map(_)
         | PropType::NDTime
         | PropType::Array(_)
-        | PropType::Document
         | PropType::DTime => panic!("{prop_type:?} not supported as disk_graph property"),
     }
 }
@@ -185,11 +184,10 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
                 schema.push(Field::new(key, DataType::Boolean, true));
             }
             prop_type @ (PropType::Empty
-            | PropType::List
-            | PropType::Map
+            | PropType::List(_)
+            | PropType::Map(_)
             | PropType::NDTime
             | PropType::Array(_)
-            | PropType::Document
             | PropType::DTime) => panic!("{:?} not supported as disk_graph property", prop_type),
         }
     }

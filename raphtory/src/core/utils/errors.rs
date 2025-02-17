@@ -2,6 +2,8 @@ use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
     db::graph::views::property_filter::FilterOperator,
 };
+#[cfg(feature = "io")]
+use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
@@ -11,7 +13,7 @@ use pyo3::PyErr;
 #[cfg(feature = "arrow")]
 use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
-    entities::{properties::PropError, GID},
+    entities::{properties::PropError, GID, VID},
     storage::arc_str::ArcStr,
     PropType,
 };
@@ -65,6 +67,8 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Missing value for edge id {0:?} -> {1:?}")]
+    MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
     NodeIdTypeError { existing: GidType, new: GidType },
     #[error("Fatal load error, graph may be in a dirty state.")]
@@ -94,6 +98,10 @@ pub enum GraphError {
     Arrow(#[from] error::PolarsError),
     #[error("Arrow-rs error: {0}")]
     ArrowRs(#[from] arrow_schema::ArrowError),
+
+    #[cfg(feature = "io")]
+    #[error("Arrow-rs parquet error: {0}")]
+    ParquetError(#[from] ParquetError),
     #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]

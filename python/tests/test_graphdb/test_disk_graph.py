@@ -1,4 +1,3 @@
-from raphtory import DiskGraphStorage
 from raphtory import algorithms
 import pandas as pd
 import tempfile
@@ -40,6 +39,8 @@ edges = pd.DataFrame(
 
 
 def test_counts():
+    from raphtory import DiskGraphStorage
+
     graph_dir = tempfile.TemporaryDirectory()
     graph = DiskGraphStorage.load_from_pandas(
         graph_dir.name, edges, "time", "src", "dst"
@@ -50,6 +51,8 @@ def test_counts():
 
 
 def test_disk_graph():
+    from raphtory import DiskGraphStorage
+
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     rsc_dir = os.path.join(
         curr_dir, "..", "..", "..", "pometry-storage-private", "resources"
@@ -139,6 +142,8 @@ def test_disk_graph():
 
 
 def test_disk_graph_type_filter():
+    from raphtory import DiskGraphStorage
+
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     rsc_dir = os.path.join(
         curr_dir, "..", "..", "..", "pometry-storage-private", "resources"

@@ -5,10 +5,7 @@ use crate::core::{
     Prop, PropType,
 };
 use raphtory_api::core::storage::{
-    arc_str::ArcStr,
-    dict_mapper::{DictMapper, MaybeNew},
-    locked_vec::ArcReadLockedVec,
-    FxDashMap,
+    arc_str::ArcStr, dict_mapper::MaybeNew, locked_vec::ArcReadLockedVec, FxDashMap,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "proto")]
@@ -17,7 +14,7 @@ use std::ops::DerefMut;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphMeta {
-    constant_mapper: DictMapper,
+    constant_mapper: PropMapper,
     temporal_mapper: PropMapper,
     constant: FxDashMap<usize, Option<Prop>>,
     temporal: FxDashMap<usize, TProp>,
@@ -26,7 +23,7 @@ pub struct GraphMeta {
 impl GraphMeta {
     pub(crate) fn new() -> Self {
         Self {
-            constant_mapper: DictMapper::default(),
+            constant_mapper: PropMapper::default(),
             temporal_mapper: PropMapper::default(),
             constant: FxDashMap::default(),
             temporal: FxDashMap::default(),
@@ -43,7 +40,7 @@ impl GraphMeta {
     }
 
     #[inline]
-    pub fn const_prop_meta(&self) -> &DictMapper {
+    pub fn const_prop_meta(&self) -> &PropMapper {
         &self.constant_mapper
     }
 
@@ -59,13 +56,15 @@ impl GraphMeta {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
-        if is_static {
-            Ok(self.constant_mapper.get_or_create_id(name))
+        let mapper = if is_static {
+            &self.constant_mapper
         } else {
-            self.temporal_mapper
-                .get_or_create_and_validate(name, dtype)
-                .map_err(|e| e.into())
-        }
+            &self.temporal_mapper
+        };
+
+        mapper
+            .get_or_create_and_validate(name, dtype)
+            .map_err(|e| e.into())
     }
 
     pub(crate) fn add_constant_prop(
@@ -145,6 +144,10 @@ impl GraphMeta {
 
     pub fn get_temporal_dtype(&self, prop_id: usize) -> Option<PropType> {
         self.temporal_mapper.get_dtype(prop_id)
+    }
+
+    pub fn get_const_dtype(&self, prop_id: usize) -> Option<PropType> {
+        self.constant_mapper.get_dtype(prop_id)
     }
 
     pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {

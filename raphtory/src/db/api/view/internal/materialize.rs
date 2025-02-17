@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
             nodes::node_ref::{AsNodeRef, NodeRef},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, GID, VID,
@@ -37,9 +36,12 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{
-    entities::GidType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+use raphtory_api::{
+    core::{
+        entities::GidType,
+        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+    },
+    GraphType,
 };
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -60,11 +62,6 @@ use std::ops::Range;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
-}
-
-pub enum GraphType {
-    EventGraph,
-    PersistentGraph,
 }
 
 impl Static for MaterializedGraph {}

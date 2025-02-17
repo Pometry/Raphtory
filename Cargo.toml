@@ -13,7 +13,6 @@ members = [
 ]
 default-members = [
     "raphtory",
-    "raphtory-graphql"
 ]
 resolver = "2"
 
@@ -101,10 +100,10 @@ oauth2 = "4.0"
 jsonwebtoken = "9.3.0"
 num = "0.4.1"
 display-error-chain = "0.2.0"
-polars-arrow = "0.39.2"
-polars-parquet = "0.39.2"
-polars-core = "0.39.2"
-polars-io = "0.39.2"
+polars-arrow = "0.40.0"
+polars-parquet = "0.40.0"
+polars-core = "0.40.0"
+polars-io = "0.40.0"
 kdam = "0.6.2"
 hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
@@ -149,6 +148,8 @@ datafusion = { version = "43.0.0" }
 sqlparser = "0.51.0"
 futures = "0.3"
 arrow = { version = "53.2.0" }
+parquet = { version = "53.2.0" }
+arrow-json = { version = "53.2.0" }
 arrow-buffer = { version = "53.2.0" }
 arrow-schema = { version = "53.2.0" }
 arrow-array = { version = "53.2.0" }

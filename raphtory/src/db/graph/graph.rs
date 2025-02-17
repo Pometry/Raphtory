@@ -441,10 +441,11 @@ mod db_tests {
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
-        test_utils::test_graph,
+        test_utils::{build_graph, build_graph_strat, test_graph},
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
+    use proptest::{arbitrary::any, proptest};
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
         entities::{GID, VID},
@@ -2387,12 +2388,11 @@ mod db_tests {
         );
 
         let data = vec![
-            ("key1".into(), Prop::I64(10)),
-            ("key2".into(), Prop::I64(20)),
-            ("key3".into(), Prop::I64(30)),
+            ("key1", Prop::I64(10)),
+            ("key2", Prop::I64(20)),
+            ("key3", Prop::I64(30)),
         ];
-        let props_map = data.into_iter().collect::<HashMap<_, _>>();
-        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::Map(Arc::from(props_map)))];
+        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::map(data))];
 
         g.add_constant_properties(as_props.clone()).unwrap();
 
@@ -3847,5 +3847,28 @@ mod db_tests {
 
         let result = g.create_node(1, 1, [("test".to_string(), Prop::Bool(true))], None);
         assert!(matches!(result, Err(GraphError::NodeExistsError(id)) if id == GID::U64(1)));
+    }
+
+    #[test]
+    fn test_materialize_constant_edge_props() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.add_constant_properties([("test", "test")], None).unwrap();
+        g.add_edge(10, 1, 2, NO_PROPS, Some("a")).unwrap();
+
+        let gw = g.after(1);
+        let gmw = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn materialize_window_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, false), w in any::<Range<i64>>())| {
+            let g = build_graph(graph_f);
+            let gw = g.window(w.start, w.end);
+            let gmw = gw.materialize().unwrap();
+            assert_graph_equal(&gw, &gmw);
+        })
     }
 }

@@ -17,7 +17,7 @@ def test_hanging_edges():
     assert G.at(6).count_edges() == 0
     assert G.latest_time == 5
     assert G.at(G.latest_time).count_edges() == 0
-    assert G.at(G.latest_time - 1).count_edges() == 1
+    assert G.at(G.latest_time - 1).count_edges() == 0
 
 
 def test_overlapping_times():
@@ -37,6 +37,18 @@ def test_overlapping_times():
     assert list(zip(exploded.earliest_time, exploded.latest_time)) == [(1, 5), (3, 7)]
 
 
+def test_node_updates_at_same_time():
+    g = PersistentGraph()
+
+    g.add_node(1, 1, properties={"prop1": 1})  # false
+    g.add_node(2, 1, properties={"prop1": 2})  # true
+    g.add_node(2, 1, properties={"prop1": 3})  # true
+    g.add_node(8, 1, properties={"prop1": 4})  # false
+    g.add_node(9, 1, properties={"prop1": 5})  # false
+
+    print(g.window(2, 10).node(1).properties.temporal.get("prop1").values())
+
+
 def test_same_time_op():
     G1 = PersistentGraph()
     G1.add_edge(1, 1, 2, properties={"message": "hi"})
@@ -48,10 +60,11 @@ def test_same_time_op():
     exploded_2 = G2.edges.explode()
     assert list(zip(exploded_1.earliest_time, exploded_1.latest_time)) == [(1, 1)]
     assert list(zip(exploded_2.earliest_time, exploded_2.latest_time)) == [
-        (-9223372036854775808, 1),
         (1, 9223372036854775807),
     ]
-    assert G1.at(1).count_temporal_edges() == 1
+    # added then deleted means edge does not exist at 1
+    assert G1.at(1).count_temporal_edges() == 0
+    # deleted then added means update is included
     assert G2.at(1).count_temporal_edges() == 1
 
 

@@ -285,7 +285,7 @@ mod test {
         })
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "search"))]
     mod search_nodes_cached_view_graph_tests {
         use crate::{
             core::Prop,
@@ -432,7 +432,7 @@ mod test {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "search"))]
     mod search_edges_cached_view_graph_tests {
         use crate::{
             core::Prop,

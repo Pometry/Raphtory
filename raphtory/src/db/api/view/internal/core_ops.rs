@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
             nodes::{node_ref::NodeRef, node_store::NodeTimestamps},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, VID,
@@ -241,26 +240,6 @@ pub trait CoreGraphOps: Send + Sync {
     fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         let core_node_entry = self.core_node_entry(v);
         core_node_entry.temporal_prop_ids()
-    }
-
-    /// Returns the static edge property with the given name for the
-    /// given edge reference.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - An `EdgeRef` reference to the edge of interest.
-    /// * `name` - A `String` containing the name of the temporal property.
-    ///
-    /// Returns:
-    ///
-    /// A property if it exists
-    fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop> {
-        match self.core_graph() {
-            GraphStorage::Mem(storage) => storage.graph.core_get_const_edge_prop(e, id, layer_ids),
-            GraphStorage::Unlocked(storage) => storage.core_get_const_edge_prop(e, id, layer_ids),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => None,
-        }
     }
 }
 

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
@@ -15,6 +16,11 @@ use raphtory::{
                 internal::{InheritIndexSearch, InheritNodeHistoryFilter, Static},
                 Base, InheritViewOps, MaterializedGraph,
             },
+            storage::graph::storage_ops::GraphStorage,
+            view::{
+                internal::{CoreGraphOps, Static},
+                Base, InheritViewOps, MaterializedGraph,
+            },
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -24,8 +30,6 @@ use raphtory::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
-
-use crate::paths::ExistingGraphFolder;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -83,7 +87,13 @@ impl GraphWithVectors {
     }
 
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
-        self.graph.write_updates()?;
+        match self.graph.core_graph() {
+            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => {
+                self.graph.write_updates()?;
+            }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => {}
+        }
         self.dump_vectors_to_disk()
     }
 

@@ -156,7 +156,7 @@ def test_node_edge_properties_schema():
                                         },
                                         {
                                             "key": "prop6",
-                                            "propertyType": "Map",
+                                            "propertyType": "Map{ data: Str }",
                                             "variants": ['{"data": "map"}'],
                                         },
                                     ],
@@ -172,7 +172,7 @@ def test_node_edge_properties_schema():
                                         },
                                         {
                                             "key": "propArray",
-                                            "propertyType": "List",
+                                            "propertyType": "List<I64>",
                                             "variants": ["[1, 2, 3]"],
                                         },
                                         {
@@ -263,7 +263,7 @@ def test_node_edge_properties_schema():
                                 },
                                 {
                                     "key": "list_prop",
-                                    "propertyType": "List",
+                                    "propertyType": "List<F64>",
                                     "variants": ["[1.1, 2.2, 3.3]"],
                                 },
                                 {

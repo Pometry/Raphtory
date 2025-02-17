@@ -89,7 +89,7 @@ impl GraphServer {
         config_path: Option<PathBuf>,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
-            fs::create_dir_all(&work_dir).unwrap();
+            fs::create_dir_all(&work_dir)?;
         }
         let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;

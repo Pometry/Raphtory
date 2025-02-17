@@ -66,46 +66,35 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
     let g = graph.subgraph(node_set);
     let mut ctx: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
-    // let mut ctx: Context<G, ComputeStateVec> = graph.into();
-    let neighbours_set = accumulators::hash_set::<VID>(0);
-    let count = accumulators::sum::<usize>(1);
+    #[derive(Clone, Debug, Default)]
+    struct NborState {
+        nbors: FxHashSet<VID>,
+    }
 
-    ctx.agg(neighbours_set);
+    let count = accumulators::sum::<usize>(1);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, NborState>| {
+        let mut nbors = FxHashSet::default();
         for t in s.neighbours() {
-            if s.node > t.node {
-                t.update(&neighbours_set, s.node);
+            if s.node < t.node {
+                nbors.insert(t.node);
             }
         }
+        let state = s.get_mut();
+        state.nbors = nbors;
         Step::Continue
     });
 
-    let step2 = ATask::new(move |s| {
+    let step2 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, NborState>| {
+        let mut intersection_count = 0;
+        let nbors = &s.get().nbors;
         for t in s.neighbours() {
-            if s.node > t.node {
-                let intersection_count = {
-                    // when using entry() we need to make sure the reference is released before we can update the state, otherwise we break the Rc<RefCell<_>> invariant
-                    // where there can either be one mutable or many immutable references
-
-                    match (
-                        s.entry(&neighbours_set)
-                            .read_ref()
-                            .unwrap_or(&FxHashSet::default()),
-                        t.entry(&neighbours_set)
-                            .read_ref()
-                            .unwrap_or(&FxHashSet::default()),
-                    ) {
-                        (s_set, t_set) => {
-                            let intersection = s_set.intersection(t_set);
-                            intersection.count()
-                        }
-                    }
-                };
-                s.global_update(&count, intersection_count);
+            if s.node < t.node {
+                intersection_count += nbors.intersection(&t.prev().nbors).count();
             }
         }
+        s.global_update(&count, intersection_count);
         Step::Continue
     });
 
@@ -128,12 +117,31 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
 
 #[cfg(test)]
 mod triangle_count_tests {
+    use std::time::Instant;
+
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
         test_storage,
     };
+
+    #[ignore]
+    #[test]
+    fn triangle_scale_test() {
+        let graph = Graph::new();
+
+        let n: u64 = 1500;
+        for i in 1..n {
+            for j in (i + 1)..n {
+                graph.add_edge(i as i64, i, j, NO_PROPS, None).unwrap();
+            }
+        }
+
+        let start = Instant::now();
+        let tri_count = triangle_count(&graph.clone(), None);
+        println!("Time elapsed: {:?}, {tri_count}", start.elapsed());
+    }
 
     #[test]
     fn triangle_count_1() {

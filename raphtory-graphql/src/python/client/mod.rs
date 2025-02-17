@@ -3,7 +3,7 @@ use pyo3::{pyclass, pymethods};
 use raphtory::{
     core::{
         utils::{errors::GraphError, time::IntoTime},
-        DocumentInput, Prop,
+        Prop,
     },
     python::utils::PyTime,
 };
@@ -257,7 +257,6 @@ fn inner_collection(value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("\"{}\"", value.to_string()),
         Prop::NDTime(value) => format!("\"{}\"", value.to_string()),
-        Prop::Document(DocumentInput { content, .. }) => content.to_owned().to_string(), // TODO: return Value::Object ??
     }
 }
 
@@ -298,7 +297,6 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
-        Prop::Document(_) => "Document cannot be converted to JSON".to_string(), // TODO: return Value::Object ??
     }
 }
 

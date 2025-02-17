@@ -40,6 +40,7 @@ use std::{
 use utils::errors::GraphError;
 
 use arrow_schema::{DataType, Field};
+use rustc_hash::FxHashMap;
 
 #[cfg(test)]
 extern crate core;
@@ -94,11 +95,10 @@ pub enum Prop {
     F64(f64),
     Bool(bool),
     List(Arc<Vec<Prop>>),
-    Map(Arc<HashMap<ArcStr, Prop>>),
+    Map(Arc<FxHashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Array(PropArray),
-    Document(DocumentInput),
 }
 
 impl Hash for Prop {
@@ -134,7 +134,6 @@ impl Hash for Prop {
                     prop.hash(state);
                 }
             }
-            Prop::Document(d) => d.hash(state),
         }
     }
 }
@@ -163,8 +162,11 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
-    pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, Prop)>) -> Self {
-        let h_map: HashMap<_, _> = vals.into_iter().map(|(k, v)| (k.into(), v)).collect();
+    pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {
+        let h_map: FxHashMap<_, _> = vals
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
         Prop::Map(h_map.into())
     }
 
@@ -188,8 +190,22 @@ impl Prop {
             Prop::F32(_) => PropType::F32,
             Prop::F64(_) => PropType::F64,
             Prop::Bool(_) => PropType::Bool,
-            Prop::List(_) => PropType::List,
-            Prop::Map(_) => PropType::Map,
+            Prop::List(list) => {
+                let list_type = list
+                    .iter()
+                    .map(|p| Ok(p.dtype()))
+                    .reduce(|a, b| unify_types(&a?, &b?, &mut false))
+                    .transpose()
+                    .map(|e| e.unwrap_or(PropType::Empty))
+                    .expect(&format!("Cannot unify types for list {:?}", list));
+                PropType::List(Box::new(list_type))
+            }
+            Prop::Map(map) => PropType::Map(
+                map.iter()
+                    .map(|(k, prop)| (k.to_string(), prop.dtype()))
+                    .sorted_by(|(k1, _), (k2, _)| k1.cmp(k2))
+                    .collect(),
+            ),
             Prop::NDTime(_) => PropType::NDTime,
             Prop::Array(arr) => {
                 let arrow_dtype = arr
@@ -198,7 +214,6 @@ impl Prop {
                     .data_type();
                 PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
             }
-            Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
     }
@@ -265,15 +280,38 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
         PropType::F32 => Ok(DataType::Float32),
         PropType::F64 => Ok(DataType::Float64),
         PropType::Bool => Ok(DataType::Boolean),
+        PropType::NDTime => Ok(DataType::Timestamp(
+            arrow_schema::TimeUnit::Millisecond,
+            None,
+        )),
+        PropType::DTime => Ok(DataType::Timestamp(
+            arrow_schema::TimeUnit::Millisecond,
+            Some("UTC".into()),
+        )),
         PropType::Array(d_type) => Ok(DataType::List(
             Field::new("data", arrow_dtype_from_prop_type(&d_type)?, true).into(),
         )),
-        PropType::Empty
-        | PropType::List
-        | PropType::Map
-        | PropType::NDTime
-        | PropType::Document
-        | PropType::DTime => Err(GraphError::UnsupportedArrowDataType(prop_type.clone())), //panic!("{prop_type:?} not supported as disk_graph property"),
+
+        PropType::List(d_type) => Ok(DataType::List(
+            Field::new("data", arrow_dtype_from_prop_type(&d_type)?, true).into(),
+        )),
+        PropType::Map(d_type) => {
+            let fields = d_type
+                .iter()
+                .map(|(k, v)| {
+                    Ok::<_, GraphError>(Field::new(
+                        k.to_string(),
+                        arrow_dtype_from_prop_type(v)?,
+                        true,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(DataType::Struct(fields.into()))
+        }
+        PropType::Empty => {
+            // this is odd, we'll just pick one and hope for the best
+            Ok(DataType::Null)
+        }
     }
 }
 
@@ -353,19 +391,14 @@ pub trait PropUnwrap: Sized {
         self.into_list().unwrap()
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>>;
-    fn unwrap_map(self) -> Arc<HashMap<ArcStr, Prop>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>>;
+    fn unwrap_map(self) -> Arc<FxHashMap<ArcStr, Prop>> {
         self.into_map().unwrap()
     }
 
     fn into_ndtime(self) -> Option<NaiveDateTime>;
     fn unwrap_ndtime(self) -> NaiveDateTime {
         self.into_ndtime().unwrap()
-    }
-
-    fn into_document(self) -> Option<DocumentInput>;
-    fn unwrap_document(self) -> DocumentInput {
-        self.into_document().unwrap()
     }
 
     fn into_array(self) -> Option<ArrayRef>;
@@ -421,16 +454,12 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_list())
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         self.and_then(|p| p.into_map())
     }
 
     fn into_ndtime(self) -> Option<NaiveDateTime> {
         self.and_then(|p| p.into_ndtime())
-    }
-
-    fn into_document(self) -> Option<DocumentInput> {
-        self.and_then(|p| p.into_document())
     }
 
     fn into_array(self) -> Option<ArrayRef> {
@@ -531,7 +560,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         if let Prop::Map(v) = self {
             Some(v)
         } else {
@@ -542,14 +571,6 @@ impl PropUnwrap for Prop {
     fn into_ndtime(self) -> Option<NaiveDateTime> {
         if let Prop::NDTime(v) = self {
             Some(v)
-        } else {
-            None
-        }
-    }
-
-    fn into_document(self) -> Option<DocumentInput> {
-        if let Prop::Document(d) = self {
-            Some(d)
         } else {
             None
         }
@@ -632,7 +653,6 @@ impl Display for Prop {
                         .join(", ")
                 )
             }
-            Prop::Document(value) => write!(f, "{}", value),
         }
     }
 }
@@ -740,6 +760,12 @@ impl From<bool> for Prop {
 
 impl From<HashMap<ArcStr, Prop>> for Prop {
     fn from(value: HashMap<ArcStr, Prop>) -> Self {
+        Prop::Map(Arc::new(value.into_iter().collect()))
+    }
+}
+
+impl From<FxHashMap<ArcStr, Prop>> for Prop {
+    fn from(value: FxHashMap<ArcStr, Prop>) -> Self {
         Prop::Map(Arc::new(value))
     }
 }
@@ -817,10 +843,6 @@ impl From<Prop> for Value {
             }
             Prop::NDTime(value) => Value::String(value.to_string()),
             Prop::DTime(value) => Value::String(value.to_string()),
-            Prop::Document(doc) => json!({
-                "content": doc.content,
-                "life": Value::from(doc.life),
-            }),
             _ => Value::Null,
         }
     }
