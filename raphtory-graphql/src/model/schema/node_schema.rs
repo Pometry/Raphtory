@@ -42,19 +42,50 @@ impl NodeSchema {
 
 impl NodeSchema {
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let filter_type = |node: &NodeView<DynamicGraph>| match node.node_type() {
-            Some(node_type) => node_type.to_string() == self.type_name,
-            None => DEFAULT_NODE_TYPE == self.type_name,
-        };
+        let mut keys: Vec<String> = self
+            .graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_keys()
+            .into_iter()
+            .map(|k| k.to_string())
+            .collect();
+        let mut property_types: Vec<String> = self
+            .graph
+            .node_meta()
+            .temporal_prop_meta()
+            .dtypes()
+            .iter()
+            .map(|dtype| dtype.to_string())
+            .collect();
+        for const_key in self.graph.node_meta().const_prop_meta().get_keys() {
+            if self
+                .graph
+                .node_meta()
+                .get_prop_id(&const_key, false)
+                .is_none()
+            {
+                keys.push(const_key.to_string());
+                let id = self
+                    .graph
+                    .node_meta()
+                    .get_prop_id(&const_key, true)
+                    .unwrap();
+                property_types.push(
+                    self.graph
+                        .node_meta()
+                        .const_prop_meta()
+                        .get_dtype(id)
+                        .unwrap()
+                        .to_string(),
+                );
+            }
+        }
 
-        let filtered_nodes = self.graph.nodes().iter_owned().filter(filter_type);
-
-        let schema: SchemaAggregate = filtered_nodes
-            .map(collect_node_schema)
-            .reduce(merge_schemas)
-            .unwrap_or_default();
-
-        schema.into_iter().map(|prop| prop.into()).collect_vec()
+        keys.into_iter()
+            .zip(property_types)
+            .map(|(key, dtype)| PropertySchema::new(key, dtype, vec![]))
+            .collect()
     }
 }
 
