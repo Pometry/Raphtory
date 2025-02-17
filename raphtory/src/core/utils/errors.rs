@@ -306,6 +306,9 @@ pub enum GraphError {
 
     #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
     UnsupportedArrowDataType(PropType),
+
+    #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
+    TooManyViewsSet,
 }
 
 impl GraphError {
