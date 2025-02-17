@@ -33,12 +33,6 @@ impl<P: PropertiesOps + Clone> Properties<P> {
             })
     }
 
-    pub fn get_by_id(&self, id: usize) -> Option<Prop> {
-        self.props
-            .temporal_value(id)
-            .or_else(|| self.props.get_const_prop(id))
-    }
-
     /// Check if property `key` exists.
     pub fn contains(&self, key: &str) -> bool {
         self.get(key).is_some()
