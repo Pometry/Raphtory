@@ -119,7 +119,8 @@ fn persisted_prop_value_at<'a>(
     props: impl TPropOps<'a>,
     deletions: impl TimeIndexOps<IndexType = TimeIndexEntry>,
 ) -> Option<Prop> {
-    if props.clone().active(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
+    if props.clone().active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1))
+    {
         None
     } else {
         last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
@@ -308,7 +309,7 @@ impl TimeSemantics for PersistentGraph {
                     (0..self.node_meta().temporal_prop_meta().len())
                         .filter_map(|prop_id| {
                             let prop = node.tprop(prop_id);
-                            if prop.active(w.start..w.start.saturating_add(1)) {
+                            if prop.active_t(w.start..w.start.saturating_add(1)) {
                                 None
                             } else {
                                 prop.last_before(TimeIndexEntry::start(w.start))
