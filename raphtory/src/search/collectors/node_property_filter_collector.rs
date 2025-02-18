@@ -107,14 +107,11 @@ where
                         let t = global_unique_entity_ids.get(&id).copied()?;
                         let available = t
                             .map(|t| {
-                                let vid = VID(id as usize);
-                                let nse = self.graph.core_node_entry(vid);
-                                let bool = nse
-                                    .tprop(self.prop_id)
-                                    .last_before(TimeIndexEntry::start(start))
-                                    .map(|(tie, _)| tie.t().eq(&t))
-                                    .unwrap_or(false);
-                                bool
+                                self.graph.is_prop_update_available(
+                                    self.prop_id,
+                                    VID(id as usize),
+                                    TimeIndexEntry::start(t),
+                                )
                             })
                             // "t" is none for entity_ids that are already within window.
                             // Therefore, they must always be included.
