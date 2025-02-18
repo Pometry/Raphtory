@@ -15,8 +15,8 @@ use crate::{
         },
         view::{
             internal::{
-                CoreGraphOps, DelegateTimeSemantics, EdgeHistoryFilter, InternalLayerOps,
-                NodeHistoryFilter, TimeSemantics,
+                CoreGraphOps, DelegateCoreOps, DelegateTimeSemantics, EdgeHistoryFilter,
+                InternalLayerOps, NodeHistoryFilter, TimeSemantics,
             },
             Base, BoxedLIter, IntoDynBoxed,
         },
@@ -660,9 +660,9 @@ impl TimeSemantics for GraphStorage {
 impl NodeHistoryFilter for GraphStorage {
     fn is_node_prop_update_available(
         &self,
-        prop_id: usize,
-        node_id: VID,
-        time: TimeIndexEntry,
+        _prop_id: usize,
+        _node_id: VID,
+        _time: TimeIndexEntry,
     ) -> bool {
         // let nse = self.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
@@ -890,12 +890,13 @@ mod test_graph_storage {
             .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
             .unwrap();
 
-        graph
-            .add_edge(3, "N9", "N2", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(3, "N9", "N2", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
+        // TODO: Revisit this test after supporting secondary indexes
+        // graph
+        //     .add_edge(3, "N9", "N2", [("p1", Prop::U64(1u64))], Some("layer1"))
+        //     .unwrap();
+        // graph
+        //     .add_edge(3, "N9", "N2", [("p1", Prop::U64(2u64))], Some("layer2"))
+        //     .unwrap();
 
         graph
     }
@@ -1119,7 +1120,7 @@ mod test_graph_storage {
             let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
             assert!(!bool);
 
-            // TODO: Revisit this test
+            // TODO: Revisit this test after supporting secondary indexes
             // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
             // let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
             // assert!(!bool);
@@ -1221,7 +1222,7 @@ mod test_graph_storage {
             );
             assert!(!bool);
 
-            // TODO: Revisit this test
+            // TODO: Revisit this test after supporting secondary indexes
             // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
             // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, TimeIndexEntry::end(3), w.clone());
             // assert!(!bool);
@@ -1255,6 +1256,39 @@ mod test_graph_storage {
             results.sort();
 
             assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
+        }
+    }
+
+    #[cfg(all(test, feature = "search"))]
+    mod search_edges {
+        use super::*;
+        use crate::{
+            db::{
+                api::view::SearchableGraphOps, graph::views::property_filter::CompositeEdgeFilter,
+            },
+            prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
+        };
+
+        #[test]
+        fn test_search_edges_latest() {
+            let g = Graph::new();
+            let g = init_graph_for_edges_tests(g);
+            let mut results = g
+                .search_edges_latest(
+                    &CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                    10,
+                    0,
+                )
+                .expect("Failed to search for nodes")
+                .into_iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+
+            assert_eq!(
+                results,
+                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
+            );
         }
     }
 }

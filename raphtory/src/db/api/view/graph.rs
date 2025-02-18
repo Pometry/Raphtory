@@ -155,6 +155,13 @@ pub trait SearchableGraphOps: Sized {
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
 
+    fn search_edges_latest(
+        &self,
+        filter: &CompositeEdgeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
     fn fuzzy_search_nodes(
         &self,
         filter: &CompositeNodeFilter,
@@ -662,6 +669,16 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
         self.searcher()?.search_edges(self, filter, limit, offset)
+    }
+
+    fn search_edges_latest(
+        &self,
+        filter: &CompositeEdgeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        self.searcher()?
+            .search_edges_latest(self, filter, limit, offset)
     }
 
     fn fuzzy_search_nodes(

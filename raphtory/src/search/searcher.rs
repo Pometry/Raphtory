@@ -84,6 +84,20 @@ impl<'a> Searcher<'a> {
         Ok(result.into_iter().collect_vec())
     }
 
+    pub fn search_edges_latest<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeEdgeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let result = self
+            .edge_filter_executor
+            .filter_edges_latest(graph, filter, limit, offset)?;
+
+        Ok(result.into_iter().collect_vec())
+    }
+
     pub fn fuzzy_search_nodes<G: StaticGraphViewOps>(
         &self,
         graph: &G,

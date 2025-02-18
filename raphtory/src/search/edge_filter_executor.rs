@@ -14,6 +14,7 @@ use crate::{
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,
+            latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
         fields, get_property_index,
@@ -25,8 +26,10 @@ use itertools::Itertools;
 use raphtory_api::core::entities::EID;
 use std::collections::HashSet;
 use tantivy::{
-    collector::TopDocs, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
-    Searcher, TantivyDocument,
+    collector::{Collector, TopDocs},
+    query::Query,
+    schema::Value,
+    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -64,7 +67,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         Ok(edges)
     }
 
-    fn execute_filter_property_query<G: StaticGraphViewOps>(
+    fn execute_filter_property_query<G: StaticGraphViewOps, C>(
         &self,
         graph: &G,
         query: Box<dyn Query>,
@@ -72,9 +75,14 @@ impl<'a> EdgeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+    ) -> Result<Vec<EdgeView<G, G>>, GraphError>
+    where
+        G: StaticGraphViewOps,
+        C: Collector<Fruit = HashSet<u64>>,
+    {
         let searcher = reader.searcher();
-        let collector = EdgePropertyFilterCollector::new(
+        let collector = collector_fn(
             fields::EDGE_ID.to_string(),
             prop_id,
             reader.clone(),
@@ -91,6 +99,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
+        latest: bool,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
         let (property_index, prop_id) = get_property_index(
@@ -104,14 +113,29 @@ impl<'a> EdgeFilterExecutor<'a> {
             .build_property_query::<G>(property_index, filter)?;
 
         let results = match query {
-            Some(query) => self.execute_filter_property_query(
-                graph,
-                query,
-                prop_id,
-                &property_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                if latest {
+                    self.execute_filter_property_query(
+                        graph,
+                        query,
+                        prop_id,
+                        &property_index.reader,
+                        limit,
+                        offset,
+                        LatestEdgePropertyFilterCollector::new,
+                    )?
+                } else {
+                    self.execute_filter_property_query(
+                        graph,
+                        query,
+                        prop_id,
+                        &property_index.reader,
+                        limit,
+                        offset,
+                        EdgePropertyFilterCollector::new,
+                    )?
+                }
+            }
             // None => graph
             //     .edges()
             //     .filter_edges(filter.clone())?
@@ -145,16 +169,17 @@ impl<'a> EdgeFilterExecutor<'a> {
         Ok(results)
     }
 
-    pub fn filter_edges<G: StaticGraphViewOps>(
+    pub fn filter_edges_internal<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
+        latest: bool,
     ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         match filter {
             CompositeEdgeFilter::Property(filter) => {
-                self.filter_property_index(graph, filter, limit, offset)
+                self.filter_property_index(graph, filter, limit, offset, latest)
             }
             CompositeEdgeFilter::Edge(filter) => {
                 self.filter_edge_index(graph, filter, limit, offset)
@@ -188,6 +213,25 @@ impl<'a> EdgeFilterExecutor<'a> {
                 Ok(results)
             }
         }
+    }
+    pub fn filter_edges<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeEdgeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+        self.filter_edges_internal(graph, filter, limit, offset, false)
+    }
+
+    pub fn filter_edges_latest<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeEdgeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+        self.filter_edges_internal(graph, filter, limit, offset, true)
     }
 
     fn resolve_edge_from_search_result<'graph, G: GraphViewOps<'graph>>(
