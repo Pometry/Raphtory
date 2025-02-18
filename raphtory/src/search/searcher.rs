@@ -56,6 +56,20 @@ impl<'a> Searcher<'a> {
         Ok(result.into_iter().collect_vec())
     }
 
+    pub fn search_nodes_latest<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeNodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let result = self
+            .node_filter_executor
+            .filter_nodes_latest(graph, filter, limit, offset)?;
+
+        Ok(result.into_iter().collect_vec())
+    }
+
     pub fn search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,

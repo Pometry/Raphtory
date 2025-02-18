@@ -141,6 +141,13 @@ pub trait SearchableGraphOps: Sized {
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
+    fn search_nodes_latest(
+        &self,
+        filter: &CompositeNodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
     fn search_edges(
         &self,
         filter: &CompositeEdgeFilter,
@@ -636,6 +643,16 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
         self.searcher()?.search_nodes(self, filter, limit, offset)
+    }
+
+    fn search_nodes_latest(
+        &self,
+        filter: &CompositeNodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        self.searcher()?
+            .search_nodes_latest(self, filter, limit, offset)
     }
 
     fn search_edges(

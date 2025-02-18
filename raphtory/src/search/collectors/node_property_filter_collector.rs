@@ -1,8 +1,5 @@
 use crate::{
-    db::api::{
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
-        view::StaticGraphViewOps,
-    },
+    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::StaticGraphViewOps},
     prelude::TimeOps,
     search::fields,
 };
@@ -97,7 +94,7 @@ where
         let unique_entity_ids: HashSet<u64> = global_unique_entity_ids.keys().cloned().collect();
 
         let result = match (self.graph.start(), self.graph.end()) {
-            (Some(start), Some(end))
+            (Some(_start), Some(_end))
                 if matches!(self.graph.graph_type(), GraphType::PersistentGraph) =>
             {
                 unique_entity_ids

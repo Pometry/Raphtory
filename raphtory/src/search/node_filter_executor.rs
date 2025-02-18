@@ -10,6 +10,7 @@ use crate::{
     prelude::{GraphViewOps, NodePropertyFilterOps, PropertyFilter, ResetFilter},
     search::{
         collectors::{
+            latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
@@ -22,8 +23,10 @@ use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use std::collections::HashSet;
 use tantivy::{
-    collector::TopDocs, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
-    Searcher, TantivyDocument,
+    collector::{Collector, TopDocs},
+    query::Query,
+    schema::Value,
+    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -60,7 +63,7 @@ impl<'a> NodeFilterExecutor<'a> {
         Ok(nodes)
     }
 
-    fn execute_filter_property_query<G: StaticGraphViewOps>(
+    fn execute_filter_property_query<G: StaticGraphViewOps, C>(
         &self,
         graph: &G,
         query: Box<dyn Query>,
@@ -68,9 +71,14 @@ impl<'a> NodeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+    ) -> Result<Vec<NodeView<G, G>>, GraphError>
+    where
+        G: StaticGraphViewOps,
+        C: Collector<Fruit = HashSet<u64>>,
+    {
         let searcher = reader.searcher();
-        let collector = NodePropertyFilterCollector::new(
+        let collector = collector_fn(
             fields::NODE_ID.to_string(),
             prop_id,
             reader.clone(),
@@ -87,6 +95,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
+        latest: bool,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
         let (property_index, prop_id) = get_property_index(
@@ -100,14 +109,29 @@ impl<'a> NodeFilterExecutor<'a> {
             .build_property_query::<G>(property_index, filter)?;
 
         let results = match query {
-            Some(query) => self.execute_filter_property_query(
-                graph,
-                query,
-                prop_id,
-                &property_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                if latest {
+                    self.execute_filter_property_query(
+                        graph,
+                        query,
+                        prop_id,
+                        &property_index.reader,
+                        limit,
+                        offset,
+                        LatestNodePropertyFilterCollector::new,
+                    )?
+                } else {
+                    self.execute_filter_property_query(
+                        graph,
+                        query,
+                        prop_id,
+                        &property_index.reader,
+                        limit,
+                        offset,
+                        NodePropertyFilterCollector::new,
+                    )?
+                }
+            }
             None => graph
                 .nodes()
                 .filter_nodes(filter.clone())?
@@ -142,16 +166,17 @@ impl<'a> NodeFilterExecutor<'a> {
         Ok(results)
     }
 
-    pub fn filter_nodes<G: StaticGraphViewOps>(
+    pub fn filter_nodes_internal<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
+        latest: bool,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         match filter {
             CompositeNodeFilter::Property(filter) => {
-                self.filter_property_index(graph, filter, limit, offset)
+                self.filter_property_index(graph, filter, limit, offset, latest)
             }
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
@@ -186,6 +211,26 @@ impl<'a> NodeFilterExecutor<'a> {
                 Ok(results)
             }
         }
+    }
+
+    pub fn filter_nodes<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeNodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+        self.filter_nodes_internal(graph, filter, limit, offset, false)
+    }
+
+    pub fn filter_nodes_latest<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        filter: &CompositeNodeFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+        self.filter_nodes_internal(graph, filter, limit, offset, true)
     }
 
     fn resolve_nodes_from_search_results<'graph, G: StaticGraphViewOps>(
