@@ -100,7 +100,7 @@ impl GraphFolder {
         }
     }
 
-    fn get_appendable_graph_file(&self) -> Result<File, GraphError> {
+    pub(crate) fn get_appendable_graph_file(&self) -> Result<File, GraphError> {
         let path = self.get_graph_path();
         Ok(OpenOptions::new().append(true).open(path)?)
     }
