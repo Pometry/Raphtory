@@ -4,9 +4,9 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         view::internal::{
-            Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritIndexSearch,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, NodeFilterOps, Static,
+            Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+            InheritIndexSearch, InheritLayerOps, InheritListOps, InheritMaterialize,
+            InheritNodeHistoryFilter, InheritTimeSemantics, NodeFilterOps, Static,
         },
     },
     prelude::GraphViewOps,
@@ -52,7 +52,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for TypeFilteredSubgraph<G
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for TypeFilteredSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for TypeFilteredSubgraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for TypeFilteredSubgraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for TypeFilteredSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> {
     fn nodes_filtered(&self) -> bool {

@@ -107,7 +107,7 @@ where
                         let t = global_unique_entity_ids.get(&id).copied()?;
                         let available = t
                             .map(|t| {
-                                self.graph.is_prop_update_available(
+                                self.graph.is_node_prop_update_available(
                                     self.prop_id,
                                     VID(id as usize),
                                     TimeIndexEntry::start(t),

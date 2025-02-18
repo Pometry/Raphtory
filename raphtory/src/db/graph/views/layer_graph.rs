@@ -12,9 +12,9 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritIndexSearch,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritTimeSemantics, InternalLayerOps, Static,
+                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                InheritIndexSearch, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                InheritNodeHistoryFilter, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
@@ -68,6 +68,8 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {

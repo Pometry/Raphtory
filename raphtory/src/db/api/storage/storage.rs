@@ -23,7 +23,7 @@ use crate::{
 
 use crate::db::api::{
     storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::internal::InheritNodeHistoryFilter,
+    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter},
 };
 #[cfg(feature = "search")]
 use crate::search::{graph_index::GraphIndex, searcher::Searcher};
@@ -151,6 +151,7 @@ impl InternalIndexSearch for Storage {
 }
 
 impl InheritNodeHistoryFilter for Storage {}
+impl InheritEdgeHistoryFilter for Storage {}
 
 impl InheritViewOps for Storage {}
 

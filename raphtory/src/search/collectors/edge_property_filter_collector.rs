@@ -123,17 +123,16 @@ where
                         {
                             let available = t
                                 .map(|t| {
-                                    let ese = self.graph.core_edge(EID(id as usize));
-                                    let bool = ese
-                                        .temporal_prop_layer(layer_id as usize, self.prop_id)
-                                        .last_before(TimeIndexEntry::start(start))
-                                        .map(|(tie, _)| tie.t().eq(&t))
-                                        .unwrap_or(false);
                                     // let searcher = self.reader.searcher();
                                     // let schema = searcher.schema();
                                     // let doc = searcher.doc::<TantivyDocument>(doc_addr).unwrap();
                                     // println!("doc = {:?}", doc.to_json(schema));
-                                    bool
+                                    self.graph.is_edge_prop_update_available(
+                                        layer_id as usize,
+                                        self.prop_id,
+                                        EID(id as usize),
+                                        TimeIndexEntry::start(end),
+                                    )
                                 })
                                 // "t" is none for entity_ids that are already within window.
                                 // Therefore, they must always be included.

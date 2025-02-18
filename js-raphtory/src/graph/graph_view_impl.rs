@@ -20,3 +20,5 @@ impl InheritViewOps for Graph {}
 impl InheritIndexSearch for Graph {}
 
 impl InheritNodeHistoryFilter for Graph {}
+
+impl InheritEdgeHistoryFilter for Graph {}

@@ -1,12 +1,5 @@
 use std::{iter, ops::Range};
 
-use itertools::{kmerge, Itertools};
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
-use rayon::iter::ParallelIterator;
-
 use super::GraphStorage;
 use crate::{
     core::{
@@ -21,12 +14,18 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, NodeHistoryFilter, TimeSemantics},
+            internal::{CoreGraphOps, EdgeHistoryFilter, NodeHistoryFilter, TimeSemantics},
             BoxedLIter, IntoDynBoxed,
         },
     },
     prelude::Prop,
 };
+use itertools::{kmerge, Itertools};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, EID, VID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use rayon::iter::ParallelIterator;
 
 impl TimeSemantics for GraphStorage {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
@@ -656,13 +655,18 @@ impl TimeSemantics for GraphStorage {
 }
 
 impl NodeHistoryFilter for GraphStorage {
-    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+    fn is_node_prop_update_available(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
         // let nse = self.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
         true
     }
 
-    fn is_prop_update_available_window(
+    fn is_node_prop_update_available_window(
         &self,
         _prop_id: usize,
         _node_id: VID,
@@ -672,13 +676,18 @@ impl NodeHistoryFilter for GraphStorage {
         w.contains(&time.t())
     }
 
-    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+    fn is_node_prop_update_latest(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
         let nse = self.core_node_entry(node_id);
         let x = nse.tprop(prop_id).active(time.next()..TimeIndexEntry::MAX);
         !x
     }
 
-    fn is_prop_update_latest_window(
+    fn is_node_prop_update_latest_window(
         &self,
         prop_id: usize,
         node_id: VID,
@@ -691,6 +700,62 @@ impl NodeHistoryFilter for GraphStorage {
                 .tprop(prop_id)
                 .active(time.next()..TimeIndexEntry::start(w.end));
             !x
+        }
+    }
+}
+
+impl EdgeHistoryFilter for GraphStorage {
+    fn is_edge_prop_update_available(
+        &self,
+        _layer_id: usize,
+        _prop_id: usize,
+        _edge_id: EID,
+        _time: TimeIndexEntry,
+    ) -> bool {
+        // let nse = self.core_node_entry(node_id);
+        // nse.tprop(prop_id).at(&time).is_some()
+        true
+    }
+
+    fn is_edge_prop_update_available_window(
+        &self,
+        _layer_id: usize,
+        _prop_id: usize,
+        _edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&time.t())
+    }
+
+    fn is_edge_prop_update_latest(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        let ese = self.core_edge(edge_id);
+        let bool = ese
+            .temporal_prop_layer(layer_id, prop_id)
+            .active(time.next()..TimeIndexEntry::MAX);
+        bool
+    }
+
+    fn is_edge_prop_update_latest_window(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&time.t()) && {
+            let ese = self.core_edge(edge_id);
+            let bool = ese
+                .temporal_prop_layer(layer_id, prop_id)
+                .active(time.next()..TimeIndexEntry::MAX);
+            bool
         }
     }
 }
@@ -769,41 +834,41 @@ mod test_node_history_filter_event_graph {
         let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
 
         let node_id = g.node("N1").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(7));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(7));
         assert!(bool);
 
         let node_id = g.node("N2").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
         assert!(!bool);
 
         let node_id = g.node("N3").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(8));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(8));
         assert!(bool);
 
         let node_id = g.node("N4").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(9));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(9));
         assert!(bool);
 
         let node_id = g.node("N5").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
         assert!(!bool);
 
         let node_id = g.node("N6").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
         assert!(!bool);
         let node_id = g.node("N6").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
         assert!(bool);
 
         let node_id = g.node("N7").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
         assert!(!bool);
         let node_id = g.node("N7").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
         assert!(bool);
 
         let node_id = g.node("N8").unwrap().node;
-        let bool = g.is_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
+        let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
         assert!(!bool);
     }
 
@@ -816,51 +881,91 @@ mod test_node_history_filter_event_graph {
         let w = 6..9;
 
         let node_id = g.node("N1").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(7), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(7),
+            w.clone(),
+        );
         assert!(bool);
 
         let node_id = g.node("N2").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(6), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(6),
+            w.clone(),
+        );
         assert!(!bool);
 
         let node_id = g.node("N3").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(8), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(8),
+            w.clone(),
+        );
         assert!(bool);
 
         let node_id = g.node("N4").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(9), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(9),
+            w.clone(),
+        );
         assert!(!bool);
 
         let node_id = g.node("N5").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(5), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(5),
+            w.clone(),
+        );
         assert!(!bool);
 
         let node_id = g.node("N6").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(5), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(5),
+            w.clone(),
+        );
         assert!(!bool);
         let node_id = g.node("N6").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(6), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(6),
+            w.clone(),
+        );
         assert!(bool);
 
         let node_id = g.node("N7").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(3), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(3),
+            w.clone(),
+        );
         assert!(!bool);
         let node_id = g.node("N7").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(5), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(5),
+            w.clone(),
+        );
         assert!(!bool);
 
         let node_id = g.node("N8").unwrap().node;
-        let bool =
-            g.is_prop_update_latest_window(prop_id, node_id, TimeIndexEntry::end(3), w.clone());
+        let bool = g.is_node_prop_update_latest_window(
+            prop_id,
+            node_id,
+            TimeIndexEntry::end(3),
+            w.clone(),
+        );
         assert!(!bool);
     }
 }

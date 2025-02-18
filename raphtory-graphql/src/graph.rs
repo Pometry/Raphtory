@@ -14,7 +14,10 @@ use raphtory::{
             mutation::internal::InheritMutationOps,
             storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{CoreGraphOps, InheritIndexSearch, InheritNodeHistoryFilter, Static},
+                internal::{
+                    CoreGraphOps, InheritEdgeHistoryFilter, InheritIndexSearch,
+                    InheritNodeHistoryFilter, Static,
+                },
                 Base, InheritViewOps, MaterializedGraph,
             },
         },
@@ -161,6 +164,8 @@ impl Static for GraphWithVectors {}
 impl InheritViewOps for GraphWithVectors {}
 
 impl InheritNodeHistoryFilter for GraphWithVectors {}
+
+impl InheritEdgeHistoryFilter for GraphWithVectors {}
 
 impl InheritMutationOps for GraphWithVectors {}
 

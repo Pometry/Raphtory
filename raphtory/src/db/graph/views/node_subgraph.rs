@@ -8,9 +8,9 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritIndexSearch,
-            InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, InheritTimeSemantics,
-            ListOps, NodeFilterOps, NodeList, Static,
+            Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
+            InheritIndexSearch, InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter,
+            InheritTimeSemantics, ListOps, NodeFilterOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
@@ -51,6 +51,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeSubgraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     pub fn new(graph: G, nodes: impl IntoIterator<Item = impl AsNodeRef>) -> Self {

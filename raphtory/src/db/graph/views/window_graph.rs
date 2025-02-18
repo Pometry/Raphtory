@@ -52,10 +52,10 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, DelegateTimeSemantics, EdgeFilterOps, EdgeList, Immutable,
-                    InheritCoreOps, InheritIndexSearch, InheritLayerOps, InheritMaterialize,
-                    InheritNodeHistoryFilter, ListOps, NodeFilterOps, NodeHistoryFilter, NodeList,
-                    Static, TimeSemantics,
+                    Base, DelegateTimeSemantics, EdgeFilterOps, EdgeHistoryFilter, EdgeList,
+                    Immutable, InheritCoreOps, InheritEdgeHistoryFilter, InheritIndexSearch,
+                    InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, ListOps,
+                    NodeFilterOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -65,7 +65,10 @@ use crate::{
     prelude::{GraphViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::EID,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 use std::{
     fmt::{Debug, Formatter},
     iter,
@@ -134,17 +137,23 @@ impl<G> WindowedGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
-    fn is_prop_update_available(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+    fn is_node_prop_update_available(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
         self.graph
-            .is_prop_update_available_window(prop_id, node_id, time, self.window_bound())
+            .is_node_prop_update_available_window(prop_id, node_id, time, self.window_bound())
     }
 
-    fn is_prop_update_available_window(
+    fn is_node_prop_update_available_window(
         &self,
         prop_id: usize,
         node_id: VID,
@@ -152,15 +161,20 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
         w: Range<i64>,
     ) -> bool {
         self.graph
-            .is_prop_update_available_window(prop_id, node_id, time, w)
+            .is_node_prop_update_available_window(prop_id, node_id, time, w)
     }
 
-    fn is_prop_update_latest(&self, prop_id: usize, node_id: VID, time: TimeIndexEntry) -> bool {
+    fn is_node_prop_update_latest(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
         self.graph
-            .is_prop_update_latest_window(prop_id, node_id, time, self.window_bound())
+            .is_node_prop_update_latest_window(prop_id, node_id, time, self.window_bound())
     }
 
-    fn is_prop_update_latest_window(
+    fn is_node_prop_update_latest_window(
         &self,
         prop_id: usize,
         node_id: VID,
@@ -168,7 +182,65 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
         w: Range<i64>,
     ) -> bool {
         self.graph
-            .is_prop_update_latest_window(prop_id, node_id, time, w)
+            .is_node_prop_update_latest_window(prop_id, node_id, time, w)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
+    fn is_edge_prop_update_available(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.graph.is_edge_prop_update_available_window(
+            layer_id,
+            prop_id,
+            edge_id,
+            time,
+            self.window_bound(),
+        )
+    }
+
+    fn is_edge_prop_update_available_window(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
+    }
+
+    fn is_edge_prop_update_latest(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.graph.is_edge_prop_update_latest_window(
+            layer_id,
+            prop_id,
+            edge_id,
+            time,
+            self.window_bound(),
+        )
+    }
+
+    fn is_edge_prop_update_latest_window(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_edge_prop_update_latest_window(layer_id, prop_id, edge_id, time, w)
     }
 }
 
