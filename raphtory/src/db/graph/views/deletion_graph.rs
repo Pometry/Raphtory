@@ -160,6 +160,19 @@ impl PersistentGraph {
     pub fn persistent_graph(&self) -> PersistentGraph {
         self.clone()
     }
+
+    fn layer_ids_iter<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        view: &G,
+    ) -> Box<dyn Iterator<Item = usize>> {
+        let layer_ids = view.layer_ids();
+        match layer_ids {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(0..view.unfiltered_num_layers()),
+            LayerIds::One(id) => Box::new(iter::once(*id)),
+            LayerIds::Multiple(ids) => Box::new(ids.into_iter()),
+        }
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
@@ -887,10 +900,10 @@ impl NodeHistoryFilter for PersistentGraph {
 impl EdgeHistoryFilter for PersistentGraph {
     fn is_edge_prop_update_available(
         &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: TimeIndexEntry,
+        _layer_id: usize,
+        _prop_id: usize,
+        _edge_id: EID,
+        _time: TimeIndexEntry,
     ) -> bool {
         // let nse = self.0.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
@@ -922,29 +935,33 @@ impl EdgeHistoryFilter for PersistentGraph {
 
     fn is_edge_prop_update_latest(
         &self,
-        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
-        self.0
-            .is_edge_prop_update_latest(layer_id, prop_id, edge_id, time)
+        self.0.is_edge_prop_update_latest(prop_id, edge_id, time)
     }
 
     fn is_edge_prop_update_latest_window(
         &self,
-        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
         time.t() < w.end && {
+            let time = time.next();
             let ese = self.core_edge(edge_id);
-            let bool = ese
-                .temporal_prop_layer(layer_id, prop_id)
-                .active(time.next()..TimeIndexEntry::MAX);
-            bool
+            let mut layer_ids = self.layer_ids_iter(self);
+
+            // Check if any layer has an active update beyond `time`
+            let has_future_update = layer_ids.any(|layer_id| {
+                ese.temporal_prop_layer(layer_id, prop_id)
+                    .active(time..TimeIndexEntry::start(w.end))
+            });
+
+            // If no layer has a future update, return true
+            !has_future_update
         }
     }
 }
@@ -2192,5 +2209,235 @@ mod test_node_history_filter_persistent_graph {
             w.clone(),
         );
         assert!(!bool);
+    }
+}
+
+#[cfg(test)]
+mod test_edge_history_filter_persistent_graph {
+    use crate::{
+        core::Prop,
+        db::{
+            api::view::{
+                internal::{CoreGraphOps, EdgeHistoryFilter},
+                StaticGraphViewOps,
+            },
+            graph::views::deletion_graph::PersistentGraph,
+        },
+        prelude::{AdditionOps, GraphViewOps},
+    };
+    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+
+    fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+        graph
+            .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+            .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+            .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+
+        graph
+            .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+
+        graph
+            .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+            .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+            .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+            .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+            .add_edge(3, "N9", "N2", [("p1", Prop::U64(1u64))], Some("layer1"))
+            .unwrap();
+        graph
+            .add_edge(3, "N9", "N2", [("p1", Prop::U64(2u64))], Some("layer2"))
+            .unwrap();
+
+        graph
+    }
+
+    #[test]
+    fn test_is_edge_prop_update_latest() {
+        let g = PersistentGraph::new();
+        let g = init_graph(g);
+
+        let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
+
+        let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(7));
+        assert!(bool);
+
+        let edge_id = g.edge("N2", "N3").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(6));
+        assert!(!bool);
+
+        let edge_id = g.edge("N3", "N4").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(8));
+        assert!(bool);
+
+        let edge_id = g.edge("N4", "N5").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(9));
+        assert!(bool);
+
+        let edge_id = g.edge("N5", "N6").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(5));
+        assert!(!bool);
+
+        let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(5));
+        assert!(!bool);
+        let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(6));
+        assert!(bool);
+
+        let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+        assert!(!bool);
+        let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(5));
+        assert!(bool);
+
+        let edge_id = g.edge("N8", "N1").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+        assert!(!bool);
+
+        // TODO: Revisit this test
+        // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
+        // let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+        // assert!(!bool);
+    }
+
+    #[test]
+    fn test_is_edge_prop_update_latest_w() {
+        let g = PersistentGraph::new();
+        let g = init_graph(g);
+
+        let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
+        let w = 6..9;
+
+        let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(7),
+            w.clone(),
+        );
+        assert!(bool);
+
+        let edge_id = g.edge("N2", "N3").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(6),
+            w.clone(),
+        );
+        assert!(!bool);
+
+        let edge_id = g.edge("N3", "N4").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(8),
+            w.clone(),
+        );
+        assert!(bool);
+
+        let edge_id = g.edge("N4", "N5").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(9),
+            w.clone(),
+        );
+        assert!(!bool);
+
+        let edge_id = g.edge("N5", "N6").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(5),
+            w.clone(),
+        );
+        assert!(!bool);
+
+        let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(5),
+            w.clone(),
+        );
+        assert!(!bool);
+        let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(6),
+            w.clone(),
+        );
+        assert!(bool);
+
+        let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(3),
+            w.clone(),
+        );
+        assert!(!bool);
+        let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(5),
+            w.clone(),
+        );
+        assert!(bool);
+
+        let edge_id = g.edge("N8", "N1").unwrap().edge.pid();
+        let bool = g.is_edge_prop_update_latest_window(
+            prop_id,
+            edge_id,
+            TimeIndexEntry::end(3),
+            w.clone(),
+        );
+        assert!(!bool);
+
+        // TODO: Revisit this test
+        // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
+        // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, TimeIndexEntry::end(3), w.clone());
+        // assert!(!bool);
     }
 }

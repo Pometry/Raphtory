@@ -217,30 +217,23 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
 
     fn is_edge_prop_update_latest(
         &self,
-        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
-        self.graph.is_edge_prop_update_latest_window(
-            layer_id,
-            prop_id,
-            edge_id,
-            time,
-            self.window_bound(),
-        )
+        self.graph
+            .is_edge_prop_update_latest_window(prop_id, edge_id, time, self.window_bound())
     }
 
     fn is_edge_prop_update_latest_window(
         &self,
-        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
         self.graph
-            .is_edge_prop_update_latest_window(layer_id, prop_id, edge_id, time, w)
+            .is_edge_prop_update_latest_window(prop_id, edge_id, time, w)
     }
 }
 
