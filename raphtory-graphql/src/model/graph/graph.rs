@@ -4,9 +4,7 @@ use crate::{
         graph::{
             edge::Edge,
             edges::GqlEdges,
-            filtering::{
-                FilterCondition, GraphViewCollection, Operator,
-            },
+            filtering::{FilterCondition, GraphViewCollection, Operator},
             node::Node,
             nodes::GqlNodes,
             property::GqlProperties,

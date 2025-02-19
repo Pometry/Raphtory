@@ -64,9 +64,8 @@ pub struct NodeViewCollection {
     pub after: Option<i64>,
     pub shrink_window: Option<Window>,
     pub shrink_start: Option<i64>,
-    pub shrink_end: Option<i64>
+    pub shrink_end: Option<i64>,
 }
-
 
 #[derive(InputObject, Clone, Debug)]
 pub struct EdgesViewCollection {

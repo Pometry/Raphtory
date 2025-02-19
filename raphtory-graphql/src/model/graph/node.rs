@@ -1,17 +1,17 @@
 use crate::model::graph::{
-    edges::GqlEdges, nodes::GqlNodes, path_from_node::GqlPathFromNode, property::GqlProperties,
+    edges::GqlEdges, filtering::NodeViewCollection, nodes::GqlNodes,
+    path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
+    core::utils::errors::GraphError,
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::node::NodeView,
     },
     prelude::NodeStateOps,
 };
-use raphtory::core::utils::errors::GraphError;
-use crate::model::graph::filtering::{NodeViewCollection};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {

@@ -1,4 +1,6 @@
-use crate::model::graph::{edges::GqlEdges, node::Node, property::GqlProperties};
+use crate::model::graph::{
+    edges::GqlEdges, filtering::EdgeViewCollection, node::Node, property::GqlProperties,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
@@ -8,7 +10,6 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
-use crate::model::graph::filtering::{EdgeViewCollection};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {
@@ -105,7 +106,6 @@ impl Edge {
     async fn shrink_end(&self, end: i64) -> Self {
         self.ee.shrink_end(end).into()
     }
-
 
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<Edge, GraphError> {
         let mut return_view: Edge = self.ee.clone().into();
