@@ -12,8 +12,6 @@ use raphtory::{
     },
     prelude::NodeStateOps,
 };
-use raphtory::core::utils::errors::GraphError;
-use crate::model::graph::filtering::{NodeViewCollection};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {

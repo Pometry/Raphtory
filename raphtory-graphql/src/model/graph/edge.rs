@@ -10,7 +10,6 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
-use crate::model::graph::filtering::{EdgeViewCollection};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {

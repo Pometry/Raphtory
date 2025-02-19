@@ -14,7 +14,6 @@ use raphtory::{
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
-use crate::model::graph::filtering::EdgesViewCollection;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlEdges {

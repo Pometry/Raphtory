@@ -67,7 +67,6 @@ pub struct NodeViewCollection {
     pub shrink_end: Option<i64>,
 }
 
-
 #[derive(InputObject, Clone, Debug)]
 pub struct EdgesViewCollection {
     pub default_layer: Option<bool>,
