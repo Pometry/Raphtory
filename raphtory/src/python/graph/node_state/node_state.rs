@@ -611,6 +611,12 @@ impl_node_state!(
     "list[Tuple[int, str]]"
 );
 
+impl_node_state_ord!(
+    NodeStateI64Tuple<(i64, i64)>,
+    "NodeStateI64Tuple",
+    "Tuple[int, int]"
+);
+
 impl_node_state_ord!(NodeStateMotifs<Vec<usize>>, "NodeStateMotifs", "list[int]");
 
 impl_node_state_ord!(
