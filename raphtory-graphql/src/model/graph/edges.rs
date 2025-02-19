@@ -1,5 +1,5 @@
 use crate::model::{
-    graph::{edge::Edge},
+    graph::{edge::Edge, filtering::EdgesViewCollection},
     sorting::{EdgeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -103,7 +103,6 @@ impl GqlEdges {
 
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
-
 
         for view in views {
             let mut count = 0;
