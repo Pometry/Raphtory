@@ -70,6 +70,7 @@ use std::{
     ops::Range,
     sync::Arc,
 };
+use crate::db::api::view::internal::CoreGraphOps;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Clone)]
@@ -168,8 +169,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn nodes_filtered(&self) -> bool {
         self.window_is_empty()
             || self.graph.nodes_filtered()
-            || self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
-            || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
+            || self.start_bound() > self.core_graph().earliest_time().unwrap_or(i64::MAX)
+            || self.end_bound() <= self.core_graph().latest_time().unwrap_or(i64::MIN)
     }
 
     #[inline]
