@@ -14,9 +14,9 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, index_properties, initialize_node_const_property_indexes,
-        initialize_node_temporal_property_indexes, new_index, property_index::PropertyIndex,
-        TOKENIZER,
+        fields, index_node_const_properties, index_node_temporal_properties,
+        initialize_node_const_property_indexes, initialize_node_temporal_property_indexes,
+        new_index, property_index::PropertyIndex, TOKENIZER,
     },
 };
 use itertools::Itertools;
@@ -192,28 +192,23 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type().unwrap_or_else(|| ArcStr::from(""));
 
-        let constant_properties: &Vec<(ArcStr, usize, Prop)> =
+        let const_properties: &Vec<(ArcStr, usize, Prop)> =
             &self.collect_constant_properties(&node);
+        index_node_const_properties(
+            const_properties.iter().cloned(),
+            self.constant_property_indexes.write()?,
+            node_id,
+            const_writers,
+        )?;
+
         let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
             self.collect_temporal_properties(&node);
-
         for (time, temp_props) in &temporal_properties {
-            index_properties(
-                constant_properties.iter().cloned(),
-                self.constant_property_indexes.write()?,
-                *time,
-                fields::NODE_ID,
-                node_id,
-                None,
-                const_writers,
-            )?;
-            index_properties(
+            index_node_temporal_properties(
                 temp_props.iter().cloned(),
                 self.temporal_property_indexes.write()?,
                 *time,
-                fields::NODE_ID,
                 node_id,
-                None,
                 temporal_writers,
             )?;
         }
@@ -245,12 +240,7 @@ impl NodeIndex {
         let node_index = NodeIndex::new();
 
         // Initialize property indexes and get their writers
-        let const_property_keys = graph
-            .node_meta()
-            .const_prop_meta()
-            .get_keys()
-            .into_iter()
-            .cloned();
+        let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
         let mut const_writers = initialize_node_const_property_indexes(
             graph,
             node_index.constant_property_indexes.clone(),
@@ -261,8 +251,7 @@ impl NodeIndex {
             .node_meta()
             .temporal_prop_meta()
             .get_keys()
-            .into_iter()
-            .cloned();
+            .into_iter();
         let mut temporal_writers = initialize_node_temporal_property_indexes(
             graph,
             node_index.temporal_property_indexes.clone(),

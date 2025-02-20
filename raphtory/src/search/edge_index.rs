@@ -14,9 +14,9 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, index_properties, initialize_edge_const_property_indexes,
-        initialize_edge_temporal_property_indexes, new_index, property_index::PropertyIndex,
-        TOKENIZER,
+        fields, index_edge_const_properties, index_edge_temporal_properties,
+        initialize_edge_const_property_indexes, initialize_edge_temporal_property_indexes,
+        new_index, property_index::PropertyIndex, TOKENIZER,
     },
 };
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
@@ -197,10 +197,16 @@ impl EdgeIndex {
 
             let constant_properties: Vec<(ArcStr, usize, Prop)> =
                 self.collect_constant_properties(&edge);
+            index_edge_const_properties(
+                constant_properties.iter().cloned(),
+                self.constant_property_indexes.write()?,
+                edge_id,
+                layer_id,
+                const_writers,
+            )?;
 
             let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
                 self.collect_temporal_properties(&edge);
-
             for (time, temp_props) in &temporal_properties {
                 // temp_props.iter().for_each(|c| {
                 //     let (t, pid, v) = c;
@@ -214,20 +220,10 @@ impl EdgeIndex {
                 //     );
                 // });
 
-                index_properties(
-                    constant_properties.iter().cloned(),
-                    self.constant_property_indexes.write()?,
-                    *time,
-                    fields::EDGE_ID,
-                    edge_id,
-                    layer_id,
-                    const_writers,
-                )?;
-                index_properties(
+                index_edge_temporal_properties(
                     temp_props.iter().cloned(),
                     self.temporal_property_indexes.write()?,
                     *time,
-                    fields::EDGE_ID,
                     edge_id,
                     layer_id,
                     temporal_writers,
@@ -262,12 +258,7 @@ impl EdgeIndex {
         let edge_index = EdgeIndex::new();
 
         // Initialize property indexes and get their writers
-        let const_property_keys = graph
-            .node_meta()
-            .const_prop_meta()
-            .get_keys()
-            .into_iter()
-            .cloned();
+        let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
         let mut const_writers = initialize_edge_const_property_indexes(
             graph,
             edge_index.constant_property_indexes.clone(),
@@ -278,8 +269,7 @@ impl EdgeIndex {
             .node_meta()
             .temporal_prop_meta()
             .get_keys()
-            .into_iter()
-            .cloned();
+            .into_iter();
         let mut temporal_writers = initialize_edge_temporal_property_indexes(
             graph,
             edge_index.temporal_property_indexes.clone(),

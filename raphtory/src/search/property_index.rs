@@ -110,67 +110,120 @@ impl PropertyIndex {
             .value_type())
     }
 
-    pub(crate) fn create_document<'a>(
+    fn add_property_value(document: &mut TantivyDocument, field: Field, prop_value: Prop) {
+        match prop_value {
+            Prop::Str(v) => document.add_text(field, v),
+            Prop::NDTime(v) => {
+                if let Some(time) = v.and_utc().timestamp_nanos_opt() {
+                    document.add_date(field, tantivy::DateTime::from_timestamp_nanos(time));
+                }
+            }
+            Prop::U8(v) => document.add_u64(field, u64::from(v)),
+            Prop::U16(v) => document.add_u64(field, u64::from(v)),
+            Prop::U64(v) => document.add_u64(field, v),
+            Prop::I64(v) => document.add_i64(field, v),
+            Prop::I32(v) => document.add_i64(field, v as i64),
+            Prop::F64(v) => document.add_f64(field, v),
+            Prop::F32(v) => document.add_f64(field, v as f64),
+            Prop::Bool(v) => document.add_bool(field, v),
+            prop => document.add_text(field, prop.to_string()),
+        }
+    }
+
+    fn create_property_document(
         &self,
-        time: i64,
-        field_id: &str,
-        id: u64,
+        field_entity_id: Field,
+        entity_id: u64,
+        time: Option<i64>,
         layer_id: Option<usize>,
-        prop_name: String,
+        prop_name: &str,
         prop_value: Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let schema = self.index.schema();
-        let field_time = schema.get_field(fields::TIME)?;
-        let field_id = schema.get_field(field_id)?;
-        let field_property = schema.get_field(&prop_name)?;
+        let field_property = schema.get_field(prop_name)?;
 
         let mut document = TantivyDocument::new();
-        document.add_i64(field_time, time);
-        document.add_u64(field_id, id);
+        document.add_u64(field_entity_id, entity_id);
+
+        if let Some(time) = time {
+            let field_time = schema.get_field(fields::TIME)?;
+            document.add_i64(field_time, time);
+        }
+
         if let Some(layer_id) = layer_id {
             let field_layer_id = schema.get_field(fields::LAYER_ID)?;
             document.add_u64(field_layer_id, layer_id as u64);
         }
 
-        match prop_value {
-            Prop::Str(v) => {
-                document.add_text(field_property, v);
-            }
-            Prop::NDTime(v) => {
-                let time = tantivy::DateTime::from_timestamp_nanos(
-                    v.and_utc().timestamp_nanos_opt().unwrap(),
-                );
-                document.add_date(field_property, time);
-            }
-            Prop::U8(v) => {
-                document.add_u64(field_property, u64::from(v));
-            }
-            Prop::U16(v) => {
-                document.add_u64(field_property, u64::from(v));
-            }
-            Prop::U64(v) => {
-                document.add_u64(field_property, v);
-            }
-            Prop::I64(v) => {
-                document.add_i64(field_property, v);
-            }
-            Prop::I32(v) => {
-                document.add_i64(field_property, i64::from(v));
-            }
-            Prop::F64(v) => {
-                document.add_f64(field_property, v);
-            }
-            Prop::F32(v) => {
-                document.add_f64(field_property, f64::from(v));
-            }
-            Prop::Bool(v) => {
-                document.add_bool(field_property, v);
-            }
-            prop => document.add_text(field_property, prop.to_string()),
-        }
+        Self::add_property_value(&mut document, field_property, prop_value);
 
         // println!("Added prop doc: {}", &document.to_json(&schema));
 
         Ok(document)
+    }
+
+    pub(crate) fn create_node_const_property_document(
+        &self,
+        node_id: u64,
+        prop_name: String,
+        prop_value: Prop,
+    ) -> tantivy::Result<TantivyDocument> {
+        let field_node_id = self.index.schema().get_field(fields::NODE_ID)?;
+        self.create_property_document(field_node_id, node_id, None, None, &prop_name, prop_value)
+    }
+
+    pub(crate) fn create_node_temporal_property_document(
+        &self,
+        time: i64,
+        node_id: u64,
+        prop_name: String,
+        prop_value: Prop,
+    ) -> tantivy::Result<TantivyDocument> {
+        let field_node_id = self.index.schema().get_field(fields::NODE_ID)?;
+        self.create_property_document(
+            field_node_id,
+            node_id,
+            Some(time),
+            None,
+            &prop_name,
+            prop_value,
+        )
+    }
+
+    pub(crate) fn create_edge_const_property_document(
+        &self,
+        edge_id: u64,
+        layer_id: Option<usize>,
+        prop_name: String,
+        prop_value: Prop,
+    ) -> tantivy::Result<TantivyDocument> {
+        let field_edge_id = self.index.schema().get_field(fields::EDGE_ID)?;
+        self.create_property_document(
+            field_edge_id,
+            edge_id,
+            None,
+            layer_id,
+            &prop_name,
+            prop_value,
+        )
+    }
+
+    pub(crate) fn create_edge_temporal_property_document(
+        &self,
+        time: i64,
+        edge_id: u64,
+        layer_id: Option<usize>,
+        prop_name: String,
+        prop_value: Prop,
+    ) -> tantivy::Result<TantivyDocument> {
+        let field_edge_id = self.index.schema().get_field(fields::EDGE_ID)?;
+        self.create_property_document(
+            field_edge_id,
+            edge_id,
+            Some(time),
+            layer_id,
+            &prop_name,
+            prop_value,
+        )
     }
 }

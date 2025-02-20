@@ -190,12 +190,62 @@ fn initialize_edge_temporal_property_indexes(
     )
 }
 
-fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
+fn index_node_const_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
+    properties: I,
+    mut property_indexes: PI,
+    node_id: u64,
+    writers: &[Option<IndexWriter>],
+) -> tantivy::Result<()>
+where
+    I: Iterator<Item = (ArcStr, usize, Prop)>,
+{
+    for (prop_name, prop_id, prop_value) in properties {
+        if let Some(Some(prop_writer)) = writers.get(prop_id) {
+            if let Some(property_index) = &mut property_indexes[prop_id] {
+                let prop_doc = property_index.create_node_const_property_document(
+                    node_id,
+                    prop_name.to_string(),
+                    prop_value,
+                )?;
+                prop_writer.add_document(prop_doc)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn index_node_temporal_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
     properties: I,
     mut property_indexes: PI,
     time: i64,
-    field: &str,
-    id: u64,
+    node_id: u64,
+    writers: &[Option<IndexWriter>],
+) -> tantivy::Result<()>
+where
+    I: Iterator<Item = (ArcStr, usize, Prop)>,
+{
+    for (prop_name, prop_id, prop_value) in properties {
+        if let Some(Some(prop_writer)) = writers.get(prop_id) {
+            if let Some(property_index) = &mut property_indexes[prop_id] {
+                let prop_doc = property_index.create_node_temporal_property_document(
+                    time,
+                    node_id,
+                    prop_name.to_string(),
+                    prop_value,
+                )?;
+                prop_writer.add_document(prop_doc)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn index_edge_const_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
+    properties: I,
+    mut property_indexes: PI,
+    edge_id: u64,
     layer_id: Option<usize>,
     writers: &[Option<IndexWriter>],
 ) -> tantivy::Result<()>
@@ -205,10 +255,37 @@ where
     for (prop_name, prop_id, prop_value) in properties {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
             if let Some(property_index) = &mut property_indexes[prop_id] {
-                let prop_doc = property_index.create_document(
+                let prop_doc = property_index.create_edge_const_property_document(
+                    edge_id,
+                    layer_id,
+                    prop_name.to_string(),
+                    prop_value,
+                )?;
+                prop_writer.add_document(prop_doc)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn index_edge_temporal_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
+    properties: I,
+    mut property_indexes: PI,
+    time: i64,
+    edge_id: u64,
+    layer_id: Option<usize>,
+    writers: &[Option<IndexWriter>],
+) -> tantivy::Result<()>
+where
+    I: Iterator<Item = (ArcStr, usize, Prop)>,
+{
+    for (prop_name, prop_id, prop_value) in properties {
+        if let Some(Some(prop_writer)) = writers.get(prop_id) {
+            if let Some(property_index) = &mut property_indexes[prop_id] {
+                let prop_doc = property_index.create_edge_temporal_property_document(
                     time,
-                    field,
-                    id,
+                    edge_id,
                     layer_id,
                     prop_name.to_string(),
                     prop_value,
