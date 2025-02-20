@@ -177,7 +177,6 @@ fn apply_shortest_path<'b>(
                 path.name().collect_vec(),
             )))
         })
-        .map(FieldValue::owned_any)
         .collect();
 
     Ok(Some(FieldValue::list(result)))
