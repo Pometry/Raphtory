@@ -52,8 +52,9 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
+                    Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
+                    InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static,
+                    TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -168,8 +169,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn nodes_filtered(&self) -> bool {
         self.window_is_empty()
             || self.graph.nodes_filtered()
-            || self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
-            || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
+            || self.start_bound() > self.core_graph().earliest_time().unwrap_or(i64::MAX)
+            || self.end_bound() <= self.core_graph().latest_time().unwrap_or(i64::MIN)
     }
 
     #[inline]
