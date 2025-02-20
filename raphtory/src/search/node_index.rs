@@ -10,11 +10,11 @@ use crate::{
             storage::graph::storage_ops::GraphStorage,
             view::internal::{CoreGraphOps, InternalIndexSearch},
         },
-        graph::node::NodeView,
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
     search::{
-        fields, get_property_index, index_properties, initialize_property_indexes, new_index,
+        fields, index_properties, initialize_property_indexes, new_index,
         property_index::PropertyIndex, TOKENIZER,
     },
 };

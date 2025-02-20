@@ -1,20 +1,23 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::{internal::CoreGraphOps, StaticGraphViewOps},
+        api::{
+            properties::internal::TemporalPropertyViewOps,
+            view::{internal::CoreGraphOps, StaticGraphViewOps},
+        },
         graph::{
             node::NodeView,
             views::property_filter::{CompositeNodeFilter, Filter},
         },
     },
-    prelude::{GraphViewOps, NodePropertyFilterOps, PropertyFilter, ResetFilter},
+    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields, get_property_index,
+        fields, get_property_indexes,
         graph_index::GraphIndex,
         query_builder::QueryBuilder,
     },
@@ -98,49 +101,185 @@ impl<'a> NodeFilterExecutor<'a> {
         latest: bool,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
-        let (property_index, prop_id) = get_property_index(
+        let (cpi, tpi) = get_property_indexes(
             &self.index.node_index.constant_property_indexes,
             &self.index.node_index.temporal_property_indexes,
             graph.node_meta(),
             prop_name,
         )?;
-        let (property_index, query) = self
-            .query_builder
-            .build_property_query::<G>(property_index, filter)?;
+        let results = match (cpi, tpi) {
+            (
+                Some((const_property_index, const_prop_id)),
+                Some((temporal_property_index, temporal_prop_id)),
+            ) => {
+                let (const_property_index, const_property_index_query) = self
+                    .query_builder
+                    .build_property_query::<G>(const_property_index, filter)?;
+                let const_property_index_results = match const_property_index_query {
+                    Some(query) => {
+                        if latest {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                const_prop_id,
+                                &const_property_index.reader,
+                                limit,
+                                offset,
+                                LatestNodePropertyFilterCollector::new,
+                            )?
+                        } else {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                const_prop_id,
+                                &const_property_index.reader,
+                                limit,
+                                offset,
+                                NodePropertyFilterCollector::new,
+                            )?
+                        }
+                    }
+                    None => graph
+                        .nodes()
+                        .filter_nodes(filter.clone())?
+                        .into_iter()
+                        .map(|n| n.reset_filter())
+                        .skip(offset)
+                        .take(limit)
+                        .collect(),
+                };
 
-        let results = match query {
-            Some(query) => {
-                if latest {
-                    self.execute_filter_property_query(
-                        graph,
-                        query,
-                        prop_id,
-                        &property_index.reader,
-                        limit,
-                        offset,
-                        LatestNodePropertyFilterCollector::new,
-                    )?
-                } else {
-                    self.execute_filter_property_query(
-                        graph,
-                        query,
-                        prop_id,
-                        &property_index.reader,
-                        limit,
-                        offset,
-                        NodePropertyFilterCollector::new,
-                    )?
-                }
+                let (temporal_property_index, temporal_property_index_query) =
+                    self.query_builder
+                        .build_property_query::<G>(temporal_property_index, filter)?;
+                let temporal_property_index_results = match temporal_property_index_query {
+                    Some(query) => {
+                        if latest {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                temporal_prop_id,
+                                &temporal_property_index.reader,
+                                limit,
+                                offset,
+                                LatestNodePropertyFilterCollector::new,
+                            )?
+                        } else {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                temporal_prop_id,
+                                &temporal_property_index.reader,
+                                limit,
+                                offset,
+                                NodePropertyFilterCollector::new,
+                            )?
+                        }
+                    }
+                    None => graph
+                        .nodes()
+                        .filter_nodes(filter.clone())?
+                        .into_iter()
+                        .map(|n| n.reset_filter())
+                        .skip(offset)
+                        .take(limit)
+                        .collect(),
+                };
+
+                let mut filtered = const_property_index_results.into_iter().filter(|n| {
+                    n.properties()
+                        .temporal()
+                        .get_by_id(temporal_prop_id)
+                        .map(|t| t.is_empty())
+                        .unwrap_or(true)
+                });
+
+                let mut combined: HashSet<NodeView<G, G>> = filtered.into_iter().collect();
+                // println!("filtered = {:?}", combined.iter().map(|n| n.name()).collect::<Vec<_>>());
+                combined.extend(temporal_property_index_results);
+                // println!("combined = {:?}", combined.iter().map(|n| n.name()).collect::<Vec<_>>());
+                Ok(combined.into_iter().collect())
             }
-            None => graph
-                .nodes()
-                .filter_nodes(filter.clone())?
-                .into_iter()
-                .map(|n| n.reset_filter())
-                .skip(offset)
-                .take(limit)
-                .collect(),
-        };
+            (Some((const_property_index, const_prop_id)), None) => {
+                let (const_property_index, const_property_index_query) = self
+                    .query_builder
+                    .build_property_query::<G>(const_property_index, filter)?;
+                let const_property_index_results = match const_property_index_query {
+                    Some(query) => {
+                        if latest {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                const_prop_id,
+                                &const_property_index.reader,
+                                limit,
+                                offset,
+                                LatestNodePropertyFilterCollector::new,
+                            )?
+                        } else {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                const_prop_id,
+                                &const_property_index.reader,
+                                limit,
+                                offset,
+                                NodePropertyFilterCollector::new,
+                            )?
+                        }
+                    }
+                    None => graph
+                        .nodes()
+                        .filter_nodes(filter.clone())?
+                        .into_iter()
+                        .map(|n| n.reset_filter())
+                        .skip(offset)
+                        .take(limit)
+                        .collect(),
+                };
+                Ok(const_property_index_results)
+            }
+            (None, Some((temporal_property_index, temporal_prop_id))) => {
+                let (temporal_property_index, temporal_property_index_query) =
+                    self.query_builder
+                        .build_property_query::<G>(temporal_property_index, filter)?;
+                let temporal_property_index_results = match temporal_property_index_query {
+                    Some(query) => {
+                        if latest {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                temporal_prop_id,
+                                &temporal_property_index.reader,
+                                limit,
+                                offset,
+                                LatestNodePropertyFilterCollector::new,
+                            )?
+                        } else {
+                            self.execute_filter_property_query(
+                                graph,
+                                query,
+                                temporal_prop_id,
+                                &temporal_property_index.reader,
+                                limit,
+                                offset,
+                                NodePropertyFilterCollector::new,
+                            )?
+                        }
+                    }
+                    None => graph
+                        .nodes()
+                        .filter_nodes(filter.clone())?
+                        .into_iter()
+                        .map(|n| n.reset_filter())
+                        .skip(offset)
+                        .take(limit)
+                        .collect(),
+                };
+                Ok(temporal_property_index_results)
+            }
+            _ => Err(GraphError::PropertyNotFound(prop_name.to_string())),
+        }?;
 
         Ok(results)
     }

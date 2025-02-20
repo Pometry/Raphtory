@@ -14,11 +14,11 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, get_property_index, index_properties, initialize_property_indexes, new_index,
+        fields, index_properties, initialize_property_indexes, new_index,
         property_index::PropertyIndex, TOKENIZER,
     },
 };
-use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::{

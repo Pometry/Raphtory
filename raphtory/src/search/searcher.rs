@@ -152,15 +152,179 @@ mod search_tests {
         use crate::{
             core::{IntoProp, Prop},
             db::{
-                api::view::{internal::InternalIndexSearch, SearchableGraphOps},
-                graph::views::property_filter::{CompositeNodeFilter, Filter},
+                api::{
+                    mutation::internal::{
+                        InheritMutationOps, InternalAdditionOps, InternalPropertyAdditionOps,
+                    },
+                    properties::internal::TemporalPropertiesOps,
+                    view::{
+                        internal::{CoreGraphOps, InternalIndexSearch, NodeHistoryFilter},
+                        SearchableGraphOps, StaticGraphViewOps,
+                    },
+                },
+                graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
             },
             prelude::{
-                AdditionOps, EdgeViewOps, Graph, NodeStateOps, NodeViewOps, PropertyFilter, TimeOps,
+                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeStateOps, NodeViewOps,
+                PropertyAdditionOps, PropertyFilter, TimeOps, NO_PROPS,
             },
             search::searcher::search_tests::PersistentGraph,
         };
-        use raphtory_api::core::storage::timeindex::AsTime;
+        use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+
+        fn init_graph<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
+            graph: G,
+        ) -> G {
+            graph
+                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .node("N1")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .node("N4")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(2u64))])
+                .unwrap();
+
+            graph
+                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(2, "N9", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .node("N9")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N10", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_node(2, "N10", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .node("N10")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N11", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .add_node(2, "N11", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .node("N11")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N12", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_node(3, "N12", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .node("N12")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N13", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_node(3, "N13", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .node("N13")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N14", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .node("N14")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+        }
+
+        #[test]
+        fn test_property_semantics() {
+            let g = Graph::new();
+            let g = init_graph(g);
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let results = g
+                .searcher()
+                .unwrap()
+                .search_nodes(&g, &filter, 10, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            println!("{:?}", results);
+        }
 
         fn search_nodes_by_composite_filter(filter: &CompositeNodeFilter) -> Vec<String> {
             let graph = Graph::new();

@@ -1,8 +1,14 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{
-        properties::internal::{ConstPropertiesOps, PropertiesOps},
-        view::StaticGraphViewOps,
+    db::{
+        api::{
+            properties::internal::{ConstPropertiesOps, PropertiesOps},
+            view::{
+                internal::{InternalLayerOps, TimeSemantics},
+                StaticGraphViewOps,
+            },
+        },
+        graph::edge::EdgeView,
     },
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
@@ -137,36 +143,63 @@ where
     Ok(())
 }
 
-fn get_property_index(
+// Property Semantics:
+// There is a possibility that a const and temporal property share same name. This means that if a node
+// or an edge doesn't have a value for that temporal property, we fall back to its const property value.
+// Otherwise, the temporal property takes precedence.
+//
+// Search semantics:
+// This means that a property filter criteria, say p == 1, is looked for in both the const and temporal
+// property indexes for the given property name (if shared by both const and temporal properties). Now,
+// if the filter matches to docs in const property index but there already is a temporal property with a
+// different value, the doc is rejected i.e., fails the property filter criteria because temporal property
+// takes precedence.
+//          Search p == 1
+//      t_prop      c_prop
+//        T           T
+//        T           F
+//  (p=2) F     (p=1) T
+//        F           F
+
+fn get_property_indexes(
     constant_property_indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     temporal_property_indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     meta: &Meta,
     prop_name: &str,
-) -> Result<(Arc<PropertyIndex>, usize), GraphError> {
-    if let Some(prop_id) = meta.temporal_prop_meta().get_id(prop_name) {
-        return temporal_property_indexes
-            .read()
-            .map_err(|_| GraphError::LockError)?
-            .get(prop_id)
-            .and_then(|opt| opt.as_ref())
-            .cloned()
-            .map(Arc::from)
-            .map(|index| (index, prop_id))
-            .ok_or_else(|| GraphError::PropertyIndexNotFound(prop_name.to_string()));
+) -> Result<
+    (
+        Option<(Arc<PropertyIndex>, usize)>,
+        Option<(Arc<PropertyIndex>, usize)>,
+    ),
+    GraphError,
+> {
+    fn fetch_property_index(
+        indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+        prop_id: Option<usize>,
+    ) -> Option<(Arc<PropertyIndex>, usize)> {
+        prop_id.and_then(|id| {
+            indexes
+                .read()
+                .ok()?
+                .get(id)
+                .and_then(|opt| opt.as_ref())
+                .cloned()
+                .map(Arc::from)
+                .map(|index| (index, id))
+        })
     }
 
-    if let Some(prop_id) = meta.const_prop_meta().get_id(prop_name) {
-        return constant_property_indexes
-            .read()
-            .map_err(|_| GraphError::LockError)?
-            .get(prop_id)
-            .and_then(|opt| opt.as_ref())
-            .cloned()
-            .map(Arc::from)
-            .map(|index| (index, prop_id))
-            .ok_or_else(|| GraphError::PropertyIndexNotFound(prop_name.to_string()));
-    }
+    let constant_index = fetch_property_index(
+        constant_property_indexes,
+        meta.const_prop_meta().get_id(prop_name),
+    );
+    let temporal_index = fetch_property_index(
+        temporal_property_indexes,
+        meta.temporal_prop_meta().get_id(prop_name),
+    );
 
-    // Property not found in either meta
-    Err(GraphError::PropertyNotFound(prop_name.to_string()))
+    match (constant_index.clone(), temporal_index.clone()) {
+        (None, None) => Err(GraphError::PropertyNotFound(prop_name.to_string())),
+        _ => Ok((constant_index, temporal_index)),
+    }
 }

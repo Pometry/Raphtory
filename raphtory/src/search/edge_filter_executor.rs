@@ -17,7 +17,7 @@ use crate::{
             latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields, get_property_index,
+        fields, get_property_indexes,
         graph_index::GraphIndex,
         query_builder::QueryBuilder,
     },
@@ -102,52 +102,53 @@ impl<'a> EdgeFilterExecutor<'a> {
         latest: bool,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let prop_name = &filter.prop_name;
-        let (property_index, prop_id) = get_property_index(
+        let (property_index, prop_id) = get_property_indexes(
             &self.index.edge_index.constant_property_indexes,
             &self.index.edge_index.temporal_property_indexes,
             graph.edge_meta(),
             prop_name,
         )?;
-        let (property_index, query) = self
-            .query_builder
-            .build_property_query::<G>(property_index, filter)?;
-
-        let results = match query {
-            Some(query) => {
-                if latest {
-                    self.execute_filter_property_query(
-                        graph,
-                        query,
-                        prop_id,
-                        &property_index.reader,
-                        limit,
-                        offset,
-                        LatestEdgePropertyFilterCollector::new,
-                    )?
-                } else {
-                    self.execute_filter_property_query(
-                        graph,
-                        query,
-                        prop_id,
-                        &property_index.reader,
-                        limit,
-                        offset,
-                        EdgePropertyFilterCollector::new,
-                    )?
-                }
-            }
-            // None => graph
-            //     .edges()
-            //     .filter_edges(filter.clone())?
-            //     .into_iter()
-            //     .map(|n| n.reset_filter())
-            //     .skip(offset)
-            //     .take(limit)
-            //     .collect(),
-            None => vec![],
-        };
-
-        Ok(results)
+        // let (property_index, query) = self
+        //     .query_builder
+        //     .build_property_query::<G>(property_index, filter)?;
+        //
+        // let results = match query {
+        //     Some(query) => {
+        //         if latest {
+        //             self.execute_filter_property_query(
+        //                 graph,
+        //                 query,
+        //                 prop_id,
+        //                 &property_index.reader,
+        //                 limit,
+        //                 offset,
+        //                 LatestEdgePropertyFilterCollector::new,
+        //             )?
+        //         } else {
+        //             self.execute_filter_property_query(
+        //                 graph,
+        //                 query,
+        //                 prop_id,
+        //                 &property_index.reader,
+        //                 limit,
+        //                 offset,
+        //                 EdgePropertyFilterCollector::new,
+        //             )?
+        //         }
+        //     }
+        //     // None => graph
+        //     //     .edges()
+        //     //     .filter_edges(filter.clone())?
+        //     //     .into_iter()
+        //     //     .map(|n| n.reset_filter())
+        //     //     .skip(offset)
+        //     //     .take(limit)
+        //     //     .collect(),
+        //     None => vec![],
+        // };
+        //
+        // Ok(results)
+        Ok(vec![])
     }
 
     fn filter_edge_index<G: StaticGraphViewOps>(
