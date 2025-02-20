@@ -52,8 +52,9 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
+                    Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
+                    InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static,
+                    TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -70,7 +71,6 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-use crate::db::api::view::internal::CoreGraphOps;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Clone)]
