@@ -23,9 +23,9 @@ pub struct PropertyIndex {
 }
 
 impl PropertyIndex {
-    pub(crate) fn new(prop_name: ArcStr, prop_type: PropType) -> Self {
+    pub(crate) fn new(prop_name: ArcStr, schema: Schema) -> Self {
         // println!("prop_name = {}", prop_name.to_string());
-        let schema = Self::schema_builder(&*prop_name, prop_type).build();
+
         let (index, reader) = new_index(schema, IndexSettings::default());
         Self {
             prop_name,
@@ -48,16 +48,12 @@ impl PropertyIndex {
         Ok(())
     }
 
-    fn schema_builder(prop_name: &str, prop_type: PropType) -> SchemaBuilder {
-        let mut schema = Schema::builder();
-        schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-        schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
-        schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
-        schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+    pub(crate) fn schema_builder(prop_name: &str, prop_type: PropType) -> SchemaBuilder {
+        let mut schema_builder = Schema::builder();
 
         match prop_type {
             PropType::Str => {
-                schema.add_text_field(
+                schema_builder.add_text_field(
                     prop_name,
                     TextOptions::default().set_indexing_options(
                         TextFieldIndexing::default()
@@ -67,38 +63,38 @@ impl PropertyIndex {
                 );
             }
             PropType::DTime => {
-                schema.add_date_field(prop_name, INDEXED | FAST);
+                schema_builder.add_date_field(prop_name, INDEXED | FAST);
             }
             PropType::U8 => {
-                schema.add_u64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_u64_field(prop_name, INDEXED | FAST);
             }
             PropType::U16 => {
-                schema.add_u64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_u64_field(prop_name, INDEXED | FAST);
             }
             PropType::U64 => {
-                schema.add_u64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_u64_field(prop_name, INDEXED | FAST);
             }
             PropType::I64 => {
-                schema.add_i64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_i64_field(prop_name, INDEXED | FAST);
             }
             PropType::I32 => {
-                schema.add_i64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_i64_field(prop_name, INDEXED | FAST);
             }
             PropType::F64 => {
-                schema.add_f64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_f64_field(prop_name, INDEXED | FAST);
             }
             PropType::F32 => {
-                schema.add_f64_field(prop_name, INDEXED | FAST);
+                schema_builder.add_f64_field(prop_name, INDEXED | FAST);
             }
             PropType::Bool => {
-                schema.add_bool_field(prop_name, INDEXED | FAST);
+                schema_builder.add_bool_field(prop_name, INDEXED | FAST);
             }
             _ => {
-                schema.add_text_field(prop_name, TEXT | FAST);
+                schema_builder.add_text_field(prop_name, TEXT | FAST);
             }
         }
 
-        schema
+        schema_builder
     }
 
     pub fn get_prop_field(&self, prop_name: &str) -> tantivy::Result<Field> {

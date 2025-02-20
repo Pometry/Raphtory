@@ -167,13 +167,13 @@ pub enum PropertyFilterValue {
 }
 
 #[derive(Debug, Clone)]
-pub struct PropertyFilter {
+pub struct BasePropertyFilter {
     pub prop_name: String,
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
 }
 
-impl fmt::Display for PropertyFilter {
+impl fmt::Display for BasePropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.prop_value {
             PropertyFilterValue::None => {
@@ -195,7 +195,7 @@ impl fmt::Display for PropertyFilter {
     }
 }
 
-impl PropertyFilter {
+impl BasePropertyFilter {
     pub fn eq(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_name: prop_name.into(),
@@ -320,6 +320,10 @@ impl PropertyFilter {
         self.operator.apply_to_property(value, other)
     }
 }
+
+pub type PropertyFilter = BasePropertyFilter;
+pub type ConstPropertyFilter = BasePropertyFilter;
+pub type TemporalPropertyFilter = BasePropertyFilter;
 
 #[derive(Debug, Clone)]
 pub enum FilterValue {
@@ -480,6 +484,7 @@ impl fmt::Display for CompositeEdgeFilter {
     }
 }
 
+// TODO: Add tests for const and temporal properties
 #[cfg(test)]
 mod test_composite_filters {
     use crate::{

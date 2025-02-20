@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::ConstPropertiesOps,
+            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::storage_ops::GraphStorage,
             view::internal::{core_ops::CoreGraphOps, InternalLayerOps},
         },
@@ -14,11 +14,12 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, index_properties, initialize_property_indexes, new_index,
-        property_index::PropertyIndex, TOKENIZER,
+        fields, index_properties, initialize_edge_const_property_indexes,
+        initialize_edge_temporal_property_indexes, new_index, property_index::PropertyIndex,
+        TOKENIZER,
     },
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
 use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::{
@@ -97,33 +98,27 @@ impl EdgeIndex {
     }
 
     fn schema_builder() -> SchemaBuilder {
-        let mut schema = Schema::builder();
-        schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
-        schema.add_text_field(
+        let mut schema_builder = Schema::builder();
+        schema_builder.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_text_field(
             fields::SOURCE,
-            TextOptions::default().set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer(TOKENIZER)
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            ),
+            TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer(TOKENIZER)
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
         );
-        schema.add_text_field(
+        schema_builder.add_text_field(
             fields::DESTINATION,
-            TextOptions::default().set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer(TOKENIZER)
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            ),
+            TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer(TOKENIZER)
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
         );
-        schema.add_text_field(
-            fields::EDGE_TYPE,
-            TextOptions::default().set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer(TOKENIZER)
-                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-            ),
-        );
-        schema
+        schema_builder
     }
 
     pub fn get_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {
@@ -177,7 +172,7 @@ impl EdgeIndex {
             .fold(BTreeMap::new(), |mut map, (t, k, pid, v)| {
                 map.entry(t).or_insert_with(Vec::new).push((k, pid, v));
                 map
-            })
+            }) // TODO Revisit
     }
 
     fn index_edge<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
@@ -207,6 +202,18 @@ impl EdgeIndex {
                 self.collect_temporal_properties(&edge);
 
             for (time, temp_props) in &temporal_properties {
+                // temp_props.iter().for_each(|c| {
+                //     let (t, pid, v) = c;
+                //     println!(
+                //         "ev = {:?}, t = {:?}",
+                //         edge,
+                //         edge.clone()
+                //             .graph
+                //             .temporal_edge_prop_hist(edge.edge, *pid, edge.graph.layer_ids())
+                //             .collect_vec()
+                //     );
+                // });
+
                 index_properties(
                     constant_properties.iter().cloned(),
                     self.constant_property_indexes.write()?,
@@ -255,17 +262,31 @@ impl EdgeIndex {
         let edge_index = EdgeIndex::new();
 
         // Initialize property indexes and get their writers
-        let mut const_writers = initialize_property_indexes(
+        let const_property_keys = graph
+            .node_meta()
+            .const_prop_meta()
+            .get_keys()
+            .into_iter()
+            .cloned();
+        let mut const_writers = initialize_edge_const_property_indexes(
+            graph,
             edge_index.constant_property_indexes.clone(),
-            graph.edge_meta().const_prop_meta(),
+            const_property_keys,
         )?;
-        let mut temporal_writers = initialize_property_indexes(
+
+        let temporal_property_keys = graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_keys()
+            .into_iter()
+            .cloned();
+        let mut temporal_writers = initialize_edge_temporal_property_indexes(
+            graph,
             edge_index.temporal_property_indexes.clone(),
-            graph.edge_meta().temporal_prop_meta(),
+            temporal_property_keys,
         )?;
 
         let mut writer = edge_index.index.writer(100_000_000)?;
-
         let locked_g = graph.core_graph();
         locked_g.edges_par(&graph).try_for_each(|e_ref| {
             {
@@ -320,13 +341,18 @@ impl EdgeIndex {
             .expect("Edge for internal id should exist.")
             .at(t.t());
 
-        let const_writers = initialize_property_indexes(
+        let const_property_keys = edge.const_prop_keys();
+        let const_writers = initialize_edge_const_property_indexes(
+            graph,
             self.constant_property_indexes.clone(),
-            graph.node_meta().const_prop_meta(),
+            const_property_keys,
         )?;
-        let temporal_writers = initialize_property_indexes(
+
+        let temporal_property_keys = edge.temporal_prop_keys();
+        let temporal_writers = initialize_edge_temporal_property_indexes(
+            graph,
             self.temporal_property_indexes.clone(),
-            graph.node_meta().temporal_prop_meta(),
+            temporal_property_keys,
         )?;
 
         let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));

@@ -297,6 +297,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .get_dtype(id)
             .unwrap()
     }
+
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         if self.window_is_empty() {
             return vec![];
@@ -661,6 +662,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
+
     fn temporal_node_prop_hist(
         &self,
         v: VID,
@@ -672,6 +674,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         self.graph
             .temporal_node_prop_hist_window(v, prop_id, self.start_bound(), self.end_bound())
     }
+
     fn temporal_node_prop_hist_window(
         &self,
         v: VID,

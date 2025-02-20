@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::ConstPropertiesOps,
+            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::storage_ops::GraphStorage,
             view::internal::{CoreGraphOps, InternalIndexSearch},
         },
@@ -14,12 +14,19 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, index_properties, initialize_property_indexes, new_index,
-        property_index::PropertyIndex, TOKENIZER,
+        fields, index_properties, initialize_node_const_property_indexes,
+        initialize_node_temporal_property_indexes, new_index, property_index::PropertyIndex,
+        TOKENIZER,
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
+use raphtory_api::{
+    core::{
+        entities::properties::props::Meta,
+        storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec},
+    },
+    iter::BoxedLIter,
+};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
 use std::{
@@ -99,9 +106,9 @@ impl NodeIndex {
     }
 
     fn schema_builder() -> SchemaBuilder {
-        let mut schema = Schema::builder();
-        schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
-        schema.add_text_field(
+        let mut schema_builder: SchemaBuilder = Schema::builder();
+        schema_builder.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_text_field(
             fields::NODE_NAME,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
@@ -109,7 +116,7 @@ impl NodeIndex {
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
         );
-        schema.add_text_field(
+        schema_builder.add_text_field(
             fields::NODE_TYPE,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
@@ -117,7 +124,7 @@ impl NodeIndex {
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
         );
-        schema
+        schema_builder
     }
 
     pub fn get_node_field(&self, field_name: &str) -> tantivy::Result<Field> {
@@ -238,13 +245,28 @@ impl NodeIndex {
         let node_index = NodeIndex::new();
 
         // Initialize property indexes and get their writers
-        let mut const_writers = initialize_property_indexes(
+        let const_property_keys = graph
+            .node_meta()
+            .const_prop_meta()
+            .get_keys()
+            .into_iter()
+            .cloned();
+        let mut const_writers = initialize_node_const_property_indexes(
+            graph,
             node_index.constant_property_indexes.clone(),
-            graph.node_meta().const_prop_meta(),
+            const_property_keys,
         )?;
-        let mut temporal_writers = initialize_property_indexes(
+
+        let temporal_property_keys = graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_keys()
+            .into_iter()
+            .cloned();
+        let mut temporal_writers = initialize_node_temporal_property_indexes(
+            graph,
             node_index.temporal_property_indexes.clone(),
-            graph.node_meta().temporal_prop_meta(),
+            temporal_property_keys,
         )?;
 
         // Index nodes in parallel
@@ -302,13 +324,18 @@ impl NodeIndex {
             .expect("Node for internal id should exist.")
             .at(t.t());
 
-        let const_writers = initialize_property_indexes(
+        let const_property_keys = node.const_prop_keys();
+        let const_writers = initialize_node_const_property_indexes(
+            graph,
             self.constant_property_indexes.clone(),
-            graph.node_meta().const_prop_meta(),
+            const_property_keys,
         )?;
-        let temporal_writers = initialize_property_indexes(
+
+        let temporal_property_keys = node.temporal_prop_keys();
+        let temporal_writers = initialize_node_temporal_property_indexes(
+            graph,
             self.temporal_property_indexes.clone(),
-            graph.node_meta().temporal_prop_meta(),
+            temporal_property_keys,
         )?;
 
         let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));

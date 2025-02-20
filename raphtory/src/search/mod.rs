@@ -3,8 +3,9 @@ use crate::{
     db::{
         api::{
             properties::internal::{ConstPropertiesOps, PropertiesOps},
+            storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{InternalLayerOps, TimeSemantics},
+                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
                 StaticGraphViewOps,
             },
         },
@@ -24,7 +25,7 @@ use std::{
 };
 use tantivy::{
     query::Query,
-    schema::Schema,
+    schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Index, IndexReader, IndexSettings, IndexWriter,
 };
@@ -75,13 +76,18 @@ pub(crate) fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index
     (index, reader)
 }
 
+// We initialize the property indexes per property as and when we discover a new property while processing each node and edge update.
+// While when creating indexes for a graph already built, all nodes/edges properties are already known in advance,
+// which is why create all the property indexes upfront.
 fn initialize_property_indexes(
+    graph: &GraphStorage,
     property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
-    prop_meta: &PropMapper,
+    prop_keys: impl Iterator<Item = ArcStr>,
+    get_property_meta: fn(&GraphStorage) -> &PropMapper,
+    add_schema_fields: fn(&mut SchemaBuilder),
 ) -> tantivy::Result<Vec<Option<IndexWriter>>> {
-    let properties = prop_meta
-        .get_keys()
-        .into_iter()
+    let prop_meta = get_property_meta(graph);
+    let properties = prop_keys
         .filter_map(|k| {
             prop_meta.get_id(&*k).and_then(|prop_id| {
                 prop_meta
@@ -102,14 +108,86 @@ fn initialize_property_indexes(
 
         // Create a new PropertyIndex if it doesn't exist
         if prop_index_guard[prop_id].is_none() {
-            let property_index = PropertyIndex::new(ArcStr::from(prop_name), prop_type);
+            let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
+            add_schema_fields(&mut schema_builder);
+            let schema = schema_builder.build();
+            let property_index = PropertyIndex::new(ArcStr::from(prop_name), schema);
             let writer = property_index.index.writer(50_000_000)?;
+
             writers.push(Some(writer));
             prop_index_guard[prop_id] = Some(property_index);
         }
     }
 
     Ok(writers)
+}
+
+fn initialize_node_const_property_indexes(
+    graph: &GraphStorage,
+    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    prop_keys: impl Iterator<Item = ArcStr>,
+) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+    initialize_property_indexes(
+        graph,
+        property_indexes,
+        prop_keys,
+        |g| g.node_meta().const_prop_meta(),
+        |schema| {
+            schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+        },
+    )
+}
+
+fn initialize_node_temporal_property_indexes(
+    graph: &GraphStorage,
+    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    prop_keys: impl Iterator<Item = ArcStr>,
+) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+    initialize_property_indexes(
+        graph,
+        property_indexes,
+        prop_keys,
+        |g| g.node_meta().temporal_prop_meta(),
+        |schema| {
+            schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+            schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+        },
+    )
+}
+
+fn initialize_edge_const_property_indexes(
+    graph: &GraphStorage,
+    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    prop_keys: impl Iterator<Item = ArcStr>,
+) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+    initialize_property_indexes(
+        graph,
+        property_indexes,
+        prop_keys,
+        |g| g.edge_meta().const_prop_meta(),
+        |schema| {
+            schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+            schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+        },
+    )
+}
+
+fn initialize_edge_temporal_property_indexes(
+    graph: &GraphStorage,
+    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    prop_keys: impl Iterator<Item = ArcStr>,
+) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+    initialize_property_indexes(
+        graph,
+        property_indexes,
+        prop_keys,
+        |g| g.edge_meta().temporal_prop_meta(),
+        |schema| {
+            schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+            schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+            schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+        },
+    )
 }
 
 fn index_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(

@@ -383,6 +383,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .map(|(t, _)| t.t())
             .collect()
     }
+
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
             .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
