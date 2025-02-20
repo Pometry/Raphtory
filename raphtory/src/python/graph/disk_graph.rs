@@ -273,6 +273,22 @@ impl PyDiskGraph {
         Self::load_from_dir(self.graph_dir().to_path_buf())
     }
 
+    #[pyo3(signature=(location, col_name, chunk_size=None))]
+    pub fn load_node_types(
+        &self,
+        location: PathBuf,
+        col_name: &str,
+        chunk_size: Option<usize>,
+    ) -> Result<Self, GraphError> {
+        let mut cloned = self.clone();
+        cloned.graph.load_node_types_from_parquets(
+            location,
+            col_name,
+            chunk_size.unwrap_or(1_000_000),
+        )?;
+        Ok(cloned)
+    }
+
     #[pyo3(signature = (location, chunk_size=20_000_000))]
     pub fn append_node_temporal_properties(
         &self,

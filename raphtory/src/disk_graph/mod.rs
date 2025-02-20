@@ -1,9 +1,3 @@
-use std::{
-    fmt::{Display, Formatter},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
 use crate::{
     core::{
         entities::{
@@ -29,6 +23,11 @@ use pometry_storage::{
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::{
+    fmt::{Display, Formatter},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -39,6 +38,7 @@ pub mod prelude {
     pub use pometry_storage::chunked_array::array_ops::*;
 }
 
+use crate::io::parquet_loaders::read_struct_arrays;
 pub use pometry_storage as disk_storage;
 
 #[derive(Clone, Debug)]
@@ -319,6 +319,27 @@ impl DiskGraphStorage {
             node_id_col,
         )?;
         Ok(Self::new(t_graph))
+    }
+
+    pub fn load_node_types_from_parquets(
+        &mut self,
+        parquet_path: impl AsRef<Path>,
+        type_col: &str,
+        chunk_size: usize,
+    ) -> Result<(), GraphError> {
+        let inner = Arc::make_mut(&mut self.inner);
+        let chunks =
+            read_struct_arrays(parquet_path.as_ref(), Some(&[type_col]))?.map(
+                |chunk| match chunk {
+                    Ok(chunk) => {
+                        let (_, cols, _) = chunk.into_data();
+                        cols.into_iter().next().ok_or(RAError::EmptyChunk)
+                    }
+                    Err(err) => Err(err),
+                },
+            );
+        inner.load_node_types_from_chunks(chunks, chunk_size)?;
+        Ok(())
     }
 
     pub fn filtered_layers_par<'a>(
