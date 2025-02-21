@@ -98,8 +98,8 @@ where
 ///
 /// Nodes in the out-component with their distances from the starting node.
 ///
-pub fn out_component<'graph, G: GraphViewOps<'graph>>(
-    node: NodeView<G>,
+pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    node: NodeView<G, GH>,
 ) -> NodeState<'graph, usize, G> {
     let mut out_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();
@@ -110,7 +110,7 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>>(
     });
     while let Some((neighbour_id, d)) = to_check_stack.pop_front() {
         let d = d + 1;
-        if let Some(neighbour) = &node.graph.node(neighbour_id) {
+        if let Some(neighbour) = (&&node.graph).node(neighbour_id) {
             neighbour.out_neighbours().iter().for_each(|node| {
                 let id = node.node;
                 if let Entry::Vacant(entry) = out_components.entry(id) {
@@ -124,8 +124,8 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>>(
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         out_components.into_iter().sorted().unzip();
     NodeState::new(
-        node.graph.clone(),
-        node.graph.clone(),
+        node.base_graph.clone(),
+        node.base_graph.clone(),
         distances.into(),
         Some(Index::new(nodes)),
     )
