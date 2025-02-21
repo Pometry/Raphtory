@@ -85,7 +85,7 @@ jobs:
                     echo "Installing openssl-dev on CentOS..."
                     yum update -y
                     yum install -y pkgconfig openssl-devel unzip
-                    ;;  
+                    ;;
                 almalinux)
                     echo "Installing openssl-dev on almalinux..."
                     dnf update -y
@@ -96,12 +96,12 @@ jobs:
                     echo "Unsupported distribution: $ID"
                     exit 1
                     ;;
-              esac    
+              esac
             else
               echo "Could not determine distribution."
               exit 1
             fi
-            
+
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
@@ -118,9 +118,9 @@ jobs:
             rm $FILE
             ln -s /usr/local/bin/protoc /usr/bin/protoc
       - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: pyartifacts
+          name: pyartifacts-linux
           path: ./python/dist
   python-windows:
     runs-on: windows-latest
@@ -158,9 +158,9 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
       - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: pyartifacts
+          name: pyartifacts-windows
           path: ./python/dist
   python-macos:
     runs-on: macos-latest
@@ -208,9 +208,9 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
       - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: pyartifacts
+          name: pyartifacts-macos
           path: ./python/dist
   publish-python:
     needs: [ python-linux, python-windows, python-macos ]
@@ -223,10 +223,11 @@ jobs:
           permission: "write"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: pyartifacts
           path: pyartifacts
+          pattern: pyartifacts-*
+          merge-multiple: true
       - name: Display structure of downloaded files
         run: ls -R
         working-directory: pyartifacts
