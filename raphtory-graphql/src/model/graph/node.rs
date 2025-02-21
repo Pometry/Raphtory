@@ -45,6 +45,12 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
+
+    /// Remove any view filters and return the Node as a view of the underlying base graph
+    async fn reset_view(&self) -> Node {
+        self.vv.reset_filter().into()
+    }
+
     async fn default_layer(&self) -> Node {
         self.vv.default_layer().into()
     }
@@ -238,16 +244,31 @@ impl Node {
         self.vv.degree()
     }
 
+    /// The number of neighbours of this node that are in the base graph but not in the current view
+    async fn hidden_degree(&self) -> usize {
+        self.vv.reset_filter().degree() - self.vv.degree()
+    }
+
     /// Returns the number edges with this node as the source
 
     async fn out_degree(&self) -> usize {
         self.vv.out_degree()
     }
 
+    /// The number of out-neighbours of this node that are in the base graph but not in the current view
+    async fn hidden_out_degree(&self) -> usize {
+        self.vv.reset_filter().out_degree() - self.vv.out_degree()
+    }
+
     /// Returns the number edges with this node as the destination
 
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
+    }
+
+    /// The number of in-neighbours of this node that are in the base graph but not in the current view
+    async fn hidden_in_degree(&self) -> usize {
+        self.vv.reset_filter().in_degree() - self.vv.in_degree()
     }
 
     async fn in_component(&self) -> GqlNodes {

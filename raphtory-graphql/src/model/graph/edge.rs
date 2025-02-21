@@ -10,6 +10,7 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
+use raphtory::prelude::ResetFilter;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {
@@ -46,6 +47,11 @@ impl Edge {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
+
+    /// Discard all view filters applied to this edge and return a view of the same edge in the base graph
+    async fn reset_view(&self) -> Edge {
+        self.ee.reset_filter().into()
+    }
 
     async fn default_layer(&self) -> Edge {
         self.ee.default_layer().into()
