@@ -11,13 +11,11 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
 ]
-default-members = [
-    "raphtory",
-]
+default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.14.0"
+version = "0.15.0-b2"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -41,7 +39,7 @@ debug = 0
 
 [workspace.dependencies]
 #[public-storage]
-pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
+pometry-storage = { version = "0.15.0-b2", path = "pometry-storage" }
 #[private-storage]
 # pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "7.0.13", features = ["dynamic-schema"] }
