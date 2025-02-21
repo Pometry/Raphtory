@@ -8,7 +8,7 @@ use raphtory::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
-    prelude::{LayerOps, TimeOps},
+    prelude::{LayerOps, ResetFilter, TimeOps},
 };
 
 #[derive(ResolvedObject)]

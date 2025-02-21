@@ -758,8 +758,12 @@ impl GqlGraph {
         self.graph.node(id).map(|v| v.into())
     }
 
-    async fn nodes(&self) -> GqlNodes {
-        GqlNodes::new(self.graph.nodes())
+    /// query (optionally a subset of) the nodes in the graph
+    async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
+        match ids {
+            None => GqlNodes::new(self.graph.nodes()),
+            Some(ids) => GqlNodes::new(self.graph.nodes().id_filter(ids)),
+        }
     }
 
     async fn search_nodes(
