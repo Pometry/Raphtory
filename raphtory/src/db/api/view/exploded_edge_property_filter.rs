@@ -32,8 +32,11 @@ mod test {
     use crate::{
         db::{
             api::view::exploded_edge_property_filter::ExplodedEdgePropertyFilterOps,
-            graph::graph::{
-                assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
+            graph::{
+                graph::{
+                    assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
+                },
+                views::property_filter::PropertyRef,
             },
         },
         prelude::*,
@@ -72,7 +75,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::gt("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -83,7 +86,10 @@ mod test {
         let g = Graph::new();
         g.add_edge(0, 1, 2, [("int_prop", 0i64)], None).unwrap();
         let filtered = g
-            .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
+            .filter_exploded_edges(PropertyFilter::gt(
+                PropertyRef::Property("int_prop".to_string()),
+                1i64,
+            ))
             .unwrap();
         let gf = Graph::new();
         gf.add_node(0, 1, NO_PROPS, None).unwrap();
@@ -98,7 +104,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::ge("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv >= v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -110,7 +116,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges( PropertyFilter::lt("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges( PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv < v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -122,7 +128,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::le("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::le(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv <= v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -134,7 +140,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -146,7 +152,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges( PropertyFilter::ne("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges( PropertyFilter::ne(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv != v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -158,7 +164,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>(), (start, end) in build_window()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
             assert_graph_equal(&filtered.window(start, end), &expected_filtered_g.window(start, end));
         })
@@ -170,7 +176,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let mat = filtered.materialize().unwrap();
             assert_edges_equal(&filtered.edges(), &mat.edges());
             // FIXME filtered_exploded_edges doesn't propagate timestamps to nodes assert_graph_equal(&filtered, &filtered.materialize().unwrap());
@@ -183,7 +189,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered_nodes = g.nodes().filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+            let filtered_nodes = g.nodes().filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
             assert_nodes_equal(&filtered_nodes, &expected_filtered_g.nodes());
         })
@@ -196,7 +202,7 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             if let Some(node) = g.node(0) {
-                let filtered_node = node.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+                let filtered_node = node.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
                 let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
                 assert_node_equal(filtered_node, expected_filtered_g.node(0).unwrap())
             }
@@ -209,7 +215,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>(), (start, end) in build_window()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let left = filtered.window(start, end);
             let right = filtered.window(start, end).materialize().unwrap();
             assert_edges_equal(&left.edges(), &right.edges());

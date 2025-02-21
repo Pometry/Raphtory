@@ -56,20 +56,6 @@ impl<'a> Searcher<'a> {
         Ok(result.into_iter().collect_vec())
     }
 
-    pub fn search_nodes_latest<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeNodeFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let result = self
-            .node_filter_executor
-            .filter_nodes_latest(graph, filter, limit, offset)?;
-
-        Ok(result.into_iter().collect_vec())
-    }
-
     pub fn search_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -80,20 +66,6 @@ impl<'a> Searcher<'a> {
         let result = self
             .edge_filter_executor
             .filter_edges(graph, filter, limit, offset)?;
-
-        Ok(result.into_iter().collect_vec())
-    }
-
-    pub fn search_edges_latest<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeEdgeFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let result = self
-            .edge_filter_executor
-            .filter_edges_latest(graph, filter, limit, offset)?;
 
         Ok(result.into_iter().collect_vec())
     }
@@ -162,7 +134,9 @@ mod search_tests {
                         SearchableGraphOps, StaticGraphViewOps,
                     },
                 },
-                graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+                graph::views::property_filter::{
+                    CompositeEdgeFilter, CompositeNodeFilter, Filter, PropertyRef, Temporal,
+                },
             },
             prelude::{
                 AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeStateOps, NodeViewOps,
@@ -307,15 +281,25 @@ mod search_tests {
                 .add_constant_properties([("p1", Prop::U64(1u64))])
                 .unwrap();
 
+            graph.add_node(2, "N15", NO_PROPS, None).unwrap();
+            graph
+                .node("N15")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
             graph
         }
 
         #[test]
-        fn test_property_semantics() {
+        fn test_temporal_any_semantics() {
             let g = Graph::new();
             let g = init_graph(g);
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
-            let results = g
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::TemporalProperty("p1".to_string(), Temporal::Any),
+                1u64,
+            ));
+            let mut results = g
                 .searcher()
                 .unwrap()
                 .search_nodes(&g, &filter, 10, 0)
@@ -323,7 +307,155 @@ mod search_tests {
                 .into_iter()
                 .map(|nv| nv.name())
                 .collect::<Vec<_>>();
-            println!("{:?}", results);
+            results.sort();
+            assert_eq!(
+                results,
+                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+            )
+        }
+
+        #[test]
+        fn test_temporal_latest_semantics() {
+            let g = Graph::new();
+            let g = init_graph(g);
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::TemporalProperty("p1".to_string(), Temporal::Latest),
+                1u64,
+            ));
+            let mut results = g
+                .searcher()
+                .unwrap()
+                .search_nodes(&g, &filter, 10, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"])
+        }
+
+        #[test]
+        fn test_constant_semantics() {
+            let g = Graph::new();
+            let g = init_graph(g);
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::ConstantProperty("p1".to_string()),
+                1u64,
+            ));
+            let mut results = g
+                .searcher()
+                .unwrap()
+                .search_nodes(&g, &filter, 10, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            assert_eq!(
+                results,
+                vec!["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"]
+            )
+        }
+
+        #[test]
+        fn test_property_constant_semantics() {
+            // For this graph there won't be any temporal property index for property name "p1".
+            let graph = Graph::new();
+            graph
+                .add_node(2, "N1", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .node("N1")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph.add_node(2, "N2", NO_PROPS, None).unwrap();
+            graph
+                .node("N2")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
+            let mut results = graph
+                .searcher()
+                .unwrap()
+                .search_nodes(&graph, &filter, 10, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            assert_eq!(results, vec!["N1", "N2"])
+        }
+
+        #[test]
+        fn test_property_temporal_semantics() {
+            // For this graph there won't be any constant property index for property name "p1".
+            let graph = Graph::new();
+            graph
+                .add_node(1, "N1", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .node("N1")
+                .unwrap()
+                .add_constant_properties([("p2", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N2", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+            graph
+                .add_node(3, "N2", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+
+            graph
+                .add_node(2, "N3", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .add_node(3, "N3", [("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph.add_node(2, "N4", NO_PROPS, None).unwrap();
+
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
+            let mut results = graph
+                .searcher()
+                .unwrap()
+                .search_nodes(&graph, &filter, 10, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            assert_eq!(results, vec!["N1", "N3"])
+        }
+
+        #[test]
+        fn test_property_semantics() {
+            let g = Graph::new();
+            let g = init_graph(g);
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
+            let mut results = g
+                .searcher()
+                .unwrap()
+                .search_nodes(&g, &filter, 10, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            assert_eq!(results, vec!["N1", "N14", "N15", "N3", "N4", "N6", "N7"])
         }
 
         fn search_nodes_by_composite_filter(filter: &CompositeNodeFilter) -> Vec<String> {
@@ -418,24 +550,45 @@ mod search_tests {
         #[test]
         fn test_search_nodes_by_composite_filter() {
             let filter = CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", 3u64)),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p2".to_string()),
+                    2u64,
+                )),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    3u64,
+                )),
             ]);
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, Vec::<String>::new());
 
             let filter = CompositeNodeFilter::Or(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", "shivam")),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p2".to_string()),
+                    2u64,
+                )),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    "shivam",
+                )),
             ]);
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["1", "2"]);
 
             let filter = CompositeNodeFilter::Or(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", "pometry")),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    "pometry",
+                )),
                 CompositeNodeFilter::And(vec![
-                    CompositeNodeFilter::Property(PropertyFilter::eq("p2", 6u64)),
-                    CompositeNodeFilter::Property(PropertyFilter::eq("p3", 1u64)),
+                    CompositeNodeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p2".to_string()),
+                        6u64,
+                    )),
+                    CompositeNodeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p3".to_string()),
+                        1u64,
+                    )),
                 ]),
             ]);
             let results = search_nodes_by_composite_filter(&filter);
@@ -443,7 +596,10 @@ mod search_tests {
 
             let filter = CompositeNodeFilter::And(vec![
                 CompositeNodeFilter::Node(Filter::eq("node_type", "fire_nation")),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p1", "prop1")),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    "prop1",
+                )),
             ]);
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, Vec::<String>::new());
@@ -521,55 +677,75 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_property_eq() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2"]);
         }
 
         #[test]
         fn search_nodes_for_property_ne() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::ne("p2", 2u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::ne(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["3"]);
         }
 
         #[test]
         fn search_nodes_for_property_lt() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::lt("p2", 10u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::lt(
+                PropertyRef::Property("p2".to_string()),
+                10u64,
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "3"]);
         }
 
         #[test]
         fn search_nodes_for_property_le() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::le("p2", 6u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::le(
+                PropertyRef::Property("p2".to_string()),
+                6u64,
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "3"]);
         }
 
         #[test]
         fn search_nodes_for_property_gt() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::gt("p2", 2u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::gt(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["3"]);
         }
 
         #[test]
         fn search_nodes_for_property_ge() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::ge("p2", 2u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::ge(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "3"]);
         }
 
         #[test]
         fn search_nodes_for_property_in() {
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::any("p2", vec![Prop::U64(6)]));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::any(
+                PropertyRef::Property("p2".to_string()),
+                vec![Prop::U64(6)],
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["3"]);
 
             let filter = CompositeNodeFilter::Property(PropertyFilter::any(
-                "p2",
+                PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(2), Prop::U64(6)],
             ));
             let results = search_nodes_by_composite_filter(&filter);
@@ -578,22 +754,28 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_property_not_in() {
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::not_any("p2", vec![Prop::U64(6)]));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::not_any(
+                PropertyRef::Property("p2".to_string()),
+                vec![Prop::U64(6)],
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2"]);
         }
 
         #[test]
         fn search_nodes_for_property_is_some() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::is_some("p2"));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::is_some(
+                PropertyRef::Property("p2".to_string()),
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "3"]);
         }
 
         #[test]
         fn search_nodes_for_property_is_none() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::is_none("p2"));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::is_none(
+                PropertyRef::Property("p2".to_string()),
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["1", "4"]);
         }
@@ -601,8 +783,14 @@ mod search_tests {
         #[test]
         fn test_search_nodes_by_props_added_at_different_times() {
             let filter = CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Property(PropertyFilter::eq("p4", "pometry")),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p5", 12u64)),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p4".to_string()),
+                    "pometry",
+                )),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p5".to_string()),
+                    12u64,
+                )),
             ]);
 
             let results = search_nodes_by_composite_filter(&filter);
@@ -641,21 +829,33 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search_property() {
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search("p1", "tano", 2, false));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
+                PropertyRef::Property("p1".to_string()),
+                "tano",
+                2,
+                false,
+            ));
             let results = fuzzy_search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["pometry"]);
         }
 
         #[test]
         fn test_fuzzy_search_property_prefix_match() {
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search("p1", "char", 2, false));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
+                PropertyRef::Property("p1".to_string()),
+                "char",
+                2,
+                false,
+            ));
             let results = fuzzy_search_nodes_by_composite_filter(&filter);
             assert_eq!(results, Vec::<String>::new());
 
-            let filter =
-                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search("p1", "char", 2, true));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
+                PropertyRef::Property("p1".to_string()),
+                "char",
+                2,
+                true,
+            ));
             let results = fuzzy_search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["shivam_kapoor"]);
         }
@@ -715,7 +915,10 @@ mod search_tests {
                 .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
                 .unwrap();
 
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let mut results = graph
                 .window(6, 9)
                 .search_nodes(&filter, 10, 0)
@@ -737,7 +940,9 @@ mod search_tests {
                 api::view::SearchableGraphOps,
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+                    property_filter::{
+                        CompositeEdgeFilter, CompositeNodeFilter, Filter, PropertyRef,
+                    },
                 },
             },
             prelude::{
@@ -838,15 +1043,27 @@ mod search_tests {
         #[test]
         fn test_search_edges_by_composite_filter() {
             let filter = CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 3u64)),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p2".to_string()),
+                    2u64,
+                )),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    3u64,
+                )),
             ]);
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
             let filter = CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "shivam")),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p2".to_string()),
+                    2u64,
+                )),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    "shivam",
+                )),
             ]);
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
@@ -855,10 +1072,19 @@ mod search_tests {
             );
 
             let filter = CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "pometry")),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    "pometry",
+                )),
                 CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 6u64)),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p3", 1u64)),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p2".to_string()),
+                        6u64,
+                    )),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p3".to_string()),
+                        1u64,
+                    )),
                 ]),
             ]);
             let results = search_edges_by_composite_filter(&filter);
@@ -869,7 +1095,10 @@ mod search_tests {
 
             let filter = CompositeEdgeFilter::And(vec![
                 CompositeEdgeFilter::Edge(Filter::eq("from", "13")),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p1", "prop1")),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    "prop1",
+                )),
             ]);
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, Vec::<(String, String)>::new());
@@ -979,14 +1208,20 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_eq() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("2".into(), "3".into())]);
         }
 
         #[test]
         fn search_edges_for_property_ne() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::ne("p2", 2u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::ne(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1000,7 +1235,10 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_lt() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::lt("p2", 10u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::lt(
+                PropertyRef::Property("p2".to_string()),
+                10u64,
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1015,7 +1253,10 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_le() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::le("p2", 6u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::le(
+                PropertyRef::Property("p2".to_string()),
+                6u64,
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1030,7 +1271,10 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_gt() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::gt("p2", 2u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::gt(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1044,7 +1288,10 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_ge() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::ge("p2", 2u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::ge(
+                PropertyRef::Property("p2".to_string()),
+                2u64,
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1059,8 +1306,10 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_in() {
-            let filter =
-                CompositeEdgeFilter::Property(PropertyFilter::any("p2", vec![Prop::U64(6)]));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::any(
+                PropertyRef::Property("p2".to_string()),
+                vec![Prop::U64(6)],
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1068,7 +1317,7 @@ mod search_tests {
             );
 
             let filter = CompositeEdgeFilter::Property(PropertyFilter::any(
-                "p2",
+                PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(2), Prop::U64(6)],
             ));
             let results = search_edges_by_composite_filter(&filter);
@@ -1084,8 +1333,10 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_not_in() {
-            let filter =
-                CompositeEdgeFilter::Property(PropertyFilter::not_any("p2", vec![Prop::U64(6)]));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::not_any(
+                PropertyRef::Property("p2".to_string()),
+                vec![Prop::U64(6)],
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1095,7 +1346,9 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_is_some() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::is_some("p2"));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::is_some(
+                PropertyRef::Property("p2".to_string()),
+            ));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1149,8 +1402,12 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search_property() {
-            let filter =
-                CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search("p1", "tano", 2, false));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
+                PropertyRef::Property("p1".to_string()),
+                "tano",
+                2,
+                false,
+            ));
             let results = fuzzy_search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
         }
@@ -1158,13 +1415,20 @@ mod search_tests {
         #[test]
         fn test_fuzzy_search_property_prefix_match() {
             let filter = CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
-                "p1", "charl", 1, false,
+                PropertyRef::Property("p1".to_string()),
+                "charl",
+                1,
+                false,
             ));
             let results = fuzzy_search_edges_by_composite_filter(&filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            let filter =
-                CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search("p1", "charl", 1, true));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
+                PropertyRef::Property("p1".to_string()),
+                "charl",
+                1,
+                true,
+            ));
             let results = fuzzy_search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }

@@ -160,6 +160,39 @@ impl FilterOperator {
 }
 
 #[derive(Debug, Clone)]
+pub enum Temporal {
+    Any,
+    Latest,
+}
+
+#[derive(Debug, Clone)]
+pub enum PropertyRef {
+    Property(String),
+    ConstantProperty(String),
+    TemporalProperty(String, Temporal),
+}
+
+impl PropertyRef {
+    pub fn as_display(&self) -> String {
+        match self {
+            PropertyRef::TemporalProperty(name, temporal) => {
+                format!("TemporalProperty({}, {:?})", name, temporal)
+            }
+            PropertyRef::ConstantProperty(name) => format!("ConstantProperty({})", name),
+            PropertyRef::Property(name) => format!("Property({})", name),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            PropertyRef::Property(name)
+            | PropertyRef::ConstantProperty(name)
+            | PropertyRef::TemporalProperty(name, _) => name,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum PropertyFilterValue {
     None,
     Single(Prop),
@@ -167,20 +200,29 @@ pub enum PropertyFilterValue {
 }
 
 #[derive(Debug, Clone)]
-pub struct BasePropertyFilter {
-    pub prop_name: String,
+pub struct PropertyFilter {
+    pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
 }
 
-impl fmt::Display for BasePropertyFilter {
+impl fmt::Display for PropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let prop_ref_str = match &self.prop_ref {
+            PropertyRef::Property(name) => format!("{}", name),
+            PropertyRef::ConstantProperty(name) => format!("const({})", name),
+            PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
+            PropertyRef::TemporalProperty(name, Temporal::Latest) => {
+                format!("temporal_latest({})", name)
+            }
+        };
+
         match &self.prop_value {
             PropertyFilterValue::None => {
-                write!(f, "{} {}", self.prop_name, self.operator)
+                write!(f, "{} {}", prop_ref_str, self.operator)
             }
             PropertyFilterValue::Single(value) => {
-                write!(f, "{} {} {}", self.prop_name, self.operator, value)
+                write!(f, "{} {} {}", prop_ref_str, self.operator, value)
             }
             PropertyFilterValue::Set(values) => {
                 let sorted_values = sort_comparable_props(values.iter().collect_vec());
@@ -189,104 +231,101 @@ impl fmt::Display for BasePropertyFilter {
                     .map(|v| format!("{}", v))
                     .collect::<Vec<_>>()
                     .join(", ");
-                write!(f, "{} {} [{}]", self.prop_name, self.operator, values_str)
+                write!(f, "{} {} [{}]", prop_ref_str, self.operator, values_str)
             }
         }
     }
 }
 
-impl BasePropertyFilter {
-    pub fn eq(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+impl PropertyFilter {
+    pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Eq,
         }
     }
 
-    pub fn ne(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn ne(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Ne,
         }
     }
 
-    pub fn le(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn le(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Le,
         }
     }
 
-    pub fn ge(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn ge(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Ge,
         }
     }
 
-    pub fn lt(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn lt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Lt,
         }
     }
 
-    pub fn gt(prop_name: impl Into<String>, prop_value: impl Into<Prop>) -> Self {
+    pub fn gt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Gt,
         }
     }
 
-    pub fn any(prop_name: impl Into<String>, prop_values: impl IntoIterator<Item = Prop>) -> Self {
+    pub fn any(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: FilterOperator::In,
         }
     }
 
-    pub fn not_any(
-        prop_name: impl Into<String>,
-        prop_values: impl IntoIterator<Item = Prop>,
-    ) -> Self {
+    pub fn not_any(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: FilterOperator::NotIn,
         }
     }
 
-    pub fn is_none(prop_name: impl Into<String>) -> Self {
+    pub fn is_none(prop_ref: PropertyRef) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsNone,
         }
     }
 
-    pub fn is_some(prop_name: impl Into<String>) -> Self {
+    pub fn is_some(prop_ref: PropertyRef) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsSome,
         }
     }
 
     pub fn fuzzy_search(
-        prop_name: impl Into<String>,
+        prop_ref: PropertyRef,
         prop_value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> Self {
         Self {
-            prop_name: prop_name.into(),
+            prop_ref,
             prop_value: PropertyFilterValue::Single(Prop::Str(ArcStr::from(prop_value.into()))),
             operator: FilterOperator::FuzzySearch {
                 levenshtein_distance,
@@ -296,22 +335,30 @@ impl BasePropertyFilter {
     }
 
     pub fn resolve_temporal_prop_ids(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        if let PropertyFilterValue::Single(value) = &self.prop_value {
-            Ok(meta
-                .temporal_prop_meta()
-                .get_and_validate(&self.prop_name, value.dtype())?)
+        if let PropertyRef::TemporalProperty(prop_name, _) = &self.prop_ref {
+            if let PropertyFilterValue::Single(value) = &self.prop_value {
+                Ok(meta
+                    .temporal_prop_meta()
+                    .get_and_validate(prop_name, value.dtype())?)
+            } else {
+                Ok(meta.temporal_prop_meta().get_id(prop_name))
+            }
         } else {
-            Ok(meta.temporal_prop_meta().get_id(&self.prop_name))
+            Err(GraphError::InvalidPropertyReference(self.prop_ref.clone()))
         }
     }
 
     pub fn resolve_constant_prop_ids(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        if let PropertyFilterValue::Single(value) = &self.prop_value {
-            Ok(meta
-                .const_prop_meta()
-                .get_and_validate(&self.prop_name, value.dtype())?)
+        if let PropertyRef::ConstantProperty(prop_name) = &self.prop_ref {
+            if let PropertyFilterValue::Single(value) = &self.prop_value {
+                Ok(meta
+                    .const_prop_meta()
+                    .get_and_validate(prop_name, value.dtype())?)
+            } else {
+                Ok(meta.const_prop_meta().get_id(prop_name))
+            }
         } else {
-            Ok(meta.const_prop_meta().get_id(&self.prop_name))
+            Err(GraphError::InvalidPropertyReference(self.prop_ref.clone()))
         }
     }
 
@@ -320,10 +367,6 @@ impl BasePropertyFilter {
         self.operator.apply_to_property(value, other)
     }
 }
-
-pub type PropertyFilter = BasePropertyFilter;
-pub type ConstPropertyFilter = BasePropertyFilter;
-pub type TemporalPropertyFilter = BasePropertyFilter;
 
 #[derive(Debug, Clone)]
 pub enum FilterValue {
@@ -489,7 +532,9 @@ impl fmt::Display for CompositeEdgeFilter {
 mod test_composite_filters {
     use crate::{
         core::Prop,
-        db::graph::views::property_filter::{CompositeEdgeFilter, CompositeNodeFilter, Filter},
+        db::graph::views::property_filter::{
+            CompositeEdgeFilter, CompositeNodeFilter, Filter, PropertyRef,
+        },
         prelude::PropertyFilter,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
@@ -498,7 +543,11 @@ mod test_composite_filters {
     fn test_composite_node_filter() {
         assert_eq!(
             "NODE_PROPERTY(p2 == 2)",
-            CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
+            CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p2".to_string()),
+                2u64
+            ))
+            .to_string()
         );
 
         assert_eq!(
@@ -509,15 +558,15 @@ mod test_composite_filters {
                         "node_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
-                    CompositeNodeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                    CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                    CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p2".to_string()), 2u64)),
+                    CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p1".to_string()), 1u64)),
                     CompositeNodeFilter::Or(vec![
-                        CompositeNodeFilter::Property(PropertyFilter::le("p3", 5u64)),
-                        CompositeNodeFilter::Property(PropertyFilter::any("p4", vec![Prop::U64(10), Prop::U64(2)]))
+                        CompositeNodeFilter::Property(PropertyFilter::le(PropertyRef::Property("p3".to_string()), 5u64)),
+                        CompositeNodeFilter::Property(PropertyFilter::any(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
                 CompositeNodeFilter::Node(Filter::eq("node_name", "pometry")),
-                CompositeNodeFilter::Property(PropertyFilter::eq("p5", 9u64)),
+                CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p5".to_string()), 9u64)),
             ])
                 .to_string()
         );
@@ -527,7 +576,7 @@ mod test_composite_filters {
             CompositeNodeFilter::And(vec![
                 CompositeNodeFilter::Node(Filter::fuzzy_search("name", "shivam", 1, true)),
                 CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
-                    "nation",
+                    PropertyRef::Property("nation".to_string()),
                     "air_nomad",
                     1,
                     false,
@@ -541,7 +590,11 @@ mod test_composite_filters {
     fn test_composite_edge_filter() {
         assert_eq!(
             "EDGE_PROPERTY(p2 == 2)",
-            CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)).to_string()
+            CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p2".to_string()),
+                2u64
+            ))
+            .to_string()
         );
 
         assert_eq!(
@@ -552,15 +605,15 @@ mod test_composite_filters {
                         "edge_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p2", 2u64)),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p2".to_string()), 2u64)),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p1".to_string()), 1u64)),
                     CompositeEdgeFilter::Or(vec![
-                        CompositeEdgeFilter::Property(PropertyFilter::le("p3", 5u64)),
-                        CompositeEdgeFilter::Property(PropertyFilter::any("p4", vec![Prop::U64(10), Prop::U64(2)]))
+                        CompositeEdgeFilter::Property(PropertyFilter::le(PropertyRef::Property("p3".to_string()), 5u64)),
+                        CompositeEdgeFilter::Property(PropertyFilter::any(PropertyRef::Property("p4".to_string()),vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
                 CompositeEdgeFilter::Edge(Filter::eq("from", "pometry")),
-                CompositeEdgeFilter::Property(PropertyFilter::eq("p5", 9u64)),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p5".to_string()), 9u64)),
             ])
                 .to_string()
         );
@@ -570,7 +623,7 @@ mod test_composite_filters {
             CompositeEdgeFilter::And(vec![
                 CompositeEdgeFilter::Edge(Filter::fuzzy_search("name", "shivam", 1, true)),
                 CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
-                    "nation",
+                    PropertyRef::Property("nation".to_string()),
                     "air_nomad",
                     1,
                     false,
@@ -609,16 +662,31 @@ mod test_composite_filters {
 
     #[test]
     fn test_fuzzy_search_property() {
-        let filter = PropertyFilter::fuzzy_search("prop", "pomet", 2, false);
+        let filter = PropertyFilter::fuzzy_search(
+            PropertyRef::Property("prop".to_string()),
+            "pomet",
+            2,
+            false,
+        );
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 
     #[test]
     fn test_fuzzy_search_property_prefix_match() {
-        let filter = PropertyFilter::fuzzy_search("prop", "pome", 2, false);
+        let filter = PropertyFilter::fuzzy_search(
+            PropertyRef::Property("prop".to_string()),
+            "pome",
+            2,
+            false,
+        );
         assert!(!filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
 
-        let filter = PropertyFilter::fuzzy_search("prop", "pome", 2, true);
+        let filter = PropertyFilter::fuzzy_search(
+            PropertyRef::Property("prop".to_string()),
+            "pome",
+            2,
+            true,
+        );
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 }

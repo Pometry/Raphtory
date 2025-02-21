@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
-    db::graph::views::property_filter::FilterOperator,
+    db::graph::views::property_filter::{FilterOperator, PropertyRef},
 };
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
@@ -331,6 +331,9 @@ pub enum GraphError {
 
     #[error("Not tokens found")]
     NoTokensFound,
+
+    #[error("Expected a temporal property, found: {0}")]
+    InvalidPropertyReference(PropertyRef),
 }
 
 impl GraphError {

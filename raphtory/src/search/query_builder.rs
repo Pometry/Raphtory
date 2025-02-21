@@ -2,7 +2,9 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::StaticGraphViewOps,
-        graph::views::property_filter::{Filter, FilterOperator, FilterValue, PropertyFilterValue},
+        graph::views::property_filter::{
+            Filter, FilterOperator, FilterValue, PropertyFilterValue, PropertyRef,
+        },
     },
     prelude::PropertyFilter,
     search::{
@@ -39,10 +41,10 @@ impl<'a> QueryBuilder<'a> {
 
     pub(crate) fn build_property_query<G: StaticGraphViewOps>(
         &self,
-        property_index: Arc<PropertyIndex>,
+        property_index: &Arc<PropertyIndex>,
         filter: &PropertyFilter,
-    ) -> Result<(Arc<PropertyIndex>, Option<Box<dyn Query>>), GraphError> {
-        let prop_name = &filter.prop_name;
+    ) -> Result<Option<Box<dyn Query>>, GraphError> {
+        let prop_name = filter.prop_ref.name();
         let prop_value = &filter.prop_value;
         let prop_field = property_index.get_prop_field(prop_name)?;
         let prop_field_type = property_index.get_prop_field_type(prop_name)?;
@@ -88,7 +90,7 @@ impl<'a> QueryBuilder<'a> {
             },
         };
 
-        Ok((property_index, query))
+        Ok(query)
     }
 
     fn build_query_generic(

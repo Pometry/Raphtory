@@ -294,7 +294,8 @@ mod test {
             db::{
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
-                    deletion_graph::PersistentGraph, property_filter::CompositeNodeFilter,
+                    deletion_graph::PersistentGraph,
+                    property_filter::{CompositeNodeFilter, PropertyRef},
                 },
             },
             prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
@@ -392,7 +393,10 @@ mod test {
             let graph = Graph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_nodes_by_composite_filter(&graph, &filter);
             assert_eq!(
                 results,
@@ -405,7 +409,10 @@ mod test {
             let graph = Graph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter);
             assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
         }
@@ -415,7 +422,10 @@ mod test {
             let graph = PersistentGraph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_nodes_by_composite_filter(&graph, &filter);
             assert_eq!(
                 results,
@@ -428,7 +438,10 @@ mod test {
             let graph = PersistentGraph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_nodes_by_composite_filter_w(&graph, 6..9, &filter);
             assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
         }
@@ -442,7 +455,7 @@ mod test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{CompositeEdgeFilter, CompositeNodeFilter},
+                    property_filter::{CompositeEdgeFilter, CompositeNodeFilter, PropertyRef},
                 },
             },
             prelude::{
@@ -542,7 +555,10 @@ mod test {
             let graph = Graph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_edges_by_composite_filter(&graph, &filter);
             assert_eq!(
                 results,
@@ -557,7 +573,10 @@ mod test {
             let graph = Graph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter);
             assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N6->N7"]);
         }
@@ -567,7 +586,10 @@ mod test {
             let graph = PersistentGraph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_edges_by_composite_filter(&graph, &filter);
             assert_eq!(
                 results,
@@ -582,7 +604,10 @@ mod test {
             let graph = PersistentGraph::new();
             let graph = init_graph(graph);
 
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p1".to_string()),
+                1u64,
+            ));
             let results = search_edges_by_composite_filter_w(&graph, 6..9, &filter);
             assert_eq!(
                 results,

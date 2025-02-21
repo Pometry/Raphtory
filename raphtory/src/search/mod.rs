@@ -1,15 +1,12 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::{
-        api::{
-            properties::internal::{ConstPropertiesOps, PropertiesOps},
-            storage::graph::storage_ops::GraphStorage,
-            view::{
-                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-                StaticGraphViewOps,
-            },
+    db::api::{
+        properties::internal::{ConstPropertiesOps, PropertiesOps},
+        storage::graph::storage_ops::GraphStorage,
+        view::{
+            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+            StaticGraphViewOps,
         },
-        graph::edge::EdgeView,
     },
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
@@ -316,45 +313,40 @@ where
 //  (p=2) F     (p=1) T
 //        F           F
 
-fn get_property_indexes(
+fn fetch_property_index(
+    indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    prop_id: Option<usize>,
+) -> Option<(Arc<PropertyIndex>, usize)> {
+    prop_id.and_then(|id| {
+        indexes
+            .read()
+            .ok()?
+            .get(id)
+            .and_then(|opt| opt.as_ref())
+            .cloned()
+            .map(Arc::from)
+            .map(|index| (index, id))
+    })
+}
+
+fn get_const_property_index(
     constant_property_indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    meta: &Meta,
+    prop_name: &str,
+) -> Result<Option<(Arc<PropertyIndex>, usize)>, GraphError> {
+    Ok(fetch_property_index(
+        constant_property_indexes,
+        meta.const_prop_meta().get_id(prop_name),
+    ))
+}
+
+fn get_temporal_property_index(
     temporal_property_indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     meta: &Meta,
     prop_name: &str,
-) -> Result<
-    (
-        Option<(Arc<PropertyIndex>, usize)>,
-        Option<(Arc<PropertyIndex>, usize)>,
-    ),
-    GraphError,
-> {
-    fn fetch_property_index(
-        indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
-        prop_id: Option<usize>,
-    ) -> Option<(Arc<PropertyIndex>, usize)> {
-        prop_id.and_then(|id| {
-            indexes
-                .read()
-                .ok()?
-                .get(id)
-                .and_then(|opt| opt.as_ref())
-                .cloned()
-                .map(Arc::from)
-                .map(|index| (index, id))
-        })
-    }
-
-    let constant_index = fetch_property_index(
-        constant_property_indexes,
-        meta.const_prop_meta().get_id(prop_name),
-    );
-    let temporal_index = fetch_property_index(
+) -> Result<Option<(Arc<PropertyIndex>, usize)>, GraphError> {
+    Ok(fetch_property_index(
         temporal_property_indexes,
         meta.temporal_prop_meta().get_id(prop_name),
-    );
-
-    match (constant_index.clone(), temporal_index.clone()) {
-        (None, None) => Err(GraphError::PropertyNotFound(prop_name.to_string())),
-        _ => Ok((constant_index, temporal_index)),
-    }
+    ))
 }

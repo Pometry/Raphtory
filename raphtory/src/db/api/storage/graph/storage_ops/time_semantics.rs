@@ -1234,7 +1234,8 @@ mod test_graph_storage {
         use super::*;
         use crate::{
             db::{
-                api::view::SearchableGraphOps, graph::views::property_filter::CompositeNodeFilter,
+                api::view::SearchableGraphOps,
+                graph::views::property_filter::{CompositeNodeFilter, PropertyRef},
             },
             prelude::{Graph, NodeViewOps, PropertyFilter},
         };
@@ -1244,8 +1245,11 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
             let mut results = g
-                .search_nodes_latest(
-                    &CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                .search_nodes(
+                    &CompositeNodeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p1".to_string()),
+                        1u64,
+                    )),
                     10,
                     0,
                 )
@@ -1264,7 +1268,8 @@ mod test_graph_storage {
         use super::*;
         use crate::{
             db::{
-                api::view::SearchableGraphOps, graph::views::property_filter::CompositeEdgeFilter,
+                api::view::SearchableGraphOps,
+                graph::views::property_filter::{CompositeEdgeFilter, PropertyRef},
             },
             prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
@@ -1274,8 +1279,11 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
             let mut results = g
-                .search_edges_latest(
-                    &CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64)),
+                .search_edges(
+                    &CompositeEdgeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p1".to_string()),
+                        1u64,
+                    )),
                     10,
                     0,
                 )

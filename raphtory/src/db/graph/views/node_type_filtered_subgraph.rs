@@ -79,7 +79,10 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         core::Prop,
         db::{
             api::view::{SearchableGraphOps, StaticGraphViewOps},
-            graph::views::{deletion_graph::PersistentGraph, property_filter::CompositeNodeFilter},
+            graph::views::{
+                deletion_graph::PersistentGraph,
+                property_filter::{CompositeNodeFilter, PropertyRef},
+            },
         },
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
     };
@@ -189,7 +192,10 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(
             results,
@@ -197,7 +203,10 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         );
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3", "N4", "N5", "N7"]);
     }
@@ -208,12 +217,18 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3"]);
     }
@@ -224,7 +239,10 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(
             results,
@@ -232,7 +250,10 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         );
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3", "N4", "N5", "N7"]);
     }
@@ -243,12 +264,18 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeNodeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N7"]);
     }
@@ -261,7 +288,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         core::Prop,
         db::{
             api::view::{SearchableGraphOps, StaticGraphViewOps},
-            graph::views::{deletion_graph::PersistentGraph, property_filter::CompositeEdgeFilter},
+            graph::views::{
+                deletion_graph::PersistentGraph,
+                property_filter::{CompositeEdgeFilter, PropertyRef},
+            },
         },
         prelude::{
             AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps,
@@ -399,7 +429,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(
             results,
@@ -407,7 +440,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         );
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N4->N5"]);
     }
@@ -418,12 +454,18 @@ mod search_edges_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N6->N7"]);
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4"]);
     }
@@ -434,7 +476,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(
             results,
@@ -442,7 +487,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         );
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter(&graph, node_types, &filter);
         assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N4->N5"]);
     }
@@ -453,7 +501,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         let graph = init_graph(graph);
 
         let node_types = get_all_node_types(&graph);
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(
             results,
@@ -461,7 +512,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
         );
 
         let node_types = vec!["air_nomad".into(), "water_tribe".into()];
-        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq("p1", 1u64));
+        let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p1".to_string()),
+            1u64,
+        ));
         let results = search_edges_by_composite_filter_w(&graph, 6..9, node_types, &filter);
         assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4"]);
     }

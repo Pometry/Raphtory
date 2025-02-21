@@ -25,7 +25,10 @@ mod test {
     use crate::{
         db::{
             api::view::internal::InternalIndexSearch,
-            graph::{graph::assert_edges_equal, views::property_filter::PropertyFilter},
+            graph::{
+                graph::assert_edges_equal,
+                views::property_filter::{PropertyFilter, PropertyRef},
+            },
         },
         prelude::*,
         test_utils::{
@@ -53,39 +56,51 @@ mod test {
         let n1 = g.node(1).unwrap();
 
         assert_eq!(
-            n1.filter_nodes(PropertyFilter::eq("test", 1i64))
-                .unwrap()
-                .edges()
-                .id()
-                .collect_vec(),
+            n1.filter_nodes(PropertyFilter::eq(
+                PropertyRef::Property("test".to_string()),
+                1i64
+            ))
+            .unwrap()
+            .edges()
+            .id()
+            .collect_vec(),
             vec![]
         );
         assert_eq!(
-            n1.filter_nodes(PropertyFilter::eq("test", 2i64))
-                .unwrap()
-                .out_neighbours()
-                .id()
-                .collect_vec(),
+            n1.filter_nodes(PropertyFilter::eq(
+                PropertyRef::Property("test".to_string()),
+                2i64
+            ))
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect_vec(),
             vec![GID::U64(2)]
         );
 
         let n2 = g.node(2).unwrap();
 
         assert_eq!(
-            n2.filter_nodes(PropertyFilter::gt("test", 1i64))
-                .unwrap()
-                .neighbours()
-                .id()
-                .collect_vec(),
+            n2.filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                1i64
+            ))
+            .unwrap()
+            .neighbours()
+            .id()
+            .collect_vec(),
             vec![GID::U64(3)]
         );
 
         assert_eq!(
-            n2.filter_nodes(PropertyFilter::gt("test", 0i64))
-                .unwrap()
-                .neighbours()
-                .id()
-                .collect_vec(),
+            n2.filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                0i64
+            ))
+            .unwrap()
+            .neighbours()
+            .id()
+            .collect_vec(),
             vec![GID::U64(1), GID::U64(3)]
         );
 
@@ -93,39 +108,51 @@ mod test {
         let n1p = gp.node(1).unwrap();
 
         assert_eq!(
-            n1p.filter_nodes(PropertyFilter::eq("test", 1i64))
-                .unwrap()
-                .edges()
-                .id()
-                .collect_vec(),
+            n1p.filter_nodes(PropertyFilter::eq(
+                PropertyRef::Property("test".to_string()),
+                1i64
+            ))
+            .unwrap()
+            .edges()
+            .id()
+            .collect_vec(),
             vec![]
         );
         assert_eq!(
-            n1p.filter_nodes(PropertyFilter::eq("test", 2i64))
-                .unwrap()
-                .out_neighbours()
-                .id()
-                .collect_vec(),
+            n1p.filter_nodes(PropertyFilter::eq(
+                PropertyRef::Property("test".to_string()),
+                2i64
+            ))
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect_vec(),
             vec![GID::U64(2)]
         );
 
         let n2p = gp.node(2).unwrap();
 
         assert_eq!(
-            n2p.filter_nodes(PropertyFilter::gt("test", 1i64))
-                .unwrap()
-                .neighbours()
-                .id()
-                .collect_vec(),
+            n2p.filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                1i64
+            ))
+            .unwrap()
+            .neighbours()
+            .id()
+            .collect_vec(),
             vec![GID::U64(3)]
         );
 
         assert_eq!(
-            n2p.filter_nodes(PropertyFilter::gt("test", 0i64))
-                .unwrap()
-                .neighbours()
-                .id()
-                .collect_vec(),
+            n2p.filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                0i64
+            ))
+            .unwrap()
+            .neighbours()
+            .id()
+            .collect_vec(),
             vec![GID::U64(1), GID::U64(3)]
         );
     }
@@ -143,7 +170,10 @@ mod test {
 
         let filtered_nodes = g
             .nodes()
-            .filter_nodes(PropertyFilter::gt("test", 1i64))
+            .filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                1i64,
+            ))
             .unwrap();
         assert_eq!(
             filtered_nodes.id().collect_vec(),
@@ -161,7 +191,10 @@ mod test {
         let filtered_nodes_p = g
             .persistent_graph()
             .nodes()
-            .filter_nodes(PropertyFilter::gt("test", 1i64))
+            .filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                1i64,
+            ))
             .unwrap();
         assert_eq!(
             filtered_nodes_p.id().collect_vec(),
@@ -188,32 +221,62 @@ mod test {
         g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1, 3, NO_PROPS, None).unwrap();
 
-        let gf = g.filter_nodes(PropertyFilter::eq("test", 1i64)).unwrap();
+        let gf = g
+            .filter_nodes(PropertyFilter::eq(
+                PropertyRef::Property("test".to_string()),
+                1i64,
+            ))
+            .unwrap();
         assert_eq!(gf.edges().id().collect_vec(), vec![]);
 
-        let gf = g.filter_nodes(PropertyFilter::gt("test", 1i64)).unwrap();
+        let gf = g
+            .filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                1i64,
+            ))
+            .unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(2), GID::U64(3))]
         );
 
-        let gf = g.filter_nodes(PropertyFilter::lt("test", 3i64)).unwrap();
+        let gf = g
+            .filter_nodes(PropertyFilter::lt(
+                PropertyRef::Property("test".to_string()),
+                3i64,
+            ))
+            .unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2)), (GID::U64(2), GID::U64(1))]
         );
 
         let gp = g.persistent_graph();
-        let gf = gp.filter_nodes(PropertyFilter::eq("test", 1i64)).unwrap();
+        let gf = gp
+            .filter_nodes(PropertyFilter::eq(
+                PropertyRef::Property("test".to_string()),
+                1i64,
+            ))
+            .unwrap();
         assert_eq!(gf.edges().id().collect_vec(), vec![]);
 
-        let gf = gp.filter_nodes(PropertyFilter::gt("test", 1i64)).unwrap();
+        let gf = gp
+            .filter_nodes(PropertyFilter::gt(
+                PropertyRef::Property("test".to_string()),
+                1i64,
+            ))
+            .unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(2), GID::U64(3))]
         );
 
-        let gf = gp.filter_nodes(PropertyFilter::lt("test", 3i64)).unwrap();
+        let gf = gp
+            .filter_nodes(PropertyFilter::lt(
+                PropertyRef::Property("test".to_string()),
+                3i64,
+            ))
+            .unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2)), (GID::U64(2), GID::U64(1))]
@@ -227,10 +290,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::gt("int_prop", v)).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv > v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-            let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::gt("int_prop", v)).unwrap();
+            let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -244,10 +307,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::ge("int_prop", v)).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv >= v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::ge("int_prop", v)).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -261,10 +324,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::lt("int_prop", v)).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv < v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::lt("int_prop", v)).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -278,10 +341,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::le("int_prop", v)).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::le(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv <= v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::le("int_prop", v)).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::le(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -295,10 +358,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::eq("int_prop", v)).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv == v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::eq("int_prop", v)).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -312,10 +375,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::ne("int_prop", v)).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::ne(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv != v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::ne("int_prop", v)).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::ne(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -329,10 +392,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::is_some("int_prop")).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::is_some(PropertyRef::Property("int_prop".to_string()))).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::is_some("int_prop")).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::is_some(PropertyRef::Property("int_prop".to_string()))).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -346,10 +409,10 @@ mod test {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter_nodes(PropertyFilter::is_none("int_prop")).unwrap();
+            let filtered = g.filter_nodes(PropertyFilter::is_none(PropertyRef::Property("int_prop".to_string()))).unwrap();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.is_none()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::is_none("int_prop")).unwrap();
+                        let filtered_p = g.persistent_graph().filter_nodes(PropertyFilter::is_none(PropertyRef::Property("int_prop".to_string()))).unwrap();
             assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -374,7 +437,11 @@ mod test {
 
         assert_eq!(graph.count_nodes(), 3);
 
-        let filtered = graph.filter_nodes(PropertyFilter::is_none("p2")).unwrap();
+        let filtered = graph
+            .filter_nodes(PropertyFilter::is_none(PropertyRef::Property(
+                "p2".to_string(),
+            )))
+            .unwrap();
         let ids = filtered.nodes().name().collect_vec();
 
         assert_eq!(ids, vec!["2"]);
