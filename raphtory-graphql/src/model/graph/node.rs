@@ -45,12 +45,6 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
-
-    /// Remove any view filters and return the Node as a view of the underlying base graph
-    async fn reset_view(&self) -> Node {
-        self.vv.reset_filter().into()
-    }
-
     async fn default_layer(&self) -> Node {
         self.vv.default_layer().into()
     }
