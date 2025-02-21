@@ -120,7 +120,7 @@ jobs:
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pyartifacts-linux
+          name: pyartifacts-linux-${{ matrix.target }}
           path: ./python/dist
   python-windows:
     runs-on: windows-latest
@@ -160,7 +160,7 @@ jobs:
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pyartifacts-windows
+          name: pyartifacts-windows-${{ matrix.target }}
           path: ./python/dist
   python-macos:
     runs-on: macos-latest
@@ -210,7 +210,7 @@ jobs:
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pyartifacts-macos
+          name: pyartifacts-macos-${{ matrix.target }}
           path: ./python/dist
   publish-python:
     needs: [ python-linux, python-windows, python-macos ]
