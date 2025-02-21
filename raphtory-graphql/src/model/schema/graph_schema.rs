@@ -14,10 +14,9 @@ pub(crate) struct GraphSchema {
 
 impl GraphSchema {
     pub fn new(graph: &DynamicGraph) -> Self {
-        let node_types = graph.node_meta().node_type_meta().get_keys();
+        let node_types = (0..graph.node_meta().node_type_meta().len());
         let nodes = node_types
-            .iter()
-            .map(|node_type| NodeSchema::new(node_type.to_string(), graph.clone()))
+            .map(|node_type| NodeSchema::new(node_type, graph.clone()))
             .collect();
 
         let layers = graph

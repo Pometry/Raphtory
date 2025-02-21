@@ -6,23 +6,24 @@ use itertools::Itertools;
 use raphtory::{
     db::{
         api::view::{internal::CoreGraphOps, DynamicGraph},
-        graph::node::NodeView,
+        graph::{node::NodeView, views::node_type_filtered_subgraph::TypeFilteredSubgraph},
     },
-    prelude::{GraphViewOps, NodeViewOps},
+    prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct NodeSchema {
-    pub(crate) type_name: String,
+    pub(crate) type_id: usize,
     graph: DynamicGraph,
 }
 
 impl NodeSchema {
-    pub fn new(node_type: String, graph: DynamicGraph) -> Self {
+    pub fn new(node_type: usize, graph: DynamicGraph) -> Self {
         Self {
-            type_name: node_type,
+            type_id: node_type,
             graph,
         }
     }
@@ -31,7 +32,7 @@ impl NodeSchema {
 #[ResolvedObjectFields]
 impl NodeSchema {
     async fn type_name(&self) -> String {
-        self.type_name.clone()
+        self.type_name_inner()
     }
 
     /// Returns the list of property schemas for this node
@@ -41,6 +42,13 @@ impl NodeSchema {
 }
 
 impl NodeSchema {
+    fn type_name_inner(&self) -> String {
+        self.graph
+            .node_meta()
+            .get_node_type_name_by_id(self.type_id)
+            .map(|type_name| type_name.to_string())
+            .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
+    }
     fn properties_inner(&self) -> Vec<PropertySchema> {
         let mut keys: Vec<String> = self
             .graph
@@ -82,52 +90,38 @@ impl NodeSchema {
             }
         }
 
-        keys.into_iter()
-            .zip(property_types)
-            .map(|(key, dtype)| PropertySchema::new(key, dtype, vec![]))
-            .collect()
-    }
-}
-
-fn collect_node_schema(node: NodeView<DynamicGraph>) -> SchemaAggregate {
-    let mut stable_hash = FxHashMap::default();
-    let properties = node.properties();
-    let iter = properties.iter().filter_map(|(key, value)| {
-        let value = value?;
-        let temporal_prop = node
-            .base_graph
-            .node_meta()
-            .get_prop_id(&key.to_string(), false);
-        let constant_prop = node
-            .base_graph
-            .node_meta()
-            .get_prop_id(&key.to_string(), true);
-
-        let key_with_prop_type = if temporal_prop.is_some() {
-            let p_type = node
-                .base_graph
-                .node_meta()
-                .temporal_prop_meta()
-                .get_dtype(temporal_prop.unwrap());
-            (key.to_string(), p_type.unwrap().to_string())
-        } else if constant_prop.is_some() {
-            let p_type = node
-                .base_graph
-                .node_meta()
-                .const_prop_meta()
-                .get_dtype(constant_prop.unwrap());
-            (key.to_string(), p_type.unwrap().to_string())
+        if self.graph.unfiltered_num_nodes() > 1000 {
+            // large graph, do not collect detailed schema as it is expensive
+            keys.into_iter()
+                .zip(property_types)
+                .map(|(key, dtype)| PropertySchema::new(key, dtype, vec![]))
+                .collect()
         } else {
-            (key.to_string(), "NONE".to_string())
-        };
-        Some((key_with_prop_type, HashSet::from([value.to_string()])))
-    });
-
-    for (key, value) in iter {
-        stable_hash.insert(key, value);
+            keys.into_par_iter()
+                .zip(property_types)
+                .filter_map(|(key, dtype)| {
+                    let unique_values: ahash::HashSet<_> =
+                        TypeFilteredSubgraph::new(self.graph.clone(), vec![self.type_id])
+                            .nodes()
+                            .properties()
+                            .into_iter_values()
+                            .filter_map(|props| props.get(&key).map(|v| v.to_string()))
+                            .collect();
+                    if unique_values.is_empty() {
+                        None
+                    } else {
+                        let mut variants = if unique_values.len() <= 100 {
+                            Vec::from_iter(unique_values)
+                        } else {
+                            vec![]
+                        };
+                        variants.sort();
+                        Some(PropertySchema::new(key, dtype, variants))
+                    }
+                })
+                .collect()
+        }
     }
-
-    stable_hash
 }
 
 #[cfg(test)]
@@ -190,31 +184,31 @@ mod test {
         let actual: Vec<(String, Vec<PropertySchema>)> = gs
             .nodes
             .iter()
-            .map(|ns| ((&ns.type_name).to_string(), ns.properties_inner()))
+            .map(|ns| (ns.type_name_inner(), ns.properties_inner()))
             .collect_vec();
 
         let expected = vec![
+            ("None".to_string(), vec![(("t", "Str"), ["person"]).into()]),
             (
                 "a".to_string(),
                 vec![
                     (("t", "Str"), ["wallet"]).into(),
-                    (("lol", "Str"), ["smile"]).into(),
                     (("cost", "F64"), ["99.5"]).into(),
+                    (("lol", "Str"), ["smile"]).into(),
                 ],
             ),
-            ("None".to_string(), vec![(("t", "Str"), ["person"]).into()]),
             (
                 "b".to_string(),
                 vec![
                     (("list_prop", "List<F64>"), ["[1.1, 2.2, 3.3]"]).into(),
-                    (("cost_b", "F64"), ["76"]).into(),
-                    (("str_prop", "Str"), ["hello"]).into(),
-                    (("bool_prop", "Bool"), ["true"]).into(),
                     (
                         ("map_prop", "Map{ a: F64, b: F64 }"),
                         ["{\"a\": 1, \"b\": 2}"],
                     )
                         .into(),
+                    (("cost_b", "F64"), ["76"]).into(),
+                    (("str_prop", "Str"), ["hello"]).into(),
+                    (("bool_prop", "Bool"), ["true"]).into(),
                 ],
             ),
         ];
