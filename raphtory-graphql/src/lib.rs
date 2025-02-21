@@ -256,6 +256,8 @@ mod graphql_test {
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
+        println!("{data:?}");
+
         fn sort_properties(properties: &mut Vec<Value>) {
             properties.sort_by(|a, b| {
                 let a_type = a["propertyType"].as_str().unwrap_or("");
@@ -265,7 +267,7 @@ mod graphql_test {
         }
 
         if let Value::Array(mut node_properties) =
-            data["graph"]["schema"]["nodes"][0]["properties"].clone()
+            data["graph"]["schema"]["nodes"][1]["properties"].clone()
         {
             sort_properties(&mut node_properties);
 

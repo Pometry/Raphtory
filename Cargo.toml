@@ -96,8 +96,6 @@ bzip2 = "0.4.4"
 tantivy = "0.22"
 async-trait = "0.1.77"
 async-openai = "0.26.0"
-oauth2 = "4.0"
-jsonwebtoken = "9.3.0"
 num = "0.4.1"
 display-error-chain = "0.2.0"
 polars-arrow = "0.40.0"
@@ -123,12 +121,9 @@ tracing-opentelemetry = "0.28.0"
 tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }
 indoc = "2.0.5"
 walkdir = "2"
-uuid = { version = "1.0", features = ["v4"] }
 config = "0.14.0"
 either = "=1.11.0"
 clap = { version = "4.5.21", features = ["derive", "env"] }
-js-sys = "0.3.68"
-console_error_panic_hook = "0.1.7"
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
 strum = { version = "0.26.1", features = ["derive"] }
