@@ -1,18 +1,13 @@
-use crate::model::schema::{
-    merge_schemas, property_schema::PropertySchema, SchemaAggregate, DEFAULT_NODE_TYPE,
-};
+use crate::model::schema::{property_schema::PropertySchema, DEFAULT_NODE_TYPE};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::{
     db::{
         api::view::{internal::CoreGraphOps, DynamicGraph},
-        graph::{node::NodeView, views::node_type_filtered_subgraph::TypeFilteredSubgraph},
+        graph::views::node_type_filtered_subgraph::TypeFilteredSubgraph,
     },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use rayon::prelude::*;
-use rustc_hash::FxHashMap;
-use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct NodeSchema {
@@ -126,7 +121,6 @@ impl NodeSchema {
 
 #[cfg(test)]
 mod test {
-
     use itertools::Itertools;
     use raphtory::{core::utils::errors::GraphError, db::api::view::IntoDynamic, prelude::*};
 

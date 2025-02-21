@@ -26,14 +26,11 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }
 poem = { workspace = true }
-oauth2 = { workspace = true }
 tokio = { workspace = true }
 async-graphql = { workspace = true, features = ["apollo_tracing"] }
 dynamic-graphql = { workspace = true }
 async-graphql-poem = { workspace = true }
-parking_lot = { workspace = true }
 futures-util = { workspace = true }
-jsonwebtoken = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-otlp = { workspace = true }
@@ -42,7 +39,6 @@ tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
 ordered-float = { workspace = true }
-uuid = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 url = { workspace = true }
@@ -50,12 +46,16 @@ base64-compat = { workspace = true }
 reqwest = { workspace = true }
 rustc-hash = { workspace = true }
 moka = { workspace = true }
+rayon = { workspace = true }
+ahash = { workspace = true }
+
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
 minijinja = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
+
 
 [dev-dependencies]
 tempfile = { workspace = true }

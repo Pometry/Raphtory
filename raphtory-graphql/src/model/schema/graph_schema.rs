@@ -1,4 +1,4 @@
-use crate::model::schema::{layer_schema::LayerSchema, node_schema::NodeSchema, DEFAULT_NODE_TYPE};
+use crate::model::schema::{layer_schema::LayerSchema, node_schema::NodeSchema};
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
 use raphtory::{
@@ -14,7 +14,7 @@ pub(crate) struct GraphSchema {
 
 impl GraphSchema {
     pub fn new(graph: &DynamicGraph) -> Self {
-        let node_types = (0..graph.node_meta().node_type_meta().len());
+        let node_types = 0..graph.node_meta().node_type_meta().len();
         let nodes = node_types
             .map(|node_type| NodeSchema::new(node_type, graph.clone()))
             .collect();
