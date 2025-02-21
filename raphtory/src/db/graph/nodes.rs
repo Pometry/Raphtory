@@ -262,6 +262,17 @@ where
         }
     }
 
+    pub fn id_filter(
+        &self,
+        nodes: impl IntoIterator<Item = impl AsNodeRef>,
+    ) -> Nodes<'graph, G, GH> {
+        let index: Index<_> = nodes
+            .into_iter()
+            .filter_map(|n| (&self.graph).node(n).map(|n| n.node))
+            .collect();
+        self.indexed(index)
+    }
+
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
         self.iter_owned().collect()
     }
@@ -402,5 +413,19 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    #[test]
+    fn test_id_filter() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        assert_eq!(graph.nodes().id(), [0, 1]);
+        assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
+        assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
     }
 }
