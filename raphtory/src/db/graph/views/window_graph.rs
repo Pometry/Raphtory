@@ -73,7 +73,7 @@ use std::{
 };
 
 /// A struct that represents a windowed view of a `Graph`.
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct WindowedGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
