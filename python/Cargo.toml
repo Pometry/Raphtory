@@ -20,13 +20,13 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { workspace = true }
 numpy = { workspace = true }
-raphtory_core = { path = "../raphtory", version = "0.14.0", features = [
+raphtory_core = { path = "../raphtory", version = "0.15.0-b2", features = [
     "python",
     "search",
     "vectors",
     "proto",
 ], package = "raphtory" }
-raphtory-graphql = { path = "../raphtory-graphql", version = "0.14.0", features = [
+raphtory-graphql = { path = "../raphtory-graphql", version = "0.15.0-b2", features = [
     "python",
 ] }
 
