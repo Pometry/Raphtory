@@ -141,7 +141,12 @@ pub fn arrow_array_from_props(
         }
         PropType::Decimal { scale } => {
             let array: PrimitiveArray<i128> = props
-                .map(|prop| prop.into_decimal().and_then(|d| d.to_ref().to_i128()))
+                .map(|prop| {
+                    prop.into_decimal().and_then(|d| {
+                        let (int, _) = d.as_bigint_and_exponent();
+                        int.to_i128()
+                    })
+                })
                 .collect();
             (array.null_count() != array.len())
                 .then_some(array.to(DataType::Decimal(38, scale as usize)).boxed())
