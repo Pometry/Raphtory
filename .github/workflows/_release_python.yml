@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [ x86_64 ]
+        target: [ aarch64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -55,18 +55,14 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.9
-            3.10
-            3.11
             3.12
-            3.13
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.12
           manylinux: 2_28
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
