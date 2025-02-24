@@ -49,11 +49,8 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let result = self
-            .node_filter_executor
-            .filter_nodes(graph, filter, limit, offset)?;
-
-        Ok(result.into_iter().collect_vec())
+        self.node_filter_executor
+            .filter_nodes(graph, filter, limit, offset)
     }
 
     pub fn search_edges<G: StaticGraphViewOps>(
@@ -63,11 +60,8 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let result = self
-            .edge_filter_executor
-            .filter_edges(graph, filter, limit, offset)?;
-
-        Ok(result.into_iter().collect_vec())
+        self.edge_filter_executor
+            .filter_edges(graph, filter, limit, offset)
     }
 
     pub fn fuzzy_search_nodes<G: StaticGraphViewOps>(
@@ -77,11 +71,8 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let result = self
-            .node_filter_executor
-            .filter_nodes(graph, filter, limit, offset)?;
-
-        Ok(result.into_iter().collect_vec())
+        self.node_filter_executor
+            .filter_nodes(graph, filter, limit, offset)
     }
 
     pub fn fuzzy_search_edges<G: StaticGraphViewOps>(
@@ -91,11 +82,8 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let result = self
-            .edge_filter_executor
-            .filter_edges(graph, filter, limit, offset)?;
-
-        Ok(result.into_iter().collect_vec())
+        self.edge_filter_executor
+            .filter_edges(graph, filter, limit, offset)
     }
 }
 
@@ -486,7 +474,7 @@ mod search_tests {
                         view::{internal::InternalIndexSearch, StaticGraphViewOps},
                     },
                     graph::views::property_filter::{
-                        CompositeEdgeFilter, CompositeNodeFilter, PropertyRef, Temporal,
+                        CompositeEdgeFilter, PropertyRef, Temporal,
                     },
                 },
                 prelude::{
