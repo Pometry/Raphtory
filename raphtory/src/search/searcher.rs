@@ -473,9 +473,7 @@ mod search_tests {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::{internal::InternalIndexSearch, StaticGraphViewOps},
                     },
-                    graph::views::property_filter::{
-                        CompositeEdgeFilter, PropertyRef, Temporal,
-                    },
+                    graph::views::property_filter::{CompositeEdgeFilter, PropertyRef, Temporal},
                 },
                 prelude::{
                     AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps,

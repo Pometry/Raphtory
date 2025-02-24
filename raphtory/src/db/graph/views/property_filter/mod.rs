@@ -527,6 +527,429 @@ impl fmt::Display for CompositeEdgeFilter {
     }
 }
 
+// Fluent Composite Filter Builder APIs
+enum FilterExpr {
+    Node(Filter),
+    Edge(Filter),
+    Property(PropertyFilter),
+    And(Vec<FilterExpr>),
+    Or(Vec<FilterExpr>),
+}
+
+impl FilterExpr {
+    pub fn and(self, other: FilterExpr) -> Self {
+        match self {
+            FilterExpr::And(mut filters) => {
+                filters.push(other);
+                FilterExpr::And(filters)
+            }
+            _ => FilterExpr::And(vec![self, other]),
+        }
+    }
+
+    pub fn or(self, other: FilterExpr) -> Self {
+        match self {
+            FilterExpr::Or(mut filters) => {
+                filters.push(other);
+                FilterExpr::Or(filters)
+            }
+            _ => FilterExpr::Or(vec![self, other]),
+        }
+    }
+
+    pub fn resolve_as_node_filter(self) -> CompositeNodeFilter {
+        match self {
+            FilterExpr::Property(prop) => CompositeNodeFilter::Property(prop),
+            FilterExpr::Node(filter) => CompositeNodeFilter::Node(filter),
+            FilterExpr::And(filters) => CompositeNodeFilter::And(
+                filters
+                    .into_iter()
+                    .map(|f| f.resolve_as_node_filter())
+                    .collect(),
+            ),
+            FilterExpr::Or(filters) => CompositeNodeFilter::Or(
+                filters
+                    .into_iter()
+                    .map(|f| f.resolve_as_node_filter())
+                    .collect(),
+            ),
+            FilterExpr::Edge(_) => {
+                panic!("Edge filter cannot be used in node filtering!")
+            }
+        }
+    }
+
+    fn resolve_as_edge_filter(self) -> CompositeEdgeFilter {
+        match self {
+            FilterExpr::Property(prop) => CompositeEdgeFilter::Property(prop),
+            FilterExpr::Edge(filter) => CompositeEdgeFilter::Edge(filter),
+            FilterExpr::And(filters) => CompositeEdgeFilter::And(
+                filters
+                    .into_iter()
+                    .map(|f| f.resolve_as_edge_filter())
+                    .collect(),
+            ),
+            FilterExpr::Or(filters) => CompositeEdgeFilter::Or(
+                filters
+                    .into_iter()
+                    .map(|f| f.resolve_as_edge_filter())
+                    .collect(),
+            ),
+            FilterExpr::Node(_) => {
+                panic!("Node filter cannot be used in edge filtering!")
+            }
+        }
+    }
+}
+
+struct PropertyFilterBuilder(String);
+
+impl PropertyFilterBuilder {
+    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
+        FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::Property(self.0),
+            value.into(),
+        ))
+    }
+}
+
+struct ConstPropertyFilterBuilder(String);
+
+impl ConstPropertyFilterBuilder {
+    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
+        FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::ConstantProperty(self.0),
+            value.into(),
+        ))
+    }
+}
+
+struct AnyTemporalPropertyFilterBuilder(String);
+
+impl AnyTemporalPropertyFilterBuilder {
+    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
+        FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::TemporalProperty(self.0, Temporal::Any),
+            value.into(),
+        ))
+    }
+}
+
+struct LatestTemporalPropertyFilterBuilder(String);
+
+impl LatestTemporalPropertyFilterBuilder {
+    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
+        FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::TemporalProperty(self.0, Temporal::Latest),
+            value.into(),
+        ))
+    }
+}
+
+struct TemporalPropertyFilterBuilder(String);
+
+impl TemporalPropertyFilterBuilder {
+    pub fn any(self) -> AnyTemporalPropertyFilterBuilder {
+        AnyTemporalPropertyFilterBuilder(self.0)
+    }
+
+    pub fn latest(self) -> LatestTemporalPropertyFilterBuilder {
+        LatestTemporalPropertyFilterBuilder(self.0)
+    }
+}
+
+impl PropertyFilter {
+    pub fn property(name: impl AsRef<str>) -> PropertyFilterBuilder {
+        PropertyFilterBuilder(name.as_ref().to_string())
+    }
+
+    pub fn constant_property(name: impl AsRef<str>) -> ConstPropertyFilterBuilder {
+        ConstPropertyFilterBuilder(name.as_ref().to_string())
+    }
+
+    pub fn temporal_property(name: impl AsRef<str>) -> TemporalPropertyFilterBuilder {
+        TemporalPropertyFilterBuilder(name.as_ref().to_string())
+    }
+}
+
+struct NodeNameFilterBuilder;
+
+impl NodeNameFilterBuilder {
+    const NODE_NAME: &'static str = "name";
+
+    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
+        FilterExpr::Node(Filter::eq(Self::NODE_NAME, value))
+    }
+}
+
+struct NodeTypeFilterBuilder;
+
+impl NodeTypeFilterBuilder {
+    const NODE_TYPE: &'static str = "node_type";
+
+    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
+        FilterExpr::Node(Filter::eq(Self::NODE_TYPE, value))
+    }
+}
+
+struct NodeFilter;
+
+impl NodeFilter {
+    pub fn node_name() -> NodeNameFilterBuilder {
+        NodeNameFilterBuilder
+    }
+
+    pub fn node_type() -> NodeTypeFilterBuilder {
+        NodeTypeFilterBuilder
+    }
+}
+
+struct EdgeSourceFilterBuilder;
+
+impl EdgeSourceFilterBuilder {
+    const FROM: &'static str = "from";
+
+    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
+        FilterExpr::Edge(Filter::eq(Self::FROM, value))
+    }
+}
+
+struct EdgeDestinationFilterBuilder;
+
+impl EdgeDestinationFilterBuilder {
+    const TO: &'static str = "to";
+
+    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
+        FilterExpr::Edge(Filter::eq(Self::TO, value))
+    }
+}
+
+struct EdgeFilter;
+
+impl EdgeFilter {
+    pub fn from() -> EdgeSourceFilterBuilder {
+        EdgeSourceFilterBuilder
+    }
+
+    pub fn to() -> EdgeDestinationFilterBuilder {
+        EdgeDestinationFilterBuilder
+    }
+}
+
+#[cfg(test)]
+mod test_fluent_builder_apis {
+    use super::*;
+    use PropertyFilter;
+
+    #[test]
+    fn test_node_property_filter_build() {
+        let node_property_filter = PropertyFilter::property("p")
+            .eq("raphtory")
+            .resolve_as_node_filter();
+        let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::Property("p".to_string()),
+            "raphtory",
+        ));
+        assert_eq!(
+            node_property_filter.to_string(),
+            node_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_node_const_property_filter_build() {
+        let node_property_filter = PropertyFilter::constant_property("p")
+            .eq("raphtory")
+            .resolve_as_node_filter();
+        let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::ConstantProperty("p".to_string()),
+            "raphtory",
+        ));
+        assert_eq!(
+            node_property_filter.to_string(),
+            node_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_node_any_temporal_property_filter_build() {
+        let node_property_filter = PropertyFilter::temporal_property("p")
+            .any()
+            .eq("raphtory")
+            .resolve_as_node_filter();
+        let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
+            "raphtory",
+        ));
+        assert_eq!(
+            node_property_filter.to_string(),
+            node_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_node_latest_temporal_property_filter_build() {
+        let node_property_filter = PropertyFilter::temporal_property("p")
+            .latest()
+            .eq("raphtory")
+            .resolve_as_node_filter();
+        let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
+            PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
+            "raphtory",
+        ));
+        assert_eq!(
+            node_property_filter.to_string(),
+            node_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_node_name_filter_build() {
+        let node_property_filter = NodeFilter::node_name()
+            .eq("raphtory")
+            .resolve_as_node_filter();
+        let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("name", "raphtory"));
+        assert_eq!(
+            node_property_filter.to_string(),
+            node_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_node_type_filter_build() {
+        let node_property_filter = NodeFilter::node_type()
+            .eq("raphtory")
+            .resolve_as_node_filter();
+        let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
+        assert_eq!(
+            node_property_filter.to_string(),
+            node_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_node_filter_composition() {
+        let node_composite_filter = NodeFilter::node_name()
+            .eq("fire_nation")
+            .and(PropertyFilter::constant_property("p2").eq(2u64))
+            .and(PropertyFilter::property("p1").eq(1u64))
+            .and(
+                PropertyFilter::temporal_property("p3")
+                    .any()
+                    .eq(5u64)
+                    .or(PropertyFilter::temporal_property("p4").latest().eq(7u64)),
+            )
+            .or(NodeFilter::node_type().eq("raphtory"))
+            .or(PropertyFilter::property("p5").eq(9u64))
+            .resolve_as_node_filter();
+
+        let node_composite_filter2 = CompositeNodeFilter::Or(vec![
+            CompositeNodeFilter::And(vec![
+                CompositeNodeFilter::Node(Filter::eq("name", "fire_nation")),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::ConstantProperty("p2".to_string()),
+                    2u64,
+                )),
+                CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    1u64,
+                )),
+                CompositeNodeFilter::Or(vec![
+                    CompositeNodeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::TemporalProperty("p3".to_string(), Temporal::Any),
+                        5u64,
+                    )),
+                    CompositeNodeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::TemporalProperty("p4".to_string(), Temporal::Latest),
+                        7u64,
+                    )),
+                ]),
+            ]),
+            CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory")),
+            CompositeNodeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p5".to_string()),
+                9u64,
+            )),
+        ]);
+
+        assert_eq!(
+            node_composite_filter.to_string(),
+            node_composite_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_edge_from_filter_build() {
+        let edge_property_filter = EdgeFilter::from().eq("raphtory").resolve_as_edge_filter();
+        let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("from", "raphtory"));
+        assert_eq!(
+            edge_property_filter.to_string(),
+            edge_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_edge_to_filter_build() {
+        let edge_property_filter = EdgeFilter::to().eq("raphtory").resolve_as_edge_filter();
+        let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("to", "raphtory"));
+        assert_eq!(
+            edge_property_filter.to_string(),
+            edge_property_filter2.to_string()
+        );
+    }
+
+    #[test]
+    fn test_edge_filter_composition() {
+        let edge_composite_filter = EdgeFilter::from()
+            .eq("fire_nation")
+            .and(PropertyFilter::constant_property("p2").eq(2u64))
+            .and(PropertyFilter::property("p1").eq(1u64))
+            .and(
+                PropertyFilter::temporal_property("p3")
+                    .any()
+                    .eq(5u64)
+                    .or(PropertyFilter::temporal_property("p4").latest().eq(7u64)),
+            )
+            .or(EdgeFilter::from().eq("raphtory"))
+            .or(PropertyFilter::property("p5").eq(9u64))
+            .resolve_as_edge_filter();
+
+        let edge_composite_filter2 = CompositeEdgeFilter::Or(vec![
+            CompositeEdgeFilter::And(vec![
+                CompositeEdgeFilter::Edge(Filter::eq("from", "fire_nation")),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::ConstantProperty("p2".to_string()),
+                    2u64,
+                )),
+                CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    1u64,
+                )),
+                CompositeEdgeFilter::Or(vec![
+                    CompositeEdgeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::TemporalProperty("p3".to_string(), Temporal::Any),
+                        5u64,
+                    )),
+                    CompositeEdgeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::TemporalProperty("p4".to_string(), Temporal::Latest),
+                        7u64,
+                    )),
+                ]),
+            ]),
+            CompositeEdgeFilter::Edge(Filter::eq("from", "raphtory")),
+            CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p5".to_string()),
+                9u64,
+            )),
+        ]);
+
+        assert_eq!(
+            edge_composite_filter.to_string(),
+            edge_composite_filter2.to_string()
+        );
+    }
+}
+
 // TODO: Add tests for const and temporal properties
 #[cfg(test)]
 mod test_composite_filters {
