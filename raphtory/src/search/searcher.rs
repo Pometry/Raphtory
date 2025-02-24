@@ -960,19 +960,21 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_node_name_in() {
-            let filter = CompositeNodeFilter::Node(Filter::any("node_name", vec!["1".into()]));
+            let filter = CompositeNodeFilter::Node(Filter::includes("node_name", vec!["1".into()]));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["1"]);
 
-            let filter =
-                CompositeNodeFilter::Node(Filter::any("node_name", vec!["2".into(), "3".into()]));
+            let filter = CompositeNodeFilter::Node(Filter::includes(
+                "node_name",
+                vec!["2".into(), "3".into()],
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "3"]);
         }
 
         #[test]
         fn search_nodes_for_node_name_not_in() {
-            let filter = CompositeNodeFilter::Node(Filter::not_any("node_name", vec!["1".into()]));
+            let filter = CompositeNodeFilter::Node(Filter::excludes("node_name", vec!["1".into()]));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "3", "4"]);
         }
@@ -993,12 +995,14 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_node_type_in() {
-            let filter =
-                CompositeNodeFilter::Node(Filter::any("node_type", vec!["fire_nation".into()]));
+            let filter = CompositeNodeFilter::Node(Filter::includes(
+                "node_type",
+                vec!["fire_nation".into()],
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["1", "3"]);
 
-            let filter = CompositeNodeFilter::Node(Filter::any(
+            let filter = CompositeNodeFilter::Node(Filter::includes(
                 "node_type",
                 vec!["fire_nation".into(), "air_nomads".into()],
             ));
@@ -1008,8 +1012,10 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_node_type_not_in() {
-            let filter =
-                CompositeNodeFilter::Node(Filter::not_any("node_type", vec!["fire_nation".into()]));
+            let filter = CompositeNodeFilter::Node(Filter::excludes(
+                "node_type",
+                vec!["fire_nation".into()],
+            ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["2", "4"]);
         }
@@ -1469,11 +1475,12 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_to_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::any("to", vec!["2".into()]));
+            let filter = CompositeEdgeFilter::Edge(Filter::includes("to", vec!["2".into()]));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("1".into(), "2".into())]);
 
-            let filter = CompositeEdgeFilter::Edge(Filter::any("to", vec!["2".into(), "3".into()]));
+            let filter =
+                CompositeEdgeFilter::Edge(Filter::includes("to", vec!["2".into(), "3".into()]));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1483,7 +1490,7 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_to_not_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::not_any("to", vec!["1".into()]));
+            let filter = CompositeEdgeFilter::Edge(Filter::excludes("to", vec!["1".into()]));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1514,12 +1521,12 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_from_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::any("from", vec!["1".into()]));
+            let filter = CompositeEdgeFilter::Edge(Filter::includes("from", vec!["1".into()]));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(results, vec![("1".into(), "2".into())]);
 
             let filter =
-                CompositeEdgeFilter::Edge(Filter::any("from", vec!["1".into(), "2".into()]));
+                CompositeEdgeFilter::Edge(Filter::includes("from", vec!["1".into(), "2".into()]));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,
@@ -1533,7 +1540,7 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_from_not_in() {
-            let filter = CompositeEdgeFilter::Edge(Filter::not_any("from", vec!["1".into()]));
+            let filter = CompositeEdgeFilter::Edge(Filter::excludes("from", vec!["1".into()]));
             let results = search_edges_by_composite_filter(&filter);
             assert_eq!(
                 results,

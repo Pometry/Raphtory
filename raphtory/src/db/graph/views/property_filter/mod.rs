@@ -418,7 +418,7 @@ impl Filter {
         }
     }
 
-    pub fn any(
+    pub fn includes(
         field_name: impl Into<String>,
         field_values: impl IntoIterator<Item = String>,
     ) -> Self {
@@ -429,7 +429,7 @@ impl Filter {
         }
     }
 
-    pub fn not_any(
+    pub fn excludes(
         field_name: impl Into<String>,
         field_values: impl IntoIterator<Item = String>,
     ) -> Self {
@@ -672,23 +672,68 @@ impl PropertyFilter {
     }
 }
 
+trait NodeFilterOps {
+    fn field_name(&self) -> &'static str;
+
+    fn eq(self, value: impl Into<String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Node(Filter::eq(self.field_name(), value))
+    }
+
+    fn ne(self, value: impl Into<String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Node(Filter::ne(self.field_name(), value))
+    }
+
+    fn includes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Node(Filter::includes(self.field_name(), values))
+    }
+
+    fn excludes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Node(Filter::excludes(self.field_name(), values))
+    }
+
+    fn fuzzy_search(
+        self,
+        value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Node(Filter::fuzzy_search(
+            self.field_name(),
+            value,
+            levenshtein_distance,
+            prefix_match,
+        ))
+    }
+}
+
 struct NodeNameFilterBuilder;
 
-impl NodeNameFilterBuilder {
-    const NODE_NAME: &'static str = "name";
-
-    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Node(Filter::eq(Self::NODE_NAME, value))
+impl NodeFilterOps for NodeNameFilterBuilder {
+    fn field_name(&self) -> &'static str {
+        "name"
     }
 }
 
 struct NodeTypeFilterBuilder;
 
-impl NodeTypeFilterBuilder {
-    const NODE_TYPE: &'static str = "node_type";
-
-    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Node(Filter::eq(Self::NODE_TYPE, value))
+impl NodeFilterOps for NodeTypeFilterBuilder {
+    fn field_name(&self) -> &'static str {
+        "node_type"
     }
 }
 
@@ -704,23 +749,68 @@ impl NodeFilter {
     }
 }
 
+trait EdgeFilterOps {
+    fn field_name(&self) -> &'static str;
+
+    fn eq(self, value: impl Into<String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Edge(Filter::eq(self.field_name(), value))
+    }
+
+    fn ne(self, value: impl Into<String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Edge(Filter::ne(self.field_name(), value))
+    }
+
+    fn includes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Edge(Filter::includes(self.field_name(), values))
+    }
+
+    fn excludes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Edge(Filter::excludes(self.field_name(), values))
+    }
+
+    fn fuzzy_search(
+        self,
+        value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Edge(Filter::fuzzy_search(
+            self.field_name(),
+            value,
+            levenshtein_distance,
+            prefix_match,
+        ))
+    }
+}
+
 struct EdgeSourceFilterBuilder;
 
-impl EdgeSourceFilterBuilder {
-    const FROM: &'static str = "from";
-
-    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Edge(Filter::eq(Self::FROM, value))
+impl EdgeFilterOps for EdgeSourceFilterBuilder {
+    fn field_name(&self) -> &'static str {
+        "from"
     }
 }
 
 struct EdgeDestinationFilterBuilder;
 
-impl EdgeDestinationFilterBuilder {
-    const TO: &'static str = "to";
-
-    pub fn eq(self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Edge(Filter::eq(Self::TO, value))
+impl EdgeFilterOps for EdgeDestinationFilterBuilder {
+    fn field_name(&self) -> &'static str {
+        "to"
     }
 }
 
@@ -977,7 +1067,7 @@ mod test_composite_filters {
             "((NODE(node_type NOT_IN [fire_nation, water_tribe])) AND (NODE_PROPERTY(p2 == 2)) AND (NODE_PROPERTY(p1 == 1)) AND ((NODE_PROPERTY(p3 <= 5)) OR (NODE_PROPERTY(p4 IN [2, 10])))) OR (NODE(node_name == pometry)) OR (NODE_PROPERTY(p5 == 9))",
             CompositeNodeFilter::Or(vec![
                 CompositeNodeFilter::And(vec![
-                    CompositeNodeFilter::Node(Filter::not_any(
+                    CompositeNodeFilter::Node(Filter::excludes(
                         "node_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
@@ -1024,7 +1114,7 @@ mod test_composite_filters {
             "((EDGE(edge_type NOT_IN [fire_nation, water_tribe])) AND (EDGE_PROPERTY(p2 == 2)) AND (EDGE_PROPERTY(p1 == 1)) AND ((EDGE_PROPERTY(p3 <= 5)) OR (EDGE_PROPERTY(p4 IN [2, 10])))) OR (EDGE(from == pometry)) OR (EDGE_PROPERTY(p5 == 9))",
             CompositeEdgeFilter::Or(vec![
                 CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Edge(Filter::not_any(
+                    CompositeEdgeFilter::Edge(Filter::excludes(
                         "edge_type",
                         vec!["fire_nation".into(), "water_tribe".into()]
                     )),
