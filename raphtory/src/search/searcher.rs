@@ -147,7 +147,7 @@ mod search_tests {
         use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
         #[cfg(test)]
-        mod test_latest_any_semantics {
+        mod test_nodes_latest_any_semantics {
             use crate::{
                 core::Prop,
                 db::{
@@ -473,6 +473,341 @@ mod search_tests {
                     .collect::<Vec<_>>();
                 results.sort();
                 assert_eq!(results, vec!["N1", "N14", "N15", "N3", "N4", "N6", "N7"])
+            }
+        }
+
+        #[cfg(test)]
+        mod test_edges_latest_any_semantics {
+            use crate::{
+                core::Prop,
+                db::{
+                    api::{
+                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                        view::{internal::InternalIndexSearch, StaticGraphViewOps},
+                    },
+                    graph::views::property_filter::{
+                        CompositeEdgeFilter, CompositeNodeFilter, PropertyRef, Temporal,
+                    },
+                },
+                prelude::{
+                    AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps,
+                    PropertyAdditionOps, PropertyFilter, NO_PROPS,
+                },
+            };
+
+            fn init_graph<
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            >(
+                graph: G,
+            ) -> G {
+                graph
+                    .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N1", "N2")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N4", "N5")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(3, "N8", "N9", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(4, "N8", "N9", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(2, "N9", "N10", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N9", "N10")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(2, "N10", "N11", [("q1", Prop::U64(0u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(2, "N10", "N11", [("p1", Prop::U64(3u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N10", "N11")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(2, "N11", "N12", [("p1", Prop::U64(3u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(2, "N11", "N12", [("q1", Prop::U64(0u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N11", "N12")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(2, "N12", "N13", [("q1", Prop::U64(0u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(3, "N12", "N13", [("p1", Prop::U64(3u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N12", "N13")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(2, "N13", "N14", [("q1", Prop::U64(0u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(3, "N13", "N14", [("p1", Prop::U64(3u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N13", "N14")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(2, "N14", "N15", [("q1", Prop::U64(0u64))], None)
+                    .unwrap();
+                graph
+                    .edge("N14", "N15")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph.add_edge(2, "N15", "N1", NO_PROPS, None).unwrap();
+                graph
+                    .edge("N15", "N1")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+            }
+
+            #[test]
+            fn test_temporal_any_semantics() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::TemporalProperty("p1".to_string(), Temporal::Any),
+                    1u64,
+                ));
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, &filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(
+                    results,
+                    vec![
+                        "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8",
+                        "N8->N9"
+                    ]
+                )
+            }
+
+            #[test] // Wrong
+            fn test_temporal_latest_semantics() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::TemporalProperty("p1".to_string(), Temporal::Latest),
+                    1u64,
+                ));
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, &filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(
+                    results,
+                    vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
+                )
+            }
+
+            #[test]
+            fn test_constant_semantics() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::ConstantProperty("p1".to_string()),
+                    1u64,
+                ));
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, &filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(
+                    results,
+                    vec![
+                        "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                        "N15->N1", "N9->N10"
+                    ]
+                )
+            }
+
+            #[test] // Wrong
+            fn test_property_constant_semantics() {
+                // For this graph there won't be any temporal property index for property name "p1".
+                let g = Graph::new();
+                g.add_edge(2, "N1", "N2", [("q1", Prop::U64(0u64))], None)
+                    .unwrap();
+                g.edge("N1", "N2")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                g.add_edge(2, "N2", "N3", NO_PROPS, None).unwrap();
+                g.edge("N2", "N3")
+                    .unwrap()
+                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    1u64,
+                ));
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, &filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(results, vec!["N1->N2", "N2->N3"])
+            }
+
+            #[test]
+            fn test_property_temporal_semantics() {
+                // For this graph there won't be any constant property index for property name "p1".
+                let g = Graph::new();
+                g.add_edge(1, "N1", "N2", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                g.edge("N1", "N2")
+                    .unwrap()
+                    .add_constant_properties([("p2", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                g.add_edge(2, "N2", "N3", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                g.add_edge(3, "N2", "N3", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                g.add_edge(2, "N3", "N4", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+                g.add_edge(3, "N3", "N4", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                g.add_edge(2, "N4", "N5", NO_PROPS, None).unwrap();
+
+                let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    1u64,
+                ));
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, &filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(results, vec!["N1->N2", "N3->N4"])
+            }
+
+            #[test]
+            fn test_property_semantics() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p1".to_string()),
+                    1u64,
+                ));
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, &filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(
+                    results,
+                    vec!["N1->N2", "N14->N15", "N15->N1", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
+                )
             }
         }
 

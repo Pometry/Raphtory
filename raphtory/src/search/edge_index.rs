@@ -258,7 +258,7 @@ impl EdgeIndex {
         let edge_index = EdgeIndex::new();
 
         // Initialize property indexes and get their writers
-        let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
+        let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();
         let mut const_writers = initialize_edge_const_property_indexes(
             graph,
             edge_index.constant_property_indexes.clone(),
@@ -266,7 +266,7 @@ impl EdgeIndex {
         )?;
 
         let temporal_property_keys = graph
-            .node_meta()
+            .edge_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
