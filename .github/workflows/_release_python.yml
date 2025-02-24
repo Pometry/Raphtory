@@ -12,11 +12,21 @@ on:
         required: true
 
 jobs:
+  artifact-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Deleting artifacts from previous runs"
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          failOnError: false
+          name: |
+            pyartifacts
   python-linux:
+    needs: [ artifact-cleanup ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [ x86_64, aarch64 ]
+        target: [ x86_64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -122,98 +132,98 @@ jobs:
         with:
           name: pyartifacts-linux-${{ matrix.target }}
           path: ./python/dist
-  python-windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [ x64 ]
-    steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.base }}
-      - uses: actions/setup-python@v4
-        with:
-          python-version: |
-            3.9
-            3.10
-            3.11
-            3.12
-            3.13
-          architecture: ${{ matrix.target }}
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: ./python
-          command: build
-          target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
-      - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pyartifacts-windows-${{ matrix.target }}
-          path: ./python/dist
-  python-macos:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        target: [ x86_64, aarch64 ]
-    steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.base }}
-      - uses: actions/setup-python@v4
-        with:
-          python-version: |
-            3.9
-            3.10
-            3.11
-            3.12
-            3.13
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: ./python
-          command: build
-          target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
-      - name: Upload wheels to gh artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pyartifacts-macos-${{ matrix.target }}
-          path: ./python/dist
+  # python-windows:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     matrix:
+  #       target: [ x64 ]
+  #   steps:
+  #     - name: "Check if user has write access"
+  #       uses: "lannonbr/repo-permission-check-action@2.0.0"
+  #       with:
+  #         permission: "write"
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Install Protoc
+  #       uses: arduino/setup-protoc@v3
+  #       with:
+  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         ref: ${{ inputs.base }}
+  #     - uses: actions/setup-python@v4
+  #       with:
+  #         python-version: |
+  #           3.9
+  #           3.10
+  #           3.11
+  #           3.12
+  #           3.13
+  #         architecture: ${{ matrix.target }}
+  #     - name: Build wheels
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         working-directory: ./python
+  #         command: build
+  #         target: ${{ matrix.target }}
+  #         args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+  #     - name: Upload wheels to gh artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: pyartifacts-windows-${{ matrix.target }}
+  #         path: ./python/dist
+  # python-macos:
+  #   runs-on: macos-latest
+  #   strategy:
+  #     matrix:
+  #       target: [ x86_64, aarch64 ]
+  #   steps:
+  #     - name: "Check if user has write access"
+  #       uses: "lannonbr/repo-permission-check-action@2.0.0"
+  #       with:
+  #         permission: "write"
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Install Protoc
+  #       uses: arduino/setup-protoc@v3
+  #       with:
+  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Set up cargo cache
+  #       uses: actions/cache@v3
+  #       continue-on-error: false
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin/
+  #           ~/.cargo/registry/index/
+  #           ~/.cargo/registry/cache/
+  #           ~/.cargo/git/db/
+  #         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+  #         restore-keys: ${{ runner.os }}-cargo-
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         ref: ${{ inputs.base }}
+  #     - uses: actions/setup-python@v4
+  #       with:
+  #         python-version: |
+  #           3.9
+  #           3.10
+  #           3.11
+  #           3.12
+  #           3.13
+  #     - name: Build wheels
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         working-directory: ./python
+  #         command: build
+  #         target: ${{ matrix.target }}
+  #         args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+  #     - name: Upload wheels to gh artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: pyartifacts-macos-${{ matrix.target }}
+  #         path: ./python/dist
   publish-python:
-    needs: [ python-linux, python-windows, python-macos ]
+    needs: [ python-linux ]
     name: Publish to PyPi
     runs-on: ubuntu-latest
     steps:
