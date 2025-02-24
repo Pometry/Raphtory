@@ -602,47 +602,132 @@ impl FilterExpr {
     }
 }
 
+trait PropertyFilterOps {
+    fn property_ref(&self) -> PropertyRef;
+
+    fn eq(self, value: impl Into<Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::eq(self.property_ref(), value.into()))
+    }
+
+    fn ne(self, value: impl Into<Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::ne(self.property_ref(), value.into()))
+    }
+
+    fn le(self, value: impl Into<Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::le(self.property_ref(), value.into()))
+    }
+
+    fn ge(self, value: impl Into<Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::ge(self.property_ref(), value.into()))
+    }
+
+    fn lt(self, value: impl Into<Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::lt(self.property_ref(), value.into()))
+    }
+
+    fn gt(self, value: impl Into<Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::gt(self.property_ref(), value.into()))
+    }
+
+    fn includes(self, values: impl IntoIterator<Item = Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::includes(
+            self.property_ref(),
+            values.into_iter(),
+        ))
+    }
+
+    fn excludes(self, values: impl IntoIterator<Item = Prop>) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::excludes(
+            self.property_ref(),
+            values.into_iter(),
+        ))
+    }
+
+    fn is_none(self) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::is_none(self.property_ref()))
+    }
+
+    fn is_some(self) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::is_some(self.property_ref()))
+    }
+
+    fn fuzzy_search(
+        self,
+        prop_value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> FilterExpr
+    where
+        Self: Sized,
+    {
+        FilterExpr::Property(PropertyFilter::fuzzy_search(
+            self.property_ref(),
+            prop_value.into(),
+            levenshtein_distance,
+            prefix_match,
+        ))
+    }
+}
+
 struct PropertyFilterBuilder(String);
 
-impl PropertyFilterBuilder {
-    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::eq(
-            PropertyRef::Property(self.0),
-            value.into(),
-        ))
+impl PropertyFilterOps for PropertyFilterBuilder {
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::Property(self.0.clone())
     }
 }
 
 struct ConstPropertyFilterBuilder(String);
 
-impl ConstPropertyFilterBuilder {
-    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::eq(
-            PropertyRef::ConstantProperty(self.0),
-            value.into(),
-        ))
+impl PropertyFilterOps for ConstPropertyFilterBuilder {
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::ConstantProperty(self.0.clone())
     }
 }
 
 struct AnyTemporalPropertyFilterBuilder(String);
 
-impl AnyTemporalPropertyFilterBuilder {
-    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::eq(
-            PropertyRef::TemporalProperty(self.0, Temporal::Any),
-            value.into(),
-        ))
+impl PropertyFilterOps for AnyTemporalPropertyFilterBuilder {
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
     }
 }
 
 struct LatestTemporalPropertyFilterBuilder(String);
 
-impl LatestTemporalPropertyFilterBuilder {
-    pub fn eq(self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::eq(
-            PropertyRef::TemporalProperty(self.0, Temporal::Latest),
-            value.into(),
-        ))
+impl PropertyFilterOps for LatestTemporalPropertyFilterBuilder {
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
     }
 }
 
