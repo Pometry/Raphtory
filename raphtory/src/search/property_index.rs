@@ -24,8 +24,6 @@ pub struct PropertyIndex {
 
 impl PropertyIndex {
     pub(crate) fn new(prop_name: ArcStr, schema: Schema) -> Self {
-        // println!("prop_name = {}", prop_name.to_string());
-
         let (index, reader) = new_index(schema, IndexSettings::default());
         Self {
             prop_name,

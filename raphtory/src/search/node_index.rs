@@ -10,7 +10,7 @@ use crate::{
             storage::graph::storage_ops::GraphStorage,
             view::internal::{CoreGraphOps, InternalIndexSearch},
         },
-        graph::{edge::EdgeView, node::NodeView},
+        graph::node::NodeView,
     },
     prelude::*,
     search::{
@@ -19,14 +19,7 @@ use crate::{
         new_index, property_index::PropertyIndex, TOKENIZER,
     },
 };
-use itertools::Itertools;
-use raphtory_api::{
-    core::{
-        entities::properties::props::Meta,
-        storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec},
-    },
-    iter::BoxedLIter,
-};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
 use std::{

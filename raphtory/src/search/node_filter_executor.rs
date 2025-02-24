@@ -16,14 +16,15 @@ use crate::{
         },
         fields, get_const_property_index, get_temporal_property_index,
         graph_index::GraphIndex,
+        property_index::PropertyIndex,
         query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 use tantivy::{
-    collector::{Collector, TopDocs},
+    collector::{Collector, SegmentCollector, TopDocs},
     query::Query,
     schema::Value,
     DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
@@ -89,6 +90,161 @@ impl<'a> NodeFilterExecutor<'a> {
         Ok(nodes.into_iter().skip(offset).take(limit).collect())
     }
 
+    fn execute_or_fallback<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        pi: &Arc<PropertyIndex>,
+        filter: &PropertyFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let query = self.query_builder.build_property_query::<G>(&pi, filter)?;
+        match query {
+            Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
+            // Fallback to raphtory apis
+            None => Self::raph_filter_nodes(graph, filter, offset, limit),
+        }
+    }
+
+    fn execute_or_fallback_temporal<G: StaticGraphViewOps, C>(
+        &self,
+        graph: &G,
+        prop_id: usize,
+        pi: &Arc<PropertyIndex>,
+        filter: &PropertyFilter,
+        limit: usize,
+        offset: usize,
+        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+    ) -> Result<Vec<NodeView<G>>, GraphError>
+    where
+        C: Collector<Fruit = HashSet<u64>>,
+    {
+        let query = self.query_builder.build_property_query::<G>(&pi, filter)?;
+        match query {
+            Some(query) => self.execute_filter_property_query(
+                graph,
+                query,
+                prop_id,
+                &pi.reader,
+                limit,
+                offset,
+                collector_fn,
+            ),
+            // Fallback to raphtory apis
+            None => Self::raph_filter_nodes(graph, filter, offset, limit),
+        }
+    }
+
+    fn apply_const_property_filter<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        prop_name: &str,
+        filter: &PropertyFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        if let Some((cpi, _)) = get_const_property_index(
+            &self.index.node_index.constant_property_indexes,
+            graph.node_meta(),
+            prop_name,
+        )? {
+            self.execute_or_fallback(graph, &cpi, filter, limit, offset)
+        } else {
+            Err(GraphError::PropertyNotFound(prop_name.to_string()))
+        }
+    }
+
+    fn apply_temporal_property_filter<G: StaticGraphViewOps, C>(
+        &self,
+        graph: &G,
+        prop_name: &str,
+        filter: &PropertyFilter,
+        limit: usize,
+        offset: usize,
+        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+    ) -> Result<Vec<NodeView<G>>, GraphError>
+    where
+        C: Collector<Fruit = HashSet<u64>>,
+    {
+        if let Some((tpi, prop_id)) = get_temporal_property_index(
+            &self.index.node_index.temporal_property_indexes,
+            graph.node_meta(),
+            prop_name,
+        )? {
+            self.execute_or_fallback_temporal(
+                graph,
+                prop_id,
+                &tpi,
+                filter,
+                limit,
+                offset,
+                collector_fn,
+            )
+        } else {
+            Err(GraphError::PropertyNotFound(prop_name.to_string()))
+        }
+    }
+
+    fn apply_combined_property_filter<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+        prop_name: &str,
+        filter: &PropertyFilter,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<G>>, GraphError> {
+        let cpi = get_const_property_index(
+            &self.index.node_index.constant_property_indexes,
+            graph.node_meta(),
+            prop_name,
+        )?;
+        let tpi = get_temporal_property_index(
+            &self.index.node_index.temporal_property_indexes,
+            graph.node_meta(),
+            prop_name,
+        )?;
+
+        match (cpi, tpi) {
+            (Some((cpi, _)), Some((tpi, prop_id))) => {
+                let cpi_results = self.execute_or_fallback(graph, &cpi, filter, limit, offset)?;
+                let tpi_results = self.execute_or_fallback_temporal(
+                    graph,
+                    prop_id,
+                    &tpi,
+                    filter,
+                    limit,
+                    offset,
+                    LatestNodePropertyFilterCollector::new,
+                )?;
+
+                let mut filtered = cpi_results
+                    .into_iter()
+                    .filter(|n| {
+                        n.properties()
+                            .temporal()
+                            .get_by_id(prop_id)
+                            .map(|t| t.is_empty())
+                            .unwrap_or(true)
+                    })
+                    .collect::<HashSet<_>>();
+
+                let combined: Vec<NodeView<G>> = filtered.into_iter().chain(tpi_results).collect();
+                Ok(combined)
+            }
+            (Some((cpi, _)), None) => self.execute_or_fallback(graph, &cpi, filter, limit, offset),
+            (None, Some((tpi, prop_id))) => self.execute_or_fallback_temporal(
+                graph,
+                prop_id,
+                &tpi,
+                filter,
+                limit,
+                offset,
+                LatestNodePropertyFilterCollector::new,
+            ),
+            _ => Err(GraphError::PropertyNotFound(prop_name.to_string())),
+        }
+    }
+
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -96,163 +252,32 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let results = match &filter.prop_ref {
+        match &filter.prop_ref {
             PropertyRef::ConstantProperty(prop_name) => {
-                let cpi = get_const_property_index(
-                    &self.index.node_index.constant_property_indexes,
-                    graph.node_meta(),
-                    prop_name,
-                )?;
-                if let Some((cpi, _)) = cpi {
-                    let query = self.query_builder.build_property_query::<G>(&cpi, filter)?;
-                    match query {
-                        Some(query) => {
-                            self.execute_filter_query(graph, query, &cpi.reader, limit, offset)?
-                        }
-                        // Fallback to raphtory apis
-                        None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                    }
-                } else {
-                    return Err(GraphError::PropertyNotFound(prop_name.to_string()));
-                }
+                self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
             }
-            PropertyRef::TemporalProperty(prop_name, Temporal::Any) => {
-                let tpi = get_temporal_property_index(
-                    &self.index.node_index.temporal_property_indexes,
-                    graph.node_meta(),
+            PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
+                .apply_temporal_property_filter(
+                    graph,
                     prop_name,
-                )?;
-                if let Some((tpi, prop_id)) = tpi {
-                    let query = self.query_builder.build_property_query::<G>(&tpi, filter)?;
-                    match query {
-                        Some(query) => self.execute_filter_property_query(
-                            graph,
-                            query,
-                            prop_id,
-                            &tpi.reader,
-                            limit,
-                            offset,
-                            NodePropertyFilterCollector::new,
-                        )?,
-                        // Fallback to raphtory apis
-                        None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                    }
-                } else {
-                    return Err(GraphError::PropertyNotFound(prop_name.to_string()));
-                }
-            }
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => {
-                let tpi = get_temporal_property_index(
-                    &self.index.node_index.temporal_property_indexes,
-                    graph.node_meta(),
+                    filter,
+                    limit,
+                    offset,
+                    NodePropertyFilterCollector::new,
+                ),
+            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => self
+                .apply_temporal_property_filter(
+                    graph,
                     prop_name,
-                )?;
-                if let Some((tpi, prop_id)) = tpi {
-                    let query = self.query_builder.build_property_query::<G>(&tpi, filter)?;
-                    match query {
-                        Some(query) => self.execute_filter_property_query(
-                            graph,
-                            query,
-                            prop_id,
-                            &tpi.reader,
-                            limit,
-                            offset,
-                            LatestNodePropertyFilterCollector::new,
-                        )?,
-                        // Fallback to raphtory apis
-                        None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                    }
-                } else {
-                    return Err(GraphError::PropertyNotFound(prop_name.to_string()));
-                }
-            }
+                    filter,
+                    limit,
+                    offset,
+                    LatestNodePropertyFilterCollector::new,
+                ),
             PropertyRef::Property(prop_name) => {
-                let cpi = get_const_property_index(
-                    &self.index.node_index.constant_property_indexes,
-                    graph.node_meta(),
-                    prop_name,
-                )?;
-                let tpi = get_temporal_property_index(
-                    &self.index.node_index.temporal_property_indexes,
-                    graph.node_meta(),
-                    prop_name,
-                )?;
-                let results = match (cpi, tpi) {
-                    (Some((cpi, _)), Some((tpi, prop_id))) => {
-                        let query = self.query_builder.build_property_query::<G>(&cpi, filter)?;
-                        let cpi_results = match query {
-                            Some(query) => {
-                                self.execute_filter_query(graph, query, &cpi.reader, limit, offset)?
-                            }
-                            // Fallback to raphtory apis
-                            None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                        };
-
-                        let query = self.query_builder.build_property_query::<G>(&tpi, filter)?;
-                        let tpi_results = match query {
-                            Some(query) => self.execute_filter_property_query(
-                                graph,
-                                query,
-                                prop_id,
-                                &tpi.reader,
-                                limit,
-                                offset,
-                                LatestNodePropertyFilterCollector::new,
-                            )?,
-                            // Fallback to raphtory apis
-                            None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                        };
-
-                        let mut filtered = cpi_results.into_iter().filter(|n| {
-                            n.properties()
-                                .temporal()
-                                .get_by_id(prop_id)
-                                .map(|t| t.is_empty())
-                                .unwrap_or(true)
-                        });
-
-                        let mut combined: HashSet<NodeView<G, G>> = filtered.into_iter().collect();
-                        // println!("filtered = {:?}", combined.iter().map(|n| n.name()).collect::<Vec<_>>());
-                        combined.extend(tpi_results);
-                        // println!("combined = {:?}", combined.iter().map(|n| n.name()).collect::<Vec<_>>());
-                        let combined: Vec<NodeView<G>> = combined.into_iter().collect();
-                        combined
-                    }
-                    (Some((cpi, _)), None) => {
-                        let query = self.query_builder.build_property_query::<G>(&cpi, filter)?;
-                        match query {
-                            Some(query) => {
-                                self.execute_filter_query(graph, query, &cpi.reader, limit, offset)?
-                            }
-                            // Fallback to raphtory apis
-                            None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                        }
-                    }
-                    (None, Some((tpi, prop_id))) => {
-                        let query = self.query_builder.build_property_query::<G>(&tpi, filter)?;
-                        match query {
-                            Some(query) => self.execute_filter_property_query(
-                                graph,
-                                query,
-                                prop_id,
-                                &tpi.reader,
-                                limit,
-                                offset,
-                                LatestNodePropertyFilterCollector::new,
-                            )?,
-                            // Fallback to raphtory apis
-                            None => Self::raph_filter_nodes(graph, filter, offset, limit)?,
-                        }
-                    }
-                    _ => {
-                        return Err(GraphError::PropertyNotFound(prop_name.to_string()));
-                    }
-                };
-                results
+                self.apply_combined_property_filter(graph, prop_name, filter, limit, offset)
             }
-        };
-
-        Ok(results)
+        }
     }
 
     fn filter_node_index<G: StaticGraphViewOps>(
@@ -323,16 +348,6 @@ impl<'a> NodeFilterExecutor<'a> {
     }
 
     pub fn filter_nodes<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &CompositeNodeFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
-        self.filter_nodes_internal(graph, filter, limit, offset)
-    }
-
-    pub fn filter_nodes_latest<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         filter: &CompositeNodeFilter,

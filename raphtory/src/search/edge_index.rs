@@ -8,9 +8,9 @@ use crate::{
         api::{
             properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::storage_ops::GraphStorage,
-            view::internal::{core_ops::CoreGraphOps, InternalLayerOps},
+            view::internal::core_ops::CoreGraphOps,
         },
-        graph::{edge::EdgeView, edges::Edges},
+        graph::edge::EdgeView,
     },
     prelude::*,
     search::{
@@ -19,7 +19,7 @@ use crate::{
         new_index, property_index::PropertyIndex, TOKENIZER,
     },
 };
-use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::{
