@@ -234,7 +234,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::any(&self.name, values);
+        let filter = PropertyFilter::includes(&self.name, values);
         PyPropertyFilter(filter)
     }
 
@@ -247,7 +247,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::not_any(&self.name, values);
+        let filter = PropertyFilter::excludes(&self.name, values);
         PyPropertyFilter(filter)
     }
 }

@@ -24,7 +24,7 @@ use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
-    collector::{Collector, SegmentCollector, TopDocs},
+    collector::{Collector, TopDocs},
     query::Query,
     schema::Value,
     DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,

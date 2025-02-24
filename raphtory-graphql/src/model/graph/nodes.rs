@@ -200,7 +200,7 @@ impl GqlNodes {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_nodes = self
                         .nn
-                        .filter_nodes(PropertyFilter::any(property, prop_values))?;
+                        .filter_nodes(PropertyFilter::includes(property, prop_values))?;
                     Ok(self.update(filtered_nodes))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -214,7 +214,7 @@ impl GqlNodes {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_nodes = self
                         .nn
-                        .filter_nodes(PropertyFilter::not_any(property, prop_values))?;
+                        .filter_nodes(PropertyFilter::excludes(property, prop_values))?;
                     Ok(self.update(filtered_nodes))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(

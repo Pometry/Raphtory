@@ -525,7 +525,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::any(property, prop_values))?;
+                        .filter_nodes(PropertyFilter::includes(property, prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -543,7 +543,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::not_any(property, prop_values))?;
+                        .filter_nodes(PropertyFilter::excludes(property, prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -688,7 +688,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::any(property, prop_values))?;
+                        .filter_edges(PropertyFilter::includes(property, prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -706,7 +706,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::not_any(property, prop_values))?;
+                        .filter_edges(PropertyFilter::excludes(property, prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),

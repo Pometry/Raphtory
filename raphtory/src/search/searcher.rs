@@ -1078,14 +1078,14 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_property_in() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::any(
+            let filter = CompositeNodeFilter::Property(PropertyFilter::includes(
                 PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(6)],
             ));
             let results = search_nodes_by_composite_filter(&filter);
             assert_eq!(results, vec!["3"]);
 
-            let filter = CompositeNodeFilter::Property(PropertyFilter::any(
+            let filter = CompositeNodeFilter::Property(PropertyFilter::includes(
                 PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(2), Prop::U64(6)],
             ));
@@ -1095,7 +1095,7 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_property_not_in() {
-            let filter = CompositeNodeFilter::Property(PropertyFilter::not_any(
+            let filter = CompositeNodeFilter::Property(PropertyFilter::excludes(
                 PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(6)],
             ));
@@ -1647,7 +1647,7 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_in() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::any(
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::includes(
                 PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(6)],
             ));
@@ -1657,7 +1657,7 @@ mod search_tests {
                 vec![("2".into(), "1".into()), ("3".into(), "1".into())]
             );
 
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::any(
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::includes(
                 PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(2), Prop::U64(6)],
             ));
@@ -1674,7 +1674,7 @@ mod search_tests {
 
         #[test]
         fn search_edges_for_property_not_in() {
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::not_any(
+            let filter = CompositeEdgeFilter::Property(PropertyFilter::excludes(
                 PropertyRef::Property("p2".to_string()),
                 vec![Prop::U64(6)],
             ));

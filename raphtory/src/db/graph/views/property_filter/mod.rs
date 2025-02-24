@@ -286,7 +286,7 @@ impl PropertyFilter {
         }
     }
 
-    pub fn any(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
+    pub fn includes(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
@@ -294,7 +294,7 @@ impl PropertyFilter {
         }
     }
 
-    pub fn not_any(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
+    pub fn excludes(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
@@ -562,7 +562,7 @@ mod test_composite_filters {
                     CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p1".to_string()), 1u64)),
                     CompositeNodeFilter::Or(vec![
                         CompositeNodeFilter::Property(PropertyFilter::le(PropertyRef::Property("p3".to_string()), 5u64)),
-                        CompositeNodeFilter::Property(PropertyFilter::any(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
+                        CompositeNodeFilter::Property(PropertyFilter::includes(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
                 CompositeNodeFilter::Node(Filter::eq("node_name", "pometry")),
@@ -609,7 +609,7 @@ mod test_composite_filters {
                     CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p1".to_string()), 1u64)),
                     CompositeEdgeFilter::Or(vec![
                         CompositeEdgeFilter::Property(PropertyFilter::le(PropertyRef::Property("p3".to_string()), 5u64)),
-                        CompositeEdgeFilter::Property(PropertyFilter::any(PropertyRef::Property("p4".to_string()),vec![Prop::U64(10), Prop::U64(2)]))
+                        CompositeEdgeFilter::Property(PropertyFilter::includes(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
                 CompositeEdgeFilter::Edge(Filter::eq("from", "pometry")),
