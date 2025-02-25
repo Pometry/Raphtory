@@ -311,6 +311,7 @@ impl GraphStorage {
         }
     }
 
+    // TODO: This could just take the layer ids
     pub fn layer_ids_iter<'graph, G: GraphViewOps<'graph>>(
         &self,
         view: &G,

@@ -233,22 +233,26 @@ impl EdgeHistoryFilter for MaterializedGraph {
 
     fn is_edge_prop_update_latest(
         &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => {
-                g.is_edge_prop_update_latest(prop_id, edge_id, time)
+                g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
             }
             MaterializedGraph::PersistentGraph(g) => {
-                g.is_edge_prop_update_latest(prop_id, edge_id, time)
+                g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
             }
         }
     }
 
     fn is_edge_prop_update_latest_window(
         &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
@@ -256,10 +260,10 @@ impl EdgeHistoryFilter for MaterializedGraph {
     ) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => {
-                g.is_edge_prop_update_latest_window(prop_id, edge_id, time, w)
+                g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
             }
             MaterializedGraph::PersistentGraph(g) => {
-                g.is_edge_prop_update_latest_window(prop_id, edge_id, time, w)
+                g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
             }
         }
     }

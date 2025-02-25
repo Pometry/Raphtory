@@ -22,10 +22,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
-                property_filter::{CompositeEdgeFilter, CompositeNodeFilter},
+                cached_view::CachedView, node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
             },
         },
     },
@@ -136,28 +134,28 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn search_nodes(
         &self,
-        filter: &CompositeNodeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
     fn search_edges(
         &self,
-        filter: &CompositeEdgeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
 
     fn fuzzy_search_nodes(
         &self,
-        filter: &CompositeNodeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
     fn fuzzy_search_edges(
         &self,
-        filter: &CompositeEdgeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
@@ -631,7 +629,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn search_nodes(
         &self,
-        filter: &CompositeNodeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
@@ -640,7 +638,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn search_edges(
         &self,
-        filter: &CompositeEdgeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
@@ -649,7 +647,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn fuzzy_search_nodes(
         &self,
-        filter: &CompositeNodeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
@@ -659,7 +657,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn fuzzy_search_edges(
         &self,
-        filter: &CompositeEdgeFilter,
+        filter: FilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {

@@ -204,7 +204,9 @@ mod subgraph_tests {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{CompositeNodeFilter, PropertyRef},
+                    property_filter::{
+                        CompositeNodeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
+                    },
                 },
             },
             prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
@@ -268,11 +270,11 @@ mod subgraph_tests {
         fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             node_names: Vec<String>,
-            filter: &CompositeNodeFilter,
+            filter: FilterExpr,
         ) -> Vec<String> {
             let mut results = graph
                 .subgraph(node_names)
-                .search_nodes(&filter, 10, 0)
+                .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
@@ -285,12 +287,12 @@ mod subgraph_tests {
             graph: &G,
             w: Range<i64>,
             node_names: Vec<String>,
-            filter: &CompositeNodeFilter,
+            filter: FilterExpr,
         ) -> Vec<String> {
             let mut results = graph
                 .subgraph(node_names)
                 .window(w.start, w.end)
-                .search_nodes(&filter, 10, 0)
+                .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
@@ -305,45 +307,31 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(
-                results,
-                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
-            );
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
+            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, vec!["N2", "N3", "N4", "N5"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
+            assert_eq!(results, vec!["N3", "N4"]);
         }
 
         #[test]
         fn test_search_nodes_subgraph_w() {
             let graph = Graph::new();
             let graph = init_graph(graph);
+            let filter = PropertyFilter::property("p1").eq(1u64);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N1", "N3", "N6"]);
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N2", "N3"]);
+
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N3"]);
         }
 
         #[test]
@@ -352,23 +340,14 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(
-                results,
-                vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
-            );
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
+            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, vec!["N2", "N3", "N4", "N5"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
+            assert_eq!(results, vec!["N3", "N4"]);
         }
 
         #[test]
@@ -377,20 +356,14 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N1", "N3", "N6", "N7"]);
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N2", "N3", "N5"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N3"]);
         }
     }
 
@@ -402,7 +375,9 @@ mod subgraph_tests {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{CompositeEdgeFilter, PropertyRef},
+                    property_filter::{
+                        CompositeEdgeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
+                    },
                 },
             },
             prelude::{
@@ -468,11 +443,11 @@ mod subgraph_tests {
         fn search_edges_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             node_names: Vec<String>,
-            filter: &CompositeEdgeFilter,
+            filter: FilterExpr,
         ) -> Vec<String> {
             let mut results = graph
                 .subgraph(node_names)
-                .search_edges(&filter, 10, 0)
+                .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
@@ -485,12 +460,12 @@ mod subgraph_tests {
             graph: &G,
             w: Range<i64>,
             node_names: Vec<String>,
-            filter: &CompositeEdgeFilter,
+            filter: FilterExpr,
         ) -> Vec<String> {
             let mut results = graph
                 .subgraph(node_names)
                 .window(w.start, w.end)
-                .search_edges(&filter, 10, 0)
+                .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
@@ -505,25 +480,17 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter(&graph, node_names, &filter);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter(&graph, node_names, filter);
             assert_eq!(
                 results,
-                vec![
-                    "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1"
-                ]
+                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
             );
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, vec!["N2->N3", "N3->N4", "N4->N5"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter(&graph, node_names, filter);
+            assert_eq!(results, vec!["N3->N4", "N4->N5"]);
         }
 
         #[test]
@@ -532,20 +499,14 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N6->N7"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7"]);
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N2->N3", "N3->N4"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N3->N4"]);
         }
 
         #[test]
@@ -554,25 +515,17 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter(&graph, node_names, &filter);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter(&graph, node_names, filter);
             assert_eq!(
                 results,
-                vec![
-                    "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1"
-                ]
+                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
             );
 
             let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter(&graph, node_names, &filter);
-            assert_eq!(results, vec!["N2->N3", "N3->N4", "N4->N5"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter(&graph, node_names, filter);
+            assert_eq!(results, vec!["N3->N4", "N4->N5"]);
         }
 
         #[test]
@@ -581,15 +534,9 @@ mod subgraph_tests {
             let graph = init_graph(graph);
 
             let node_names = graph.nodes().name().collect_vec();
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(
-                results,
-                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8"]
-            );
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"]);
 
             let node_names: Vec<String> = vec![
                 "N2".into(),
@@ -598,12 +545,9 @@ mod subgraph_tests {
                 "N5".into(),
                 "N6".into(),
             ];
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, &filter);
-            assert_eq!(results, vec!["N2->N3", "N3->N4", "N5->N6"]);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
+            assert_eq!(results, vec!["N3->N4"]);
         }
     }
 }

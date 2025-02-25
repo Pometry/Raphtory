@@ -331,9 +331,6 @@ pub enum GraphError {
 
     #[error("Not tokens found")]
     NoTokensFound,
-
-    #[error("Expected a temporal property, found: {0}")]
-    InvalidPropertyReference(PropertyRef),
 }
 
 impl GraphError {

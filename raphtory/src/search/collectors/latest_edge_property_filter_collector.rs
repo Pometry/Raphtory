@@ -46,11 +46,13 @@ where
     ) -> tantivy::Result<Self::Child> {
         let column_opt_time = segment_reader.fast_fields().column_opt(fields::TIME)?;
         let column_opt_entity_id = segment_reader.fast_fields().column_opt(&self.field)?;
+        let column_opt_layer_id = segment_reader.fast_fields().column_opt(fields::LAYER_ID)?;
 
         Ok(LatestEdgePropertyFilterSegmentCollector {
             prop_id: self.prop_id,
             column_opt_time,
             column_opt_entity_id,
+            column_opt_layer_id,
             segment_ord: segment_local_id,
             unique_entity_ids: HashSet::new(),
             graph: self.graph.clone(),
@@ -77,6 +79,7 @@ pub struct LatestEdgePropertyFilterSegmentCollector<G> {
     prop_id: usize,
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
+    column_opt_layer_id: Option<Column<u64>>,
     segment_ord: u32,
     unique_entity_ids: HashSet<u64>,
     graph: G,
@@ -98,6 +101,10 @@ where
             .column_opt_entity_id
             .as_ref()
             .and_then(|col| col.values_for_doc(doc_id).next());
+        let opt_layer_id = self
+            .column_opt_layer_id
+            .as_ref()
+            .and_then(|col| col.values_for_doc(doc_id).next());
 
         // let searcher = self.reader.searcher();
         // let schema = searcher.schema();
@@ -106,11 +113,15 @@ where
         //     .unwrap();
         // println!("doc = {:?}", doc.to_json(schema));
 
-        if let (Some(time), Some(entity_id)) = (opt_time, opt_entity_id) {
+        if let (Some(time), Some(entity_id), Some(layer_id)) =
+            (opt_time, opt_entity_id, opt_layer_id)
+        {
             // If is_node_prop_update_latest check is true for a doc, we can ignore validating all other docs
             // against expensive is_node_prop_update_latest check for a given node id.
             if !self.unique_entity_ids.contains(&entity_id) {
                 if self.graph.is_edge_prop_update_latest(
+                    self.graph.layer_ids(),
+                    layer_id as usize,
                     self.prop_id,
                     EID(entity_id as usize),
                     TimeIndexEntry::end(time),

@@ -738,27 +738,34 @@ impl EdgeHistoryFilter for GraphStorage {
     /// - The "latest" status is determined globally across layers, not per individual layer.
     fn is_edge_prop_update_latest(
         &self,
+        mut layer_ids: &LayerIds,
+        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
+        // TODO: Fix this for secondary indexes
         let time = time.next();
         let ese = self.core_edge(edge_id);
-        let mut layer_ids: Box<dyn Iterator<Item = usize>> =
-            self.base().layer_ids_iter(self.base());
 
-        // Check if any layer has an active update beyond `time`
-        let has_future_update = layer_ids.any(|layer_id| {
-            ese.temporal_prop_layer(layer_id, prop_id)
-                .active(time..TimeIndexEntry::MAX)
-        });
+        if layer_ids.contains(&layer_id) {
+            // Check if any layer has an active update beyond `time`
+            let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                ese.temporal_prop_layer(layer_id, prop_id)
+                    .active(time..TimeIndexEntry::MAX)
+            });
 
-        // If no layer has a future update, return true
-        !has_future_update
+            // If no layer has a future update, return true
+            return !has_future_update;
+        };
+
+        false
     }
 
     fn is_edge_prop_update_latest_window(
         &self,
+        mut layer_ids: &LayerIds,
+        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
@@ -767,16 +774,19 @@ impl EdgeHistoryFilter for GraphStorage {
         w.contains(&time.t()) && {
             let time = time.next();
             let ese = self.core_edge(edge_id);
-            let mut layer_ids = self.base().layer_ids_iter(self.base());
 
-            // Check if any layer has an active update beyond `time`
-            let has_future_update = layer_ids.any(|layer_id| {
-                ese.temporal_prop_layer(layer_id, prop_id)
-                    .active(time..TimeIndexEntry::start(w.end))
-            });
+            if layer_ids.contains(&layer_id) {
+                // Check if any layer has an active update beyond `time`
+                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                    ese.temporal_prop_layer(layer_id, prop_id)
+                        .active(time..TimeIndexEntry::start(w.end))
+                });
 
-            // If no layer has a future update, return true
-            !has_future_update
+                // If no layer has a future update, return true
+                return !has_future_update;
+            };
+
+            false
         }
     }
 }
@@ -1067,7 +1077,7 @@ mod test_graph_storage {
             db::api::{
                 storage::graph::storage_ops::time_semantics::test_graph_storage::init_graph_for_edges_tests,
                 view::{
-                    internal::{CoreGraphOps, EdgeHistoryFilter},
+                    internal::{CoreGraphOps, EdgeHistoryFilter, InternalLayerOps},
                     StaticGraphViewOps,
                 },
             },
@@ -1083,41 +1093,101 @@ mod test_graph_storage {
             let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(7));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer2").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(7),
+            );
             assert!(bool);
 
             let edge_id = g.edge("N2", "N3").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(6));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(6),
+            );
             assert!(!bool);
 
             let edge_id = g.edge("N3", "N4").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(8));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(8),
+            );
             assert!(bool);
 
             let edge_id = g.edge("N4", "N5").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(9));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(9),
+            );
             assert!(bool);
 
             let edge_id = g.edge("N5", "N6").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(5));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(5),
+            );
             assert!(!bool);
 
             let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(5));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(5),
+            );
             assert!(!bool);
             let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(6));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer2").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(6),
+            );
             assert!(bool);
 
             let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(3),
+            );
             assert!(!bool);
             let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(5));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer2").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(5),
+            );
             assert!(bool);
 
             let edge_id = g.edge("N8", "N1").unwrap().edge.pid();
-            let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+            let bool = g.is_edge_prop_update_latest(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
+                prop_id,
+                edge_id,
+                TimeIndexEntry::end(3),
+            );
             assert!(!bool);
 
             // TODO: Revisit this test after supporting secondary indexes
@@ -1136,6 +1206,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(7),
@@ -1145,6 +1217,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N2", "N3").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(6),
@@ -1154,6 +1228,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N3", "N4").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(8),
@@ -1163,6 +1239,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N4", "N5").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(9),
@@ -1172,6 +1250,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N5", "N6").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(5),
@@ -1181,6 +1261,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(5),
@@ -1189,6 +1271,8 @@ mod test_graph_storage {
             assert!(!bool);
             let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(6),
@@ -1198,6 +1282,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(3),
@@ -1206,6 +1292,8 @@ mod test_graph_storage {
             assert!(!bool);
             let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(5),
@@ -1215,6 +1303,8 @@ mod test_graph_storage {
 
             let edge_id = g.edge("N8", "N1").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
+                g.layer_ids(),
+                g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
                 TimeIndexEntry::end(3),
@@ -1235,7 +1325,9 @@ mod test_graph_storage {
         use crate::{
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::property_filter::{CompositeNodeFilter, PropertyRef},
+                graph::views::property_filter::{
+                    CompositeNodeFilter, PropertyFilterOps, PropertyRef,
+                },
             },
             prelude::{Graph, NodeViewOps, PropertyFilter},
         };
@@ -1244,14 +1336,14 @@ mod test_graph_storage {
         fn test_search_nodes_latest() {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
+            let filter = PropertyFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_nodes(
-                    &CompositeNodeFilter::Property(PropertyFilter::eq(
-                        PropertyRef::Property("p1".to_string()),
-                        1u64,
-                    )),
-                    10,
-                    0,
+                    // &CompositeNodeFilter::Property(PropertyFilter::eq(
+                    //     PropertyRef::Property("p1".to_string()),
+                    //     1u64,
+                    // )),
+                    filter, 10, 0,
                 )
                 .expect("Failed to search for nodes")
                 .into_iter()
@@ -1269,23 +1361,24 @@ mod test_graph_storage {
         use crate::{
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::property_filter::{CompositeEdgeFilter, PropertyRef},
+                graph::views::property_filter::{
+                    CompositeEdgeFilter, PropertyFilterOps, PropertyRef,
+                },
             },
             prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
-
         #[test]
         fn test_search_edges_latest() {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
+            let filter = PropertyFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_edges(
-                    &CompositeEdgeFilter::Property(PropertyFilter::eq(
-                        PropertyRef::Property("p1".to_string()),
-                        1u64,
-                    )),
-                    10,
-                    0,
+                    // &CompositeEdgeFilter::Property(PropertyFilter::eq(
+                    //     PropertyRef::Property("p1".to_string()),
+                    //     1u64,
+                    // )),
+                    filter, 10, 0,
                 )
                 .expect("Failed to search for nodes")
                 .into_iter()

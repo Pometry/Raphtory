@@ -28,7 +28,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::property_filter::{PropertyFilter, PropertyRef},
+        db::graph::views::property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef},
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
@@ -43,14 +43,8 @@ mod test {
         g.add_edge(1, 2, 3, [("test", 2i64)], None).unwrap();
         g.add_edge(1, 2, 4, [("test", 0i64)], None).unwrap();
 
-        let n1 = g
-            .node(1)
-            .unwrap()
-            .filter_edges(PropertyFilter::eq(
-                PropertyRef::Property("test".to_string()),
-                1i64,
-            ))
-            .unwrap();
+        let filter = PropertyFilter::eq(PropertyRef::Property("test".to_string()), 1i64);
+        let n1 = g.node(1).unwrap().filter_edges(filter).unwrap();
         assert_eq!(
             n1.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2))]
@@ -75,12 +69,8 @@ mod test {
         g.add_edge(0, 1, 2, [("test", 1i64)], None).unwrap();
         g.add_edge(1, 2, 3, [("test", 2i64)], None).unwrap();
 
-        let gf = g
-            .filter_edges(PropertyFilter::eq(
-                PropertyRef::Property("test".to_string()),
-                1i64,
-            ))
-            .unwrap();
+        let filter = PropertyFilter::eq(PropertyRef::Property("test".to_string()), 1i64);
+        let gf = g.filter_edges(filter).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2))]
@@ -103,7 +93,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges(PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filter = PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v);
+            let filtered = g.filter_edges(
+                filter
+            ).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() > v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -120,7 +113,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges( PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filter = PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v);
+            let filtered = g.filter_edges(
+                filter
+            ).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() >= v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -137,7 +133,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges( PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filter = PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v);
+            let filtered = g.filter_edges(
+                filter
+            ).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() < v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -154,7 +153,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges(PropertyFilter::le(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filter = PropertyFilter::le(PropertyRef::Property("int_prop".to_string()), v);
+            let filtered = g.filter_edges(
+                filter
+            ).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() <= v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -171,7 +173,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filter = PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v);
+            let filtered = g.filter_edges(
+                filter
+            ).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() == v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -188,7 +193,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges(PropertyFilter::ne(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filter = PropertyFilter::ne(PropertyRef::Property("int_prop".to_string()), v);
+            let filtered = g.filter_edges(
+                filter
+            ).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() != v {
                     assert!(filtered.has_edge(e.src(), e.dst()));

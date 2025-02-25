@@ -36,7 +36,7 @@ mod test {
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 },
-                views::property_filter::PropertyRef,
+                views::property_filter::{PropertyFilterOps, PropertyRef},
             },
         },
         prelude::*,
@@ -75,7 +75,9 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges(PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filtered = g.filter_exploded_edges(
+                PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)
+            ).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })

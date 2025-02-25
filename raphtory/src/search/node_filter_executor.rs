@@ -131,6 +131,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 collector_fn,
             ),
             // Fallback to raphtory apis
+            // Query is none for "is_none" filters because it's cheaper to just ask raphtory
             None => Self::raph_filter_nodes(graph, filter, offset, limit),
         }
     }

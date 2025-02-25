@@ -217,23 +217,33 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
 
     fn is_edge_prop_update_latest(
         &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
-        self.graph
-            .is_edge_prop_update_latest_window(prop_id, edge_id, time, self.window_bound())
+        self.graph.is_edge_prop_update_latest_window(
+            layer_ids,
+            layer_id,
+            prop_id,
+            edge_id,
+            time,
+            self.window_bound(),
+        )
     }
 
     fn is_edge_prop_update_latest_window(
         &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
         self.graph
-            .is_edge_prop_update_latest_window(prop_id, edge_id, time, w)
+            .is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
     }
 }
 
@@ -1445,7 +1455,7 @@ mod views_test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{CompositeNodeFilter, PropertyRef},
+                    property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -1509,12 +1519,12 @@ mod views_test {
         fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
             graph: G,
             w: Range<i64>,
-            filter: &CompositeNodeFilter,
+            filter: FilterExpr,
         ) -> Vec<String> {
             let graph = init_graph(graph);
             let mut results = graph
                 .window(w.start, w.end)
-                .search_nodes(&filter, 10, 0)
+                .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
@@ -1526,25 +1536,19 @@ mod views_test {
         #[test]
         fn test_search_nodes_windowed_graph() {
             let graph = Graph::new();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter(graph, 6..9, filter);
 
-            assert_eq!(results, vec!["N1", "N2", "N3", "N6"]);
+            assert_eq!(results, vec!["N1", "N3", "N6"]);
         }
 
         #[test]
         fn test_search_nodes_windowed_persistent_graph() {
             let graph = PersistentGraph::new();
-            let filter = CompositeNodeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_nodes_by_composite_filter(graph, 6..9, &filter);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_nodes_by_composite_filter(graph, 6..9, filter);
 
-            assert_eq!(results, vec!["N1", "N2", "N3", "N5", "N6", "N7"]);
+            assert_eq!(results, vec!["N1", "N3", "N6", "N7"]);
         }
     }
 
@@ -1556,7 +1560,9 @@ mod views_test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{CompositeEdgeFilter, PropertyRef},
+                    property_filter::{
+                        CompositeEdgeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
+                    },
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -1620,12 +1626,12 @@ mod views_test {
         fn search_edges_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
             graph: G,
             w: Range<i64>,
-            filter: &CompositeEdgeFilter,
+            filter: FilterExpr,
         ) -> Vec<String> {
             let graph = init_graph(graph);
             let mut results = graph
                 .window(w.start, w.end)
-                .search_edges(&filter, 10, 0)
+                .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
@@ -1637,28 +1643,19 @@ mod views_test {
         #[test]
         fn test_search_edges_windowed_graph() {
             let graph = Graph::new();
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter(graph, 6..9, &filter);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter(graph, 6..9, filter);
 
-            assert_eq!(results, vec!["N1->N2", "N2->N3", "N3->N4", "N6->N7"]);
+            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7"]);
         }
 
         #[test]
         fn test_search_edges_windowed_persistent_graph() {
             let graph = PersistentGraph::new();
-            let filter = CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p1".to_string()),
-                1u64,
-            ));
-            let results = search_edges_by_composite_filter(graph, 6..9, &filter);
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges_by_composite_filter(graph, 6..9, filter);
 
-            assert_eq!(
-                results,
-                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8"]
-            );
+            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"]);
         }
     }
 }
