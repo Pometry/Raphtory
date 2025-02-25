@@ -261,7 +261,7 @@ mod test_utils {
     }
 
     pub(crate) fn prop_type() -> impl Strategy<Value = PropType> {
-        let leaf = proptest::sample::select(vec![
+        let leaf = proptest::sample::select(&[
             PropType::Str,
             PropType::I64,
             PropType::F64,
@@ -278,7 +278,7 @@ mod test_utils {
             let list = inner
                 .clone()
                 .prop_map(|p_type| PropType::List(Box::new(p_type)));
-            prop_oneof![list, dict]
+            prop_oneof![inner, list, dict]
         })
     }
 
