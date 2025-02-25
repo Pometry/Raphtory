@@ -372,8 +372,12 @@ impl DiskGraphStorage {
 
 #[cfg(test)]
 mod test {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
 
+    use bigdecimal::BigDecimal;
     use itertools::Itertools;
     use polars_arrow::{
         array::{PrimitiveArray, StructArray, Utf8Array},
@@ -615,14 +619,32 @@ mod test {
         .unwrap();
 
         let g = dgs.into_graph();
-        let actual = g
+        let (_, actual): (Vec<_>, Vec<_>) = g
             .edges()
             .properties()
             .into_iter()
             .flat_map(|props| props.temporal().into_iter())
             .flat_map(|(_, view)| view.into_iter())
-            .collect::<Vec<_>>();
-        assert!(!actual.is_empty());
+            .unzip();
+
+        let expected = [
+            "20000000000000000000.000000000",
+            "20000000000000000000.000000000",
+            "20000000000000000000.000000000",
+            "24000000000000000000.000000000",
+            "20000000000000000000.000000000",
+            "104447267751554560119.000000000",
+            "42328815976923864739.000000000",
+            "23073375143032303343.000000000",
+            "23069234889247394908.000000000",
+            "18729358881519682914.000000000",
+        ]
+        .into_iter()
+        .map(|s| BigDecimal::from_str(s).map(|bd| Prop::Decimal(bd)))
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+        assert_eq!(actual, expected);
     }
 
     #[test]
