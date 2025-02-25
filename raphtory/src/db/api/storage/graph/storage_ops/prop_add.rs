@@ -46,7 +46,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         if !props.is_empty() {
             for (prop_id, prop) in props {
                 let prop = self.process_prop_value(prop);
-            let prop = validate_prop(*prop_id, prop)?;
+                let prop = validate_prop(*prop_id, prop)?;
                 self.graph_meta.add_prop(t, *prop_id, prop)?;
             }
             self.update_time(t);

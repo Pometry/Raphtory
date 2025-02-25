@@ -832,7 +832,7 @@ mod test {
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(vec![0, 1, 2, 3, 4, 5, 6, 7 ,8, 9], 10))| {
+        proptest!(|(nodes in build_nodes_dyn(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 10))| {
             check_parquet_encoding(nodes.into());
         });
     }
