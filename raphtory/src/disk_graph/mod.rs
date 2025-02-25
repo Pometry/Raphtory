@@ -392,7 +392,7 @@ mod test {
         prelude::*,
     };
 
-    use super::{graph_impl::ParquetLayerCols, DiskGraphStorage};
+    use super::graph_impl::ParquetLayerCols;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
         edges
