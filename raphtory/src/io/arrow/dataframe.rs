@@ -5,7 +5,7 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::{
     array::{Array, PrimitiveArray, StaticArray},
-    compute::cast::{self, CastOptions},
+    compute::cast::{self, CastOptionsImpl},
     datatypes::{ArrowDataType as DataType, TimeUnit},
 };
 use rayon::prelude::*;
@@ -65,7 +65,7 @@ impl TimeCol {
             let array = cast::cast(
                 arr,
                 &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
-                CastOptions::default(),
+                CastOptionsImpl::default(),
             )
             .unwrap();
             array

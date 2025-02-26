@@ -152,6 +152,7 @@ impl From<Prop> for Value {
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
+            Prop::Decimal(value) => Value::from(value.to_string()),
         }
     }
 }
@@ -288,7 +289,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
     }
 }
 
-pub const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type is none %} has the following properties:{% else %} is a {{ node_type }} with the following properties:{% endif %}
+pub const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }}{% if node_type is none %} has the following properties:{% else %} is a {{ node_type }} with the following properties:{% endif %}
 
 {% for (key, value) in constant_properties|items %}
 {{ key }}: {{ value }}
@@ -445,7 +446,7 @@ mod template_tests {
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node2 is a person with the following properties:
-            const_test: const_test_value"};
+            const_test: const_test_value "};
         assert_eq!(&rendered, expected);
     }
 
