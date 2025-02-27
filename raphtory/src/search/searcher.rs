@@ -148,7 +148,13 @@ mod search_tests {
                 db::{
                     api::{
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::{internal::InternalIndexSearch, StaticGraphViewOps},
+                        properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
+                        view::{
+                            internal::{
+                                CoreGraphOps, InternalIndexSearch, NodeHistoryFilter, TimeSemantics,
+                            },
+                            StaticGraphViewOps,
+                        },
                     },
                     graph::views::property_filter::{FilterExpr, PropertyFilterOps},
                 },
@@ -157,6 +163,7 @@ mod search_tests {
                     PropertyFilter, NO_PROPS,
                 },
             };
+            use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -301,6 +308,98 @@ mod search_tests {
                     .unwrap();
 
                 graph
+            }
+
+            fn init_graph_for_secondary_indexes<
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            >(
+                graph: G,
+            ) -> G {
+                graph
+                    .add_node(1, "N16", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+                graph
+                    .add_node(1, "N16", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_node(1, "N17", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_node(1, "N17", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                graph
+            }
+
+            #[test]
+            fn test_temporal_any_semantics_for_secondary_indexes() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let g = init_graph_for_secondary_indexes(g);
+
+                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_nodes(&g, filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|nv| nv.name())
+                    .collect::<Vec<_>>();
+                results.sort();
+
+                assert_eq!(
+                    results,
+                    vec!["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+                )
+            }
+
+            #[test]
+            fn test_temporal_latest_semantics_for_secondary_indexes() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let g = init_graph_for_secondary_indexes(g);
+
+                let filter: FilterExpr = PropertyFilter::temporal_property("p1").latest().eq(1u64);
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_nodes(&g, filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|nv| nv.name())
+                    .collect::<Vec<_>>();
+                results.sort();
+
+                assert_eq!(results, vec!["N1", "N16", "N3", "N4", "N6", "N7"])
+            }
+
+            #[test]
+            fn test_property_latest_semantics_for_secondary_indexes() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let g = init_graph_for_secondary_indexes(g);
+
+                let filter: FilterExpr = PropertyFilter::property("p1").eq(1u64);
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_nodes(&g, filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|nv| nv.name())
+                    .collect::<Vec<_>>();
+                results.sort();
+
+                assert_eq!(
+                    results,
+                    vec!["N1", "N14", "N15", "N16", "N3", "N4", "N6", "N7"]
+                )
             }
 
             #[test]
@@ -462,7 +561,7 @@ mod search_tests {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::{internal::InternalIndexSearch, StaticGraphViewOps},
                     },
-                    graph::views::property_filter::PropertyFilterOps,
+                    graph::views::property_filter::{FilterExpr, PropertyFilterOps},
                 },
                 prelude::{
                     AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps,

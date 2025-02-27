@@ -19,6 +19,7 @@ use crate::{
         new_index, property_index::PropertyIndex, TOKENIZER,
     },
 };
+use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use serde_json::json;
@@ -158,7 +159,7 @@ impl NodeIndex {
     fn collect_temporal_properties<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
         node: &NodeView<G, GH>,
-    ) -> BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> {
+    ) -> Vec<(i64, ArcStr, usize, Prop)> {
         node.properties()
             .temporal()
             .iter()
@@ -168,10 +169,7 @@ impl NodeIndex {
                     .into_iter()
                     .map(move |(t, v)| (t, key.clone(), pid, v))
             })
-            .fold(BTreeMap::new(), |mut map, (t, k, pid, v)| {
-                map.entry(t).or_insert_with(Vec::new).push((k, pid, v));
-                map
-            })
+            .collect_vec()
     }
 
     fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
@@ -194,19 +192,15 @@ impl NodeIndex {
             const_writers,
         )?;
 
-        let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
-            self.collect_temporal_properties(&node);
+        let temporal_properties = self.collect_temporal_properties(&node);
 
-        for (time, temp_props) in &temporal_properties {
-            index_node_temporal_properties(
-                node.clone(),
-                temp_props.iter().cloned(),
-                self.temporal_property_indexes.write()?,
-                *time,
-                node_id,
-                temporal_writers,
-            )?;
-        }
+        index_node_temporal_properties(
+            node.clone(),
+            temporal_properties,
+            self.temporal_property_indexes.write()?,
+            node_id,
+            temporal_writers,
+        )?;
 
         // Check if the node document is already in the index,
         // if it does skip adding a new doc for same node
