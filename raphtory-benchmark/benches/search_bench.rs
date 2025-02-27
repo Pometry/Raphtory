@@ -20,7 +20,8 @@ use raphtory::{
             edge::EdgeView,
             node::NodeView,
             views::property_filter::{
-                CompositeEdgeFilter, CompositeNodeFilter, Filter, FilterOperator, FilterOperator::*,
+                resolve_as_property_filter, EdgeFilter, EdgeFilterOps, FilterExpr, FilterOperator,
+                FilterOperator::*, NodeFilter, NodeFilterOps, PropertyFilterOps,
             },
         },
     },
@@ -201,7 +202,7 @@ fn convert_to_property_filter(
     prop_value: Prop,
     filter_op: FilterOperator,
     sampled_values: Option<Vec<Prop>>,
-) -> Option<PropertyFilter> {
+) -> Option<FilterExpr> {
     let mut rng = thread_rng();
 
     match prop_value.dtype() {
@@ -216,22 +217,22 @@ fn convert_to_property_filter(
                     let sub_str = tokens[start..=end].join(" ");
 
                     match filter_op {
-                        Eq => Some(PropertyFilter::eq(prop_name, sub_str)),
-                        Ne => Some(PropertyFilter::ne(prop_name, sub_str)),
-                        In => sampled_values.map(|vals| PropertyFilter::includes(prop_name, vals)),
-                        NotIn => {
-                            sampled_values.map(|vals| PropertyFilter::excludes(prop_name, vals))
-                        }
+                        Eq => Some(PropertyFilter::property(prop_name).eq(sub_str)),
+                        Ne => Some(PropertyFilter::property(prop_name).ne(sub_str)),
+                        In => sampled_values
+                            .map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+                        NotIn => sampled_values
+                            .map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 } else {
                     match filter_op {
-                        Eq => Some(PropertyFilter::eq(prop_name, full_str)),
-                        Ne => Some(PropertyFilter::ne(prop_name, full_str)),
-                        In => sampled_values.map(|vals| PropertyFilter::includes(prop_name, vals)),
-                        NotIn => {
-                            sampled_values.map(|vals| PropertyFilter::excludes(prop_name, vals))
-                        }
+                        Eq => Some(PropertyFilter::property(prop_name).eq(full_str)),
+                        Ne => Some(PropertyFilter::property(prop_name).ne(full_str)),
+                        In => sampled_values
+                            .map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+                        NotIn => sampled_values
+                            .map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 }
@@ -242,43 +243,43 @@ fn convert_to_property_filter(
 
         // Numeric properties support all comparison operators
         PropType::U64 => prop_value.into_u64().and_then(|v| match filter_op {
-            Eq => Some(PropertyFilter::eq(prop_name, v)),
-            Ne => Some(PropertyFilter::ne(prop_name, v)),
-            Lt => Some(PropertyFilter::lt(prop_name, v)),
-            Le => Some(PropertyFilter::le(prop_name, v)),
-            Gt => Some(PropertyFilter::gt(prop_name, v)),
-            Ge => Some(PropertyFilter::ge(prop_name, v)),
-            In => sampled_values.map(|vals| PropertyFilter::includes(prop_name, vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::excludes(prop_name, vals)),
+            Eq => Some(PropertyFilter::property(prop_name).eq(v)),
+            Ne => Some(PropertyFilter::property(prop_name).ne(v)),
+            Lt => Some(PropertyFilter::property(prop_name).lt(v)),
+            Le => Some(PropertyFilter::property(prop_name).le(v)),
+            Gt => Some(PropertyFilter::property(prop_name).gt(v)),
+            Ge => Some(PropertyFilter::property(prop_name).ge(v)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
             _ => return None,
         }),
         PropType::I64 => prop_value.into_i64().and_then(|v| match filter_op {
-            Eq => Some(PropertyFilter::eq(prop_name, v)),
-            Ne => Some(PropertyFilter::ne(prop_name, v)),
-            Lt => Some(PropertyFilter::lt(prop_name, v)),
-            Le => Some(PropertyFilter::le(prop_name, v)),
-            Gt => Some(PropertyFilter::gt(prop_name, v)),
-            Ge => Some(PropertyFilter::ge(prop_name, v)),
-            In => sampled_values.map(|vals| PropertyFilter::includes(prop_name, vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::excludes(prop_name, vals)),
+            Eq => Some(PropertyFilter::property(prop_name).eq(v)),
+            Ne => Some(PropertyFilter::property(prop_name).ne(v)),
+            Lt => Some(PropertyFilter::property(prop_name).lt(v)),
+            Le => Some(PropertyFilter::property(prop_name).le(v)),
+            Gt => Some(PropertyFilter::property(prop_name).gt(v)),
+            Ge => Some(PropertyFilter::property(prop_name).ge(v)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
             _ => return None,
         }),
         PropType::F64 => prop_value.into_f64().and_then(|v| match filter_op {
-            Eq => Some(PropertyFilter::eq(prop_name, v)),
-            Ne => Some(PropertyFilter::ne(prop_name, v)),
-            Lt => Some(PropertyFilter::lt(prop_name, v)),
-            Le => Some(PropertyFilter::le(prop_name, v)),
-            Gt => Some(PropertyFilter::gt(prop_name, v)),
-            Ge => Some(PropertyFilter::ge(prop_name, v)),
-            In => sampled_values.map(|vals| PropertyFilter::includes(prop_name, vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::excludes(prop_name, vals)),
+            Eq => Some(PropertyFilter::property(prop_name).eq(v)),
+            Ne => Some(PropertyFilter::property(prop_name).ne(v)),
+            Lt => Some(PropertyFilter::property(prop_name).lt(v)),
+            Le => Some(PropertyFilter::property(prop_name).le(v)),
+            Gt => Some(PropertyFilter::property(prop_name).gt(v)),
+            Ge => Some(PropertyFilter::property(prop_name).ge(v)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
             _ => return None,
         }),
         PropType::Bool => prop_value.into_bool().and_then(|v| match filter_op {
-            Eq => Some(PropertyFilter::eq(prop_name, v)),
-            Ne => Some(PropertyFilter::ne(prop_name, v)),
-            In => sampled_values.map(|vals| PropertyFilter::includes(prop_name, vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::excludes(prop_name, vals)),
+            Eq => Some(PropertyFilter::property(prop_name).eq(v)),
+            Ne => Some(PropertyFilter::property(prop_name).ne(v)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
             _ => return None,
         }),
 
@@ -320,7 +321,7 @@ fn pick_node_property_filter(
     props: &[(String, usize)],
     is_const: bool,
     filter_op: FilterOperator,
-) -> Option<PropertyFilter> {
+) -> Option<FilterExpr> {
     let mut rng = thread_rng();
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
@@ -340,10 +341,7 @@ fn pick_node_property_filter(
     }
 }
 
-fn get_random_node_property_filters(
-    graph: &Graph,
-    filter_op: FilterOperator,
-) -> Vec<PropertyFilter> {
+fn get_random_node_property_filters(graph: &Graph, filter_op: FilterOperator) -> Vec<FilterExpr> {
     let mut rng = thread_rng();
     let node_names = get_random_node_names(graph);
 
@@ -430,7 +428,7 @@ fn pick_edge_property_filter(
     props: &[(String, usize)],
     is_const: bool,
     filter_op: FilterOperator,
-) -> Option<PropertyFilter> {
+) -> Option<FilterExpr> {
     let mut rng = thread_rng();
 
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
@@ -451,10 +449,7 @@ fn pick_edge_property_filter(
     }
 }
 
-fn get_random_edge_property_filters(
-    graph: &Graph,
-    filter_op: FilterOperator,
-) -> Vec<PropertyFilter> {
+fn get_random_edge_property_filters(graph: &Graph, filter_op: FilterOperator) -> Vec<FilterExpr> {
     let mut rng = thread_rng();
     let edges = get_random_edges_by_src_dst_names(graph);
 
@@ -520,26 +515,27 @@ fn bench_search_nodes_by_property_filter<F>(
     let mut group = c.benchmark_group(bench_name);
 
     group.bench_function("search_api", |b| {
-        let mut iter = property_filters.iter().cycle();
+        let mut iter = property_filters.iter().cloned().cycle();
         b.iter_batched(
             || {
-                let random_filter = iter.next().unwrap().clone();
-                CompositeNodeFilter::Property(random_filter)
+                let random_filter = iter.next().unwrap();
+                random_filter
             },
             |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
+                graph.search_nodes(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
     });
 
     group.bench_function("raph_api", |b| {
-        let mut iter = property_filters.iter().cycle();
+        let mut iter = property_filters.iter().cloned().cycle();
         b.iter_batched(
-            || iter.next().unwrap().clone(),
+            || iter.next().unwrap(),
             |random_filter| {
+                let prop_filter = resolve_as_property_filter(random_filter);
                 graph
-                    .filter_nodes(random_filter)
+                    .filter_nodes(prop_filter)
                     .unwrap()
                     .nodes()
                     .into_iter()
@@ -590,14 +586,14 @@ fn bench_search_edges_by_property_filter<F>(
     let mut group = c.benchmark_group(bench_name);
 
     group.bench_function("search_api", |b| {
-        let mut iter = property_filters.iter().cycle();
+        let mut iter = property_filters.iter().cloned().cycle();
         b.iter_batched(
             || {
-                let random_filter = iter.next().unwrap().clone();
-                CompositeEdgeFilter::Property(random_filter)
+                let random_filter = iter.next().unwrap();
+                random_filter
             },
             |random_filter| {
-                graph.search_edges(&random_filter, 5, 0).unwrap();
+                graph.search_edges(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -608,8 +604,9 @@ fn bench_search_edges_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap().clone(),
             |random_filter| {
+                let prop_filter = resolve_as_property_filter(random_filter);
                 graph
-                    .filter_edges(random_filter)
+                    .filter_edges(prop_filter)
                     .unwrap()
                     .edges()
                     .into_iter()
@@ -658,12 +655,12 @@ fn bench_search_nodes_by_name(c: &mut Criterion) {
     group.bench_function("search_api", |b| {
         b.iter_batched(
             || {
-                let mut iter = node_names.iter().cycle();
-                let random_name = iter.next().unwrap().clone();
-                CompositeNodeFilter::Node(Filter::eq("node_name", random_name))
+                let mut iter = node_names.iter().cloned().cycle();
+                let random_name = iter.next().unwrap();
+                NodeFilter::node_name().eq(random_name)
             },
             |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
+                graph.search_nodes(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -694,12 +691,12 @@ fn bench_search_nodes_by_node_type(c: &mut Criterion) {
     group.bench_function("search_api", |b| {
         b.iter_batched(
             || {
-                let mut iter = sample_inputs.iter().cycle();
-                let random_node_type = iter.next().unwrap().clone();
-                CompositeNodeFilter::Node(Filter::eq("node_type", random_node_type))
+                let mut iter = sample_inputs.iter().cloned().cycle();
+                let random_node_type = iter.next().unwrap();
+                NodeFilter::node_type().eq(random_node_type)
             },
             |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
+                graph.search_nodes(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -728,21 +725,19 @@ bench_search_nodes_by_property_filter!(bench_search_nodes_by_property_not_in);
 
 fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_random_node_property_filters(&graph, Eq);
+    let binding = get_random_node_property_filters(&graph, Eq);
+    let property_filters = binding.iter().cloned();
     let mut rng = thread_rng();
 
     c.bench_function("bench_search_nodes_by_composite_property_filter_and", |b| {
         b.iter_batched(
             || {
-                let random_filter1 = property_filters.choose(&mut rng).unwrap();
-                let random_filter2 = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::And(vec![
-                    CompositeNodeFilter::Property(random_filter1.clone()),
-                    CompositeNodeFilter::Property(random_filter2.clone()),
-                ])
+                let random_filter1 = property_filters.clone().choose(&mut rng).unwrap();
+                let random_filter2 = property_filters.clone().choose(&mut rng).unwrap();
+                random_filter1.and(random_filter2)
             },
             |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
+                graph.search_nodes(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -751,21 +746,19 @@ fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
 
 fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_random_node_property_filters(&graph, Eq);
+    let binding = get_random_node_property_filters(&graph, Eq);
+    let property_filters = binding.iter().cloned();
     let mut rng = thread_rng();
 
     c.bench_function("bench_search_nodes_by_composite_property_filter_or", |b| {
         b.iter_batched(
             || {
-                let random_filter1 = property_filters.choose(&mut rng).unwrap();
-                let random_filter2 = property_filters.choose(&mut rng).unwrap();
-                CompositeNodeFilter::Or(vec![
-                    CompositeNodeFilter::Property(random_filter1.clone()),
-                    CompositeNodeFilter::Property(random_filter2.clone()),
-                ])
+                let random_filter1 = property_filters.clone().choose(&mut rng).unwrap();
+                let random_filter2 = property_filters.clone().choose(&mut rng).unwrap();
+                random_filter1.or(random_filter2)
             },
             |random_filter| {
-                graph.search_nodes(&random_filter, 5, 0).unwrap();
+                graph.search_nodes(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -781,17 +774,16 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
     group.bench_function("search_api", |b| {
         b.iter_batched(
             || {
-                let mut iter = sample_inputs.iter().cycle();
+                let mut iter = sample_inputs.iter().cloned().cycle();
                 let random_name = iter.next().unwrap().clone();
                 let random_src_name = random_name.0;
                 let random_dst_name = random_name.1;
-                CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Edge(Filter::eq("from", random_src_name)),
-                    CompositeEdgeFilter::Edge(Filter::eq("to", random_dst_name)),
-                ])
+                EdgeFilter::from()
+                    .eq(random_src_name)
+                    .and(EdgeFilter::to().eq(random_dst_name))
             },
             |random_filter| {
-                graph.search_edges(&random_filter, 5, 0).unwrap();
+                graph.search_edges(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -824,21 +816,19 @@ bench_search_edges_by_property_filter!(bench_search_edges_by_property_not_in);
 
 fn bench_search_edges_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_random_edge_property_filters(&graph, Eq);
+    let binding = get_random_edge_property_filters(&graph, Eq);
+    let property_filters = binding.iter().cloned();
     let mut rng = thread_rng();
 
     c.bench_function("bench_search_edges_by_composite_property_filter_and", |b| {
         b.iter_batched(
             || {
-                let random_filter1 = property_filters.choose(&mut rng).unwrap();
-                let random_filter2 = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Property(random_filter1.clone()),
-                    CompositeEdgeFilter::Property(random_filter2.clone()),
-                ])
+                let random_filter1 = property_filters.clone().choose(&mut rng).unwrap();
+                let random_filter2 = property_filters.clone().choose(&mut rng).unwrap();
+                random_filter1.and(random_filter2)
             },
             |random_filter| {
-                graph.search_edges(&random_filter, 5, 0).unwrap();
+                graph.search_edges(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )
@@ -847,21 +837,19 @@ fn bench_search_edges_by_composite_property_filter_and(c: &mut Criterion) {
 
 fn bench_search_edges_by_composite_property_filter_or(c: &mut Criterion) {
     let graph = setup_graph();
-    let property_filters = get_random_edge_property_filters(&graph, Eq);
+    let binding = get_random_edge_property_filters(&graph, Eq);
+    let property_filters = binding.iter().cloned();
     let mut rng = thread_rng();
 
     c.bench_function("bench_search_edges_by_composite_property_filter_or", |b| {
         b.iter_batched(
             || {
-                let random_filter1 = property_filters.choose(&mut rng).unwrap();
-                let random_filter2 = property_filters.choose(&mut rng).unwrap();
-                CompositeEdgeFilter::Or(vec![
-                    CompositeEdgeFilter::Property(random_filter1.clone()),
-                    CompositeEdgeFilter::Property(random_filter2.clone()),
-                ])
+                let random_filter1 = property_filters.clone().choose(&mut rng).unwrap();
+                let random_filter2 = property_filters.clone().choose(&mut rng).unwrap();
+                random_filter1.or(random_filter2)
             },
             |random_filter| {
-                graph.search_edges(&random_filter, 5, 0).unwrap();
+                graph.search_edges(random_filter, 5, 0).unwrap();
             },
             BatchSize::SmallInput,
         )

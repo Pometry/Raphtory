@@ -522,7 +522,8 @@ impl fmt::Display for CompositeEdgeFilter {
 }
 
 // Fluent Composite Filter Builder APIs
-pub(crate) enum FilterExpr {
+#[derive(Clone)]
+pub enum FilterExpr {
     Node(Filter),
     Edge(Filter),
     Property(PropertyFilter),
@@ -580,6 +581,16 @@ pub fn resolve_as_edge_filter(filter: FilterExpr) -> CompositeEdgeFilter {
         }
         FilterExpr::Node(_) => {
             panic!("Node filter cannot be used in edge filtering!")
+        }
+    }
+}
+
+// TODO: This code may go once raphtory APIs start supporting FilterExpr
+pub fn resolve_as_property_filter(filter: FilterExpr) -> PropertyFilter {
+    match filter {
+        FilterExpr::Property(prop) => prop,
+        _ => {
+            panic!("Non-property filter cannot be used in strictly property filtering!")
         }
     }
 }
