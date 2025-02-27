@@ -8,7 +8,7 @@ use crate::{
         api::{
             properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::storage_ops::GraphStorage,
-            view::internal::core_ops::CoreGraphOps,
+            view::internal::{core_ops::CoreGraphOps, InternalLayerOps},
         },
         graph::edge::EdgeView,
     },
@@ -36,7 +36,6 @@ use tantivy::{
     },
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
-use crate::db::api::view::internal::InternalLayerOps;
 
 #[derive(Clone)]
 pub struct EdgeIndex {

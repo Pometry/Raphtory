@@ -173,7 +173,15 @@ impl PropertyIndex {
         prop_value: Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let field_node_id = self.index.schema().get_field(fields::NODE_ID)?;
-        self.create_property_document(field_node_id, node_id, None, None, None, &prop_name, prop_value)
+        self.create_property_document(
+            field_node_id,
+            node_id,
+            None,
+            None,
+            None,
+            &prop_name,
+            prop_value,
+        )
     }
 
     pub(crate) fn create_node_temporal_property_document(

@@ -80,7 +80,6 @@ where
         segment_fruits: Vec<HashMap<u64, (Option<i64>, DocAddress)>>,
     ) -> tantivy::Result<HashSet<u64>> {
         let searcher = self.reader.searcher();
-
         let mut global_unique_entity_ids: HashMap<u64, (Option<i64>, DocAddress)> = HashMap::new();
 
         for (entity_id, (time, doc_addr)) in segment_fruits.into_iter().flatten() {

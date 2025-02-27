@@ -71,24 +71,26 @@ where
 
     fn merge_fruits(
         &self,
-        segment_fruits: Vec<HashMap<u64, Option<i64>>>,
+        segment_fruits: Vec<HashMap<u64, (Option<i64>, DocAddress)>>,
     ) -> tantivy::Result<HashSet<u64>> {
-        let mut global_unique_entity_ids: HashMap<u64, Option<i64>> = HashMap::new();
+        let searcher = self.reader.searcher();
+        let mut global_unique_entity_ids: HashMap<u64, (Option<i64>, DocAddress)> = HashMap::new();
 
-        for (entity_id, time) in segment_fruits.into_iter().flatten() {
+        for (entity_id, (time, doc_addr)) in segment_fruits.into_iter().flatten() {
             global_unique_entity_ids
                 .entry(entity_id)
-                .and_modify(|existing_time| {
+                .and_modify(|(existing_time, existing_doc_addr)| {
                     // If "time" against entity_id in global list is None,
                     // ignore it because we only care of uniqueness for entries within window
                     if let (Some(existing_time), Some(new_time)) = (existing_time, time) {
                         if new_time > *existing_time {
                             *existing_time = new_time;
+                            *existing_doc_addr = doc_addr;
                         }
                     }
                 })
                 // If entity_id from any segment is not already present in the global list, add it
-                .or_insert(time);
+                .or_insert((time, doc_addr));
         }
 
         let unique_entity_ids: HashSet<u64> = global_unique_entity_ids.keys().cloned().collect();
@@ -101,20 +103,32 @@ where
                     .into_par_iter()
                     // Skip entity_ids which don't qualify last_before check for given timestamp and prop_id
                     .filter_map(|id| {
-                        let t = global_unique_entity_ids.get(&id).copied()?;
-                        let available = t
-                            .map(|t| {
-                                self.graph.is_node_prop_update_available(
-                                    self.prop_id,
-                                    VID(id as usize),
-                                    TimeIndexEntry::start(t),
-                                )
-                            })
-                            // "t" is none for entity_ids that are already within window.
-                            // Therefore, they must always be included.
-                            .unwrap_or(true);
+                        let (t, doc_addr) = global_unique_entity_ids.get(&id).copied()?;
+                        let segment_reader = searcher.segment_reader(doc_addr.segment_ord);
+                        let column_opt_secondary_time: Option<Column<u64>> = segment_reader
+                            .fast_fields()
+                            .column_opt(fields::SECONDARY_TIME)
+                            .ok()?;
+                        if let Some(secondary_time) = column_opt_secondary_time
+                            .as_ref()
+                            .and_then(|col| col.values_for_doc(doc_addr.doc_id).next())
+                        {
+                            let available = t
+                                .map(|t| {
+                                    self.graph.is_node_prop_update_available(
+                                        self.prop_id,
+                                        VID(id as usize),
+                                        TimeIndexEntry::new(t, secondary_time as usize),
+                                    )
+                                })
+                                // "t" is none for entity_ids that are already within window.
+                                // Therefore, they must always be included.
+                                .unwrap_or(true);
 
-                        available.then_some((id, t))
+                            available.then_some((id, (t, doc_addr)))
+                        } else {
+                            None
+                        }
                     })
                     .collect()
             }
@@ -131,7 +145,7 @@ pub struct NodePropertyFilterSegmentCollector<G> {
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
     segment_ord: u32,
-    unique_entity_ids: HashMap<u64, Option<i64>>,
+    unique_entity_ids: HashMap<u64, (Option<i64>, DocAddress)>,
     graph: G,
     reader: IndexReader,
 }
@@ -140,7 +154,7 @@ impl<G> SegmentCollector for NodePropertyFilterSegmentCollector<G>
 where
     G: StaticGraphViewOps,
 {
-    type Fruit = HashMap<u64, Option<i64>>;
+    type Fruit = HashMap<u64, (Option<i64>, DocAddress)>;
 
     fn collect(&mut self, doc_id: u32, _score: Score) {
         let opt_time = self
@@ -151,6 +165,8 @@ where
             .column_opt_entity_id
             .as_ref()
             .and_then(|col| col.values_for_doc(doc_id).next());
+
+        let doc_addr = DocAddress::new(self.segment_ord, doc_id);
 
         // let searcher = self.reader.searcher();
         // let schema = searcher.schema();
@@ -163,32 +179,37 @@ where
                     match self.graph.graph_type() {
                         GraphType::EventGraph => {
                             if time >= start && time < end {
-                                self.unique_entity_ids.entry(entity_id).or_default();
+                                self.unique_entity_ids
+                                    .entry(entity_id)
+                                    .or_insert((None, doc_addr));
                             }
                         }
                         GraphType::PersistentGraph => {
                             if time >= start && time < end {
                                 // If doc with "time" within window is seen later than doc with "time" before start
                                 // it must take precedence
-                                self.unique_entity_ids.insert(entity_id, None);
+                                self.unique_entity_ids.insert(entity_id, (None, doc_addr));
                             } else if time < start {
                                 self.unique_entity_ids
                                     .entry(entity_id)
-                                    .and_modify(|last_time| {
+                                    .and_modify(|(last_time, last_doc_addr)| {
                                         if let Some(last) = last_time {
                                             if time > *last {
                                                 *last = time;
+                                                *last_doc_addr = doc_addr;
                                             }
                                         }
                                     })
-                                    .or_insert(Some(time));
+                                    .or_insert((Some(time), doc_addr));
                             }
                         }
                     }
                 }
                 _ => {
                     // Non-windowed graph docs are collected without any conditions
-                    self.unique_entity_ids.entry(entity_id).or_default();
+                    self.unique_entity_ids
+                        .entry(entity_id)
+                        .or_insert((None, doc_addr));
                 }
             }
         }

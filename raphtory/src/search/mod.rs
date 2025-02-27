@@ -16,7 +16,10 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::props::{Meta, PropMapper},
+    entities::{
+        properties::props::{Meta, PropMapper},
+        LayerIds,
+    },
     storage::arc_str::ArcStr,
 };
 use std::{
@@ -29,7 +32,6 @@ use tantivy::{
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Index, IndexReader, IndexSettings, IndexWriter,
 };
-use raphtory_api::core::entities::LayerIds;
 
 pub mod graph_index;
 pub mod searcher;
@@ -310,13 +312,7 @@ where
             if let (Some(property_index), Some(tie)) = (
                 &mut property_indexes[prop_id],
                 edge.graph
-                    .temporal_edge_prop_hist_window(
-                        edge.edge,
-                        prop_id,
-                        time,
-                        time + 1,
-                        layer_ids
-                    )
+                    .temporal_edge_prop_hist_window(edge.edge, prop_id, time, time + 1, layer_ids)
                     .next(),
             ) {
                 let secondary_time = tie.0 .1;
