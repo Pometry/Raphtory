@@ -49,7 +49,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     g2: &G2,
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
-        g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
+        g1.nodes().id().par_iter_values().all(|v| g2.has_node(v)) && // all nodes exist in other
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
@@ -436,10 +436,11 @@ mod db_tests {
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
-        test_utils::test_graph,
+        test_utils::{build_graph, build_graph_strat, test_graph},
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
+    use proptest::{arbitrary::any, proptest};
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
         entities::{GID, VID},
@@ -456,6 +457,51 @@ mod db_tests {
     #[cfg(feature = "proto")]
     use tempfile::TempDir;
     use tracing::{error, info};
+
+    #[test]
+    fn edge_const_props() -> Result<(), GraphError> {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 0, NO_PROPS, None)?;
+        g.add_edge(0, 0, 1, NO_PROPS, None)?;
+
+        g.edge(0, 0).unwrap().update_constant_properties(
+            vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
+            None,
+        )?;
+        g.edge(0, 1).unwrap().update_constant_properties(
+            vec![(
+                "a".to_string(),
+                Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
+            )],
+            None,
+        )?;
+
+        let e1 = g.edge(0, 0).unwrap();
+        let actual = e1
+            .properties()
+            .constant()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<Vec<_>>();
+        assert!(actual.contains(&("x".to_string(), Prop::map([("n", Prop::U64(23))]))));
+
+        let e2 = g.edge(0, 1).unwrap();
+        let actual = e2
+            .properties()
+            .constant()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual,
+            vec![(
+                "a".to_string(),
+                Prop::map([("b", Prop::str("baa")), ("a", Prop::U8(1))])
+            )]
+        );
+        Ok(())
+    }
 
     #[test]
     fn test_empty_graph() {
@@ -486,7 +532,7 @@ mod db_tests {
             );
             assert_eq!(
                 graph.const_prop_values().collect::<Vec<_>>(),
-                Vec::<Prop>::new()
+                Vec::<Option<Prop>>::new()
             );
             assert!(graph.constant_prop(1).is_none());
             assert!(graph.get_const_prop_id("1").is_none());
@@ -2337,12 +2383,11 @@ mod db_tests {
         );
 
         let data = vec![
-            ("key1".into(), Prop::I64(10)),
-            ("key2".into(), Prop::I64(20)),
-            ("key3".into(), Prop::I64(30)),
+            ("key1", Prop::I64(10)),
+            ("key2", Prop::I64(20)),
+            ("key3", Prop::I64(30)),
         ];
-        let props_map = data.into_iter().collect::<HashMap<_, _>>();
-        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::Map(Arc::from(props_map)))];
+        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::map(data))];
 
         g.add_constant_properties(as_props.clone()).unwrap();
 
@@ -2907,7 +2952,7 @@ mod db_tests {
         }
         g.nodes()
             .name()
-            .into_iter()
+            .into_iter_values()
             .map(|name| g.node(name))
             .all(|v| v.is_some())
     }
@@ -2921,7 +2966,7 @@ mod db_tests {
         assert!(g
             .nodes()
             .name()
-            .into_iter()
+            .into_iter_values()
             .map(|name| g.node(name))
             .all(|v| v.is_some()))
     }
@@ -3126,10 +3171,7 @@ mod db_tests {
 
         test_storage!(&graph, |graph| {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
-            assert_eq!(
-                weakly_connected_components(&wl, 10, None).get_all_values(),
-                vec![GID::U64(1); 4]
-            );
+            assert_eq!(weakly_connected_components(&wl, 10, None).groups().len(), 1);
         });
     }
 
@@ -3201,7 +3243,7 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["wallet"])
                 .name()
-                .into_iter()
+                .into_iter_values()
                 .collect_vec(),
             vec!["1", "4"]
         );
@@ -3372,7 +3414,7 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["a"])
                 .name()
-                .into_iter()
+                .into_iter_values()
                 .collect_vec(),
             vec!["1", "4"]
         );
@@ -3380,7 +3422,7 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["a", "c"])
                 .name()
-                .into_iter()
+                .into_iter_values()
                 .collect_vec(),
             vec!["1", "4", "5"]
         );
@@ -3704,37 +3746,6 @@ mod db_tests {
     }
 
     #[test]
-    fn persistent_graph_as_prop() {
-        let g = Graph::new();
-        g.add_node(0, 1, [("graph", Prop::Graph(Graph::new()))], None)
-            .unwrap();
-        g.add_node(
-            0,
-            1,
-            [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
-            None,
-        )
-        .unwrap();
-        g.add_node(0, 1, [("bool", Prop::Bool(true))], None)
-            .unwrap();
-        g.add_node(0, 1, [("u32", Prop::U32(2))], None).unwrap();
-        assert_eq!(
-            g.node(1)
-                .unwrap()
-                .properties()
-                .temporal()
-                .keys()
-                .collect::<Vec<_>>(),
-            vec![
-                ArcStr("graph".into()),
-                ArcStr("pgraph".into()),
-                ArcStr("bool".into()),
-                ArcStr("u32".into()),
-            ]
-        );
-    }
-
-    #[test]
     fn test_unique_property() {
         let g = Graph::new();
         g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
@@ -3831,5 +3842,28 @@ mod db_tests {
 
         let result = g.create_node(1, 1, [("test".to_string(), Prop::Bool(true))], None);
         assert!(matches!(result, Err(GraphError::NodeExistsError(id)) if id == GID::U64(1)));
+    }
+
+    #[test]
+    fn test_materialize_constant_edge_props() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.add_constant_properties([("test", "test")], None).unwrap();
+        g.add_edge(10, 1, 2, NO_PROPS, Some("a")).unwrap();
+
+        let gw = g.after(1);
+        let gmw = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn materialize_window_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, false), w in any::<Range<i64>>())| {
+            let g = build_graph(graph_f);
+            let gw = g.window(w.start, w.end);
+            let gmw = gw.materialize().unwrap();
+            assert_graph_equal(&gw, &gmw);
+        })
     }
 }

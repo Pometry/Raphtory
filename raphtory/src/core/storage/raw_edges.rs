@@ -232,6 +232,19 @@ impl<'a> MutEdge<'a> {
         &mut self.guard.deletions[layer_id][self.i]
     }
 
+    fn has_layer(&self, layer_id: usize) -> bool {
+        if let Some(additions) = self.guard.additions.get(layer_id) {
+            if let Some(additions) = additions.get(self.i) {
+                return !additions.is_empty();
+            }
+        }
+        if let Some(deletions) = self.guard.deletions.get(layer_id) {
+            if let Some(deletions) = deletions.get(self.i) {
+                return !deletions.is_empty();
+            }
+        }
+        false
+    }
     pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if layer_id >= self.guard.additions.len() {
             self.guard
@@ -254,6 +267,11 @@ impl<'a> MutEdge<'a> {
 
         &mut self.guard.props[layer_id][self.i]
     }
+
+    /// Get a mutable reference to the layer only if it already exists but don't create a new one
+    pub fn get_layer_mut(&mut self, layer_id: usize) -> Option<&mut EdgeLayer> {
+        self.has_layer(layer_id).then(|| self.layer_mut(layer_id))
+    }
 }
 
 #[derive(Debug)]
@@ -275,10 +293,6 @@ impl<'a> EdgeRGuard<'a> {
         &self,
     ) -> impl Iterator<Item = (usize, impl Deref<Target = EdgeLayer> + '_)> + '_ {
         self.guard.props_iter(self.offset)
-    }
-
-    pub(crate) fn layer(&self, layer_id: usize) -> Option<impl Deref<Target = EdgeLayer> + '_> {
-        self.guard.props(self.offset, layer_id)
     }
 }
 

@@ -3,7 +3,7 @@ use pyo3::{pyclass, pymethods};
 use raphtory::{
     core::{
         utils::{errors::GraphError, time::IntoTime},
-        DocumentInput, Prop,
+        Prop,
     },
     python::utils::PyTime,
 };
@@ -17,8 +17,13 @@ pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;
 
+/// A temporal update
+///
+/// Arguments:
+///     time (TimeInput): the timestamp for the update
+///     properties (PropInput, optional): the properties for the update
 #[derive(Clone)]
-#[pyclass(name = "RemoteUpdate")]
+#[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
 pub struct PyUpdate {
     time: PyTime,
     properties: Option<HashMap<String, Prop>>,
@@ -63,8 +68,16 @@ impl PyUpdate {
         Self { time, properties }
     }
 }
+
+/// Node addition update
+///
+/// Arguments:
+///     name (GID): the id of the node
+///     node_type (str, optional): the node type
+///     constant_properties (PropInput, optional): the constant properties
+///     updates: (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
-#[pyclass(name = "RemoteNodeAddition")]
+#[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
     name: GID,
     node_type: Option<String>,
@@ -133,8 +146,16 @@ impl PyNodeAddition {
     }
 }
 
+/// An edge update
+///
+/// Arguments:
+///     src (GID): the id of the source node
+///     dst (GID): the id of the destination node
+///     layer (str, optional): the layer for the update
+///     constant_properties (PropInput, optional): the constant properties for the edge
+///     updates (list[RemoteUpdate], optional): the temporal updates for the edge
 #[derive(Clone)]
-#[pyclass(name = "RemoteEdgeAddition")]
+#[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
 pub struct PyEdgeAddition {
     src: GID,
     dst: GID,
@@ -223,6 +244,10 @@ fn inner_collection(value: &Prop) -> String {
             let vec: Vec<String> = value.iter().map(|v| inner_collection(v)).collect();
             format!("[{}]", vec.join(", "))
         }
+        Prop::Array(value) => {
+            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            format!("[{}]", vec.join(", "))
+        }
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
@@ -232,9 +257,6 @@ fn inner_collection(value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("\"{}\"", value.to_string()),
         Prop::NDTime(value) => format!("\"{}\"", value.to_string()),
-        Prop::Graph(_) => "Graph cannot be converted to JSON".to_string(),
-        Prop::PersistentGraph(_) => "Persistent Graph cannot be converted to JSON".to_string(),
-        Prop::Document(DocumentInput { content, .. }) => content.to_owned().to_string(), // TODO: return Value::Object ??
     }
 }
 
@@ -251,7 +273,11 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         Prop::F64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
         Prop::Bool(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
         Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|v| inner_collection(v)).collect();
+            let vec: Vec<_> = value.iter().map(|v| inner_collection(v)).collect();
+            format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
+        }
+        Prop::Array(value) => {
+            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
             format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
         }
         Prop::Map(value) => {
@@ -271,9 +297,6 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
-        Prop::Graph(_) => "Graph cannot be converted to JSON".to_string(),
-        Prop::PersistentGraph(_) => "Persistent Graph cannot be converted to JSON".to_string(),
-        Prop::Document(_) => "Document cannot be converted to JSON".to_string(), // TODO: return Value::Object ??
     }
 }
 

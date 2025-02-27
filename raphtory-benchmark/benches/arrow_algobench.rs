@@ -9,9 +9,8 @@ pub mod arrow_bench {
         algorithms::{
             centrality::pagerank::unweighted_page_rank,
             components::weakly_connected_components,
-            metrics::{
-                clustering_coefficient::clustering_coefficient,
-                local_clustering_coefficient::local_clustering_coefficient,
+            metrics::clustering_coefficient::{
+                clustering_coefficient, local_clustering_coefficient::local_clustering_coefficient,
             },
             motifs::local_triangle_count::local_triangle_count,
         },

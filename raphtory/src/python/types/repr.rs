@@ -228,7 +228,7 @@ impl<T: Repr> Repr for Arc<[T]> {
     }
 }
 
-impl<K: Repr, V: Repr> Repr for HashMap<K, V> {
+impl<K: Repr, V: Repr, S> Repr for HashMap<K, V, S> {
     fn repr(&self) -> String {
         let repr = self
             .iter()

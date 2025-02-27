@@ -308,6 +308,20 @@ pub trait TimeSemantics {
         id: usize,
         layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)>;
+
+    /// Get constant edge property
+    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop>;
+
+    /// Get constant edge property for a window
+    ///
+    /// Should only return the property for a layer if the edge exists in the window in that layer
+    fn constant_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> Option<Prop>;
 }
 
 pub trait InheritTimeSemantics: Base {}
@@ -614,5 +628,21 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         w: Option<Range<i64>>,
     ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
         self.graph().node_history_rows(v, w)
+    }
+
+    #[inline]
+    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop> {
+        self.graph().constant_edge_prop(e, id, layer_ids)
+    }
+
+    #[inline]
+    fn constant_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        self.graph().constant_edge_prop_window(e, id, layer_ids, w)
     }
 }

@@ -29,7 +29,7 @@ use std::{
 };
 
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -37,13 +37,13 @@ pub fn load_nodes_from_parquet<
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
-    cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend_from_slice(&properties);
+    cols_to_check.extend_from_slice(&constant_properties);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -55,8 +55,8 @@ pub fn load_nodes_from_parquet<
             df_view,
             time,
             id,
-            properties,
-            constant_properties,
+            &properties,
+            &constant_properties,
             shared_constant_properties,
             node_type,
             node_type_col,
@@ -76,16 +76,17 @@ pub fn load_edges_from_parquet<
     time: &str,
     src: &str,
     dst: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    properties: &[&str],
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend_from_slice(&properties);
+    cols_to_check.extend_from_slice(&constant_properties);
+
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
@@ -98,8 +99,8 @@ pub fn load_edges_from_parquet<
             time,
             src,
             dst,
-            properties,
-            constant_properties,
+            &properties,
+            &constant_properties,
             shared_constant_properties,
             layer,
             layer_col,
@@ -112,18 +113,19 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: Option<&[&str]>,
+    constant_properties: &[&str],
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend_from_slice(&constant_properties);
+
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -137,7 +139,7 @@ pub fn load_node_props_from_parquet<
             id,
             node_type,
             node_type_col,
-            constant_properties,
+            &constant_properties,
             shared_constant_properties,
             graph,
         )
@@ -148,13 +150,13 @@ pub fn load_node_props_from_parquet<
 }
 
 pub fn load_edge_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
     src: &str,
     dst: &str,
-    constant_properties: Option<&[&str]>,
+    constant_properties: &[&str],
     shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
@@ -163,7 +165,8 @@ pub fn load_edge_props_from_parquet<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+
+    cols_to_check.extend_from_slice(&constant_properties);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
@@ -172,11 +175,11 @@ pub fn load_edge_props_from_parquet<
             df_view,
             src,
             dst,
-            constant_properties,
+            &constant_properties,
             shared_const_properties,
             layer,
             layer_col,
-            graph.core_graph(),
+            graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
@@ -206,6 +209,35 @@ pub fn load_edge_deletions_from_parquet<
         load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
+    Ok(())
+}
+
+pub fn load_graph_props_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
+    parquet_path: &Path,
+    time: &str,
+    properties: &[&str],
+    constant_properties: &[&str],
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![time];
+    cols_to_check.extend_from_slice(&properties);
+    cols_to_check.extend_from_slice(&constant_properties);
+
+    for path in get_parquet_file_paths(parquet_path)? {
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
+        df_view.check_cols_exist(&cols_to_check)?;
+        load_graph_props_from_df(
+            df_view,
+            time,
+            Some(&properties),
+            Some(&constant_properties),
+            graph,
+        )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    }
+
     Ok(())
 }
 

@@ -1,11 +1,10 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::VID,
-        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-    },
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::NodeState,
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -14,8 +13,6 @@ use crate::{
     },
 };
 use num_traits::abs;
-use ordered_float::OrderedFloat;
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
 struct PageRankState {
@@ -39,18 +36,18 @@ impl PageRankState {
 /// PageRank Algorithm:
 /// PageRank shows how important a node is in a graph.
 ///
-/// Arguments:
+/// # Arguments
 ///
-/// * `g`: A GraphView object
-/// * `iter_count`: Number of iterations to run the algorithm for
-/// * `threads`: Number of threads to use for parallel execution
-/// * `tol`: The tolerance value for convergence
-/// * `use_l2_norm`: Whether to use L2 norm for convergence
-/// * `damping_factor`: Probability of likelihood the spread will continue
+/// - `g`: A GraphView object
+/// - `iter_count`: Number of iterations to run the algorithm for
+/// - `threads`: Number of threads to use for parallel execution
+/// - `tol`: The tolerance value for convergence
+/// - `use_l2_norm`: Whether to use L2 norm for convergence
+/// - `damping_factor`: Probability of likelihood the spread will continue
 ///
-/// Result:
+/// # Returns
 ///
-/// * An AlgorithmResult object containing the mapping from node ID to the PageRank score of the node
+/// An [AlgorithmResult] object containing the mapping from node ID to the PageRank score of the node
 ///
 pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     g: &G,
@@ -59,7 +56,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     tol: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
+) -> NodeState<'static, f64, G> {
     let n = g.count_nodes();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -159,27 +156,16 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     let num_nodes = g.count_nodes();
 
-    let out: HashMap<usize, f64> = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
-        |_, _, _, local| {
-            g.nodes()
-                .iter()
-                .map(|node| {
-                    let VID(i) = node.node;
-                    (i, local[i].score)
-                })
-                .collect()
-        },
+        |_, _, _, local| NodeState::new_from_eval_mapped(g.clone(), local, |v| v.score),
         threads,
         iter_count,
         None,
         None,
-    );
-
-    let results_type = std::any::type_name::<f64>();
-    AlgorithmResult::new(g.clone(), "Pagerank", results_type, out)
+    )
 }
 
 #[cfg(test)]
@@ -187,7 +173,7 @@ pub mod page_rank_tests {
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
+        prelude::{NodeStateOps, NO_PROPS},
         test_storage,
     };
     use itertools::Itertools;
@@ -212,10 +198,10 @@ pub mod page_rank_tests {
         test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None);
 
-            assert_eq_f64(results.get("1"), Some(&0.38694), 5);
-            assert_eq_f64(results.get("2"), Some(&0.20195), 5);
-            assert_eq_f64(results.get("4"), Some(&0.20195), 5);
-            assert_eq_f64(results.get("3"), Some(&0.20916), 5);
+            assert_eq_f64(results.get_by_node("1"), Some(&0.38694), 5);
+            assert_eq_f64(results.get_by_node("2"), Some(&0.20195), 5);
+            assert_eq_f64(results.get_by_node("4"), Some(&0.20195), 5);
+            assert_eq_f64(results.get_by_node("3"), Some(&0.20916), 5);
         });
     }
 
@@ -256,17 +242,17 @@ pub mod page_rank_tests {
         test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
 
-            assert_eq_f64(results.get("10"), Some(&0.072082), 5);
-            assert_eq_f64(results.get("8"), Some(&0.136473), 5);
-            assert_eq_f64(results.get("3"), Some(&0.15484), 5);
-            assert_eq_f64(results.get("6"), Some(&0.07208), 5);
-            assert_eq_f64(results.get("11"), Some(&0.06186), 5);
-            assert_eq_f64(results.get("2"), Some(&0.03557), 5);
-            assert_eq_f64(results.get("1"), Some(&0.11284), 5);
-            assert_eq_f64(results.get("4"), Some(&0.07944), 5);
-            assert_eq_f64(results.get("7"), Some(&0.01638), 5);
-            assert_eq_f64(results.get("9"), Some(&0.06186), 5);
-            assert_eq_f64(results.get("5"), Some(&0.19658), 5);
+            assert_eq_f64(results.get_by_node("10"), Some(&0.072082), 5);
+            assert_eq_f64(results.get_by_node("8"), Some(&0.136473), 5);
+            assert_eq_f64(results.get_by_node("3"), Some(&0.15484), 5);
+            assert_eq_f64(results.get_by_node("6"), Some(&0.07208), 5);
+            assert_eq_f64(results.get_by_node("11"), Some(&0.06186), 5);
+            assert_eq_f64(results.get_by_node("2"), Some(&0.03557), 5);
+            assert_eq_f64(results.get_by_node("1"), Some(&0.11284), 5);
+            assert_eq_f64(results.get_by_node("4"), Some(&0.07944), 5);
+            assert_eq_f64(results.get_by_node("7"), Some(&0.01638), 5);
+            assert_eq_f64(results.get_by_node("9"), Some(&0.06186), 5);
+            assert_eq_f64(results.get_by_node("5"), Some(&0.19658), 5);
         });
     }
 
@@ -283,8 +269,8 @@ pub mod page_rank_tests {
         test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None);
 
-            assert_eq_f64(results.get("1"), Some(&0.5), 3);
-            assert_eq_f64(results.get("2"), Some(&0.5), 3);
+            assert_eq_f64(results.get_by_node("1"), Some(&0.5), 3);
+            assert_eq_f64(results.get_by_node("2"), Some(&0.5), 3);
         });
     }
 
@@ -301,9 +287,9 @@ pub mod page_rank_tests {
         test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None);
 
-            assert_eq_f64(results.get("1"), Some(&0.303), 3);
-            assert_eq_f64(results.get("2"), Some(&0.393), 3);
-            assert_eq_f64(results.get("3"), Some(&0.303), 3);
+            assert_eq_f64(results.get_by_node("1"), Some(&0.303), 3);
+            assert_eq_f64(results.get_by_node("2"), Some(&0.393), 3);
+            assert_eq_f64(results.get_by_node("3"), Some(&0.303), 3);
         });
     }
 
@@ -338,17 +324,17 @@ pub mod page_rank_tests {
         test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
 
-            assert_eq_f64(results.get("1"), Some(&0.055), 3);
-            assert_eq_f64(results.get("2"), Some(&0.079), 3);
-            assert_eq_f64(results.get("3"), Some(&0.113), 3);
-            assert_eq_f64(results.get("4"), Some(&0.055), 3);
-            assert_eq_f64(results.get("5"), Some(&0.070), 3);
-            assert_eq_f64(results.get("6"), Some(&0.083), 3);
-            assert_eq_f64(results.get("7"), Some(&0.093), 3);
-            assert_eq_f64(results.get("8"), Some(&0.102), 3);
-            assert_eq_f64(results.get("9"), Some(&0.110), 3);
-            assert_eq_f64(results.get("10"), Some(&0.117), 3);
-            assert_eq_f64(results.get("11"), Some(&0.122), 3);
+            assert_eq_f64(results.get_by_node("1"), Some(&0.055), 3);
+            assert_eq_f64(results.get_by_node("2"), Some(&0.079), 3);
+            assert_eq_f64(results.get_by_node("3"), Some(&0.113), 3);
+            assert_eq_f64(results.get_by_node("4"), Some(&0.055), 3);
+            assert_eq_f64(results.get_by_node("5"), Some(&0.070), 3);
+            assert_eq_f64(results.get_by_node("6"), Some(&0.083), 3);
+            assert_eq_f64(results.get_by_node("7"), Some(&0.093), 3);
+            assert_eq_f64(results.get_by_node("8"), Some(&0.102), 3);
+            assert_eq_f64(results.get_by_node("9"), Some(&0.110), 3);
+            assert_eq_f64(results.get_by_node("10"), Some(&0.117), 3);
+            assert_eq_f64(results.get_by_node("11"), Some(&0.122), 3);
         });
     }
 

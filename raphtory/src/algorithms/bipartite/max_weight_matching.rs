@@ -827,16 +827,20 @@ fn verify_optimum(
 ///
 /// The function takes time O(n**3)
 ///
-/// Arguments:
+/// # Arguments
 ///
-/// * `graph` - The graph to compute the maximum weight matching for
-/// * `max_cardinality` - If set to true compute the maximum-cardinality matching
+/// - `graph` - The graph to compute the maximum weight matching for
+/// - `max_cardinality` - If set to true compute the maximum-cardinality matching
 ///     with maximum weight among all maximum-cardinality matchings
-/// * `verify_optimum_flag`: If true prior to returning an additional routine
+/// - `verify_optimum_flag`: If true prior to returning an additional routine
 ///     to verify the optimal solution was found will be run after computing
 ///     the maximum weight matching. If it's true and the found matching is not
 ///     an optimal solution this function will panic. This option should
 ///     normally be only set true during testing.
+///
+/// # Returns
+///
+///  A [Matching] object that contains a mapping of vertices to outwardly and inwardly assigned target vertices.
 ///
 /// # Example
 /// ```rust

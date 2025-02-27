@@ -93,7 +93,7 @@ macro_rules! py_iterable_base {
         py_iterable!($name, $item, $item);
     };
     ($name:ident, $item:ty, $pyitem:ty) => {
-        #[pyclass]
+        #[pyclass(frozen, module = "raphtory")]
         pub struct $name($crate::python::types::iterable::Iterable<$item, $pyitem>);
 
         impl Repr for $name {

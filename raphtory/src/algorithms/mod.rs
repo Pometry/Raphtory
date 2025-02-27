@@ -26,7 +26,6 @@
 //! println!("average_degree: {:?}", average_degree(&g));
 //! ```
 
-pub mod algorithm_result;
 pub mod centrality;
 pub mod community_detection;
 

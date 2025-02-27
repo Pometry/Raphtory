@@ -36,17 +36,28 @@
 //!
 //! println!("local_triangle_count: {:?}", result);
 //! ```
-//!
+
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::*};
 use itertools::Itertools;
 
-/// calculates the number of triangles (a cycle of length 3) for a node.
+/// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
+///
+/// This function returns the number of pairs of neighbours of a given node which are themselves connected.
+///
+/// # Arguments
+/// - `g`: Raphtory graph, this can be directed or undirected but will be treated as undirected
+/// - `v`: node id or name
+///
+/// # Returns
+/// Number of triangles associated with node v
+///
 pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
     if let Some(node) = (&graph).node(v) {
         if node.degree() >= 2 {
             let len = node
                 .neighbours()
                 .iter()
+                .filter(|n| n.node != node.node)
                 .combinations(2)
                 .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
                     true => Some(1),
@@ -93,7 +104,6 @@ mod triangle_count_tests {
             let actual = (1..=3)
                 .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
                 .collect::<Vec<_>>();
-
             assert_eq!(actual, expected);
         });
     }

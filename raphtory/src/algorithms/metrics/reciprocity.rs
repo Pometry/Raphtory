@@ -40,38 +40,26 @@
 //!     g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
 //! }
 //!
-//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None).get_all_with_names());
-//! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
+//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g));
+//! println!("global_reciprocity: {:?}", global_reciprocity(&g));
 //! ```
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::state::{
-        accumulator_id::accumulators::sum,
-        compute_state::{ComputeState, ComputeStateVec},
-    },
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
-        task::{
-            context::Context,
-            node::eval_node::EvalNodeView,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
+        api::{
+            state::NodeState,
+            view::{NodeViewOps, StaticGraphViewOps},
         },
+        graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
-use ordered_float::OrderedFloat;
+use rayon::prelude::*;
 use std::collections::HashSet;
 
 /// Gets the unique edge counts excluding cycles for a node. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
-fn get_reciprocal_edge_count<
-    'graph,
-    G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
-    CS: ComputeState,
->(
-    v: &EvalNodeView<'graph, '_, G, (), GH, CS>,
+fn get_reciprocal_edge_count<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    v: &NodeView<G, GH>,
 ) -> (usize, usize, usize) {
     let id = v.node;
     let out_neighbours: HashSet<_> = v
@@ -90,88 +78,55 @@ fn get_reciprocal_edge_count<
     (out_neighbours.len(), in_neighbours.len(), out_inter_in)
 }
 
-/// returns the global reciprocity of the entire graph
-pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) -> f64 {
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
-
-    let total_out_neighbours = sum::<usize>(0);
-    ctx.global_agg(total_out_neighbours);
-    let total_out_inter_in = sum::<usize>(1);
-    ctx.global_agg(total_out_inter_in);
-
-    let step1 = ATask::new(move |evv| {
-        let edge_counts = get_reciprocal_edge_count(evv);
-        evv.global_update(&total_out_neighbours, edge_counts.0);
-        evv.global_update(&total_out_inter_in, edge_counts.2);
-        Step::Continue
-    });
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-
-    runner.run(
-        vec![],
-        vec![Job::new(step1)],
-        None,
-        |egs, _, _, _| {
-            (egs.finalize(&total_out_inter_in) as f64)
-                / (egs.finalize(&total_out_neighbours) as f64)
-        },
-        threads,
-        1,
-        None,
-        None,
-    )
+/// Reciprocity - measure of the symmetry of relationships in a graph, the global reciprocity of
+/// the entire graph.
+/// This calculates the number of reciprocal connections (edges that go in both directions) in a
+/// graph and normalizes it by the total number of directed edges.
+///
+/// # Arguments
+/// - `g`: a directed Raphtory graph
+///
+/// # Returns
+/// reciprocity of the graph between 0 and 1.
+pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G) -> f64 {
+    let (edge_count, intersect_count) = g
+        .nodes()
+        .par_iter()
+        .map(|n| {
+            let (out, _, intersect) = get_reciprocal_edge_count(&n);
+            (out, intersect)
+        })
+        .reduce(|| (0, 0), |l, r| (l.0 + r.0, l.1 + r.1));
+    intersect_count as f64 / edge_count as f64
 }
 
-/// returns the reciprocity of every node in the graph as a tuple of
-/// vector id and the reciprocity
-pub fn all_local_reciprocity<G: StaticGraphViewOps>(
-    g: &G,
-    threads: Option<usize>,
-) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
-
-    let min = sum(0);
-    ctx.agg(min);
-
-    let step1 = ATask::new(move |evv| {
-        let edge_counts = get_reciprocal_edge_count(evv);
-        let res = (2.0 * edge_counts.2 as f64) / (edge_counts.1 as f64 + edge_counts.0 as f64);
-        if res.is_nan() {
-            evv.global_update(&min, 0.0);
-        } else {
-            evv.update(&min, res);
-        }
-        Step::Continue
-    });
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let runner_result = runner.run(
-        vec![],
-        vec![Job::new(step1)],
-        None,
-        |_, ess, _, _| ess.finalize(&min, |min| min),
-        threads,
-        1,
-        None,
-        None,
-    );
-    let results_type = std::any::type_name::<f64>();
-
-    AlgorithmResult::new(
-        g.clone(),
-        "All Local Reciprocity",
-        results_type,
-        runner_result,
-    )
+/// Local reciprocity - measure of the symmetry of relationships associated with a node
+///
+/// This measures the proportion of a node's outgoing edges which are reciprocated with an incoming edge.
+///
+/// # Arguments
+/// - `g` : a directed Raphtory graph
+///
+/// # Returns
+/// [AlgorithmResult] with string keys and float values mapping each node name to its reciprocity value.
+///
+pub fn all_local_reciprocity<G: StaticGraphViewOps>(g: &G) -> NodeState<'static, f64, G> {
+    let values: Vec<_> = g
+        .nodes()
+        .par_iter()
+        .map(|n| {
+            let (out_count, in_count, intersect_count) = get_reciprocal_edge_count(&n);
+            2.0 * intersect_count as f64 / (out_count + in_count) as f64
+        })
+        .collect();
+    NodeState::new_from_values(g.clone(), values)
 }
 
 #[cfg(test)]
 mod reciprocity_test {
     use crate::{
         algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity},
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
+        prelude::*,
         test_storage,
     };
     use pretty_assertions::assert_eq;
@@ -197,7 +152,7 @@ mod reciprocity_test {
         }
 
         test_storage!(&graph, |graph| {
-            let actual = global_reciprocity(graph, None);
+            let actual = global_reciprocity(graph);
             assert_eq!(actual, 0.5);
 
             let mut hash_map_result: HashMap<String, f64> = HashMap::new();
@@ -207,8 +162,8 @@ mod reciprocity_test {
             hash_map_result.insert("4".to_string(), 2.0 / 3.0);
             hash_map_result.insert("5".to_string(), 0.0);
 
-            let res = all_local_reciprocity(graph, None);
-            assert_eq!(res.get("1"), hash_map_result.get("1"));
+            let res = all_local_reciprocity(graph);
+            assert_eq!(res, hash_map_result);
         });
     }
 }

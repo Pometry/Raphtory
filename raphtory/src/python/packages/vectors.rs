@@ -238,7 +238,7 @@ impl PyGraphView {
     }
 }
 
-#[pyclass(name = "VectorisedGraph", frozen)]
+#[pyclass(name = "VectorisedGraph", module = "raphtory.vectors", frozen)]
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
@@ -285,6 +285,18 @@ impl PyVectorisedGraph {
     /// Return an empty selection of documents
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()
+    }
+
+    /// Return all the graph level documents
+    ///
+    /// Returns:
+    ///   list[Document]: list of graph level documents
+    pub fn get_graph_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
+        self.0
+            .get_graph_documents()
+            .into_iter()
+            .map(|doc| into_py_document(doc, &self.0, py))
+            .collect()
     }
 
     /// Search the top scoring documents according to `query` with no more than `limit` documents
@@ -376,7 +388,7 @@ impl PyVectorisedGraph {
     }
 }
 
-#[pyclass(name = "VectorSelection")]
+#[pyclass(name = "VectorSelection", module = "raphtory.vectors")]
 pub struct PyVectorSelection(DynamicVectorSelection);
 
 /// A vectorised graph, containing a set of documents positioned in the graph space and a selection
@@ -384,6 +396,9 @@ pub struct PyVectorSelection(DynamicVectorSelection);
 #[pymethods]
 impl PyVectorSelection {
     /// Return the nodes present in the current selection
+    ///
+    /// Returns:
+    ///     list[Node]: list of nodes in the current selection
     fn nodes(&self) -> Vec<PyNode> {
         self.0
             .nodes()
@@ -393,6 +408,9 @@ impl PyVectorSelection {
     }
 
     /// Return the edges present in the current selection
+    ///
+    /// Returns:
+    ///     list[Edge]: list of edges in the current selection
     fn edges(&self) -> Vec<PyEdge> {
         self.0
             .edges()
@@ -402,6 +420,9 @@ impl PyVectorSelection {
     }
 
     /// Return the documents present in the current selection
+    ///
+    /// Returns:
+    ///     list[Document]: list of documents in the current selection
     fn get_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
         // TODO: review if I can simplify this
         Ok(self
@@ -412,6 +433,9 @@ impl PyVectorSelection {
     }
 
     /// Return the documents alongside their scores present in the current selection
+    ///
+    /// Returns:
+    ///     list[Tuple[Document, float]]: list of documents and scores
     fn get_documents_with_scores(&self, py: Python) -> PyResult<Vec<(PyDocument, f32)>> {
         let docs = self.0.get_documents_with_scores();
         docs.into_iter()
@@ -425,6 +449,9 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   nodes (list): a list of the node ids or nodes to add
+    ///
+    /// Returns:
+    ///     None:
     fn add_nodes(mut self_: PyRefMut<'_, Self>, nodes: Vec<PyNodeRef>) {
         self_.0.add_nodes(nodes)
     }
@@ -435,6 +462,9 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   edges (list):  a list of the edge ids or edges to add
+    ///
+    /// Returns:
+    ///     None:
     fn add_edges(mut self_: PyRefMut<'_, Self>, edges: Vec<(PyNodeRef, PyNodeRef)>) {
         self_.0.add_edges(edges)
     }
@@ -442,10 +472,10 @@ impl PyVectorSelection {
     /// Add all the documents in `selection` to the current selection
     ///
     /// Args:
-    ///   selection: a selection to be added
+    ///   selection (VectorSelection): a selection to be added
     ///
     /// Returns:
-    ///   The selection with the new documents
+    ///   VectorSelection: The selection with the new documents
     pub fn append(mut self_: PyRefMut<'_, Self>, selection: &Self) -> DynamicVectorSelection {
         self_.0.append(&selection.0).clone()
     }
@@ -460,6 +490,9 @@ impl PyVectorSelection {
     /// Args:
     ///   hops (int): the number of hops to carry out the expansion
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (hops, window=None))]
     fn expand(mut self_: PyRefMut<'_, Self>, hops: usize, window: PyWindow) {
         self_.0.expand(hops, translate_window(window))
@@ -469,16 +502,20 @@ impl PyVectorSelection {
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the documents 1 hop away of some of the documents included on the selection (and
-    /// not already selected) are marked as candidates.
+    ///      not already selected) are marked as candidates.
     ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///      similarity score obtained against the `query`.
     ///
     /// This loops goes on until the current selection reaches a total of `limit`  documents or
     /// until no more documents are available
     ///
     /// Args:
     ///   query (str | list): the text or the embedding to score against
+    ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_documents_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -497,16 +534,20 @@ impl PyVectorSelection {
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the entities 1 hop away of some of the entities included on the selection (and
-    /// not already selected) are marked as candidates.
+    ///      not already selected) are marked as candidates.
     ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///      similarity score obtained against the `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// Args:
     ///   query (str | list): the text or the embedding to score against
+    ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_entities_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -529,6 +570,9 @@ impl PyVectorSelection {
     ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new nodes to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_nodes_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -551,6 +595,9 @@ impl PyVectorSelection {
     ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new edges to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_edges_by_similarity(
         mut self_: PyRefMut<'_, Self>,

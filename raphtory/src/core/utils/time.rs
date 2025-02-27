@@ -2,7 +2,10 @@ use crate::core::utils::time::error::{ParseTimeError::InvalidDateTimeString, *};
 use chrono::{DateTime, Duration, Months, NaiveDate, NaiveDateTime, TimeZone};
 use itertools::{Either, Itertools};
 use regex::Regex;
-use std::ops::{Add, Sub};
+use std::{
+    convert::Infallible,
+    ops::{Add, Sub},
+};
 
 pub mod error {
     use chrono::ParseError;
@@ -27,6 +30,12 @@ pub mod error {
         NegativeInt,
         #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
         InvalidDateTimeString(String),
+    }
+}
+
+impl From<Infallible> for ParseTimeError {
+    fn from(value: Infallible) -> Self {
+        match value {}
     }
 }
 
@@ -179,6 +188,14 @@ impl Default for Interval {
     }
 }
 
+impl TryFrom<String> for Interval {
+    type Error = ParseTimeError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
 impl TryFrom<&str> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -266,6 +283,20 @@ impl TryFrom<i64> for Interval {
     }
 }
 
+pub trait TryIntoInterval {
+    fn try_into_interval(self) -> Result<Interval, ParseTimeError>;
+}
+
+impl<T> TryIntoInterval for T
+where
+    Interval: TryFrom<T>,
+    ParseTimeError: From<<Interval as TryFrom<T>>::Error>,
+{
+    fn try_into_interval(self) -> Result<Interval, ParseTimeError> {
+        Ok(self.try_into()?)
+    }
+}
+
 impl Interval {
     /// Return an option because there might be no exact translation to millis for some intervals
     pub fn to_millis(&self) -> Option<u64> {
@@ -290,7 +321,88 @@ impl Interval {
         };
         Ok(duration)
     }
+
+    pub fn discrete(num: u64) -> Self {
+        Interval {
+            epoch_alignment: false,
+            size: IntervalSize::Discrete(num),
+        }
+    }
+
+    pub fn milliseconds(ms: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::milliseconds(ms)),
+        }
+    }
+
+    pub fn seconds(seconds: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::seconds(seconds)),
+        }
+    }
+
+    pub fn minutes(minutes: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::minutes(minutes)),
+        }
+    }
+
+    pub fn hours(hours: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::hours(hours)),
+        }
+    }
+
+    pub fn days(days: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::days(days)),
+        }
+    }
+
+    pub fn weeks(weeks: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::from(Duration::weeks(weeks)),
+        }
+    }
+
+    pub fn months(months: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::months(months),
+        }
+    }
+
+    pub fn years(years: i64) -> Self {
+        Interval {
+            epoch_alignment: true,
+            size: IntervalSize::months(12 * years),
+        }
+    }
+
+    pub fn and(&self, other: &Self) -> Result<Self, IntervalTypeError> {
+        match (self.size, other.size) {
+            (IntervalSize::Discrete(l), IntervalSize::Discrete(r)) => Ok(Interval {
+                epoch_alignment: false,
+                size: IntervalSize::Discrete(l + r),
+            }),
+            (IntervalSize::Temporal { .. }, IntervalSize::Temporal { .. }) => Ok(Interval {
+                epoch_alignment: true,
+                size: self.size.add_temporal(other.size),
+            }),
+            (_, _) => Err(IntervalTypeError()),
+        }
+    }
 }
+
+#[derive(thiserror::Error, Debug)]
+#[error("Discrete and temporal intervals cannot be combined")]
+pub struct IntervalTypeError();
 
 impl Sub<Interval> for i64 {
     type Output = i64;

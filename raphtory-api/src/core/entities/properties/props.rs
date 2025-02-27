@@ -9,7 +9,7 @@ use crate::core::{
         dict_mapper::{DictMapper, MaybeNew},
         locked_vec::ArcReadLockedVec,
     },
-    PropType,
+    unify_types, PropType,
 };
 
 use super::PropError;
@@ -217,37 +217,33 @@ impl PropMapper {
         let id = wrapped_id.inner();
         let dtype_read = self.dtypes.read_recursive();
         if let Some(old_type) = dtype_read.get(id) {
-            if !matches!(old_type, PropType::Empty) {
-                return if *old_type == dtype {
-                    Ok(wrapped_id)
-                } else {
-                    Err(PropError::PropertyTypeError {
-                        name: prop.to_owned(),
-                        expected: *old_type,
-                        actual: dtype,
-                    })
-                };
+            let mut unified = false;
+            if let Ok(_) = unify_types(&dtype, old_type, &mut unified) {
+                if !unified {
+                    // means the types were equal, no change needed
+                    return Ok(wrapped_id);
+                }
+            } else {
+                return Err(PropError::PropertyTypeError {
+                    name: prop.to_owned(),
+                    expected: old_type.clone(),
+                    actual: dtype,
+                });
             }
         }
         drop(dtype_read); // drop the read lock and wait for write lock as type did not exist yet
         let mut dtype_write = self.dtypes.write();
-        match dtype_write.get(id) {
-            Some(&old_type) => {
-                if matches!(old_type, PropType::Empty) {
-                    // vector already resized but this id is not filled yet, set the dtype and return id
-                    dtype_write[id] = dtype;
+        match dtype_write.get(id).cloned() {
+            Some(old_type) => {
+                if let Ok(tpe) = unify_types(&dtype, &old_type, &mut false) {
+                    dtype_write[id] = tpe;
                     Ok(wrapped_id)
                 } else {
-                    // already filled because a different thread won the race for this id, check the type matches
-                    if old_type == dtype {
-                        Ok(wrapped_id)
-                    } else {
-                        Err(PropError::PropertyTypeError {
-                            name: prop.to_owned(),
-                            expected: old_type,
-                            actual: dtype,
-                        })
-                    }
+                    Err(PropError::PropertyTypeError {
+                        name: prop.to_owned(),
+                        expected: old_type,
+                        actual: dtype,
+                    })
                 }
             }
             None => {
@@ -269,10 +265,94 @@ impl PropMapper {
     }
 
     pub fn get_dtype(&self, prop_id: usize) -> Option<PropType> {
-        self.dtypes.read_recursive().get(prop_id).copied()
+        self.dtypes.read_recursive().get(prop_id).cloned()
     }
 
     pub fn dtypes(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
         self.dtypes.read_recursive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::PropType;
+
+    #[test]
+    fn test_get_or_create_and_validate_new_property() {
+        let prop_mapper = PropMapper::default();
+        let result = prop_mapper.get_or_create_and_validate("new_prop", PropType::U8);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().inner(), 0);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+    }
+
+    #[test]
+    fn test_get_or_create_and_validate_existing_property_same_type() {
+        let prop_mapper = PropMapper::default();
+        prop_mapper
+            .get_or_create_and_validate("existing_prop", PropType::U8)
+            .unwrap();
+        let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U8);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().inner(), 0);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+    }
+
+    #[test]
+    fn test_get_or_create_and_validate_existing_property_different_type() {
+        let prop_mapper = PropMapper::default();
+        prop_mapper
+            .get_or_create_and_validate("existing_prop", PropType::U8)
+            .unwrap();
+        let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U16);
+        assert!(result.is_err());
+        if let Err(PropError::PropertyTypeError {
+            name,
+            expected,
+            actual,
+        }) = result
+        {
+            assert_eq!(name, "existing_prop");
+            assert_eq!(expected, PropType::U8);
+            assert_eq!(actual, PropType::U16);
+        } else {
+            panic!("Expected PropertyTypeError");
+        }
+    }
+
+    #[test]
+    fn test_get_or_create_and_validate_unify_types() {
+        let prop_mapper = PropMapper::default();
+        prop_mapper
+            .get_or_create_and_validate("prop", PropType::Empty)
+            .unwrap();
+        let result = prop_mapper.get_or_create_and_validate("prop", PropType::U8);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().inner(), 0);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+    }
+
+    #[test]
+    fn test_get_or_create_and_validate_resize_vector() {
+        let prop_mapper = PropMapper::default();
+        prop_mapper.set_id_and_dtype("existing_prop", 5, PropType::U8);
+        let result = prop_mapper.get_or_create_and_validate("new_prop", PropType::U16);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().inner(), 6);
+        assert_eq!(prop_mapper.get_dtype(6), Some(PropType::U16));
+    }
+
+    #[test]
+    fn test_get_or_create_and_validate_two_independent_properties() {
+        let prop_mapper = PropMapper::default();
+        let result1 = prop_mapper.get_or_create_and_validate("prop1", PropType::U8);
+        let result2 = prop_mapper.get_or_create_and_validate("prop2", PropType::U16);
+        assert!(result1.is_ok());
+        assert!(result2.is_ok());
+        assert_eq!(result1.unwrap().inner(), 0);
+        assert_eq!(result2.unwrap().inner(), 1);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+        assert_eq!(prop_mapper.get_dtype(1), Some(PropType::U16));
     }
 }

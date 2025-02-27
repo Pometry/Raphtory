@@ -14,10 +14,19 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::{api::state::NodeOp, graph::create_node_type_filter};
+use crate::db::{
+    api::{
+        state::{Index, NodeOp},
+        view::internal::is_view_compatible,
+    },
+    graph::{create_node_type_filter, views::node_subgraph::NodeSubgraph},
+};
+use either::Either;
 use rayon::iter::ParallelIterator;
 use std::{
+    collections::HashSet,
     fmt::{Debug, Formatter},
+    hash::{BuildHasher, Hash},
     marker::PhantomData,
     sync::Arc,
 };
@@ -26,8 +35,31 @@ use std::{
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
+    pub(crate) nodes: Option<Index<VID>>,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        V: AsNodeRef + Hash + Eq,
+        S: BuildHasher,
+    > PartialEq<HashSet<V, S>> for Nodes<'graph, G, GH>
+{
+    fn eq(&self, other: &HashSet<V, S>) -> bool {
+        self.len() == other.len() && other.iter().all(|o| self.contains(o))
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: AsNodeRef> PartialEq<Vec<V>>
+    for Nodes<'graph, G, GH>
+{
+    fn eq(&self, other: &Vec<V>) -> bool {
+        self.iter_refs()
+            .eq(other.iter().filter_map(|o| self.get(o).map(|n| n.node)))
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
@@ -35,6 +67,30 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PartialEq for Nodes<'graph, G, GH> {
+    fn eq(&self, other: &Self) -> bool {
+        if is_view_compatible(&self.base_graph, &other.base_graph) {
+            // same storage, can use internal ids
+            self.iter_refs().eq(other.iter_refs())
+        } else {
+            // different storage, use external ids
+            self.id().iter_values().eq(other.id().iter_values())
+        }
+    }
+}
+
+impl<'graph, G: IntoDynamic, GH: IntoDynamic> Nodes<'graph, G, GH> {
+    pub fn into_dyn(self) -> Nodes<'graph, DynamicGraph> {
+        Nodes {
+            base_graph: self.base_graph.into_dynamic(),
+            graph: self.graph.into_dynamic(),
+            nodes: self.nodes,
+            node_types_filter: self.node_types_filter,
+            _marker: Default::default(),
+        }
     }
 }
 
@@ -49,6 +105,7 @@ where
         Nodes {
             base_graph,
             graph,
+            nodes: value.nodes,
             node_types_filter: value.node_types_filter,
             _marker: PhantomData,
         }
@@ -64,6 +121,7 @@ where
         Self {
             base_graph,
             graph,
+            nodes: None,
             node_types_filter: None,
             _marker: PhantomData,
         }
@@ -92,10 +150,16 @@ where
     G: GraphViewOps<'graph> + 'graph,
     GH: GraphViewOps<'graph> + 'graph,
 {
-    pub fn new_filtered(base_graph: G, graph: GH, node_types_filter: Option<Arc<[bool]>>) -> Self {
+    pub fn new_filtered(
+        base_graph: G,
+        graph: GH,
+        nodes: Option<Index<VID>>,
+        node_types_filter: Option<Arc<[bool]>>,
+    ) -> Self {
         Self {
             base_graph,
             graph,
+            nodes,
             node_types_filter,
             _marker: PhantomData,
         }
@@ -104,19 +168,45 @@ where
     pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        g.into_nodes_par(self.graph.clone(), node_types_filter)
+        match self.nodes.clone() {
+            None => Either::Left(g.into_nodes_par(self.graph.clone(), node_types_filter)),
+            Some(nodes) => {
+                let gs = NodeSubgraph {
+                    graph: self.graph.clone(),
+                    nodes,
+                };
+                Either::Right(g.into_nodes_par(gs, node_types_filter))
+            }
+        }
+    }
+
+    pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH> {
+        Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            Some(index),
+            self.node_types_filter.clone(),
+        )
     }
 
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        g.into_nodes_iter(self.graph.clone(), node_types_filter)
+        match self.nodes.clone() {
+            None => g.into_nodes_iter(self.graph.clone(), node_types_filter),
+            Some(nodes) => {
+                let gs = NodeSubgraph {
+                    graph: self.graph.clone(),
+                    nodes,
+                };
+                g.into_nodes_iter(gs, node_types_filter)
+            }
+        }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + '_ {
-        let cg = self.graph.core_graph().lock();
-        cg.into_nodes_iter(&self.graph, self.node_types_filter.clone())
+    pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
+        self.iter_refs()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
@@ -128,19 +218,17 @@ where
             .into_dyn_boxed()
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
-        let cg = self.graph.core_graph().lock();
-        let node_types_filter = self.node_types_filter.clone();
-        cg.into_nodes_par(&self.graph, node_types_filter)
+    pub fn par_iter(
+        &self,
+    ) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
+        self.par_iter_refs()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
-        let cg = self.graph.core_graph().lock();
-        cg.into_nodes_par(self.graph.clone(), self.node_types_filter)
-            .map(move |n| {
-                NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
-            })
+        self.par_iter_refs().map(move |n| {
+            NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
+        })
     }
 
     /// Returns the number of nodes in the graph.
@@ -155,11 +243,9 @@ where
 
     pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<G, GH>> {
         let vid = self.graph.internalise_node(node.as_node_ref())?;
-        Some(NodeView::new_one_hop_filtered(
-            self.base_graph.clone(),
-            self.graph.clone(),
-            vid,
-        ))
+        self.contains(vid).then(|| {
+            NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), vid)
+        })
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
@@ -170,9 +256,21 @@ where
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
+            nodes: self.nodes.clone(),
             node_types_filter,
             _marker: PhantomData,
         }
+    }
+
+    pub fn id_filter(
+        &self,
+        nodes: impl IntoIterator<Item = impl AsNodeRef>,
+    ) -> Nodes<'graph, G, GH> {
+        let index: Index<_> = nodes
+            .into_iter()
+            .filter_map(|n| (&self.graph).node(n).map(|n| n.node))
+            .collect();
+        self.indexed(index)
     }
 
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
@@ -189,6 +287,23 @@ where
 
     pub fn is_filtered(&self) -> bool {
         self.node_types_filter.is_some() || self.graph.nodes_filtered()
+    }
+
+    pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {
+        (&self.graph())
+            .node(node)
+            .filter(|node| {
+                self.node_types_filter
+                    .as_ref()
+                    .map(|filter| filter[node.node_type_id()])
+                    .unwrap_or(true)
+                    && self
+                        .nodes
+                        .as_ref()
+                        .map(|nodes| nodes.contains(&node.node))
+                        .unwrap_or(true)
+            })
+            .is_some()
     }
 }
 
@@ -281,6 +396,7 @@ where
         Nodes {
             base_graph,
             graph: filtered_graph,
+            nodes: self.nodes.clone(),
             node_types_filter: self.node_types_filter.clone(),
             _marker: PhantomData,
         }
@@ -297,5 +413,19 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    #[test]
+    fn test_id_filter() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        assert_eq!(graph.nodes().id(), [0, 1]);
+        assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
+        assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
     }
 }

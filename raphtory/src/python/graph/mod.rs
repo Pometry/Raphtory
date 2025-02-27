@@ -1,4 +1,3 @@
-pub mod algorithm_result;
 #[cfg(feature = "storage")]
 pub mod disk_graph;
 pub mod edge;

@@ -20,6 +20,7 @@ mod graphql_test {
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
     };
+    use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
     use serde_json::Value;
 
@@ -255,6 +256,8 @@ mod graphql_test {
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
+        println!("{data:?}");
+
         fn sort_properties(properties: &mut Vec<Value>) {
             properties.sort_by(|a, b| {
                 let a_type = a["propertyType"].as_str().unwrap_or("");
@@ -264,7 +267,7 @@ mod graphql_test {
         }
 
         if let Value::Array(mut node_properties) =
-            data["graph"]["schema"]["nodes"][0]["properties"].clone()
+            data["graph"]["schema"]["nodes"][1]["properties"].clone()
         {
             sort_properties(&mut node_properties);
 
@@ -283,9 +286,6 @@ mod graphql_test {
             assert_eq!(edge_properties[2]["propertyType"].as_str().unwrap(), "Str");
             assert_eq!(edge_properties[3]["propertyType"].as_str().unwrap(), "Str");
         }
-
-        // let pretty_data = serde_json::to_string_pretty(&data).unwrap();
-        // println!("data = {}", pretty_data);
     }
 
     #[tokio::test]
@@ -295,7 +295,7 @@ mod graphql_test {
             .add_node(
                 0,
                 1,
-                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                [("pgraph", Prop::from_arr::<UInt8Type>(vec![3u8]))],
                 None,
             )
             .unwrap();
@@ -760,7 +760,7 @@ mod graphql_test {
             .add_node(
                 0,
                 1,
-                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                [("pgraph", Prop::from_arr::<UInt8Type>(vec![3u8]))],
                 None,
             )
             .unwrap();

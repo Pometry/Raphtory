@@ -1,4 +1,3 @@
-from raphtory import DiskGraphStorage
 from raphtory import algorithms
 import pandas as pd
 import tempfile
@@ -40,6 +39,8 @@ edges = pd.DataFrame(
 
 
 def test_counts():
+    from raphtory import DiskGraphStorage
+
     graph_dir = tempfile.TemporaryDirectory()
     graph = DiskGraphStorage.load_from_pandas(
         graph_dir.name, edges, "time", "src", "dst"
@@ -50,6 +51,8 @@ def test_counts():
 
 
 def test_disk_graph():
+    from raphtory import DiskGraphStorage
+
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     rsc_dir = os.path.join(
         curr_dir, "..", "..", "..", "pometry-storage-private", "resources"
@@ -126,19 +129,21 @@ def test_disk_graph():
         20,
         print_result=False,
     )
-    assert len(list(actual.get_all_with_names())) == 1624
+    assert len(list(actual)) == 1624
 
     # Doesn't work yet (was silently running on only the first layer before but now actually panics because of lack of multilayer edge views)
     # actual = measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result=False)
-    # assert len(list(actual.get_all_with_names())) == 1624
+    # assert len(list(actual)) == 1624
 
     actual = measure(
         "Page Rank", algorithms.pagerank, g.layer("netflow"), 100, print_result=False
     )
-    assert len(list(actual.get_all_with_names())) == 1624
+    assert len(list(actual)) == 1624
 
 
 def test_disk_graph_type_filter():
+    from raphtory import DiskGraphStorage
+
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     rsc_dir = os.path.join(
         curr_dir, "..", "..", "..", "pometry-storage-private", "resources"

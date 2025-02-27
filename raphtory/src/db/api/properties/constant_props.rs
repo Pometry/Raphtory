@@ -3,11 +3,20 @@ use crate::{
     db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+};
 
 pub struct ConstantProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
+}
+
+impl<'a, P: ConstPropertiesOps + Sync> Debug for ConstantProperties<'a, P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
 }
 
 impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
@@ -21,7 +30,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
         self.props.const_prop_keys()
     }
 
-    pub fn values(&self) -> BoxedLIter<Prop> {
+    pub fn values(&self) -> BoxedLIter<Option<Prop>> {
         self.props.const_prop_values()
     }
 
@@ -39,7 +48,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
     }
 
     pub fn contains(&self, key: &str) -> bool {
-        self.get(key).is_some()
+        self.props.get_const_prop_id(key).is_some()
     }
 
     pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
@@ -55,7 +64,11 @@ impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<
         Box::new(GenLockedIter::from(self, |const_prop| {
             let keys = const_prop.keys();
             let vals = const_prop.values();
-            Box::new(keys.into_iter().zip(vals))
+            Box::new(
+                keys.into_iter()
+                    .zip(vals)
+                    .filter_map(|(k, v)| Some((k, v?))),
+            )
         }))
     }
 }
@@ -67,7 +80,11 @@ impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
         let vals = self.values();
-        Box::new(keys.into_iter().zip(vals))
+        Box::new(
+            keys.into_iter()
+                .zip(vals)
+                .filter_map(|(k, v)| Some((k, v?))),
+        )
     }
 }
 

@@ -1,35 +1,40 @@
 use crate::{
-    algorithms::{
-        algorithm_result::AlgorithmResult,
-        community_detection::modularity::{ModularityFunction, Partition},
-    },
+    algorithms::community_detection::modularity::{ModularityFunction, Partition},
     core::entities::VID,
+    db::api::state::NodeState,
     prelude::GraphViewOps,
 };
 use rand::prelude::SliceRandom;
-use std::collections::HashMap;
 
+/// Louvain algorithm for community detection
+///
+/// # Arguments
+///
+/// - `g` (GraphView): the graph view
+/// - `resolution` (float): the resolution parameter for modularity
+/// - `weight_prop` (str | None): the edge property to use for weights (has to be float)
+/// - `tol` (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+///
+/// # Returns
+///
+///  An [AlgorithmResult] containing a mapping of vertices to cluster ID.
 pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
-    graph: &G,
+    g: &G,
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
-) -> AlgorithmResult<G, usize> {
+) -> NodeState<'graph, usize, G> {
     let tol = tol.unwrap_or(1e-8);
     let mut rng = rand::thread_rng();
     let mut modularity_state = M::new(
-        graph,
+        g,
         weight_prop,
         resolution,
-        Partition::new_singletons(graph.count_nodes()),
+        Partition::new_singletons(g.count_nodes()),
         tol,
     );
-    let mut global_partition: HashMap<_, _> = graph
-        .nodes()
-        .iter()
-        .enumerate()
-        .map(|(ci, node)| (node.node.index(), ci))
-        .collect();
+
+    let mut global_partition: Vec<_> = (0..g.count_nodes()).collect();
 
     let mut outer_moved = true;
     while outer_moved {
@@ -55,11 +60,11 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
             }
         }
         let partition = modularity_state.aggregate();
-        for c in global_partition.values_mut() {
+        for c in global_partition.iter_mut() {
             *c = partition.com(&VID(*c)).index();
         }
     }
-    AlgorithmResult::new(graph.clone(), "louvain", "usize", global_partition)
+    NodeState::new_from_values(g.clone(), global_partition)
 }
 
 #[cfg(test)]
@@ -70,8 +75,6 @@ mod test {
         test_storage,
     };
     use proptest::prelude::*;
-    #[cfg(feature = "io")]
-    use tracing::info;
 
     #[cfg(feature = "io")]
     use raphtory_api::core::utils::logging::global_info_logger;
@@ -106,7 +109,10 @@ mod test {
 
         test_storage!(&graph, |graph| {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None);
-            assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
+            assert!(graph
+                .nodes()
+                .iter()
+                .all(|n| result.get_by_node(n).is_some()));
         });
     }
 
@@ -119,7 +125,10 @@ mod test {
 
         test_storage!(&graph, |graph| {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
-            assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
+            assert!(graph
+                .nodes()
+                .iter()
+                .all(|n| result.get_by_node(n).is_some()));
         });
     }
 
@@ -160,8 +169,8 @@ mod test {
             .unwrap();
 
         test_storage!(&graph, |graph| {
-            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
-            info!("{result:?}")
+            let _ = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+            // TODO: Add assertions
         });
     }
 }

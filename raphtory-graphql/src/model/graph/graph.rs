@@ -2,8 +2,12 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
-            FilterCondition, Operator,
+            edge::Edge,
+            edges::GqlEdges,
+            filtering::{FilterCondition, GraphViewCollection, Operator},
+            node::Node,
+            nodes::GqlNodes,
+            property::GqlProperties,
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
@@ -192,300 +196,6 @@ impl GqlGraph {
 
     async fn shrink_end(&self, end: i64) -> Self {
         self.apply(|g| g.shrink_end(end), |g| g.shrink_end(end))
-    }
-
-    ////////////////////////
-    //// TIME QUERIES //////
-    ////////////////////////
-
-    async fn created(&self) -> Result<i64, GraphError> {
-        self.path.created()
-    }
-
-    async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.last_opened()
-    }
-
-    async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.path.last_updated()
-    }
-
-    async fn earliest_time(&self) -> Option<i64> {
-        self.graph.earliest_time()
-    }
-
-    async fn latest_time(&self) -> Option<i64> {
-        self.graph.latest_time()
-    }
-
-    async fn start(&self) -> Option<i64> {
-        self.graph.start()
-    }
-
-    async fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
-        let include_negative = include_negative.unwrap_or(true);
-        let all_edges = self
-            .graph
-            .edges()
-            .earliest_time()
-            .into_iter()
-            .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
-            .min();
-        return all_edges;
-    }
-
-    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
-        let include_negative = include_negative.unwrap_or(true);
-        let all_edges = self
-            .graph
-            .edges()
-            .latest_time()
-            .into_iter()
-            .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
-            .max();
-
-        return all_edges;
-    }
-
-    ////////////////////////
-    //////// COUNTERS //////
-    ////////////////////////
-
-    async fn count_edges(&self) -> usize {
-        self.graph.count_edges()
-    }
-
-    async fn count_temporal_edges(&self) -> usize {
-        self.graph.count_temporal_edges()
-    }
-
-    async fn search_edge_count(&self, query: String) -> Result<usize, GraphError> {
-        Ok(self.get_index()?.search_edge_count(&query).unwrap_or(0))
-    }
-
-    async fn count_nodes(&self) -> usize {
-        self.graph.count_nodes()
-    }
-
-    async fn search_node_count(&self, query: String) -> Result<usize, GraphError> {
-        Ok(self.get_index()?.search_node_count(&query).unwrap_or(0))
-    }
-
-    ////////////////////////
-    //// EXISTS CHECKERS ///
-    ////////////////////////
-
-    async fn has_node(&self, name: String) -> bool {
-        self.graph.has_node(name)
-    }
-
-    async fn has_node_id(&self, id: u64) -> bool {
-        self.graph.has_node(id)
-    }
-
-    async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
-        match layer {
-            Some(name) => self
-                .graph
-                .layers(name)
-                .map(|l| l.has_edge(src, dst))
-                .unwrap_or(false),
-            None => self.graph.has_edge(src, dst),
-        }
-    }
-
-    async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
-        match layer {
-            Some(name) => self
-                .graph
-                .layers(name)
-                .map(|l| l.has_edge(src, dst))
-                .unwrap_or(false),
-            None => self.graph.has_edge(src, dst),
-        }
-    }
-
-    ////////////////////////
-    //////// GETTERS ///////
-    ////////////////////////
-
-    async fn node(&self, name: String) -> Option<Node> {
-        self.graph.node(name).map(|v| v.into())
-    }
-
-    async fn node_id(&self, id: u64) -> Option<Node> {
-        self.graph.node(id).map(|v| v.into())
-    }
-
-    async fn nodes(&self) -> GqlNodes {
-        GqlNodes::new(self.graph.nodes())
-    }
-
-    async fn search_nodes(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<Node>, GraphError> {
-        Ok(self
-            .get_index()?
-            .search_nodes(&query, limit, offset)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
-    }
-
-    async fn fuzzy_search_nodes(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Result<Vec<Node>, GraphError> {
-        Ok(self
-            .get_index()?
-            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
-    }
-
-    pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
-        self.graph.edge(src, dst).map(|e| e.into())
-    }
-
-    pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
-        self.graph.edge(src, dst).map(|e| e.into())
-    }
-
-    async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges())
-    }
-
-    async fn search_edges(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<Edge>, GraphError> {
-        Ok(self
-            .get_index()?
-            .search_edges(&query, limit, offset)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
-    }
-
-    async fn fuzzy_search_edges(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Result<Vec<Edge>, GraphError> {
-        Ok(self
-            .get_index()?
-            .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
-            .into_iter()
-            .flatten()
-            .map(|vv| vv.into())
-            .collect())
-    }
-
-    ////////////////////////
-    /////// PROPERTIES /////
-    ////////////////////////
-
-    async fn properties(&self) -> GqlProperties {
-        Into::<DynProperties>::into(self.graph.properties()).into()
-    }
-
-    ////////////////////////
-    // GRAPHQL SPECIFIC ////
-    ////////////////////////
-
-    //These name/path functions basically can only fail
-    //if someone write non-utf characters as a filename
-
-    async fn name(&self) -> Result<String, GraphError> {
-        self.path.get_graph_name()
-    }
-
-    async fn path(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .to_str()
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
-            .to_owned())
-    }
-
-    async fn namespace(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .parent()
-            .and_then(|p| p.to_str().map(|s| s.to_string()))
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
-            .to_owned())
-    }
-
-    async fn schema(&self) -> GraphSchema {
-        GraphSchema::new(&self.graph)
-    }
-
-    async fn algorithms(&self) -> GraphAlgorithmPlugin {
-        self.graph.clone().into()
-    }
-
-    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
-        if selected_nodes.is_empty() {
-            return vec![];
-        }
-
-        let neighbours: Vec<HashSet<NodeView<DynamicGraph>>> = selected_nodes
-            .iter()
-            .filter_map(|n| self.graph.node(n))
-            .map(|n| {
-                n.neighbours()
-                    .collect()
-                    .iter()
-                    .map(|vv| vv.clone())
-                    .collect::<HashSet<NodeView<DynamicGraph>>>()
-            })
-            .collect();
-
-        let intersection = neighbours.iter().fold(None, |acc, n| match acc {
-            None => Some(n.clone()),
-            Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
-        });
-        match intersection {
-            Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
-            None => vec![],
-        }
-    }
-
-    /// Export all nodes and edges from this graph view to another existing graph
-    async fn export_to<'a>(
-        &'a self,
-        ctx: &Context<'a>,
-        path: String,
-    ) -> Result<bool, Arc<GraphError>> {
-        let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref())?.0;
-        other_g.import_nodes(self.graph.nodes(), true)?;
-        other_g.import_edges(self.graph.edges(), true)?;
-        other_g.write_updates()?;
-        Ok(true)
     }
 
     async fn node_filter(
@@ -812,5 +522,410 @@ impl GqlGraph {
                 }
             }
         }
+    }
+
+    async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
+        let mut return_view: GqlGraph =
+            GqlGraph::new(self.path.clone(), self.graph.clone(), self.index.clone());
+
+        for view in views {
+            let mut count = 0;
+            if let Some(_) = view.default_layer {
+                count += 1;
+                return_view = return_view.default_layer().await;
+            }
+            if let Some(layers) = view.layers {
+                count += 1;
+                return_view = return_view.layers(layers).await;
+            }
+            if let Some(layers) = view.exclude_layers {
+                count += 1;
+                return_view = return_view.exclude_layers(layers).await;
+            }
+            if let Some(layer) = view.layer {
+                count += 1;
+                return_view = return_view.layer(layer).await;
+            }
+            if let Some(layer) = view.exclude_layer {
+                count += 1;
+                return_view = return_view.exclude_layer(layer).await;
+            }
+            if let Some(nodes) = view.subgraph {
+                count += 1;
+                return_view = return_view.subgraph(nodes).await;
+            }
+            if let Some(nodes) = view.subgraph_id {
+                count += 1;
+                return_view = return_view.subgraph_id(nodes).await;
+            }
+            if let Some(types) = view.subgraph_node_types {
+                count += 1;
+                return_view = return_view.subgraph_node_types(types).await;
+            }
+            if let Some(nodes) = view.exclude_nodes {
+                count += 1;
+                return_view = return_view.exclude_nodes(nodes).await;
+            }
+            if let Some(nodes) = view.exclude_nodes_id {
+                count += 1;
+                return_view = return_view.exclude_nodes_id(nodes).await;
+            }
+            if let Some(window) = view.window {
+                count += 1;
+                return_view = return_view.window(window.start, window.end).await;
+            }
+            if let Some(time) = view.at {
+                count += 1;
+                return_view = return_view.at(time).await;
+            }
+            if let Some(_) = view.latest {
+                count += 1;
+                return_view = return_view.latest().await;
+            }
+            if let Some(time) = view.snapshot_at {
+                count += 1;
+                return_view = return_view.snapshot_at(time).await;
+            }
+            if let Some(_) = view.snapshot_latest {
+                count += 1;
+                return_view = return_view.snapshot_latest().await;
+            }
+            if let Some(time) = view.before {
+                count += 1;
+                return_view = return_view.before(time).await;
+            }
+            if let Some(time) = view.after {
+                count += 1;
+                return_view = return_view.after(time).await;
+            }
+            if let Some(window) = view.shrink_window {
+                count += 1;
+                return_view = return_view.shrink_window(window.start, window.end).await;
+            }
+            if let Some(time) = view.shrink_start {
+                count += 1;
+                return_view = return_view.shrink_start(time).await;
+            }
+            if let Some(time) = view.shrink_end {
+                count += 1;
+                return_view = return_view.shrink_end(time).await;
+            }
+            if let Some(node_filter) = view.node_filter {
+                count += 1;
+                return_view = return_view
+                    .node_filter(node_filter.property, node_filter.condition)
+                    .await?;
+            }
+            if let Some(edge_filter) = view.edge_filter {
+                count += 1;
+                return_view = return_view
+                    .edge_filter(edge_filter.property, edge_filter.condition)
+                    .await?;
+            }
+
+            if count > 1 {
+                return Err(GraphError::TooManyViewsSet);
+            }
+        }
+
+        Ok(return_view)
+    }
+
+    ////////////////////////
+    //// TIME QUERIES //////
+    ////////////////////////
+
+    async fn created(&self) -> Result<i64, GraphError> {
+        self.path.created()
+    }
+
+    async fn last_opened(&self) -> Result<i64, GraphError> {
+        self.path.last_opened()
+    }
+
+    async fn last_updated(&self) -> Result<i64, GraphError> {
+        self.path.last_updated()
+    }
+
+    async fn earliest_time(&self) -> Option<i64> {
+        self.graph.earliest_time()
+    }
+
+    async fn latest_time(&self) -> Option<i64> {
+        self.graph.latest_time()
+    }
+
+    async fn start(&self) -> Option<i64> {
+        self.graph.start()
+    }
+
+    async fn end(&self) -> Option<i64> {
+        self.graph.end()
+    }
+
+    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+        let include_negative = include_negative.unwrap_or(true);
+        let all_edges = self
+            .graph
+            .edges()
+            .earliest_time()
+            .into_iter()
+            .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
+            .min();
+        return all_edges;
+    }
+
+    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+        let include_negative = include_negative.unwrap_or(true);
+        let all_edges = self
+            .graph
+            .edges()
+            .latest_time()
+            .into_iter()
+            .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
+            .max();
+
+        return all_edges;
+    }
+
+    ////////////////////////
+    //////// COUNTERS //////
+    ////////////////////////
+
+    async fn count_edges(&self) -> usize {
+        self.graph.count_edges()
+    }
+
+    async fn count_temporal_edges(&self) -> usize {
+        self.graph.count_temporal_edges()
+    }
+
+    async fn search_edge_count(&self, query: String) -> Result<usize, GraphError> {
+        Ok(self.get_index()?.search_edge_count(&query).unwrap_or(0))
+    }
+
+    async fn count_nodes(&self) -> usize {
+        self.graph.count_nodes()
+    }
+
+    async fn search_node_count(&self, query: String) -> Result<usize, GraphError> {
+        Ok(self.get_index()?.search_node_count(&query).unwrap_or(0))
+    }
+
+    ////////////////////////
+    //// EXISTS CHECKERS ///
+    ////////////////////////
+
+    async fn has_node(&self, name: String) -> bool {
+        self.graph.has_node(name)
+    }
+
+    async fn has_node_id(&self, id: u64) -> bool {
+        self.graph.has_node(id)
+    }
+
+    async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
+        match layer {
+            Some(name) => self
+                .graph
+                .layers(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
+    }
+
+    async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
+        match layer {
+            Some(name) => self
+                .graph
+                .layers(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
+    }
+
+    ////////////////////////
+    //////// GETTERS ///////
+    ////////////////////////
+
+    async fn node(&self, name: String) -> Option<Node> {
+        self.graph.node(name).map(|v| v.into())
+    }
+
+    async fn node_id(&self, id: u64) -> Option<Node> {
+        self.graph.node(id).map(|v| v.into())
+    }
+
+    /// query (optionally a subset of) the nodes in the graph
+    async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
+        match ids {
+            None => GqlNodes::new(self.graph.nodes()),
+            Some(ids) => GqlNodes::new(self.graph.nodes().id_filter(ids)),
+        }
+    }
+
+    async fn search_nodes(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<Node>, GraphError> {
+        Ok(self
+            .get_index()?
+            .search_nodes(&query, limit, offset)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect())
+    }
+
+    async fn fuzzy_search_nodes(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<Node>, GraphError> {
+        Ok(self
+            .get_index()?
+            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect())
+    }
+
+    pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
+        self.graph.edge(src, dst).map(|e| e.into())
+    }
+
+    pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
+        self.graph.edge(src, dst).map(|e| e.into())
+    }
+
+    async fn edges<'a>(&self) -> GqlEdges {
+        GqlEdges::new(self.graph.edges())
+    }
+
+    async fn search_edges(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<Edge>, GraphError> {
+        Ok(self
+            .get_index()?
+            .search_edges(&query, limit, offset)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect())
+    }
+
+    async fn fuzzy_search_edges(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<Edge>, GraphError> {
+        Ok(self
+            .get_index()?
+            .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect())
+    }
+
+    ////////////////////////
+    /////// PROPERTIES /////
+    ////////////////////////
+
+    async fn properties(&self) -> GqlProperties {
+        Into::<DynProperties>::into(self.graph.properties()).into()
+    }
+
+    ////////////////////////
+    // GRAPHQL SPECIFIC ////
+    ////////////////////////
+
+    //These name/path functions basically can only fail
+    //if someone write non-utf characters as a filename
+
+    async fn name(&self) -> Result<String, GraphError> {
+        self.path.get_graph_name()
+    }
+
+    async fn path(&self) -> Result<String, GraphError> {
+        Ok(self
+            .path
+            .get_original_path()
+            .to_str()
+            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .to_owned())
+    }
+
+    async fn namespace(&self) -> Result<String, GraphError> {
+        Ok(self
+            .path
+            .get_original_path()
+            .parent()
+            .and_then(|p| p.to_str().map(|s| s.to_string()))
+            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .to_owned())
+    }
+
+    async fn schema(&self) -> GraphSchema {
+        GraphSchema::new(&self.graph)
+    }
+
+    async fn algorithms(&self) -> GraphAlgorithmPlugin {
+        self.graph.clone().into()
+    }
+
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
+        if selected_nodes.is_empty() {
+            return vec![];
+        }
+
+        let neighbours: Vec<HashSet<NodeView<DynamicGraph>>> = selected_nodes
+            .iter()
+            .filter_map(|n| self.graph.node(n))
+            .map(|n| {
+                n.neighbours()
+                    .collect()
+                    .iter()
+                    .map(|vv| vv.clone())
+                    .collect::<HashSet<NodeView<DynamicGraph>>>()
+            })
+            .collect();
+
+        let intersection = neighbours.iter().fold(None, |acc, n| match acc {
+            None => Some(n.clone()),
+            Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
+        });
+        match intersection {
+            Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
+            None => vec![],
+        }
+    }
+
+    /// Export all nodes and edges from this graph view to another existing graph
+    async fn export_to<'a>(
+        &'a self,
+        ctx: &Context<'a>,
+        path: String,
+    ) -> Result<bool, Arc<GraphError>> {
+        let data = ctx.data_unchecked::<Data>();
+        let other_g = data.get_graph(path.as_ref())?.0;
+        other_g.import_nodes(self.graph.nodes(), true)?;
+        other_g.import_edges(self.graph.edges(), true)?;
+        other_g.write_updates()?;
+        Ok(true)
     }
 }

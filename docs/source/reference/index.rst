@@ -5,11 +5,22 @@ API reference
 This page gives an overview of all public raphtory objects, functions and
 methods.
 
-.. toctree::
-   :maxdepth: 5
+.. rubric:: API
+.. autosummary::
+   :toctree: _api_generated
+   :recursive:
 
-   core/index
-   algorithms/index
-   nullmodels/index
-   graphql/index
-   graphgen/index
+   raphtory
+
+.. rubric:: Type Aliases
+.. list-table::
+   :class: autosummary, longtable, table
+
+   * - :py:mod:`raphtory.typing`
+     - Type aliases used in the documentation
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    types

@@ -42,7 +42,7 @@ macro_rules! for_all_variants {
     };
 }
 
-pub trait TPropOps<'a>: Sized + 'a + Send {
+pub trait TPropOps<'a>: Sized + 'a + Send + Copy + Clone {
     fn active(self, w: Range<i64>) -> bool {
         self.iter_window_t(w).next().is_some()
     }

@@ -7,6 +7,7 @@ import re
 import pandas as pd
 import pandas.core.frame
 import pytest
+import pyarrow as pa
 from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
@@ -949,8 +950,13 @@ def test_edge_properties():
             ["prop 4", "prop 1", "prop 2", "prop 3"]
         )
 
-        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == ["prop 1", "prop 2", "prop 3", "prop 4"]
-        
+        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == [
+            "prop 1",
+            "prop 2",
+            "prop 3",
+            "prop 4",
+        ]
+
         # find all edges that match properties
         [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
         assert e == g.edge(1, 2)
@@ -1025,11 +1031,31 @@ def create_graph_edge_properties():
     return g
 
 
-def test_graph_as_property():
+def test_edge_constant_properties_layers():
     g = Graph()
-    g.add_edge(0, 1, 2, {"graph": g})
-    assert "graph" in g.edge(1, 2).properties
-    assert g.edge(1, 2).properties["graph"].has_edge(1, 2)
+    g.add_edge(0, 1, 2, layer="a")
+    g.add_edge(0, 1, 2)
+    g.edge(1, 2).add_constant_properties({"test": 1})
+    constant_exploded = g.layer("a").edges.explode().properties.constant
+    assert constant_exploded.values() == [[None]]
+    assert constant_exploded.keys() == ["test"]
+
+
+def test_temporal_edge_properties_layers():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"test": 1}, layer="a")
+    g.add_edge(0, 1, 2)
+    temporal_exploded = g.default_layer().edges.explode().properties.temporal
+    assert temporal_exploded.keys() == ["test"]
+    assert temporal_exploded.values() == [[[]]]
+
+
+def test_arrow_array_properties():
+    g = Graph()
+    days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
+    g.add_edge(1, 1, 2, {"prop1": 1, "prop2": 2, "prop3": days})
+    e = g.edge(1, 2)
+    assert e.properties["prop3"] == days
 
 
 def test_map_and_list_property():
@@ -1088,7 +1114,7 @@ def test_algorithms():
             lotr_graph, "Frodo"
         )
         lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, "Frodo")
-        assert lotr_clustering_coefficient == 0.1984313726425171
+        assert lotr_clustering_coefficient == 0.1984313725490196
         assert lotr_local_triangle_count == 253
 
     check(g)
@@ -2144,7 +2170,7 @@ def test_materialize_graph():
             assert g.has_edge(1, 2)
             assert mg.has_edge(2, 1)
             assert g.has_edge(2, 1)
-        
+
         check_g_inner(g)
 
         mg = g.materialize()
@@ -2904,41 +2930,6 @@ def test_unique_temporal_properties():
             expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
         )
         assert sorted_actual_list == sorted_expected_list
-
-    check(g)
-    g1 = Graph()
-    g1.add_constant_properties({"type": "a"})
-    g1.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g1})
-    g2 = Graph()
-    g2.add_constant_properties({"type": "b"})
-    g2.add_node(1, "ben")
-    g.add_node(7, 3, {"graph": g2})
-    g3 = Graph()
-    g3.add_constant_properties({"type": "c"})
-    g3.add_node(1, "shivam")
-    g.add_node(7, 3, {"graph": g3})
-
-    # @with_disk_graph #FIXME List, Map and NDTime properties are not supported
-    def check(g):
-        actual_list = g.node(3).properties.temporal.get("graph").unique()
-        expected_list = [g1, g3]
-        sorted_actual_list = sorted(
-            actual_list, key=lambda g: g.properties.constant.get("type")
-        )
-        sorted_expected_list = sorted(
-            expected_list, key=lambda g: g.properties.constant.get("type")
-        )
-        assert sorted_actual_list == sorted_expected_list
-
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
-            (5, 1),
-            (6, 5),
-        ]
-        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
-            (4, 1),
-            (6, 5),
-        ]
 
     check(g)
 

@@ -1,9 +1,3 @@
-use std::{
-    fmt::{Display, Formatter},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
 use crate::{
     core::{
         entities::{
@@ -20,7 +14,7 @@ use crate::{
     prelude::{Graph, Layer},
 };
 use polars_arrow::{
-    array::{PrimitiveArray, StructArray},
+    array::{Array, PrimitiveArray, StructArray},
     datatypes::{ArrowDataType as DataType, Field},
 };
 use pometry_storage::{
@@ -29,9 +23,17 @@ use pometry_storage::{
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::{
+    fmt::{Display, Formatter},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 pub mod graph_impl;
 pub mod storage_interface;
+
+#[cfg(feature = "io")]
+pub mod io;
 
 pub type Time = i64;
 
@@ -321,6 +323,16 @@ impl DiskGraphStorage {
         Ok(Self::new(t_graph))
     }
 
+    pub fn load_node_types_from_arrays(
+        &mut self,
+        arrays: impl IntoIterator<Item = Result<Box<dyn Array>, RAError>>,
+        chunk_size: usize,
+    ) -> Result<(), GraphError> {
+        let inner = Arc::make_mut(&mut self.inner);
+        inner.load_node_types_from_chunks(arrays, chunk_size)?;
+        Ok(())
+    }
+
     pub fn filtered_layers_par<'a>(
         &'a self,
         layer_ids: LayerIds,
@@ -364,7 +376,7 @@ mod test {
 
     use itertools::Itertools;
     use polars_arrow::{
-        array::{PrimitiveArray, StructArray},
+        array::{PrimitiveArray, StructArray, Utf8Array},
         datatypes::Field,
     };
     use proptest::{prelude::*, sample::size_range};
@@ -376,6 +388,7 @@ mod test {
     use crate::{
         arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
         db::graph::graph::assert_graph_equal,
+        disk_graph::DiskGraphStorage,
         prelude::*,
     };
 
@@ -704,6 +717,38 @@ mod test {
         );
     }
 
+    #[test]
+    fn test_load_node_types() {
+        let graph_dir = TempDir::new().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let mut dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
+            .unwrap();
+        assert_eq!(
+            dg.into_graph().nodes().node_type().collect_vec(),
+            [Some("1".into()), Some("2".into())]
+        );
+    }
+
+    #[test]
+    fn test_node_type() {
+        let graph_dir = TempDir::new().unwrap();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_node(0, 1, NO_PROPS, Some("2")).unwrap();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        assert_eq!(
+            dg.into_graph().nodes().node_type().collect_vec(),
+            [Some("1".into()), Some("2".into())]
+        );
+        let dg = DiskGraphStorage::load_from_dir(graph_dir.path()).unwrap();
+        assert_eq!(
+            dg.into_graph().nodes().node_type().collect_vec(),
+            [Some("1".into()), Some("2".into())]
+        );
+    }
     mod addition_bounds {
         use itertools::Itertools;
         use proptest::{prelude::*, sample::size_range};

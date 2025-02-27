@@ -52,8 +52,9 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
+                    Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
+                    InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static,
+                    TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -72,7 +73,7 @@ use std::{
 };
 
 /// A struct that represents a windowed view of a `Graph`.
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct WindowedGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
@@ -140,7 +141,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn node_list(&self) -> NodeList {
         if self.window_is_empty() {
             NodeList::List {
-                nodes: Index::new(vec![], self.graph.unfiltered_num_nodes()),
+                nodes: Index::default(),
             }
         } else {
             self.graph.node_list()
@@ -168,8 +169,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn nodes_filtered(&self) -> bool {
         self.window_is_empty()
             || self.graph.nodes_filtered()
-            || self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
-            || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
+            || self.start_bound() > self.core_graph().earliest_time().unwrap_or(i64::MAX)
+            || self.end_bound() <= self.core_graph().latest_time().unwrap_or(i64::MIN)
     }
 
     #[inline]
@@ -614,6 +615,21 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
             self.end_bound(),
             layer_ids,
         )
+    }
+
+    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop> {
+        self.graph
+            .constant_edge_prop_window(e, id, layer_ids, self.start_bound()..self.end_bound())
+    }
+
+    fn constant_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        self.graph.constant_edge_prop_window(e, id, layer_ids, w)
     }
 }
 
@@ -1076,7 +1092,7 @@ mod views_test {
                     let mut e = wg
                         .nodes()
                         .id()
-                        .values()
+                        .iter_values()
                         .filter_map(|id| id.to_u64())
                         .collect::<Vec<_>>();
                     e.sort();
@@ -1098,7 +1114,7 @@ mod views_test {
                     let mut e = wg
                         .nodes()
                         .id()
-                        .values()
+                        .iter_values()
                         .filter_map(|id| id.to_u64())
                         .collect::<Vec<_>>();
                     e.sort();
@@ -1160,7 +1176,7 @@ mod views_test {
             let actual = wg
                 .nodes()
                 .id()
-                .values()
+                .iter_values()
                 .filter_map(|id| id.to_u64())
                 .collect::<Vec<_>>();
 
@@ -1190,7 +1206,7 @@ mod views_test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
             let w = graph.window(0, 1);
-            let _ = degree_centrality(&w, None);
+            let _ = degree_centrality(&w);
         });
     }
 
@@ -1274,14 +1290,19 @@ mod views_test {
                 graph
                     .nodes()
                     .earliest_time()
-                    .values()
+                    .iter_values()
                     .flatten()
                     .collect_vec(),
                 [0, 0, 0, 4,]
             );
 
             assert_eq!(
-                graph.nodes().latest_time().values().flatten().collect_vec(),
+                graph
+                    .nodes()
+                    .latest_time()
+                    .iter_values()
+                    .flatten()
+                    .collect_vec(),
                 [3, 7, 3, 7]
             );
 

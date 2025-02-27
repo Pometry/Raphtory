@@ -21,6 +21,7 @@ use super::{
     similarity_search_utils::score_document_groups_by_highest,
     vector_selection::VectorSelection,
     vectorisable::{vectorise_edge, vectorise_graph, vectorise_node},
+    Document,
 };
 
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
@@ -149,6 +150,15 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     /// Return an empty selection of documents
     pub fn empty_selection(&self) -> VectorSelection<G> {
         VectorSelection::new(self.clone())
+    }
+
+    /// Return all the graph level documents
+    pub fn get_graph_documents(&self) -> Vec<Document> {
+        self.graph_documents
+            .read()
+            .iter()
+            .map(|doc| doc.regenerate(&self.source_graph, &self.template))
+            .collect_vec()
     }
 
     /// Search the top scoring documents according to `query` with no more than `limit` documents

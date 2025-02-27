@@ -99,6 +99,13 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<P
     }
 }
 
+/// Encode a graph using Base64 encoding
+///
+/// Arguments:
+///     graph (Graph | PersistentGraph): the graph
+///
+/// Returns:
+///     str: the encoded graph
 #[pyfunction]
 pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
@@ -108,6 +115,13 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     }
 }
 
+/// Decode a Base64-encoded graph
+///
+/// Arguments:
+///     graph (str): the encoded graph
+///
+/// Returns:
+///     Union[Graph, PersistentGraph]: the decoded graph
 #[pyfunction]
 pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
     let result = url_decode_graph(graph);

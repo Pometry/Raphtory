@@ -1,15 +1,11 @@
-use raphtory_api::core::entities::GID;
-use rayon::prelude::*;
-
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
             state::{Index, NodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -19,6 +15,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use indexmap::IndexSet;
 use itertools::Itertools;
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
@@ -31,18 +28,18 @@ struct InState {
 ///
 /// # Arguments
 ///
-/// * `g` - A reference to the graph
-/// * `threads` - Number of threads to use
+/// - `g` - A reference to the graph
+/// - `threads` - Number of threads to use
 ///
-/// Returns:
+/// # Returns
 ///
-/// An AlgorithmResult containing the mapping from node to a vector of node ids (the nodes in component)
+/// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes in component)
 ///
-pub fn in_components<G>(graph: &G, threads: Option<usize>) -> AlgorithmResult<G, Vec<GID>, Vec<GID>>
+pub fn in_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
 where
     G: StaticGraphViewOps,
 {
-    let ctx: Context<G, ComputeStateVec> = graph.into();
+    let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, InState>| {
         let mut in_components = HashSet::new();
         let mut to_check_stack = Vec::new();
@@ -69,46 +66,40 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<u64>();
 
-    let res = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![],
         None,
         |_, _, _, local: Vec<InState>| {
-            graph
-                .nodes()
-                .par_iter()
-                .map(|node| {
-                    let VID(id) = node.node;
-                    let components = local[id]
-                        .in_components
-                        .iter()
-                        .map(|vid| graph.node_id(*vid))
-                        .collect();
-                    (id, components)
-                })
-                .collect()
+            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+                Nodes::new_filtered(
+                    g.clone(),
+                    g.clone(),
+                    Some(Index::from_iter(v.in_components)),
+                    None,
+                )
+            })
         },
         threads,
         1,
         None,
         None,
-    );
-    AlgorithmResult::new(graph.clone(), "In Components", results_type, res)
+    )
 }
+
 /// Computes the in-component of a given node in the graph
 ///
-/// # Arguments
+/// # Arguments:
 ///
-/// * `node` - The node whose in-component we wish to calculate
+/// - `node` - The node whose in-component we wish to calculate
 ///
-/// Returns:
+/// # Returns:
 ///
 /// The nodes within the given nodes in-component and their distances from the starting node.
 ///
-pub fn in_component<'graph, G: GraphViewOps<'graph>>(
-    node: NodeView<G>,
+pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    node: NodeView<G, GH>,
 ) -> NodeState<'graph, usize, G> {
     let mut in_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();
@@ -119,7 +110,7 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(
     });
     while let Some((neighbour_id, d)) = to_check_stack.pop_front() {
         let d = d + 1;
-        if let Some(neighbour) = &node.graph.node(neighbour_id) {
+        if let Some(neighbour) = (&&node.graph).node(neighbour_id) {
             neighbour.in_neighbours().iter().for_each(|node| {
                 let id = node.node;
                 if let Entry::Vacant(entry) = in_components.entry(id) {
@@ -130,12 +121,13 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    let (nodes, distances): (Vec<_>, Vec<_>) = in_components.into_iter().sorted().unzip();
+    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
+        in_components.into_iter().sorted().unzip();
     NodeState::new(
-        node.graph.clone(),
-        node.graph.clone(),
-        distances,
-        Some(Index::new(nodes, node.graph.unfiltered_num_nodes())),
+        node.base_graph.clone(),
+        node.base_graph.clone(),
+        distances.into(),
+        Some(Index::new(nodes)),
     )
 }
 
@@ -214,7 +206,7 @@ mod components_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = in_components(graph, None).get_all_with_names();
+            let results = in_components(graph, None);
             let mut correct = HashMap::new();
             correct.insert("1".to_string(), vec![]);
             correct.insert("2".to_string(), vec![1]);
@@ -226,9 +218,15 @@ mod components_test {
             correct.insert("8".to_string(), vec![1, 2, 5]);
             let map: HashMap<String, Vec<u64>> = results
                 .into_iter()
-                .map(|(k, mut v)| {
-                    v.sort();
-                    (k, v.into_iter().filter_map(|v| v.as_u64()).collect())
+                .map(|(k, v)| {
+                    (
+                        k.name(),
+                        v.id()
+                            .into_iter_values()
+                            .filter_map(|v| v.as_u64())
+                            .sorted()
+                            .collect(),
+                    )
                 })
                 .collect();
             assert_eq!(map, correct);

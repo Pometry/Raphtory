@@ -1,16 +1,13 @@
-use super::document::PyDocument;
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Prop},
-    db::graph::views::{
-        deletion_graph::PersistentGraph,
-        property_filter::internal::{
-            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
-        },
+    core::{prop_array::PropArray, utils::errors::GraphError, Prop},
+    db::graph::views::property_filter::internal::{
+        InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
-    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
+    python::types::repr::Repr,
 };
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
+use pyo3_arrow::PyArray;
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl<'py> IntoPyObject<'py> for Prop {
@@ -29,9 +26,15 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            Prop::Graph(g) => g.into_pyobject(py)?.into_any(),
-            Prop::PersistentGraph(g) => g.into_pyobject(py)?.into_any(),
-            Prop::Document(d) => PyDocument::from(d).into_pyobject(py)?.into_any(),
+            Prop::Array(blob) => {
+                if let Some(arr_ref) = blob.into_array_ref() {
+                    pyo3_arrow::PyArray::from_array_ref(arr_ref)
+                        .to_pyarrow(py)?
+                        .into_bound(py)
+                } else {
+                    py.None().into_bound(py)
+                }
+            }
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
@@ -62,25 +65,20 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
-        if let Ok(g) = ob.extract() {
-            return Ok(Prop::Graph(g));
-        }
-        if let Ok(g) = ob.extract::<PersistentGraph>() {
-            return Ok(Prop::PersistentGraph(g));
-        }
-        if let Ok(d) = ob.extract::<PyDocument>() {
-            return Ok(Prop::Document(DocumentInput {
-                content: d.content,
-                life: d.life,
-            }));
-        }
         if let Ok(list) = ob.extract() {
             return Ok(Prop::List(Arc::new(list)));
         }
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));
         }
-        Err(PyTypeError::new_err("Not a valid property type"))
+        if let Ok(arrow) = ob.extract::<PyArray>() {
+            let (arr, _) = arrow.into_inner();
+            return Ok(Prop::Array(PropArray::Array(arr)));
+        }
+        Err(PyTypeError::new_err(format!(
+            "Could not convert {:?} to Prop",
+            ob
+        )))
     }
 }
 
@@ -96,9 +94,7 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::NDTime(v) => v.repr(),
-            Prop::Graph(g) => PyGraphView::from(g.clone()).repr(),
-            Prop::PersistentGraph(g) => PyGraphView::from(g.clone()).repr(),
-            Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
+            Prop::Array(v) => format!("{:?}", v),
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),
@@ -166,6 +162,9 @@ impl InternalNodePropertyFilterOps for PyPropertyFilter {
 /// property value (these filters always exclude entities that do not
 /// have the property) or use one of the methods to construct
 /// other kinds of filters.
+///
+/// Arguments:
+///     name (str): the name of the property
 #[pyclass(frozen, name = "Prop", module = "raphtory")]
 #[derive(Clone)]
 pub struct PyPropertyRef {
@@ -210,18 +209,30 @@ impl PyPropertyRef {
     }
 
     /// Create a filter that only keeps entities if they have the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn is_some(&self) -> PyPropertyFilter {
         let filter = PropertyFilter::is_some(&self.name);
         PyPropertyFilter(filter)
     }
 
     /// Create a filter that only keeps entities that do not have the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn is_none(&self) -> PyPropertyFilter {
         let filter = PropertyFilter::is_none(&self.name);
         PyPropertyFilter(filter)
     }
 
     /// Create a filter that keeps entities if their property value is in the set
+    ///
+    /// Arguments:
+    ///     values (set[PropValue]): the set of values to match
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::any(&self.name, values);
         PyPropertyFilter(filter)
@@ -229,6 +240,12 @@ impl PyPropertyRef {
 
     /// Create a filter that keeps entities if their property value is not in the set or
     /// if they don't have the property
+    ///
+    /// Arguments:
+    ///     values (set[PropValue]): the set of values to exclude
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::not_any(&self.name, values);
         PyPropertyFilter(filter)

@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, Prop},
+    core::{utils::time::IntoTime, Prop, PropUnwrap},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},

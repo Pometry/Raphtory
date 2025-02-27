@@ -33,6 +33,7 @@ pub mod algorithms;
 pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
+pub(crate) mod sorting;
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -220,6 +221,27 @@ impl Mut {
         }
         data.insert_graph(path, g).await?;
         Ok(path.to_owned())
+    }
+
+    /// Create a subgraph out of some existing graph in the server
+    ///
+    /// Returns::
+    ///    name of the new graph
+    async fn create_subgraph<'a>(
+        ctx: &Context<'a>,
+        parent_path: &str,
+        nodes: Vec<String>,
+        new_path: String,
+        overwrite: bool,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let parent_graph = data.get_graph(parent_path)?.0.graph;
+        let new_subgraph = parent_graph.subgraph(nodes).materialize()?;
+        if overwrite {
+            let _ignored = data.delete_graph(&new_path);
+        }
+        data.insert_graph(&new_path, new_subgraph).await?;
+        Ok(new_path)
     }
 }
 

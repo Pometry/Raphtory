@@ -15,7 +15,7 @@ impl PyGraphView {
     /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
     ///
     /// Returns:
-    ///    GraphIndex - Returns a GraphIndex
+    ///    GraphIndex: Returns a GraphIndex
     fn index(&self) -> GraphIndex {
         GraphIndex::new(self.graph.clone())
     }

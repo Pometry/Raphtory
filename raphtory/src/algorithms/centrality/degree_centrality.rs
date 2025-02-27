@@ -1,59 +1,34 @@
 use crate::{
-    algorithms::{algorithm_result::AlgorithmResult, metrics::degree::max_degree},
-    core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
-    db::{
-        api::view::StaticGraphViewOps,
-        task::{
-            context::Context,
-            node::eval_node::EvalNodeView,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
-    },
+    db::api::{state::NodeState, view::StaticGraphViewOps},
     prelude::*,
 };
-use ordered_float::OrderedFloat;
+use rayon::prelude::*;
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
-pub fn degree_centrality<G: StaticGraphViewOps>(
-    g: &G,
-    threads: Option<usize>,
-) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
-    let max_degree = max_degree(g);
+///
+/// # Arguments
+///
+/// - `g`: A reference to the graph.
+///
+/// # Returns
+///
+/// An [AlgorithmResult] containing the degree centrality of each node.
+pub fn degree_centrality<G: StaticGraphViewOps>(g: &G) -> NodeState<'static, f64, G> {
+    let max_degree = match g.nodes().degree().max() {
+        None => return NodeState::new_empty(g.clone()),
+        Some(v) => v,
+    };
 
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
+    let values: Vec<_> = g
+        .nodes()
+        .degree()
+        .into_par_iter_values()
+        .map(|v| (v as f64) / max_degree as f64)
+        .collect();
 
-    let min = sum(0);
-
-    ctx.agg(min);
-
-    let step1 = ATask::new(move |evv: &mut EvalNodeView<_, ()>| {
-        // The division below is fine as floating point division of 0.0
-        // causes the result to be an NaN
-        let res = evv.degree() as f64 / max_degree as f64;
-        if res.is_nan() || res.is_infinite() {
-            evv.global_update(&min, 0.0);
-        } else {
-            evv.update(&min, res);
-        }
-        Step::Done
-    });
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let runner_result = runner.run(
-        vec![],
-        vec![Job::new(step1)],
-        None,
-        |_, ess, _, _| ess.finalize(&min, |min| min),
-        threads,
-        1,
-        None,
-        None,
-    );
-    let results_type = std::any::type_name::<f64>();
-    AlgorithmResult::new(g.clone(), "Degree Centrality", results_type, runner_result)
+    NodeState::new_from_values(g.clone(), values)
 }
 
 #[cfg(test)]
@@ -74,15 +49,14 @@ mod degree_centrality_test {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
         test_storage!(&graph, |graph| {
-            let mut hash_map_result: HashMap<String, f64> = HashMap::new();
-            hash_map_result.insert("1".to_string(), 1.0);
-            hash_map_result.insert("2".to_string(), 1.0);
-            hash_map_result.insert("3".to_string(), 2.0 / 3.0);
-            hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+            let mut expected: HashMap<String, f64> = HashMap::new();
+            expected.insert("1".to_string(), 1.0);
+            expected.insert("2".to_string(), 1.0);
+            expected.insert("3".to_string(), 2.0 / 3.0);
+            expected.insert("4".to_string(), 2.0 / 3.0);
 
-            let binding = degree_centrality(graph, None);
-            let res = binding.get_all_with_names();
-            assert_eq!(res, hash_map_result);
+            let res = degree_centrality(graph);
+            assert_eq!(res, expected);
         });
     }
 }

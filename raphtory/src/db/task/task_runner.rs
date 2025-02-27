@@ -208,7 +208,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     }
 
     pub fn run<
-        B: std::fmt::Debug,
+        B,
         F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, Vec<S>) -> B,
         S: Send + Sync + Clone + 'static + std::fmt::Debug + Default,
     >(

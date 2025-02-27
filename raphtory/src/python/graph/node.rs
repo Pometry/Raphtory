@@ -12,7 +12,10 @@ use crate::{
             properties::Properties,
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
-                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{
+                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynamic,
+                    IntoDynamicOrMutable, MaterializedGraph,
+                },
                 *,
             },
         },
@@ -20,16 +23,16 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::{deletion_graph::PersistentGraph, property_filter::internal::*},
+            views::property_filter::internal::*,
         },
     },
-    prelude::Graph,
     python::{
         graph::{
             node::internal::OneHopFilter,
-            properties::{PyNestedPropsIterable, PyPropsList},
+            properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{
+            iterable::FromIterable,
             repr::StructReprBuilder,
             wrappers::{iterables::*, prop::PyPropertyFilter},
         },
@@ -45,7 +48,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     pyclass, pymethods,
     types::PyDict,
-    PyObject, PyResult, Python,
+    IntoPyObjectExt, PyObject, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -56,7 +59,7 @@ use python::{
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
 use rayon::{iter::IntoParallelIterator, prelude::*};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
@@ -65,7 +68,14 @@ pub struct PyNode {
     pub node: NodeView<DynamicGraph, DynamicGraph>,
 }
 
-impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
+impl_nodeviewops!(
+    PyNode,
+    node,
+    NodeView<DynamicGraph>,
+    "Node",
+    "Edges",
+    "PathFromNode"
+);
 impl_edge_property_filter_ops!(PyNode<NodeView<DynamicGraph, DynamicGraph>>, node, "Node");
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
@@ -95,7 +105,7 @@ impl AsNodeRef for PyNode {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyNode {
-    /// checks if a node is equal to another by their id (ids are unqiue)
+    /// checks if a node is equal to another by their id (ids are unique)
     ///
     /// Arguments:
     ///    other: The other node to compare to.
@@ -165,7 +175,7 @@ impl PyNode {
     /// Returns the earliest datetime that the node exists.
     ///
     /// Returns:
-    ///     Datetime: The earliest datetime that the node exists as a Datetime.
+    ///     datetime: The earliest datetime that the node exists as a Datetime.
     #[getter]
     pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.earliest_date_time()
@@ -182,11 +192,8 @@ impl PyNode {
 
     /// Returns the latest datetime that the node exists.
     ///
-    /// Arguments:
-    ///    None
-    ///
     /// Returns:
-    ///     Datetime: The latest datetime that the node exists as a Datetime.
+    ///     datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.latest_date_time()
@@ -202,6 +209,9 @@ impl PyNode {
     }
 
     /// Returns the type of node
+    ///
+    /// Returns:
+    ///     Optional[str]: The node type if it is set or `None` otherwise.
     #[getter]
     pub fn node_type(&self) -> Option<ArcStr> {
         self.node.node_type()
@@ -209,7 +219,7 @@ impl PyNode {
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
-    /// Returns
+    /// Returns:
     ///     int: The degree of this node.
     pub fn degree(&self) -> usize {
         self.node.degree()
@@ -249,6 +259,10 @@ impl PyNode {
         self.node.history_date_time()
     }
 
+    /// Check if the node is active, i.e., it's history is not empty
+    ///
+    /// Returns:
+    ///     bool:
     pub fn is_active(&self) -> bool {
         self.node.is_active()
     }
@@ -320,16 +334,36 @@ impl Repr for PyMutableNode {
 }
 impl<
         'py,
-        G: StaticGraphViewOps + IntoDynamic,
-        GH: StaticGraphViewOps + IntoDynamic + Immutable,
+        G: StaticGraphViewOps + IntoDynamicOrMutable,
+        GH: StaticGraphViewOps + IntoDynamicOrMutable,
     > IntoPyObject<'py> for NodeView<G, GH>
 {
-    type Target = PyNode;
+    type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+    type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyNode::from(self).into_pyobject(py)
+        let graph = self.graph.into_dynamic_or_mutable();
+        match graph {
+            DynOrMutableGraph::Dyn(graph) => {
+                let base_graph = self.base_graph.into_dynamic();
+                PyNode::from(NodeView::new_one_hop_filtered(base_graph, graph, self.node))
+                    .into_bound_py_any(py)
+            }
+            DynOrMutableGraph::Mutable(graph) => {
+                let base_graph = self.base_graph.into_dynamic_or_mutable();
+                match base_graph {
+                    DynOrMutableGraph::Dyn(_) => {
+                        unreachable!()
+                    }
+                    DynOrMutableGraph::Mutable(base_graph) => PyMutableNode::new_bound(
+                        NodeView::new_one_hop_filtered(base_graph, graph, self.node),
+                        py,
+                    )?
+                    .into_bound_py_any(py),
+                }
+            }
+        }
     }
 }
 
@@ -338,36 +372,6 @@ impl<G: Into<MaterializedGraph>> From<NodeView<G>> for PyMutableNode {
         let graph = value.graph.into();
         let node = NodeView::new_internal(graph, value.node);
         PyMutableNode { node }
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<Graph, Graph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<PersistentGraph, PersistentGraph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
-    }
-}
-
-impl<'py> IntoPyObject<'py> for NodeView<MaterializedGraph, MaterializedGraph> {
-    type Target = PyMutableNode;
-    type Output = Bound<'py, Self::Target>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyMutableNode::new_bound(self, py)
     }
 }
 
@@ -451,16 +455,25 @@ impl PyMutableNode {
 }
 
 /// A list of nodes that can be iterated over.
+#[derive(Clone)]
 #[pyclass(name = "Nodes", module = "raphtory", frozen)]
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
+}
+
+impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
+    }
 }
 
 impl_nodeviewops!(
     PyNodes,
     nodes,
     Nodes<'static, DynamicGraph, DynamicGraph>,
-    "Nodes"
+    "Nodes",
+    "NestedEdges",
+    "PathFromGraph"
 );
 impl_edge_property_filter_ops!(
     PyNodes<Nodes<'static, DynamicGraph, DynamicGraph>>,
@@ -495,7 +508,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
         let graph = value.graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
-            nodes: Nodes::new_filtered(base_graph, graph, value.node_types_filter),
+            nodes: Nodes::new_filtered(base_graph, graph, value.nodes, value.node_types_filter),
         }
     }
 }
@@ -512,6 +525,13 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
     }
 }
 
+#[derive(FromPyObject)]
+pub enum PyNodesCmp {
+    Set(HashSet<PyNodeRef>),
+    Iter(FromIterable<PyNodeRef>),
+    Nodes(PyNodes),
+}
+
 /// Operations on a list of nodes.
 /// These use all the same functions as a normal node except it returns a list of results.
 #[pymethods]
@@ -523,28 +543,45 @@ impl PyNodes {
     ///
     /// Returns:
     ///   bool: True if the nodes are equal, false otherwise.
-    fn __eq__(&self, other: &PyNodes) -> bool {
-        for (v1, v2) in self.nodes.iter().zip(other.nodes.iter()) {
-            if v1.id() != v2.id() {
-                return false;
+    fn __eq__(&self, other: PyNodesCmp) -> bool {
+        match other {
+            PyNodesCmp::Iter(nodes) => {
+                nodes.len() == self.nodes.len()
+                    && self
+                        .nodes
+                        .iter()
+                        .eq(nodes.iter().flat_map(|node_ref| self.nodes.get(node_ref)))
+            }
+            PyNodesCmp::Nodes(nodes) => self.nodes == nodes.nodes,
+            PyNodesCmp::Set(nodes) => {
+                nodes.len() == self.nodes.len()
+                    && nodes.iter().all(|node_ref| self.nodes.contains(node_ref))
             }
         }
-        true
     }
 
-    /// Returns an iterator over the nodes ids
+    /// The node ids
+    ///
+    /// Returns:
+    ///     IdView: a view of the node ids
     #[getter]
     fn id(&self) -> LazyNodeState<'static, ops::Id, DynamicGraph, DynamicGraph> {
         self.nodes.id()
     }
 
-    /// Returns an iterator over the nodes name
+    /// The node names
+    ///
+    /// Returns:
+    ///     NameView: a view of the node names
     #[getter]
     fn name(&self) -> LazyNodeState<'static, ops::Name, DynamicGraph, DynamicGraph> {
         self.nodes.name()
     }
 
-    /// Returns an iterator over the nodes earliest time
+    /// The earliest times nodes are active
+    ///
+    /// Returns:
+    ///     EarliestTimeView: a view of the earliest active times
     #[getter]
     fn earliest_time(
         &self,
@@ -552,10 +589,10 @@ impl PyNodes {
         self.nodes.earliest_time()
     }
 
-    /// Returns the earliest time of the nodes.
+    /// The earliest time nodes are active as datetime objects
     ///
     /// Returns:
-    /// Earliest time of the nodes.
+    ///     EarliestDateTimeView: a view of the earliest active times.
     #[getter]
     fn earliest_date_time(
         &self,
@@ -567,16 +604,19 @@ impl PyNodes {
         self.nodes.earliest_date_time()
     }
 
-    /// Returns an iterator over the nodes latest time
+    /// The latest time nodes are active
+    ///
+    /// Returns:
+    ///     LatestTimeView: a view of the latest active times
     #[getter]
     fn latest_time(&self) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph> {
         self.nodes.latest_time()
     }
 
-    /// Returns the latest date time of the nodes.
+    /// The latest time nodes are active as datetime objects
     ///
     /// Returns:
-    ///   Latest date time of the nodes.
+    ///   LatestDateTimeView: a view of the latest active times
     #[getter]
     fn latest_date_time(
         &self,
@@ -588,25 +628,28 @@ impl PyNodes {
         self.nodes.latest_date_time()
     }
 
-    /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    /// Returns all timestamps of nodes, when a node is added or change to a node is made.
     ///
     /// Returns:
-    ///    A list of unix timestamps.
+    ///    HistoryView: a view of the node histories
     ///
     fn history(&self) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph> {
         self.nodes.history()
     }
 
-    /// Returns the type of node
+    /// The node types
+    ///
+    /// Returns:
+    ///     NodeTypeView: a view of the node types
     #[getter]
     fn node_type(&self) -> LazyNodeState<'static, ops::Type, DynamicGraph> {
         self.nodes.node_type()
     }
 
-    /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    /// Returns all timestamps of nodes, when a node is added or change to a node is made.
     ///
     /// Returns:
-    ///    An  list of timestamps.
+    ///    HistoryDateTimeView: a view of the node histories as datetime objects.
     ///
     fn history_date_time(
         &self,
@@ -621,17 +664,17 @@ impl PyNodes {
     /// The properties of the node
     ///
     /// Returns:
-    ///     A List of properties
+    ///     PropertiesView: A view of the node properties
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let nodes = self.nodes.clone();
-        (move || nodes.properties().into_values()).into()
+        (move || nodes.properties().into_iter_values()).into()
     }
 
     /// Returns the number of edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of edges of the nodes
+    ///     DegreeView: a view of the undirected node degrees
     fn degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.degree()
     }
@@ -639,7 +682,7 @@ impl PyNodes {
     /// Returns the number of in edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of in edges of the nodes
+    ///     DegreeView: a view of the in-degrees of the nodes
     fn in_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.in_degree()
     }
@@ -647,7 +690,7 @@ impl PyNodes {
     /// Returns the number of out edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of out edges of the nodes
+    ///     DegreeView: a view of the out-degrees of the nodes
     fn out_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.out_degree()
     }
@@ -666,11 +709,11 @@ impl PyNodes {
     /// - "update_history": The update history of the node.
     ///
     /// Args:
-    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.
-    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///     include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Defaults to False.
+    ///     convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
     ///
     /// Returns:
-    ///     If successful, this PyObject will be a Pandas DataFrame.
+    ///     DataFrame: the view of the node data as a pandas Dataframe
     #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
     pub fn to_df(
         &self,
@@ -730,6 +773,13 @@ impl PyNodes {
         })
     }
 
+    /// Filter nodes by node type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the list of node types to keep
+    ///
+    /// Returns:
+    ///     Nodes: the filtered view of the nodes
     pub fn type_filter(&self, node_types: Vec<PyBackedStr>) -> Nodes<'static, DynamicGraph> {
         self.nodes.type_filter(&node_types)
     }
@@ -741,7 +791,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'
     }
 }
 
-#[pyclass(name = "PathFromGraph")]
+#[pyclass(name = "PathFromGraph", module = "raphtory")]
 pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
@@ -750,6 +800,8 @@ impl_nodeviewops!(
     PyPathFromGraph,
     path,
     PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    "PathFromGraph",
+    "NestedEdges",
     "PathFromGraph"
 );
 impl_iterable_mixin!(
@@ -767,24 +819,28 @@ impl_edge_property_filter_ops!(
 
 #[pymethods]
 impl PyPathFromGraph {
+    /// the node ids
     #[getter]
     fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    /// the node names
     #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    /// the node types
     #[getter]
     fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
+    /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -798,6 +854,7 @@ impl PyPathFromGraph {
         (move || path.earliest_date_time()).into()
     }
 
+    /// the node latest times
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -823,27 +880,38 @@ impl PyPathFromGraph {
         (move || path.history_date_time()).into()
     }
 
+    /// the node properties
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
+    /// the node degrees
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    /// the node in-degrees
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    /// the node out-degrees
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    /// filter nodes by type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep
+    ///
+    /// Returns:
+    ///     PathFromGraph: the filtered view
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,
@@ -887,7 +955,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
     }
 }
 
-#[pyclass(name = "PathFromNode")]
+#[pyclass(name = "PathFromNode", module = "raphtory")]
 pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
@@ -896,6 +964,8 @@ impl_nodeviewops!(
     PyPathFromNode,
     path,
     PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    "PathFromNode",
+    "Edges",
     "PathFromNode"
 );
 impl_iterable_mixin!(
@@ -939,57 +1009,73 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
 
 #[pymethods]
 impl PyPathFromNode {
+    /// the node ids
     #[getter]
     fn id(&self) -> GIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    /// the node names
     #[getter]
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    /// the node types
     #[getter]
     fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
+    /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    /// the node latest times
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }
 
+    /// the node properties
     #[getter]
-    fn properties(&self) -> PyPropsList {
+    fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
+    /// the node in-degrees
     fn in_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    /// the node out-degrees
     fn out_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    /// the node degrees
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    /// filter nodes by type
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep
+    ///
+    /// Returns:
+    ///     PathFromNode: the filtered view
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,

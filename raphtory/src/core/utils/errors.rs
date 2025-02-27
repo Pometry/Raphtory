@@ -1,4 +1,6 @@
 use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+#[cfg(feature = "io")]
+use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
@@ -8,8 +10,9 @@ use pyo3::PyErr;
 #[cfg(feature = "arrow")]
 use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
-    entities::{properties::PropError, GID},
+    entities::{properties::PropError, GID, VID},
     storage::arc_str::ArcStr,
+    PropType,
 };
 use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 #[cfg(feature = "search")]
@@ -60,6 +63,8 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Missing value for edge id {0:?} -> {1:?}")]
+    MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
     NodeIdTypeError { existing: GidType, new: GidType },
     #[error("Fatal load error, graph may be in a dirty state.")]
@@ -87,6 +92,12 @@ pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
+    #[error("Arrow-rs error: {0}")]
+    ArrowRs(#[from] arrow_schema::ArrowError),
+
+    #[cfg(feature = "io")]
+    #[error("Arrow-rs parquet error: {0}")]
+    ParquetError(#[from] ParquetError),
     #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]
@@ -125,6 +136,9 @@ pub enum GraphError {
     #[error("PropertyType Error: {0}")]
     PropertyTypeError(#[from] PropError),
 
+    #[error("{reason}")]
+    InvalidProperty { reason: String },
+
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
     ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },
 
@@ -154,6 +168,9 @@ pub enum GraphError {
 
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
+
+    #[error("Property {0} does not exist")]
+    PropertyMissingError(String),
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,
@@ -260,7 +277,6 @@ pub enum GraphError {
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
 
-    #[cfg(feature = "proto")]
     #[error("Failed to deserialise graph: {0}")]
     DeserialisationError(String),
 
@@ -287,6 +303,12 @@ pub enum GraphError {
 
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
+
+    #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
+    UnsupportedArrowDataType(PropType),
+
+    #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
+    TooManyViewsSet,
 }
 
 impl GraphError {
