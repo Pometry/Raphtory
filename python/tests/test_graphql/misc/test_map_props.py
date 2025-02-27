@@ -2,7 +2,7 @@ import tempfile
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
 
-TEST_PROPS = {"number": 1, "string": "text", "array": [1, "text"], "map": {"a": 1}}
+TEST_PROPS = {"number": 1, "string": "text", "numbers": [1, 14], "strings": ["a", "text"], "map": {"a": 1}}
 
 def test_map_props():
     work_dir = tempfile.mkdtemp()
