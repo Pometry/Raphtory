@@ -91,14 +91,22 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodePropertyFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGraph<G> {
+    #[inline]
     fn nodes_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn node_list_trusted(&self) -> bool {
         false
     }
 
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        false
+    }
+
+    #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_node(node, layer_ids) {
             let props = NodeView::new_internal(&self.graph, node.vid()).properties();

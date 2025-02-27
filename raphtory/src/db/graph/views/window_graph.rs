@@ -161,16 +161,21 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     #[inline]
-    fn node_list_trusted(&self) -> bool {
-        self.window_is_empty() || self.graph.node_list_trusted() && !self.nodes_filtered()
-    }
-
-    #[inline]
     fn nodes_filtered(&self) -> bool {
         self.window_is_empty()
             || self.graph.nodes_filtered()
             || self.start_bound() > self.core_graph().earliest_time().unwrap_or(i64::MAX)
             || self.end_bound() <= self.core_graph().latest_time().unwrap_or(i64::MIN)
+    }
+
+    #[inline]
+    fn node_list_trusted(&self) -> bool {
+        self.window_is_empty() || self.graph.node_list_trusted() && !self.nodes_filtered()
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.edge_filter_includes_node_filter()
     }
 
     #[inline]
@@ -642,11 +647,6 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.window_is_empty()
-    }
-
-    #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.window_is_empty() || self.graph.edge_filter_includes_node_filter()
     }
 
     #[inline]
