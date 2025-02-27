@@ -110,11 +110,6 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        true
-    }
-
-    #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         let filter_fn =
             |(_, edges): &(RoaringTreemap, RoaringTreemap)| edges.contains(edge.eid().as_u64());
@@ -135,6 +130,10 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
     }
     fn node_list_trusted(&self) -> bool {
         self.graph.node_list_trusted()
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        true
     }
 
     #[inline]
