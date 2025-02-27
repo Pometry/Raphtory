@@ -133,6 +133,7 @@ impl PropertyIndex {
         field_entity_id: Field,
         entity_id: u64,
         time: Option<i64>,
+        secondary_time: Option<usize>,
         layer_id: Option<usize>,
         prop_name: &str,
         prop_value: Prop,
@@ -146,6 +147,11 @@ impl PropertyIndex {
         if let Some(time) = time {
             let field_time = schema.get_field(fields::TIME)?;
             document.add_i64(field_time, time);
+        }
+
+        if let Some(secondary_time) = secondary_time {
+            let field_time = schema.get_field(fields::SECONDARY_TIME)?;
+            document.add_u64(field_time, secondary_time as u64);
         }
 
         if let Some(layer_id) = layer_id {
@@ -167,12 +173,13 @@ impl PropertyIndex {
         prop_value: Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let field_node_id = self.index.schema().get_field(fields::NODE_ID)?;
-        self.create_property_document(field_node_id, node_id, None, None, &prop_name, prop_value)
+        self.create_property_document(field_node_id, node_id, None, None, None, &prop_name, prop_value)
     }
 
     pub(crate) fn create_node_temporal_property_document(
         &self,
         time: i64,
+        secondary_time: usize,
         node_id: u64,
         prop_name: String,
         prop_value: Prop,
@@ -182,6 +189,7 @@ impl PropertyIndex {
             field_node_id,
             node_id,
             Some(time),
+            Some(secondary_time),
             None,
             &prop_name,
             prop_value,
@@ -200,6 +208,7 @@ impl PropertyIndex {
             field_edge_id,
             edge_id,
             None,
+            None,
             layer_id,
             &prop_name,
             prop_value,
@@ -209,6 +218,7 @@ impl PropertyIndex {
     pub(crate) fn create_edge_temporal_property_document(
         &self,
         time: i64,
+        secondary_time: usize,
         edge_id: u64,
         layer_id: Option<usize>,
         prop_name: String,
@@ -219,6 +229,7 @@ impl PropertyIndex {
             field_edge_id,
             edge_id,
             Some(time),
+            Some(secondary_time),
             layer_id,
             &prop_name,
             prop_value,

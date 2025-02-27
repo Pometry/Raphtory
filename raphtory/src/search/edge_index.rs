@@ -36,6 +36,7 @@ use tantivy::{
     },
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError, Term,
 };
+use crate::db::api::view::internal::InternalLayerOps;
 
 #[derive(Clone)]
 pub struct EdgeIndex {
@@ -193,6 +194,7 @@ impl EdgeIndex {
                 .map_err(|e| TantivyError::InternalError(e.to_string()))?
                 .to_string();
 
+            let layer_ids = graph.layer_ids();
             let layer_id = graph.get_layer_id(&layer_name);
 
             let constant_properties: Vec<(ArcStr, usize, Prop)> =
@@ -208,23 +210,13 @@ impl EdgeIndex {
             let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
                 self.collect_temporal_properties(&edge);
             for (time, temp_props) in &temporal_properties {
-                // temp_props.iter().for_each(|c| {
-                //     let (t, pid, v) = c;
-                //     println!(
-                //         "ev = {:?}, t = {:?}",
-                //         edge,
-                //         edge.clone()
-                //             .graph
-                //             .temporal_edge_prop_hist(edge.edge, *pid, edge.graph.layer_ids())
-                //             .collect_vec()
-                //     );
-                // });
-
                 index_edge_temporal_properties(
+                    edge.clone(),
                     temp_props.iter().cloned(),
                     self.temporal_property_indexes.write()?,
                     *time,
                     edge_id,
+                    layer_ids,
                     layer_id,
                     temporal_writers,
                 )?;

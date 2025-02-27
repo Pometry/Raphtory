@@ -1,12 +1,15 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{
-        properties::internal::{ConstPropertiesOps, PropertiesOps},
-        storage::graph::storage_ops::GraphStorage,
-        view::{
-            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            StaticGraphViewOps,
+    db::{
+        api::{
+            properties::internal::{ConstPropertiesOps, PropertiesOps},
+            storage::graph::storage_ops::GraphStorage,
+            view::{
+                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+                StaticGraphViewOps,
+            },
         },
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
@@ -26,6 +29,7 @@ use tantivy::{
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Index, IndexReader, IndexSettings, IndexWriter,
 };
+use raphtory_api::core::entities::LayerIds;
 
 pub mod graph_index;
 pub mod searcher;
@@ -40,6 +44,7 @@ mod query_builder;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
+    pub const SECONDARY_TIME: &str = "secondary_time";
     pub const NODE_ID: &str = "node_id";
     pub const NODE_NAME: &str = "node_name";
     pub const NODE_TYPE: &str = "node_type";
@@ -47,7 +52,6 @@ pub(in crate::search) mod fields {
     pub const SOURCE: &str = "from";
     pub const DESTINATION: &str = "to";
     pub const LAYER_ID: &str = "layer_id";
-    pub const PROPERTIES: &str = "properties";
 }
 
 pub(crate) const TOKENIZER: &str = "custom_default";
@@ -147,6 +151,7 @@ fn initialize_node_temporal_property_indexes(
         |g| g.node_meta().temporal_prop_meta(),
         |schema| {
             schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+            schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
             schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
         },
     )
@@ -181,6 +186,7 @@ fn initialize_edge_temporal_property_indexes(
         |g| g.edge_meta().temporal_prop_meta(),
         |schema| {
             schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+            schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
             schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
             schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
         },
@@ -212,7 +218,14 @@ where
     Ok(())
 }
 
-fn index_node_temporal_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
+fn index_node_temporal_properties<
+    'g,
+    I,
+    PI: DerefMut<Target = Vec<Option<PropertyIndex>>>,
+    G: GraphViewOps<'g>,
+    GH: GraphViewOps<'g>,
+>(
+    node: NodeView<G, GH>,
     properties: I,
     mut property_indexes: PI,
     time: i64,
@@ -224,9 +237,16 @@ where
 {
     for (prop_name, prop_id, prop_value) in properties {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            if let Some(property_index) = &mut property_indexes[prop_id] {
+            if let (Some(property_index), Some(tie)) = (
+                &mut property_indexes[prop_id],
+                node.graph
+                    .temporal_node_prop_hist_window(node.node, prop_id, time, time + 1)
+                    .next(),
+            ) {
+                let secondary_time = tie.0 .1;
                 let prop_doc = property_index.create_node_temporal_property_document(
                     time,
+                    secondary_time,
                     node_id,
                     prop_name.to_string(),
                     prop_value,
@@ -266,11 +286,19 @@ where
     Ok(())
 }
 
-fn index_edge_temporal_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
+fn index_edge_temporal_properties<
+    'g,
+    I,
+    PI: DerefMut<Target = Vec<Option<PropertyIndex>>>,
+    G: GraphViewOps<'g>,
+    GH: GraphViewOps<'g>,
+>(
+    edge: EdgeView<G, GH>,
     properties: I,
     mut property_indexes: PI,
     time: i64,
     edge_id: u64,
+    layer_ids: &LayerIds,
     layer_id: Option<usize>,
     writers: &[Option<IndexWriter>],
 ) -> tantivy::Result<()>
@@ -279,9 +307,22 @@ where
 {
     for (prop_name, prop_id, prop_value) in properties {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            if let Some(property_index) = &mut property_indexes[prop_id] {
+            if let (Some(property_index), Some(tie)) = (
+                &mut property_indexes[prop_id],
+                edge.graph
+                    .temporal_edge_prop_hist_window(
+                        edge.edge,
+                        prop_id,
+                        time,
+                        time + 1,
+                        layer_ids
+                    )
+                    .next(),
+            ) {
+                let secondary_time = tie.0 .1;
                 let prop_doc = property_index.create_edge_temporal_property_document(
                     time,
+                    secondary_time,
                     edge_id,
                     layer_id,
                     prop_name.to_string(),
@@ -294,24 +335,6 @@ where
 
     Ok(())
 }
-
-// Property Semantics:
-// There is a possibility that a const and temporal property share same name. This means that if a node
-// or an edge doesn't have a value for that temporal property, we fall back to its const property value.
-// Otherwise, the temporal property takes precedence.
-//
-// Search semantics:
-// This means that a property filter criteria, say p == 1, is looked for in both the const and temporal
-// property indexes for the given property name (if shared by both const and temporal properties). Now,
-// if the filter matches to docs in const property index but there already is a temporal property with a
-// different value, the doc is rejected i.e., fails the property filter criteria because temporal property
-// takes precedence.
-//          Search p == 1
-//      t_prop      c_prop
-//        T           T
-//        T           F
-//  (p=2) F     (p=1) T
-//        F           F
 
 fn fetch_property_index(
     indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,

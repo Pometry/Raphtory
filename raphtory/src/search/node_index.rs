@@ -196,8 +196,10 @@ impl NodeIndex {
 
         let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
             self.collect_temporal_properties(&node);
+
         for (time, temp_props) in &temporal_properties {
             index_node_temporal_properties(
+                node.clone(),
                 temp_props.iter().cloned(),
                 self.temporal_property_indexes.write()?,
                 *time,

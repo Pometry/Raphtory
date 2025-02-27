@@ -186,6 +186,25 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
+    // Property Semantics:
+    // There is a possibility that a const and temporal property share same name. This means that if a node
+    // or an edge doesn't have a value for that temporal property, we fall back to its const property value.
+    // Otherwise, the temporal property takes precedence.
+    //
+    // Search semantics:
+    // This means that a property filter criteria, say p == 1, is looked for in both the const and temporal
+    // property indexes for the given property name (if shared by both const and temporal properties). Now,
+    // if the filter matches to docs in const property index but there already is a temporal property with a
+    // different value, the doc is rejected i.e., fails the property filter criteria because temporal property
+    // takes precedence.
+    //          Search p == 1
+    //      t_prop      c_prop
+    //        T           T
+    //        T           F
+    //  (p=2) F     (p=1) T
+    //        F           F
+    //
+    // This applies to both node and edge properties.
     fn apply_combined_property_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
