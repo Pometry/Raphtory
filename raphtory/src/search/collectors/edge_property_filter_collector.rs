@@ -110,15 +110,25 @@ where
                     // Skip entity_ids which don't qualify last_before check for given timestamp and prop_id
                     .filter_map(|id| {
                         let (t, doc_addr) = global_unique_entity_ids.get(&id).copied()?;
+
                         let segment_reader = searcher.segment_reader(doc_addr.segment_ord);
                         let column_opt_layer_id: Option<Column<u64>> = segment_reader
                             .fast_fields()
                             .column_opt(fields::LAYER_ID)
                             .ok()?;
+                        let column_opt_secondary_time: Option<Column<u64>> = segment_reader
+                            .fast_fields()
+                            .column_opt(fields::SECONDARY_TIME)
+                            .ok()?;
 
-                        if let Some(layer_id) = column_opt_layer_id
+                        let layer_id = column_opt_layer_id
                             .as_ref()
-                            .and_then(|col| col.values_for_doc(doc_addr.doc_id).next())
+                            .and_then(|col| col.values_for_doc(doc_addr.doc_id).next());
+                        let secondary_time = column_opt_secondary_time
+                            .as_ref()
+                            .and_then(|col| col.values_for_doc(doc_addr.doc_id).next());
+
+                        if let (Some(layer_id), Some(secondary_index)) = (layer_id, secondary_time)
                         {
                             let available = t
                                 .map(|t| {
@@ -130,7 +140,7 @@ where
                                         layer_id as usize,
                                         self.prop_id,
                                         EID(id as usize),
-                                        TimeIndexEntry::start(end),
+                                        TimeIndexEntry::new(end, secondary_index as usize),
                                     )
                                 })
                                 // "t" is none for entity_ids that are already within window.
