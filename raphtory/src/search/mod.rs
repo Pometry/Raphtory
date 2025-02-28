@@ -231,9 +231,7 @@ fn index_node_temporal_properties<
     mut property_indexes: PI,
     node_id: u64,
     writers: &[Option<IndexWriter>],
-) -> tantivy::Result<()>
-where
-{
+) -> tantivy::Result<()> {
     for (time, prop_name, prop_id, prop_value) in properties {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
             let mut hist_entries =
@@ -288,41 +286,41 @@ where
 
 fn index_edge_temporal_properties<
     'g,
-    I,
     PI: DerefMut<Target = Vec<Option<PropertyIndex>>>,
     G: GraphViewOps<'g>,
     GH: GraphViewOps<'g>,
 >(
     edge: EdgeView<G, GH>,
-    properties: I,
+    properties: Vec<(i64, ArcStr, usize, Prop)>,
     mut property_indexes: PI,
-    time: i64,
     edge_id: u64,
     layer_ids: &LayerIds,
     layer_id: Option<usize>,
     writers: &[Option<IndexWriter>],
-) -> tantivy::Result<()>
-where
-    I: Iterator<Item = (ArcStr, usize, Prop)>,
-{
-    for (prop_name, prop_id, prop_value) in properties {
+) -> tantivy::Result<()> {
+    for (time, prop_name, prop_id, prop_value) in properties {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            if let (Some(property_index), Some(tie)) = (
-                &mut property_indexes[prop_id],
-                edge.graph
-                    .temporal_edge_prop_hist_window(edge.edge, prop_id, time, time + 1, layer_ids)
-                    .next(),
-            ) {
-                let secondary_time = tie.0 .1;
-                let prop_doc = property_index.create_edge_temporal_property_document(
-                    time,
-                    secondary_time,
-                    edge_id,
-                    layer_id,
-                    prop_name.to_string(),
-                    prop_value,
-                )?;
-                prop_writer.add_document(prop_doc)?;
+            let mut hist_entries = edge.graph.temporal_edge_prop_hist_window(
+                edge.edge,
+                prop_id,
+                time,
+                time + 1,
+                layer_ids,
+            );
+
+            if let Some(property_index) = &mut property_indexes[prop_id] {
+                for (tie, p) in hist_entries.filter(|(_, v)| *v == prop_value) {
+                    let secondary_time = tie.1;
+                    let prop_doc = property_index.create_edge_temporal_property_document(
+                        time,
+                        secondary_time,
+                        edge_id,
+                        layer_id,
+                        prop_name.to_string(),
+                        prop_value.clone(),
+                    )?;
+                    prop_writer.add_document(prop_doc)?;
+                }
             }
         }
     }

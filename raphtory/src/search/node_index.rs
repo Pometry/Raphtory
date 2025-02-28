@@ -183,8 +183,7 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type().unwrap_or_else(|| ArcStr::from(""));
 
-        let const_properties: &Vec<(ArcStr, usize, Prop)> =
-            &self.collect_constant_properties(&node);
+        let const_properties = self.collect_constant_properties(&node);
         index_node_const_properties(
             const_properties.iter().cloned(),
             self.constant_property_indexes.write()?,
@@ -193,7 +192,6 @@ impl NodeIndex {
         )?;
 
         let temporal_properties = self.collect_temporal_properties(&node);
-
         index_node_temporal_properties(
             node.clone(),
             temporal_properties,

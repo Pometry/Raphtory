@@ -19,6 +19,7 @@ use crate::{
         new_index, property_index::PropertyIndex, TOKENIZER,
     },
 };
+use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::ParallelIterator;
 use serde_json::json;
@@ -159,7 +160,7 @@ impl EdgeIndex {
     fn collect_temporal_properties<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
         edge: &EdgeView<G, GH>,
-    ) -> BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> {
+    ) -> Vec<(i64, ArcStr, usize, Prop)> {
         edge.properties()
             .temporal()
             .iter()
@@ -169,10 +170,7 @@ impl EdgeIndex {
                     .into_iter()
                     .map(move |(t, v)| (t, key.clone(), pid, v))
             })
-            .fold(BTreeMap::new(), |mut map, (t, k, pid, v)| {
-                map.entry(t).or_insert_with(Vec::new).push((k, pid, v));
-                map
-            }) // TODO Revisit
+            .collect_vec()
     }
 
     fn index_edge<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
@@ -196,8 +194,7 @@ impl EdgeIndex {
             let layer_ids = graph.layer_ids();
             let layer_id = graph.get_layer_id(&layer_name);
 
-            let constant_properties: Vec<(ArcStr, usize, Prop)> =
-                self.collect_constant_properties(&edge);
+            let constant_properties = self.collect_constant_properties(&edge);
             index_edge_const_properties(
                 constant_properties.iter().cloned(),
                 self.constant_property_indexes.write()?,
@@ -206,20 +203,16 @@ impl EdgeIndex {
                 const_writers,
             )?;
 
-            let temporal_properties: BTreeMap<i64, Vec<(ArcStr, usize, Prop)>> =
-                self.collect_temporal_properties(&edge);
-            for (time, temp_props) in &temporal_properties {
-                index_edge_temporal_properties(
-                    edge.clone(),
-                    temp_props.iter().cloned(),
-                    self.temporal_property_indexes.write()?,
-                    *time,
-                    edge_id,
-                    layer_ids,
-                    layer_id,
-                    temporal_writers,
-                )?;
-            }
+            let temporal_properties = self.collect_temporal_properties(&edge);
+            index_edge_temporal_properties(
+                edge.clone(),
+                temporal_properties,
+                self.temporal_property_indexes.write()?,
+                edge_id,
+                layer_ids,
+                layer_id,
+                temporal_writers,
+            )?;
         }
 
         // Check if the edge document is already in the index,

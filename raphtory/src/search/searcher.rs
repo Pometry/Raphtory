@@ -714,6 +714,118 @@ mod search_tests {
                 graph
             }
 
+            fn init_graph_for_secondary_indexes<
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            >(
+                graph: G,
+            ) -> G {
+                graph
+                    .add_edge(1, "N16", "N15", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(1, "N16", "N15", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+
+                graph
+                    .add_edge(1, "N17", "N16", [("p1", Prop::U64(1u64))], None)
+                    .unwrap();
+                graph
+                    .add_edge(1, "N17", "N16", [("p1", Prop::U64(2u64))], None)
+                    .unwrap();
+
+                graph
+            }
+
+            #[test]
+            fn test_secondary_indexes_edges() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                g.searcher()
+                    .unwrap()
+                    .search_edges(&g, filter, 10, 0)
+                    .unwrap();
+            }
+
+            #[test]
+            fn test_temporal_any_semantics_for_secondary_indexes() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let g = init_graph_for_secondary_indexes(g);
+
+                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+
+                assert_eq!(
+                    results,
+                    vec![
+                        "N1->N2", "N16->N15", "N17->N16", "N2->N3", "N3->N4", "N4->N5", "N5->N6",
+                        "N6->N7", "N7->N8", "N8->N9"
+                    ]
+                )
+            }
+
+            #[test]
+            fn test_temporal_latest_semantics_for_secondary_indexes() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let g = init_graph_for_secondary_indexes(g);
+
+                let filter: FilterExpr = PropertyFilter::temporal_property("p1").latest().eq(1u64);
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+
+                assert_eq!(
+                    results,
+                    vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
+                )
+            }
+
+            #[test]
+            fn test_property_latest_semantics_for_secondary_indexes() {
+                let g = Graph::new();
+                let g = init_graph(g);
+                let g = init_graph_for_secondary_indexes(g);
+
+                let filter: FilterExpr = PropertyFilter::property("p1").eq(1u64);
+                let mut results = g
+                    .searcher()
+                    .unwrap()
+                    .search_edges(&g, filter, 10, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+
+                assert_eq!(
+                    results,
+                    vec![
+                        "N1->N2", "N14->N15", "N15->N1", "N16->N15", "N3->N4", "N4->N5", "N6->N7",
+                        "N7->N8"
+                    ]
+                )
+            }
+
             #[test]
             fn test_temporal_any_semantics() {
                 let g = Graph::new();
