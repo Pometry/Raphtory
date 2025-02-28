@@ -17,6 +17,11 @@ pub trait NodeFilterOps {
     /// of nodes in the graph).
     fn node_list_trusted(&self) -> bool;
 
+    /// If true, do not need to check src and dst of the edge separately, even if nodes are filtered
+    /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
+    /// This should be `false` when implementing `NodeFilterOps` without overriding the edge filter.
+    fn edge_filter_includes_node_filter(&self) -> bool;
+
     /// If `true`, node is included in the graph
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
 }
@@ -35,6 +40,11 @@ where
     #[inline]
     fn node_list_trusted(&self) -> bool {
         self.base().node_list_trusted()
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.base().edge_filter_includes_node_filter()
     }
 
     #[inline]

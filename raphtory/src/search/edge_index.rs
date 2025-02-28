@@ -103,21 +103,19 @@ impl EdgeIndex {
         schema_builder.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
         schema_builder.add_text_field(
             fields::SOURCE,
-            TextOptions::default()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer(TOKENIZER)
-                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
+            TextOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(TOKENIZER)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
         schema_builder.add_text_field(
             fields::DESTINATION,
-            TextOptions::default()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer(TOKENIZER)
-                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                )
+            TextOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(TOKENIZER)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
         schema_builder
     }

@@ -58,11 +58,18 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for TypeFilteredS
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for TypeFilteredSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> {
+    #[inline]
     fn nodes_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn node_list_trusted(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
         false
     }
 
@@ -463,5 +470,52 @@ mod search_edges_node_type_filtered_subgraph_tests {
         let filter = PropertyFilter::property("p1").eq(1u64);
         let results = search_edges_by_composite_filter_w(&graph, 6..9, node_types, filter);
         assert_eq!(results, vec!["N1->N2", "N3->N4"]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{db::graph::views::property_filter::PropertyRef, prelude::*};
+
+    #[test]
+    fn test_type_filtered_subgraph() {
+        let graph = Graph::new();
+        graph.add_edge(1, "A", "B", [("p1", 1u64)], None).unwrap();
+        graph.add_edge(2, "B", "C", [("p1", 2u64)], None).unwrap();
+        graph.add_edge(3, "C", "D", [("p1", 3u64)], None).unwrap();
+        graph.add_edge(4, "D", "E", [("p1", 4u64)], None).unwrap();
+
+        graph
+            .add_node(1, "A", [("p1", 1u64)], Some("water_tribe"))
+            .unwrap();
+        graph
+            .add_node(2, "B", [("p1", 2u64)], Some("water_tribe"))
+            .unwrap();
+        graph
+            .add_node(3, "C", [("p1", 1u64)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(4, "D", [("p1", 1u64)], Some("air_nomads"))
+            .unwrap();
+
+        let type_filtered_subgraph = graph
+            .subgraph_node_types(vec!["fire_nation", "air_nomads"])
+            .window(1, 5);
+
+        assert_eq!(type_filtered_subgraph.nodes(), vec!["C", "D"]);
+
+        assert_eq!(
+            type_filtered_subgraph
+                .filter_nodes(PropertyFilter::eq(PropertyRef::Property("p1".into()), 1u64))
+                .unwrap()
+                .nodes(),
+            vec!["C", "D"]
+        );
+
+        assert!(type_filtered_subgraph
+            .filter_edges(PropertyFilter::eq(PropertyRef::Property("p1".into()), 1u64))
+            .unwrap()
+            .edges()
+            .is_empty())
     }
 }

@@ -1,9 +1,11 @@
 use crate::model::graph::{
-    edges::GqlEdges, nodes::GqlNodes, path_from_node::GqlPathFromNode, property::GqlProperties,
+    edges::GqlEdges, filtering::NodeViewCollection, nodes::GqlNodes,
+    path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
+    core::utils::errors::GraphError,
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::node::NodeView,
@@ -43,7 +45,9 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
-
+    async fn default_layer(&self) -> Node {
+        self.vv.default_layer().into()
+    }
     async fn layers(&self, names: Vec<String>) -> Node {
         self.vv.valid_layers(names).into()
     }
@@ -98,6 +102,80 @@ impl Node {
 
     async fn shrink_end(&self, end: i64) -> Self {
         self.vv.shrink_end(end).into()
+    }
+
+    async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<Node, GraphError> {
+        let mut return_view: Node = self.vv.clone().into();
+
+        for view in views {
+            let mut count = 0;
+            if let Some(_) = view.default_layer {
+                count += 1;
+                return_view = return_view.default_layer().await;
+            }
+            if let Some(layers) = view.layers {
+                count += 1;
+                return_view = return_view.layers(layers).await;
+            }
+            if let Some(layers) = view.exclude_layers {
+                count += 1;
+                return_view = return_view.exclude_layers(layers).await;
+            }
+            if let Some(layer) = view.layer {
+                count += 1;
+                return_view = return_view.layer(layer).await;
+            }
+            if let Some(layer) = view.exclude_layer {
+                count += 1;
+                return_view = return_view.exclude_layer(layer).await;
+            }
+            if let Some(window) = view.window {
+                count += 1;
+                return_view = return_view.window(window.start, window.end).await;
+            }
+            if let Some(time) = view.at {
+                count += 1;
+                return_view = return_view.at(time).await;
+            }
+            if let Some(_) = view.latest {
+                count += 1;
+                return_view = return_view.latest().await;
+            }
+            if let Some(time) = view.snapshot_at {
+                count += 1;
+                return_view = return_view.snapshot_at(time).await;
+            }
+            if let Some(_) = view.snapshot_latest {
+                count += 1;
+                return_view = return_view.snapshot_latest().await;
+            }
+            if let Some(time) = view.before {
+                count += 1;
+                return_view = return_view.before(time).await;
+            }
+            if let Some(time) = view.after {
+                count += 1;
+                return_view = return_view.after(time).await;
+            }
+            if let Some(window) = view.shrink_window {
+                count += 1;
+                return_view = return_view.shrink_window(window.start, window.end).await;
+            }
+            if let Some(time) = view.shrink_start {
+                count += 1;
+                return_view = return_view.shrink_start(time).await;
+            }
+            if let Some(time) = view.shrink_end {
+                count += 1;
+                return_view = return_view.shrink_end(time).await;
+            }
+
+            if count > 1 {
+                return Err(GraphError::TooManyViewsSet);
+            }
+        }
+
+        Ok(return_view)
     }
 
     ////////////////////////

@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        utils::iter::GenLockedIter,
         Direction,
     },
     db::api::{
@@ -21,7 +22,10 @@ use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{
     graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
 };
-use raphtory_api::core::storage::timeindex::{TimeIndexEntry, TimeIndexIntoOps};
+use raphtory_api::{
+    core::storage::timeindex::{TimeIndexEntry, TimeIndexIntoOps},
+    iter::IntoDynBoxed,
+};
 use std::{borrow::Cow, iter, ops::Range, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
@@ -366,42 +370,50 @@ impl DiskOwnedNode {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => {
-                let layers = self.graph.arc_layers().clone();
-                LayerVariants::All(
+                let iter = GenLockedIter::from(self, |owned_node| {
+                    let layers = owned_node.graph.arc_layers();
                     (0..layers.len())
                         .map(move |layer_id| {
                             let layer = &layers[layer_id];
-                            let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
-                            let nbrs = layer.nodes_storage().into_out_neighbours_iter(self.vid);
-                            eids.zip(nbrs)
-                                .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, self.vid, dst))
+                            let eids = layer.nodes_storage().out_edges_iter(owned_node.vid);
+                            let nbrs = layer.nodes_storage().out_neighbours_iter(owned_node.vid);
+                            eids.zip(nbrs).map(move |(eid, dst)| {
+                                EdgeRef::new_outgoing(eid, owned_node.vid, dst)
+                            })
                         })
                         .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                        .dedup_by(|e1, e2| e1.remote() == e2.remote()),
-                )
+                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
+                        .into_dyn_boxed()
+                });
+                LayerVariants::All(iter)
             }
             LayerIds::One(layer_id) => {
-                let layer = self.graph.layer(layer_id);
-                let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
-                let nbrs = layer.nodes_storage().into_out_neighbours_iter(self.vid);
-                LayerVariants::One(
+                let iter = GenLockedIter::from(self, |owned_node| {
+                    let layer = owned_node.graph.layer(layer_id);
+                    let eids = layer.nodes_storage().out_edges_iter(owned_node.vid);
+                    let nbrs = layer.nodes_storage().out_neighbours_iter(owned_node.vid);
                     eids.zip(nbrs)
-                        .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, self.vid, dst)),
-                )
+                        .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, owned_node.vid, dst))
+                        .into_dyn_boxed()
+                });
+                LayerVariants::One(iter)
             }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.into_iter()
-                    .map(move |layer_id| {
-                        let layer = self.graph.layer(layer_id);
-                        let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
-                        let nbrs = layer.nodes_storage().into_out_neighbours_iter(self.vid);
-                        let src = self.vid;
-                        eids.zip(nbrs)
-                            .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, src, dst))
-                    })
-                    .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                    .dedup_by(|e1, e2| e1.remote() == e2.remote()),
-            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(GenLockedIter::from(self, |owned_node| {
+                    ids.into_iter()
+                        .map(move |layer_id| {
+                            let layer = owned_node.graph.layer(layer_id);
+                            let eids = layer.nodes_storage().out_edges_iter(owned_node.vid);
+                            let nbrs = layer.nodes_storage().out_neighbours_iter(owned_node.vid);
+                            let src = owned_node.vid;
+                            eids.zip(nbrs)
+                                .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, src, dst))
+                        })
+                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
+                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
+                        .into_dyn_boxed()
+                }))
+            }
         }
     }
 
@@ -409,44 +421,53 @@ impl DiskOwnedNode {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => {
-                let layers = self.graph.arc_layers().clone();
-                LayerVariants::All(
+                let iter = GenLockedIter::from(self, |owned_node| {
+                    let layers = owned_node.graph.arc_layers();
                     (0..layers.len())
                         .map(move |layer_id| {
                             let layer = &layers[layer_id];
-                            let eids = layer.nodes_storage().into_in_edges_iter(self.vid);
-                            let nbrs = layer.nodes_storage().into_in_neighbours_iter(self.vid);
-                            let dst = self.vid;
+                            let eids = layer.nodes_storage().in_edges_iter(owned_node.vid);
+                            let nbrs = layer.nodes_storage().in_neighbours_iter(owned_node.vid);
+                            let dst = owned_node.vid;
                             eids.zip(nbrs)
                                 .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
                         })
                         .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                        .dedup_by(|e1, e2| e1.remote() == e2.remote()),
-                )
+                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
+                        .into_dyn_boxed()
+                });
+                LayerVariants::All(iter)
             }
             LayerIds::One(layer_id) => {
-                let layer = self.graph.layer(layer_id);
-                let eids = layer.nodes_storage().into_in_edges_iter(self.vid);
-                let nbrs = layer.nodes_storage().into_in_neighbours_iter(self.vid);
-                let dst = self.vid;
-                LayerVariants::One(
+                let iter = GenLockedIter::from(self, |owned_node| {
+                    let layer = owned_node.graph.layer(layer_id);
+                    let eids = layer.nodes_storage().in_edges_iter(owned_node.vid);
+                    let nbrs = layer.nodes_storage().in_neighbours_iter(owned_node.vid);
+                    let dst = owned_node.vid;
                     eids.zip(nbrs)
-                        .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst)),
-                )
+                        .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
+                        .into_dyn_boxed()
+                });
+                LayerVariants::One(iter)
             }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.into_iter()
-                    .map(move |layer_id| {
-                        let layer = self.graph.layer(layer_id);
-                        let eids = layer.nodes_storage().into_in_edges_iter(self.vid);
-                        let nbrs = layer.nodes_storage().into_in_neighbours_iter(self.vid);
-                        let dst = self.vid;
-                        eids.zip(nbrs)
-                            .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
-                    })
-                    .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                    .dedup_by(|e1, e2| e1.remote() == e2.remote()),
-            ),
+            LayerIds::Multiple(ids) => {
+                let iter = GenLockedIter::from(self, |owned_node| {
+                    ids.into_iter()
+                        .map(move |layer_id| {
+                            let layer = owned_node.graph.layer(layer_id);
+                            let eids = layer.nodes_storage().in_edges_iter(owned_node.vid);
+                            let nbrs = layer.nodes_storage().in_neighbours_iter(owned_node.vid);
+                            let dst = owned_node.vid;
+                            eids.zip(nbrs)
+                                .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
+                        })
+                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
+                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
+                        .into_dyn_boxed()
+                });
+
+                LayerVariants::Multiple(iter)
+            }
         }
     }
 
