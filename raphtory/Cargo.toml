@@ -87,7 +87,8 @@ pyo3-arrow = {workspace = true, optional = true}
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 roaring = { workspace = true }
-
+fake = { workspace = true }
+strsim = { workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -123,7 +124,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy"]
+search = ["dep:tantivy", "proto"]
 # vectors
 vectors = [
     "dep:futures-util",

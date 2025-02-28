@@ -4,6 +4,7 @@ use crate::{
         constant_props::ConstantProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
+use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 

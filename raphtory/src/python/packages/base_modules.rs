@@ -11,7 +11,6 @@ use crate::{
             edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
-            index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
                 PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
@@ -58,7 +57,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyRef,
         PyPropertyFilter,
         PyWindowSet,
-        GraphIndex
     );
 
     #[cfg(feature = "storage")]

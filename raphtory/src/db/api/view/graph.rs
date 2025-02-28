@@ -23,10 +23,11 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
             },
         },
     },
+    prelude::PropertyFilter,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -127,6 +128,37 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
+}
+
+#[cfg(feature = "search")]
+pub trait SearchableGraphOps: Sized {
+    fn search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
+    fn search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn fuzzy_search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
+    fn fuzzy_search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
 }
 
 impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
@@ -590,6 +622,47 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
+    }
+}
+
+#[cfg(feature = "search")]
+impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+    fn search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        self.searcher()?.search_nodes(self, filter, limit, offset)
+    }
+
+    fn search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        self.searcher()?.search_edges(self, filter, limit, offset)
+    }
+
+    fn fuzzy_search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        self.searcher()?
+            .fuzzy_search_nodes(self, filter, limit, offset)
+    }
+
+    fn fuzzy_search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        self.searcher()?
+            .fuzzy_search_edges(self, filter, limit, offset)
     }
 }
 
