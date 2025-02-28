@@ -6,6 +6,7 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use polars_arrow::{
     array::{
@@ -193,6 +194,13 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
 
             props.into_prop_list()
         }
+        DataType::Decimal(precision, scale) if *precision <= 38 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
+            arr.iter()
+                .flatten()
+                .map(|elem| Prop::Decimal(BigDecimal::new((*elem).into(), *scale as i64)))
+                .into_prop_list()
+        }
         DataType::Null => Prop::List(vec![].into()),
         dt => panic!("Data type not recognized {dt:?}"),
     }
@@ -230,6 +238,9 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
             None => Ok(PropType::NDTime),
             Some(_) => Ok(PropType::DTime),
         },
+        DataType::Decimal(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
+            scale: *scale as i64,
+        }),
         DataType::Null => Ok(PropType::Empty),
         _ => Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
@@ -307,6 +318,17 @@ struct DTimeCol {
 impl PropCol for DTimeCol {
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(&self.arr, i).map(self.map)
+    }
+}
+
+struct DecimalTimeCol {
+    arr: PrimitiveArray<i128>,
+    scale: i64,
+}
+
+impl PropCol for DecimalTimeCol {
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
     }
 }
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
@@ -452,6 +474,13 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                     }),
                 },
             }
+        }
+        DataType::Decimal(precision, scale) if *precision <= 38 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
+            Box::new(DecimalTimeCol {
+                arr: arr.clone(),
+                scale: *scale as i64,
+            })
         }
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }
