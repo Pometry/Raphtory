@@ -79,7 +79,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
     }
 }
 
-// TODO: We don't need to materialize the subgraph. Refer: https://github.com/Pometry/Raphtory/issues/1948
 #[cfg(all(test, feature = "search"))]
 mod search_nodes_node_type_filtered_subgraph_tests {
     use crate::{
@@ -156,7 +155,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         node_types: Vec<String>,
         filter: FilterExpr,
     ) -> Vec<String> {
-        let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
+        let sgm = graph.subgraph_node_types(node_types);
         let mut results = sgm
             .search_nodes(filter, 10, 0)
             .expect("Failed to search for nodes")
@@ -173,7 +172,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         node_types: Vec<String>,
         filter: FilterExpr,
     ) -> Vec<String> {
-        let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
+        let sgm = graph.subgraph_node_types(node_types);
         let mut results = sgm
             .window(w.start, w.end)
             .search_nodes(filter, 10, 0)
@@ -260,7 +259,6 @@ mod search_nodes_node_type_filtered_subgraph_tests {
     }
 }
 
-// TODO: We don't need to materialize the subgraph. Refer: https://github.com/Pometry/Raphtory/issues/1948
 #[cfg(all(test, feature = "search"))]
 mod search_edges_node_type_filtered_subgraph_tests {
     use crate::{
@@ -363,7 +361,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
         node_types: Vec<String>,
         filter: FilterExpr,
     ) -> Vec<String> {
-        let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
+        let sgm = graph.subgraph_node_types(node_types);
         let mut results = sgm
             .search_edges(filter, 10, 0)
             .expect("Failed to search for nodes")
@@ -380,7 +378,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
         node_types: Vec<String>,
         filter: FilterExpr,
     ) -> Vec<String> {
-        let sgm = graph.subgraph_node_types(node_types).materialize().unwrap();
+        let sgm = graph.subgraph_node_types(node_types);
         let mut results = sgm
             .window(w.start, w.end)
             .search_edges(filter, 10, 0)
