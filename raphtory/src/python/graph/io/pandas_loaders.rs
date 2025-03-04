@@ -6,7 +6,7 @@ use crate::{
     },
     io::arrow::{dataframe::*, df_loaders::*},
     python::graph::io::*,
-    serialise::incremental::InternalStorage,
+    serialise::incremental::InternalCache,
 };
 use polars_arrow::{array::Array, ffi};
 use pyo3::{
@@ -60,7 +60,7 @@ pub(crate) fn load_nodes_from_pandas<
 
 pub(crate) fn load_edges_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalStorage,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,

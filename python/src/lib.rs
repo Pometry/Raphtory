@@ -6,6 +6,7 @@ use raphtory_core::python::{
         add_raphtory_classes, base_algorithm_module, base_graph_gen_module,
         base_graph_loader_module, base_vectors_module,
     },
+    types::wrappers::filter_expr::base_filter_module,
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
@@ -20,11 +21,13 @@ fn raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let graph_gen_module = base_graph_gen_module(py)?;
     let vectors_module = base_vectors_module(py)?;
     let node_state_module = base_node_state_module(py)?;
+    let filter_module = base_filter_module(py)?;
     m.add_submodule(&graphql_module)?;
     m.add_submodule(&algorithm_module)?;
     m.add_submodule(&graph_loader_module)?;
     m.add_submodule(&graph_gen_module)?;
     m.add_submodule(&vectors_module)?;
     m.add_submodule(&node_state_module)?;
+    m.add_submodule(&filter_module)?;
     Ok(())
 }

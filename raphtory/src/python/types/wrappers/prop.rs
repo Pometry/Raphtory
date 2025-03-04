@@ -1,7 +1,10 @@
 use crate::{
     core::{prop_array::PropArray, utils::errors::GraphError, Prop},
-    db::graph::views::property_filter::internal::{
-        InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
+    db::graph::views::property_filter::{
+        internal::{
+            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
+        },
+        PropertyRef,
     },
     prelude::{GraphViewOps, PropertyFilter},
     python::types::repr::Repr,
@@ -179,32 +182,32 @@ impl PyPropertyRef {
     }
 
     fn __eq__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::eq(&self.name, value);
+        let filter = PropertyFilter::eq(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __ne__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::ne(&self.name, value);
+        let filter = PropertyFilter::ne(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __lt__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::lt(&self.name, value);
+        let filter = PropertyFilter::lt(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __le__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::le(&self.name, value);
+        let filter = PropertyFilter::le(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __gt__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::gt(&self.name, value);
+        let filter = PropertyFilter::gt(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __ge__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::ge(&self.name, value);
+        let filter = PropertyFilter::ge(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
@@ -213,7 +216,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn is_some(&self) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_some(&self.name);
+        let filter = PropertyFilter::is_some(PropertyRef::Property(self.name.clone()));
         PyPropertyFilter(filter)
     }
 
@@ -222,7 +225,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn is_none(&self) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_none(&self.name);
+        let filter = PropertyFilter::is_none(PropertyRef::Property(self.name.clone()));
         PyPropertyFilter(filter)
     }
 
@@ -234,7 +237,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::includes(&self.name, values);
+        let filter = PropertyFilter::includes(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 
@@ -247,7 +250,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::excludes(&self.name, values);
+        let filter = PropertyFilter::excludes(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 }
