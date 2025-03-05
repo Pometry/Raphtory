@@ -1035,7 +1035,7 @@ mod search_tests {
                 .unwrap();
 
             let mut results = graph
-                .fuzzy_search_nodes(filter, 10, 0)
+                .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
@@ -1419,7 +1419,7 @@ mod search_tests {
                 .unwrap();
 
             let mut results = graph
-                .fuzzy_search_edges(filter, 5, 0)
+                .search_edges(filter, 5, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|e| (e.src().name(), e.dst().name()))
