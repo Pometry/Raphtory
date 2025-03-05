@@ -1,4 +1,8 @@
-use crate::db::graph::views::property_filter::{Filter, FilterExpr};
+use crate::{
+    core::Prop,
+    db::graph::views::property_filter::{Filter, FilterExpr, PropertyRef, Temporal},
+    prelude::PropertyFilter,
+};
 use pyo3::prelude::*;
 
 #[pyclass(frozen, name = "FilterExpr", module = "raphtory")]
@@ -8,6 +12,321 @@ pub struct PyFilterExpr(pub FilterExpr);
 impl PyFilterExpr {
     fn new(filter_expr: FilterExpr) -> Self {
         PyFilterExpr(filter_expr)
+    }
+}
+
+#[pyclass(frozen, name = "ConstantPropertyFilterOps", module = "raphtory")]
+#[derive(Clone)]
+pub struct PyConstantPropertyFilterOps(String);
+
+#[pymethods]
+impl PyConstantPropertyFilterOps {
+    #[new]
+    fn new(name: String) -> Self {
+        PyConstantPropertyFilterOps(name)
+    }
+
+    fn __eq__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __ne__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::ne(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __lt__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::lt(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __le__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::le(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __gt__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::gt(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __ge__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::ge(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn includes(&self, values: Vec<Prop>) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::includes(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            values,
+        )))
+    }
+
+    fn excludes(&self, values: Vec<Prop>) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::excludes(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            values,
+        )))
+    }
+
+    fn is_none(&self) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::is_none(
+            PropertyRef::ConstantProperty(self.0.clone()),
+        )))
+    }
+
+    fn is_some(&self) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::is_some(
+            PropertyRef::ConstantProperty(self.0.clone()),
+        )))
+    }
+
+    fn fuzzy_search(
+        &self,
+        prop_value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::fuzzy_search(
+            PropertyRef::ConstantProperty(self.0.clone()),
+            prop_value,
+            levenshtein_distance,
+            prefix_match,
+        )))
+    }
+}
+
+#[pyclass(frozen, name = "TemporalPropertyFilterOps", module = "raphtory")]
+#[derive(Clone)]
+pub struct PyTemporalPropertyFilterOps(String, Temporal);
+
+#[pymethods]
+impl PyTemporalPropertyFilterOps {
+    #[new]
+    fn new(name: String, temporal: &str) -> Self {
+        let temporal = match temporal {
+            "any" => Temporal::Any,
+            "latest" => Temporal::Latest,
+            _ => panic!("Temporal type {} not supported", temporal),
+        };
+        PyTemporalPropertyFilterOps(name, temporal)
+    }
+
+    fn __eq__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            value,
+        )))
+    }
+
+    fn __ne__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::ne(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            value,
+        )))
+    }
+
+    fn __lt__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::lt(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            value,
+        )))
+    }
+
+    fn __le__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::le(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            value,
+        )))
+    }
+
+    fn __gt__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::gt(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            value,
+        )))
+    }
+
+    fn __ge__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::ge(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            value,
+        )))
+    }
+
+    fn includes(&self, values: Vec<Prop>) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::includes(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            values,
+        )))
+    }
+
+    fn excludes(&self, values: Vec<Prop>) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::excludes(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            values,
+        )))
+    }
+
+    fn is_none(&self) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::is_none(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+        )))
+    }
+
+    fn is_some(&self) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::is_some(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+        )))
+    }
+
+    fn fuzzy_search(
+        &self,
+        prop_value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::fuzzy_search(
+            PropertyRef::TemporalProperty(self.0.clone(), self.1.clone()),
+            prop_value,
+            levenshtein_distance,
+            prefix_match,
+        )))
+    }
+}
+
+#[pyclass(frozen, name = "TemporalPropertyFilter", module = "raphtory")]
+#[derive(Clone)]
+pub struct PyTemporalPropertyFilter(String);
+
+#[pymethods]
+impl PyTemporalPropertyFilter {
+    #[new]
+    fn new(name: String) -> Self {
+        PyTemporalPropertyFilter(name)
+    }
+
+    fn any(&self) -> PyTemporalPropertyFilterOps {
+        PyTemporalPropertyFilterOps::new(self.0.clone(), "any")
+    }
+
+    fn latest(&self) -> PyTemporalPropertyFilterOps {
+        PyTemporalPropertyFilterOps::new(self.0.clone(), "latest")
+    }
+}
+
+#[pyclass(frozen, name = "PropertyFilter", module = "raphtory")]
+#[derive(Clone)]
+pub struct PyPropertyFilter(String);
+
+#[pymethods]
+impl PyPropertyFilter {
+    #[new]
+    fn new(name: String) -> Self {
+        PyPropertyFilter(name)
+    }
+
+    fn constant(&self) -> PyConstantPropertyFilterOps {
+        PyConstantPropertyFilterOps::new(self.0.clone())
+    }
+
+    fn temporal(&self) -> PyTemporalPropertyFilter {
+        PyTemporalPropertyFilter::new(self.0.clone())
+    }
+
+    fn __eq__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::eq(
+            PropertyRef::Property(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __ne__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::ne(
+            PropertyRef::Property(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __lt__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::lt(
+            PropertyRef::Property(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __le__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::le(
+            PropertyRef::Property(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __gt__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::gt(
+            PropertyRef::Property(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn __ge__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::ge(
+            PropertyRef::Property(self.0.clone()),
+            value,
+        )))
+    }
+
+    fn includes(&self, values: Vec<Prop>) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::includes(
+            PropertyRef::Property(self.0.clone()),
+            values,
+        )))
+    }
+
+    fn excludes(&self, values: Vec<Prop>) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::excludes(
+            PropertyRef::Property(self.0.clone()),
+            values,
+        )))
+    }
+
+    fn is_none(&self) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::is_none(
+            PropertyRef::Property(self.0.clone()),
+        )))
+    }
+
+    fn is_some(&self) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::is_some(
+            PropertyRef::Property(self.0.clone()),
+        )))
+    }
+
+    fn fuzzy_search(
+        &self,
+        prop_value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr::new(FilterExpr::Property(PropertyFilter::fuzzy_search(
+            PropertyRef::Property(self.0.clone()),
+            prop_value,
+            levenshtein_distance,
+            prefix_match,
+        )))
     }
 }
 
@@ -76,6 +395,11 @@ impl PyNodeFilter {
     fn node_type() -> PyNodeFilterOp {
         PyNodeFilterOp::new("node_type".to_string())
     }
+
+    #[staticmethod]
+    fn property(name: String) -> PyPropertyFilter {
+        PyPropertyFilter::new(name)
+    }
 }
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory")]
@@ -143,6 +467,11 @@ impl PyEdgeFilter {
     fn dst() -> PyEdgeFilterOp {
         PyEdgeFilterOp::new("to".to_string())
     }
+
+    #[staticmethod]
+    fn property(name: String) -> PyPropertyFilter {
+        PyPropertyFilter::new(name)
+    }
 }
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
@@ -153,6 +482,10 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyNodeFilter>()?;
     filter_module.add_class::<PyEdgeFilterOp>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
+    filter_module.add_class::<PyPropertyFilter>()?;
+    filter_module.add_class::<PyConstantPropertyFilterOps>()?;
+    filter_module.add_class::<PyTemporalPropertyFilter>()?;
+    filter_module.add_class::<PyTemporalPropertyFilterOps>()?;
 
     Ok(filter_module)
 }
