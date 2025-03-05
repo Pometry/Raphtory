@@ -5598,7 +5598,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5667,7 +5667,7 @@ class ConstantProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5748,7 +5748,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5830,7 +5830,7 @@ class TemporalProperties(object):
 
 class PropertiesView(object):
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""

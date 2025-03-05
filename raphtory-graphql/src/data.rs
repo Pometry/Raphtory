@@ -31,6 +31,13 @@ pub struct EmbeddingConf {
     pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
 }
 
+pub(crate) fn get_relative_path(
+    work_dir: PathBuf,
+    path: &Path,
+) -> Result<PathBuf, StripPrefixError> {
+    Ok(path.strip_prefix(work_dir)?.to_path_buf())
+}
+
 #[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
@@ -198,17 +205,13 @@ impl Data {
             .filter_map(|e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = self.get_relative_path(path).ok()?;
+                let relative = get_relative_path(base_path.clone(), path).ok()?;
                 let relative_str = relative.to_str()?; // potential UTF8 error here
                 let cleaned = relative_str.replace(r"\", "/");
                 let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned).ok()?;
                 Some(folder)
             })
             .collect()
-    }
-
-    fn get_relative_path(&self, path: &Path) -> Result<PathBuf, StripPrefixError> {
-        Ok(path.strip_prefix(&self.work_dir)?.to_path_buf())
     }
 
     pub(crate) fn get_global_plugins(&self) -> QueryPlugin {

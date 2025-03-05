@@ -3,7 +3,7 @@ use crate::{
     model::{
         graph::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
-            vectorised_graph::GqlVectorisedGraph,
+            namespace::Namespace, vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -14,6 +14,7 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
+use minijinja::functions::namespace;
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
@@ -98,6 +99,31 @@ impl QueryRoot {
         Some(g.into())
     }
 
+    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<String> {
+        let data = ctx.data_unchecked::<Data>();
+        data.get_all_graph_folders()
+            .iter()
+            .filter_map(|folder| {
+                folder
+                    .get_original_path()
+                    .parent()
+                    .and_then(|p| p.to_str().map(|s| s.to_string()))
+            })
+            .collect()
+    }
+    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Namespace {
+        let data = ctx.data_unchecked::<Data>();
+        let base_dir = data.work_dir.clone();
+        let mut current_dir = data.work_dir.clone();
+        current_dir.push(path);
+        Namespace::new(base_dir, current_dir)
+    }
+    async fn root<'a>(ctx: &Context<'a>) -> Namespace {
+        let data = ctx.data_unchecked::<Data>();
+        Namespace::new(data.work_dir.clone(), data.work_dir.clone())
+    }
+
+    //To deprecate I think
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
         let paths = data.get_all_graph_folders();
