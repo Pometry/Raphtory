@@ -14,7 +14,6 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
-use minijinja::functions::namespace;
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
@@ -111,12 +110,24 @@ impl QueryRoot {
             })
             .collect()
     }
-    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Namespace {
+    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Option<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let base_dir = data.work_dir.clone();
         let mut current_dir = data.work_dir.clone();
         current_dir.push(path);
-        Namespace::new(base_dir, current_dir)
+        if current_dir.is_dir() {
+            if !current_dir.is_symlink()
+                || !current_dir.clone().join(".raph").exists()
+                || current_dir.starts_with(base_dir.clone())
+            {
+                Some(Namespace::new(base_dir, current_dir))
+            } else {
+                //is graph dir, escapes folder or is the top level dir
+                None
+            }
+        } else {
+            None
+        }
     }
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
