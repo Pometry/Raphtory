@@ -1,7 +1,7 @@
 use crate::{
     data::{get_relative_path, Data},
     model::graph::meta_graph::MetaGraph,
-    paths::{ExistingGraphFolder},
+    paths::ExistingGraphFolder,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use std::path::PathBuf;

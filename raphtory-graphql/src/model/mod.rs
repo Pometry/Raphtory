@@ -116,14 +116,14 @@ impl QueryRoot {
         let mut current_dir = data.work_dir.clone();
         current_dir.push(path);
         if current_dir.is_dir() {
-            if !current_dir.is_symlink()
+            if current_dir.is_symlink()
                 || !current_dir.clone().join(".raph").exists()
-                || current_dir.starts_with(base_dir.clone())
+                || !current_dir.starts_with(base_dir.clone())
             {
-                Some(Namespace::new(base_dir, current_dir))
+                None
             } else {
                 //is graph dir, escapes folder or is the top level dir
-                None
+                Some(Namespace::new(base_dir, current_dir))
             }
         } else {
             None
