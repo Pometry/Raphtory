@@ -314,6 +314,7 @@ def test_search_nodes_for_property_constant_excludes():
     results = search_nodes(g, filter_expr)
     assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N9'] == results
 
+
 def test_search_nodes_for_property_constant_is_some():
     g = Graph()
     g = init_graph(g)
@@ -342,7 +343,6 @@ def test_search_nodes_for_property_temporal_any_eq():
     assert ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'] == results
 
 
-# TODO: debug this
 def test_search_nodes_for_property_temporal_any_ne():
     g = Graph()
     g = init_graph(g)
@@ -397,7 +397,6 @@ def test_search_nodes_for_property_temporal_any_includes():
     assert ['N1', 'N2', 'N5', 'N8', 'N9'] == results
 
 
-# TODO: debug this
 def test_search_nodes_for_property_temporal_any_excludes():
     g = Graph()
     g = init_graph(g)
@@ -407,7 +406,6 @@ def test_search_nodes_for_property_temporal_any_excludes():
     assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'] == results
 
 
-# TODO: debug this
 def test_search_nodes_for_property_temporal_any_is_some():
     g = Graph()
     g = init_graph(g)
@@ -454,7 +452,6 @@ def test_search_nodes_for_property_temporal_latest_lt():
     assert ['N1', 'N3', 'N4', 'N6', 'N7'] == results
 
 
-# TODO: debug this
 def test_search_nodes_for_property_temporal_latest_le():
     g = Graph()
     g = init_graph(g)
@@ -491,7 +488,6 @@ def test_search_nodes_for_property_temporal_latest_includes():
     assert ['N2', 'N5', 'N8', 'N9'] == results
 
 
-# TODO: debug this
 def test_search_nodes_for_property_temporal_latest_excludes():
     g = Graph()
     g = init_graph(g)
@@ -501,7 +497,6 @@ def test_search_nodes_for_property_temporal_latest_excludes():
     assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N3', 'N4', 'N6', 'N7'] == results
 
 
-# TODO: debug this
 def test_search_nodes_for_property_temporal_latest_is_some():
     g = Graph()
     g = init_graph(g)
@@ -688,6 +683,7 @@ def test_search_edges_for_property_ne():
     results = search_edges(g, filter_expr)
     assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
 
+
 def test_search_edges_for_property_lt():
     g = Graph()
     g = init_edges_graph(g)
@@ -742,7 +738,6 @@ def test_search_edges_for_property_excludes():
     assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_is_some():
     g = Graph()
     g = init_edges_graph(g)
@@ -771,7 +766,6 @@ def test_search_edges_for_property_constant_eq():
     assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N9', 'N10')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_constant_ne():
     g = Graph()
     g = init_edges_graph(g)
@@ -834,6 +828,7 @@ def test_search_edges_for_property_constant_excludes():
     results = search_edges(g, filter_expr)
     assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N9', 'N10')] == results
 
+
 def test_search_edges_for_property_constant_is_some():
     g = Graph()
     g = init_edges_graph(g)
@@ -862,7 +857,6 @@ def test_search_edges_for_property_temporal_any_eq():
     assert [('N1', 'N2'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_temporal_any_ne():
     g = Graph()
     g = init_edges_graph(g)
@@ -881,7 +875,6 @@ def test_search_edges_for_property_temporal_any_lt():
     assert [('N1', 'N2'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_temporal_any_le():
     g = Graph()
     g = init_edges_graph(g)
@@ -918,7 +911,6 @@ def test_search_edges_for_property_temporal_any_includes():
     assert [('N1', 'N2'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_temporal_any_excludes():
     g = Graph()
     g = init_edges_graph(g)
@@ -928,7 +920,6 @@ def test_search_edges_for_property_temporal_any_excludes():
     assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_temporal_any_is_some():
     g = Graph()
     g = init_edges_graph(g)
@@ -975,7 +966,6 @@ def test_search_edges_for_property_temporal_latest_lt():
     assert [('N1', 'N2'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_temporal_latest_le():
     g = Graph()
     g = init_edges_graph(g)
@@ -1021,7 +1011,6 @@ def test_search_edges_for_property_temporal_latest_excludes():
     assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
 
 
-# TODO: debug this
 def test_search_edges_for_property_temporal_latest_is_some():
     g = Graph()
     g = init_edges_graph(g)
