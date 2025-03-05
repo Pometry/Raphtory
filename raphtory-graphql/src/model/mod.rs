@@ -7,6 +7,7 @@ use crate::{
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
+    paths::valid_path,
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
@@ -17,7 +18,7 @@ use dynamic_graphql::{
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{GraphError, InvalidPathReason},
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
 };
@@ -110,24 +111,13 @@ impl QueryRoot {
             })
             .collect()
     }
-    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Option<Namespace> {
+    async fn namespace<'a>(
+        ctx: &Context<'a>,
+        path: String,
+    ) -> Result<Namespace, InvalidPathReason> {
         let data = ctx.data_unchecked::<Data>();
-        let base_dir = data.work_dir.clone();
-        let mut current_dir = data.work_dir.clone();
-        current_dir.push(path);
-        if current_dir.is_dir() {
-            if current_dir.is_symlink()
-                || !current_dir.clone().join(".raph").exists()
-                || !current_dir.starts_with(base_dir.clone())
-            {
-                None
-            } else {
-                //is graph dir, escapes folder or is the top level dir
-                Some(Namespace::new(base_dir, current_dir))
-            }
-        } else {
-            None
-        }
+        let current_dir = valid_path(data.work_dir.clone(), path.as_str())?;
+        Ok(Namespace::new(data.work_dir.clone(), current_dir))
     }
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();

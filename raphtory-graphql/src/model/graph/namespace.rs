@@ -1,7 +1,7 @@
 use crate::{
-    data::{get_relative_path, Data},
+    data::get_relative_path,
     model::graph::meta_graph::MetaGraph,
-    paths::ExistingGraphFolder,
+    paths::{valid_path, ExistingGraphFolder},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use std::path::PathBuf;
@@ -68,15 +68,16 @@ impl Namespace {
             .into_iter()
             .filter_map(|e| {
                 let entry = e.ok()?;
+                let file_name = entry.file_name();
+                let file_name = file_name.to_string_lossy();
+                let file_name = file_name.to_string();
+                let file_name = file_name.as_str();
                 let path = entry.path();
-                if path.is_dir() {
-                    if path.is_symlink() || path.join(".raph").exists() || path == self.current_dir
-                    {
-                        //is graph dir, escapes folder or is the top level dir
-                        None
-                    } else {
-                        Some(Namespace::new(self.base_dir.clone(), path.to_path_buf()))
-                    }
+                if path.is_dir()
+                    && path != self.current_dir
+                    && valid_path(self.current_dir.clone(), file_name).is_ok()
+                {
+                    Some(Namespace::new(self.base_dir.clone(), path.to_path_buf()))
                 } else {
                     None
                 }
