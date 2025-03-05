@@ -65,30 +65,6 @@ impl<'a> Searcher<'a> {
         self.edge_filter_executor
             .filter_edges(graph, &filter, limit, offset)
     }
-
-    pub fn fuzzy_search_nodes<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: FilterExpr,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let filter = resolve_as_node_filter(filter);
-        self.node_filter_executor
-            .filter_nodes(graph, &filter, limit, offset)
-    }
-
-    pub fn fuzzy_search_edges<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: FilterExpr,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let filter = resolve_as_edge_filter(filter);
-        self.edge_filter_executor
-            .filter_edges(graph, &filter, limit, offset)
-    }
 }
 
 // TODO: Fuzzy search tests are non exhaustive because the fuzzy search

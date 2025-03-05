@@ -135,12 +135,12 @@ pub struct PyEdgeFilter;
 #[pymethods]
 impl PyEdgeFilter {
     #[staticmethod]
-    fn from() -> PyEdgeFilterOp {
+    fn src() -> PyEdgeFilterOp {
         PyEdgeFilterOp::new("from".to_string())
     }
 
     #[staticmethod]
-    fn to() -> PyEdgeFilterOp {
+    fn dst() -> PyEdgeFilterOp {
         PyEdgeFilterOp::new("to".to_string())
     }
 }
