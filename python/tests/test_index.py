@@ -506,6 +506,16 @@ def test_search_nodes_for_property_temporal_latest_is_some():
     assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
 
 
+def test_search_nodes_for_composite_filter():
+    g = Graph()
+    g = init_graph(g)
+
+    filter1 = filter.Node.node_type() == "fire_nation"
+    filter2 = filter.Node.property("p1").constant() > 1
+    results = search_nodes(g, filter1 | filter2)
+    assert ['N1', 'N10', 'N11', 'N4', 'N6'] == results
+
+
 @pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_search_nodes_for_property_temporal_latest_is_none():
     g = Graph()
@@ -1028,4 +1038,13 @@ def test_search_edges_for_property_temporal_latest_is_none():
     filter_expr = filter.Edge.property("p1").temporal().latest().is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
-    
+
+
+def test_search_edges_for_composite_filter():
+    g = Graph()
+    g = init_edges_graph(g)
+
+    filter1 = filter.Edge.src() == "N13"
+    filter2 = filter.Edge.property("p1").temporal().latest() == 3
+    results = search_edges(g, filter1 & filter2)
+    assert [('N13', 'N14')] == results
