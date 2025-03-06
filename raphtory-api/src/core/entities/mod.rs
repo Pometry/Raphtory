@@ -457,6 +457,10 @@ impl LayerIds {
     pub fn is_none(&self) -> bool {
         matches!(self, LayerIds::None)
     }
+
+    pub fn is_single(&self) -> bool {
+        matches!(self, LayerIds::One(_))
+    }
 }
 
 impl From<Vec<usize>> for LayerIds {
