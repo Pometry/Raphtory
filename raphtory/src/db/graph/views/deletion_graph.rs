@@ -852,7 +852,7 @@ mod test_deletions {
         test_utils::{build_graph, build_graph_strat},
     };
     use itertools::Itertools;
-    use proptest::{arbitrary::any, proptest};
+    use proptest::{arbitrary::any, proptest, sample::subsequence};
     use raphtory_api::core::entities::GID;
     use std::ops::Range;
 
@@ -1016,6 +1016,16 @@ mod test_deletions {
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);
+        })
+    }
+
+    #[test]
+    fn materialize_window_layers_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
+            let g = build_graph(graph_f).persistent_graph();
+            let glw = g.valid_layers(l).window(w.start, w.end);
+            let gmlw = glw.materialize().unwrap();
+            assert_graph_equal(&glw, &gmlw);
         })
     }
 
@@ -1865,5 +1875,4 @@ mod test_deletions {
             [Prop::I32(2), Prop::I32(3), Prop::I32(4), Prop::I32(5)]
         )
     }
-
 }
