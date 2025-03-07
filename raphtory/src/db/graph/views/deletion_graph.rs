@@ -381,7 +381,7 @@ impl TimeSemantics for PersistentGraph {
         match layer_ids {
             LayerIds::None => 0,
             LayerIds::All => (0..self.unfiltered_num_layers())
-                .into_par_iter()
+                .into_iter()
                 .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
                 .sum(),
             LayerIds::One(id) => {
@@ -396,8 +396,8 @@ impl TimeSemantics for PersistentGraph {
             }
             LayerIds::Multiple(layers) => layers
                 .clone()
-                .par_iter()
-                .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
+                .iter()
+                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
                 .sum(),
         }
     }
@@ -1865,4 +1865,5 @@ mod test_deletions {
             [Prop::I32(2), Prop::I32(3), Prop::I32(4), Prop::I32(5)]
         )
     }
+
 }
