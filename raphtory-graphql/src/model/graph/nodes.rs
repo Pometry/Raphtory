@@ -116,10 +116,10 @@ impl GqlNodes {
     ) -> Result<Self, GraphError> {
         match condition.operator {
             Operator::Equal => {
-                if let Some(value) = condition.value {
+                if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::eq(
                         PropertyRef::Property(property),
-                        value.0,
+                        Prop::from(v),
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -130,10 +130,10 @@ impl GqlNodes {
                 }
             }
             Operator::NotEqual => {
-                if let Some(value) = condition.value {
+                if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ne(
                         PropertyRef::Property(property),
-                        value.0,
+                        Prop::from(v),
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -144,10 +144,10 @@ impl GqlNodes {
                 }
             }
             Operator::GreaterThanOrEqual => {
-                if let Some(value) = condition.value {
+                if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ge(
                         PropertyRef::Property(property),
-                        value.0,
+                        Prop::from(v),
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -158,10 +158,10 @@ impl GqlNodes {
                 }
             }
             Operator::LessThanOrEqual => {
-                if let Some(value) = condition.value {
+                if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::le(
                         PropertyRef::Property(property),
-                        value.0,
+                        Prop::from(v),
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -172,10 +172,10 @@ impl GqlNodes {
                 }
             }
             Operator::GreaterThan => {
-                if let Some(value) = condition.value {
+                if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::gt(
                         PropertyRef::Property(property),
-                        value.0,
+                        Prop::from(v),
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -186,10 +186,10 @@ impl GqlNodes {
                 }
             }
             Operator::LessThan => {
-                if let Some(value) = condition.value {
+                if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::lt(
                         PropertyRef::Property(property),
-                        value.0,
+                        Prop::from(v),
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -212,7 +212,7 @@ impl GqlNodes {
                 Ok(self.update(filtered_nodes))
             }
             Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.map(|v| v.0) {
+                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::includes(
                         PropertyRef::Property(property),
@@ -227,7 +227,7 @@ impl GqlNodes {
                 }
             }
             Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.map(|v| v.0) {
+                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::excludes(
                         PropertyRef::Property(property),

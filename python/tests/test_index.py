@@ -1,4 +1,4 @@
-from raphtory import Graph, Prop
+from raphtory import Graph, Prop, PersistentGraph
 import pytest
 from raphtory import filter
 
@@ -1042,6 +1042,16 @@ def test_search_edges_for_property_temporal_latest_is_none():
 
 def test_search_edges_for_composite_filter():
     g = Graph()
+    g = init_edges_graph(g)
+
+    filter1 = filter.Edge.src() == "N13"
+    filter2 = filter.Edge.property("p1").temporal().latest() == 3
+    results = search_edges(g, filter1 & filter2)
+    assert [('N13', 'N14')] == results
+
+
+def test_search_edges_for_composite_filter_pg():
+    g = PersistentGraph()
     g = init_edges_graph(g)
 
     filter1 = filter.Edge.src() == "N13"
