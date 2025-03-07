@@ -4291,7 +4291,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.12.3"
+version = "0.12.4"
 dependencies = [
  "ahash",
  "bincode",
@@ -4721,7 +4721,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -4800,7 +4800,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -4826,7 +4826,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "clap",
  "criterion",
@@ -4844,7 +4844,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4876,7 +4876,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -4921,7 +4921,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "numpy",
  "pyo3",
@@ -4953,7 +4953,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5166,7 +5166,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "chrono",
  "itertools 0.13.0",

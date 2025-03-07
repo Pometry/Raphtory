@@ -1,6 +1,6 @@
 [package]
 name = "pometry-storage"
-version = "0.12.3"
+version = "0.12.4"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/pometry-storage/"
 license = "GPL-3.0"
