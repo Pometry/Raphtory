@@ -752,6 +752,27 @@ mod tests {
     }
 
     #[test]
+    fn missing_temporal_edge2() {
+        let g = PersistentGraph::new();
+        g.add_edge(5645330705666146591, 1, 0, NO_PROPS, None)
+            .unwrap();
+        g.add_edge(-1210620964744371166, 0, 1, NO_PROPS, None)
+            .unwrap();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
+        g.add_edge(-2858313576584972493, 1, 0, NO_PROPS, Some("b"))
+            .unwrap();
+        let gw = g
+            .valid()
+            .unwrap()
+            .window(-6657701247011733639, 5645330705666058885);
+        let gwm = gw.materialize().unwrap();
+        let exploded: Vec<_> = gwm.edges().explode().into_iter().collect();
+        println!("{:?}", exploded);
+        assert_graph_equal(&gw, &gwm);
+    }
+
+    #[test]
     fn mismatched_edge_properties() {
         let g = PersistentGraph::new();
         g.add_edge(2, 1, 0, [("test", 1)], Some("b")).unwrap();
@@ -762,6 +783,15 @@ mod tests {
             .unwrap();
 
         let gw = g.valid().unwrap().window(-1, 1);
+        assert_eq!(
+            gw.edge(0, 1)
+                .unwrap()
+                .properties()
+                .constant()
+                .get("const_test")
+                .unwrap(),
+            Prop::map([("_default", 2)])
+        );
         assert_graph_equal(&gw, &gw.materialize().unwrap());
     }
 }
