@@ -57,7 +57,7 @@ pub trait TPropOps<'a>: Sized + 'a + Send + Copy + Clone {
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
 
     fn iter_window_t(self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(TimeIndexEntry::range(r))
@@ -90,7 +90,7 @@ impl<'a> TPropOps<'a> for TPropRef<'a> {
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         for_all_variants!(self, tprop => tprop.iter_window(r))
     }
 

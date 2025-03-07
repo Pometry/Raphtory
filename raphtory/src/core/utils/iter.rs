@@ -1,5 +1,5 @@
 use ouroboros::self_referencing;
-use raphtory_api::iter::{BoxedLIter, BoxedLDIter};
+use raphtory_api::iter::{BoxedLDIter, BoxedLIter};
 
 #[self_referencing]
 pub struct GenLockedIter<'a, O, OUT> {
@@ -46,7 +46,18 @@ pub struct GenLockedDIter<'a, O, OUT> {
     mark: std::marker::PhantomData<&'a O>,
 }
 
-impl <'a, O, OUT> Iterator for GenLockedDIter<'a, O, OUT> {
+impl<'a, O, OUT> GenLockedDIter<'a, O, OUT> {
+    pub fn from<'b>(owner: O, iter_fn: impl FnOnce(&O) -> BoxedLDIter<OUT> + 'b) -> Self {
+        GenLockedDIterBuilder {
+            owner,
+            iter_builder: |owner| iter_fn(owner),
+            mark: std::marker::PhantomData,
+        }
+        .build()
+    }
+}
+
+impl<'a, O, OUT> Iterator for GenLockedDIter<'a, O, OUT> {
     type Item = OUT;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -62,7 +73,7 @@ impl <'a, O, OUT> Iterator for GenLockedDIter<'a, O, OUT> {
     }
 }
 
-impl <'a, O, OUT> DoubleEndedIterator for GenLockedDIter<'a, O, OUT> {
+impl<'a, O, OUT> DoubleEndedIterator for GenLockedDIter<'a, O, OUT> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.with_iter_mut(|iter| iter.next_back())
     }

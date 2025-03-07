@@ -286,7 +286,7 @@ impl<
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         for_all_iter!(self, props => props.iter_window(r))
     }
 

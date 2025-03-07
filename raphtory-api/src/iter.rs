@@ -16,7 +16,7 @@ pub trait IntoDynDBoxed<'a, T> {
     fn into_dyn_dboxed(self) -> BoxedLDIter<'a, T>;
 }
 
-impl <'a, T, I: DoubleEndedIterator<Item = T> + Send + Sync + 'a> IntoDynDBoxed<'a, T> for I {
+impl<'a, T, I: DoubleEndedIterator<Item = T> + Send + Sync + 'a> IntoDynDBoxed<'a, T> for I {
     fn into_dyn_dboxed(self) -> BoxedLDIter<'a, T> {
         Box::new(self)
     }

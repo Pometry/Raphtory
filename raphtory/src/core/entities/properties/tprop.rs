@@ -8,7 +8,10 @@ use crate::{
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::{core::storage::arc_str::ArcStr, iter::{BoxedLDIter, BoxedLIter}};
+use raphtory_api::{
+    core::storage::arc_str::ArcStr,
+    iter::{BoxedLDIter, BoxedLIter},
+};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Range, sync::Arc};
@@ -76,7 +79,7 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         self.iter_window_inner(r)
     }
 
@@ -334,7 +337,7 @@ impl<'a> TPropOps<'a> for &'a TProp {
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_window_inner(r)
     }
 
