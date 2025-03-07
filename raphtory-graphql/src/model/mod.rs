@@ -116,7 +116,7 @@ impl QueryRoot {
         path: String,
     ) -> Result<Namespace, InvalidPathReason> {
         let data = ctx.data_unchecked::<Data>();
-        let current_dir = valid_path(data.work_dir.clone(), path.as_str())?;
+        let current_dir = valid_path(data.work_dir.clone(), path.as_str(), true)?;
         Ok(Namespace::new(data.work_dir.clone(), current_dir))
     }
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {

@@ -75,7 +75,7 @@ impl Namespace {
                 let path = entry.path();
                 if path.is_dir()
                     && path != self.current_dir
-                    && valid_path(self.current_dir.clone(), file_name).is_ok()
+                    && valid_path(self.current_dir.clone(), file_name, true).is_ok()
                 {
                     Some(Namespace::new(self.base_dir.clone(), path.to_path_buf()))
                 } else {

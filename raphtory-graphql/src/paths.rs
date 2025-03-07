@@ -83,6 +83,7 @@ impl Deref for ValidGraphFolder {
 pub(crate) fn valid_path(
     base_path: PathBuf,
     relative_path: &str,
+    namespace: bool,
 ) -> Result<PathBuf, InvalidPathReason> {
     let user_facing_path = PathBuf::from(relative_path);
     // check for errors in the path
@@ -108,8 +109,12 @@ pub(crate) fn valid_path(
                 if full_path.join(".raph").exists() {
                     return Err(ParentIsGraph(user_facing_path));
                 }
-                //check for symlinks
                 full_path.push(component);
+                //check if the path with the component is a graph
+                if namespace && full_path.join(".raph").exists() {
+                    return Err(ParentIsGraph(user_facing_path));
+                }
+                //check for symlinks
                 if full_path.is_symlink() {
                     return Err(SymlinkNotAllowed(user_facing_path));
                 }
@@ -124,7 +129,7 @@ impl ValidGraphFolder {
         base_path: PathBuf,
         relative_path: &str,
     ) -> Result<Self, InvalidPathReason> {
-        let full_path = valid_path(base_path, relative_path)?;
+        let full_path = valid_path(base_path, relative_path, false)?;
         Ok(Self {
             original_path: relative_path.to_owned(),
             folder: GraphFolder::from(full_path),
