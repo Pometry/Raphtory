@@ -4291,7 +4291,34 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.14.0"
+version = "0.12.3"
+dependencies = [
+ "ahash",
+ "bincode",
+ "bytemuck",
+ "criterion",
+ "itertools 0.12.1",
+ "kdam",
+ "memmap2 0.9.5",
+ "once_cell",
+ "parking_lot",
+ "polars-arrow",
+ "polars-parquet",
+ "polars-utils",
+ "pretty_assertions",
+ "proptest",
+ "rand",
+ "raphtory-api",
+ "rayon",
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "tracing-subscriber",
+ "twox-hash 1.6.3",
+]
 
 [[package]]
 name = "portable-atomic"
@@ -4694,7 +4721,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -4773,7 +4800,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -4799,7 +4826,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "clap",
  "criterion",
@@ -4817,7 +4844,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4849,7 +4876,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -4894,7 +4921,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "numpy",
  "pyo3",
@@ -4926,7 +4953,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5139,7 +5166,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.14.0"
+version = "0.14.3"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
@@ -6377,6 +6404,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
+ "rand",
  "static_assertions",
 ]
 

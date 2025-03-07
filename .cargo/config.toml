@@ -1,2 +1,8 @@
 [net]
 git-fetch-with-cli = true
+
+[registries]
+pometry-crates = { index = "sparse+https://pkgs.dev.azure.com/pometry/_packaging/pometry-crates/Cargo/index/" }
+
+[source.crates-io]
+replace-with = "pometry-crates"
