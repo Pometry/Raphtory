@@ -279,7 +279,7 @@ impl<
         for_all!(self, props => props.last_before(t))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         for_all_iter!(self, props => props.iter())
     }
 

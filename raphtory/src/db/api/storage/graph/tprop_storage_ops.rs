@@ -48,7 +48,8 @@ pub trait TPropOps<'a>: Sized + 'a + Send + Copy + Clone {
     }
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)>;
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+
     fn iter_t(self) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter().map(|(t, v)| (t.t(), v))
     }
@@ -82,7 +83,7 @@ impl<'a> TPropOps<'a> for TPropRef<'a> {
         for_all!(self, tprop => tprop.last_before(t))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         for_all_variants!(self, tprop => tprop.iter())
     }
 

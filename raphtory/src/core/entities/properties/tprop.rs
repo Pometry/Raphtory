@@ -8,7 +8,7 @@ use crate::{
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
+use raphtory_api::{core::storage::arc_str::ArcStr, iter::{BoxedLDIter, BoxedLIter}};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Range, sync::Arc};
@@ -65,7 +65,7 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
         self.iter_window_inner(TimeIndexEntry::MIN..t).next_back()
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         self.t_cell.into_iter().flat_map(move |t_cell| {
             t_cell
                 .iter()
@@ -164,7 +164,7 @@ impl TProp {
         Ok(())
     }
 
-    pub(crate) fn iter_inner(&self) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    pub(crate) fn iter_inner(&self) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => {
@@ -237,7 +237,7 @@ impl TProp {
     pub(crate) fn iter_window_inner(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -327,7 +327,7 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_inner()
     }
 
