@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::arrow2::{
     array::{Array, Utf8Array, Utf8ViewArray},
     datatypes::ArrowDataType as DataType,
-    record_batch::RecordBatchT as Chunk,
+    record_batch::RecordBatchT,
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowSchema;
@@ -15,7 +15,7 @@ use super::parquet_reader::{read_file_metadata, read_parquet_file};
 
 pub(crate) struct ParquetSource<F, ST>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, RAError>,
+    F: Fn(RecordBatchT<Box<dyn Array>>) -> Result<ST, RAError>,
 {
     files: Vec<PathBuf>,
     concurrent_files: usize,
@@ -26,7 +26,7 @@ where
 
 impl<F, ST> ParquetSource<F, ST>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, RAError>,
+    F: Fn(RecordBatchT<Box<dyn Array>>) -> Result<ST, RAError>,
 {
     pub fn new(
         files: Vec<PathBuf>,
@@ -47,7 +47,7 @@ where
 
 impl<F, ST> ParquetSource<F, ST>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, RAError> + Sync,
+    F: Fn(RecordBatchT<Box<dyn Array>>) -> Result<ST, RAError> + Sync,
     ST: Send,
 {
     pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, ST) -> Result<(), RAError>>(
@@ -232,7 +232,7 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
         if edge == last {
             *counts.last_mut().expect("this is not empty") += 1;
         } else {
-            assert!(edge >= last, "edge list not sorted ({}, {}), ({}, {})", src, dst, last.0, last.1);
+            assert!(edge >= last, "edge list not sorted");
             counts.push(1);
 
             deduped_src_ids.push(src);

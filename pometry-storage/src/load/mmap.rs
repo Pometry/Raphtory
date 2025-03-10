@@ -6,7 +6,7 @@ use crate::{
         io::ipc::{read, write},
         legacy::error::PolarsResult as ArrowResult,
         mmap::{mmap_dictionaries_unchecked, mmap_unchecked},
-        record_batch::RecordBatchT as Chunk,
+        record_batch::RecordBatchT,
         types::NativeType,
     },
     RAError,
@@ -17,7 +17,7 @@ use std::{fs::File, io::Write, path::Path, sync::Arc};
 pub fn write_batches<W: Write>(
     file: W,
     schema: Schema,
-    chunks: &[Chunk<Box<dyn Array>>],
+    chunks: &[RecordBatchT<Box<dyn Array>>],
 ) -> ArrowResult<()> {
     let options = write::WriteOptions { compression: None };
     let mut writer = write::FileWriter::new(file, Arc::new(schema), None, options);
@@ -34,7 +34,7 @@ pub fn write_buffer<T: NativeType>(file: impl Write, buffer: Buffer<T>) -> Arrow
         unsafe { PrimitiveArray::from_inner_unchecked(T::PRIMITIVE.into(), buffer, None) };
 
     let schema = Schema::from(vec![Field::new("offsets", arr.data_type().clone(), false)]);
-    let chunk = Chunk::new(vec![arr.boxed()]);
+    let chunk = RecordBatchT::new(vec![arr.boxed()]);
     write_batches(file, schema, &[chunk])?;
     Ok(())
 }
@@ -62,7 +62,7 @@ pub unsafe fn mmap_buffer<T: NativeType>(
 pub unsafe fn mmap_batch<P: AsRef<Path>>(
     path: P,
     chunk_id: usize,
-) -> Result<Chunk<Box<dyn Array>>, RAError> {
+) -> Result<RecordBatchT<Box<dyn Array>>, RAError> {
     let path = path.as_ref();
     let file = File::open(path)?;
     let mmap = Mmap::map(&file)?;
@@ -93,7 +93,7 @@ pub unsafe fn mmap_batch<P: AsRef<Path>>(
 
 pub unsafe fn mmap_all_chunks<P: AsRef<Path>>(
     path: P,
-) -> Result<Vec<Chunk<Box<dyn Array>>>, RAError> {
+) -> Result<Vec<RecordBatchT<Box<dyn Array>>>, RAError> {
     let path = path.as_ref();
     let file = File::open(path)?;
     let mmap = Arc::new(Mmap::map(&file)?);
@@ -131,7 +131,7 @@ pub unsafe fn mmap_all_chunks<P: AsRef<Path>>(
 pub unsafe fn mmap_batches<F: MmapAsRawDesc>(
     file: F,
     chunk_ids: impl IntoIterator<Item = usize>,
-) -> ArrowResult<Vec<Chunk<Box<dyn Array>>>> {
+) -> ArrowResult<Vec<RecordBatchT<Box<dyn Array>>>> {
     let mmap = Arc::new(Mmap::map(file)?);
 
     // read the metadata

@@ -73,7 +73,7 @@ use std::{
 use tempfile::TempDir;
 use tracing::instrument;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TemporalGraph<GO = DiskHashMap> {
     graph_dir: PathBuf,
     global_ordering: Box<dyn Array>,
@@ -389,10 +389,10 @@ impl<GO: GlobalOrder> TemporalGraph<GO> {
 
     pub fn load_node_types_from_chunks(
         &mut self,
-        chunks: impl IntoIterator<Item = Box<dyn Array>>,
+        chunks: impl IntoIterator<Item = Result<Box<dyn Array>, RAError>>,
         chunk_size: usize,
     ) -> Result<(), RAError> {
-        let mapper = DictMapper::default();
+        let mapper = self.node_meta.node_type_meta();
         mapper.get_or_create_id("_default");
         let mut id_chunk = Vec::with_capacity(chunk_size);
         let mut builder = MutPrimitiveChunkedArray::new_persisted(
@@ -401,6 +401,7 @@ impl<GO: GlobalOrder> TemporalGraph<GO> {
             GraphPaths::NodeTypeIds,
         );
         for chunk in chunks {
+            let chunk = chunk?;
             match chunk.data_type() {
                 ArrowDataType::Utf8 => {
                     utf8_chunk_to_vec::<i32>(&chunk, &mapper, &mut id_chunk);
@@ -426,7 +427,14 @@ impl<GO: GlobalOrder> TemporalGraph<GO> {
             });
         }
         self.node_type_ids = Some(node_type_ids);
-        self.node_types = Some(Utf8Array::from_iter_values(mapper.get_keys().iter()));
+        let node_types = Utf8Array::from_iter_values(mapper.get_keys().iter());
+        write_batch(
+            GraphPaths::NodeTypes,
+            self.graph_dir(),
+            node_types.clone(),
+            0,
+        )?;
+        self.node_types = Some(node_types);
         Ok(())
     }
 
@@ -460,7 +468,7 @@ fn utf8_chunk_to_vec<I: Offset>(
         .collect_into_vec(id_chunk);
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GlobalToLocalPropMapping {
     pub(crate) node_mapping: Vec<Option<(usize, usize)>>,
     reverse_node_mapping: Vec<Vec<usize>>,

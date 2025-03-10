@@ -6,7 +6,7 @@ use crate::arrow2::{
 };
 use std::{hash::Hash, io::Write, path::Path};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DiskHashMap {
     offsets: OffsetsBuffer<i64>,
     values: PrimitiveArray<i64>,

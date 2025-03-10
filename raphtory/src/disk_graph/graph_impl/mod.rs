@@ -448,17 +448,17 @@ mod test {
 
         let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("pometry-storage-private/resources/test/netflow.parquet"))
+            .map(|p| p.join("../../../../pometry-storage/resources/test/netflow.parquet"))
             .unwrap();
 
         let v1_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("pometry-storage-private/resources/test/wls.parquet"))
+            .map(|p| p.join("../../../../pometry-storage/resources/test/wls.parquet"))
             .unwrap();
 
         let node_properties = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("pometry-storage-private/resources/test/node_types.parquet"))
+            .map(|p| p.join("../../../../pometry-storage/resources/test/node_types.parquet"))
             .unwrap();
 
         let layer_parquet_cols = vec![

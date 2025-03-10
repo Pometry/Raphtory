@@ -26,7 +26,7 @@ use crate::{
         array::{Array, PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
         offset::OffsetsBuffer,
-        record_batch::RecordBatchT as Chunk,
+        record_batch::RecordBatchT,
     },
     chunked_array::{
         chunked_array::NonNull,
@@ -901,7 +901,7 @@ pub(crate) fn static_graph_builder<GO: GlobalOrder + Send + Sync>(
 pub(crate) fn read_or_mmap_chunk(
     mmap: bool,
     path: &PathBuf,
-) -> Result<Chunk<Box<dyn Array>>, RAError> {
+) -> Result<RecordBatchT<Box<dyn Array>>, RAError> {
     let chunk = if mmap {
         unsafe { mmap_batch(path, 0)? }
     } else {

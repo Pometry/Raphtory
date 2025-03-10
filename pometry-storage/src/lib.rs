@@ -700,7 +700,7 @@ mod test {
         );
         if let Some(types) = types {
             graph
-                .load_node_types_from_chunks([types], graph.num_nodes())
+                .load_node_types_from_chunks([types].into_iter().map(Ok), graph.num_nodes())
                 .unwrap();
         }
         graph

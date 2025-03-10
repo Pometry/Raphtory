@@ -95,7 +95,7 @@ impl GlobalOrder for GlobalMap {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GIDArray {
     I64(PrimitiveArray<i64>),
     U64(PrimitiveArray<u64>),

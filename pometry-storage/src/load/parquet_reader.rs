@@ -5,7 +5,7 @@ use crate::arrow2::{
     array::{Array, StructArray},
     datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
     legacy::error,
-    record_batch::RecordBatchT as Chunk,
+    record_batch::RecordBatchT,
 };
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
@@ -120,7 +120,8 @@ impl<P: AsRef<Path> + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> ParquetRe
 pub(crate) fn read_parquet_file(
     path: impl AsRef<Path>,
     schema: Schema,
-) -> Result<impl Iterator<Item = Result<Chunk<Box<dyn Array>>, error::PolarsError>>, RAError> {
+) -> Result<impl Iterator<Item = Result<RecordBatchT<Box<dyn Array>>, error::PolarsError>>, RAError>
+{
     let file = std::fs::File::open(&path)?;
     let metadata = read_file_metadata(&path)?;
     let row_groups = metadata.row_groups;
@@ -148,11 +149,11 @@ struct RowGroupRef<P> {
     file: P,
     row_group: RowGroupMetaData,
     schema: Schema,
-    chunk: OnceCell<Chunk<Box<dyn Array>>>,
+    chunk: OnceCell<RecordBatchT<Box<dyn Array>>>,
 }
 
 impl<P: AsRef<Path>> RowGroupRef<P> {
-    fn read(&self) -> Result<&Chunk<Box<dyn Array>>, RAError> {
+    fn read(&self) -> Result<&RecordBatchT<Box<dyn Array>>, RAError> {
         self.chunk.get_or_try_init(|| {
             let file = std::fs::File::open(&self.file)?;
             let mut reader = FileReader::new(

@@ -6,11 +6,11 @@ use crate::arrow2::{
     datatypes::ArrowSchema as Schema,
     io::ipc::read,
     legacy::error::{PolarsError as Error, PolarsResult as ArrowResult},
-    record_batch::RecordBatchT as Chunk,
+    record_batch::RecordBatchT,
     types::NativeType,
 };
 
-pub fn read_batch<P: AsRef<Path>>(path: P) -> Result<Chunk<Box<dyn Array>>, Error> {
+pub fn read_batch<P: AsRef<Path>>(path: P) -> Result<RecordBatchT<Box<dyn Array>>, Error> {
     let path = path.as_ref();
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
@@ -24,7 +24,7 @@ pub fn read_batch<P: AsRef<Path>>(path: P) -> Result<Chunk<Box<dyn Array>>, Erro
 pub fn read_batch_with_projection<P: AsRef<Path>>(
     path: P,
     projection: Vec<usize>,
-) -> Result<Chunk<Box<dyn Array>>, Error> {
+) -> Result<RecordBatchT<Box<dyn Array>>, Error> {
     let path = path.as_ref();
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
