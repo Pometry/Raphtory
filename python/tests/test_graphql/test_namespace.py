@@ -224,14 +224,3 @@ def test_wrong_paths():
                 "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
                 in str(excinfo.value)
             )
-
-
-def test_server():
-
-    work_dir = tempfile.mkdtemp()
-
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-        make_folder_structure(client)
-
-    GraphServer(work_dir).run()
