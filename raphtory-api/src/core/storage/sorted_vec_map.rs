@@ -37,7 +37,7 @@ impl<K: Ord, V> SVM<K, V> {
         self.0.remove(k)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&K, &V)> {
         self.0.iter()
     }
 

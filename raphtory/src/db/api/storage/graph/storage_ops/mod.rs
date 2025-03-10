@@ -49,7 +49,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::iter::BoxedLIter;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
@@ -427,6 +427,18 @@ impl GraphStorage {
         self,
         view: G,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
+        match view.node_list() {
+            NodeList::List { nodes } => {
+                return nodes
+                    .into_iter()
+                    .flat_map(move |v| {
+                        self.clone()
+                            .into_node_edges_iter(v, Direction::OUT, view.clone())
+                    })
+                    .into_dyn_boxed()
+            }
+            _ => {}
+        }
         let edges = self.owned_edges();
         let nodes = self.owned_nodes();
 
@@ -458,14 +470,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                #[cfg(feature = "storage")]
-                {
-                    StorageVariants::Mem(filtered)
-                }
-                #[cfg(not(feature = "storage"))]
-                {
-                    filtered
-                }
+                filtered.into_dyn_boxed()
             }
             #[cfg(feature = "storage")]
             EdgesStorage::Disk(edges) => {
@@ -509,7 +514,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                StorageVariants::Disk(filtered)
+                filtered.into_dyn_boxed()
             }
         }
     }

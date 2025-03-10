@@ -28,4 +28,4 @@ pub use node_property_filter::NodePropertyFilterOps;
 pub use reset_filter::*;
 pub use time::*;
 
-pub use raphtory_api::iter::{BoxedIter, BoxedLIter, IntoDynBoxed};
+pub use raphtory_api::iter::{BoxedIter, BoxedLDIter, BoxedLIter, IntoDynBoxed};
