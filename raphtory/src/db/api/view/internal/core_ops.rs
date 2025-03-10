@@ -33,6 +33,7 @@ use raphtory_api::core::{
 };
 use std::{iter, ops::Range};
 
+use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;
 
@@ -375,20 +376,27 @@ pub enum NodeAdditions<'a> {
 }
 
 impl<'a> NodeAdditions<'a> {
-    pub fn into_prop_events(self) -> BoxedLIter<'a, TimeIndexEntry> {
+    pub fn into_prop_events(
+        self,
+    ) -> impl TimeIndexOps<IndexType = TimeIndexEntry>
+           + TimeIndexIntoOps<IndexType = TimeIndexEntry>
+           + use<'a> {
         match self {
-            NodeAdditions::Mem(index) => Box::new(index.props_ts.iter().map(|(time, _)| *time)),
-            NodeAdditions::Range(index) => match index {
-                TimeIndexWindow::Empty => Box::new(iter::empty()),
-                TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                    Box::new(timeindex.props_ts.range_iter(range))
-                }
-                TimeIndexWindow::All(idx) => Box::new(idx.props_ts.iter().map(|(time, _)| *time)),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => {
-                Box::new(index.prop_events().map(|ts| ts.into_iter()).kmerge())
+            NodeAdditions::Mem(index) => {
+                StorageVariants::Mem(TimeIndexWindow::All(&index.props_ts))
             }
+            NodeAdditions::Range(index) => StorageVariants::Mem(match index {
+                TimeIndexWindow::Empty => TimeIndexWindow::Empty,
+                TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                    TimeIndexWindow::TimeIndexRange {
+                        timeindex: &timeindex.props_ts,
+                        range,
+                    }
+                }
+                TimeIndexWindow::All(idx) => TimeIndexWindow::All(&idx.props_ts),
+            }),
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(index) => StorageVariants::Disk(index.prop_events()),
         }
     }
 

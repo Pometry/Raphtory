@@ -115,7 +115,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
             .min()
     }
 
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
+    fn node_latest_time(&self, _v: VID) -> Option<i64> {
         self.graph.latest_time_global()
     }
 
@@ -141,7 +141,16 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
     }
 
     fn latest_time_global(&self) -> Option<i64> {
-        self.graph.latest_time_global()
+        self.graph
+            .temporal_prop_ids()
+            .filter_map(|p| self.graph.temporal_prop_iter(p).last().map(|(t, _)| t))
+            .chain(
+                self.core_graph()
+                    .nodes_par(self, None)
+                    .filter_map(|n| self.node_latest_time(n))
+                    .max(),
+            )
+            .max()
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
@@ -182,10 +191,12 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         let cg = self.core_graph();
-        self.graph
+        let from_props = self
+            .graph
             .node_property_history(v, Some(i64::MIN..end))
             .next()
-            .map(|t| t.t().max(start))
+            .map(|t| t.t().max(start));
+        from_props
             .into_iter()
             .chain(
                 cg.node_edges_iter(v, Direction::BOTH, self)
@@ -233,9 +244,10 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
+        let valid_layer_ids = self.valid_layer_ids(edge, layer_ids);
         self.graph
-            .edge_is_valid_at_end(edge.out_ref(), layer_ids, w.end)
-            && self.graph.include_edge_window(edge, w, layer_ids)
+            .edge_is_valid_at_end(edge.out_ref(), &valid_layer_ids, w.end)
+            && self.graph.include_edge_window(edge, w, &valid_layer_ids)
     }
 
     fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry> {
@@ -283,16 +295,26 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
         match w {
             None => edge_iter
                 .filter(move |e| self.filter_edge(edges.edge(e.pid()), layer_ids))
-                .map(|e| self.edge_history(e, Cow::Borrowed(layer_ids)))
+                .map(|e| {
+                    self.edge_history(e, Cow::Borrowed(layer_ids))
+                        .merge(self.edge_deletion_history(e, Cow::Borrowed(layer_ids)))
+                })
                 .kmerge()
                 .into_dyn_boxed(),
             Some(w) => edge_iter
-                .filter(move |e| {
+                .filter(|e| {
                     let edge = edges.edge(e.pid());
                     self.graph.filter_edge(edge, layer_ids)
                         && self.include_edge_window(edge, w.clone(), layer_ids)
                 })
-                .map(|e| self.edge_history(e, Cow::Borrowed(layer_ids)))
+                .map(|e| {
+                    self.edge_history_window(e, Cow::Borrowed(layer_ids), w.clone())
+                        .merge(self.edge_deletion_history_window(
+                            e,
+                            w.clone(),
+                            Cow::Borrowed(layer_ids),
+                        ))
+                })
                 .kmerge()
                 .into_dyn_boxed(),
         }
@@ -303,42 +325,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
         v: VID,
         w: Option<Range<i64>>,
     ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        if let Some(w) = w {
-            let node = self.core_node_entry(v);
-            let first_row = if self
-                .node_property_history(v, Some(i64::MIN..w.start))
-                .next()
-                .is_some()
-                || self
-                    .node_edge_history(v, Some(i64::MIN..w.start))
-                    .next()
-                    .is_some()
-            {
-                Some(
-                    (0..self.node_meta().temporal_prop_meta().len())
-                        .filter_map(|prop_id| {
-                            let prop = node.tprop(prop_id);
-                            if prop.active(w.start..w.start.saturating_add(1)) {
-                                None
-                            } else {
-                                prop.last_before(TimeIndexEntry::start(w.start))
-                                    .map(|(_, v)| (prop_id, v))
-                            }
-                        })
-                        .collect_vec(),
-                )
-            } else {
-                None
-            };
-            Box::new(
-                first_row
-                    .into_iter()
-                    .map(move |row| (TimeIndexEntry::start(w.start), row))
-                    .chain(self.core_graph().node_history_rows(v, Some(w))),
-            )
-        } else {
-            self.core_graph().node_history_rows(v, w)
-        }
+        self.graph.node_history_rows(v, w)
     }
 
     fn edge_history<'a>(
@@ -372,7 +359,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        let layer_ids = self.valid_layer_ids_window(edge, layer_ids, w.clone());
+        let layer_ids = self.valid_layer_ids_window(edge, &layer_ids, w.clone());
         self.graph.edge_exploded_count_window(edge, &layer_ids, w)
     }
 
@@ -667,7 +654,7 @@ mod tests {
 
     #[test]
     fn materialize_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(1, 1, true))| {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
             let g = build_graph(graph_f).persistent_graph().valid().unwrap();
             let gm = g.materialize().unwrap();
             assert_graph_equal(&g, &gm);
@@ -676,7 +663,7 @@ mod tests {
 
     #[test]
     fn materialize_valid_window_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(2, 2, true), w in any::<Range<i64>>())| {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = build_graph(graph_f).persistent_graph();
             let gvw = g.valid().unwrap().window(w.start, w.end);
             let gmw = gvw.materialize().unwrap();
@@ -700,6 +687,7 @@ mod tests {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         g.delete_edge(1, 0, 1, None).unwrap();
         let gv = g.valid().unwrap();
+        assert_graph_equal(&gv, &PersistentGraph::new());
         let gm = gv.materialize().unwrap();
         assert_graph_equal(&gv, &gm);
     }
@@ -752,23 +740,15 @@ mod tests {
     }
 
     #[test]
-    fn missing_temporal_edge2() {
+    fn wrong_temporal_edge_count() {
         let g = PersistentGraph::new();
-        g.add_edge(5645330705666146591, 1, 0, NO_PROPS, None)
-            .unwrap();
-        g.add_edge(-1210620964744371166, 0, 1, NO_PROPS, None)
-            .unwrap();
+        g.add_edge(10, 1, 0, NO_PROPS, None).unwrap();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
-        g.add_edge(-2858313576584972493, 1, 0, NO_PROPS, Some("b"))
-            .unwrap();
-        let gw = g
-            .valid()
-            .unwrap()
-            .window(-6657701247011733639, 5645330705666058885);
+        g.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(2, 1, 0, NO_PROPS, None).unwrap();
+        g.add_edge(3, 1, 0, NO_PROPS, Some("b")).unwrap();
+        let gw = g.valid().unwrap().window(0, 9);
         let gwm = gw.materialize().unwrap();
-        let exploded: Vec<_> = gwm.edges().explode().into_iter().collect();
-        println!("{:?}", exploded);
         assert_graph_equal(&gw, &gwm);
     }
 
@@ -793,5 +773,68 @@ mod tests {
             Prop::map([("_default", 2)])
         );
         assert_graph_equal(&gw, &gw.materialize().unwrap());
+    }
+
+    #[test]
+    fn node_earliest_time() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(0, 0, 2, NO_PROPS, None).unwrap();
+        g.add_edge(2, 0, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(-10, 0, 1, None).unwrap();
+
+        let gv = g.valid().unwrap().window(-1, 10);
+        let gvm = gv.materialize().unwrap();
+        println!("{:?}", gvm);
+        assert_graph_equal(&gv, &gvm);
+        assert_eq!(gv.node(0).unwrap().earliest_time(), Some(-1));
+    }
+
+    #[test]
+    fn broken_degree() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 5, 4, NO_PROPS, None).unwrap();
+        g.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
+        g.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
+        g.add_edge(0, 4, 6, NO_PROPS, Some("b")).unwrap();
+        g.add_edge(1, 4, 9, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
+        g.delete_edge(10, 5, 4, None).unwrap();
+
+        let gv = g.valid().unwrap().window(0, 20);
+        let n4 = gv.node(4).unwrap();
+        assert_eq!(n4.out_degree(), 2);
+        assert_eq!(n4.in_degree(), 1);
+
+        assert_graph_equal(&gv, &gv.materialize().unwrap());
+    }
+
+    #[test]
+    fn weird_empty_graph() {
+        let g = PersistentGraph::new();
+        g.add_edge(10, 2, 1, NO_PROPS, Some("a")).unwrap();
+        g.delete_edge(5, 2, 1, None).unwrap();
+        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+        let gvw = g.valid().unwrap().window(0, 5);
+        assert_graph_equal(&gvw, &PersistentGraph::new());
+        let gvwm = gvw.materialize().unwrap();
+        assert_graph_equal(&gvw, &gvwm);
+    }
+
+    #[test]
+    fn mismatched_node_earliest_time_again() {
+        let g = PersistentGraph::new();
+        g.add_node(-2925244660385668056, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1116793271088085151, 2, 1, NO_PROPS, Some("a"))
+            .unwrap();
+        g.add_edge(0, 9, 1, NO_PROPS, None).unwrap();
+        g.delete_edge(7891470373966857988, 9, 1, None).unwrap();
+        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+
+        let gv = g
+            .window(-2925244660385668055, 7060945172792084486)
+            .valid()
+            .unwrap();
+        assert_graph_equal(&gv, &gv.materialize().unwrap());
     }
 }
