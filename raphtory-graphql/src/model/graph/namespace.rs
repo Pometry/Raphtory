@@ -37,6 +37,28 @@ impl Namespace {
             })
             .collect()
     }
+
+    pub(crate) fn get_all_children(&self) -> Vec<Namespace> {
+        WalkDir::new(&self.current_dir)
+            .into_iter()
+            .filter_map(|e| {
+                let entry = e.ok()?;
+                let file_name = entry.file_name();
+                let file_name = file_name.to_string_lossy();
+                let file_name = file_name.to_string();
+                let file_name = file_name.as_str();
+                let path = entry.path();
+                if path.is_dir()
+                    && path != self.current_dir
+                    && valid_path(self.current_dir.clone(), file_name, true).is_ok()
+                {
+                    Some(Namespace::new(self.base_dir.clone(), path.to_path_buf()))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 #[ResolvedObjectFields]

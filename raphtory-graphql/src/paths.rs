@@ -111,6 +111,7 @@ pub(crate) fn valid_path(
                 }
                 full_path.push(component);
                 //check if the path with the component is a graph
+                println!("{:?}", full_path.join(".raph"));
                 if namespace && full_path.join(".raph").exists() {
                     return Err(ParentIsGraph(user_facing_path));
                 }

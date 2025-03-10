@@ -15,6 +15,7 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
+
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
@@ -99,17 +100,10 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<String> {
+    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        data.get_all_graph_folders()
-            .iter()
-            .filter_map(|folder| {
-                folder
-                    .get_original_path()
-                    .parent()
-                    .and_then(|p| p.to_str().map(|s| s.to_string()))
-            })
-            .collect()
+        let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
+        root.get_all_children()
     }
     async fn namespace<'a>(
         ctx: &Context<'a>,
@@ -117,7 +111,12 @@ impl QueryRoot {
     ) -> Result<Namespace, InvalidPathReason> {
         let data = ctx.data_unchecked::<Data>();
         let current_dir = valid_path(data.work_dir.clone(), path.as_str(), true)?;
-        Ok(Namespace::new(data.work_dir.clone(), current_dir))
+
+        if current_dir.exists() {
+            Ok(Namespace::new(data.work_dir.clone(), current_dir))
+        } else {
+            Err(InvalidPathReason::NamespaceDoesNotExist(path))
+        }
     }
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
