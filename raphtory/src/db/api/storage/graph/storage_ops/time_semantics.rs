@@ -1,9 +1,12 @@
 use std::{iter, ops::Range};
 
 use itertools::{kmerge, Itertools};
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::{AsTime, TimeIndexEntry},
+    },
+    iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use rayon::iter::ParallelIterator;
 
@@ -12,7 +15,7 @@ use crate::{
     core::{
         entities::LayerIds,
         storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
-        utils::iter::GenLockedIter,
+        utils::iter::{GenLockedDIter, GenLockedIter},
     },
     db::api::{
         storage::graph::{
@@ -443,9 +446,9 @@ impl TimeSemantics for GraphStorage {
             .into_dyn_boxed()
     }
 
-    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         let node = self.node_entry(v);
-        GenLockedIter::from(node, |node| node.tprop(id).iter().into_dyn_boxed()).into_dyn_boxed()
+        GenLockedDIter::from(node, |node| node.tprop(id).iter().into_dyn_dboxed()).into_dyn_dboxed()
     }
 
     fn temporal_node_prop_hist_window(
@@ -454,14 +457,14 @@ impl TimeSemantics for GraphStorage {
         id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         let node = self.node_entry(v);
-        GenLockedIter::from(node, |node| {
+        GenLockedDIter::from(node, |node| {
             node.tprop(id)
                 .iter_window(TimeIndexEntry::range(start..end))
-                .into_dyn_boxed()
+                .into_dyn_dboxed()
         })
-        .into_dyn_boxed()
+        .into_dyn_dboxed()
     }
 
     fn temporal_edge_prop_hist_window<'a>(
