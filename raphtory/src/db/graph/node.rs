@@ -218,7 +218,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
             .temporal_node_prop_hist(self.node, id)
-            .last()
+            .next_back()
             .map(|(_, v)| v.to_owned())
     }
 

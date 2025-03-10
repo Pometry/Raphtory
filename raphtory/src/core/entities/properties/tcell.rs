@@ -70,7 +70,9 @@ impl<A: PartialEq> TCell<A> {
     }
 }
 impl<A: Sync + Send> TCell<A> {
-    pub fn iter(&self) -> BoxedLIter<(&TimeIndexEntry, &A)> {
+    pub fn iter(
+        &self,
+    ) -> Box<dyn DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
@@ -79,8 +81,8 @@ impl<A: Sync + Send> TCell<A> {
         }
     }
 
-    pub fn iter_t(&self) -> BoxedLIter<(i64, &A)> {
-        Box::new(self.iter().map(|(t, a)| (t.t(), a)))
+    pub fn iter_t(&self) -> impl DoubleEndedIterator<Item = (i64, &A)> + Send + Sync {
+        self.iter().map(|(t, a)| (t.t(), a))
     }
 
     pub fn iter_window(
@@ -101,11 +103,12 @@ impl<A: Sync + Send> TCell<A> {
         }
     }
 
-    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
-        Box::new(
-            self.iter_window(TimeIndexEntry::range(r))
-                .map(|(t, a)| (t.t(), a)),
-        )
+    pub fn iter_window_t(
+        &self,
+        r: Range<i64>,
+    ) -> impl DoubleEndedIterator<Item = (i64, &A)> + Send + Sync + '_ {
+        self.iter_window(TimeIndexEntry::range(r))
+            .map(|(t, a)| (t.t(), a))
     }
 
     pub fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, &A)> {
