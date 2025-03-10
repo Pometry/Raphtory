@@ -336,7 +336,29 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        self.0.node_property_history(v, w)
+        match w {
+            None => self.0.node_property_history(v, w),
+            Some(w) => {
+                let node = self.core_node_entry(v);
+                GenLockedIter::from(node, |node| {
+                    has_persisted_event(
+                        &node.additions().into_prop_events(),
+                        &TimeIndex::Empty,
+                        w.start,
+                    )
+                    .then_some(TimeIndexEntry::start(w.start))
+                    .into_iter()
+                    .chain(
+                        node.additions()
+                            .into_range_t(w)
+                            .into_prop_events()
+                            .into_iter(),
+                    )
+                    .into_dyn_boxed()
+                })
+                .into_dyn_boxed()
+            }
+        }
     }
 
     fn edge_history<'a>(
