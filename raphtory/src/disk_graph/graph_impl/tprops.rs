@@ -1,6 +1,6 @@
 use crate::{
     arrow2::types::{NativeType, Offset},
-    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
+    db::api::storage::graph::tprop_storage_ops::TPropOps,
     prelude::Prop,
 };
 use pometry_storage::{
@@ -8,7 +8,7 @@ use pometry_storage::{
     prelude::ArrayOps,
     tprops::{DiskTProp, EmptyTProp, TPropColumn},
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::{core::storage::timeindex::TimeIndexEntry, iter::IntoDynDBoxed};
 use std::{iter, ops::Range};
 
 impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
@@ -19,7 +19,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
@@ -30,7 +30,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
@@ -59,7 +59,7 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
@@ -70,7 +70,7 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
@@ -97,7 +97,7 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
@@ -108,7 +108,7 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
@@ -132,14 +132,14 @@ impl<'a> TPropOps<'a> for EmptyTProp {
         None
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         iter::empty()
     }
 
     fn iter_window(
         self,
         _r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         iter::empty()
     }
 
@@ -179,15 +179,15 @@ impl<'a> TPropOps<'a> for DiskTProp<'a, TimeIndexEntry> {
         for_all!(self, v => v.last_before(t))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all!(self, v => v.iter().into_dyn_boxed())
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        for_all!(self, v => v.iter().into_dyn_dboxed())
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all!(self, v => v.iter_window(r).into_dyn_boxed())
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        for_all!(self, v => v.iter_window(r).into_dyn_dboxed())
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {

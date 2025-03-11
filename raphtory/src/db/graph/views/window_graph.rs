@@ -66,9 +66,12 @@ use crate::{
     prelude::{GraphViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{
-    entities::EID,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::EID,
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
+    iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -683,9 +686,9 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &self,
         v: VID,
         prop_id: usize,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         if self.window_is_empty() {
-            return iter::empty().into_dyn_boxed();
+            return iter::empty().into_dyn_dboxed();
         }
         self.graph
             .temporal_node_prop_hist_window(v, prop_id, self.start_bound(), self.end_bound())
@@ -697,7 +700,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph
             .temporal_node_prop_hist_window(v, prop_id, start, end)
     }

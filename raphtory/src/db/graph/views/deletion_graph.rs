@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
-        utils::iter::GenLockedIter,
+        utils::iter::{GenLockedDIter, GenLockedIter},
         Prop,
     },
     db::{
@@ -25,7 +25,11 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
-use raphtory_api::{core::entities::EID, GraphType};
+use raphtory_api::{
+    core::entities::EID,
+    iter::{BoxedLDIter, IntoDynDBoxed},
+    GraphType,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -654,7 +658,7 @@ impl TimeSemantics for PersistentGraph {
         &self,
         v: VID,
         prop_id: usize,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.0.temporal_node_prop_hist(v, prop_id)
     }
     fn temporal_node_prop_hist_window(
@@ -663,17 +667,17 @@ impl TimeSemantics for PersistentGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         let node = self.core_node_entry(v);
-        GenLockedIter::from(node, move |node| {
+        GenLockedDIter::from(node, move |node| {
             let prop = node.tprop(prop_id);
             persisted_prop_value_at(start, prop, TimeIndex::Empty)
                 .into_iter()
                 .map(move |v| (TimeIndexEntry::start(start), v))
                 .chain(prop.iter_window(TimeIndexEntry::range(start..end)))
-                .into_dyn_boxed()
+                .into_dyn_dboxed()
         })
-        .into_dyn_boxed()
+        .into_dyn_dboxed()
     }
 
     fn temporal_edge_prop_hist_window<'a>(

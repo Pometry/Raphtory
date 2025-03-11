@@ -5,7 +5,7 @@ use crate::{
     },
     db::api::{
         storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::{internal::Base, BoxedLIter, MaterializedGraph},
+        view::{internal::Base, BoxedLDIter, BoxedLIter, MaterializedGraph},
     },
 };
 use enum_dispatch::enum_dispatch;
@@ -233,7 +233,7 @@ pub trait TimeSemantics {
     /// A vector of tuples representing the temporal values of the property for the given node
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)>;
 
     /// Returns a vector of all temporal values of the node property with the given name for the given node
     /// that fall within the specified time window.
@@ -256,7 +256,7 @@ pub trait TimeSemantics {
         id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)>;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference within the specified time window.
@@ -742,7 +742,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         &self,
         v: VID,
         prop_id: usize,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph().temporal_node_prop_hist(v, prop_id)
     }
 
@@ -753,7 +753,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph()
             .temporal_node_prop_hist_window(v, prop_id, start, end)
     }

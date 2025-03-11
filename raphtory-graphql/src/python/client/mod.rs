@@ -274,18 +274,30 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         Prop::Bool(value) => format!("{{ key: \"{}\", value: {{ bool: {} }} }}", key, value),
         Prop::List(value) => {
             let vec: Vec<String> = value.iter().map(inner_collection).collect();
-            format!("{{ key: \"{}\", value: {{ list: [{}] }} }}", key, vec.join(", "))
+            format!(
+                "{{ key: \"{}\", value: {{ list: [{}] }} }}",
+                key,
+                vec.join(", ")
+            )
         }
         Prop::Array(value) => {
             let vec: Vec<String> = value.iter_prop().map(|v| inner_collection(&v)).collect();
-            format!("{{ key: \"{}\", value: {{ list: [{}] }} }}", key, vec.join(", "))
+            format!(
+                "{{ key: \"{}\", value: {{ list: [{}] }} }}",
+                key,
+                vec.join(", ")
+            )
         }
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
                 .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
                 .collect();
-            format!("{{ key: \"{}\", value: {{ object: [{}] }} }}", key, properties_array.join(", "))
+            format!(
+                "{{ key: \"{}\", value: {{ object: [{}] }} }}",
+                key,
+                properties_array.join(", ")
+            )
         }
         Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
