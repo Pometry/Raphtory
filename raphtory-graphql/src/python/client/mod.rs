@@ -230,73 +230,65 @@ impl PyEdgeAddition {
 
 fn inner_collection(value: &Prop) -> String {
     match value {
-        Prop::Str(value) => format!("\"{}\"", value.to_string()),
-        Prop::U8(value) => value.to_string(),
-        Prop::U16(value) => value.to_string(),
-        Prop::I32(value) => value.to_string(),
-        Prop::I64(value) => value.to_string(),
-        Prop::U32(value) => value.to_string(),
-        Prop::U64(value) => value.to_string(),
-        Prop::F32(value) => value.to_string(),
-        Prop::F64(value) => value.to_string(),
-        Prop::Bool(value) => value.to_string(),
+        Prop::Str(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::U8(value) => format!("{{ u64: {} }}", value),
+        Prop::U16(value) => format!("{{ u64: {} }}", value),
+        Prop::I32(value) => format!("{{ i64: {} }}", value),
+        Prop::I64(value) => format!("{{ i64: {} }}", value),
+        Prop::U32(value) => format!("{{ u64: {} }}", value),
+        Prop::U64(value) => format!("{{ u64: {} }}", value),
+        Prop::F32(value) => format!("{{ f64: {} }}", value),
+        Prop::F64(value) => format!("{{ f64: {} }}", value),
+        Prop::Bool(value) => format!("{{ bool: {} }}", value),
         Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|v| inner_collection(v)).collect();
-            format!("[{}]", vec.join(", "))
+            let vec: Vec<String> = value.iter().map(inner_collection).collect();
+            format!("{{ list: [{}] }}", vec.join(", "))
         }
         Prop::Array(value) => {
-            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
-            format!("[{}]", vec.join(", "))
+            let vec: Vec<String> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            format!("{{ list: [{}] }}", vec.join(", "))
         }
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
-                .map(|(k, v)| format!("{}:{}", k, inner_collection(v)))
+                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
                 .collect();
-            format!("{}{}{}", "{", properties_array.join(" "), "}")
+            format!("{{ object: [{}] }}", properties_array.join(", "))
         }
-        Prop::DTime(value) => format!("\"{}\"", value.to_string()),
-        Prop::NDTime(value) => format!("\"{}\"", value.to_string()),
+        Prop::DTime(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::NDTime(value) => format!("{{ str: \"{}\" }}", value),
     }
 }
 
 fn to_graphql_valid(key: &String, value: &Prop) -> String {
     match value {
-        Prop::Str(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
-        Prop::U8(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::U16(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::I32(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::I64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::U32(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::U64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::F32(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::F64(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
-        Prop::Bool(value) => format!("{{ key: \"{}\", value: {} }}", key, value),
+        Prop::Str(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::U8(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::U16(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::I32(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
+        Prop::I64(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
+        Prop::U32(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::U64(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::F32(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
+        Prop::F64(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
+        Prop::Bool(value) => format!("{{ key: \"{}\", value: {{ bool: {} }} }}", key, value),
         Prop::List(value) => {
-            let vec: Vec<_> = value.iter().map(|v| inner_collection(v)).collect();
-            format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
+            let vec: Vec<String> = value.iter().map(inner_collection).collect();
+            format!("{{ key: \"{}\", value: {{ list: [{}] }} }}", key, vec.join(", "))
         }
         Prop::Array(value) => {
-            let vec: Vec<_> = value.iter_prop().map(|v| inner_collection(&v)).collect();
-            format!("{{ key: \"{}\", value: [{}] }}", key, vec.join(", "))
+            let vec: Vec<String> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            format!("{{ key: \"{}\", value: {{ list: [{}] }} }}", key, vec.join(", "))
         }
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
-                .map(|(k, v)| format!("{}:{}", k, inner_collection(v)))
+                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
                 .collect();
-            format!(
-                "{}key:\"{}\",value:{}{}{}{}",
-                "{",
-                key,
-                "{",
-                properties_array.join(" "),
-                "}",
-                "}"
-            )
+            format!("{{ key: \"{}\", value: {{ object: [{}] }} }}", key, properties_array.join(", "))
         }
-        Prop::DTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
-        Prop::NDTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
+        Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
     }
 }
 

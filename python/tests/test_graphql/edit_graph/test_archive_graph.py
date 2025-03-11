@@ -15,7 +15,7 @@ def test_archive_graph_fails_if_graph_not_found():
         query = """query {
                   updateGraph(path: "g1") {
                     updateConstantProperties(
-                      properties: [{key: "isArchive", value: 0}]
+                      properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
                 }"""
@@ -32,7 +32,7 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
         query = """query {
                   updateGraph(path: "shivam/g1") {
                     updateConstantProperties(
-                      properties: [{key: "isArchive", value: 0}]
+                      properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
                 }"""
@@ -62,7 +62,7 @@ def test_archive_graph_succeeds():
         update_archive_graph = """query {
                   updateGraph(path: "g1") {
                     updateConstantProperties(
-                      properties: [{key: "isArchive", value: 0}]
+                      properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
                 }"""
@@ -78,7 +78,7 @@ def test_archive_graph_succeeds():
         update_archive_graph = """query {
                   updateGraph(path: "g1") {
                     updateConstantProperties(
-                      properties: [{key: "isArchive", value: 1}]
+                      properties: [{key: "isArchive", value: { u64: 1 }}]
                     )
                   }
                 }"""
@@ -114,7 +114,7 @@ def test_archive_graph_succeeds_at_namespace():
         update_archive_graph = """query {
                   updateGraph(path: "shivam/g2") {
                     updateConstantProperties(
-                      properties: [{key: "isArchive", value: 0}]
+                      properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
                 }"""
@@ -130,7 +130,7 @@ def test_archive_graph_succeeds_at_namespace():
         update_archive_graph = """query {
                   updateGraph(path: "shivam/g2") {
                     updateConstantProperties(
-                      properties: [{key: "isArchive", value: 1}]
+                      properties: [{key: "isArchive", value: { u64: 1 }}]
                     )
                   }
                 }"""
