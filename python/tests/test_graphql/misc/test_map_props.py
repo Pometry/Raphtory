@@ -2,7 +2,14 @@ import tempfile
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
 
-TEST_PROPS = {"number": 1, "string": "text", "numbers": [1, 14], "strings": ["a", "text"], "map": {"a": 1}}
+TEST_PROPS = {
+    "number": 1,
+    "string": "text",
+    "numbers": [1, 14],
+    "strings": ["a", "text"],
+    "map": {"a": 1},
+}
+
 
 def test_map_props():
     work_dir = tempfile.mkdtemp()
@@ -28,6 +35,7 @@ def test_map_props():
         node = rg.add_node(0, "test")
         node.add_constant_properties({"test": TEST_PROPS})
         check_test_prop(client)
+
 
 def check_test_prop(client: RaphtoryClient):
     query = """{
