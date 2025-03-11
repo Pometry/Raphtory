@@ -310,8 +310,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for t in self.edge_history(edge.edge, Cow::Borrowed(self.layer_ids())) {
-                            src_node.update_time(t, EID(eid));
+                        for t in edge.explode().time_and_index() {
+                            src_node.update_time(t?, EID(eid));
                         }
                         for ee in edge.explode_layers() {
                             src_node.add_edge(
@@ -323,8 +323,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         }
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for t in self.edge_history(edge.edge, Cow::Borrowed(self.layer_ids())) {
-                            dst_node.update_time(t, EID(eid));
+                        for t in edge.explode().time_and_index() {
+                            dst_node.update_time(t?, EID(eid));
                         }
                         for ee in edge.explode_layers() {
                             dst_node.add_edge(

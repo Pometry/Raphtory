@@ -25,7 +25,7 @@ use raphtory_api::{
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         Direction,
     },
-    iter::{BoxedLIter, IntoDynBoxed},
+    iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed},
 };
 use rayon::prelude::*;
 use std::{borrow::Cow, iter, ops::Range};
@@ -102,21 +102,11 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for ValidGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        let cg = self.core_graph();
-        self.graph
-            .node_property_history(v, None)
-            .next()
-            .map(|t| t.t())
-            .into_iter()
-            .chain(
-                cg.node_edges_iter(v, Direction::BOTH, self)
-                    .filter_map(|e| self.edge_earliest_time(e, self.layer_ids())),
-            )
-            .min()
+        self.graph.node_earliest_time(v)
     }
 
-    fn node_latest_time(&self, _v: VID) -> Option<i64> {
-        self.graph.latest_time_global()
+    fn node_latest_time(&self, v: VID) -> Option<i64> {
+        self.graph.node_latest_time(v)
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -128,114 +118,31 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
-        self.graph
-            .temporal_prop_ids()
-            .filter_map(|p| self.graph.temporal_prop_iter(p).next().map(|(t, _)| t))
-            .chain(
-                self.core_graph()
-                    .nodes_par(self, None)
-                    .filter_map(|n| self.node_earliest_time(n))
-                    .min(),
-            )
-            .min()
+        self.graph.earliest_time_global()
     }
 
     fn latest_time_global(&self) -> Option<i64> {
-        self.graph
-            .temporal_prop_ids()
-            .filter_map(|p| self.graph.temporal_prop_iter(p).last().map(|(t, _)| t))
-            .chain(
-                self.core_graph()
-                    .nodes_par(self, None)
-                    .filter_map(|n| self.node_latest_time(n))
-                    .max(),
-            )
-            .max()
+        self.graph.latest_time_global()
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph
-            .temporal_prop_ids()
-            .filter_map(|p| {
-                self.graph
-                    .temporal_prop_iter_window(p, start, end)
-                    .next()
-                    .map(|(t, _)| t)
-            })
-            .chain(
-                self.core_graph()
-                    .nodes_par(self, None)
-                    .filter_map(|n| self.node_earliest_time_window(n, start, end))
-                    .min(),
-            )
-            .min()
+        self.graph.earliest_time_window(start, end)
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph
-            .temporal_prop_ids()
-            .filter_map(|p| {
-                self.graph
-                    .temporal_prop_iter_window(p, start, end)
-                    .last()
-                    .map(|(t, _)| t)
-            })
-            .chain(
-                self.core_graph()
-                    .nodes_par(self, None)
-                    .filter_map(|n| self.node_latest_time_window(n, start, end))
-                    .max(),
-            )
-            .max()
+        self.graph.latest_time_window(start, end)
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        let cg = self.core_graph();
-        let from_props = self
-            .graph
-            .node_property_history(v, Some(i64::MIN..end))
-            .next()
-            .map(|t| t.t().max(start));
-        from_props
-            .into_iter()
-            .chain(
-                cg.node_edges_iter(v, Direction::BOTH, self)
-                    .filter(|e| {
-                        let edge = self.core_edge(e.pid());
-                        self.filter_edge(edge.as_ref(), self.layer_ids())
-                            && self.include_edge_window(edge.as_ref(), start..end, self.layer_ids())
-                    })
-                    .filter_map(|e| {
-                        self.edge_earliest_time(e, self.layer_ids())
-                            .filter(|&t| t < end)
-                            .map(|t| t.max(start))
-                    }),
-            )
-            .min()
+        self.graph.node_earliest_time_window(v, start, end)
     }
 
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.include_node_window(
-            self.core_node_entry(v).as_ref(),
-            start..end,
-            self.layer_ids(),
-        )
-        .then_some(end)
+        self.graph.node_latest_time_window(v, start, end)
     }
 
     fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        self.graph.include_node_window(v, w.clone(), layer_ids) && {
-            let cg = self.core_graph();
-            self.graph
-                .node_property_history(v.vid(), Some(i64::MIN..w.end))
-                .next()
-                .is_some()
-                || v.edges_iter(layer_ids, Direction::BOTH).any(|e| {
-                    let edge = cg.core_edge(e.pid());
-                    self.filter_edge(edge.as_ref(), self.layer_ids())
-                        && self.include_edge_window(edge.as_ref(), w.clone(), layer_ids)
-                })
-        }
+        self.graph.include_node_window(v, w.clone(), layer_ids)
     }
 
     fn include_edge_window(
@@ -251,34 +158,14 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
     }
 
     fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry> {
-        let cn = self.core_node_entry(v);
-        let edges = self.core_edges();
-        let layer_ids = self.layer_ids();
-        iter::once(self.graph.node_property_history(v, None))
-            .chain(
-                cn.into_edges_iter(layer_ids, Direction::BOTH)
-                    .filter(move |e| self.filter_edge(edges.edge(e.pid()), layer_ids))
-                    .map(|e| self.edge_history(e, Cow::Borrowed(layer_ids))),
-            )
-            .kmerge()
+        self.node_property_history(v, None)
+            .merge(self.node_edge_history(v, None))
             .into_dyn_boxed()
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<TimeIndexEntry> {
-        let node = self.core_node_entry(v);
-        let edges = self.core_edges();
-        let layer_ids = self.layer_ids();
-        iter::once(self.graph.node_property_history(v, Some(w.clone())))
-            .chain(
-                node.into_edges_iter(layer_ids, Direction::BOTH)
-                    .filter(move |e| {
-                        let edge = edges.edge(e.pid());
-                        self.graph.filter_edge(edge, layer_ids)
-                            && self.include_edge_window(edge, w.clone(), layer_ids)
-                    })
-                    .map(|e| self.edge_history(e, Cow::Borrowed(layer_ids))),
-            )
-            .kmerge()
+        self.node_property_history(v, Some(w.clone()))
+            .merge(self.node_edge_history(v, Some(w)))
             .into_dyn_boxed()
     }
 
@@ -416,10 +303,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
     ) -> Option<i64> {
         let layer_ids =
             self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), layer_ids, w.clone());
-        println!("{layer_ids:?}");
-        let res = self.graph.edge_earliest_time_window(e, w, &layer_ids);
-        println!("edge: {res:?}");
-        res
+        self.graph.edge_earliest_time_window(e, w, &layer_ids)
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
@@ -485,7 +369,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
         self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
 
-    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph.temporal_node_prop_hist(v, id)
     }
 
@@ -495,7 +379,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
         id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph.temporal_node_prop_hist_window(v, id, start, end)
     }
 
@@ -707,6 +591,8 @@ mod tests {
         let gvw = gv.window(w.start, w.end);
         assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(1));
 
+        assert_eq!(gvw.node(0).unwrap().history(), [1, 10]);
+
         let gvwm = gvw.materialize().unwrap();
         assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(1));
     }
@@ -785,7 +671,6 @@ mod tests {
 
         let gv = g.valid().unwrap().window(-1, 10);
         let gvm = gv.materialize().unwrap();
-        println!("{:?}", gvm);
         assert_graph_equal(&gv, &gvm);
         assert_eq!(gv.node(0).unwrap().earliest_time(), Some(-1));
     }
@@ -836,5 +721,14 @@ mod tests {
             .valid()
             .unwrap();
         assert_graph_equal(&gv, &gv.materialize().unwrap());
+    }
+
+    #[test]
+    fn test_single_edge() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let gwv = g.window(10, 11).valid().unwrap();
+        let gm = gwv.materialize().unwrap();
+        assert_graph_equal(&gwv, &gm);
     }
 }

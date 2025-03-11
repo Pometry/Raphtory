@@ -125,7 +125,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
+    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
@@ -295,8 +295,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>> {
-        self.map(|_, e| e.time())
+    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>> {
+        self.map(|_, e| e.time().ok_or(GraphError::TimeAPIError))
     }
 
     /// Gets the name of the layer this edge belongs to
@@ -452,7 +452,7 @@ mod test_edge_view {
         //FIXME: DiskGraph does not preserve secondary index (see #1780)
         test_graph(&graph, |graph| {
             let mut exploded_edges: Vec<_> = graph.edges().explode().into_iter().collect();
-            exploded_edges.sort_by_key(|a| a.time_and_index());
+            exploded_edges.sort_by_key(|a| a.time_and_index().unwrap());
 
             let res: Vec<_> = exploded_edges
                 .into_iter()

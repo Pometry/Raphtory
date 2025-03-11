@@ -434,59 +434,39 @@ mod test_utils {
             .prop_flat_map(move |schema| {
                 let (t_props, c_props) = make_props(schema);
 
-                proptest::collection::vec(
+                let no_props = proptest::collection::vec(
+                    (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                    0..=len,
+                );
+                let del_len = if del_edges { len } else { 0 };
+                let del_edges = proptest::collection::vec(
+                    (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                    0..=del_len,
+                );
+
+                let edges = proptest::collection::vec(
                     (
                         0..num_nodes,
                         0..num_nodes,
                         i64::MIN..i64::MAX,
                         t_props,
-                        c_props,
                         proptest::sample::select(vec![Some("a"), Some("b"), None]),
                     ),
                     0..=len,
+                );
+
+                let const_props =
+                    proptest::collection::hash_map((0..num_nodes, 0..num_nodes), c_props, 0..=len);
+
+                (edges, no_props, const_props, del_edges).prop_map(
+                    |(edges, no_props, const_props, del_edges)| GraphFixture {
+                        edges,
+                        edge_const_props: const_props,
+                        edge_deletions: del_edges,
+                        no_props_edges: no_props,
+                        nodes: Default::default(),
+                    },
                 )
-                .prop_flat_map(move |edges| {
-                    let no_props = proptest::collection::vec(
-                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=len,
-                    );
-                    let del_len = if del_edges { len } else { 0 };
-                    let del_edges = proptest::collection::vec(
-                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=del_len,
-                    );
-                    (no_props, del_edges).prop_map(move |(no_prop_edges, del_edges)| {
-                        let edges = edges.clone();
-                        let const_props = edges
-                            .iter()
-                            .into_group_map_by(|(src, dst, _, _, _, _)| (src, dst))
-                            .iter()
-                            .map(|(&a, &ref b)| {
-                                let (src, dst) = a;
-                                let c_props = b
-                                    .iter()
-                                    .flat_map(|(_, _, _, _, c, _)| c.clone())
-                                    .collect::<Vec<_>>();
-                                ((*src, *dst), c_props)
-                            })
-                            .collect::<HashMap<_, _>>();
-
-                        let edges = edges
-                            .into_iter()
-                            .map(|(src, dst, time, t_props, _, layer)| {
-                                (src, dst, time, t_props, layer)
-                            })
-                            .collect::<Vec<_>>();
-
-                        GraphFixture {
-                            edges,
-                            edge_const_props: const_props,
-                            edge_deletions: del_edges,
-                            no_props_edges: no_prop_edges,
-                            nodes: Default::default(),
-                        }
-                    })
-                })
             });
         edges
     }
