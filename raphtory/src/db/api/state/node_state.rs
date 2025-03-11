@@ -201,14 +201,13 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
     /// - `map`: Closure mapping input to output values
-    pub fn new_from_eval_mapped<R>(graph: G, values: Vec<R>, map: impl Fn(R) -> V) -> Self {
+    pub fn new_from_eval_mapped<R: Clone>(graph: G, values: Vec<R>, map: impl Fn(R) -> V) -> Self {
         let index = Index::for_graph(graph.clone());
         let values = match &index {
             None => values.into_iter().map(map).collect(),
-            Some(index) => values
-                .into_iter()
-                .enumerate()
-                .filter_map(|(i, v)| index.contains(&VID(i)).then(|| map(v)))
+            Some(index) => index
+                .iter()
+                .map(|vid| map(values[vid.index()].clone()))
                 .collect(),
         };
         Self::new(graph.clone(), graph, values, index)
