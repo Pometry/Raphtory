@@ -1,8 +1,3 @@
-use std::iter;
-
-use chrono::{DateTime, Utc};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -18,6 +13,9 @@ use crate::{
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
+use chrono::{DateTime, Utc};
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use std::iter;
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -147,7 +145,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| g.edge_history(e, g.layer_ids()).map(|ti| ti.t()).collect())
+        self.map(|g, e| {
+            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
+                .map(|ti| ti.t())
+                .collect()
+        })
     }
 
     fn history_counts(&self) -> Self::ValueType<usize> {
@@ -155,12 +157,16 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(move |g, e| g.edge_history(e, g.layer_ids()).map(|t| t.dt()).collect())
+        self.map(move |g, e| {
+            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
+                .map(|t| t.dt())
+                .collect()
+        })
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(move |g, e| {
-            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
                 .map(|t| t.t())
                 .collect()
         })
@@ -168,7 +174,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
-            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
                 .into_iter()
                 .map(|t| t.dt())
                 .collect()
@@ -209,7 +215,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Check if edge is active (i.e. has some update within the current bound)
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
-            g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_exploded(e, g.layer_ids().constrain_from_edge(e))
                 .next()
                 .is_some()
         })
@@ -225,7 +231,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => Box::new(iter::once(e)),
             None => {
                 let g = g.clone();
-                GenLockedIter::from(g, move |g| g.edge_exploded(e, g.layer_ids())).into_dyn_boxed()
+                GenLockedIter::from(g, move |g| {
+                    g.edge_exploded(e, g.layer_ids().constrain_from_edge(e))
+                })
+                .into_dyn_boxed()
             }
         })
     }
@@ -235,7 +244,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => Box::new(iter::once(e)),
             None => {
                 let g = g.clone();
-                GenLockedIter::from(g, move |g| g.edge_layers(e, g.layer_ids())).into_dyn_boxed()
+                GenLockedIter::from(g, move |g| {
+                    g.edge_layers(e, g.layer_ids().constrain_from_edge(e))
+                })
+                .into_dyn_boxed()
             }
         })
     }
@@ -291,7 +303,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>> {
         self.map(|g, e| {
             let layer_names = g.edge_meta().layer_meta().get_keys();
-            g.edge_layers(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_layers(e, g.layer_ids().constrain_from_edge(e))
                 .map(move |ee| {
                     layer_names[ee.layer().expect("exploded edge should have layer")].clone()
                 })

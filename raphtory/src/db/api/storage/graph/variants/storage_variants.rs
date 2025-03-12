@@ -1,5 +1,8 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::{
+    core::storage::timeindex::{TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
+    iter::BoxedLIter,
+};
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
     IndexedParallelIterator, ParallelIterator,
@@ -276,5 +279,70 @@ impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> 
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
+    }
+}
+
+impl<
+        Mem: TimeIndexOps,
+        #[cfg(feature = "storage")] Disk: TimeIndexOps<IndexType = Mem::IndexType>,
+    > TimeIndexOps for SelfType!(Mem, Disk)
+{
+    type IndexType = Mem::IndexType;
+
+    #[cfg(feature = "storage")]
+    type RangeType<'a>
+        = StorageVariants<Mem::RangeType<'a>, Disk::RangeType<'a>>
+    where
+        Self: 'a;
+
+    #[cfg(not(feature = "storage"))]
+    type RangeType<'a>
+        = Mem::RangeType<'a>
+    where
+        Self: 'a;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        for_all!(self, props => props.active(w))
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
+        for_all_iter!(self, props => props.range(w))
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        for_all!(self, props => props.first())
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        for_all!(self, props => props.last())
+    }
+
+    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+        for_all!(self, props => props.iter())
+    }
+
+    fn len(&self) -> usize {
+        for_all!(self, props => props.len())
+    }
+}
+
+impl<
+        Mem: TimeIndexIntoOps,
+        #[cfg(feature = "storage")] Disk: TimeIndexIntoOps<IndexType = Mem::IndexType>,
+    > TimeIndexIntoOps for SelfType!(Mem, Disk)
+{
+    type IndexType = Mem::IndexType;
+    #[cfg(feature = "storage")]
+    type RangeType = StorageVariants<Mem::RangeType, Disk::RangeType>;
+
+    #[cfg(not(feature = "storage"))]
+    type RangeType = Mem::RangeType;
+
+    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
+        for_all_iter!(self, props => props.into_range(w))
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync {
+        for_all_iter!(self, props => props.into_iter())
     }
 }

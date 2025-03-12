@@ -117,6 +117,8 @@ pub enum GraphError {
     ImmutableDiskGraph,
     #[error("Event Graph doesn't support deletions")]
     EventGraphDeletionsNotSupported,
+    #[error("Valid view is not supported for event graph")]
+    EventGraphNoValidView,
     #[error("Graph not found {0}")]
     GraphNotFound(PathBuf),
     #[error("Graph already exists by name = {0}")]

@@ -232,6 +232,48 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
     }
 }
 
+impl<'b, A: Send + Sync> TimeIndexOps for &'b TCell<A> {
+    type IndexType = TimeIndexEntry;
+    type RangeType<'a>
+        = TimeIndexWindow<'a, TimeIndexEntry, TCell<A>>
+    where
+        Self: 'a;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        TimeIndexOps::active(*self, w)
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
+        TimeIndexOps::range(*self, w)
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        TimeIndexOps::first(*self)
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        TimeIndexOps::last(*self)
+    }
+
+    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+        TimeIndexOps::iter(*self)
+    }
+
+    fn len(&self) -> usize {
+        TimeIndexOps::len(*self)
+    }
+}
+
+impl<'a, A: Send + Sync> TimeIndexLike for &'a TCell<A> {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
+        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.iter_window(w).next_back().map(|(ti, _)| *ti)
+    }
+}
+
 #[cfg(test)]
 mod tcell_tests {
     use super::TCell;

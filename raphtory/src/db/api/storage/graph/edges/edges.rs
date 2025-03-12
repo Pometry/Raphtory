@@ -4,7 +4,8 @@ use crate::disk_graph::storage_interface::{edges::DiskEdges, edges_ref::DiskEdge
 use crate::{
     core::{entities::LayerIds, storage::raw_edges::LockedEdges},
     db::api::storage::graph::{
-        edges::edge_storage_ops::EdgeStorageOps, variants::storage_variants3::StorageVariants,
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        variants::storage_variants3::StorageVariants,
     },
 };
 use raphtory_api::core::entities::EID;
@@ -24,6 +25,14 @@ impl EdgesStorage {
             EdgesStorage::Mem(storage) => EdgesStorageRef::Mem(storage),
             #[cfg(feature = "storage")]
             EdgesStorage::Disk(storage) => EdgesStorageRef::Disk(storage.as_ref()),
+        }
+    }
+
+    pub fn edge(&self, eid: EID) -> EdgeStorageRef {
+        match self {
+            EdgesStorage::Mem(storage) => EdgeStorageRef::Mem(storage.get_mem(eid)),
+            #[cfg(feature = "storage")]
+            EdgesStorage::Disk(storage) => EdgeStorageRef::Disk(storage.get(eid)),
         }
     }
 }
