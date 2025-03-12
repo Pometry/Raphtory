@@ -124,8 +124,8 @@ def test_node_property_filter_equal(graph):
             nodeFilter(
               property: "prop5", 
               condition: {
-                operator: EQUAL, 
-                value: [1, 2, 3]
+                operator: EQUAL,
+                value: { list: [ {i64: 1}, {i64: 2}, {i64: 3} ] }
               }
             ) {
                 list {
@@ -174,7 +174,7 @@ def test_node_property_filter_equal_type_error(graph):
               property: "prop5", 
               condition: {
                 operator: EQUAL, 
-                value: 1
+                value: { i64: 1 }
               }
             ) {
             list {
@@ -198,8 +198,8 @@ def test_node_property_filter_not_equal(graph):
             nodeFilter(
               property: "prop4", 
               condition: {
-                operator: NOT_EQUAL, 
-                value: true
+                operator: NOT_EQUAL,
+                value: { bool: true }
               }
             ) {
             list {
@@ -250,7 +250,7 @@ def test_node_property_filter_not_equal_type_error(graph):
              property: "prop4", 
               condition: {
                 operator: NOT_EQUAL, 
-                value: 1
+                value: { i64: 1 }
               }
            ) {
             list {
@@ -275,7 +275,7 @@ def test_node_property_filter_greater_than_or_equal(graph):
             property: "prop1", 
             condition: {
                 operator: GREATER_THAN_OR_EQUAL, 
-                value: 60
+                value: { i64: 60 }
             }
           ) {
             list {
@@ -324,7 +324,7 @@ def test_node_property_filter_greater_than_or_equal_type_error(graph):
             property: "prop1", 
             condition: {
               operator: GREATER_THAN_OR_EQUAL, 
-              value: true
+              value: { bool: true }
             }
           ) {
             list {
@@ -349,7 +349,7 @@ def test_node_property_filter_less_than_or_equal(graph):
             property: "prop1", 
             condition: {
               operator: LESS_THAN_OR_EQUAL, 
-              value: 30
+              value: { i64: 30 }
             }
           ) {
             list {
@@ -404,7 +404,7 @@ def test_node_property_filter_less_than_or_equal_type_error(graph):
             property: "prop1", 
             condition: {
               operator: LESS_THAN_OR_EQUAL, 
-              value: "shivam"
+              value: { str: "shivam" }
             }
           ) {
             list {
@@ -429,7 +429,7 @@ def test_node_property_filter_greater_than(graph):
             property: "prop1", 
             condition: {
               operator: GREATER_THAN, 
-              value: 30
+              value: { i64: 30 }
             }
           ) {
             list {
@@ -478,7 +478,7 @@ def test_node_property_filter_greater_than_type_error(graph):
             property: "prop1", 
             condition: {
               operator: GREATER_THAN, 
-              value: "shivam"
+              value: { str: "shivam" }
             }
           ) {
             list {
@@ -503,7 +503,7 @@ def test_node_property_filter_less_than(graph):
             property: "prop1", 
             condition: {
               operator: LESS_THAN, 
-              value: 30
+              value: { i64: 30 }
             }
           ) {
             list {
@@ -554,7 +554,7 @@ def test_node_property_filter_less_than_type_error(graph):
             property: "prop1", 
             condition: {
               operator: LESS_THAN, 
-              value: "shivam"
+              value: { str: "shivam" }
             }
           ) {
             list {
@@ -631,7 +631,7 @@ def test_node_property_filter_any(graph):
             property: "prop1", 
             condition: {
               operator: ANY, 
-              value: [10, 30, 50, 70]
+              value: { list: [ {i64: 10}, {i64: 30}, {i64: 50}, {i64: 70} ] }
             }
           ) {
             list {
@@ -658,7 +658,7 @@ def test_node_property_filter_any_empty_list(graph):
             property: "prop1", 
             condition: {
               operator: ANY, 
-              value: []
+              value: { list: [] }
             }
           ) {
             list {
@@ -706,8 +706,8 @@ def test_node_property_filter_any_type_error(graph):
           nodeFilter(
             property: "prop1", 
             condition: {
-              operator: ANY, 
-              value: "shivam"
+              operator: ANY,
+              value: {str: "shivam"}
             }
           ) {
             list {
@@ -732,7 +732,7 @@ def test_node_property_filter_not_any(graph):
             property: "prop1", 
             condition: {
               operator: NOT_ANY, 
-              value: [10, 30, 50, 70]
+              value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
             }
           ) {
             list {
@@ -759,7 +759,7 @@ def test_node_property_filter_not_any_empty_list(graph):
             property: "prop1", 
             condition: {
               operator: NOT_ANY, 
-              value: []
+              value: { list: []}
             }
           ) {
             list {
@@ -813,10 +813,10 @@ def test_node_property_filter_not_any_type_error(graph):
       graph(path: "g") {
         nodes {
           nodeFilter(
-            property: "prop1", 
+            property: "prop1",
             condition: {
-              operator: NOT_ANY, 
-              value: "shivam"
+              operator: NOT_ANY,
+              value: {str: "shivam"}
             }
           ) {
             list {

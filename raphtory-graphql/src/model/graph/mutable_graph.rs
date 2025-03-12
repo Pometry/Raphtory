@@ -1,6 +1,6 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::graph::{edge::Edge, graph::GqlGraph, node::Node, property::GqlPropValue},
+    model::graph::{edge::Edge, graph::GqlGraph, node::Node, property::Value},
     paths::ExistingGraphFolder,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
@@ -14,7 +14,7 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 #[derive(InputObject)]
 pub struct GqlPropInput {
     key: String,
-    value: GqlPropValue,
+    value: Value,
 }
 
 #[derive(InputObject)]
@@ -44,19 +44,25 @@ pub struct EdgeAddition {
 pub struct GqlMutableGraph {
     path: ExistingGraphFolder,
     graph: GraphWithVectors,
+    is_index_available: bool,
 }
 
 impl GqlMutableGraph {
-    pub(crate) fn new(path: ExistingGraphFolder, graph: GraphWithVectors) -> Self {
+    pub(crate) fn new(
+        path: ExistingGraphFolder,
+        graph: GraphWithVectors,
+        is_index_available: bool,
+    ) -> Self {
         Self {
             path: path.into(),
             graph,
+            is_index_available,
         }
     }
 }
 
 fn as_properties(properties: Vec<GqlPropInput>) -> impl Iterator<Item = (String, Prop)> {
-    properties.into_iter().map(|p| (p.key, p.value.0))
+    properties.into_iter().map(|p| (p.key, Prop::from(p.value)))
 }
 
 #[ResolvedObjectFields]
@@ -67,7 +73,7 @@ impl GqlMutableGraph {
         GqlGraph::new(
             self.path.clone(),
             self.graph.graph.clone(),
-            self.graph.index.clone(),
+            self.is_index_available,
         )
     }
 

@@ -151,7 +151,7 @@ struct Infection {
 
 /// Simulated SEIR dynamics on temporal network
 ///
-/// This algorithm is based on https://arxiv.org/abs/2007.14386
+/// This algorithm is based on <https://arxiv.org/abs/2007.14386>
 ///
 /// # Arguments
 ///

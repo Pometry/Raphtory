@@ -44,29 +44,144 @@ mod graphql_test {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn search_for_gandalf_query() {
-        let graph = PersistentGraph::new();
+    async fn test_search_nodes_gql() {
+        let graph = Graph::new();
         graph
-            .add_node(
-                0,
-                "Gandalf",
-                [("kind".to_string(), Prop::str("wizard"))],
-                None,
-            )
-            .expect("Could not add node!");
+            .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
         graph
-            .add_node(
-                0,
-                "Frodo",
-                [("kind".to_string(), Prop::str("Hobbit"))],
-                None,
-            )
-            .expect("Could not add node!");
-        graph.add_constant_properties([("name", "lotr")]).unwrap();
+            .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .node("N1")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph
+            .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .node("N4")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(2u64))])
+            .unwrap();
+
+        graph
+            .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+            .unwrap();
+        graph
+            .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+
+        graph
+            .add_node(2, "N9", [("p1", Prop::U64(2u64))], None)
+            .unwrap();
+        graph
+            .node("N9")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph
+            .add_node(2, "N10", [("q1", Prop::U64(0u64))], None)
+            .unwrap();
+        graph
+            .add_node(2, "N10", [("p1", Prop::U64(3u64))], None)
+            .unwrap();
+        graph
+            .node("N10")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph
+            .add_node(2, "N11", [("p1", Prop::U64(3u64))], None)
+            .unwrap();
+        graph
+            .add_node(2, "N11", [("q1", Prop::U64(0u64))], None)
+            .unwrap();
+        graph
+            .node("N11")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph
+            .add_node(2, "N12", [("q1", Prop::U64(0u64))], None)
+            .unwrap();
+        graph
+            .add_node(3, "N12", [("p1", Prop::U64(3u64))], None)
+            .unwrap();
+        graph
+            .node("N12")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph
+            .add_node(2, "N13", [("q1", Prop::U64(0u64))], None)
+            .unwrap();
+        graph
+            .add_node(3, "N13", [("p1", Prop::U64(3u64))], None)
+            .unwrap();
+        graph
+            .node("N13")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph
+            .add_node(2, "N14", [("q1", Prop::U64(0u64))], None)
+            .unwrap();
+        graph
+            .node("N14")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
+
+        graph.add_node(2, "N15", NO_PROPS, None).unwrap();
+        graph
+            .node("N15")
+            .unwrap()
+            .add_constant_properties([("p1", Prop::U64(1u64))])
+            .unwrap();
 
         let graph: MaterializedGraph = graph.into();
 
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graphs = HashMap::from([("master".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
@@ -75,26 +190,77 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
-        {
-          graph(path: "lotr") {
-            searchNodes(query: "kind:wizard", limit: 10, offset: 0) {
-              name
+            {
+              graph(path: "master") {
+                searchNodes(
+                    filter: {
+                      or: [
+                        {
+                          property: {
+                            name: "p1",
+                            operator: GREATER_THAN,
+                            value: {
+                              u64: 2
+                            }
+                          }
+                        },
+                        {
+                          and: [
+                        {
+                          node: {
+                                field: NODE_NAME,
+                                operator: EQUAL,
+                                value: "N1"
+                            }
+                        },
+                        {
+                          node: {
+                            field: NODE_TYPE,
+                            operator: NOT_EQUAL,
+                            value: "air_nomads"
+                          }
+                        },
+                        {
+                          property: {
+                            name: "p1",
+                            operator: LESS_THAN,
+                            value: {
+                              u64: 5
+                            }
+                          }
+                        }
+                      ]
+                        }
+                      ]
+
+
+                    },
+                  limit: 20,
+                  offset: 0
+                ) {
+                  name
+                }
+              }
             }
-          }
-        }
         "#;
         let req = Request::new(query);
         let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
+        let mut data = res.data.into_json().unwrap();
+
+        if let Some(nodes) = data["graph"]["searchNodes"].as_array_mut() {
+            nodes.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+        }
 
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "searchNodes": [
-                        {
-                            "name": "Gandalf"
-                        }
+                        { "name": "N1" },
+                        { "name": "N10" },
+                        { "name": "N11" },
+                        { "name": "N12" },
+                        { "name": "N13" }
                     ]
                 }
             }),
