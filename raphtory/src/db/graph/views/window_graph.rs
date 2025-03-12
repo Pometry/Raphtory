@@ -1456,71 +1456,280 @@ mod views_test {
         use crate::{
             core::Prop,
             db::{
-                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                api::{
+                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                    view::{SearchableGraphOps, StaticGraphViewOps},
+                },
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
+                    property_filter::{FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps},
                 },
             },
-            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+            prelude::{
+                AdditionOps, Graph, NodePropertyFilterOps, NodeViewOps, PropertyAdditionOps,
+                PropertyFilter, TimeOps, NO_PROPS,
+            },
         };
+        use raphtory_api::core::storage::arc_str::ArcStr;
         use std::ops::Range;
 
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+        fn init_graph<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
+            graph: G,
+        ) -> G {
             graph
-                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
+                .add_node(
+                    6,
+                    "N1",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
                 .unwrap();
             graph
-                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
+                .add_node(
+                    7,
+                    "N1",
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(5i64)),
+                        ("k3", Prop::Bool(false)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+            graph
+                .node("N1")
+                .unwrap()
+                .add_constant_properties([
+                    ("p1", Prop::U64(1u64)),
+                    ("k1", Prop::I64(3i64)),
+                    ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                    ("k3", Prop::Bool(true)),
+                    ("k4", Prop::F64(6.0f64)),
+                ])
                 .unwrap();
 
             graph
-                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
+                .add_node(
+                    6,
+                    "N2",
+                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(6.0f64))],
+                    Some("water_tribe"),
+                )
                 .unwrap();
             graph
-                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
+                .add_node(
+                    7,
+                    "N2",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    Some("water_tribe"),
+                )
                 .unwrap();
 
             graph
-                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
+                .add_node(8, "N3", [("p1", Prop::U64(1u64))], Some("air_nomad"))
                 .unwrap();
 
             graph
-                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
+                .add_node(9, "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
                 .unwrap();
             graph
-                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
+                .node("N4")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(2u64))])
+                .unwrap();
+
+            graph
+                .add_node(
+                    5,
+                    "N5",
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+            graph
+                .add_node(
+                    6,
+                    "N5",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k2", Prop::Str(ArcStr::from("Pometry"))),
+                        ("k4", Prop::F64(1.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+
+            graph
+                .add_node(5, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(
+                    6,
+                    "N6",
+                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(1.0f64))],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+
+            graph
+                .add_node(
+                    3,
+                    "N7",
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+            graph
+                .add_node(5, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_node(3, "N8", [("p1", Prop::U64(1u64))], Some("fire_nation"))
+                .unwrap();
+            graph
+                .add_node(
+                    4,
+                    "N8",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+                .add_node(2, "N9", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .node("N9")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N10", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_node(2, "N10", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .node("N10")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N11", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .add_node(2, "N11", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .node("N11")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N12", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_node(
+                    3,
+                    "N12",
+                    [
+                        ("p1", Prop::U64(3u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    None,
+                )
+                .unwrap();
+            graph
+                .node("N12")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph
+                .add_node(2, "N13", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_node(3, "N13", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .node("N13")
+                .unwrap()
+                .add_constant_properties([
+                    ("p1", Prop::U64(1u64)),
+                    ("k1", Prop::I64(2i64)),
+                    ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                    ("k3", Prop::Bool(true)),
+                    ("k4", Prop::F64(10.0f64)),
+                ])
+                .unwrap();
+
+            graph
+                .add_node(2, "N14", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .node("N14")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
+                .unwrap();
+
+            graph.add_node(2, "N15", NO_PROPS, None).unwrap();
+            graph
+                .node("N15")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))])
                 .unwrap();
 
             graph
         }
 
-        fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+        fn search_nodes<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
             graph: G,
             w: Range<i64>,
             filter: FilterExpr,
@@ -1528,7 +1737,7 @@ mod views_test {
             let graph = init_graph(graph);
             let mut results = graph
                 .window(w.start, w.end)
-                .search_nodes(filter, 10, 0)
+                .search_nodes(filter, 20, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
@@ -1537,22 +1746,248 @@ mod views_test {
             results
         }
 
+        fn test_search_nodes_for_node_name_eq<G>(graph: G)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_name().eq("N2");
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, vec!["N2"]);
+        }
+
         #[test]
-        fn test_search_nodes_windowed_graph() {
+        fn test_search_nodes_graph_for_node_name_eq() {
+            test_search_nodes_for_node_name_eq(Graph::new());
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_name_eq() {
+            test_search_nodes_for_node_name_eq(PersistentGraph::new());
+        }
+
+        fn test_search_nodes_for_node_name_ne<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_name().ne("N2");
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_name_ne() {
+            test_search_nodes_for_node_name_ne(Graph::new(), vec!["N1", "N3", "N5", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_name_ne() {
+            test_search_nodes_for_node_name_ne(
+                PersistentGraph::new(),
+                vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N3", "N5", "N6", "N7", "N8",
+                    "N9",
+                ],
+            );
+        }
+
+        fn test_search_nodes_for_node_name_in<G>(graph: G)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_name().includes(vec!["N2".into()]);
+            let results = search_nodes(graph.clone(), 6..9, filter);
+            assert_eq!(results, vec!["N2"]);
+
+            let filter = NodeFilter::node_name().includes(vec!["N2".into(), "N5".into()]);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, vec!["N2", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_name_in() {
+            test_search_nodes_for_node_name_in(Graph::new());
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_name_in() {
+            test_search_nodes_for_node_name_in(PersistentGraph::new());
+        }
+
+        fn test_search_nodes_for_node_name_not_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_name().excludes(vec!["N5".into()]);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_name_not_in() {
+            test_search_nodes_for_node_name_not_in(Graph::new(), vec!["N1", "N2", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_name_not_in() {
+            test_search_nodes_for_node_name_not_in(
+                PersistentGraph::new(),
+                vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N6", "N7", "N8",
+                    "N9",
+                ],
+            );
+        }
+
+        fn test_search_nodes_for_node_type_eq<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_type().eq("fire_nation");
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_type_eq() {
+            test_search_nodes_for_node_type_eq(Graph::new(), vec!["N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_type_eq() {
+            test_search_nodes_for_node_type_eq(PersistentGraph::new(), vec!["N6", "N8"]);
+        }
+
+        fn test_search_nodes_for_node_type_ne<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_type().ne("fire_nation");
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_type_ne() {
+            test_search_nodes_for_node_type_ne(Graph::new(), vec!["N1", "N2", "N3", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_type_ne() {
+            test_search_nodes_for_node_type_ne(
+                PersistentGraph::new(),
+                vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
+                ],
+            );
+        }
+
+        fn test_search_nodes_for_node_type_in<G>(
+            graph: G,
+            expected1: Vec<&str>,
+            expected2: Vec<&str>,
+        ) where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_type().includes(vec!["fire_nation".into()]);
+            let results = search_nodes(graph.clone(), 6..9, filter);
+            assert_eq!(results, expected1);
+
+            let filter =
+                NodeFilter::node_type().includes(vec!["fire_nation".into(), "air_nomads".into()]);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected2);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_type_in() {
+            test_search_nodes_for_node_type_in(
+                Graph::new(),
+                vec!["N6"],
+                vec!["N1", "N3", "N5", "N6"],
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_type_in() {
+            test_search_nodes_for_node_type_in(
+                PersistentGraph::new(),
+                vec!["N6", "N8"],
+                vec!["N1", "N3", "N5", "N6", "N7", "N8"],
+            );
+        }
+
+        fn test_search_nodes_for_node_type_not_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = NodeFilter::node_type().excludes(vec!["fire_nation".into()]);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_node_type_not_in() {
+            test_search_nodes_for_node_type_not_in(Graph::new(), vec!["N1", "N2", "N3", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_node_type_not_in() {
+            test_search_nodes_for_node_type_not_in(
+                PersistentGraph::new(),
+                vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
+                ],
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_graph() {
             let graph = Graph::new();
             let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter(graph, 6..9, filter);
+            let results = search_nodes(graph, 6..9, filter);
 
             assert_eq!(results, vec!["N1", "N3", "N6"]);
         }
 
         #[test]
-        fn test_search_nodes_windowed_persistent_graph() {
+        fn test_search_nodes_persistent_graph() {
             let graph = PersistentGraph::new();
             let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter(graph, 6..9, filter);
+            let results = search_nodes(graph, 6..9, filter);
 
-            assert_eq!(results, vec!["N1", "N3", "N6", "N7"]);
+            assert_eq!(results, vec!["N1", "N14", "N15", "N3", "N6", "N7"]);
         }
     }
 
