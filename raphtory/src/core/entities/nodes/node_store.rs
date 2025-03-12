@@ -10,7 +10,10 @@ use crate::core::{
     Direction, Prop,
 };
 use itertools::Itertools;
-use raphtory_api::{core::entities::GidRef, iter::BoxedLIter};
+use raphtory_api::{
+    core::entities::{GidRef, ELID},
+    iter::BoxedLIter,
+};
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Deref};
 
@@ -31,7 +34,7 @@ pub struct NodeStore {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeTimestamps {
     // all the timestamps that have been seen by this node
-    pub(crate) edge_ts: TCell<EID>,
+    pub(crate) edge_ts: TCell<ELID>,
     pub(crate) props_ts: TCell<Option<usize>>,
 }
 
@@ -82,7 +85,7 @@ impl NodeStore {
     }
 
     #[inline]
-    pub fn update_time(&mut self, t: TimeIndexEntry, eid: EID) {
+    pub fn update_time(&mut self, t: TimeIndexEntry, eid: ELID) {
         self.timestamps.edge_ts.set(t, eid);
     }
 

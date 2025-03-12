@@ -71,11 +71,7 @@ impl<'b> NodeStorageEntry<'b> {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + use<'b, '_> {
         match self {
-            NodeStorageEntry::Mem(entry) => {
-                StorageVariants::Mem(GenLockedIter::from(entry, |entry| {
-                    Box::new(entry.edges_iter(layers, dir))
-                }))
-            }
+            NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
             NodeStorageEntry::Unlocked(entry) => {
                 StorageVariants::Unlocked(entry.into_edges_iter(layers, dir))
             }
