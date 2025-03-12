@@ -59,6 +59,7 @@ harness = false
 [[bench]]
 name = "search_bench"
 harness = false
+required-features = ["search"]
 
 [features]
 search = ["raphtory/search"]
