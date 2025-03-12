@@ -64,6 +64,10 @@ impl EID {
     pub fn as_u64(self) -> u64 {
         self.0 as u64
     }
+
+    pub fn with_layer(self, layer: usize) -> ELID {
+        ELID::new(self, layer)
+    }
 }
 
 impl From<EID> for usize {
@@ -81,6 +85,18 @@ impl From<usize> for EID {
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ELID {
+    pub edge: EID,
+    pub layer: usize,
+}
+
+impl ELID {
+    pub fn new(edge: EID, layer: usize) -> Self {
+        ELID { edge, layer }
     }
 }
 
