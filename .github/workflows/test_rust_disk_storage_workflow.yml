@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo apt-get install lld
       - uses: webfactory/ssh-agent@v0.7.0
-        name: Load pometry-storage key
+        name: Load pometry-storage-private key
         with:
           ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - name: Rust version
@@ -59,7 +59,7 @@ jobs:
         uses: taiki-e/install-action@nextest
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - name: Activate pometry-storage in Cargo.toml
+      - name: Activate pometry-storage-private in Cargo.toml
         run: make pull-storage
       - uses: actions/setup-python@v5
         with:

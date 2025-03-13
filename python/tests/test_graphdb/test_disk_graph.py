@@ -54,7 +54,7 @@ def test_disk_graph():
     from raphtory import DiskGraphStorage
 
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    rsc_dir = os.path.join(curr_dir, "..", "..", "..", "pometry-storage", "resources")
+    rsc_dir = os.path.join(curr_dir, "..", "..", "..", "pometry-storage-private", "resources")
     rsc_dir = os.path.normpath(rsc_dir)
     print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
 
@@ -143,7 +143,7 @@ def test_disk_graph_type_filter():
     from raphtory import DiskGraphStorage
 
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    rsc_dir = os.path.join(curr_dir, "..", "..", "..", "pometry-storage", "resources")
+    rsc_dir = os.path.join(curr_dir, "..", "..", "..", "pometry-storage-private", "resources")
     rsc_dir = os.path.normpath(rsc_dir)
     print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
 

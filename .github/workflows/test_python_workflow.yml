@@ -58,7 +58,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
-      - name: Activate pometry-storage in Cargo.toml
+      - name: Activate pometry-storage-private in Cargo.toml
         run: make pull-storage
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1

@@ -59,12 +59,12 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty
-      - name: "Publish pometry-storage to crates.io"
+      - name: "Publish pometry-storage-private to crates.io"
         if: ${{ !inputs.dry_run }}
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty
+          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage-private --allow-dirty
       - name: "Publish raphtory to crates.io"
         if: ${{ !inputs.dry_run }}
         uses: actions-rs/cargo@v1
@@ -83,12 +83,12 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty --dry-run
-      - name: "Publish pometry-storage to crates.io (DRY RUN)"
+      - name: "Publish pometry-storage-private to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty --dry-run
+          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage-private --allow-dirty --dry-run
       - name: "Publish raphtory to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
         uses: actions-rs/cargo@v1

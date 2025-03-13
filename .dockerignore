@@ -1,4 +1,4 @@
-pometry-storage
+pometry-storage-private
 .dockerignore
 target/
 .git/

@@ -5,7 +5,7 @@ use tracing_subscriber::{
 
 pub fn get_log_env(log_level: String) -> EnvFilter {
     EnvFilter::new(format!(
-        "pometry-storage={},pometry-storage={},raphtory={},raphtory-api={},raphtory-benchmark={},raphtory-cypher={},raphtory-graphql={}",
+        "pometry-storage-private={},pometry-storage-private={},raphtory={},raphtory-api={},raphtory-benchmark={},raphtory-cypher={},raphtory-graphql={}",
         log_level, log_level, log_level, log_level, log_level, log_level, log_level
     ))
 }
