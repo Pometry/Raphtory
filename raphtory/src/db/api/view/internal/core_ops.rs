@@ -277,27 +277,27 @@ impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
     }
 }
 
-impl TimeIndexOps for NodeTimestamps {
+impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
     type IndexType = TimeIndexEntry;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.edge_ts.active(w.clone()) || self.props_ts.active(w)
+        self.edge_ts().active(w.clone()) || self.props_ts().active(w)
     }
 
     fn range(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
         Box::new(TimeIndexWindow::TimeIndexRange {
-            timeindex: self,
+            timeindex: *self,
             range: w,
         })
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        let first = self.edge_ts.first();
-        let other = self.props_ts.first();
+        let first = self.edge_ts().first();
+        let other = self.props_ts().first();
 
         first
             .zip(other)
@@ -306,15 +306,15 @@ impl TimeIndexOps for NodeTimestamps {
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        let last = self.edge_ts.last();
-        let other = self.props_ts.last();
+        let last = self.edge_ts().last();
+        let other = self.props_ts().last();
 
         last.zip(other)
             .map(|(a, b)| a.max(b))
             .or_else(|| last.or(other))
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         Box::new(
             self.edge_ts
                 .iter()
@@ -328,18 +328,22 @@ impl TimeIndexOps for NodeTimestamps {
     }
 }
 
-impl TimeIndexLike for NodeTimestamps {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
+impl<'a> TimeIndexLike<'a> for &'a NodeTimestamps {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
         Box::new(
-            self.edge_ts
+            self.edge_ts()
                 .range_iter(w.clone())
-                .merge(self.props_ts.range_iter(w)),
+                .merge(self.props_ts().range_iter(w)),
         )
     }
 
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        let first = self.edge_ts.iter_window(w.clone()).next().map(|(t, _)| *t);
-        let other = self.props_ts.iter_window(w).next().map(|(t, _)| *t);
+        let first = self
+            .edge_ts()
+            .iter_window(w.clone())
+            .next()
+            .map(|(t, _)| *t);
+        let other = self.props_ts().iter_window(w).next().map(|(t, _)| *t);
 
         first
             .zip(other)
@@ -380,11 +384,7 @@ pub enum NodeAdditions<'a> {
 }
 
 impl<'a> NodeAdditions<'a> {
-    pub fn into_prop_events(
-        self,
-    ) -> impl TimeIndexOps<IndexType = TimeIndexEntry>
-           + TimeIndexIntoOps<IndexType = TimeIndexEntry>
-           + use<'a> {
+    pub fn into_prop_events(self) -> impl TimeIndexOps<'a, IndexType = TimeIndexEntry> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => {
                 StorageVariants::Mem(TimeIndexWindow::All(&index.props_ts))
@@ -460,7 +460,7 @@ impl<'a> NodeAdditions<'a> {
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => Box::new(iter::empty()),
                 TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                    Box::new(timeindex.edge_ts.range_iter(range))
+                    Box::new(timeindex.edge_ts().range_iter(range))
                 }
                 TimeIndexWindow::All(idx) => Box::new(idx.edge_ts.iter().map(|(time, _)| *time)),
             },
@@ -484,7 +484,7 @@ impl<'a> NodeAdditions<'a> {
     }
 }
 
-impl<'b> TimeIndexOps for NodeAdditions<'b> {
+impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
     type IndexType = TimeIndexEntry;
 
     #[inline]
@@ -500,7 +500,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn range(
         &self,
         w: Range<TimeIndexEntry>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    ) -> Box<dyn TimeIndexOps<'b, IndexType = Self::IndexType> + 'b> {
         match self {
             NodeAdditions::Mem(index) => index.range(w),
             NodeAdditions::Range(index) => index.range(w),
@@ -527,9 +527,9 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<'b, TimeIndexEntry> {
         match self {
-            NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
+            NodeAdditions::Mem(index) => index.iter(),
             NodeAdditions::Range(index) => index.iter(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.into_iter())),
@@ -557,7 +557,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
                 timeindex: index,
                 range: w,
             }),
-            NodeAdditions::Range(index) => NodeAdditions::Range(index.into_range(w)),
+            NodeAdditions::Range(index) => NodeAdditions::Range(index.with_range(w)),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
         }
@@ -565,8 +565,8 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
         match self {
-            NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
-            NodeAdditions::Range(index) => Box::new(index.into_iter()),
+            NodeAdditions::Mem(index) => index.iter(),
+            NodeAdditions::Range(index) => Box::new(index.iter()),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => {
                 Box::new(index.into_iter().flat_map(|index| index.into_iter()))
@@ -580,7 +580,7 @@ pub struct NodeHistory<'a, G> {
     pub(crate) view: G,
 }
 
-impl<'b, G: GraphViewOps<'b>> TimeIndexOps for NodeHistory<'b, G> {
+impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     type IndexType = TimeIndexEntry;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -601,7 +601,7 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps for NodeHistory<'b, G> {
     fn range(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    ) -> Box<dyn TimeIndexOps<'b, IndexType = Self::IndexType> + 'b> {
         let additions = self.additions.with_range(w);
         let view = self.view.clone();
         Box::new(NodeHistory { additions, view })
@@ -637,13 +637,14 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps for NodeHistory<'b, G> {
             .max()
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'b, Self::IndexType> {
+        let view = self.view.clone();
         self.additions
             .prop_events()
             .merge(
                 self.additions
                     .edge_events()
-                    .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
+                    .filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids()))
                     .map(|(t, _)| t),
             )
             .into_dyn_boxed()

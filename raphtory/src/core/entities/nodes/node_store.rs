@@ -38,6 +38,16 @@ pub struct NodeTimestamps {
     pub(crate) props_ts: TCell<Option<usize>>,
 }
 
+impl NodeTimestamps {
+    pub fn edge_ts(&self) -> &TCell<ELID> {
+        &self.edge_ts
+    }
+
+    pub fn props_ts(&self) -> &TCell<Option<usize>> {
+        &self.props_ts
+    }
+}
+
 impl NodeStore {
     #[inline]
     pub fn is_initialised(&self) -> bool {

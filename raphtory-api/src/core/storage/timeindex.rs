@@ -23,8 +23,8 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn new(t: i64, s: usize) -> Self;
 }
 
-pub trait TimeIndexLike: TimeIndexOps {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType>;
+pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
 
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         self.range_iter(w).next()
@@ -50,7 +50,7 @@ pub trait TimeIndexIntoOps: Sized {
     }
 }
 
-pub trait TimeIndexOps: Send + Sync {
+pub trait TimeIndexOps<'a>: Send + Sync {
     type IndexType: AsTime;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
@@ -62,9 +62,12 @@ pub trait TimeIndexOps: Send + Sync {
     fn range(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
+    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a>;
 
-    fn range_t(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    fn range_t(
+        &self,
+        w: Range<i64>,
+    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
         self.range(Self::IndexType::range(w))
     }
 
@@ -80,9 +83,9 @@ pub trait TimeIndexOps: Send + Sync {
 
     fn last(&self) -> Option<Self::IndexType>;
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType>;
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType>;
 
-    fn iter_t(&self) -> BoxedLIter<i64> {
+    fn iter_t(&self) -> BoxedLIter<'a, i64> {
         Box::new(self.iter().map(|time| time.t()))
     }
 
