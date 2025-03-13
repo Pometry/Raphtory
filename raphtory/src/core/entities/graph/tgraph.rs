@@ -216,16 +216,22 @@ impl TemporalGraph {
         edge_id: EID,
         t: TimeIndexEntry,
         layer: usize,
+        is_deletion: bool,
     ) -> Result<(), GraphError> {
         self.update_time(t);
         let src_id = node_pair.get_i().vid;
         let dst_id = node_pair.get_j().vid;
         let src = node_pair.get_mut_i();
+        let elid = if is_deletion {
+            edge_id.with_layer_deletion(layer)
+        } else {
+            edge_id.with_layer(layer)
+        };
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-        src.update_time(t, edge_id.with_layer(layer));
+        src.update_time(t, elid);
         let dst = node_pair.get_mut_j();
         dst.add_edge(src_id, Direction::IN, layer, edge_id);
-        dst.update_time(t, edge_id.with_layer(layer));
+        dst.update_time(t, elid);
         Ok(())
     }
 
@@ -234,6 +240,7 @@ impl TemporalGraph {
         eid: EID,
         t: TimeIndexEntry,
         layer: usize,
+        is_deletion: bool,
         edge_fn: impl FnOnce(MutEdge) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
         let (src, dst) = {
@@ -244,7 +251,7 @@ impl TemporalGraph {
         // need to get the node pair first to avoid deadlocks with link_nodes
         {
             let mut node_pair = self.storage.pair_node_mut(src, dst);
-            self.link_nodes_inner(&mut node_pair, eid, t, layer)?;
+            self.link_nodes_inner(&mut node_pair, eid, t, layer, is_deletion)?;
         }
         let mut edge_w = self.storage.edges.get_edge_mut(eid);
         edge_fn(edge_w.as_mut())
@@ -256,6 +263,7 @@ impl TemporalGraph {
         dst_id: VID,
         t: TimeIndexEntry,
         layer: usize,
+        is_deletion: bool,
         edge_fn: F,
     ) -> Result<MaybeNew<EID>, GraphError> {
         let edge = {
@@ -269,7 +277,7 @@ impl TemporalGraph {
                 Either::Left(edge) => edge.as_ref().eid(),
                 Either::Right(edge) => edge.value().eid,
             };
-            self.link_nodes_inner(&mut node_pair, eid, t, layer)?;
+            self.link_nodes_inner(&mut node_pair, eid, t, layer, is_deletion)?;
             edge
         };
 

@@ -52,9 +52,6 @@ pub trait TimeIndexIntoOps: Sized {
 
 pub trait TimeIndexOps: Send + Sync {
     type IndexType: AsTime;
-    type RangeType<'a>: TimeIndexOps<IndexType = Self::IndexType> + 'a
-    where
-        Self: 'a;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
 
@@ -62,9 +59,12 @@ pub trait TimeIndexOps: Send + Sync {
         self.active(Self::IndexType::range(w))
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_>;
+    fn range(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
 
-    fn range_t(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range_t(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         self.range(Self::IndexType::range(w))
     }
 

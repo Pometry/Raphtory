@@ -1,27 +1,30 @@
 use crate::{
     core::Prop,
-    db::api::{
-        properties::internal::InheritPropertiesOps,
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::TPropOps,
-        },
-        view::{
-            internal::{
-                CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InternalLayerOps, NodeFilterOps, Static,
-                TimeSemantics,
+    db::{
+        api::{
+            properties::internal::InheritPropertiesOps,
+            storage::graph::{
+                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                tprop_storage_ops::TPropOps,
             },
-            Base,
+            view::{
+                internal::{
+                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InternalLayerOps, NodeFilterOps, Static,
+                    TimeSemantics,
+                },
+                Base,
+            },
         },
+        graph::edge::EdgeView,
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use itertools::Itertools;
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         Direction,
     },
@@ -499,6 +502,15 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
 
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids)
+            && EdgeView::new(
+                &self.graph,
+                self.core_edge(eid.edge).out_ref().at_layer(eid.layer()),
+            )
+            .is_valid()
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {

@@ -15,9 +15,12 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::storage_variants3::StorageVariants,
         },
-        view::{internal::NodeAdditions, BoxedLIter},
+        view::{
+            internal::{NodeAdditions, NodeHistory},
+            BoxedLIter,
+        },
     },
-    prelude::Prop,
+    prelude::{GraphViewOps, Prop},
 };
 
 pub enum NodeStorageEntry<'a> {
@@ -100,6 +103,11 @@ impl<'b> NodeStorageEntry<'b> {
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
         }
+    }
+
+    pub fn history<'a, G: GraphViewOps<'a>>(&'a self, view: G) -> NodeHistory<'a, G> {
+        let additions = self.additions();
+        NodeHistory { additions, view }
     }
 }
 

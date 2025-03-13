@@ -152,10 +152,6 @@ impl<A: Send + Sync> TimeIndexLike for TCell<A> {
 
 impl<A: Send + Sync> TimeIndexOps for TCell<A> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'a>
-        = TimeIndexWindow<'a, TimeIndexEntry, Self>
-    where
-        Self: 'a;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -167,8 +163,11 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
         }
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
-        match &self {
+    fn range(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        let range = match &self {
             TCell::Empty => TimeIndexWindow::Empty,
             TCell::TCell1(t, _) => w
                 .contains(t)
@@ -192,7 +191,8 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
                     TimeIndexWindow::Empty
                 }
             }
-        }
+        };
+        Box::new(range)
     }
 
     fn first(&self) -> Option<Self::IndexType> {
@@ -234,16 +234,15 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
 
 impl<'b, A: Send + Sync> TimeIndexOps for &'b TCell<A> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'a>
-        = TimeIndexWindow<'a, TimeIndexEntry, TCell<A>>
-    where
-        Self: 'a;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         TimeIndexOps::active(*self, w)
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
+    fn range(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         TimeIndexOps::range(*self, w)
     }
 

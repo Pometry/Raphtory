@@ -60,10 +60,6 @@ impl<'a> TimeIndexRef<'a> {
 
 impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'b>
-        = TimeIndexRef<'b>
-    where
-        Self: 'b;
 
     #[inline(always)]
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
@@ -75,12 +71,15 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
         }
     }
 
-    fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
+    fn range(
+        &self,
+        w: Range<TimeIndexEntry>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
-            TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
-            TimeIndexRef::Range(ref t) => TimeIndexRef::Range(t.range(w)),
+            TimeIndexRef::Ref(t) => t.range(w),
+            TimeIndexRef::Range(ref t) => t.range(w),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => TimeIndexRef::External(t.range(w)),
+            TimeIndexRef::External(ref t) => t.range(w),
         }
     }
 

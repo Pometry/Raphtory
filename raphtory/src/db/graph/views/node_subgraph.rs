@@ -8,12 +8,14 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritMaterialize, InheritTimeSemantics, ListOps, NodeFilterOps, NodeList, Static,
+            Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
+            InheritLayerOps, InheritMaterialize, InheritTimeSemantics, ListOps, NodeFilterOps,
+            NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -74,6 +76,13 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
         false
     }
 
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
+            let core_edge = self.core_edge(eid.edge);
+            self.nodes.contains(&core_edge.src()) && self.nodes.contains(&core_edge.dst())
+        }
+    }
+
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
@@ -86,7 +95,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
     fn nodes_filtered(&self) -> bool {
         true
     }
-    // FIXME: should use list version and make this true
     fn node_list_trusted(&self) -> bool {
         true
     }

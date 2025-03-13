@@ -38,7 +38,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
-        entities::GidType,
+        entities::{GidType, ELID},
         storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
     },
     GraphType,
