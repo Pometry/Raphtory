@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            nodes::{node_ref::NodeRef, node_store::NodeTimestamps},
+            nodes::{node_ref::NodeRef, node_store::PropTimestamps},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, VID,
         },
@@ -270,7 +270,7 @@ impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
     }
 }
 
-impl TimeIndexOps for NodeTimestamps {
+impl TimeIndexOps for PropTimestamps {
     type IndexType = TimeIndexEntry;
 
     type RangeType<'b>
@@ -323,7 +323,7 @@ impl TimeIndexOps for NodeTimestamps {
     }
 }
 
-impl TimeIndexLike for NodeTimestamps {
+impl TimeIndexLike for PropTimestamps {
     fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
         Box::new(
             self.edge_ts
@@ -368,8 +368,8 @@ fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
 }
 
 pub enum NodeAdditions<'a> {
-    Mem(&'a NodeTimestamps),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>),
+    Mem(&'a PropTimestamps),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, PropTimestamps>),
     #[cfg(feature = "storage")]
     Col(LayerAdditions<'a>),
 }
@@ -456,7 +456,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         match self {
-            NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
+            NodeAdditions::Mem(index) => <PropTimestamps as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => index.iter(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.into_iter())),
@@ -489,7 +489,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
         match self {
-            NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
+            NodeAdditions::Mem(index) => <PropTimestamps as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => Box::new(index.into_iter()),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => {

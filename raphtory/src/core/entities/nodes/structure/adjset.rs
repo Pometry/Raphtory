@@ -12,7 +12,7 @@ const SMALL_SET: usize = 1024;
  *
  *  */
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> {
+pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Copy + Send + Sync> {
     #[default]
     Empty,
     One(K, V),
@@ -26,7 +26,7 @@ pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send
     // TODO: if we use BTreeSet<(K, Option<V>)> we could implement intersections and support edge label queries such as a && b
 }
 
-impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> AdjSet<K, V> {
+impl<K: Ord + Copy + Hash + Send + Sync, V: Copy + Send + Sync> AdjSet<K, V> {
     pub fn len(&self) -> usize {
         match self {
             AdjSet::Empty => 0,
