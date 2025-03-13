@@ -1746,7 +1746,7 @@ mod views_test {
             results
         }
 
-        fn test_search_nodes_for_node_name_eq<G>(graph: G)
+        fn search_nodes_for_node_name_eq<G>(graph: G)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1761,15 +1761,15 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_name_eq() {
-            test_search_nodes_for_node_name_eq(Graph::new());
+            search_nodes_for_node_name_eq(Graph::new());
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_name_eq() {
-            test_search_nodes_for_node_name_eq(PersistentGraph::new());
+            search_nodes_for_node_name_eq(PersistentGraph::new());
         }
 
-        fn test_search_nodes_for_node_name_ne<G>(graph: G, expected: Vec<&str>)
+        fn search_nodes_for_node_name_ne<G>(graph: G, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1784,12 +1784,12 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_name_ne() {
-            test_search_nodes_for_node_name_ne(Graph::new(), vec!["N1", "N3", "N5", "N6"]);
+            search_nodes_for_node_name_ne(Graph::new(), vec!["N1", "N3", "N5", "N6"]);
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_name_ne() {
-            test_search_nodes_for_node_name_ne(
+            search_nodes_for_node_name_ne(
                 PersistentGraph::new(),
                 vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N3", "N5", "N6", "N7", "N8",
@@ -1798,7 +1798,7 @@ mod views_test {
             );
         }
 
-        fn test_search_nodes_for_node_name_in<G>(graph: G)
+        fn search_nodes_for_node_name_in<G>(graph: G)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1817,15 +1817,15 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_name_in() {
-            test_search_nodes_for_node_name_in(Graph::new());
+            search_nodes_for_node_name_in(Graph::new());
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_name_in() {
-            test_search_nodes_for_node_name_in(PersistentGraph::new());
+            search_nodes_for_node_name_in(PersistentGraph::new());
         }
 
-        fn test_search_nodes_for_node_name_not_in<G>(graph: G, expected: Vec<&str>)
+        fn search_nodes_for_node_name_not_in<G>(graph: G, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1840,12 +1840,12 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_name_not_in() {
-            test_search_nodes_for_node_name_not_in(Graph::new(), vec!["N1", "N2", "N3", "N6"]);
+            search_nodes_for_node_name_not_in(Graph::new(), vec!["N1", "N2", "N3", "N6"]);
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_name_not_in() {
-            test_search_nodes_for_node_name_not_in(
+            search_nodes_for_node_name_not_in(
                 PersistentGraph::new(),
                 vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N6", "N7", "N8",
@@ -1854,7 +1854,7 @@ mod views_test {
             );
         }
 
-        fn test_search_nodes_for_node_type_eq<G>(graph: G, expected: Vec<&str>)
+        fn search_nodes_for_node_type_eq<G>(graph: G, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1869,15 +1869,15 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_type_eq() {
-            test_search_nodes_for_node_type_eq(Graph::new(), vec!["N6"]);
+            search_nodes_for_node_type_eq(Graph::new(), vec!["N6"]);
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_type_eq() {
-            test_search_nodes_for_node_type_eq(PersistentGraph::new(), vec!["N6", "N8"]);
+            search_nodes_for_node_type_eq(PersistentGraph::new(), vec!["N6", "N8"]);
         }
 
-        fn test_search_nodes_for_node_type_ne<G>(graph: G, expected: Vec<&str>)
+        fn search_nodes_for_node_type_ne<G>(graph: G, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1892,12 +1892,12 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_type_ne() {
-            test_search_nodes_for_node_type_ne(Graph::new(), vec!["N1", "N2", "N3", "N5"]);
+            search_nodes_for_node_type_ne(Graph::new(), vec!["N1", "N2", "N3", "N5"]);
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_type_ne() {
-            test_search_nodes_for_node_type_ne(
+            search_nodes_for_node_type_ne(
                 PersistentGraph::new(),
                 vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
@@ -1905,11 +1905,8 @@ mod views_test {
             );
         }
 
-        fn test_search_nodes_for_node_type_in<G>(
-            graph: G,
-            expected1: Vec<&str>,
-            expected2: Vec<&str>,
-        ) where
+        fn search_nodes_for_node_type_in<G>(graph: G, expected1: Vec<&str>, expected2: Vec<&str>)
+        where
             G: StaticGraphViewOps
                 + AdditionOps
                 + InternalAdditionOps
@@ -1928,23 +1925,19 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_type_in() {
-            test_search_nodes_for_node_type_in(
-                Graph::new(),
-                vec!["N6"],
-                vec!["N1", "N3", "N5", "N6"],
-            );
+            search_nodes_for_node_type_in(Graph::new(), vec!["N6"], vec!["N1", "N3", "N5", "N6"]);
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_type_in() {
-            test_search_nodes_for_node_type_in(
+            search_nodes_for_node_type_in(
                 PersistentGraph::new(),
                 vec!["N6", "N8"],
                 vec!["N1", "N3", "N5", "N6", "N7", "N8"],
             );
         }
 
-        fn test_search_nodes_for_node_type_not_in<G>(graph: G, expected: Vec<&str>)
+        fn search_nodes_for_node_type_not_in<G>(graph: G, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -1959,12 +1952,12 @@ mod views_test {
 
         #[test]
         fn test_search_nodes_graph_for_node_type_not_in() {
-            test_search_nodes_for_node_type_not_in(Graph::new(), vec!["N1", "N2", "N3", "N5"]);
+            search_nodes_for_node_type_not_in(Graph::new(), vec!["N1", "N2", "N3", "N5"]);
         }
 
         #[test]
         fn test_search_nodes_persistent_graph_for_node_type_not_in() {
-            test_search_nodes_for_node_type_not_in(
+            search_nodes_for_node_type_not_in(
                 PersistentGraph::new(),
                 vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
@@ -1972,22 +1965,325 @@ mod views_test {
             );
         }
 
-        #[test]
-        fn test_search_nodes_graph() {
-            let graph = Graph::new();
+        fn search_nodes_for_property_eq<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
             let filter = PropertyFilter::property("p1").eq(1u64);
             let results = search_nodes(graph, 6..9, filter);
-
-            assert_eq!(results, vec!["N1", "N3", "N6"]);
+            assert_eq!(results, expected);
         }
 
         #[test]
-        fn test_search_nodes_persistent_graph() {
-            let graph = PersistentGraph::new();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes(graph, 6..9, filter);
+        fn test_search_nodes_graph_for_property_eq() {
+            search_nodes_for_property_eq(Graph::new(), vec!["N1", "N3", "N6"]);
+        }
 
-            assert_eq!(results, vec!["N1", "N14", "N15", "N3", "N6", "N7"]);
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_eq() {
+            search_nodes_for_property_eq(
+                PersistentGraph::new(),
+                vec!["N1", "N14", "N15", "N3", "N6", "N7"],
+            );
+        }
+
+        fn search_nodes_for_property_ne<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").ne(1u64);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_ne() {
+            search_nodes_for_property_ne(Graph::new(), vec!["N2", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_ne() {
+            search_nodes_for_property_ne(
+                PersistentGraph::new(),
+                vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"],
+            );
+        }
+
+        fn search_nodes_for_property_lt<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").lt(3u64);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_lt() {
+            search_nodes_for_property_lt(Graph::new(), vec!["N1", "N2", "N3", "N5", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_lt() {
+            search_nodes_for_property_lt(
+                PersistentGraph::new(),
+                vec!["N1", "N14", "N15", "N2", "N3", "N5", "N6", "N7", "N8", "N9"],
+            );
+        }
+
+        fn search_nodes_for_property_le<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").le(1u64);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_le() {
+            search_nodes_for_property_le(Graph::new(), vec!["N1", "N3", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_le() {
+            search_nodes_for_property_le(
+                PersistentGraph::new(),
+                vec!["N1", "N14", "N15", "N3", "N6", "N7"],
+            );
+        }
+
+        fn search_nodes_for_property_gt<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").gt(1u64);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_gt() {
+            search_nodes_for_property_gt(Graph::new(), vec!["N2", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_gt() {
+            search_nodes_for_property_gt(
+                PersistentGraph::new(),
+                vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"],
+            );
+        }
+
+        fn search_nodes_for_property_ge<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").ge(1u64);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_ge() {
+            search_nodes_for_property_ge(Graph::new(), vec!["N1", "N2", "N3", "N5", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_ge() {
+            search_nodes_for_property_ge(
+                PersistentGraph::new(),
+                vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N6", "N7",
+                    "N8", "N9",
+                ],
+            );
+        }
+
+        fn search_nodes_for_property_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_in() {
+            search_nodes_for_property_in(Graph::new(), vec!["N2", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_in() {
+            search_nodes_for_property_in(PersistentGraph::new(), vec!["N2", "N5", "N8", "N9"]);
+        }
+
+        fn search_nodes_for_property_not_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_not_in() {
+            search_nodes_for_property_not_in(Graph::new(), vec!["N2", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_not_in() {
+            search_nodes_for_property_not_in(
+                PersistentGraph::new(),
+                vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"],
+            );
+        }
+
+        fn search_nodes_for_property_is_some<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").is_some();
+            let results = search_nodes(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_property_is_some() {
+            search_nodes_for_property_is_some(Graph::new(), vec!["N1", "N2", "N3", "N5", "N6"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_property_is_some() {
+            search_nodes_for_property_is_some(
+                PersistentGraph::new(),
+                vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N6", "N7",
+                    "N8", "N9",
+                ],
+            );
+        }
+
+        fn search_nodes_for_props_added_at_different_times<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("q1")
+                .eq(0u64)
+                .and(PropertyFilter::property("p1").eq(3u64));
+            let results = search_nodes(graph, 1..4, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_for_props_added_at_different_times() {
+            search_nodes_for_props_added_at_different_times(
+                Graph::new(),
+                vec!["N10", "N11", "N12", "N13"],
+            );
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_for_props_added_at_different_times() {
+            search_nodes_for_props_added_at_different_times(
+                PersistentGraph::new(),
+                vec!["N10", "N11", "N12", "N13"],
+            );
+        }
+
+        fn fuzzy_search<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
+            let results = search_nodes(graph.clone(), 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_nodes_graph_fuzzy_search() {
+            fuzzy_search(Graph::new(), vec!["N1", "N2"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_fuzzy_search() {
+            fuzzy_search(PersistentGraph::new(), vec!["N1", "N2", "N7"]);
+        }
+
+        fn fuzzy_search_prefix_match<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let results = search_nodes(graph.clone(), 6..9, filter);
+            assert_eq!(results, expected);
+
+            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
+            let results = search_nodes(graph.clone(), 6..9, filter);
+            assert_eq!(results, Vec::<String>::new());
+        }
+
+        #[test]
+        fn test_search_nodes_graph_fuzzy_search_prefix_match() {
+            fuzzy_search_prefix_match(Graph::new(), vec!["N1", "N2", "N5"]);
+        }
+
+        #[test]
+        fn test_search_nodes_persistent_graph_fuzzy_search_prefix_match() {
+            fuzzy_search_prefix_match(
+                PersistentGraph::new(),
+                vec!["N1", "N12", "N13", "N2", "N5", "N7", "N8"],
+            );
         }
     }
 
