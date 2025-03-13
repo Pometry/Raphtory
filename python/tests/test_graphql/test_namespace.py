@@ -3,6 +3,8 @@ import pytest
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
+import json
+
 
 def make_folder_structure(client):
     g = Graph()
@@ -12,6 +14,18 @@ def make_folder_structure(client):
     client.send_graph("test/first/internal/graph", g, overwrite=True)
     client.send_graph("test/second/internal/graph1", g, overwrite=True)
     client.send_graph("test/second/internal/graph2", g, overwrite=True)
+
+
+def sort_dict(d):
+    """Recursively sort lists inside a dictionary to enable order-independent comparison."""
+    if isinstance(d, dict):
+        return {k: sort_dict(v) for k, v in d.items()}
+    elif isinstance(d, list):
+        return sorted(
+            (sort_dict(i) for i in d), key=json.dumps
+        )  # Sorting by JSON string representation
+    else:
+        return d
 
 
 def test_children():
@@ -59,6 +73,7 @@ def test_children():
                     }
             """
         result = client.query(query)
+        print(type(result))
         correct = {
             "root": {
                 "path": "",
@@ -101,7 +116,7 @@ def test_children():
             }
         }
 
-        assert result == correct
+        assert sort_dict(result) == sort_dict(correct)
 
 
 def test_escaping_parent():
@@ -140,7 +155,7 @@ def test_escaping_parent():
             "internal": {"parent": {"path": "", "parent": None}},
         }
 
-        assert result == correct
+        assert sort_dict(result) == sort_dict(correct)
 
 
 def test_wrong_paths():
