@@ -73,7 +73,7 @@ def test_children():
                     }
             """
         result = client.query(query)
-        print(type(result))
+
         correct = {
             "root": {
                 "path": "",
