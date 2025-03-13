@@ -25,11 +25,11 @@ pub struct NodeStore {
     pub(crate) node_type: usize,
 
     /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
-    timestamps: NodeTimestamps,
+    timestamps: PropTimestamps,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub struct NodeTimestamps {
+pub struct PropTimestamps {
     // all the timestamps that have been seen by this node
     pub(crate) edge_ts: TCell<EID>,
     pub(crate) props_ts: TCell<Option<usize>>,
@@ -77,7 +77,7 @@ impl NodeStore {
         &self.global_id
     }
 
-    pub fn timestamps(&self) -> &NodeTimestamps {
+    pub fn timestamps(&self) -> &PropTimestamps {
         &self.timestamps
     }
 

@@ -117,7 +117,7 @@ impl TColumns {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub(crate) enum TPropColumn {
+pub enum TPropColumn {
     Empty(usize),
     Bool(LazyVec<bool>),
     U8(LazyVec<u8>),

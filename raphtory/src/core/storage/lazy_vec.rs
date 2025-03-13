@@ -159,7 +159,7 @@ impl<T: Default> From<TupleCol<T>> for MaskedCol<T> {
 const LAZY_VEC_1_MAX_SIZE: usize = 8;
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
-pub(crate) enum LazyVec<A> {
+pub enum LazyVec<A> {
     #[default]
     Empty,
     // First value in "LazyVec1" and indices in "LazyVecN" vector denote the indices of this vec
