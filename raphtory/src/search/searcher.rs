@@ -136,9 +136,10 @@ mod search_tests {
                 },
                 prelude::{
                     AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                    PropertyFilter, NO_PROPS,
+                    PropertyFilter, StableEncode, NO_PROPS,
                 },
             };
+            use neo4rs::Path;
             use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
             fn init_graph<
@@ -316,6 +317,7 @@ mod search_tests {
             fn test_temporal_any_semantics_for_secondary_indexes() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                // g.encode("/tmp/graphs/master").unwrap();
                 let g = init_graph_for_secondary_indexes(g);
 
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
@@ -1264,71 +1266,6 @@ mod search_tests {
 
         // More tests for windowed graph and other graph views can be found in their respective files
         // under src/db/graph/views
-        #[test]
-        fn test_search_nodes_windowed_graph() {
-            let graph = PersistentGraph::new();
-            graph
-                .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-            graph
-                .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let mut results = graph
-                .window(6, 9)
-                .search_nodes(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| v.name())
-                .collect::<Vec<_>>();
-            results.sort();
-
-            assert_eq!(results, vec!["N1", "N3", "N6", "N7"]);
-        }
     }
 
     #[cfg(test)]

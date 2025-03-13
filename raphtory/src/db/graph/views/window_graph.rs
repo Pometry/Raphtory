@@ -2292,73 +2292,309 @@ mod views_test {
         use crate::{
             core::Prop,
             db::{
-                api::view::{SearchableGraphOps, StaticGraphViewOps},
+                api::{
+                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                    view::{SearchableGraphOps, StaticGraphViewOps},
+                },
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{
-                        CompositeEdgeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
-                    },
+                    property_filter::{EdgeFilter, EdgeFilterOps, FilterExpr, PropertyFilterOps},
                 },
             },
-            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+            prelude::{
+                AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyAdditionOps, PropertyFilter,
+                TimeOps, NO_PROPS,
+            },
         };
+        use raphtory_api::core::storage::arc_str::ArcStr;
         use std::ops::Range;
 
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+        fn init_graph<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
+            graph: G,
+        ) -> G {
             graph
-                .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], None)
+                .add_edge(
+                    6,
+                    "N1",
+                    "N2",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
                 .unwrap();
             graph
-                .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], None)
+                .add_edge(
+                    7,
+                    "N1",
+                    "N2",
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(5i64)),
+                        ("k3", Prop::Bool(false)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+            graph
+                .edge("N1", "N2")
+                .unwrap()
+                .add_constant_properties(
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(3i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
                 .unwrap();
 
             graph
-                .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], None)
+                .add_edge(
+                    6,
+                    "N2",
+                    "N3",
+                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(6.0f64))],
+                    Some("water_tribe"),
+                )
                 .unwrap();
             graph
-                .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], None)
+                .add_edge(
+                    7,
+                    "N2",
+                    "N3",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    Some("water_tribe"),
+                )
                 .unwrap();
 
             graph
-                .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], None)
-                .unwrap();
-            graph
-                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], None)
+                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
                 .unwrap();
 
             graph
-                .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], None)
+                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("air_nomad"))
                 .unwrap();
             graph
-                .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], None)
+                .edge("N4", "N5")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(2u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_edge(
+                    5,
+                    "N5",
+                    "N6",
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+            graph
+                .add_edge(
+                    6,
+                    "N5",
+                    "N6",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k2", Prop::Str(ArcStr::from("Pometry"))),
+                        ("k4", Prop::F64(1.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+
+            graph
+                .add_edge(
+                    5,
+                    "N6",
+                    "N7",
+                    [("p1", Prop::U64(1u64))],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+                .add_edge(
+                    6,
+                    "N6",
+                    "N7",
+                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(1.0f64))],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+
+            graph
+                .add_edge(
+                    3,
+                    "N7",
+                    "N8",
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    Some("air_nomad"),
+                )
+                .unwrap();
+            graph
+                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("air_nomad"))
+                .unwrap();
+
+            graph
+                .add_edge(
+                    3,
+                    "N8",
+                    "N9",
+                    [("p1", Prop::U64(1u64))],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+                .add_edge(
+                    4,
+                    "N8",
+                    "N9",
+                    [
+                        ("p1", Prop::U64(2u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+
+            graph
+                .add_edge(2, "N9", "N10", [("p1", Prop::U64(2u64))], None)
+                .unwrap();
+            graph
+                .edge("N9", "N10")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(2, "N10", "N11", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_edge(2, "N10", "N11", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .edge("N10", "N11")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(2, "N11", "N12", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .add_edge(2, "N11", "N12", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .edge("N11", "N12")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(2, "N12", "N13", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_edge(
+                    3,
+                    "N12",
+                    "N13",
+                    [
+                        ("p1", Prop::U64(3u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    None,
+                )
+                .unwrap();
+            graph
+                .edge("N12", "N13")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph
+                .add_edge(2, "N13", "N14", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .add_edge(3, "N13", "N14", [("p1", Prop::U64(3u64))], None)
+                .unwrap();
+            graph
+                .edge("N13", "N14")
+                .unwrap()
+                .add_constant_properties(
+                    [
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                    None,
+                )
+                .unwrap();
+
+            graph
+                .add_edge(2, "N14", "N15", [("q1", Prop::U64(0u64))], None)
+                .unwrap();
+            graph
+                .edge("N14", "N15")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))], None)
+                .unwrap();
+
+            graph.add_edge(2, "N15", "N1", NO_PROPS, None).unwrap();
+            graph
+                .edge("N15", "N1")
+                .unwrap()
+                .add_constant_properties([("p1", Prop::U64(1u64))], None)
                 .unwrap();
 
             graph
         }
 
-        fn search_edges_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
+        fn search_edges<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
             graph: G,
             w: Range<i64>,
             filter: FilterExpr,
@@ -2366,8 +2602,8 @@ mod views_test {
             let graph = init_graph(graph);
             let mut results = graph
                 .window(w.start, w.end)
-                .search_edges(filter, 10, 0)
-                .expect("Failed to search for nodes")
+                .search_edges(filter, 20, 0)
+                .expect("Failed to search for edges")
                 .into_iter()
                 .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
                 .collect::<Vec<_>>();
@@ -2375,22 +2611,461 @@ mod views_test {
             results
         }
 
-        #[test]
-        fn test_search_edges_windowed_graph() {
-            let graph = Graph::new();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter(graph, 6..9, filter);
-
-            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7"]);
+        fn search_edges_for_from_eq<G>(graph: G)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = EdgeFilter::from().eq("N2");
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, vec!["N2->N3"]);
         }
 
         #[test]
-        fn test_search_edges_windowed_persistent_graph() {
-            let graph = PersistentGraph::new();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter(graph, 6..9, filter);
+        fn test_search_edges_graph_for_from_eq() {
+            search_edges_for_from_eq(Graph::new());
+        }
 
-            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"]);
+        #[test]
+        fn test_search_edges_persistent_graph_for_from_eq() {
+            search_edges_for_from_eq(PersistentGraph::new());
+        }
+
+        fn search_edges_for_from_ne<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = EdgeFilter::from().ne("N2");
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_from_ne() {
+            search_edges_for_from_ne(Graph::new(), vec!["N1->N2", "N3->N4", "N5->N6", "N6->N7"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_from_ne() {
+            search_edges_for_from_ne(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                    "N15->N1", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_to_in<G>(graph: G)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = EdgeFilter::to().includes(vec!["N2".into()]);
+            let results = search_edges(graph.clone(), 6..9, filter);
+            assert_eq!(results, vec!["N1->N2"]);
+
+            let filter = EdgeFilter::to().includes(vec!["N2".into(), "N5".into()]);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, vec!["N1->N2"]);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_to_in() {
+            search_edges_for_to_in(Graph::new());
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_to_in() {
+            search_edges_for_to_in(PersistentGraph::new());
+        }
+
+        fn search_edges_for_to_not_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = EdgeFilter::to().excludes(vec!["N5".into()]);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_to_not_in() {
+            search_edges_for_to_not_in(
+                Graph::new(),
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"],
+            );
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_to_not_in() {
+            search_edges_for_to_not_in(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                    "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
+                    "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_eq<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").eq(1u64);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_eq() {
+            search_edges_for_property_eq(Graph::new(), vec!["N1->N2", "N3->N4", "N6->N7"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_eq() {
+            search_edges_for_property_eq(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N6->N7", "N7->N8",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_ne<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").ne(1u64);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_ne() {
+            search_edges_for_property_ne(Graph::new(), vec!["N2->N3", "N5->N6"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_ne() {
+            search_edges_for_property_ne(
+                PersistentGraph::new(),
+                vec![
+                    "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
+                    "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_lt<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").lt(3u64);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_lt() {
+            search_edges_for_property_lt(
+                Graph::new(),
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"],
+            );
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_lt() {
+            search_edges_for_property_lt(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N14->N15", "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7",
+                    "N7->N8", "N8->N9", "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_le<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").le(1u64);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_le() {
+            search_edges_for_property_le(Graph::new(), vec!["N1->N2", "N3->N4", "N6->N7"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_le() {
+            search_edges_for_property_le(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N6->N7", "N7->N8",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_gt<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").gt(1u64);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_gt() {
+            search_edges_for_property_gt(Graph::new(), vec!["N2->N3", "N5->N6"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_gt() {
+            search_edges_for_property_gt(
+                PersistentGraph::new(),
+                vec![
+                    "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
+                    "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_ge<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").ge(1u64);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_ge() {
+            search_edges_for_property_ge(
+                Graph::new(),
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"],
+            );
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_ge() {
+            search_edges_for_property_ge(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                    "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
+                    "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_in() {
+            search_edges_for_property_in(Graph::new(), vec!["N2->N3", "N5->N6"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_in() {
+            search_edges_for_property_in(
+                PersistentGraph::new(),
+                vec!["N2->N3", "N5->N6", "N8->N9", "N9->N10"],
+            );
+        }
+
+        fn search_edges_for_property_not_in<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_not_in() {
+            search_edges_for_property_not_in(Graph::new(), vec!["N2->N3", "N5->N6"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_not_in() {
+            search_edges_for_property_not_in(
+                PersistentGraph::new(),
+                vec![
+                    "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
+                    "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edges_for_property_is_some<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("p1").is_some();
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_for_property_is_some() {
+            search_edges_for_property_is_some(
+                Graph::new(),
+                vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"],
+            );
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_for_property_is_some() {
+            search_edges_for_property_is_some(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                    "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
+                    "N9->N10",
+                ],
+            );
+        }
+
+        fn search_edge_by_src_dst<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = EdgeFilter::from().eq("N1").and(EdgeFilter::to().eq("N2"));
+            let results = search_edges(graph, 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_by_src_dst() {
+            search_edge_by_src_dst(Graph::new(), vec!["N1->N2"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_by_src_dst() {
+            search_edge_by_src_dst(PersistentGraph::new(), vec!["N1->N2"]);
+        }
+
+        fn fuzzy_search<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
+            let results = search_edges(graph.clone(), 6..9, filter);
+            assert_eq!(results, expected);
+        }
+
+        #[test]
+        fn test_search_edges_graph_fuzzy_search() {
+            fuzzy_search(Graph::new(), vec!["N1->N2", "N2->N3"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_fuzzy_search() {
+            fuzzy_search(PersistentGraph::new(), vec!["N1->N2", "N2->N3", "N7->N8"]);
+        }
+
+        fn fuzzy_search_prefix_match<G>(graph: G, expected: Vec<&str>)
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let results = search_edges(graph.clone(), 6..9, filter);
+            assert_eq!(results, expected);
+
+            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
+            let results = search_edges(graph.clone(), 6..9, filter);
+            assert_eq!(results, Vec::<String>::new());
+        }
+
+        #[test]
+        fn test_search_edges_graph_fuzzy_search_prefix_match() {
+            fuzzy_search_prefix_match(Graph::new(), vec!["N1->N2", "N2->N3", "N5->N6"]);
+        }
+
+        #[test]
+        fn test_search_edges_persistent_graph_fuzzy_search_prefix_match() {
+            fuzzy_search_prefix_match(
+                PersistentGraph::new(),
+                vec![
+                    "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
+                ],
+            );
         }
     }
 }
