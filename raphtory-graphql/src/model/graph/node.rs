@@ -13,8 +13,8 @@ use raphtory::{
     prelude::NodeStateOps,
 };
 
-#[derive(ResolvedObject)]
-pub(crate) struct Node {
+#[derive(ResolvedObject, Clone)]
+pub struct Node {
     pub(crate) vv: NodeView<DynamicGraph>,
 }
 
