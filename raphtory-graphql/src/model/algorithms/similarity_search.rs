@@ -1,7 +1,8 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::document::GqlDocument,
+        algorithms::document::{GqlDocument, GqlDocuments},
+        graph::{edge::Edge, node::Node},
         plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
     },
 };
@@ -16,16 +17,18 @@ use tracing::info;
 pub(crate) struct SimilaritySearch;
 
 impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
-    type OutputType = GqlDocument;
+    type OutputType = GqlDocuments;
 
     fn output_type() -> TypeRef {
-        TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
+        TypeRef::named_nn(GqlDocuments::get_type_name())
     }
 
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("query", TypeRef::named_nn(TypeRef::STRING)),
             ("limit", TypeRef::named_nn(TypeRef::INT)),
+            ("start", TypeRef::named(TypeRef::INT)),
+            ("end", TypeRef::named(TypeRef::INT)),
         ]
     }
 
@@ -43,19 +46,46 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
             .to_owned();
         let limit = ctx.args.try_get("limit").unwrap().u64().unwrap() as usize;
         let graph = entry_point.graph.clone();
+        let start = ctx
+            .args
+            .try_get("start")
+            .map(|start| start.u64().ok().map(|value| value as i64))
+            .ok()
+            .flatten();
 
+        let end = ctx
+            .args
+            .try_get("end")
+            .map(|end| end.u64().ok().map(|value| value as i64))
+            .ok()
+            .flatten();
+        let window = match (start, end) {
+            (Some(start), Some(end)) => Some((start, end)),
+            _ => None,
+        };
         Box::pin(async move {
             info!("running similarity search for {query}");
             let embedding = data.embed_query(query).await?;
+            let selection = graph.documents_by_similarity(&embedding, limit, window);
+            let documents = selection.get_documents();
+            let nodes: Vec<Node> = selection
+                .nodes()
+                .iter()
+                .map(|node| Node::from(node.clone()))
+                .collect();
+            let edges: Vec<Edge> = selection
+                .edges()
+                .iter()
+                .map(|edge| Edge::from(edge.clone()))
+                .collect();
 
-            let documents = graph
-                .documents_by_similarity(&embedding, limit, None)
-                .get_documents();
-
-            let gql_documents = documents
+            let documents: Vec<GqlDocument> = documents
                 .into_iter()
-                .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
-            Ok(Some(FieldValue::list(gql_documents)))
+                .map(|doc| GqlDocument::from(doc))
+                .collect();
+
+            let gql_documents = GqlDocuments::new(documents, nodes, edges);
+            Ok(Some(FieldValue::owned_any(gql_documents)))
         })
     }
 }

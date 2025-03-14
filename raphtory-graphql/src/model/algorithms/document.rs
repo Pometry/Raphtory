@@ -1,7 +1,43 @@
-use dynamic_graphql::SimpleObject;
+use crate::model::graph::{edge::Edge, node::Node};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{core::Lifespan, vectors::Document};
 
-#[derive(SimpleObject)]
+#[derive(ResolvedObject)]
+pub struct GqlDocuments {
+    documents: Vec<GqlDocument>,
+    nodes: Vec<Node>,
+    edges: Vec<Edge>,
+}
+
+impl GqlDocuments {
+    pub fn new(documents: Vec<GqlDocument>, nodes: Vec<Node>, edges: Vec<Edge>) -> Self {
+        Self {
+            documents,
+            nodes,
+            edges,
+        }
+    }
+    pub fn into_iter(self) -> (Vec<GqlDocument>, Vec<Node>, Vec<Edge>) {
+        (self.documents, self.nodes, self.edges)
+    }
+}
+
+#[ResolvedObjectFields]
+impl GqlDocuments {
+    async fn documents(&self) -> Vec<GqlDocument> {
+        self.documents.clone()
+    }
+
+    async fn nodes(&self) -> Vec<Node> {
+        self.nodes.clone()
+    }
+
+    async fn edges(&self) -> Vec<Edge> {
+        self.edges.clone()
+    }
+}
+
+#[derive(SimpleObject, Clone)]
 pub struct GqlDocument {
     /// Return a vector with the name of the node or the names of src and dst of the edge: [src, dst]
     name: Vec<String>, // size 1 for nodes, size 2 for edges: [src, dst]
