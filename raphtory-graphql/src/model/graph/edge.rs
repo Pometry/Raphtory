@@ -11,8 +11,8 @@ use raphtory::{
     prelude::{LayerOps, TimeOps},
 };
 
-#[derive(ResolvedObject)]
-pub(crate) struct Edge {
+#[derive(ResolvedObject, Clone)]
+pub struct Edge {
     pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
