@@ -20,11 +20,10 @@ use raphtory_api::core::{
         properties::props::{Meta, PropMapper},
         LayerIds,
     },
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use std::{
-    ops::{Deref, DerefMut},
-    sync::{Arc, RwLock},
+    borrow::Borrow, ops::{Deref, DerefMut}, sync::{Arc, RwLock}
 };
 use tantivy::{
     query::Query,
@@ -143,7 +142,7 @@ fn initialize_node_const_property_indexes(
 
 fn initialize_node_temporal_property_indexes(
     graph: &GraphStorage,
-    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>, // TAKE THE GUARD
     prop_keys: impl Iterator<Item = ArcStr>,
 ) -> tantivy::Result<Vec<Option<IndexWriter>>> {
     initialize_property_indexes(
@@ -227,14 +226,14 @@ fn index_node_temporal_properties<
     GH: GraphViewOps<'g>,
 >(
     node: NodeView<G, GH>,
-    properties: Vec<(i64, ArcStr, usize, Prop)>,
+    properties: impl IntoIterator<Item = (i64, ArcStr, usize, Prop)>,
     mut property_indexes: PI,
     node_id: u64,
     writers: &[Option<IndexWriter>],
 ) -> tantivy::Result<()> {
     for (time, prop_name, prop_id, prop_value) in properties {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            let mut hist_entries =
+            let hist_entries =
                 node.graph
                     .temporal_node_prop_hist_window(node.node, prop_id, time, time + 1);
 
@@ -291,36 +290,25 @@ fn index_edge_temporal_properties<
     GH: GraphViewOps<'g>,
 >(
     edge: EdgeView<G, GH>,
-    properties: Vec<(i64, ArcStr, usize, Prop)>,
+    // properties: impl IntoIterator<Item = (i64, ArcStr, usize, Prop)>,
+    time: TimeIndexEntry,
+    props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     mut property_indexes: PI,
     edge_id: u64,
     layer_ids: &LayerIds,
     layer_id: Option<usize>,
     writers: &[Option<IndexWriter>],
 ) -> tantivy::Result<()> {
-    for (time, prop_name, prop_id, prop_value) in properties {
-        if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            let mut hist_entries = edge.graph.temporal_edge_prop_hist_window(
-                edge.edge,
-                prop_id,
-                time,
-                time + 1,
-                layer_ids,
-            );
-
-            if let Some(property_index) = &mut property_indexes[prop_id] {
-                for (tie, p) in hist_entries.filter(|(_, v)| *v == prop_value) {
-                    let secondary_time = tie.1;
-                    let prop_doc = property_index.create_edge_temporal_property_document(
-                        time,
-                        secondary_time,
-                        edge_id,
-                        layer_id,
-                        prop_name.to_string(),
-                        prop_value.clone(),
-                    )?;
-                    prop_writer.add_document(prop_doc)?;
-                }
+    for (prop_id, prop) in props {
+        if let Some(Some(prop_writer)) = writers.get(*prop_id) {
+            if let Some(property_index) = &mut property_indexes[*prop_id] {
+                let prop_doc = property_index.create_edge_temporal_property_document(
+                    time,
+                    edge_id,
+                    layer_id,
+                    // prop_name.to_string(),
+                    prop,
+                )?;
             }
         }
     }

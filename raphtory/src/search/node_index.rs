@@ -156,20 +156,19 @@ impl NodeIndex {
             .collect()
     }
 
-    fn collect_temporal_properties<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-        &self,
+    fn collect_temporal_properties<'a, 'graph, G: GraphViewOps<'graph> + 'a, GH: GraphViewOps<'graph> + 'a>(
+        &'a self,
         node: &NodeView<G, GH>,
-    ) -> Vec<(i64, ArcStr, usize, Prop)> {
+    ) -> impl Iterator<Item = (i64, ArcStr, usize, Prop)> +'a{
         node.properties()
             .temporal()
-            .iter()
+            .into_iter()
             .flat_map(|(key, values)| {
                 let pid = values.id;
                 values
                     .into_iter()
                     .map(move |(t, v)| (t, key.clone(), pid, v))
             })
-            .collect_vec()
     }
 
     fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(

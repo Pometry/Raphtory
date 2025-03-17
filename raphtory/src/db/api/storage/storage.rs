@@ -317,7 +317,7 @@ impl InternalAdditionOps for Storage {
         });
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_update(&self.graph, id.inner(), t, src, dst, layer))?;
+        self.if_index(|index| index.add_edge_update(&self.graph, id.inner(), t, src, dst, layer, props))?;
 
         Ok(id)
     }
@@ -339,7 +339,7 @@ impl InternalAdditionOps for Storage {
             let ee = self.graph.edge_entry(edge);
             let src = ee.src();
             let dst = ee.dst();
-            index.add_edge_update(&self.graph, edge, t, src, dst, layer)
+            index.add_edge_update(&self.graph, edge, t, src, dst, layer, props)
         })?;
 
         Ok(())
@@ -356,6 +356,7 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_tprops(t, props));
+        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -365,6 +366,7 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
+        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -377,6 +379,7 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
+        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -391,6 +394,7 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
+        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -405,6 +409,8 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
+
+        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -421,6 +427,8 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
+        // ADD INDEXING HERE?
+
         Ok(())
     }
 
@@ -436,6 +444,7 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
+        // ADD INDEXING HERE?
         Ok(())
     }
 }

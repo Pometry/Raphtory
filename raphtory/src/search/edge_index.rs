@@ -155,20 +155,24 @@ impl EdgeIndex {
             .collect()
     }
 
-    fn collect_temporal_properties<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-        &self,
+    fn collect_temporal_properties<
+        'a,
+        'graph,
+        G: GraphViewOps<'graph> + 'a,
+        GH: GraphViewOps<'graph> + 'a,
+    >(
+        &'a self,
         edge: &EdgeView<G, GH>,
-    ) -> Vec<(i64, ArcStr, usize, Prop)> {
+    ) -> impl Iterator<Item = (i64, ArcStr, usize, Prop)> + 'a {
         edge.properties()
             .temporal()
-            .iter()
+            .into_iter()
             .flat_map(|(key, values)| {
                 let pid = values.id;
                 values
                     .into_iter()
                     .map(move |(t, v)| (t, key.clone(), pid, v))
             })
-            .collect_vec()
     }
 
     fn index_edge<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
@@ -178,7 +182,8 @@ impl EdgeIndex {
         writer: &IndexWriter,
         const_writers: &[Option<IndexWriter>],
         temporal_writers: &[Option<IndexWriter>],
-    ) -> tantivy::Result<()> {
+        props: &[(usize, Prop)]
+    ) -> tantvy::Result<()> {
         let edge_id = edge.edge.pid().as_u64();
         let src = edge.src().name();
         let dst = edge.dst().name();
@@ -201,7 +206,6 @@ impl EdgeIndex {
                 const_writers,
             )?;
 
-            let temporal_properties = self.collect_temporal_properties(&edge);
             index_edge_temporal_properties(
                 edge.clone(),
                 temporal_properties,
@@ -263,6 +267,7 @@ impl EdgeIndex {
         locked_g.edges_par(&graph).try_for_each(|e_ref| {
             {
                 let e_view = EdgeView::new(graph.clone(), e_ref);
+                // manufacture &[(usize, Prop)]
                 edge_index.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
             }
             Ok::<(), TantivyError>(())
@@ -307,6 +312,7 @@ impl EdgeIndex {
         src: VID,
         dst: VID,
         layer: usize,
+        props: &[(usize, Prop)]
     ) -> Result<(), GraphError> {
         let edge = graph
             .edge(src, dst)
@@ -327,8 +333,6 @@ impl EdgeIndex {
             temporal_property_keys,
         )?;
 
-        let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));
-        let mut writer_guard = writer.write();
         self.index_edge(
             graph,
             edge,
@@ -336,7 +340,6 @@ impl EdgeIndex {
             &const_writers,
             &temporal_writers,
         )?;
-        writer_guard.commit()?;
         self.reader.reload()?;
 
         Ok(())

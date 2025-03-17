@@ -82,9 +82,10 @@ impl GraphIndex {
         src: VID,
         dst: VID,
         layer: usize,
+        props: &[(usize, Prop)]
     ) -> Result<(), GraphError> {
         self.edge_index
-            .add_edge_update(graph, edge_id, t, src, dst, layer)
+            .add_edge_update(graph, edge_id, t, src, dst, layer, props)
     }
 }
 

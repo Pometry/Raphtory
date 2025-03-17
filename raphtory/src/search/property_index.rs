@@ -3,7 +3,7 @@ use crate::{
     prelude::*,
     search::{fields, new_index, TOKENIZER},
 };
-use raphtory_api::core::{storage::arc_str::ArcStr, PropType};
+use raphtory_api::core::{storage::{arc_str::ArcStr, timeindex::TimeIndexEntry}, PropType};
 use std::{fmt::Debug, sync::Arc};
 use tantivy::{
     collector::TopDocs,
@@ -20,14 +20,23 @@ pub struct PropertyIndex {
     pub(crate) prop_name: ArcStr,
     pub(crate) index: Arc<Index>,
     pub(crate) reader: IndexReader,
+    pub(crate) time_field: Option<Field>,
+    pub(crate) layer_field: Option<Field>,
+    pub(crate) entity_id_field: Field,
 }
 
 impl PropertyIndex {
     pub(crate) fn new(prop_name: ArcStr, schema: Schema) -> Self {
+        let time_field = schema.get_field(fields::TIME).ok();
+        let entity_id_field = schema.get_field(fields::NODE_ID).or_else(|_| schema.get_field(fields::EDGE_ID)).ok().expect("Need entity id");
+        let layer_field = schema.get_field(fields::LAYER_ID).ok();
         let (index, reader) = new_index(schema, IndexSettings::default());
         Self {
             prop_name,
             index: Arc::new(index),
+            time_field,
+            entity_id_field,
+            layer_field,
             reader,
         }
     }
@@ -132,14 +141,12 @@ impl PropertyIndex {
         &self,
         field_entity_id: Field,
         entity_id: u64,
-        time: Option<i64>,
-        secondary_time: Option<usize>,
+        time: Option<TimeIndexEntry>,
         layer_id: Option<usize>,
-        prop_name: &str,
-        prop_value: Prop,
+        prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let schema = self.index.schema();
-        let field_property = schema.get_field(prop_name)?;
+        let field_property = Field::from_field_id(0);
 
         let mut document = TantivyDocument::new();
         document.add_u64(field_entity_id, entity_id);
@@ -225,21 +232,19 @@ impl PropertyIndex {
 
     pub(crate) fn create_edge_temporal_property_document(
         &self,
-        time: i64,
-        secondary_time: usize,
+        time: TimeIndexEntry,
         edge_id: u64,
         layer_id: Option<usize>,
-        prop_name: String,
-        prop_value: Prop,
+        // prop_name: String,
+        // prop_id: usize,
+        prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let field_edge_id = self.index.schema().get_field(fields::EDGE_ID)?;
         self.create_property_document(
             field_edge_id,
             edge_id,
             Some(time),
-            Some(secondary_time),
             layer_id,
-            &prop_name,
             prop_value,
         )
     }
