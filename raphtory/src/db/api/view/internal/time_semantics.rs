@@ -4,53 +4,211 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+        storage::graph::{
+            edges::edge_ref::EdgeStorageRef,
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+        },
         view::{internal::Base, BoxedLDIter, BoxedLIter, MaterializedGraph},
     },
+    prelude::GraphViewOps,
 };
 use enum_dispatch::enum_dispatch;
 use futures_util::StreamExt;
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps};
+use raphtory_api::{
+    core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    iter::IntoDynBoxed,
+};
 use std::{any::Any, borrow::Cow, ops::Range};
 
-pub trait HistoryTimeSemantics {
-    fn earliest_time(
+pub trait NodeTimeSemantics {
+    fn earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef,
+        view: G,
     ) -> Option<i64>;
 
-    fn latest_time(
+    fn latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef,
+        view: G,
     ) -> Option<i64>;
 
-    fn earliest_time_window(
+    fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef,
+        view: G,
         w: Range<i64>,
     ) -> Option<i64>;
 
-    fn latest_time_window(
+    fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef,
+        view: G,
         w: Range<i64>,
     ) -> Option<i64>;
 
-    fn history<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
-    ) -> BoxedLIter<'a, i64>;
+    fn history<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, i64>;
 
-    fn history_window<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    fn history_window<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'a, i64>;
+    ) -> BoxedLIter<'graph, i64>;
+
+    fn include_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> bool;
+
+    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)>;
+
+    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)>;
 }
 
 struct PersistentSemantics();
 
-impl HistoryTimeSemantics for PersistentSemantics {
+impl NodeTimeSemantics for PersistentSemantics {
+    fn earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef,
+        view: G,
+    ) -> Option<i64> {
+        node.history(view).first_t()
+    }
+
+    fn latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef,
+        view: G,
+    ) -> Option<i64> {
+        node.history(view).last_t()
+    }
+
+    fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        let history = node.history(view);
+        if history.active_t(i64::MIN..w.start) {
+            Some(w.start)
+        } else {
+            history.range_t(w).first_t()
+        }
+    }
+
+    fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        node.history(view)
+            .range_t(w.clone())
+            .last_t()
+            .map(|t| t.max(w.start))
+    }
+
+    fn history<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, i64> {
+        node.history(view).iter_t()
+    }
+
+    fn history_window<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, i64> {
+        node.history(view).range_t(w).iter_t()
+    }
+
+    fn include_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        node.history(view).active_t(i64::MIN..w.end)
+    }
+
+    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        node.temp_prop_rows()
+            .map(|(t, row)| {
+                (
+                    t,
+                    row.into_iter().filter_map(|(i, v)| Some((i, v?))).collect(),
+                )
+            })
+            .into_dyn_boxed()
+    }
+
+    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        let first_row = if node.history(view).active_t(i64::MIN..w.start) {
+            Some(
+                node.tprops()
+                    .filter_map(|(i, tprop)| {
+                        if tprop.active(w.start..w.start.saturating_add(1)) {
+                            None
+                        } else {
+                            tprop
+                                .last_before(TimeIndexEntry::start(w.start))
+                                .map(|(_, v)| (i, v))
+                        }
+                    })
+                    .collect(),
+            )
+        } else {
+            None
+        };
+        first_row
+            .into_iter()
+            .map(|row| (TimeIndexEntry::start(w.start), row))
+            .chain(
+                node.temp_prop_rows_window(TimeIndexEntry::range(w))
+                    .map(|(t, row)| {
+                        (
+                            t,
+                            row.into_iter().filter_map(|(i, v)| Some((i, v?))).collect(),
+                        )
+                    }),
+            )
+            .into_dyn_boxed()
+    }
+}
+
+pub struct EventSemantics();
+
+impl NodeTimeSemantics for EventSemantics {
     fn earliest_time(
         &self,
         history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
@@ -70,11 +228,7 @@ impl HistoryTimeSemantics for PersistentSemantics {
         history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
         w: Range<i64>,
     ) -> Option<i64> {
-        if history.active_t(i64::MIN..w.start) {
-            Some(w.start)
-        } else {
-            history.range(TimeIndexEntry::range(w)).first_t()
-        }
+        history.range_t(w).first_t()
     }
 
     fn latest_time_window(
@@ -82,11 +236,7 @@ impl HistoryTimeSemantics for PersistentSemantics {
         history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
         w: Range<i64>,
     ) -> Option<i64> {
-        if history.active_t(i64::MIN..w.end) {
-            Some(w.end.saturating_sub(1))
-        } else {
-            None
-        }
+        history.range_t(w).last_t()
     }
 
     fn history<'a>(
@@ -103,15 +253,81 @@ impl HistoryTimeSemantics for PersistentSemantics {
     ) -> BoxedLIter<'a, i64> {
         history.range_t(w).iter_t()
     }
+
+    fn include_window<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> bool {
+        history.active_t(w)
+    }
+}
+
+pub struct WindowTimeSemantics {
+    semantics: Box<dyn NodeTimeSemantics>,
+    window: Range<i64>,
+}
+
+impl NodeTimeSemantics for WindowTimeSemantics {
+    fn earliest_time(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+    ) -> Option<i64> {
+        self.semantics
+            .earliest_time_window(history, self.window.clone())
+    }
+
+    fn latest_time(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+    ) -> Option<i64> {
+        self.semantics
+            .latest_time_window(history, self.window.clone())
+    }
+
+    fn earliest_time_window(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        self.semantics.earliest_time_window(history, w)
+    }
+
+    fn latest_time_window(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        self.semantics.latest_time_window(history, w)
+    }
+
+    fn history<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    ) -> BoxedLIter<'a, i64> {
+        self.semantics.history_window(history, self.window.clone())
+    }
+
+    fn history_window<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, i64> {
+        self.semantics.history_window(history, w)
+    }
+
+    fn include_window<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> bool {
+        self.semantics.include_window(history, w)
+    }
 }
 /// Methods for defining time windowing semantics for a graph
 #[enum_dispatch]
 pub trait TimeSemantics {
-    /// Return the earliest time for a node
-    fn node_earliest_time(&self, v: VID) -> Option<i64>;
-
-    /// Return the latest time for a node
-    fn node_latest_time(&self, v: VID) -> Option<i64>;
+    fn node_time_semantics(&self) -> Box<dyn NodeTimeSemantics>;
 
     /// Returns the start of the current view or `None` if unbounded
     fn view_start(&self) -> Option<i64>;
@@ -129,14 +345,6 @@ pub trait TimeSemantics {
     /// Returns the timestamp for the latest activity in the window
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64>;
 
-    /// Return the earliest time for a node in a window
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64>;
-
-    /// Return the latest time for a node in a window
-    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64>;
-    /// check if node `v` should be included in window `w`
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool;
-
     /// check if edge `e` should be included in window `w`
     fn include_edge_window(
         &self,
@@ -144,24 +352,6 @@ pub trait TimeSemantics {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool;
-
-    /// Get the timestamps at which a node `v` is active (i.e has an edge addition, or a property change)
-    fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry>;
-
-    /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<TimeIndexEntry>;
-
-    /// Get the timestamps associated with properties or node events only (Excluding edge events)
-    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
-
-    /// Get the timestamps associated with edge events only (Excluding node or property events)
-    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
-
-    fn node_history_rows(
-        &self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
 
     fn edge_history<'a>(
         &'a self,

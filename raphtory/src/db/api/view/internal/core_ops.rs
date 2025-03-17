@@ -34,7 +34,9 @@ use raphtory_api::core::{
 use std::{iter, ops::Range};
 
 use crate::{
-    db::api::storage::graph::variants::storage_variants::StorageVariants, prelude::GraphViewOps,
+    core::{entities::properties::tcell::TCell, storage::TColumns},
+    db::api::storage::graph::variants::storage_variants::StorageVariants,
+    prelude::GraphViewOps,
 };
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;

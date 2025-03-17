@@ -23,7 +23,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, TimeSemantics},
+            internal::{CoreGraphOps, EventSemantics, NodeTimeSemantics, TimeSemantics},
             BoxedLIter, IntoDynBoxed,
         },
     },
@@ -31,14 +31,6 @@ use crate::{
 };
 
 impl TimeSemantics for GraphStorage {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.node_entry(v).additions().first_t()
-    }
-
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.node_entry(v).additions().last_t()
-    }
-
     fn view_start(&self) -> Option<i64> {
         None
     }
@@ -81,19 +73,6 @@ impl TimeSemantics for GraphStorage {
             .max()
     }
 
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.node_entry(v).additions().range_t(start..end).first_t()
-    }
-
-    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.node_entry(v).additions().range_t(start..end).last_t()
-    }
-
-    #[inline]
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
-        v.additions().active_t(w)
-    }
-
     fn include_edge_window(
         &self,
         edge: EdgeStorageRef,
@@ -101,91 +80,6 @@ impl TimeSemantics for GraphStorage {
         layer_ids: &LayerIds,
     ) -> bool {
         edge.added(layer_ids, w)
-    }
-
-    fn node_history<'a>(&'a self, v: VID) -> BoxedLIter<'a, TimeIndexEntry> {
-        GenLockedIter::from(self.node_entry(v), |node| {
-            node.additions().into_iter().into_dyn_boxed()
-        })
-        .into_dyn_boxed()
-    }
-
-    fn node_history_window<'a>(&'a self, v: VID, w: Range<i64>) -> BoxedLIter<'a, TimeIndexEntry> {
-        GenLockedIter::from(self.node_entry(v), |node| {
-            node.additions()
-                .into_range_t(w)
-                .into_iter()
-                .into_dyn_boxed()
-        })
-        .into_dyn_boxed()
-    }
-
-    fn node_property_history<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        GenLockedIter::from(self.node_entry(v), |node| match w {
-            Some(w) => node
-                .additions()
-                .into_range(TimeIndexEntry::range(w))
-                .into_prop_events()
-                .iter(),
-            None => node.additions().into_prop_events().iter(),
-        })
-        .into_dyn_boxed()
-    }
-
-    fn node_edge_history<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        GenLockedIter::from(self.node_entry(v), |node| match w {
-            Some(w) => node
-                .additions()
-                .into_range(TimeIndexEntry::range(w))
-                .into_edge_events(),
-            None => node.additions().into_edge_events(),
-        })
-        .into_dyn_boxed()
-    }
-
-    fn node_history_rows<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, Vec<(usize, Prop)>)> {
-        let node = self.node_entry(v);
-        GenLockedIter::from(node, |node| match w {
-            Some(range) => {
-                let range = TimeIndexEntry::range(range);
-                node.as_ref()
-                    .temp_prop_rows_window(range)
-                    .map(|(t, row)| {
-                        (
-                            t,
-                            row.into_iter()
-                                .filter_map(|(prop_id, p)| p.map(|p| (prop_id, p)))
-                                .collect(),
-                        )
-                    })
-                    .into_dyn_boxed()
-            }
-            None => node
-                .as_ref()
-                .temp_prop_rows()
-                .map(|(t, row)| {
-                    (
-                        t,
-                        row.into_iter()
-                            .filter_map(|(prop_id, p)| p.map(|p| (prop_id, p)))
-                            .collect(),
-                    )
-                })
-                .into_dyn_boxed(),
-        })
-        .into_dyn_boxed()
     }
 
     fn edge_history<'a>(
@@ -663,5 +557,9 @@ impl TimeSemantics for GraphStorage {
                 }
             }
         }
+    }
+
+    fn node_time_semantics(&self) -> Box<dyn NodeTimeSemantics> {
+        Box::new(EventSemantics())
     }
 }

@@ -16,12 +16,12 @@ use raphtory_api::{
 };
 use std::{borrow::Cow, ops::Range};
 
+use super::row::Row;
 #[cfg(feature = "storage")]
 use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
-
-use super::row::Row;
+use crate::{db::api::view::internal::NodeHistory, prelude::GraphViewOps};
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
@@ -56,6 +56,11 @@ impl<'a> NodeStorageRef<'a> {
             #[cfg(feature = "storage")]
             NodeStorageRef::Disk(disk_node) => disk_node.last_before_row(t),
         }
+    }
+
+    pub fn history<G: GraphViewOps<'a>>(self, view: G) -> NodeHistory<'a, G> {
+        let additions = self.additions();
+        NodeHistory { additions, view }
     }
 }
 
