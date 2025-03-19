@@ -6,14 +6,17 @@ use crate::{
 use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory_api::core::{
-    entities::properties::props::{Meta, PropMapper},
+    entities::{
+        properties::props::{Meta, PropMapper},
+        VID,
+    },
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     PropType,
 };
 use std::{borrow::Borrow, sync::Arc};
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
-    Index, IndexReader, IndexWriter,
+    Index, IndexReader, IndexWriter, Term,
 };
 
 #[derive(Clone)]
@@ -230,6 +233,27 @@ impl EntityIndex {
         )
     }
 
+    pub(crate) fn delete_node_const_properties(
+        &self,
+        node_id: VID,
+        writers: &mut [Option<IndexWriter>],
+        props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Result<(), GraphError> {
+        let node_id = node_id.as_u64();
+        let property_indexes = self.const_property_indexes.read();
+        for (prop_id, _prop_value) in props {
+            if let Some(Some(prop_writer)) = writers.get(prop_id) {
+                if let Some(property_index) = &property_indexes[prop_id] {
+                    let term = Term::from_field_u64(property_index.entity_id_field, node_id);
+                    prop_writer.delete_term(term);
+                }
+            }
+        }
+
+        self.commit_writers(writers)?;
+        Ok(())
+    }
+
     pub(crate) fn index_node_const_properties(
         &self,
         node_id: u64,
@@ -360,5 +384,25 @@ impl EntityIndex {
             &self.temporal_property_indexes,
             meta.temporal_prop_meta().get_id(prop_name),
         ))
+    }
+
+    pub(crate) fn commit_writers(
+        &self,
+        writers: &mut [Option<IndexWriter>],
+    ) -> Result<(), GraphError> {
+        for writer_option in writers {
+            if let Some(const_writer) = writer_option {
+                const_writer.commit()?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn reload_const_property_indexes(&self) -> Result<(), GraphError> {
+        let const_indexes = self.const_property_indexes.read();
+        for property_index_option in const_indexes.iter().flatten() {
+            property_index_option.reader.reload()?;
+        }
+        Ok(())
     }
 }

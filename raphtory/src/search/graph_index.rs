@@ -178,13 +178,14 @@ impl GraphIndex {
 #[cfg(test)]
 mod graph_index_test {
     use crate::{
-        db::api::view::internal::InternalIndexSearch,
-        prelude::{AdditionOps, Graph, GraphViewOps},
+        db::{
+            api::view::{internal::InternalIndexSearch, SearchableGraphOps},
+            graph::views::property_filter::{FilterExpr, PropertyFilterOps},
+        },
+        prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
 
-    #[test]
-    fn test_if_bulk_load_create_graph_index_is_ok() {
-        let graph = Graph::new();
+    fn init_nodes_graph(graph: Graph) -> Graph {
         graph
             .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
             .unwrap();
@@ -197,6 +198,29 @@ mod graph_index_test {
         graph
             .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
             .unwrap();
+        graph
+    }
+
+    fn init_edges_graph(graph: Graph) -> Graph {
+        graph
+            .add_edge(1, 1, 2, [("p1", 1), ("p2", 2)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_edge(2, 1, 2, [("p6", 6)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_edge(2, 2, 3, [("p4", 5)], Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_edge(3, 3, 4, [("p2", 4), ("p3", 3)], Some("water_tribe"))
+            .unwrap();
+        graph
+    }
+
+    #[test]
+    fn test_if_bulk_load_create_graph_index_is_ok() {
+        let graph = Graph::new();
+        let graph = init_nodes_graph(graph);
 
         assert_eq!(graph.count_nodes(), 3);
 
@@ -210,18 +234,7 @@ mod graph_index_test {
         // Creates graph index
         let _ = graph.searcher().unwrap();
 
-        graph
-            .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(2, 1, [("p6", 6)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
-            .unwrap();
+        let graph = init_nodes_graph(graph);
 
         assert_eq!(graph.count_nodes(), 3);
 
@@ -234,21 +247,46 @@ mod graph_index_test {
         // Creates graph index
         let _ = graph.searcher().unwrap();
 
-        graph
-            .add_edge(1, 1, 2, [("p1", 1), ("p2", 2)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_edge(2, 1, 2, [("p6", 6)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_edge(2, 2, 3, [("p4", 5)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_edge(3, 3, 4, [("p2", 4), ("p3", 3)], Some("water_tribe"))
-            .unwrap();
+        let graph = init_edges_graph(graph);
 
         assert_eq!(graph.count_edges(), 3);
 
         graph.searcher().unwrap().index.print().unwrap();
+    }
+
+    #[test]
+    fn test_node_const_property_graph_index_is_ok() {
+        let graph = Graph::new();
+        let graph = init_nodes_graph(graph);
+        graph
+            .node(1)
+            .unwrap()
+            .add_constant_properties([("x", 1u64)])
+            .unwrap();
+
+        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let res = graph.search_nodes(filter, 20, 0).unwrap();
+        let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
+        assert_eq!(res, vec!["1"]);
+
+        graph
+            .node(1)
+            .unwrap()
+            .update_constant_properties([("x", 2u64)])
+            .unwrap();
+        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let res = graph.search_nodes(filter, 20, 0).unwrap();
+        let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
+        assert_eq!(res, Vec::<&str>::new());
+
+        graph
+            .node(1)
+            .unwrap()
+            .update_constant_properties([("x", 2u64)])
+            .unwrap();
+        let filter = PropertyFilter::constant_property("x").eq(2u64);
+        let res = graph.search_nodes(filter, 20, 0).unwrap();
+        let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
+        assert_eq!(res, vec!["1"]);
     }
 }

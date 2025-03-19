@@ -134,7 +134,7 @@ impl NodeIndex {
     fn index_node_c(
         &self,
         node_id: VID,
-        const_writers: &[Option<IndexWriter>],
+        const_writers: &mut [Option<IndexWriter>],
         const_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let node_id = node_id.as_u64();
@@ -142,7 +142,9 @@ impl NodeIndex {
             node_id,
             const_writers,
             const_props.iter().map(|(id, prop)| (*id, prop)),
-        )
+        )?;
+
+        self.entity_index.commit_writers(const_writers)
     }
 
     fn index_node_t(
@@ -151,8 +153,8 @@ impl NodeIndex {
         node_id: MaybeNew<VID>,
         node_name: String,
         node_type: Option<ArcStr>,
-        writer: &IndexWriter,
-        temporal_writers: &[Option<IndexWriter>],
+        writer: &mut IndexWriter,
+        temporal_writers: &mut [Option<IndexWriter>],
         temporal_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let vid_u64 = node_id.inner().as_u64();
@@ -172,6 +174,9 @@ impl NodeIndex {
                 Ok::<(), GraphError>(())
             })
             .transpose()?;
+
+        self.entity_index.commit_writers(temporal_writers)?;
+        writer.commit()?;
 
         Ok(())
     }
@@ -282,7 +287,7 @@ impl NodeIndex {
             .at(t.t());
 
         let temporal_property_ids = node.temporal_prop_ids();
-        let temporal_writers = self
+        let mut temporal_writers = self
             .entity_index
             .get_temporal_property_writers(temporal_property_ids)?;
 
@@ -292,11 +297,11 @@ impl NodeIndex {
             node_id,
             node.name(),
             node.node_type(),
-            &writer,
-            &temporal_writers,
+            &mut writer,
+            &mut temporal_writers,
             props,
         )?;
-        writer.commit()?;
+
         self.entity_index.reader.reload()?;
 
         Ok(())
@@ -313,17 +318,17 @@ impl NodeIndex {
             .expect("Node for internal id should exist.");
 
         let const_property_ids = node.const_prop_ids();
-        let const_writers = self
+        let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;
 
-        self.index_node_c(node_id, &const_writers, props)?;
-        self.entity_index.reader.reload()?;
+        self.index_node_c(node_id, &mut const_writers, props)?;
+
+        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
 
-    // TODO: Update the constant property by deleting and recreating tantivy doc?
     pub(crate) fn update_node_constant_properties(
         &self,
         graph: &GraphStorage,
@@ -335,12 +340,21 @@ impl NodeIndex {
             .expect("Node for internal id should exist.");
 
         let const_property_ids = node.const_prop_ids();
-        let const_writers = self
+        let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;
 
-        self.index_node_c(node_id, &const_writers, props)?;
-        self.entity_index.reader.reload()?;
+        // Delete existing constant property document
+        self.entity_index.delete_node_const_properties(
+            node_id,
+            &mut const_writers,
+            props.iter().map(|(id, prop)| (*id, prop)),
+        )?;
+
+        // Reindex the node's constant properties
+        self.index_node_c(node_id, &mut const_writers, props)?;
+
+        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
