@@ -533,7 +533,7 @@ fn bench_search_nodes_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap(),
             |random_filter| {
-                let prop_filter = resolve_as_property_filter(random_filter);
+                let prop_filter = resolve_as_property_filter(random_filter).unwrap();
                 graph
                     .filter_nodes(prop_filter)
                     .unwrap()
@@ -604,7 +604,7 @@ fn bench_search_edges_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap().clone(),
             |random_filter| {
-                let prop_filter = resolve_as_property_filter(random_filter);
+                let prop_filter = resolve_as_property_filter(random_filter).unwrap();
                 graph
                     .filter_edges(prop_filter)
                     .unwrap()

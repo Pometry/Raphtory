@@ -1482,11 +1482,11 @@ mod views_test {
         >(
             graph: G,
         ) -> G {
-            graph
-                .add_node(
+            let nodes = vec![
+                (
                     6,
                     "N1",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
@@ -1494,45 +1494,27 @@ mod views_test {
                         ("k4", Prop::F64(6.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (
                     7,
                     "N1",
-                    [
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(5i64)),
                         ("k3", Prop::Bool(false)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .node("N1")
-                .unwrap()
-                .add_constant_properties([
-                    ("p1", Prop::U64(1u64)),
-                    ("k1", Prop::I64(3i64)),
-                    ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
-                    ("k3", Prop::Bool(true)),
-                    ("k4", Prop::F64(6.0f64)),
-                ])
-                .unwrap();
-
-            graph
-                .add_node(
+                ),
+                (
                     6,
                     "N2",
-                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(6.0f64))],
+                    vec![("p1", Prop::U64(1u64)), ("k4", Prop::F64(6.0f64))],
                     Some("water_tribe"),
-                )
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (
                     7,
                     "N2",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
@@ -1540,27 +1522,13 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     Some("water_tribe"),
-                )
-                .unwrap();
-
-            graph
-                .add_node(8, "N3", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(9, "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-            graph
-                .node("N4")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(2u64))])
-                .unwrap();
-
-            graph
-                .add_node(
+                ),
+                (8, "N3", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (9, "N4", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (
                     5,
                     "N5",
-                    [
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
@@ -1568,38 +1536,28 @@ mod views_test {
                         ("k4", Prop::F64(6.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (
                     6,
                     "N5",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k2", Prop::Str(ArcStr::from("Pometry"))),
                         ("k4", Prop::F64(1.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-
-            graph
-                .add_node(5, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (5, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+                (
                     6,
                     "N6",
-                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(1.0f64))],
+                    vec![("p1", Prop::U64(1u64)), ("k4", Prop::F64(1.0f64))],
                     Some("fire_nation"),
-                )
-                .unwrap();
-
-            graph
-                .add_node(
+                ),
+                (
                     3,
                     "N7",
-                    [
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
@@ -1607,20 +1565,13 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .add_node(5, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(3, "N8", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (5, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (3, "N8", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+                (
                     4,
                     "N8",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
@@ -1628,49 +1579,17 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-                .add_node(2, "N9", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-            graph
-                .node("N9")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))])
-                .unwrap();
-
-            graph
-                .add_node(2, "N10", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .add_node(2, "N10", [("p1", Prop::U64(3u64))], None)
-                .unwrap();
-            graph
-                .node("N10")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))])
-                .unwrap();
-
-            graph
-                .add_node(2, "N11", [("p1", Prop::U64(3u64))], None)
-                .unwrap();
-            graph
-                .add_node(2, "N11", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .node("N11")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))])
-                .unwrap();
-
-            graph
-                .add_node(2, "N12", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (2, "N9", vec![("p1", Prop::U64(2u64))], None),
+                (2, "N10", vec![("q1", Prop::U64(0u64))], None),
+                (2, "N10", vec![("p1", Prop::U64(3u64))], None),
+                (2, "N11", vec![("p1", Prop::U64(3u64))], None),
+                (2, "N11", vec![("q1", Prop::U64(0u64))], None),
+                (2, "N12", vec![("q1", Prop::U64(0u64))], None),
+                (
                     3,
                     "N12",
-                    [
+                    vec![
                         ("p1", Prop::U64(3u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
@@ -1678,47 +1597,57 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     None,
-                )
-                .unwrap();
-            graph
-                .node("N12")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))])
-                .unwrap();
+                ),
+                (2, "N13", vec![("q1", Prop::U64(0u64))], None),
+                (3, "N13", vec![("p1", Prop::U64(3u64))], None),
+                (2, "N14", vec![("q1", Prop::U64(0u64))], None),
+                (2, "N15", vec![], None),
+            ];
 
-            graph
-                .add_node(2, "N13", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .add_node(3, "N13", [("p1", Prop::U64(3u64))], None)
-                .unwrap();
-            graph
-                .node("N13")
-                .unwrap()
-                .add_constant_properties([
-                    ("p1", Prop::U64(1u64)),
-                    ("k1", Prop::I64(2i64)),
-                    ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
-                    ("k3", Prop::Bool(true)),
-                    ("k4", Prop::F64(10.0f64)),
-                ])
-                .unwrap();
+            // Add nodes to the graph
+            for (id, name, props, layer) in &nodes {
+                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+            }
 
-            graph
-                .add_node(2, "N14", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .node("N14")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))])
-                .unwrap();
+            // Constant property assignments
+            let constant_properties = vec![
+                (
+                    "N1",
+                    vec![
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(3i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                ),
+                ("N4", vec![("p1", Prop::U64(2u64))]),
+                ("N9", vec![("p1", Prop::U64(1u64))]),
+                ("N10", vec![("p1", Prop::U64(1u64))]),
+                ("N11", vec![("p1", Prop::U64(1u64))]),
+                ("N12", vec![("p1", Prop::U64(1u64))]),
+                (
+                    "N13",
+                    vec![
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(2i64)),
+                        ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(10.0f64)),
+                    ],
+                ),
+                ("N14", vec![("p1", Prop::U64(1u64))]),
+                ("N15", vec![("p1", Prop::U64(1u64))]),
+            ];
 
-            graph.add_node(2, "N15", NO_PROPS, None).unwrap();
-            graph
-                .node("N15")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))])
-                .unwrap();
+            // Apply constant properties
+            for (node, props) in constant_properties {
+                graph
+                    .node(node)
+                    .unwrap()
+                    .add_constant_properties(props)
+                    .unwrap();
+            }
 
             graph
         }
@@ -2548,12 +2477,12 @@ mod views_test {
         >(
             graph: G,
         ) -> G {
-            graph
-                .add_edge(
+            let edges = vec![
+                (
                     6,
                     "N1",
                     "N2",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
@@ -2561,51 +2490,30 @@ mod views_test {
                         ("k4", Prop::F64(6.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (
                     7,
                     "N1",
                     "N2",
-                    [
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(5i64)),
                         ("k3", Prop::Bool(false)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .edge("N1", "N2")
-                .unwrap()
-                .add_constant_properties(
-                    [
-                        ("p1", Prop::U64(1u64)),
-                        ("k1", Prop::I64(3i64)),
-                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
-                        ("k3", Prop::Bool(true)),
-                        ("k4", Prop::F64(6.0f64)),
-                    ],
-                    Some("air_nomad"),
-                )
-                .unwrap();
-
-            graph
-                .add_edge(
+                ),
+                (
                     6,
                     "N2",
                     "N3",
-                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(6.0f64))],
+                    vec![("p1", Prop::U64(1u64)), ("k4", Prop::F64(6.0f64))],
                     Some("water_tribe"),
-                )
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (
                     7,
                     "N2",
                     "N3",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
@@ -2613,28 +2521,26 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     Some("water_tribe"),
-                )
-                .unwrap();
-
-            graph
-                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-            graph
-                .edge("N4", "N5")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(2u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_edge(
+                ),
+                (
+                    8,
+                    "N3",
+                    "N4",
+                    vec![("p1", Prop::U64(1u64))],
+                    Some("air_nomad"),
+                ),
+                (
+                    9,
+                    "N4",
+                    "N5",
+                    vec![("p1", Prop::U64(1u64))],
+                    Some("air_nomad"),
+                ),
+                (
                     5,
                     "N5",
                     "N6",
-                    [
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
@@ -2642,47 +2548,37 @@ mod views_test {
                         ("k4", Prop::F64(6.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (
                     6,
                     "N5",
                     "N6",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k2", Prop::Str(ArcStr::from("Pometry"))),
                         ("k4", Prop::F64(1.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-
-            graph
-                .add_edge(
+                ),
+                (
                     5,
                     "N6",
                     "N7",
-                    [("p1", Prop::U64(1u64))],
+                    vec![("p1", Prop::U64(1u64))],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (
                     6,
                     "N6",
                     "N7",
-                    [("p1", Prop::U64(1u64)), ("k4", Prop::F64(1.0f64))],
+                    vec![("p1", Prop::U64(1u64)), ("k4", Prop::F64(1.0f64))],
                     Some("fire_nation"),
-                )
-                .unwrap();
-
-            graph
-                .add_edge(
+                ),
+                (
                     3,
                     "N7",
                     "N8",
-                    [
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Paper_Ship"))),
@@ -2690,27 +2586,26 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     Some("air_nomad"),
-                )
-                .unwrap();
-            graph
-                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_edge(
+                ),
+                (
+                    5,
+                    "N7",
+                    "N8",
+                    vec![("p1", Prop::U64(1u64))],
+                    Some("air_nomad"),
+                ),
+                (
                     3,
                     "N8",
                     "N9",
-                    [("p1", Prop::U64(1u64))],
+                    vec![("p1", Prop::U64(1u64))],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (
                     4,
                     "N8",
                     "N9",
-                    [
+                    vec![
                         ("p1", Prop::U64(2u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
@@ -2718,51 +2613,18 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     Some("fire_nation"),
-                )
-                .unwrap();
-
-            graph
-                .add_edge(2, "N9", "N10", [("p1", Prop::U64(2u64))], None)
-                .unwrap();
-            graph
-                .edge("N9", "N10")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(2, "N10", "N11", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .add_edge(2, "N10", "N11", [("p1", Prop::U64(3u64))], None)
-                .unwrap();
-            graph
-                .edge("N10", "N11")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(2, "N11", "N12", [("p1", Prop::U64(3u64))], None)
-                .unwrap();
-            graph
-                .add_edge(2, "N11", "N12", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .edge("N11", "N12")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph
-                .add_edge(2, "N12", "N13", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (2, "N9", "N10", vec![("p1", Prop::U64(2u64))], None),
+                (2, "N10", "N11", vec![("q1", Prop::U64(0u64))], None),
+                (2, "N10", "N11", vec![("p1", Prop::U64(3u64))], None),
+                (2, "N11", "N12", vec![("p1", Prop::U64(3u64))], None),
+                (2, "N11", "N12", vec![("q1", Prop::U64(0u64))], None),
+                (2, "N12", "N13", vec![("q1", Prop::U64(0u64))], None),
+                (
                     3,
                     "N12",
                     "N13",
-                    [
+                    vec![
                         ("p1", Prop::U64(3u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
@@ -2770,25 +2632,42 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     None,
-                )
-                .unwrap();
-            graph
-                .edge("N12", "N13")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                .unwrap();
+                ),
+                (2, "N13", "N14", vec![("q1", Prop::U64(0u64))], None),
+                (3, "N13", "N14", vec![("p1", Prop::U64(3u64))], None),
+                (2, "N14", "N15", vec![("q1", Prop::U64(0u64))], None),
+                (2, "N15", "N1", vec![], None),
+            ];
 
-            graph
-                .add_edge(2, "N13", "N14", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .add_edge(3, "N13", "N14", [("p1", Prop::U64(3u64))], None)
-                .unwrap();
-            graph
-                .edge("N13", "N14")
-                .unwrap()
-                .add_constant_properties(
-                    [
+            for (id, src, dst, props, layer) in &edges {
+                graph
+                    .add_edge(*id, src, dst, props.clone(), *layer)
+                    .unwrap();
+            }
+
+            // Constant property assignments
+            let constant_properties = vec![
+                (
+                    "N1",
+                    "N2",
+                    vec![
+                        ("p1", Prop::U64(1u64)),
+                        ("k1", Prop::I64(3i64)),
+                        ("k2", Prop::Str(ArcStr::from("Paper_Airplane"))),
+                        ("k3", Prop::Bool(true)),
+                        ("k4", Prop::F64(6.0f64)),
+                    ],
+                    Some("air_nomad"),
+                ),
+                ("N4", "N5", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
+                ("N9", "N10", vec![("p1", Prop::U64(1u64))], None),
+                ("N10", "N11", vec![("p1", Prop::U64(1u64))], None),
+                ("N11", "N12", vec![("p1", Prop::U64(1u64))], None),
+                ("N12", "N13", vec![("p1", Prop::U64(1u64))], None),
+                (
+                    "N13",
+                    "N14",
+                    vec![
                         ("p1", Prop::U64(1u64)),
                         ("k1", Prop::I64(2i64)),
                         ("k2", Prop::Str(ArcStr::from("Sand_Clown"))),
@@ -2796,24 +2675,18 @@ mod views_test {
                         ("k4", Prop::F64(10.0f64)),
                     ],
                     None,
-                )
-                .unwrap();
+                ),
+                ("N14", "N15", vec![("p1", Prop::U64(1u64))], None),
+                ("N15", "N1", vec![("p1", Prop::U64(1u64))], None),
+            ];
 
-            graph
-                .add_edge(2, "N14", "N15", [("q1", Prop::U64(0u64))], None)
-                .unwrap();
-            graph
-                .edge("N14", "N15")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                .unwrap();
-
-            graph.add_edge(2, "N15", "N1", NO_PROPS, None).unwrap();
-            graph
-                .edge("N15", "N1")
-                .unwrap()
-                .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                .unwrap();
+            for (src, dst, props, layer) in constant_properties {
+                graph
+                    .edge(src, dst)
+                    .unwrap()
+                    .add_constant_properties(props, layer)
+                    .unwrap();
+            }
 
             graph
         }

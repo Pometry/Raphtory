@@ -179,9 +179,8 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// * `name` - The name of the property.
     ///
-    /// Returns:
-    ///
-    /// `Option<Prop>` - The property value if it exists.
+    /// # Returns
+    /// The property value if it exists.
     fn constant_prop(&self, id: usize) -> Option<Prop> {
         self.graph_meta().get_constant(id)
     }
@@ -192,9 +191,8 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// * `name` - The name of the property.
     ///
-    /// Returns:
-    ///
-    /// `Option<LockedView<TProp>>` - The history of property values if it exists.
+    /// # Returns
+    /// The history of property values if it exists.
     fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
         self.graph_meta().get_temporal_prop(id)
     }
@@ -206,9 +204,8 @@ pub trait CoreGraphOps: Send + Sync {
     /// * `v` - A reference to the node for which the property is being queried.
     /// * `name` - The name of the property.
     ///
-    /// Returns:
-    ///
-    /// `Option<Prop>` - The property value if it exists.
+    /// # Returns
+    /// The property value if it exists.
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node_entry(v);
         core_node_entry.prop(id)
@@ -220,8 +217,7 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// * `v` - A reference to the node for which the property is being queried.
     ///
-    /// Returns:
-    ///
+    /// # Returns
     /// The keys of the constant properties.
     fn constant_node_prop_ids(&self, v: VID) -> BoxedLIter<usize> {
         let core_node_entry = self.core_node_entry(v);
@@ -234,9 +230,8 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// * `v` - A reference to the node for which to retrieve the names.
     ///
-    /// Returns:
-    ///
-    /// the ids of the temporal properties
+    /// # Returns
+    /// The ids of the temporal properties
     fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         let core_node_entry = self.core_node_entry(v);
         core_node_entry.temporal_prop_ids()

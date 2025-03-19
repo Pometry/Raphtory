@@ -3,7 +3,10 @@ use crate::{
     prelude::*,
     search::{fields, new_index, TOKENIZER},
 };
-use raphtory_api::core::{storage::{arc_str::ArcStr, timeindex::TimeIndexEntry}, PropType};
+use raphtory_api::core::{
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    PropType,
+};
 use std::{fmt::Debug, sync::Arc};
 use tantivy::{
     collector::TopDocs,
@@ -21,24 +24,53 @@ pub struct PropertyIndex {
     pub(crate) index: Arc<Index>,
     pub(crate) reader: IndexReader,
     pub(crate) time_field: Option<Field>,
+    pub(crate) secondary_time_field: Option<Field>,
     pub(crate) layer_field: Option<Field>,
     pub(crate) entity_id_field: Field,
 }
 
 impl PropertyIndex {
-    pub(crate) fn new(prop_name: ArcStr, schema: Schema) -> Self {
+    fn new_property(prop_name: ArcStr, schema: Schema, is_edge: bool) -> Self {
         let time_field = schema.get_field(fields::TIME).ok();
-        let entity_id_field = schema.get_field(fields::NODE_ID).or_else(|_| schema.get_field(fields::EDGE_ID)).ok().expect("Need entity id");
-        let layer_field = schema.get_field(fields::LAYER_ID).ok();
+        let secondary_time_field = schema.get_field(fields::SECONDARY_TIME).ok();
+        let entity_id_field = schema
+            .get_field(if is_edge {
+                fields::EDGE_ID
+            } else {
+                fields::NODE_ID
+            })
+            .ok()
+            .expect(if is_edge {
+                "Need edge id"
+            } else {
+                "Need node id"
+            });
+
+        let layer_field = if is_edge {
+            schema.get_field(fields::LAYER_ID).ok()
+        } else {
+            None
+        };
+
         let (index, reader) = new_index(schema, IndexSettings::default());
+
         Self {
             prop_name,
             index: Arc::new(index),
-            time_field,
-            entity_id_field,
-            layer_field,
             reader,
+            time_field,
+            secondary_time_field,
+            layer_field,
+            entity_id_field,
         }
+    }
+
+    pub(crate) fn new_node_property(prop_name: ArcStr, schema: Schema) -> Self {
+        Self::new_property(prop_name, schema, false)
+    }
+
+    pub(crate) fn new_edge_property(prop_name: ArcStr, schema: Schema) -> Self {
+        Self::new_property(prop_name, schema, true)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
@@ -117,8 +149,8 @@ impl PropertyIndex {
             .value_type())
     }
 
-    fn add_property_value(document: &mut TantivyDocument, field: Field, prop_value: Prop) {
-        match prop_value {
+    fn add_property_value(document: &mut TantivyDocument, field: Field, prop_value: &Prop) {
+        match prop_value.clone() {
             Prop::Str(v) => document.add_text(field, v),
             Prop::NDTime(v) => {
                 if let Some(time) = v.and_utc().timestamp_nanos_opt() {
@@ -145,24 +177,19 @@ impl PropertyIndex {
         layer_id: Option<usize>,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
-        let schema = self.index.schema();
         let field_property = Field::from_field_id(0);
 
         let mut document = TantivyDocument::new();
         document.add_u64(field_entity_id, entity_id);
 
-        if let Some(time) = time {
-            let field_time = schema.get_field(fields::TIME)?;
-            document.add_i64(field_time, time);
+        if let (Some(time), Some(field_time), Some(secondary_time_field)) =
+            (time, self.time_field, self.secondary_time_field)
+        {
+            document.add_i64(field_time, time.0);
+            document.add_u64(secondary_time_field, time.1 as u64);
         }
 
-        if let Some(secondary_time) = secondary_time {
-            let field_time = schema.get_field(fields::SECONDARY_TIME)?;
-            document.add_u64(field_time, secondary_time as u64);
-        }
-
-        if let Some(layer_id) = layer_id {
-            let field_layer_id = schema.get_field(fields::LAYER_ID)?;
+        if let (Some(layer_id), Some(field_layer_id)) = (layer_id, self.layer_field) {
             document.add_u64(field_layer_id, layer_id as u64);
         }
 
@@ -176,75 +203,45 @@ impl PropertyIndex {
     pub(crate) fn create_node_const_property_document(
         &self,
         node_id: u64,
-        prop_name: String,
-        prop_value: Prop,
+        prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
-        let field_node_id = self.index.schema().get_field(fields::NODE_ID)?;
-        self.create_property_document(
-            field_node_id,
-            node_id,
-            None,
-            None,
-            None,
-            &prop_name,
-            prop_value,
-        )
+        let field_node_id = self.entity_id_field;
+        self.create_property_document(field_node_id, node_id, None, None, prop_value)
     }
 
     pub(crate) fn create_node_temporal_property_document(
         &self,
-        time: i64,
-        secondary_time: usize,
+        time: TimeIndexEntry,
         node_id: u64,
-        prop_name: String,
-        prop_value: Prop,
+        prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
-        let field_node_id = self.index.schema().get_field(fields::NODE_ID)?;
-        self.create_property_document(
-            field_node_id,
-            node_id,
-            Some(time),
-            Some(secondary_time),
-            None,
-            &prop_name,
-            prop_value,
-        )
+        let field_node_id = self.entity_id_field;
+        self.create_property_document(field_node_id, node_id, Some(time), None, prop_value)
     }
 
     pub(crate) fn create_edge_const_property_document(
         &self,
         edge_id: u64,
-        layer_id: Option<usize>,
-        prop_name: String,
-        prop_value: Prop,
+        layer_id: usize,
+        prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
-        let field_edge_id = self.index.schema().get_field(fields::EDGE_ID)?;
-        self.create_property_document(
-            field_edge_id,
-            edge_id,
-            None,
-            None,
-            layer_id,
-            &prop_name,
-            prop_value,
-        )
+        let field_edge_id = self.entity_id_field;
+        self.create_property_document(field_edge_id, edge_id, None, Some(layer_id), prop_value)
     }
 
     pub(crate) fn create_edge_temporal_property_document(
         &self,
         time: TimeIndexEntry,
         edge_id: u64,
-        layer_id: Option<usize>,
-        // prop_name: String,
-        // prop_id: usize,
+        layer_id: usize,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
-        let field_edge_id = self.index.schema().get_field(fields::EDGE_ID)?;
+        let field_edge_id = self.entity_id_field;
         self.create_property_document(
             field_edge_id,
             edge_id,
             Some(time),
-            layer_id,
+            Some(layer_id),
             prop_value,
         )
     }

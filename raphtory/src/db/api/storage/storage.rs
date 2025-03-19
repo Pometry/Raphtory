@@ -33,7 +33,13 @@ use crate::serialise::GraphFolder;
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidType, EID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::{
+        dict_mapper::{
+            MaybeNew,
+            MaybeNew::{Existing, New},
+        },
+        timeindex::TimeIndexEntry,
+    },
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -262,7 +268,10 @@ impl InternalAdditionOps for Storage {
             .resolve_node_property(prop, dtype.clone(), is_static)?;
 
         #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_node_property(prop, id, dtype, is_static));
+        self.if_cache(|cache| cache.resolve_node_property(prop, id, &dtype, is_static));
+
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.create_node_property_index(id, prop, &dtype, is_static))?;
 
         Ok(id)
     }
@@ -278,7 +287,10 @@ impl InternalAdditionOps for Storage {
             .resolve_edge_property(prop, dtype.clone(), is_static)?;
 
         #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_edge_property(prop, id, dtype, is_static));
+        self.if_cache(|cache| cache.resolve_edge_property(prop, id, &dtype, is_static));
+
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.create_edge_property_index(id, prop, &dtype, is_static))?;
 
         Ok(id)
     }
@@ -295,7 +307,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, v))?;
+        self.if_index(|index| index.add_node_update(&self.graph, t, New(v), props))?;
 
         Ok(())
     }
@@ -317,7 +329,7 @@ impl InternalAdditionOps for Storage {
         });
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_update(&self.graph, id.inner(), t, src, dst, layer, props))?;
+        self.if_index(|index| index.add_edge_update(&self.graph, id, t, src, dst, layer, props))?;
 
         Ok(id)
     }
@@ -339,7 +351,7 @@ impl InternalAdditionOps for Storage {
             let ee = self.graph.edge_entry(edge);
             let src = ee.src();
             let dst = ee.dst();
-            index.add_edge_update(&self.graph, edge, t, src, dst, layer, props)
+            index.add_edge_update(&self.graph, Existing(edge), t, src, dst, layer, props)
         })?;
 
         Ok(())
@@ -356,7 +368,6 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_tprops(t, props));
-        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -366,7 +377,6 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
-        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -379,7 +389,6 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
-        // ADD INDEXING HERE?
 
         Ok(())
     }
@@ -394,7 +403,9 @@ impl InternalPropertyAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
-        // ADD INDEXING HERE?
+
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.add_node_constant_properties(&self.graph, vid, props))?;
 
         Ok(())
     }
@@ -410,7 +421,8 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
-        // ADD INDEXING HERE?
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.update_node_constant_properties(&self.graph, vid, props))?;
 
         Ok(())
     }
@@ -427,7 +439,8 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
-        // ADD INDEXING HERE?
+        #[cfg(feature = "search")]
+        self.if_index(|index| index.add_edge_constant_properties(&self.graph, eid, layer, props))?;
 
         Ok(())
     }
@@ -444,7 +457,11 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
-        // ADD INDEXING HERE?
+        #[cfg(feature = "search")]
+        self.if_index(|index| {
+            index.update_edge_constant_properties(&self.graph, eid, layer, props)
+        })?;
+
         Ok(())
     }
 }

@@ -1,29 +1,27 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::{
-        api::{
-            properties::internal::{ConstPropertiesOps, PropertiesOps},
-            storage::graph::storage_ops::GraphStorage,
-            view::{
-                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-                StaticGraphViewOps,
-            },
+    db::api::{
+        properties::internal::{ConstPropertiesOps, PropertiesOps},
+        storage::graph::storage_ops::GraphStorage,
+        view::{
+            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+            StaticGraphViewOps,
         },
-        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{GraphViewOps, NodeViewOps},
     search::property_index::PropertyIndex,
 };
 use itertools::Itertools;
+use parking_lot::RwLock;
 use raphtory_api::core::{
-    entities::{
-        properties::props::{Meta, PropMapper},
-        LayerIds,
-    },
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    entities::properties::props::{Meta, PropMapper},
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    PropType,
 };
 use std::{
-    borrow::Borrow, ops::{Deref, DerefMut}, sync::{Arc, RwLock}
+    borrow::Borrow,
+    ops::{Deref, DerefMut},
+    sync::Arc,
 };
 use tantivy::{
     query::Query,
@@ -78,16 +76,75 @@ pub(crate) fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index
     (index, reader)
 }
 
+pub fn create_property_index(
+    const_property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
+    temporal_property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
+    prop_id: MaybeNew<usize>,
+    prop_name: &str,
+    prop_type: &PropType,
+    is_static: bool,
+    add_const_schema_fields: fn(&mut SchemaBuilder),
+    add_temporal_schema_fields: fn(&mut SchemaBuilder),
+    new_property: fn(ArcStr, Schema) -> PropertyIndex,
+) -> Result<(), GraphError> {
+    prop_id
+        .if_new(|prop_id| {
+            let mut prop_index_guard = if is_static {
+                const_property_indexes.write()
+            } else {
+                temporal_property_indexes.write()
+            };
+
+            // Resize the vector if needed
+            if prop_id >= prop_index_guard.len() {
+                prop_index_guard.resize(prop_id + 1, None);
+            }
+
+            let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
+            if is_static {
+                add_const_schema_fields(&mut schema_builder);
+            } else {
+                add_temporal_schema_fields(&mut schema_builder);
+            }
+            let schema = schema_builder.build();
+            let property_index = new_property(ArcStr::from(prop_name), schema);
+            prop_index_guard[prop_id] = Some(property_index);
+            Ok::<_, GraphError>(())
+        })
+        .transpose()?;
+    Ok(())
+}
+
+fn get_property_writers(
+    mut prop_ids: impl Iterator<Item = usize>,
+    property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
+) -> Result<Vec<Option<IndexWriter>>, GraphError> {
+    let mut prop_index_guard = property_indexes.read();
+
+    let mut writers = Vec::new();
+    writers.resize_with(prop_index_guard.len(), || None);
+    for id in prop_ids {
+        let writer = prop_index_guard[id]
+            .as_ref()
+            .map(|index| index.index.writer(50_000_000))
+            .transpose()?;
+        writers[id] = writer;
+    }
+
+    Ok(writers)
+}
+
 // We initialize the property indexes per property as and when we discover a new property while processing each node and edge update.
 // While when creating indexes for a graph already built, all nodes/edges properties are already known in advance,
 // which is why create all the property indexes upfront.
 fn initialize_property_indexes(
     graph: &GraphStorage,
-    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     prop_keys: impl Iterator<Item = ArcStr>,
     get_property_meta: fn(&GraphStorage) -> &PropMapper,
     add_schema_fields: fn(&mut SchemaBuilder),
-) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+    new_property: fn(ArcStr, Schema) -> PropertyIndex,
+) -> Result<Vec<Option<IndexWriter>>, GraphError> {
     let prop_meta = get_property_meta(graph);
     let properties = prop_keys
         .filter_map(|k| {
@@ -99,7 +156,7 @@ fn initialize_property_indexes(
         })
         .collect_vec();
 
-    let mut prop_index_guard = property_indexes.write()?;
+    let mut prop_index_guard = property_indexes.write();
     let mut writers: Vec<Option<IndexWriter>> = Vec::new();
 
     for (prop_name, prop_id, prop_type) in properties {
@@ -113,7 +170,7 @@ fn initialize_property_indexes(
             let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
             add_schema_fields(&mut schema_builder);
             let schema = schema_builder.build();
-            let property_index = PropertyIndex::new(ArcStr::from(prop_name), schema);
+            let property_index = new_property(ArcStr::from(prop_name), schema);
             let writer = property_index.index.writer(50_000_000)?;
 
             writers.push(Some(writer));
@@ -126,9 +183,9 @@ fn initialize_property_indexes(
 
 fn initialize_node_const_property_indexes(
     graph: &GraphStorage,
-    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     prop_keys: impl Iterator<Item = ArcStr>,
-) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+) -> Result<Vec<Option<IndexWriter>>, GraphError> {
     initialize_property_indexes(
         graph,
         property_indexes,
@@ -137,14 +194,15 @@ fn initialize_node_const_property_indexes(
         |schema| {
             schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
         },
+        PropertyIndex::new_node_property,
     )
 }
 
 fn initialize_node_temporal_property_indexes(
     graph: &GraphStorage,
-    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>, // TAKE THE GUARD
+    property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     prop_keys: impl Iterator<Item = ArcStr>,
-) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+) -> Result<Vec<Option<IndexWriter>>, GraphError> {
     initialize_property_indexes(
         graph,
         property_indexes,
@@ -155,14 +213,15 @@ fn initialize_node_temporal_property_indexes(
             schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
             schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
         },
+        PropertyIndex::new_node_property,
     )
 }
 
 fn initialize_edge_const_property_indexes(
     graph: &GraphStorage,
-    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     prop_keys: impl Iterator<Item = ArcStr>,
-) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+) -> Result<Vec<Option<IndexWriter>>, GraphError> {
     initialize_property_indexes(
         graph,
         property_indexes,
@@ -172,14 +231,15 @@ fn initialize_edge_const_property_indexes(
             schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
             schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
         },
+        PropertyIndex::new_edge_property,
     )
 }
 
 fn initialize_edge_temporal_property_indexes(
     graph: &GraphStorage,
-    property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     prop_keys: impl Iterator<Item = ArcStr>,
-) -> tantivy::Result<Vec<Option<IndexWriter>>> {
+) -> Result<Vec<Option<IndexWriter>>, GraphError> {
     initialize_property_indexes(
         graph,
         property_indexes,
@@ -191,25 +251,43 @@ fn initialize_edge_temporal_property_indexes(
             schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
             schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
         },
+        PropertyIndex::new_edge_property,
     )
 }
 
-fn index_node_const_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
-    properties: I,
-    mut property_indexes: PI,
+fn index_node_const_properties(
+    property_indexes: impl Deref<Target = Vec<Option<PropertyIndex>>>,
     node_id: u64,
     writers: &[Option<IndexWriter>],
-) -> tantivy::Result<()>
-where
-    I: Iterator<Item = (ArcStr, usize, Prop)>,
-{
-    for (prop_name, prop_id, prop_value) in properties {
+    props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+) -> Result<(), GraphError> {
+    for (prop_id, prop_value) in props {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            if let Some(property_index) = &mut property_indexes[prop_id] {
-                let prop_doc = property_index.create_node_const_property_document(
+            if let Some(property_index) = &property_indexes[prop_id] {
+                let prop_doc = property_index
+                    .create_node_const_property_document(node_id, prop_value.borrow())?;
+                prop_writer.add_document(prop_doc)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn index_node_temporal_properties(
+    time: TimeIndexEntry,
+    property_indexes: impl Deref<Target = Vec<Option<PropertyIndex>>>,
+    node_id: u64,
+    writers: &[Option<IndexWriter>],
+    props: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
+) -> Result<(), GraphError> {
+    for (prop_id, prop) in props {
+        if let Some(Some(prop_writer)) = writers.get(prop_id) {
+            if let Some(property_index) = &property_indexes[prop_id] {
+                let prop_doc = property_index.create_node_temporal_property_document(
+                    time,
                     node_id,
-                    prop_name.to_string(),
-                    prop_value,
+                    prop.borrow(),
                 )?;
                 prop_writer.add_document(prop_doc)?;
             }
@@ -219,61 +297,20 @@ where
     Ok(())
 }
 
-fn index_node_temporal_properties<
-    'g,
-    PI: DerefMut<Target = Vec<Option<PropertyIndex>>>,
-    G: GraphViewOps<'g>,
-    GH: GraphViewOps<'g>,
->(
-    node: NodeView<G, GH>,
-    properties: impl IntoIterator<Item = (i64, ArcStr, usize, Prop)>,
-    mut property_indexes: PI,
-    node_id: u64,
-    writers: &[Option<IndexWriter>],
-) -> tantivy::Result<()> {
-    for (time, prop_name, prop_id, prop_value) in properties {
-        if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            let hist_entries =
-                node.graph
-                    .temporal_node_prop_hist_window(node.node, prop_id, time, time + 1);
-
-            if let Some(property_index) = &mut property_indexes[prop_id] {
-                for (tie, p) in hist_entries.filter(|(_, v)| *v == prop_value) {
-                    let secondary_time = tie.1;
-                    let prop_doc = property_index.create_node_temporal_property_document(
-                        time,
-                        secondary_time,
-                        node_id,
-                        prop_name.to_string(),
-                        prop_value.clone(),
-                    )?;
-                    prop_writer.add_document(prop_doc)?;
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn index_edge_const_properties<I, PI: DerefMut<Target = Vec<Option<PropertyIndex>>>>(
-    properties: I,
-    mut property_indexes: PI,
+fn index_edge_const_properties(
+    property_indexes: impl Deref<Target = Vec<Option<PropertyIndex>>>,
     edge_id: u64,
-    layer_id: Option<usize>,
+    layer_id: usize,
     writers: &[Option<IndexWriter>],
-) -> tantivy::Result<()>
-where
-    I: Iterator<Item = (ArcStr, usize, Prop)>,
-{
-    for (prop_name, prop_id, prop_value) in properties {
+    props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+) -> Result<(), GraphError> {
+    for (prop_id, prop_value) in props {
         if let Some(Some(prop_writer)) = writers.get(prop_id) {
-            if let Some(property_index) = &mut property_indexes[prop_id] {
+            if let Some(property_index) = &property_indexes[prop_id] {
                 let prop_doc = property_index.create_edge_const_property_document(
                     edge_id,
                     layer_id,
-                    prop_name.to_string(),
-                    prop_value,
+                    prop_value.borrow(),
                 )?;
                 prop_writer.add_document(prop_doc)?;
             }
@@ -283,32 +320,24 @@ where
     Ok(())
 }
 
-fn index_edge_temporal_properties<
-    'g,
-    PI: DerefMut<Target = Vec<Option<PropertyIndex>>>,
-    G: GraphViewOps<'g>,
-    GH: GraphViewOps<'g>,
->(
-    edge: EdgeView<G, GH>,
-    // properties: impl IntoIterator<Item = (i64, ArcStr, usize, Prop)>,
+fn index_edge_temporal_properties(
     time: TimeIndexEntry,
-    props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
-    mut property_indexes: PI,
+    property_indexes: impl Deref<Target = Vec<Option<PropertyIndex>>>,
     edge_id: u64,
-    layer_ids: &LayerIds,
-    layer_id: Option<usize>,
+    layer_id: usize,
     writers: &[Option<IndexWriter>],
-) -> tantivy::Result<()> {
+    props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+) -> Result<(), GraphError> {
     for (prop_id, prop) in props {
-        if let Some(Some(prop_writer)) = writers.get(*prop_id) {
-            if let Some(property_index) = &mut property_indexes[*prop_id] {
+        if let Some(Some(prop_writer)) = writers.get(prop_id) {
+            if let Some(property_index) = &property_indexes[prop_id] {
                 let prop_doc = property_index.create_edge_temporal_property_document(
                     time,
                     edge_id,
                     layer_id,
-                    // prop_name.to_string(),
-                    prop,
+                    prop.borrow(),
                 )?;
+                prop_writer.add_document(prop_doc)?;
             }
         }
     }
@@ -323,7 +352,6 @@ fn fetch_property_index(
     prop_id.and_then(|id| {
         indexes
             .read()
-            .ok()?
             .get(id)
             .and_then(|opt| opt.as_ref())
             .cloned()

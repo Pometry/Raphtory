@@ -49,7 +49,7 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let filter = resolve_as_node_filter(filter);
+        let filter = resolve_as_node_filter(filter)?;
         self.node_filter_executor
             .filter_nodes(graph, &filter, limit, offset)
     }
@@ -61,7 +61,7 @@ impl<'a> Searcher<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let filter = resolve_as_edge_filter(filter);
+        let filter = resolve_as_edge_filter(filter)?;
         self.edge_filter_executor
             .filter_edges(graph, &filter, limit, offset)
     }

@@ -746,7 +746,6 @@ impl EdgeHistoryFilter for GraphStorage {
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
-        // TODO: Fix this for secondary indexes
         let time = time.next();
         let ese = self.core_edge(edge_id);
 
@@ -798,117 +797,54 @@ mod test_graph_storage {
     use crate::{core::Prop, db::api::view::StaticGraphViewOps, prelude::AdditionOps};
 
     fn init_graph_for_nodes_tests<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        graph
-            .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-        graph
-            .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
+        let nodes = vec![
+            (6, "N1", vec![("p1", Prop::U64(2u64))]),
+            (7, "N1", vec![("p1", Prop::U64(1u64))]),
+            (6, "N2", vec![("p1", Prop::U64(1u64))]),
+            (7, "N2", vec![("p1", Prop::U64(2u64))]),
+            (8, "N3", vec![("p1", Prop::U64(1u64))]),
+            (9, "N4", vec![("p1", Prop::U64(1u64))]),
+            (5, "N5", vec![("p1", Prop::U64(1u64))]),
+            (6, "N5", vec![("p1", Prop::U64(2u64))]),
+            (5, "N6", vec![("p1", Prop::U64(1u64))]),
+            (6, "N6", vec![("p1", Prop::U64(1u64))]),
+            (3, "N7", vec![("p1", Prop::U64(1u64))]),
+            (5, "N7", vec![("p1", Prop::U64(1u64))]),
+            (3, "N8", vec![("p1", Prop::U64(1u64))]),
+            (4, "N8", vec![("p1", Prop::U64(2u64))]),
+        ];
 
-        graph
-            .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
+        for (id, name, props) in nodes {
+            graph.add_node(id, name, props, None).unwrap();
+        }
 
         graph
     }
 
     fn init_graph_for_edges_tests<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        graph
-            .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], Some("layer2"))
-            .unwrap();
+        let edges = vec![
+            (6, "N1", "N2", vec![("p1", Prop::U64(2u64))], Some("layer1")),
+            (7, "N1", "N2", vec![("p1", Prop::U64(1u64))], Some("layer2")),
+            (6, "N2", "N3", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (7, "N2", "N3", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+            (8, "N3", "N4", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (9, "N4", "N5", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (5, "N5", "N6", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (6, "N5", "N6", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+            (5, "N6", "N7", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (6, "N6", "N7", vec![("p1", Prop::U64(1u64))], Some("layer2")),
+            (3, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer2")),
+            (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+            // Tests secondary indexes
+            (3, "N9", "N2", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+            (3, "N9", "N2", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+        ];
 
-        graph
-            .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-
-        graph
-            .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-
-        graph
-            .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
-
-        // TODO: Revisit this test after supporting secondary indexes
-        // graph
-        //     .add_edge(3, "N9", "N2", [("p1", Prop::U64(1u64))], Some("layer1"))
-        //     .unwrap();
-        // graph
-        //     .add_edge(3, "N9", "N2", [("p1", Prop::U64(2u64))], Some("layer2"))
-        //     .unwrap();
+        for (id, src, dst, props, layer) in edges {
+            graph.add_edge(id, src, dst, props, layer).unwrap();
+        }
 
         graph
     }

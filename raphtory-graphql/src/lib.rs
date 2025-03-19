@@ -45,139 +45,59 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_search_nodes_gql() {
-        let graph = Graph::new();
-        graph
-            .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-        graph
-            .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .node("N1")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
+        let mut graph = Graph::new();
 
-        graph
-            .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
+        let nodes = vec![
+            (6, "N1", vec![("p1", Prop::U64(2u64))]),
+            (7, "N1", vec![("p1", Prop::U64(1u64))]),
+            (6, "N2", vec![("p1", Prop::U64(1u64))]),
+            (7, "N2", vec![("p1", Prop::U64(2u64))]),
+            (8, "N3", vec![("p1", Prop::U64(1u64))]),
+            (9, "N4", vec![("p1", Prop::U64(1u64))]),
+            (5, "N5", vec![("p1", Prop::U64(1u64))]),
+            (6, "N5", vec![("p1", Prop::U64(2u64))]),
+            (5, "N6", vec![("p1", Prop::U64(1u64))]),
+            (6, "N6", vec![("p1", Prop::U64(1u64))]),
+            (3, "N7", vec![("p1", Prop::U64(1u64))]),
+            (5, "N7", vec![("p1", Prop::U64(1u64))]),
+            (3, "N8", vec![("p1", Prop::U64(1u64))]),
+            (4, "N8", vec![("p1", Prop::U64(2u64))]),
+            (2, "N9", vec![("p1", Prop::U64(2u64))]),
+            (2, "N10", vec![("q1", Prop::U64(0u64))]),
+            (2, "N10", vec![("p1", Prop::U64(3u64))]),
+            (2, "N11", vec![("p1", Prop::U64(3u64))]),
+            (2, "N11", vec![("q1", Prop::U64(0u64))]),
+            (2, "N12", vec![("q1", Prop::U64(0u64))]),
+            (3, "N12", vec![("p1", Prop::U64(3u64))]),
+            (2, "N13", vec![("q1", Prop::U64(0u64))]),
+            (3, "N13", vec![("p1", Prop::U64(3u64))]),
+            (2, "N14", vec![("q1", Prop::U64(0u64))]),
+            (2, "N15", vec![]),
+        ];
 
-        graph
-            .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
+        for (id, name, props) in nodes {
+            graph.add_node(id, name, props, None).unwrap();
+        }
 
-        graph
-            .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .node("N4")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(2u64))])
-            .unwrap();
+        let constant_props = vec![
+            ("N1", vec![("p1", Prop::U64(1u64))]),
+            ("N4", vec![("p1", Prop::U64(2u64))]),
+            ("N9", vec![("p1", Prop::U64(1u64))]),
+            ("N10", vec![("p1", Prop::U64(1u64))]),
+            ("N11", vec![("p1", Prop::U64(1u64))]),
+            ("N12", vec![("p1", Prop::U64(1u64))]),
+            ("N13", vec![("p1", Prop::U64(1u64))]),
+            ("N14", vec![("p1", Prop::U64(1u64))]),
+            ("N15", vec![("p1", Prop::U64(1u64))]),
+        ];
 
-        graph
-            .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(2, "N9", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-        graph
-            .node("N9")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
-
-        graph
-            .add_node(2, "N10", [("q1", Prop::U64(0u64))], None)
-            .unwrap();
-        graph
-            .add_node(2, "N10", [("p1", Prop::U64(3u64))], None)
-            .unwrap();
-        graph
-            .node("N10")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
-
-        graph
-            .add_node(2, "N11", [("p1", Prop::U64(3u64))], None)
-            .unwrap();
-        graph
-            .add_node(2, "N11", [("q1", Prop::U64(0u64))], None)
-            .unwrap();
-        graph
-            .node("N11")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
-
-        graph
-            .add_node(2, "N12", [("q1", Prop::U64(0u64))], None)
-            .unwrap();
-        graph
-            .add_node(3, "N12", [("p1", Prop::U64(3u64))], None)
-            .unwrap();
-        graph
-            .node("N12")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
-
-        graph
-            .add_node(2, "N13", [("q1", Prop::U64(0u64))], None)
-            .unwrap();
-        graph
-            .add_node(3, "N13", [("p1", Prop::U64(3u64))], None)
-            .unwrap();
-        graph
-            .node("N13")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
-
-        graph
-            .add_node(2, "N14", [("q1", Prop::U64(0u64))], None)
-            .unwrap();
-        graph
-            .node("N14")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
-
-        graph.add_node(2, "N15", NO_PROPS, None).unwrap();
-        graph
-            .node("N15")
-            .unwrap()
-            .add_constant_properties([("p1", Prop::U64(1u64))])
-            .unwrap();
+        for (name, props) in constant_props {
+            graph
+                .node(name)
+                .unwrap()
+                .add_constant_properties(props)
+                .unwrap();
+        }
 
         let graph: MaterializedGraph = graph.into();
 

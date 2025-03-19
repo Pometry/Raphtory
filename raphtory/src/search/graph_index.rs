@@ -6,10 +6,17 @@ use crate::{
     },
     db::api::storage::graph::storage_ops::GraphStorage,
     prelude::*,
-    search::{edge_index::EdgeIndex, node_index::NodeIndex},
+    search::{
+        create_property_index, edge_index::EdgeIndex, fields, node_index::NodeIndex,
+        property_index::PropertyIndex,
+    },
 };
+use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::fmt::{Debug, Formatter};
-use tantivy::query::QueryParser;
+use tantivy::{
+    query::QueryParser,
+    schema::{FAST, INDEXED, STORED},
+};
 
 #[derive(Clone)]
 pub struct GraphIndex {
@@ -69,23 +76,120 @@ impl GraphIndex {
         &self,
         graph: &GraphStorage,
         t: TimeIndexEntry,
-        v: VID,
+        v: MaybeNew<VID>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        self.node_index.add_node_update(graph, t, v)
+        self.node_index.add_node_update(graph, t, v, props)
+    }
+
+    pub(crate) fn add_node_constant_properties(
+        &self,
+        graph: &GraphStorage,
+        node_id: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.node_index
+            .add_node_constant_properties(graph, node_id, props)
+    }
+
+    pub(crate) fn update_node_constant_properties(
+        &self,
+        graph: &GraphStorage,
+        node_id: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.node_index
+            .update_node_constant_properties(graph, node_id, props)
     }
 
     pub(crate) fn add_edge_update(
         &self,
         graph: &GraphStorage,
-        edge_id: EID,
+        edge_id: MaybeNew<EID>,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
         layer: usize,
-        props: &[(usize, Prop)]
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.edge_index
             .add_edge_update(graph, edge_id, t, src, dst, layer, props)
+    }
+
+    pub(crate) fn add_edge_constant_properties(
+        &self,
+        graph: &GraphStorage,
+        edge_id: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.edge_index
+            .add_edge_constant_properties(graph, edge_id, layer, props)
+    }
+
+    pub(crate) fn update_edge_constant_properties(
+        &self,
+        graph: &GraphStorage,
+        edge_id: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.edge_index
+            .update_edge_constant_properties(graph, edge_id, layer, props)
+    }
+
+    pub(crate) fn create_edge_property_index(
+        &self,
+        prop_id: MaybeNew<usize>,
+        prop_name: &str,
+        prop_type: &PropType,
+        is_static: bool, // Const or Temporal Property
+    ) -> Result<(), GraphError> {
+        create_property_index(
+            &self.edge_index.constant_property_indexes,
+            &self.edge_index.temporal_property_indexes,
+            prop_id,
+            prop_name,
+            prop_type,
+            is_static,
+            |schema| {
+                schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+                schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+            },
+            |schema| {
+                schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+                schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
+                schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+                schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+            },
+            PropertyIndex::new_edge_property,
+        )
+    }
+
+    pub(crate) fn create_node_property_index(
+        &self,
+        prop_id: MaybeNew<usize>,
+        prop_name: &str,
+        prop_type: &PropType,
+        is_static: bool, // Const or Temporal Property
+    ) -> Result<(), GraphError> {
+        create_property_index(
+            &self.node_index.constant_property_indexes,
+            &self.node_index.temporal_property_indexes,
+            prop_id,
+            prop_name,
+            prop_type,
+            is_static,
+            |schema| {
+                schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+            },
+            |schema| {
+                schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+                schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
+                schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+            },
+            PropertyIndex::new_node_property,
+        )
     }
 }
 
@@ -93,12 +197,12 @@ impl GraphIndex {
 mod graph_index_test {
     use crate::{
         db::api::view::internal::InternalIndexSearch,
-        prelude::{AdditionOps, GraphViewOps},
+        prelude::{AdditionOps, Graph, GraphViewOps},
     };
 
     #[test]
-    fn test1() {
-        let graph = crate::db::graph::graph::Graph::new();
+    fn test_if_bulk_load_create_graph_index_is_ok() {
+        let graph = Graph::new();
         graph
             .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
             .unwrap();
@@ -119,8 +223,8 @@ mod graph_index_test {
     }
 
     #[test]
-    fn test2() {
-        let graph = crate::db::graph::graph::Graph::new();
+    fn test_if_adding_nodes_to_existing_graph_index_is_ok() {
+        let graph = Graph::new();
         // Creates graph index
         let _ = graph.searcher().unwrap();
 
@@ -143,8 +247,8 @@ mod graph_index_test {
     }
 
     #[test]
-    fn test3() {
-        let graph = crate::db::graph::graph::Graph::new();
+    fn test_if_adding_edges_to_existing_graph_index_is_ok() {
+        let graph = Graph::new();
         // Creates graph index
         let _ = graph.searcher().unwrap();
 

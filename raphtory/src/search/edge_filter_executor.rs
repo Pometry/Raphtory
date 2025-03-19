@@ -7,7 +7,9 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            views::property_filter::{CompositeEdgeFilter, Filter, PropertyRef, Temporal},
+            views::property_filter::{
+                CompositeEdgeFilter, Filter, FilterOperator, PropertyRef, Temporal,
+            },
         },
     },
     prelude::{
@@ -26,7 +28,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::EID;
+use raphtory_api::core::{entities::EID, input::input_node::InputNode};
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{Collector, TopDocs},
@@ -338,14 +340,14 @@ impl<'a> EdgeFilterExecutor<'a> {
                 Ok(results.unwrap_or_default())
             }
             CompositeEdgeFilter::Or(filters) => {
-                let mut results = Vec::new();
+                let mut results = HashSet::new();
 
                 for sub_filter in filters {
                     let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
                     results.extend(sub_result);
                 }
 
-                Ok(results)
+                Ok(results.into_iter().collect())
             }
         }
     }
@@ -406,15 +408,32 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        // Ok(graph
-        //     .edges()
-        //     .filter_edges(filter.clone())?
-        //     .into_iter()
-        //     .map(|n| n.reset_filter())
-        //     .skip(offset)
-        //     .take(limit)
-        //     .collect())
-        Ok(vec![])
+        match filter.operator {
+            FilterOperator::IsNone => Ok(match &filter.prop_ref {
+                PropertyRef::Property(prop_name) => graph
+                    .edges()
+                    .into_iter()
+                    .filter(|e| e.properties().get(prop_name).is_none())
+                    .skip(offset)
+                    .take(limit)
+                    .collect::<Vec<_>>(),
+                PropertyRef::ConstantProperty(prop_name) => graph
+                    .edges()
+                    .into_iter()
+                    .filter(|e| e.properties().constant().get(prop_name).is_none())
+                    .skip(offset)
+                    .take(limit)
+                    .collect::<Vec<_>>(),
+                PropertyRef::TemporalProperty(prop_name, temp) => graph
+                    .edges()
+                    .into_iter()
+                    .filter(|e| e.properties().temporal().get(prop_name).is_none())
+                    .skip(offset)
+                    .take(limit)
+                    .collect::<Vec<_>>(),
+            }),
+            _ => Err(GraphError::NotSupported),
+        }
     }
 
     fn print_docs(

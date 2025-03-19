@@ -255,105 +255,49 @@ mod test_layers {
         use std::ops::Range;
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-            graph
-                .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], Some("layer1"))
-                .unwrap();
-            graph
-                .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], Some("layer2"))
-                .unwrap();
+            let edges = vec![
+                (6, "N1", "N2", vec![("p1", Prop::U64(2u64))], Some("layer1")),
+                (7, "N1", "N2", vec![("p1", Prop::U64(1u64))], Some("layer2")),
+                (6, "N2", "N3", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (7, "N2", "N3", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+                (8, "N3", "N4", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (9, "N4", "N5", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (5, "N5", "N6", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (6, "N5", "N6", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+                (5, "N6", "N7", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (6, "N6", "N7", vec![("p1", Prop::U64(1u64))], Some("layer2")),
+                (3, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer2")),
+                (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], Some("layer1")),
+                (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], Some("layer2")),
+            ];
 
-            graph
-                .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
-            graph
-                .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], Some("layer2"))
-                .unwrap();
+            for (id, src, tgt, props, layer) in &edges {
+                graph
+                    .add_edge(*id, src, tgt, props.clone(), *layer)
+                    .unwrap();
+            }
 
-            graph
-                .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
+            let nodes = vec![
+                (6, "N1", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
+                (7, "N1", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (6, "N2", vec![("p1", Prop::U64(1u64))], Some("water_tribe")),
+                (7, "N2", vec![("p1", Prop::U64(2u64))], Some("water_tribe")),
+                (8, "N3", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (9, "N4", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (5, "N5", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (6, "N5", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
+                (5, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+                (6, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+                (3, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (5, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+                (3, "N8", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+                (4, "N8", vec![("p1", Prop::U64(2u64))], Some("fire_nation")),
+            ];
 
-            graph
-                .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
-
-            graph
-                .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
-            graph
-                .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], Some("layer2"))
-                .unwrap();
-
-            graph
-                .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
-            graph
-                .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer2"))
-                .unwrap();
-
-            graph
-                .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
-            graph
-                .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer2"))
-                .unwrap();
-
-            graph
-                .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
-                .unwrap();
-            graph
-                .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
-                .unwrap();
-
-            graph
-                .add_node(6, "N1", [("p1", Prop::U64(2u64))], Some("air_nomad"))
-                .unwrap();
-            graph
-                .add_node(7, "N1", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(6, "N2", [("p1", Prop::U64(1u64))], Some("water_tribe"))
-                .unwrap();
-            graph
-                .add_node(7, "N2", [("p1", Prop::U64(2u64))], Some("water_tribe"))
-                .unwrap();
-
-            graph
-                .add_node(8, "N3", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(9, "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(5, "N5", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-            graph
-                .add_node(6, "N5", [("p1", Prop::U64(2u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(5, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_node(6, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-                .unwrap();
-
-            graph
-                .add_node(3, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-            graph
-                .add_node(5, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-                .unwrap();
-
-            graph
-                .add_node(3, "N8", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_node(4, "N8", [("p1", Prop::U64(2u64))], Some("fire_nation"))
-                .unwrap();
+            for (id, name, props, label) in &nodes {
+                graph.add_node(*id, name, props.clone(), *label).unwrap();
+            }
 
             graph
         }

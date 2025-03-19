@@ -1,13 +1,12 @@
-use crate::{
+use chrono::DateTime;
+use raphtory::{
     core::Prop,
     io::csv_loader::CsvLoader,
     prelude::{AdditionOps, Graph, NO_PROPS},
 };
-use chrono::DateTime;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{fs, path::PathBuf, time::Instant};
 
-use crate::prelude::{GraphViewOps, NodeViewOps, StableEncode};
 use csv::Writer;
 use fake::{
     faker::{
@@ -19,6 +18,7 @@ use fake::{
 };
 use itertools::Itertools;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
+use raphtory::prelude::{GraphViewOps, NodeViewOps, StableEncode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt::Debug, io::Write};
 
@@ -589,7 +589,7 @@ pub fn generate_data_load_graph_save(
 
 #[cfg(test)]
 mod test_raph_social {
-    use crate::graph_loader::raph_social::{
+    use crate::graph_gen::raph_social::{
         generate_data_load_graph_save, generate_data_write_to_csv, load_graph_save,
     };
 

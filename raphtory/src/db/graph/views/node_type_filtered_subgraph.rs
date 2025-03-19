@@ -97,55 +97,27 @@ mod search_nodes_node_type_filtered_subgraph_tests {
     use std::ops::Range;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        graph
-            .add_node(6, "N1", [("p1", Prop::U64(2u64))], Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(7, "N1", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-            .unwrap();
+        let nodes = vec![
+            (6, "N1", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
+            (7, "N1", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+            (6, "N2", vec![("p1", Prop::U64(1u64))], Some("water_tribe")),
+            (7, "N2", vec![("p1", Prop::U64(2u64))], Some("water_tribe")),
+            (8, "N3", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+            (9, "N4", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+            (5, "N5", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+            (6, "N5", vec![("p1", Prop::U64(2u64))], Some("air_nomad")),
+            (5, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+            (6, "N6", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+            (3, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+            (5, "N7", vec![("p1", Prop::U64(1u64))], Some("air_nomad")),
+            (3, "N8", vec![("p1", Prop::U64(1u64))], Some("fire_nation")),
+            (4, "N8", vec![("p1", Prop::U64(2u64))], Some("fire_nation")),
+        ];
 
-        graph
-            .add_node(6, "N2", [("p1", Prop::U64(1u64))], Some("water_tribe"))
-            .unwrap();
-        graph
-            .add_node(7, "N2", [("p1", Prop::U64(2u64))], Some("water_tribe"))
-            .unwrap();
-
-        graph
-            .add_node(8, "N3", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-            .unwrap();
-
-        graph
-            .add_node(9, "N4", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-            .unwrap();
-
-        graph
-            .add_node(5, "N5", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(6, "N5", [("p1", Prop::U64(2u64))], Some("air_nomad"))
-            .unwrap();
-
-        graph
-            .add_node(5, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(6, "N6", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-            .unwrap();
-
-        graph
-            .add_node(3, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(5, "N7", [("p1", Prop::U64(1u64))], Some("air_nomad"))
-            .unwrap();
-
-        graph
-            .add_node(3, "N8", [("p1", Prop::U64(1u64))], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(4, "N8", [("p1", Prop::U64(2u64))], Some("fire_nation"))
-            .unwrap();
+        // Add nodes to the graph
+        for (id, name, props, layer) in &nodes {
+            graph.add_node(*id, name, props.clone(), *layer).unwrap();
+        }
 
         graph
     }
@@ -278,80 +250,43 @@ mod search_edges_node_type_filtered_subgraph_tests {
     use std::ops::Range;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        graph
-            .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-        graph
-            .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
+        let edges = vec![
+            (6, "N1", "N2", vec![("p1", Prop::U64(2u64))], None),
+            (7, "N1", "N2", vec![("p1", Prop::U64(1u64))], None),
+            (6, "N2", "N3", vec![("p1", Prop::U64(1u64))], None),
+            (7, "N2", "N3", vec![("p1", Prop::U64(2u64))], None),
+            (8, "N3", "N4", vec![("p1", Prop::U64(1u64))], None),
+            (9, "N4", "N5", vec![("p1", Prop::U64(1u64))], None),
+            (5, "N5", "N6", vec![("p1", Prop::U64(1u64))], None),
+            (6, "N5", "N6", vec![("p1", Prop::U64(2u64))], None),
+            (5, "N6", "N7", vec![("p1", Prop::U64(1u64))], None),
+            (6, "N6", "N7", vec![("p1", Prop::U64(1u64))], None),
+            (3, "N7", "N8", vec![("p1", Prop::U64(1u64))], None),
+            (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], None),
+            (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], None),
+            (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], None),
+        ];
 
-        graph
-            .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
+        for (id, src, dst, props, layer) in &edges {
+            graph
+                .add_edge(*id, src, dst, props.clone(), *layer)
+                .unwrap();
+        }
 
-        graph
-            .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
+        let nodes = vec![
+            (6, "N1", NO_PROPS, Some("air_nomad")),
+            (6, "N2", NO_PROPS, Some("water_tribe")),
+            (8, "N3", NO_PROPS, Some("air_nomad")),
+            (9, "N4", NO_PROPS, Some("air_nomad")),
+            (5, "N5", NO_PROPS, Some("air_nomad")),
+            (5, "N6", NO_PROPS, Some("fire_nation")),
+            (3, "N7", NO_PROPS, Some("air_nomad")),
+            (4, "N8", NO_PROPS, Some("fire_nation")),
+        ];
 
-        graph
-            .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(6, "N1", NO_PROPS, Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(6, "N2", NO_PROPS, Some("water_tribe"))
-            .unwrap();
-        graph
-            .add_node(8, "N3", NO_PROPS, Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(9, "N4", NO_PROPS, Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(5, "N5", NO_PROPS, Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(5, "N6", NO_PROPS, Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(3, "N7", NO_PROPS, Some("air_nomad"))
-            .unwrap();
-        graph
-            .add_node(4, "N8", NO_PROPS, Some("fire_nation"))
-            .unwrap();
+        for (id, name, props, layer) in &nodes {
+            graph.add_node(*id, name, props.clone(), *layer).unwrap();
+        }
 
         graph
     }
@@ -478,23 +413,29 @@ mod tests {
     #[test]
     fn test_type_filtered_subgraph() {
         let graph = Graph::new();
-        graph.add_edge(1, "A", "B", [("p1", 1u64)], None).unwrap();
-        graph.add_edge(2, "B", "C", [("p1", 2u64)], None).unwrap();
-        graph.add_edge(3, "C", "D", [("p1", 3u64)], None).unwrap();
-        graph.add_edge(4, "D", "E", [("p1", 4u64)], None).unwrap();
+        let edges = vec![
+            (1, "A", "B", vec![("p1", 1u64)], None),
+            (2, "B", "C", vec![("p1", 2u64)], None),
+            (3, "C", "D", vec![("p1", 3u64)], None),
+            (4, "D", "E", vec![("p1", 4u64)], None),
+        ];
 
-        graph
-            .add_node(1, "A", [("p1", 1u64)], Some("water_tribe"))
-            .unwrap();
-        graph
-            .add_node(2, "B", [("p1", 2u64)], Some("water_tribe"))
-            .unwrap();
-        graph
-            .add_node(3, "C", [("p1", 1u64)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(4, "D", [("p1", 1u64)], Some("air_nomads"))
-            .unwrap();
+        for (id, src, dst, props, layer) in &edges {
+            graph
+                .add_edge(*id, src, dst, props.clone(), *layer)
+                .unwrap();
+        }
+
+        let nodes = vec![
+            (1, "A", vec![("p1", 1u64)], Some("water_tribe")),
+            (2, "B", vec![("p1", 2u64)], Some("water_tribe")),
+            (3, "C", vec![("p1", 1u64)], Some("fire_nation")),
+            (4, "D", vec![("p1", 1u64)], Some("air_nomads")),
+        ];
+
+        for (id, name, props, layer) in &nodes {
+            graph.add_node(*id, name, props.clone(), *layer).unwrap();
+        }
 
         let type_filtered_subgraph = graph
             .subgraph_node_types(vec!["fire_nation", "air_nomads"])

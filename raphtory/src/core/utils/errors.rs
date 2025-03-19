@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
-    db::graph::views::property_filter::{FilterOperator, PropertyRef},
+    db::graph::views::property_filter::{FilterExpr, FilterOperator, PropertyRef},
 };
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
@@ -314,9 +314,6 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
-    #[error("Failed to acquire read lock")]
-    LockError,
-
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilter(FilterOperator),
 
@@ -337,6 +334,12 @@ pub enum GraphError {
 
     #[error("Invalid Value conversion")]
     InvalidValueConversion,
+
+    #[error("Unsupported Value: {0}")]
+    UnsupportedValue(String),
+
+    #[error("Illegal FilterExpr: {0}, Reason: {1}.")]
+    IllegalFilterExpr(FilterExpr, String),
 }
 
 impl GraphError {

@@ -6,7 +6,9 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
+            properties::internal::{
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
+            },
             storage::graph::storage_ops::GraphStorage,
             view::internal::{CoreGraphOps, InternalIndexSearch},
         },
@@ -14,19 +16,20 @@ use crate::{
     },
     prelude::*,
     search::{
-        fields, index_node_const_properties, index_node_temporal_properties,
+        fields::{NODE_ID, NODE_NAME, NODE_TYPE},
+        get_property_writers, index_node_const_properties, index_node_temporal_properties,
         initialize_node_const_property_indexes, initialize_node_temporal_property_indexes,
-        new_index, property_index::PropertyIndex, TOKENIZER,
+        new_index,
+        property_index::PropertyIndex,
+        TOKENIZER,
     },
 };
-use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use parking_lot::RwLock;
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use serde_json::json;
 use std::{
-    collections::BTreeMap,
     fmt::{Debug, Formatter},
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 use tantivy::{
     collector::TopDocs,
@@ -45,6 +48,9 @@ pub struct NodeIndex {
     pub(crate) reader: IndexReader,
     pub(crate) constant_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) node_id_field: Field,
+    pub(crate) node_name_field: Field,
+    pub(crate) node_type_field: Field,
 }
 
 impl Debug for NodeIndex {
@@ -58,12 +64,18 @@ impl Debug for NodeIndex {
 impl NodeIndex {
     pub(crate) fn new() -> Self {
         let schema = Self::schema_builder().build();
+        let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
+        let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
+        let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
         let (index, reader) = new_index(schema, IndexSettings::default());
         Self {
             index: Arc::new(index),
             reader,
             constant_property_indexes: Arc::new(RwLock::new(Vec::new())),
             temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
+            node_id_field,
+            node_name_field,
+            node_type_field,
         }
     }
 
@@ -78,19 +90,13 @@ impl NodeIndex {
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let constant_property_indexes = self
-            .constant_property_indexes
-            .read()
-            .map_err(|_| GraphError::LockError)?;
+        let constant_property_indexes = self.constant_property_indexes.read();
 
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
-        let temporal_property_indexes = self
-            .temporal_property_indexes
-            .read()
-            .map_err(|_| GraphError::LockError)?;
+        let temporal_property_indexes = self.temporal_property_indexes.read();
 
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
@@ -101,9 +107,9 @@ impl NodeIndex {
 
     fn schema_builder() -> SchemaBuilder {
         let mut schema_builder: SchemaBuilder = Schema::builder();
-        schema_builder.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_u64_field(NODE_ID, INDEXED | FAST | STORED);
         schema_builder.add_text_field(
-            fields::NODE_NAME,
+            NODE_NAME,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
@@ -111,7 +117,7 @@ impl NodeIndex {
             ),
         );
         schema_builder.add_text_field(
-            fields::NODE_TYPE,
+            NODE_TYPE,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
@@ -129,46 +135,62 @@ impl NodeIndex {
         &self,
         node_id: u64,
         node_name: String,
-        node_type: ArcStr,
-    ) -> tantivy::Result<TantivyDocument> {
-        let schema = self.index.schema();
-
-        let doc = json!({
-            "node_id": node_id,
-            "node_name": node_name,
-            "node_type": node_type,
-        });
-
-        let document = TantivyDocument::parse_json(&schema, &doc.to_string())?;
-        // println!("Added node doc: {}", &document.to_json(&schema));
-
-        Ok(document)
+        node_type: Option<ArcStr>,
+    ) -> TantivyDocument {
+        let mut document = TantivyDocument::new();
+        document.add_u64(self.node_id_field, node_id);
+        document.add_text(self.node_name_field, node_name);
+        if let Some(node_type) = node_type {
+            document.add_text(self.node_type_field, node_type);
+        }
+        document
     }
 
-    fn collect_constant_properties<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    fn index_node_c(
         &self,
-        node: &NodeView<G, GH>,
-    ) -> Vec<(ArcStr, usize, Prop)> {
-        node.properties()
-            .constant()
-            .iter()
-            .filter_map(|(k, p)| node.get_const_prop_id(k.as_ref()).map(|id| (k, id, p)))
-            .collect()
+        node_id: VID,
+        const_writers: &[Option<IndexWriter>],
+        const_props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        let node_id = node_id.as_u64();
+        index_node_const_properties(
+            self.constant_property_indexes.read(),
+            node_id,
+            const_writers,
+            const_props.iter().map(|(id, prop)| (*id, prop)),
+        )
     }
 
-    fn collect_temporal_properties<'a, 'graph, G: GraphViewOps<'graph> + 'a, GH: GraphViewOps<'graph> + 'a>(
-        &'a self,
-        node: &NodeView<G, GH>,
-    ) -> impl Iterator<Item = (i64, ArcStr, usize, Prop)> +'a{
-        node.properties()
-            .temporal()
-            .into_iter()
-            .flat_map(|(key, values)| {
-                let pid = values.id;
-                values
-                    .into_iter()
-                    .map(move |(t, v)| (t, key.clone(), pid, v))
+    fn index_node_t(
+        &self,
+        time: TimeIndexEntry,
+        node_id: MaybeNew<VID>,
+        node_name: String,
+        node_type: Option<ArcStr>,
+        writer: &IndexWriter,
+        temporal_writers: &[Option<IndexWriter>],
+        temporal_props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        let vid_u64 = node_id.inner().as_u64();
+        index_node_temporal_properties(
+            time,
+            self.temporal_property_indexes.read(),
+            vid_u64,
+            temporal_writers,
+            temporal_props.iter().map(|(id, prop)| (*id, prop)),
+        )?;
+
+        // Check if the node document is already in the index,
+        // if it does skip adding a new doc for same node
+        node_id
+            .if_new(|vid| {
+                let node_doc = self.create_document(vid_u64, node_name, node_type);
+                writer.add_document(node_doc)?;
+                Ok::<(), GraphError>(())
             })
+            .transpose()?;
+
+        Ok(())
     }
 
     fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
@@ -177,59 +199,42 @@ impl NodeIndex {
         writer: &IndexWriter,
         const_writers: &[Option<IndexWriter>],
         temporal_writers: &[Option<IndexWriter>],
-    ) -> tantivy::Result<()> {
+    ) -> Result<(), GraphError> {
         let node_id: u64 = usize::from(node.node) as u64;
         let node_name = node.name();
-        let node_type = node.node_type().unwrap_or_else(|| ArcStr::from(""));
+        let node_type = node.node_type();
 
-        let const_properties = self.collect_constant_properties(&node);
         index_node_const_properties(
-            const_properties.iter().cloned(),
-            self.constant_property_indexes.write()?,
+            self.constant_property_indexes.read(),
             node_id,
             const_writers,
+            node.properties().constant().iter_id(),
         )?;
 
-        let temporal_properties = self.collect_temporal_properties(&node);
-        index_node_temporal_properties(
-            node.clone(),
-            temporal_properties,
-            self.temporal_property_indexes.write()?,
-            node_id,
-            temporal_writers,
-        )?;
-
-        // Check if the node document is already in the index,
-        // if it does skip adding a new doc for same node
-        let schema = self.index.schema();
-        let node_id_field = schema.get_field(fields::NODE_ID)?;
-
-        let query = TermQuery::new(
-            Term::from_field_u64(node_id_field, node_id),
-            IndexRecordOption::Basic,
-        );
-
-        let reader = self.index.reader()?;
-        let searcher = reader.searcher();
-        let top_docs = searcher.search(&query, &TopDocs::with_limit(1))?;
-        if !top_docs.is_empty() {
-            return Ok(());
+        for (t, temporal_properties) in node.rows() {
+            index_node_temporal_properties(
+                t,
+                self.temporal_property_indexes.read(),
+                node_id,
+                temporal_writers,
+                temporal_properties,
+            )?;
         }
 
-        let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone())?;
+        let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone());
         writer.add_document(node_doc)?;
 
         Ok(())
     }
 
-    pub(crate) fn index_nodes(graph: &GraphStorage) -> tantivy::Result<NodeIndex> {
+    pub(crate) fn index_nodes(graph: &GraphStorage) -> Result<NodeIndex, GraphError> {
         let node_index = NodeIndex::new();
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
         let mut const_writers = initialize_node_const_property_indexes(
             graph,
-            node_index.constant_property_indexes.clone(),
+            &node_index.constant_property_indexes,
             const_property_keys,
         )?;
 
@@ -240,7 +245,7 @@ impl NodeIndex {
             .into_iter();
         let mut temporal_writers = initialize_node_temporal_property_indexes(
             graph,
-            node_index.temporal_property_indexes.clone(),
+            &node_index.temporal_property_indexes,
             temporal_property_keys,
         )?;
 
@@ -253,7 +258,7 @@ impl NodeIndex {
                     node_index.index_node(node, &writer, &const_writers, &temporal_writers)?;
                 }
             }
-            Ok::<(), TantivyError>(())
+            Ok::<(), GraphError>(())
         })?;
 
         // Commit writers
@@ -271,13 +276,13 @@ impl NodeIndex {
 
         // Reload readers
         {
-            let const_indexes = node_index.constant_property_indexes.read()?;
+            let const_indexes = node_index.constant_property_indexes.read();
             for property_index_option in const_indexes.iter().flatten() {
                 property_index_option.reader.reload()?;
             }
         }
         {
-            let temporal_indexes = node_index.temporal_property_indexes.read()?;
+            let temporal_indexes = node_index.temporal_property_indexes.read();
             for property_index_option in temporal_indexes.iter().flatten() {
                 property_index_option.reader.reload()?;
             }
@@ -291,32 +296,70 @@ impl NodeIndex {
         &self,
         graph: &GraphStorage,
         t: TimeIndexEntry,
-        v: VID,
+        node_id: MaybeNew<VID>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node_id = v.as_u64();
         let node = graph
-            .node(VID(node_id as usize))
+            .node(VID(node_id.inner().as_u64() as usize))
             .expect("Node for internal id should exist.")
             .at(t.t());
 
-        let const_property_keys = node.const_prop_keys();
-        let const_writers = initialize_node_const_property_indexes(
-            graph,
-            self.constant_property_indexes.clone(),
-            const_property_keys,
-        )?;
+        let temporal_property_ids = node.temporal_prop_ids();
+        let temporal_writers =
+            get_property_writers(temporal_property_ids, &self.temporal_property_indexes)?;
 
-        let temporal_property_keys = node.temporal_prop_keys();
-        let temporal_writers = initialize_node_temporal_property_indexes(
-            graph,
-            self.temporal_property_indexes.clone(),
-            temporal_property_keys,
+        let mut writer = self.index.writer(100_000_000)?;
+        self.index_node_t(
+            t,
+            node_id,
+            node.name(),
+            node.node_type(),
+            &writer,
+            &temporal_writers,
+            props,
         )?;
+        writer.commit()?;
+        self.reader.reload()?;
 
-        let writer = Arc::new(parking_lot::RwLock::new(self.index.writer(100_000_000)?));
-        let mut writer_guard = writer.write();
-        self.index_node(node, &writer_guard, &const_writers, &temporal_writers)?;
-        writer_guard.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn add_node_constant_properties(
+        &self,
+        graph: &GraphStorage,
+        node_id: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        let node = graph
+            .node(VID(node_id.as_u64() as usize))
+            .expect("Node for internal id should exist.");
+
+        let const_property_ids = node.const_prop_ids();
+        let const_writers =
+            get_property_writers(const_property_ids, &self.constant_property_indexes)?;
+
+        self.index_node_c(node_id, &const_writers, props)?;
+        self.reader.reload()?;
+
+        Ok(())
+    }
+
+    // TODO: Update the constant property by deleting and recreating tantivy doc?
+    pub(crate) fn update_node_constant_properties(
+        &self,
+        graph: &GraphStorage,
+        node_id: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        let node = graph
+            .node(VID(node_id.as_u64() as usize))
+            .expect("Node for internal id should exist.");
+
+        let const_property_ids = node.const_prop_ids();
+        let const_writers =
+            get_property_writers(const_property_ids, &self.constant_property_indexes)?;
+
+        self.index_node_c(node_id, &const_writers, props)?;
         self.reader.reload()?;
 
         Ok(())

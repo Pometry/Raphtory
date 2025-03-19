@@ -3,7 +3,7 @@ use crate::core::{
 };
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{collections::HashSet, fmt, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 use strsim::levenshtein;
 
 pub mod edge_property_filter;
@@ -29,7 +29,7 @@ pub enum FilterOperator {
     },
 }
 
-impl fmt::Display for FilterOperator {
+impl Display for FilterOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let operator = match self {
             FilterOperator::Eq => "==",
@@ -172,17 +172,19 @@ pub enum PropertyRef {
     TemporalProperty(String, Temporal),
 }
 
-impl PropertyRef {
-    pub fn as_display(&self) -> String {
+impl Display for PropertyRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PropertyRef::TemporalProperty(name, temporal) => {
-                format!("TemporalProperty({}, {:?})", name, temporal)
+                write!(f, "TemporalProperty({}, {:?})", name, temporal)
             }
-            PropertyRef::ConstantProperty(name) => format!("ConstantProperty({})", name),
-            PropertyRef::Property(name) => format!("Property({})", name),
+            PropertyRef::ConstantProperty(name) => write!(f, "ConstantProperty({})", name),
+            PropertyRef::Property(name) => write!(f, "Property({})", name),
         }
     }
+}
 
+impl PropertyRef {
     pub fn name(&self) -> &str {
         match self {
             PropertyRef::Property(name)
@@ -206,7 +208,7 @@ pub struct PropertyFilter {
     pub operator: FilterOperator,
 }
 
-impl fmt::Display for PropertyFilter {
+impl Display for PropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prop_ref_str = match &self.prop_ref {
             PropertyRef::Property(name) => format!("{}", name),
@@ -375,7 +377,7 @@ pub struct Filter {
     pub operator: FilterOperator,
 }
 
-impl fmt::Display for Filter {
+impl Display for Filter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.field_value {
             FilterValue::Single(value) => {
@@ -463,7 +465,7 @@ pub enum CompositeNodeFilter {
     Or(Vec<CompositeNodeFilter>),
 }
 
-impl fmt::Display for CompositeNodeFilter {
+impl Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "NODE_PROPERTY({})", filter),
@@ -496,7 +498,7 @@ pub enum CompositeEdgeFilter {
     Or(Vec<CompositeEdgeFilter>),
 }
 
-impl fmt::Display for CompositeEdgeFilter {
+impl Display for CompositeEdgeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CompositeEdgeFilter::Property(filter) => write!(f, "EDGE_PROPERTY({})", filter),
@@ -522,13 +524,19 @@ impl fmt::Display for CompositeEdgeFilter {
 }
 
 // Fluent Composite Filter Builder APIs
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum FilterExpr {
     Node(Filter),
     Edge(Filter),
     Property(PropertyFilter),
     And(Vec<FilterExpr>),
     Or(Vec<FilterExpr>),
+}
+
+impl Display for FilterExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl FilterExpr {
@@ -553,45 +561,60 @@ impl FilterExpr {
     }
 }
 
-pub fn resolve_as_node_filter(filter: FilterExpr) -> CompositeNodeFilter {
+pub fn resolve_as_node_filter(filter: FilterExpr) -> Result<CompositeNodeFilter, GraphError> {
     match filter {
-        FilterExpr::Property(prop) => CompositeNodeFilter::Property(prop),
-        FilterExpr::Node(filter) => CompositeNodeFilter::Node(filter),
-        FilterExpr::And(filters) => {
-            CompositeNodeFilter::And(filters.into_iter().map(resolve_as_node_filter).collect())
-        }
-        FilterExpr::Or(filters) => {
-            CompositeNodeFilter::Or(filters.into_iter().map(resolve_as_node_filter).collect())
-        }
-        FilterExpr::Edge(_) => {
-            panic!("Edge filter cannot be used in node filtering!")
-        }
+        FilterExpr::Property(prop) => Ok(CompositeNodeFilter::Property(prop)),
+        FilterExpr::Node(filter) => Ok(CompositeNodeFilter::Node(filter)),
+        FilterExpr::And(filters) => Ok(CompositeNodeFilter::And(
+            filters
+                .into_iter()
+                .map(resolve_as_node_filter)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        FilterExpr::Or(filters) => Ok(CompositeNodeFilter::Or(
+            filters
+                .into_iter()
+                .map(resolve_as_node_filter)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        FilterExpr::Edge(_) => Err(GraphError::IllegalFilterExpr(
+            filter,
+            "Edge filter cannot be used in node filtering!".to_string(),
+        )),
     }
 }
 
-pub fn resolve_as_edge_filter(filter: FilterExpr) -> CompositeEdgeFilter {
+pub fn resolve_as_edge_filter(filter: FilterExpr) -> Result<CompositeEdgeFilter, GraphError> {
     match filter {
-        FilterExpr::Property(prop) => CompositeEdgeFilter::Property(prop),
-        FilterExpr::Edge(filter) => CompositeEdgeFilter::Edge(filter),
-        FilterExpr::And(filters) => {
-            CompositeEdgeFilter::And(filters.into_iter().map(resolve_as_edge_filter).collect())
-        }
-        FilterExpr::Or(filters) => {
-            CompositeEdgeFilter::Or(filters.into_iter().map(resolve_as_edge_filter).collect())
-        }
-        FilterExpr::Node(_) => {
-            panic!("Node filter cannot be used in edge filtering!")
-        }
+        FilterExpr::Property(prop) => Ok(CompositeEdgeFilter::Property(prop)),
+        FilterExpr::Edge(filter) => Ok(CompositeEdgeFilter::Edge(filter)),
+        FilterExpr::And(filters) => Ok(CompositeEdgeFilter::And(
+            filters
+                .into_iter()
+                .map(resolve_as_edge_filter)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        FilterExpr::Or(filters) => Ok(CompositeEdgeFilter::Or(
+            filters
+                .into_iter()
+                .map(resolve_as_edge_filter)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        FilterExpr::Node(_) => Err(GraphError::IllegalFilterExpr(
+            filter,
+            "Node filter cannot be used in edge filtering!".to_string(),
+        )),
     }
 }
 
 // TODO: This code may go once raphtory APIs start supporting FilterExpr
-pub fn resolve_as_property_filter(filter: FilterExpr) -> PropertyFilter {
+pub fn resolve_as_property_filter(filter: FilterExpr) -> Result<PropertyFilter, GraphError> {
     match filter {
-        FilterExpr::Property(prop) => prop,
-        _ => {
-            panic!("Non-property filter cannot be used in strictly property filtering!")
-        }
+        FilterExpr::Property(prop) => Ok(prop),
+        _ => Err(GraphError::IllegalFilterExpr(
+            filter,
+            "Non-property filter cannot be used in strictly property filtering!".to_string(),
+        )),
     }
 }
 
@@ -912,7 +935,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_property_filter_build() {
         let filter_expr = PropertyFilter::property("p").eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr);
+        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Property("p".to_string()),
             "raphtory",
@@ -926,7 +949,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_const_property_filter_build() {
         let filter_expr = PropertyFilter::constant_property("p").eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr);
+        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::ConstantProperty("p".to_string()),
             "raphtory",
@@ -940,7 +963,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_any_temporal_property_filter_build() {
         let filter_expr = PropertyFilter::temporal_property("p").any().eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr);
+        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
@@ -956,7 +979,7 @@ mod test_fluent_builder_apis {
         let filter_expr = PropertyFilter::temporal_property("p")
             .latest()
             .eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr);
+        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
@@ -970,7 +993,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_name_filter_build() {
         let filter_expr = NodeFilter::node_name().eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr);
+        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
         assert_eq!(
             node_property_filter.to_string(),
@@ -981,7 +1004,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_type_filter_build() {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr);
+        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
         assert_eq!(
             node_property_filter.to_string(),
@@ -1003,7 +1026,7 @@ mod test_fluent_builder_apis {
             )
             .or(NodeFilter::node_type().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));
-        let node_composite_filter = resolve_as_node_filter(filter_expr);
+        let node_composite_filter = resolve_as_node_filter(filter_expr).unwrap();
 
         let node_composite_filter2 = CompositeNodeFilter::Or(vec![
             CompositeNodeFilter::And(vec![
@@ -1043,7 +1066,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_from_filter_build() {
         let filter_expr = EdgeFilter::from().eq("raphtory");
-        let edge_property_filter = resolve_as_edge_filter(filter_expr);
+        let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("from", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
@@ -1054,7 +1077,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_to_filter_build() {
         let filter_expr = EdgeFilter::to().eq("raphtory");
-        let edge_property_filter = resolve_as_edge_filter(filter_expr);
+        let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("to", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
@@ -1076,7 +1099,7 @@ mod test_fluent_builder_apis {
             )
             .or(EdgeFilter::from().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));
-        let edge_composite_filter = resolve_as_edge_filter(filter_expr);
+        let edge_composite_filter = resolve_as_edge_filter(filter_expr).unwrap();
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(vec![
             CompositeEdgeFilter::And(vec![

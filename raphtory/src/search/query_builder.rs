@@ -2,9 +2,7 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::StaticGraphViewOps,
-        graph::views::property_filter::{
-            Filter, FilterOperator, FilterValue, PropertyFilterValue, PropertyRef,
-        },
+        graph::views::property_filter::{Filter, FilterOperator, FilterValue, PropertyFilterValue},
     },
     prelude::PropertyFilter,
     search::{
@@ -20,7 +18,7 @@ use std::{
 };
 use tantivy::{
     query::{
-        AllQuery, BooleanQuery, FuzzyTermQuery, Occur,
+        AllQuery, BooleanQuery, EmptyQuery, FuzzyTermQuery, Occur,
         Occur::{Must, MustNot, Should},
         PhraseQuery, Query, RangeQuery, TermQuery,
     },
@@ -211,10 +209,7 @@ fn create_property_tantivy_terms(
         Prop::U64(value) => Ok(vec![Term::from_field_u64(prop_field, *value)]),
         Prop::F64(value) => Ok(vec![Term::from_field_f64(prop_field, *value)]),
         Prop::Bool(value) => Ok(vec![Term::from_field_bool(prop_field, *value)]),
-        v => {
-            println!("Unsupported value: {:?}", v);
-            Err(GraphError::NotSupported)
-        }
+        v => Err(GraphError::UnsupportedValue(v.to_string())),
     }
 }
 
@@ -288,7 +283,7 @@ fn create_terms_from_tokens(field: Field, tokens: Vec<String>) -> Result<Vec<Ter
 // - If no terms are provided, the function panics, as a valid query cannot be constructed.
 fn create_eq_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
     match terms.len() {
-        0 => None,
+        0 => Some(Box::new(EmptyQuery)),
         1 => Some(Box::new(TermQuery::new(
             terms[0].clone(),
             IndexRecordOption::Basic,
@@ -299,7 +294,7 @@ fn create_eq_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
 
 fn create_ne_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
     if terms.is_empty() {
-        return None;
+        return Some(Box::new(EmptyQuery));
     }
 
     let must_not_queries: Vec<(Occur, Box<dyn Query>)> = terms
@@ -326,7 +321,7 @@ fn create_lt_query(
     terms: Vec<Term>,
 ) -> Option<Box<dyn Query>> {
     match terms.len() {
-        0 => None,
+        0 => Some(Box::new(EmptyQuery)),
         _ => Some(Box::new(RangeQuery::new_term_bounds(
             prop_name,
             prop_field_type,
@@ -342,7 +337,7 @@ fn create_le_query(
     terms: Vec<Term>,
 ) -> Option<Box<dyn Query>> {
     match terms.len() {
-        0 => None,
+        0 => Some(Box::new(EmptyQuery)),
         _ => Some(Box::new(RangeQuery::new_term_bounds(
             prop_name.to_string(),
             prop_field_type,
@@ -358,7 +353,7 @@ fn create_gt_query(
     terms: Vec<Term>,
 ) -> Option<Box<dyn Query>> {
     match terms.len() {
-        0 => None,
+        0 => Some(Box::new(EmptyQuery)),
         _ => Some(Box::new(RangeQuery::new_term_bounds(
             prop_name.to_string(),
             prop_field_type,
@@ -374,7 +369,7 @@ fn create_ge_query(
     terms: Vec<Term>,
 ) -> Option<Box<dyn Query>> {
     match terms.len() {
-        0 => None,
+        0 => Some(Box::new(EmptyQuery)),
         _ => Some(Box::new(RangeQuery::new_term_bounds(
             prop_name.to_string(),
             prop_field_type,
@@ -388,7 +383,7 @@ fn create_in_query(sub_queries: Vec<(Occur, Box<dyn Query>)>) -> Option<Box<dyn 
     if !sub_queries.is_empty() {
         Some(Box::new(BooleanQuery::new(sub_queries)))
     } else {
-        None
+        Some(Box::new(EmptyQuery))
     }
 }
 
@@ -402,7 +397,7 @@ fn create_not_in_query(sub_queries: Vec<(Occur, Box<dyn Query>)>) -> Option<Box<
             ),
         ])))
     } else {
-        None
+        Some(Box::new(EmptyQuery))
     }
 }
 
@@ -412,7 +407,7 @@ fn create_fuzzy_search_query(
     prefix_match: &bool,
 ) -> Option<Box<dyn Query>> {
     match terms.len() {
-        0 => None,
+        0 => Some(Box::new(EmptyQuery)),
         1 => {
             if *prefix_match {
                 Some(Box::new(FuzzyTermQuery::new_prefix(

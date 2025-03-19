@@ -355,14 +355,14 @@ impl<'a> NodeFilterExecutor<'a> {
                 Ok(results.unwrap_or_default())
             }
             CompositeNodeFilter::Or(filters) => {
-                let mut results = Vec::new();
+                let mut results = HashSet::new();
 
                 for sub_filter in filters {
                     let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
                     results.extend(sub_result);
                 }
 
-                Ok(results)
+                Ok(results.into_iter().collect())
             }
         }
     }
