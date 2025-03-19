@@ -7,86 +7,218 @@ use crate::{
         storage::graph::{
             edges::edge_ref::EdgeStorageRef,
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            tprop_storage_ops::TPropOps,
         },
         view::{internal::Base, BoxedLDIter, BoxedLIter, MaterializedGraph},
     },
     prelude::GraphViewOps,
 };
 use enum_dispatch::enum_dispatch;
-use futures_util::StreamExt;
 use raphtory_api::{
     core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
     iter::IntoDynBoxed,
 };
-use std::{any::Any, borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range};
 
-pub trait NodeTimeSemantics {
+#[enum_dispatch(NodeTimeSemanticsOps)]
+pub enum BaseTimeSemantics {
+    Persistent(PersistentSemantics),
+    Event(EventSemantics),
+}
+
+pub enum TimeSemantics {
+    Base(BaseTimeSemantics),
+    Window(WindowTimeSemantics),
+}
+
+macro_rules! for_all {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            TimeSemantics::Base($pattern) => $result,
+            TimeSemantics::Window($pattern) => $result,
+        }
+    };
+}
+
+impl NodeTimeSemanticsOps for TimeSemantics {
     fn earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.earliest_time(node, view))
+    }
+
+    fn latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.latest_time(node, view))
+    }
+
+    fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.earliest_time_window(node, view, w))
+    }
+
+    fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.latest_time_window(node, view, w))
+    }
+
+    fn history<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, i64> {
+        for_all!(self, semantics => semantics.history(node, view))
+    }
+
+    fn history_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, i64> {
+        for_all!(self, semantics => semantics.history_window(node, view, w))
+    }
+
+    fn valid_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        for_all!(self, semantics => semantics.valid_window(node, view, w))
+    }
+
+    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        for_all!(self, semantics => semantics.node_updates(node, view))
+    }
+
+    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        for_all!(self, semantics => semantics.node_updates_window(node, view, w))
+    }
+
+    fn valid<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        for_all!(self, semantics => semantics.valid(node, view))
+    }
+}
+
+impl TimeSemantics {
+    pub fn persistent() -> Self {
+        TimeSemantics::Base(BaseTimeSemantics::Persistent(PersistentSemantics()))
+    }
+
+    pub fn event() -> Self {
+        TimeSemantics::Base(BaseTimeSemantics::Event(EventSemantics()))
+    }
+
+    pub fn window(self, w: Range<i64>) -> Self {
+        match self {
+            TimeSemantics::Base(semantics) => TimeSemantics::Window(WindowTimeSemantics {
+                semantics,
+                window: w,
+            }),
+            TimeSemantics::Window(semantics) => TimeSemantics::Window(semantics.window(w)),
+        }
+    }
+}
+
+#[enum_dispatch]
+pub trait NodeTimeSemanticsOps {
+    fn earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
         view: G,
     ) -> Option<i64>;
 
     fn latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
     ) -> Option<i64>;
 
     fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> Option<i64>;
 
     fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> Option<i64>;
 
     fn history<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, i64>;
 
     fn history_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, i64>;
 
-    fn include_window<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        node: NodeStorageRef,
-        view: G,
-        w: Range<i64>,
-    ) -> bool;
-
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)>;
 
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)>;
+
+    /// Check if the node is part of the graph based on the history
+    fn valid<'graph, G: GraphViewOps<'graph>>(&self, node: NodeStorageRef<'graph>, view: G)
+        -> bool;
+
+    fn valid_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool;
 }
 
-struct PersistentSemantics();
+pub struct PersistentSemantics();
 
-impl NodeTimeSemantics for PersistentSemantics {
+impl NodeTimeSemanticsOps for PersistentSemantics {
     fn earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
     ) -> Option<i64> {
         node.history(view).first_t()
@@ -94,7 +226,7 @@ impl NodeTimeSemantics for PersistentSemantics {
 
     fn latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
     ) -> Option<i64> {
         node.history(view).last_t()
@@ -102,7 +234,7 @@ impl NodeTimeSemantics for PersistentSemantics {
 
     fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
@@ -116,18 +248,18 @@ impl NodeTimeSemantics for PersistentSemantics {
 
     fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeStorageRef,
+        node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
         node.history(view)
-            .range_t(w.clone())
+            .range_t(i64::MIN..w.end)
             .last_t()
             .map(|t| t.max(w.start))
     }
 
     fn history<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, i64> {
@@ -135,7 +267,7 @@ impl NodeTimeSemantics for PersistentSemantics {
     }
 
     fn history_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
@@ -143,17 +275,8 @@ impl NodeTimeSemantics for PersistentSemantics {
         node.history(view).range_t(w).iter_t()
     }
 
-    fn include_window<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        node: NodeStorageRef,
-        view: G,
-        w: Range<i64>,
-    ) -> bool {
-        node.history(view).active_t(i64::MIN..w.end)
-    }
-
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         _view: G,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
@@ -168,20 +291,21 @@ impl NodeTimeSemantics for PersistentSemantics {
     }
 
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
-        let first_row = if node.history(view).active_t(i64::MIN..w.start) {
+        let start = w.start;
+        let first_row = if node.history(view).active_t(i64::MIN..start) {
             Some(
                 node.tprops()
                     .filter_map(|(i, tprop)| {
-                        if tprop.active(w.start..w.start.saturating_add(1)) {
+                        if tprop.active(start..start.saturating_add(1)) {
                             None
                         } else {
                             tprop
-                                .last_before(TimeIndexEntry::start(w.start))
+                                .last_before(TimeIndexEntry::start(start))
                                 .map(|(_, v)| (i, v))
                         }
                     })
@@ -192,7 +316,7 @@ impl NodeTimeSemantics for PersistentSemantics {
         };
         first_row
             .into_iter()
-            .map(|row| (TimeIndexEntry::start(w.start), row))
+            .map(move |row| (TimeIndexEntry::start(start), row))
             .chain(
                 node.temp_prop_rows_window(TimeIndexEntry::range(w))
                     .map(|(t, row)| {
@@ -204,130 +328,242 @@ impl NodeTimeSemantics for PersistentSemantics {
             )
             .into_dyn_boxed()
     }
+
+    fn valid<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        !node.history(view).is_empty()
+    }
+
+    fn valid_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        node.history(view).active_t(i64::MIN..w.end)
+    }
 }
 
 pub struct EventSemantics();
 
-impl NodeTimeSemantics for EventSemantics {
-    fn earliest_time(
+impl NodeTimeSemanticsOps for EventSemantics {
+    fn earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
     ) -> Option<i64> {
-        history.first_t()
+        node.history(view).first_t()
     }
 
-    fn latest_time(
+    fn latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
     ) -> Option<i64> {
-        history.last_t()
+        node.history(view).last_t()
     }
 
-    fn earliest_time_window(
+    fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        history.range_t(w).first_t()
+        node.history(view).range_t(w).first_t()
     }
 
-    fn latest_time_window(
+    fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        history.range_t(w).last_t()
+        node.history(view).range_t(w).last_t()
     }
 
-    fn history<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
-    ) -> BoxedLIter<'a, i64> {
-        history.iter_t()
+    fn history<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, i64> {
+        node.history(view).iter_t()
     }
 
-    fn history_window<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    fn history_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'a, i64> {
-        history.range_t(w).iter_t()
+    ) -> BoxedLIter<'graph, i64> {
+        node.history(view).range_t(w).iter_t()
     }
 
-    fn include_window<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        node.temp_prop_rows()
+            .map(|(t, row)| {
+                (
+                    t,
+                    row.into_iter()
+                        .filter_map(|(id, prop)| Some((id, prop?)))
+                        .collect(),
+                )
+            })
+            .into_dyn_boxed()
+    }
+
+    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        node.temp_prop_rows_window(TimeIndexEntry::range(w))
+            .map(|(t, row)| {
+                (
+                    t,
+                    row.into_iter()
+                        .filter_map(|(id, prop)| Some((id, prop?)))
+                        .collect(),
+                )
+            })
+            .into_dyn_boxed()
+    }
+
+    fn valid<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        !node.history(view).is_empty()
+    }
+
+    fn valid_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
     ) -> bool {
-        history.active_t(w)
+        node.history(view).active_t(w)
     }
 }
 
 pub struct WindowTimeSemantics {
-    semantics: Box<dyn NodeTimeSemantics>,
+    semantics: BaseTimeSemantics,
     window: Range<i64>,
 }
 
-impl NodeTimeSemantics for WindowTimeSemantics {
-    fn earliest_time(
+impl WindowTimeSemantics {
+    pub fn window(self, w: Range<i64>) -> Self {
+        let start = self.window.start.max(w.start);
+        let end = self.window.end.min(w.end).max(start);
+        WindowTimeSemantics {
+            window: start..end,
+            ..self
+        }
+    }
+}
+
+impl NodeTimeSemanticsOps for WindowTimeSemantics {
+    fn earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
     ) -> Option<i64> {
         self.semantics
-            .earliest_time_window(history, self.window.clone())
+            .earliest_time_window(node, view, self.window.clone())
     }
 
-    fn latest_time(
+    fn latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
     ) -> Option<i64> {
         self.semantics
-            .latest_time_window(history, self.window.clone())
+            .latest_time_window(node, view, self.window.clone())
     }
 
-    fn earliest_time_window(
+    fn earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        self.semantics.earliest_time_window(history, w)
+        self.semantics.earliest_time_window(node, view, w)
     }
 
-    fn latest_time_window(
+    fn latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        self.semantics.latest_time_window(history, w)
+        self.semantics.latest_time_window(node, view, w)
     }
 
-    fn history<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
-    ) -> BoxedLIter<'a, i64> {
-        self.semantics.history_window(history, self.window.clone())
+    fn history<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, i64> {
+        self.semantics
+            .history_window(node, view, self.window.clone())
     }
 
-    fn history_window<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    fn history_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'a, i64> {
-        self.semantics.history_window(history, w)
+    ) -> BoxedLIter<'graph, i64> {
+        self.semantics.history_window(node, view, w)
     }
 
-    fn include_window<'a>(
-        &'a self,
-        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        self.semantics
+            .node_updates_window(node, view, self.window.clone())
+    }
+
+    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
+        self.semantics.node_updates_window(node, view, w)
+    }
+
+    fn valid<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        self.semantics.valid_window(node, view, self.window.clone())
+    }
+
+    fn valid_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
         w: Range<i64>,
     ) -> bool {
-        self.semantics.include_window(history, w)
+        self.semantics.valid_window(node, view, w)
     }
 }
 /// Methods for defining time windowing semantics for a graph
 #[enum_dispatch]
-pub trait TimeSemantics {
-    fn node_time_semantics(&self) -> Box<dyn NodeTimeSemantics>;
+pub trait GraphTimeSemanticsOps {
+    fn node_time_semantics(&self) -> TimeSemantics;
 
     /// Returns the start of the current view or `None` if unbounded
     fn view_start(&self) -> Option<i64>;
@@ -618,7 +854,7 @@ pub trait InheritTimeSemantics: Base {}
 
 impl<G: InheritTimeSemantics> DelegateTimeSemantics for G
 where
-    <G as Base>::Base: TimeSemantics,
+    <G as Base>::Base: GraphTimeSemanticsOps,
 {
     type Internal = <G as Base>::Base;
 
@@ -628,22 +864,16 @@ where
 }
 
 pub trait DelegateTimeSemantics {
-    type Internal: TimeSemantics + ?Sized;
+    type Internal: GraphTimeSemanticsOps + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
+impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     #[inline]
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph().node_earliest_time(v)
+    fn node_time_semantics(&self) -> TimeSemantics {
+        self.graph().node_time_semantics()
     }
-
-    #[inline]
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.graph().node_latest_time(v)
-    }
-
     #[inline]
     fn view_start(&self) -> Option<i64> {
         self.graph().view_start()
@@ -664,26 +894,10 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.graph().earliest_time_window(start, end)
     }
+
     #[inline]
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.graph().latest_time_window(start, end)
-    }
-    #[inline]
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph().node_earliest_time_window(v, start, end)
-    }
-    #[inline]
-    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph().node_latest_time_window(v, start, end)
-    }
-    #[inline]
-    fn include_node_window(
-        &self,
-        node: NodeStorageRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph().include_node_window(node, w, layer_ids)
     }
 
     #[inline]
@@ -694,16 +908,6 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         layer_ids: &LayerIds,
     ) -> bool {
         self.graph().include_edge_window(edge, w, layer_ids)
-    }
-
-    #[inline]
-    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
-        self.graph().node_history(v)
-    }
-
-    #[inline]
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
-        self.graph().node_history_window(v, w)
     }
 
     #[inline]
@@ -910,22 +1114,6 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph().temporal_edge_prop_hist(e, prop_id, layer_ids)
-    }
-
-    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        self.graph().node_property_history(v, w)
-    }
-
-    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        self.graph().node_edge_history(v, w)
-    }
-
-    fn node_history_rows(
-        &self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        self.graph().node_history_rows(v, w)
     }
 
     #[inline]

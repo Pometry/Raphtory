@@ -424,9 +424,9 @@ mod db_tests {
         },
         db::{
             api::{
-                properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
+                properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },

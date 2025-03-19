@@ -7,7 +7,7 @@ use crate::{
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+            internal::{CoreGraphOps, GraphTimeSemanticsOps, InternalLayerOps},
             IntoDynBoxed,
         },
     },

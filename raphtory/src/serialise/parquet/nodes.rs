@@ -1,10 +1,7 @@
 use crate::{
     core::utils::{errors::GraphError, iter::GenLockedIter},
     db::{
-        api::{
-            properties::internal::TemporalPropertiesRowView,
-            storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps,
-        },
+        api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
         graph::node::NodeView,
     },
     serialise::parquet::{

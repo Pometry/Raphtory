@@ -9,7 +9,7 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            properties::internal::{TemporalPropertiesOps, TemporalPropertiesRowView},
+            properties::internal::TemporalPropertiesOps,
             view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},

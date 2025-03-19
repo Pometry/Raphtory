@@ -151,4 +151,8 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn prop(self, prop_id: usize) -> Option<Prop> {
         self.as_ref().prop(prop_id)
     }
+
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
+        self.as_ref().tprops()
+    }
 }

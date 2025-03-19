@@ -1,14 +1,9 @@
-use super::locked_view::LockedView;
-use crate::core::entities::LayerIds;
-use itertools::Itertools;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::{max, min},
     collections::BTreeSet,
     fmt::Debug,
     iter,
-    marker::PhantomData,
     ops::Range,
 };
 

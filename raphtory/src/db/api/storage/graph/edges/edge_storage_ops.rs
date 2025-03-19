@@ -9,14 +9,10 @@ use crate::{
             raw_edges::EdgeShard,
             timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
         },
-        utils::iter::GenLockedIter,
         Prop,
     },
     db::api::{
-        storage::graph::{
-            tprop_storage_ops::TPropOps,
-            variants::{layer_variants::LayerVariants, storage_variants3::StorageVariants},
-        },
+        storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
         view::IntoDynBoxed,
     },
 };

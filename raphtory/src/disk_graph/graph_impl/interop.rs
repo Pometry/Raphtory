@@ -9,7 +9,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, TimeSemantics},
+            internal::{CoreGraphOps, GraphTimeSemanticsOps},
             IntoDynBoxed,
         },
     },
