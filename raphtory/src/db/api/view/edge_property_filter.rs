@@ -28,7 +28,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef},
+        db::graph::views::property_filter::{PropertyFilter, PropertyRef},
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };

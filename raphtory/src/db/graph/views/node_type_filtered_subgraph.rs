@@ -87,12 +87,10 @@ mod search_nodes_node_type_filtered_subgraph_tests {
             api::view::{SearchableGraphOps, StaticGraphViewOps},
             graph::views::{
                 deletion_graph::PersistentGraph,
-                property_filter::{
-                    CompositeNodeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
-                },
+                property_filter::{FilterExpr, PropertyFilterOps},
             },
         },
-        prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
+        prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
     };
     use std::ops::Range;
 
@@ -243,8 +241,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
             },
         },
         prelude::{
-            AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps,
-            NO_PROPS,
+            AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps, NO_PROPS,
         },
     };
     use std::ops::Range;

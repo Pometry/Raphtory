@@ -1,14 +1,6 @@
-use crate::{
-    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::StaticGraphViewOps},
-    prelude::TimeOps,
-    search::fields,
-};
-use itertools::Itertools;
+use crate::{db::api::view::StaticGraphViewOps, prelude::TimeOps, search::fields};
 use raphtory_api::{
-    core::{
-        entities::VID,
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
+    core::{entities::VID, storage::timeindex::TimeIndexEntry},
     GraphType,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -16,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    DocAddress, Document, IndexReader, Score, SegmentReader, TantivyDocument,
+    DocAddress, IndexReader, Score, SegmentReader,
 };
 
 pub struct NodePropertyFilterCollector<G> {

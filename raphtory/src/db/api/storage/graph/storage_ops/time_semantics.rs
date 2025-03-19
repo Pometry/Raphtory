@@ -16,14 +16,11 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{
-                CoreGraphOps, DelegateCoreOps, DelegateTimeSemantics, EdgeHistoryFilter,
-                InternalLayerOps, NodeHistoryFilter, TimeSemantics,
-            },
-            Base, BoxedLIter, IntoDynBoxed,
+            internal::{CoreGraphOps, EdgeHistoryFilter, NodeHistoryFilter, TimeSemantics},
+            BoxedLIter, IntoDynBoxed,
         },
     },
-    prelude::{GraphViewOps, NodeViewOps, Prop},
+    prelude::Prop,
 };
 use itertools::{kmerge, Itertools};
 use raphtory_api::core::{
@@ -740,7 +737,7 @@ impl EdgeHistoryFilter for GraphStorage {
     /// - The "latest" status is determined globally across layers, not per individual layer.
     fn is_edge_prop_update_latest(
         &self,
-        mut layer_ids: &LayerIds,
+        layer_ids: &LayerIds,
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
@@ -765,7 +762,7 @@ impl EdgeHistoryFilter for GraphStorage {
 
     fn is_edge_prop_update_latest_window(
         &self,
-        mut layer_ids: &LayerIds,
+        layer_ids: &LayerIds,
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
@@ -852,15 +849,11 @@ mod test_graph_storage {
     #[cfg(test)]
     mod test_node_history_filter_event_graph {
         use crate::{
-            core::Prop,
             db::api::{
                 storage::graph::storage_ops::time_semantics::test_graph_storage::init_graph_for_nodes_tests,
-                view::{
-                    internal::{CoreGraphOps, NodeHistoryFilter},
-                    StaticGraphViewOps,
-                },
+                view::internal::{CoreGraphOps, NodeHistoryFilter},
             },
-            prelude::{AdditionOps, Graph, GraphViewOps},
+            prelude::{Graph, GraphViewOps},
         };
         use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
@@ -1011,15 +1004,11 @@ mod test_graph_storage {
     #[cfg(test)]
     mod test_edge_history_filter_event_graph {
         use crate::{
-            core::Prop,
             db::api::{
                 storage::graph::storage_ops::time_semantics::test_graph_storage::init_graph_for_edges_tests,
-                view::{
-                    internal::{CoreGraphOps, EdgeHistoryFilter, InternalLayerOps},
-                    StaticGraphViewOps,
-                },
+                view::internal::{CoreGraphOps, EdgeHistoryFilter, InternalLayerOps},
             },
-            prelude::{AdditionOps, Graph, GraphViewOps},
+            prelude::{Graph, GraphViewOps},
         };
         use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
@@ -1261,12 +1250,7 @@ mod test_graph_storage {
     mod search_nodes {
         use super::*;
         use crate::{
-            db::{
-                api::view::SearchableGraphOps,
-                graph::views::property_filter::{
-                    CompositeNodeFilter, PropertyFilterOps, PropertyRef,
-                },
-            },
+            db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
             prelude::{Graph, NodeViewOps, PropertyFilter},
         };
 
@@ -1291,12 +1275,7 @@ mod test_graph_storage {
     mod search_edges {
         use super::*;
         use crate::{
-            db::{
-                api::view::SearchableGraphOps,
-                graph::views::property_filter::{
-                    CompositeEdgeFilter, PropertyFilterOps, PropertyRef,
-                },
-            },
+            db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
             prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
         #[test]

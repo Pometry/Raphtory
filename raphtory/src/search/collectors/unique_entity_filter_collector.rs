@@ -76,22 +76,15 @@ where
         // let mut unique_docs = Vec::new();
 
         let searcher = self.reader.searcher();
-        let schema = searcher.schema();
+        // let schema = searcher.schema();
 
-        let mut all_docs = segment_fruits
+        let all_docs = segment_fruits
             .clone()
             .into_iter()
             .flatten()
             .collect::<Vec<(Score, DocAddress)>>();
 
-        // all_docs.sort_by(|a, b| {
-        //     let a_time = extract_time(&searcher, a.1).unwrap_or(i64::MIN);
-        //     let b_time = extract_time(&searcher, b.1).unwrap_or(i64::MIN);
-        //
-        //     b_time.cmp(&a_time).then_with(|| b.0.total_cmp(&a.0))
-        // });
-
-        for (score, doc_address) in all_docs {
+        for (_score, doc_address) in all_docs {
             let segment_reader = searcher.segment_reader(doc_address.segment_ord);
             let column_opt_entity_id = segment_reader.fast_fields().column_opt(&self.field)?;
             if let Some(entity_id) = column_opt_entity_id

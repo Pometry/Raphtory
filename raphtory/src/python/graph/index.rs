@@ -1,11 +1,8 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::{
-            graph::SearchableGraphOps,
-            internal::{DynamicGraph, InternalIndexSearch},
-        },
-        graph::{edge::EdgeView, node::NodeView, views::property_filter::FilterExpr},
+        api::view::internal::{DynamicGraph, InternalIndexSearch},
+        graph::{edge::EdgeView, node::NodeView},
     },
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };

@@ -27,7 +27,6 @@ use crate::{
             },
         },
     },
-    prelude::PropertyFilter,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;

@@ -1,10 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::{
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{internal::CoreGraphOps, StaticGraphViewOps},
-        },
+        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             views::property_filter::{
@@ -12,9 +9,7 @@ use crate::{
             },
         },
     },
-    prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyFilter, ResetFilter,
-    },
+    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,
@@ -28,7 +23,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::EID, input::input_node::InputNode};
+use raphtory_api::core::entities::EID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::{Collector, TopDocs},
@@ -227,7 +222,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                     LatestEdgePropertyFilterCollector::new,
                 )?;
 
-                let mut filtered = cpi_results
+                let filtered = cpi_results
                     .into_iter()
                     .filter(|n| {
                         n.properties()
@@ -430,7 +425,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                     .skip(offset)
                     .take(limit)
                     .collect::<Vec<_>>(),
-                PropertyRef::TemporalProperty(prop_name, temp) => graph
+                PropertyRef::TemporalProperty(prop_name, _) => graph
                     .edges()
                     .into_iter()
                     .filter(|e| e.properties().temporal().get(prop_name).is_none())
@@ -464,7 +459,7 @@ impl<'a> EdgeFilterExecutor<'a> {
 
     fn print_schema_fields(schema: &tantivy::schema::Schema) {
         println!("Schema fields and their IDs:");
-        for (field_name, field_entry) in schema.fields() {
+        for (field_name, _field_entry) in schema.fields() {
             println!("Field Name: '{:?}'", field_name,);
         }
     }

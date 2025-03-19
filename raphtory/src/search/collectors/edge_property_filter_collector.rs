@@ -1,17 +1,6 @@
-use crate::{
-    db::api::{
-        storage::graph::{edges::edge_storage_ops::EdgeStorageOps, tprop_storage_ops::TPropOps},
-        view::StaticGraphViewOps,
-    },
-    prelude::{NodeViewOps, TimeOps},
-    search::fields,
-};
-use itertools::Itertools;
+use crate::{db::api::view::StaticGraphViewOps, prelude::TimeOps, search::fields};
 use raphtory_api::{
-    core::{
-        entities::EID,
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
+    core::{entities::EID, storage::timeindex::TimeIndexEntry},
     GraphType,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -102,7 +91,7 @@ where
         let unique_entity_ids: HashSet<u64> = global_unique_entity_ids.keys().cloned().collect();
 
         let result = match (self.graph.start(), self.graph.end()) {
-            (Some(start), Some(end))
+            (Some(_start), Some(end))
                 if matches!(self.graph.graph_type(), GraphType::PersistentGraph) =>
             {
                 unique_entity_ids

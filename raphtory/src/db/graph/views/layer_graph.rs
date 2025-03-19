@@ -234,24 +234,16 @@ mod test_layers {
         use crate::{
             core::Prop,
             db::{
-                api::view::{
-                    internal::{CoreGraphOps, InternalLayerOps},
-                    SearchableGraphOps, StaticGraphViewOps,
-                },
+                api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{
-                        CompositeNodeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
-                    },
+                    property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps,
-                PropertyFilter, TimeOps,
+                AdditionOps, EdgeViewOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps,
             },
         };
-        use itertools::Itertools;
-        use raphtory_api::iter::BoxedLIter;
         use std::ops::Range;
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {

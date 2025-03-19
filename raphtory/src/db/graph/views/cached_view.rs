@@ -297,7 +297,7 @@ mod test {
                     property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
-            prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
+            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
         };
         use std::ops::Range;
 
@@ -439,9 +439,7 @@ mod test {
                     property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
-            prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps,
-            },
+            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
         };
         use std::ops::Range;
 

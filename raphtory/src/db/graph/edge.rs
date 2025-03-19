@@ -26,7 +26,7 @@ use crate::{
             },
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
-                internal::{CoreGraphOps, OneHopFilter, Static},
+                internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },

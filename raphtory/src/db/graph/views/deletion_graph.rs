@@ -831,12 +831,10 @@ impl TimeSemantics for PersistentGraph {
 impl NodeHistoryFilter for PersistentGraph {
     fn is_node_prop_update_available(
         &self,
-        prop_id: usize,
-        node_id: VID,
-        time: TimeIndexEntry,
+        _prop_id: usize,
+        _node_id: VID,
+        _time: TimeIndexEntry,
     ) -> bool {
-        // let nse = self.0.core_node_entry(node_id);
-        // nse.tprop(prop_id).at(&time).is_some()
         true
     }
 
@@ -2221,7 +2219,7 @@ mod test_edge_history_filter_persistent_graph {
             },
             graph::views::deletion_graph::PersistentGraph,
         },
-        prelude::{AdditionOps, EdgeViewOps, GraphViewOps, TimeOps},
+        prelude::{AdditionOps, GraphViewOps},
     };
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
@@ -2292,8 +2290,6 @@ mod test_edge_history_filter_persistent_graph {
         let g = init_graph(g);
 
         let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
-
-        let edge = g.edge("N1", "N2").unwrap();
 
         let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
         let bool = g.is_edge_prop_update_latest(

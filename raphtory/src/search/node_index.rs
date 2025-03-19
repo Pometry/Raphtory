@@ -10,7 +10,6 @@ use crate::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
             },
             storage::graph::storage_ops::GraphStorage,
-            view::internal::{CoreGraphOps, InternalIndexSearch},
         },
         graph::node::NodeView,
     },
@@ -28,10 +27,10 @@ use tantivy::{
     collector::TopDocs,
     query::AllQuery,
     schema::{
-        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value,
-        FAST, INDEXED, STORED,
+        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST,
+        INDEXED, STORED,
     },
-    Document, HasLen, IndexWriter, TantivyDocument,
+    Document, IndexWriter, TantivyDocument,
 };
 
 #[derive(Clone)]
@@ -167,7 +166,7 @@ impl NodeIndex {
         // Check if the node document is already in the index,
         // if it does skip adding a new doc for same node
         node_id
-            .if_new(|vid| {
+            .if_new(|_| {
                 let node_doc = self.create_document(vid_u64, node_name, node_type);
                 writer.add_document(node_doc)?;
                 Ok::<(), GraphError>(())

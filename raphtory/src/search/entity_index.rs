@@ -43,7 +43,7 @@ impl EntityIndex {
         is_static: bool,
         add_const_schema_fields: fn(&mut SchemaBuilder),
         add_temporal_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(ArcStr, Schema) -> PropertyIndex,
+        new_property: fn(Schema) -> PropertyIndex,
     ) -> Result<(), GraphError> {
         prop_id
             .if_new(|prop_id| {
@@ -66,7 +66,7 @@ impl EntityIndex {
                     add_temporal_schema_fields(&mut schema_builder);
                 }
                 let schema = schema_builder.build();
-                let property_index = new_property(ArcStr::from(prop_name), schema);
+                let property_index = new_property(schema);
                 prop_index_guard[prop_id] = Some(property_index);
                 Ok::<_, GraphError>(())
             })
@@ -76,10 +76,10 @@ impl EntityIndex {
 
     fn get_property_writers(
         &self,
-        mut prop_ids: impl Iterator<Item = usize>,
+        prop_ids: impl Iterator<Item = usize>,
         property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        let mut prop_index_guard = property_indexes.read();
+        let prop_index_guard = property_indexes.read();
 
         let mut writers = Vec::new();
         writers.resize_with(prop_index_guard.len(), || None);
@@ -118,7 +118,7 @@ impl EntityIndex {
         prop_keys: impl Iterator<Item = ArcStr>,
         get_property_meta: fn(&GraphStorage) -> &PropMapper,
         add_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(ArcStr, Schema) -> PropertyIndex,
+        new_property: fn(Schema) -> PropertyIndex,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         let prop_meta = get_property_meta(graph);
         let properties = prop_keys
@@ -145,7 +145,7 @@ impl EntityIndex {
                 let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
                 add_schema_fields(&mut schema_builder);
                 let schema = schema_builder.build();
-                let property_index = new_property(ArcStr::from(prop_name), schema);
+                let property_index = new_property(schema);
                 let writer = property_index.index.writer(50_000_000)?;
 
                 writers.push(Some(writer));

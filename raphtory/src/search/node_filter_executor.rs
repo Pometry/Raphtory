@@ -1,13 +1,13 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::{internal::CoreGraphOps, StaticGraphViewOps},
+        api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
             views::property_filter::{CompositeNodeFilter, Filter, PropertyRef, Temporal},
         },
     },
-    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
+    prelude::{NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
@@ -239,7 +239,7 @@ impl<'a> NodeFilterExecutor<'a> {
                     LatestNodePropertyFilterCollector::new,
                 )?;
 
-                let mut filtered = cpi_results
+                let filtered = cpi_results
                     .into_iter()
                     .filter(|n| {
                         n.properties()
@@ -454,7 +454,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn print_schema_fields(schema: &tantivy::schema::Schema) {
         println!("Schema fields and their IDs:");
-        for (field_name, field_entry) in schema.fields() {
+        for (field_name, _field_entry) in schema.fields() {
             println!("Field Name: '{:?}'", field_name,);
         }
     }

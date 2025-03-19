@@ -1,14 +1,10 @@
-use crate::{db::api::view::StaticGraphViewOps, prelude::TimeOps, search::fields};
-use itertools::Itertools;
-use raphtory_api::core::{
-    entities::EID,
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
+use crate::{db::api::view::StaticGraphViewOps, search::fields};
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    DocAddress, Document, IndexReader, Score, SegmentReader, TantivyDocument,
+    IndexReader, Score, SegmentReader,
 };
 
 pub struct LatestEdgePropertyFilterCollector<G> {

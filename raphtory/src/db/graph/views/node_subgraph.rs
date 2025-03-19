@@ -203,9 +203,7 @@ mod subgraph_tests {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{
-                        CompositeNodeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
-                    },
+                    property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
@@ -345,9 +343,7 @@ mod subgraph_tests {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{
-                        CompositeEdgeFilter, FilterExpr, PropertyFilterOps, PropertyRef,
-                    },
+                    property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{

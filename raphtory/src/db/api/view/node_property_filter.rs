@@ -23,12 +23,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::{
-            api::view::internal::InternalIndexSearch,
-            graph::{
-                graph::assert_edges_equal,
-                views::property_filter::{PropertyFilter, PropertyRef},
-            },
+        db::graph::{
+            graph::assert_edges_equal,
+            views::property_filter::{PropertyFilter, PropertyRef},
         },
         prelude::*,
         test_utils::{

@@ -858,7 +858,7 @@ impl From<Lifespan> for Value {
     }
 }
 
-pub fn sort_comparable_props(mut props: Vec<&Prop>) -> Vec<&Prop> {
+pub fn sort_comparable_props(props: Vec<&Prop>) -> Vec<&Prop> {
     // Filter out non-comparable props
     let mut comparable_props: Vec<_> = props
         .into_iter()

@@ -1,30 +1,18 @@
 use crate::{
-    core::{storage::timeindex::AsTime, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::{
-        api::{
-            properties::internal::TemporalPropertiesOps,
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{
-                internal::{core_ops::CoreGraphOps, InternalIndexSearch, NodeFilterOps},
-                StaticGraphViewOps,
-            },
-        },
+        api::view::StaticGraphViewOps,
         graph::{
             edge::EdgeView,
             node::NodeView,
             views::property_filter::{resolve_as_edge_filter, resolve_as_node_filter, FilterExpr},
         },
     },
-    prelude::*,
     search::{
         edge_filter_executor::EdgeFilterExecutor, graph_index::GraphIndex,
         node_filter_executor::NodeFilterExecutor,
     },
 };
-use itertools::Itertools;
-use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use std::{fmt::Debug, ops::Deref};
-use tantivy::{query::Query, schema::Value, Document};
 
 #[derive(Copy, Clone)]
 pub struct Searcher<'a> {
@@ -74,20 +62,12 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::db::{
-        api::{
-            mutation::internal::DelegateDeletionOps,
-            view::{internal::InternalIndexSearch, SearchableGraphOps},
-        },
-        graph::views::{
-            deletion_graph::PersistentGraph,
-            property_filter::{Filter, NodeFilter},
-        },
+    use crate::{
+        db::{api::view::internal::InternalIndexSearch, graph::views::property_filter::NodeFilter},
+        prelude::{Graph, GraphViewOps, NodeViewOps, StableDecode},
     };
-    use proptest::collection::vec;
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
-    use tantivy::{doc, query::AllQuery, schema::TEXT, DocAddress, Order};
     use tracing::info;
 
     #[cfg(test)]
@@ -95,27 +75,13 @@ mod search_tests {
         use crate::{
             core::{IntoProp, Prop},
             db::{
-                api::{
-                    mutation::internal::{
-                        InheritMutationOps, InternalAdditionOps, InternalPropertyAdditionOps,
-                    },
-                    properties::internal::TemporalPropertiesOps,
-                    view::{
-                        internal::{CoreGraphOps, InternalIndexSearch, NodeHistoryFilter},
-                        SearchableGraphOps, StaticGraphViewOps,
-                    },
-                },
+                api::view::SearchableGraphOps,
                 graph::views::property_filter::{
                     FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps,
                 },
             },
-            prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeStateOps, NodeViewOps,
-                PropertyAdditionOps, PropertyFilter, TimeOps,
-            },
-            search::searcher::search_tests::PersistentGraph,
+            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
         };
-        use raphtory_api::core::storage::timeindex::AsTime;
 
         #[cfg(test)]
         mod test_nodes_latest_any_semantics {
@@ -124,23 +90,15 @@ mod search_tests {
                 db::{
                     api::{
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-                        view::{
-                            internal::{
-                                CoreGraphOps, InternalIndexSearch, NodeHistoryFilter, TimeSemantics,
-                            },
-                            StaticGraphViewOps,
-                        },
+                        view::{internal::InternalIndexSearch, StaticGraphViewOps},
                     },
                     graph::views::property_filter::{FilterExpr, PropertyFilterOps},
                 },
                 prelude::{
                     AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                    PropertyFilter, StableEncode, NO_PROPS,
+                    PropertyFilter, NO_PROPS,
                 },
             };
-            use neo4rs::Path;
-            use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -151,138 +109,57 @@ mod search_tests {
             >(
                 graph: G,
             ) -> G {
-                graph
-                    .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .node("N1")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
+                let nodes = [
+                    (6, "N1", vec![("p1", Prop::U64(2u64))]),
+                    (7, "N1", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N2", vec![("p1", Prop::U64(1u64))]),
+                    (7, "N2", vec![("p1", Prop::U64(2u64))]),
+                    (8, "N3", vec![("p1", Prop::U64(1u64))]),
+                    (9, "N4", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N5", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N5", vec![("p1", Prop::U64(2u64))]),
+                    (5, "N6", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N6", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N7", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N7", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N8", vec![("p1", Prop::U64(1u64))]),
+                    (4, "N8", vec![("p1", Prop::U64(2u64))]),
+                    (2, "N9", vec![("p1", Prop::U64(2u64))]),
+                    (2, "N10", vec![("q1", Prop::U64(0u64))]),
+                    (2, "N10", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N11", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N11", vec![("q1", Prop::U64(0u64))]),
+                    (2, "N12", vec![("q1", Prop::U64(0u64))]),
+                    (3, "N12", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N13", vec![("q1", Prop::U64(0u64))]),
+                    (3, "N13", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N14", vec![("q1", Prop::U64(0u64))]),
+                    (2, "N15", vec![]),
+                ];
 
-                graph
-                    .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
+                for (id, label, props) in nodes.iter() {
+                    graph.add_node(*id, label, props.clone(), None).unwrap();
+                }
 
-                graph
-                    .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
+                let constant_properties = [
+                    ("N1", [("p1", Prop::U64(1u64))]),
+                    ("N4", [("p1", Prop::U64(2u64))]),
+                    ("N9", [("p1", Prop::U64(1u64))]),
+                    ("N10", [("p1", Prop::U64(1u64))]),
+                    ("N11", [("p1", Prop::U64(1u64))]),
+                    ("N12", [("p1", Prop::U64(1u64))]),
+                    ("N13", [("p1", Prop::U64(1u64))]),
+                    ("N14", [("p1", Prop::U64(1u64))]),
+                    ("N15", [("p1", Prop::U64(1u64))]),
+                ];
 
-                graph
-                    .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .node("N4")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(2u64))])
-                    .unwrap();
-
-                graph
-                    .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_node(2, "N9", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-                graph
-                    .node("N9")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
-
-                graph
-                    .add_node(2, "N10", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(2, "N10", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .node("N10")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
-
-                graph
-                    .add_node(2, "N11", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(2, "N11", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .node("N11")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
-
-                graph
-                    .add_node(2, "N12", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(3, "N12", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .node("N12")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
-
-                graph
-                    .add_node(2, "N13", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(3, "N13", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .node("N13")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
-
-                graph
-                    .add_node(2, "N14", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .node("N14")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
-
-                graph.add_node(2, "N15", NO_PROPS, None).unwrap();
-                graph
-                    .node("N15")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))])
-                    .unwrap();
+                for (node, props) in constant_properties.iter() {
+                    graph
+                        .node(node)
+                        .unwrap()
+                        .add_constant_properties(props.clone())
+                        .unwrap();
+                }
 
                 graph
             }
@@ -1684,88 +1561,6 @@ mod search_tests {
         }
     }
 
-    // #[test]
-    // fn test_node_update_index() {
-    //     let graph = Graph::new();
-    //     graph
-    //         .add_node(
-    //             0,
-    //             1,
-    //             [("t_prop1", 1u64), ("t_prop2", 2u64)],
-    //             Some("fire_nation"),
-    //         )
-    //         .unwrap();
-    //     graph
-    //         .add_node(1, 1, [("t_prop1", 5u64)], Some("fire_nation"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(0, 2, [("t_prop1", 2u64)], Some("air_nomads"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(0, 3, [("t_prop1", 3u64)], Some("water_tribe"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(0, 4, [("t_prop1", 4u64)], Some("earth_kingdom"))
-    //         .unwrap();
-    //     graph
-    //         .node(1)
-    //         .unwrap()
-    //         .add_constant_properties([("c_prop1", Prop::Bool(true))])
-    //         .unwrap();
-    //
-    //     // Create index from graph
-    //     let _ = graph.searcher().unwrap();
-    //
-    //     // Delayed graph node update
-    //     graph
-    //         .add_node(0, 1, [("t_prop3", 3u64)], Some("fire_nation"))
-    //         .unwrap();
-    //     //
-    //     // let query = AllQuery;
-    //     //
-    //     // let searcher = graph.searcher().unwrap().index.node_reader.searcher();
-    //     // let top_docs = searcher
-    //     //     .search(&AllQuery, &TopDocs::with_limit(100))
-    //     //     .unwrap();
-    //     //
-    //     // println!("Total doc count: {}", top_docs.len());
-    //     //
-    //     // for (_score, doc_address) in top_docs {
-    //     //     let doc: TantivyDocument = searcher.doc(doc_address).unwrap();
-    //     //     println!("Document: {:?}", doc.to_json(searcher.schema()));
-    //     // }
-    //
-    //     let filter = CompositeNodeFilter::And(vec![
-    //         CompositeNodeFilter::Property(PropertyFilter::eq("t_prop1", 1u64)),
-    //         CompositeNodeFilter::Property(PropertyFilter::eq("t_prop1", 1u64)),
-    //     ]);
-    //
-    //     let mut results = graph
-    //         .search_nodes(&filter, 5, 0)
-    //         .expect("Failed to search for nodes")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //     results.sort();
-    //
-    //     assert_eq!(results, vec!["1"]);
-    //
-    //     let filter = CompositeNodeFilter::And(vec![
-    //         CompositeNodeFilter::Property(PropertyFilter::eq("t_prop1", 5u64)),
-    //         CompositeNodeFilter::Property(PropertyFilter::eq("c_prop1", true)),
-    //     ]);
-    //
-    //     let mut results = graph
-    //         .search_nodes(&filter, 5, 0)
-    //         .expect("Failed to search for nodes")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //     results.sort();
-    //
-    //     assert_eq!(results, vec!["1"]);
-    // }
-
     #[test]
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
@@ -1793,272 +1588,4 @@ mod search_tests {
 
         Ok(())
     }
-
-    // #[test]
-    // fn test_search_windowed_graph() {
-    //     let graph = Graph::new();
-    //     for t in 0..10 {
-    //         graph.add_node(t, 1, [("prop", t)], None).unwrap();
-    //     }
-    //     let wg = graph.window(8, 12);
-    //     let results = wg
-    //         .search_nodes("prop:1", 5, 0)
-    //         .expect("Failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     println!("results = {:?}", results); // Should return "no results" as for window 8-12, node 1 has props 8-9
-    // }
-    //
-    // #[test]
-    // fn test_search_windowed_persistent_graph() {
-    //     let graph = PersistentGraph::new();
-    //     for t in 0..10 {
-    //         graph.add_node(t, 1, [("test", t)], None).unwrap();
-    //     }
-    //     let wg = graph.window(8, 12);
-    //     let results = wg
-    //         .search_nodes("test:1", 5, 0)
-    //         .expect("failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     println!("results = {:?}", results); // Should return "no results" as for window 8-12, node 1 has props 8-9
-    //
-    //     let wg = graph.window(10, 12);
-    //     let results = wg
-    //         .search_nodes("test:1", 5, 0)
-    //         .expect("failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     println!("results = {:?}", results); // Should return "no results" as for window 10-12, node 1 has prop 9 as last prop update
-    //
-    //     let wg = graph.window(10, 12);
-    //     let results = wg
-    //         .search_nodes("test:9", 5, 0)
-    //         .expect("failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     println!("results = {:?}", results); // Should return "node 1" as for window 10-12, node 9 has props 9 as last prop update
-    //
-    //     // Edge case:
-    //     // let graph = PersistentGraph::new();
-    //     // graph.add_node(0, 1, [("test1", 0)], None).unwrap(); // Creates doc which has both props
-    //     // graph.add_node(0, 1, [("test2", 0)], None).unwrap(); // Creates doc which has both props
-    //     // graph.add_node(2, 1, [("test2", 1)], None).unwrap(); // Creates doc which has only test2 prop
-    //
-    //     // Edge case:
-    //     let graph = PersistentGraph::new();
-    //     graph
-    //         .add_node(0, 1, [("test1", 0), ("test2", 0)], None)
-    //         .unwrap(); // Creates doc which has both props
-    //     graph.add_node(2, 1, [("test2", 1)], None).unwrap(); // Creates doc which has only test2 prop
-    //
-    //     // Searching for test 2 in window 2-10 should return "no results"
-    //     let wg = graph.window(2, 10);
-    //     let results = wg
-    //         .search_nodes("test2:0", 5, 0)
-    //         .expect("failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     // Searching for test 2 in window 2-10 should return "node 1"
-    //     let wg = graph.window(2, 10);
-    //     let results = wg
-    //         .search_nodes("test2:1", 5, 0)
-    //         .expect("failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     // Searching for test 1 in window 2-10 should return "node 1"
-    //     let wg = graph.window(2, 10);
-    //     let results = wg
-    //         .search_nodes("test1:0", 5, 0)
-    //         .expect("failed to search for node")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //
-    //     println!("results = {:?}", results); // Should return "node 1" as for window 10-12, node 9 has props 9 as last prop update
-    // }
-    //
-    //
-    // #[test]
-    // fn test_search_nodes_by_props_added_at_different_times_range() {
-    //     let graph = Graph::new();
-    //     graph
-    //         .add_node(1, 1, [("t_prop1", 1)], Some("fire_nation"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(3, 1, [("t_prop3", 3)], Some("fire_nation"))
-    //         .unwrap();
-    //
-    //     let mut results = graph
-    //         .search_nodes("t_prop1:1 AND t_prop3:3 AND time:[3 TO 3]", 5, 0)
-    //         .expect("Failed to search for nodes")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //     results.sort();
-    //
-    //     assert_eq!(results, vec!["1"]);
-    // }
-    //
-    // #[test]
-    // fn test_search_nodes_range() {
-    //     let graph = Graph::new();
-    //     graph
-    //         .add_node(2, 1, [("t_prop1", 1)], Some("fire_nation"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(4, 2, [("t_prop1", 1)], Some("air_nomads"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(6, 3, [("t_prop3", 3)], Some("fire_nation"))
-    //         .unwrap();
-    //
-    //     let mut results = graph
-    //         .search_nodes("node_type:fire_nation AND time:[1 TO 6]", 5, 0)
-    //         .expect("Failed to search for nodes")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //     results.sort();
-    //
-    //     assert_eq!(results, vec!["1"]);
-    // }
-    //
-    // // Discuss with lucas
-    // #[test]
-    // fn test1() {
-    //     let graph = Graph::new();
-    //     graph
-    //         .add_node(0, 1, [("t_prop1", 1), ("t_prop2", 2)], Some("fire_nation"))
-    //         .unwrap(); // doc 0
-    //     graph
-    //         .add_node(1, 1, [("t_prop1", 1), ("t_prop2", 2)], Some("fire_nation"))
-    //         .unwrap(); // doc 1
-    //     graph
-    //         .add_node(
-    //             2,
-    //             2,
-    //             [("t_prop1", 11), ("t_prop2", 12)],
-    //             Some("fire_nation"),
-    //         )
-    //         .unwrap(); // doc 2
-    //     graph
-    //         .add_node(3, 3, [("t_prop1", 1), ("t_prop2", 2)], Some("water_tribe"))
-    //         .unwrap(); // doc 3
-    //     graph
-    //         .add_node(
-    //             4,
-    //             4,
-    //             [("t_prop1", 31), ("t_prop2", 32)],
-    //             Some("fire_nation"),
-    //         )
-    //         .unwrap(); // doc 4
-    //
-    //     let mut results = graph
-    //         .window(2, 5)
-    //         .search_nodes("t_prop1:1 AND t_prop2:2", 5, 0)
-    //         .expect("Failed to search for nodes")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //     results.sort();
-    //
-    //     assert_eq!(results, vec!["3"]);
-    // }
-    //
-    // #[test]
-    // fn test2() {
-    //     let graph = Graph::new();
-    //     graph
-    //         .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
-    //         .unwrap();
-    //     graph
-    //         .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
-    //         .unwrap();
-    //
-    //     let graph = graph.window(2, 5);
-    //     let mut results = graph
-    //         .searcher()
-    //         .unwrap()
-    //         .event_graph_search_nodes(&graph, "p2:4 AND p3:3", 5, 0)
-    //         .expect("Failed to search for nodes")
-    //         .into_iter()
-    //         .map(|v| v.name())
-    //         .collect::<Vec<_>>();
-    //     results.sort();
-    //
-    //     // assert_eq!(results, vec!["3"]);
-    // }
-    //
-    //
-    // #[test]
-    // fn add_node_search_by_description_and_time() {
-    //     let graph = Graph::new();
-    //     graph
-    //         .add_node(
-    //             1,
-    //             "Gandalf",
-    //             [("description", Prop::str("The wizard"))],
-    //             None,
-    //         )
-    //         .expect("add node failed");
-    //     graph
-    //         .add_node(
-    //             2,
-    //             "Saruman",
-    //             [("description", Prop::str("Another wizard"))],
-    //             None,
-    //         )
-    //         .expect("add node failed");
-    //
-    //     // Find Saruman
-    //     let nodes = graph
-    //         .searcher()
-    //         .unwrap()
-    //         .search_nodes(&graph, r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
-    //         .expect("search failed");
-    //     let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-    //     let expected = vec!["Saruman"];
-    //     assert_eq!(actual, expected);
-    //
-    //     // Find Gandalf
-    //     let nodes = graph
-    //         .searcher()
-    //         .unwrap()
-    //         .search_nodes(&graph, r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
-    //         .expect("search failed");
-    //     let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-    //     let expected = vec!["Gandalf"];
-    //     assert_eq!(actual, expected);
-    //
-    //     // Find both wizards
-    //     let nodes = graph
-    //         .searcher()
-    //         .unwrap()
-    //         .search_nodes(&graph, r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
-    //         .expect("search failed");
-    //     let mut actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-    //     let mut expected = vec!["Gandalf", "Saruman"];
-    //
-    //     // FIXME: this is not deterministic
-    //     actual.sort();
-    //     expected.sort();
-    //
-    //     assert_eq!(actual, expected);
-    // }
 }

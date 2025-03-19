@@ -52,18 +52,16 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, CoreGraphOps, DelegateTimeSemantics, EdgeFilterOps, EdgeHistoryFilter,
-                    EdgeList, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritIndexSearch, InheritLayerOps, InheritMaterialize,
-                    InheritNodeHistoryFilter, ListOps, NodeFilterOps, NodeHistoryFilter, NodeList,
-                    Static, TimeSemantics,
+                    Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable,
+                    InheritCoreOps, InheritIndexSearch, InheritLayerOps, InheritMaterialize,
+                    ListOps, NodeFilterOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
         },
         graph::graph::graph_equal,
     },
-    prelude::{GraphViewOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::{
@@ -1467,7 +1465,6 @@ mod views_test {
             },
             prelude::{
                 AdditionOps, Graph, NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps,
-                NO_PROPS,
             },
         };
         use raphtory_api::core::storage::arc_str::ArcStr;
@@ -2462,7 +2459,7 @@ mod views_test {
             },
             prelude::{
                 AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyAdditionOps, PropertyFilter,
-                TimeOps, NO_PROPS,
+                TimeOps,
             },
         };
         use raphtory_api::core::storage::arc_str::ArcStr;

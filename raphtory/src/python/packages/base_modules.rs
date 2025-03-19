@@ -152,10 +152,6 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 
 pub use crate::python::graph::node_state::base_node_state_module;
 use crate::python::{
-    algorithm::epidemics::PyInfected,
-    graph::properties::PropertiesView,
-    types::wrappers::{
-        document::PyEmbedding,
-        filter_expr::{PyEdgeFilter, PyEdgeFilterOp, PyFilterExpr, PyNodeFilter, PyNodeFilterOp},
-    },
+    algorithm::epidemics::PyInfected, graph::properties::PropertiesView,
+    types::wrappers::document::PyEmbedding,
 };

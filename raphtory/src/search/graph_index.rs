@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{EID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
     db::api::storage::graph::storage_ops::GraphStorage,
@@ -10,10 +10,7 @@ use crate::{
 };
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::fmt::{Debug, Formatter};
-use tantivy::{
-    query::QueryParser,
-    schema::{FAST, INDEXED, STORED},
-};
+use tantivy::schema::{FAST, INDEXED, STORED};
 
 #[derive(Clone)]
 pub struct GraphIndex {
@@ -59,20 +56,6 @@ impl GraphIndex {
         self.node_index.print()?;
         self.edge_index.print()?;
         Ok(())
-    }
-
-    pub(crate) fn node_parser(&self) -> Result<QueryParser, GraphError> {
-        Ok(QueryParser::for_index(
-            &self.node_index.entity_index.index,
-            vec![],
-        ))
-    }
-
-    pub(crate) fn edge_parser(&self) -> Result<QueryParser, GraphError> {
-        Ok(QueryParser::for_index(
-            &self.edge_index.entity_index.index,
-            vec![],
-        ))
     }
 
     pub(crate) fn add_node_update(

@@ -1,4 +1,3 @@
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::borrow::Cow;
 
 #[cfg(feature = "storage")]

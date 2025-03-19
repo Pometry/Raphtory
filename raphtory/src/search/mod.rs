@@ -1,20 +1,4 @@
-use crate::{
-    db::api::{
-        properties::internal::{ConstPropertiesOps, PropertiesOps},
-        view::{
-            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            StaticGraphViewOps,
-        },
-    },
-    prelude::{GraphViewOps, NodeViewOps},
-};
-use itertools::Itertools;
-use std::{
-    borrow::Borrow,
-    ops::{Deref, DerefMut},
-};
 use tantivy::{
-    query::Query,
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Index, IndexReader, IndexSettings,

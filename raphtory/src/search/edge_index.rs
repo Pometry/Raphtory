@@ -26,8 +26,8 @@ use tantivy::{
     collector::TopDocs,
     query::AllQuery,
     schema::{
-        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value,
-        FAST, INDEXED, STORED,
+        Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST,
+        INDEXED, STORED,
     },
     Document, IndexWriter, TantivyDocument, TantivyError,
 };

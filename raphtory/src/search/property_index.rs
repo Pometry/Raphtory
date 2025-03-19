@@ -1,13 +1,10 @@
 use crate::{
-    core::{storage::timeindex::AsTime, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     prelude::*,
     search::{fields, new_index, TOKENIZER},
 };
-use raphtory_api::core::{
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-    PropType,
-};
-use std::{fmt::Debug, sync::Arc};
+use raphtory_api::core::{storage::timeindex::TimeIndexEntry, PropType};
+use std::sync::Arc;
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
@@ -20,7 +17,6 @@ use tantivy::{
 
 #[derive(Clone)]
 pub struct PropertyIndex {
-    pub(crate) prop_name: ArcStr,
     pub(crate) index: Arc<Index>,
     pub(crate) reader: IndexReader,
     pub(crate) time_field: Option<Field>,
@@ -30,7 +26,7 @@ pub struct PropertyIndex {
 }
 
 impl PropertyIndex {
-    fn new_property(prop_name: ArcStr, schema: Schema, is_edge: bool) -> Self {
+    fn new_property(schema: Schema, is_edge: bool) -> Self {
         let time_field = schema.get_field(fields::TIME).ok();
         let secondary_time_field = schema.get_field(fields::SECONDARY_TIME).ok();
         let entity_id_field = schema
@@ -55,7 +51,6 @@ impl PropertyIndex {
         let (index, reader) = new_index(schema);
 
         Self {
-            prop_name,
             index: Arc::new(index),
             reader,
             time_field,
@@ -65,12 +60,12 @@ impl PropertyIndex {
         }
     }
 
-    pub(crate) fn new_node_property(prop_name: ArcStr, schema: Schema) -> Self {
-        Self::new_property(prop_name, schema, false)
+    pub(crate) fn new_node_property(schema: Schema) -> Self {
+        Self::new_property(schema, false)
     }
 
-    pub(crate) fn new_edge_property(prop_name: ArcStr, schema: Schema) -> Self {
-        Self::new_property(prop_name, schema, true)
+    pub(crate) fn new_edge_property(schema: Schema) -> Self {
+        Self::new_property(schema, true)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
