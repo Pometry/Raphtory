@@ -16,38 +16,27 @@ use crate::{
     },
     prelude::*,
     search::{
+        entity_index::EntityIndex,
         fields::{NODE_ID, NODE_NAME, NODE_TYPE},
-        get_property_writers, index_node_const_properties, index_node_temporal_properties,
-        initialize_node_const_property_indexes, initialize_node_temporal_property_indexes,
-        new_index,
-        property_index::PropertyIndex,
         TOKENIZER,
     },
 };
-use parking_lot::RwLock;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
+use std::fmt::{Debug, Formatter};
 use tantivy::{
     collector::TopDocs,
-    query::{AllQuery, TermQuery},
+    query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value,
         FAST, INDEXED, STORED,
     },
-    Document, HasLen, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument,
-    TantivyError, Term,
+    Document, HasLen, IndexWriter, TantivyDocument,
 };
 
 #[derive(Clone)]
 pub struct NodeIndex {
-    pub(crate) index: Arc<Index>,
-    pub(crate) reader: IndexReader,
-    pub(crate) constant_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
-    pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) entity_index: EntityIndex,
     pub(crate) node_id_field: Field,
     pub(crate) node_name_field: Field,
     pub(crate) node_type_field: Field,
@@ -56,7 +45,7 @@ pub struct NodeIndex {
 impl Debug for NodeIndex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeIndex")
-            .field("index", &self.index)
+            .field("index", &self.entity_index.index)
             .finish()
     }
 }
@@ -67,12 +56,9 @@ impl NodeIndex {
         let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
         let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
         let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
-        let (index, reader) = new_index(schema, IndexSettings::default());
+        let entity_index = EntityIndex::new(schema);
         Self {
-            index: Arc::new(index),
-            reader,
-            constant_property_indexes: Arc::new(RwLock::new(Vec::new())),
-            temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
+            entity_index,
             node_id_field,
             node_name_field,
             node_type_field,
@@ -80,7 +66,7 @@ impl NodeIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.reader.searcher();
+        let searcher = self.entity_index.reader.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
 
         println!("Total node doc count: {}", top_docs.len());
@@ -90,13 +76,13 @@ impl NodeIndex {
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let constant_property_indexes = self.constant_property_indexes.read();
+        let constant_property_indexes = self.entity_index.const_property_indexes.read();
 
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
-        let temporal_property_indexes = self.temporal_property_indexes.read();
+        let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
 
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
@@ -128,7 +114,7 @@ impl NodeIndex {
     }
 
     pub fn get_node_field(&self, field_name: &str) -> tantivy::Result<Field> {
-        self.index.schema().get_field(field_name)
+        self.entity_index.index.schema().get_field(field_name)
     }
 
     fn create_document<'a>(
@@ -153,8 +139,7 @@ impl NodeIndex {
         const_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let node_id = node_id.as_u64();
-        index_node_const_properties(
-            self.constant_property_indexes.read(),
+        self.entity_index.index_node_const_properties(
             node_id,
             const_writers,
             const_props.iter().map(|(id, prop)| (*id, prop)),
@@ -172,9 +157,8 @@ impl NodeIndex {
         temporal_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let vid_u64 = node_id.inner().as_u64();
-        index_node_temporal_properties(
+        self.entity_index.index_node_temporal_properties(
             time,
-            self.temporal_property_indexes.read(),
             vid_u64,
             temporal_writers,
             temporal_props.iter().map(|(id, prop)| (*id, prop)),
@@ -204,17 +188,15 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type();
 
-        index_node_const_properties(
-            self.constant_property_indexes.read(),
+        self.entity_index.index_node_const_properties(
             node_id,
             const_writers,
             node.properties().constant().iter_id(),
         )?;
 
         for (t, temporal_properties) in node.rows() {
-            index_node_temporal_properties(
+            self.entity_index.index_node_temporal_properties(
                 t,
-                self.temporal_property_indexes.read(),
                 node_id,
                 temporal_writers,
                 temporal_properties,
@@ -232,25 +214,21 @@ impl NodeIndex {
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
-        let mut const_writers = initialize_node_const_property_indexes(
-            graph,
-            &node_index.constant_property_indexes,
-            const_property_keys,
-        )?;
+        let mut const_writers = node_index
+            .entity_index
+            .initialize_node_const_property_indexes(graph, const_property_keys)?;
 
         let temporal_property_keys = graph
             .node_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
-        let mut temporal_writers = initialize_node_temporal_property_indexes(
-            graph,
-            &node_index.temporal_property_indexes,
-            temporal_property_keys,
-        )?;
+        let mut temporal_writers = node_index
+            .entity_index
+            .initialize_node_temporal_property_indexes(graph, temporal_property_keys)?;
 
         // Index nodes in parallel
-        let mut writer = node_index.index.writer(100_000_000)?;
+        let mut writer = node_index.entity_index.index.writer(100_000_000)?;
         let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             for v_id in v_ids {
@@ -276,18 +254,18 @@ impl NodeIndex {
 
         // Reload readers
         {
-            let const_indexes = node_index.constant_property_indexes.read();
+            let const_indexes = node_index.entity_index.const_property_indexes.read();
             for property_index_option in const_indexes.iter().flatten() {
                 property_index_option.reader.reload()?;
             }
         }
         {
-            let temporal_indexes = node_index.temporal_property_indexes.read();
+            let temporal_indexes = node_index.entity_index.temporal_property_indexes.read();
             for property_index_option in temporal_indexes.iter().flatten() {
                 property_index_option.reader.reload()?;
             }
         }
-        node_index.reader.reload()?;
+        node_index.entity_index.reader.reload()?;
 
         Ok(node_index)
     }
@@ -305,10 +283,11 @@ impl NodeIndex {
             .at(t.t());
 
         let temporal_property_ids = node.temporal_prop_ids();
-        let temporal_writers =
-            get_property_writers(temporal_property_ids, &self.temporal_property_indexes)?;
+        let temporal_writers = self
+            .entity_index
+            .get_temporal_property_writers(temporal_property_ids)?;
 
-        let mut writer = self.index.writer(100_000_000)?;
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
         self.index_node_t(
             t,
             node_id,
@@ -319,7 +298,7 @@ impl NodeIndex {
             props,
         )?;
         writer.commit()?;
-        self.reader.reload()?;
+        self.entity_index.reader.reload()?;
 
         Ok(())
     }
@@ -335,11 +314,12 @@ impl NodeIndex {
             .expect("Node for internal id should exist.");
 
         let const_property_ids = node.const_prop_ids();
-        let const_writers =
-            get_property_writers(const_property_ids, &self.constant_property_indexes)?;
+        let const_writers = self
+            .entity_index
+            .get_const_property_writers(const_property_ids)?;
 
         self.index_node_c(node_id, &const_writers, props)?;
-        self.reader.reload()?;
+        self.entity_index.reader.reload()?;
 
         Ok(())
     }
@@ -356,11 +336,12 @@ impl NodeIndex {
             .expect("Node for internal id should exist.");
 
         let const_property_ids = node.const_prop_ids();
-        let const_writers =
-            get_property_writers(const_property_ids, &self.constant_property_indexes)?;
+        let const_writers = self
+            .entity_index
+            .get_const_property_writers(const_property_ids)?;
 
         self.index_node_c(node_id, &const_writers, props)?;
-        self.reader.reload()?;
+        self.entity_index.reader.reload()?;
 
         Ok(())
     }

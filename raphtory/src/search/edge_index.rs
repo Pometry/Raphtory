@@ -14,21 +14,14 @@ use crate::{
     },
     prelude::*,
     search::{
+        entity_index::EntityIndex,
         fields::{DESTINATION, EDGE_ID, SOURCE},
-        get_property_writers, index_edge_const_properties, index_edge_temporal_properties,
-        initialize_edge_const_property_indexes, initialize_edge_temporal_property_indexes,
-        new_index,
-        property_index::PropertyIndex,
         TOKENIZER,
     },
 };
-use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::ParallelIterator;
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
+use std::fmt::{Debug, Formatter};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
@@ -36,15 +29,12 @@ use tantivy::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Value,
         FAST, INDEXED, STORED,
     },
-    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
+    Document, IndexWriter, TantivyDocument, TantivyError,
 };
 
 #[derive(Clone)]
 pub struct EdgeIndex {
-    pub(crate) index: Arc<Index>,
-    pub(crate) reader: IndexReader,
-    pub(crate) constant_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
-    pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) entity_index: EntityIndex,
     pub(crate) edge_id_field: Field,
     pub(crate) from_field: Field,
     pub(crate) to_field: Field,
@@ -53,7 +43,7 @@ pub struct EdgeIndex {
 impl Debug for EdgeIndex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EdgeIndex")
-            .field("index", &self.index)
+            .field("index", &self.entity_index.index)
             .finish()
     }
 }
@@ -67,12 +57,9 @@ impl EdgeIndex {
             .get_field(DESTINATION)
             .expect("Destination is absent");
 
-        let (index, reader) = new_index(schema, IndexSettings::default());
+        let entity_index = EntityIndex::new(schema);
         EdgeIndex {
-            index: Arc::new(index),
-            reader,
-            constant_property_indexes: Arc::new(RwLock::new(Vec::new())),
-            temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
+            entity_index,
             edge_id_field,
             from_field,
             to_field,
@@ -80,7 +67,7 @@ impl EdgeIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.reader.searcher();
+        let searcher = self.entity_index.reader.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
 
         println!("Total edge doc count: {}", top_docs.len());
@@ -90,13 +77,13 @@ impl EdgeIndex {
             println!("Edge doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let constant_property_indexes = self.constant_property_indexes.read();
+        let constant_property_indexes = self.entity_index.const_property_indexes.read();
 
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
-        let temporal_property_indexes = self.temporal_property_indexes.read();
+        let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
 
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
@@ -128,7 +115,7 @@ impl EdgeIndex {
     }
 
     pub fn get_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {
-        self.index.schema().get_field(field_name)
+        self.entity_index.index.schema().get_field(field_name)
     }
 
     fn create_document<'a>(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
@@ -165,8 +152,7 @@ impl EdgeIndex {
         const_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let edge_id = edge_id.as_u64();
-        index_edge_const_properties(
-            self.constant_property_indexes.read(),
+        self.entity_index.index_edge_const_properties(
             edge_id,
             layer_id,
             const_writers,
@@ -185,9 +171,8 @@ impl EdgeIndex {
         temporal_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let eid_u64 = edge_id.inner().as_u64();
-        index_edge_temporal_properties(
+        self.entity_index.index_edge_temporal_properties(
             time,
-            self.temporal_property_indexes.read(),
             eid_u64,
             layer_id,
             temporal_writers,
@@ -229,8 +214,7 @@ impl EdgeIndex {
                 .to_string();
 
             if let Some(layer_id) = graph.get_layer_id(&layer_name) {
-                index_edge_const_properties(
-                    self.constant_property_indexes.read(),
+                self.entity_index.index_edge_const_properties(
                     edge_id,
                     layer_id,
                     const_writers,
@@ -240,9 +224,8 @@ impl EdgeIndex {
                 for edge in edge.explode() {
                     if let Some(time) = edge.time_and_index() {
                         let temporal_properties = self.collect_temporal_properties(&edge);
-                        index_edge_temporal_properties(
+                        self.entity_index.index_edge_temporal_properties(
                             time,
-                            self.temporal_property_indexes.read(),
                             edge_id,
                             layer_id,
                             temporal_writers,
@@ -264,24 +247,20 @@ impl EdgeIndex {
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();
-        let mut const_writers = initialize_edge_const_property_indexes(
-            graph,
-            &edge_index.constant_property_indexes,
-            const_property_keys,
-        )?;
+        let mut const_writers = edge_index
+            .entity_index
+            .initialize_edge_const_property_indexes(graph, const_property_keys)?;
 
         let temporal_property_keys = graph
             .edge_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
-        let mut temporal_writers = initialize_edge_temporal_property_indexes(
-            graph,
-            &edge_index.temporal_property_indexes,
-            temporal_property_keys,
-        )?;
+        let mut temporal_writers = edge_index
+            .entity_index
+            .initialize_edge_temporal_property_indexes(graph, temporal_property_keys)?;
 
-        let mut writer = edge_index.index.writer(100_000_000)?;
+        let mut writer = edge_index.entity_index.index.writer(100_000_000)?;
         let locked_g = graph.core_graph();
         locked_g.edges_par(&graph).try_for_each(|e_ref| {
             {
@@ -306,18 +285,18 @@ impl EdgeIndex {
 
         // Reload readers
         {
-            let const_indexes = edge_index.constant_property_indexes.read();
+            let const_indexes = edge_index.entity_index.const_property_indexes.read();
             for property_index_option in const_indexes.iter().flatten() {
                 property_index_option.reader.reload()?;
             }
         }
         {
-            let temporal_indexes = edge_index.temporal_property_indexes.read();
+            let temporal_indexes = edge_index.entity_index.temporal_property_indexes.read();
             for property_index_option in temporal_indexes.iter().flatten() {
                 property_index_option.reader.reload()?;
             }
         }
-        edge_index.reader.reload()?;
+        edge_index.entity_index.reader.reload()?;
 
         Ok(edge_index)
     }
@@ -338,10 +317,11 @@ impl EdgeIndex {
             .at(t.t());
 
         let temporal_prop_ids = edge.temporal_prop_ids();
-        let temporal_writers =
-            get_property_writers(temporal_prop_ids, &self.temporal_property_indexes)?;
+        let temporal_writers = self
+            .entity_index
+            .get_temporal_property_writers(temporal_prop_ids)?;
 
-        let writer = self.index.writer(100_000_000)?;
+        let writer = self.entity_index.index.writer(100_000_000)?;
         self.index_edge_t(
             graph,
             t,
@@ -351,7 +331,7 @@ impl EdgeIndex {
             &temporal_writers,
             props,
         )?;
-        self.reader.reload()?;
+        self.entity_index.reader.reload()?;
 
         Ok(())
     }
@@ -370,11 +350,12 @@ impl EdgeIndex {
             .expect("Edge for internal id should exist.");
 
         let const_property_ids = edge.const_prop_ids();
-        let const_writers =
-            get_property_writers(const_property_ids, &self.constant_property_indexes)?;
+        let const_writers = self
+            .entity_index
+            .get_const_property_writers(const_property_ids)?;
 
         self.index_edge_c(edge_id, layer_id, &const_writers, props)?;
-        self.reader.reload()?;
+        self.entity_index.reader.reload()?;
 
         Ok(())
     }
@@ -394,11 +375,12 @@ impl EdgeIndex {
             .expect("Edge for internal id should exist.");
 
         let const_property_ids = edge.const_prop_ids();
-        let const_writers =
-            get_property_writers(const_property_ids, &self.constant_property_indexes)?;
+        let const_writers = self
+            .entity_index
+            .get_const_property_writers(const_property_ids)?;
 
         self.index_edge_c(edge_id, layer_id, &const_writers, props)?;
-        self.reader.reload()?;
+        self.entity_index.reader.reload()?;
 
         Ok(())
     }

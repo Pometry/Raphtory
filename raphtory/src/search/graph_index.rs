@@ -6,10 +6,7 @@ use crate::{
     },
     db::api::storage::graph::storage_ops::GraphStorage,
     prelude::*,
-    search::{
-        create_property_index, edge_index::EdgeIndex, fields, node_index::NodeIndex,
-        property_index::PropertyIndex,
-    },
+    search::{edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex},
 };
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::fmt::{Debug, Formatter};
@@ -65,11 +62,17 @@ impl GraphIndex {
     }
 
     pub(crate) fn node_parser(&self) -> Result<QueryParser, GraphError> {
-        Ok(QueryParser::for_index(&self.node_index.index, vec![]))
+        Ok(QueryParser::for_index(
+            &self.node_index.entity_index.index,
+            vec![],
+        ))
     }
 
     pub(crate) fn edge_parser(&self) -> Result<QueryParser, GraphError> {
-        Ok(QueryParser::for_index(&self.edge_index.index, vec![]))
+        Ok(QueryParser::for_index(
+            &self.edge_index.entity_index.index,
+            vec![],
+        ))
     }
 
     pub(crate) fn add_node_update(
@@ -145,9 +148,7 @@ impl GraphIndex {
         prop_type: &PropType,
         is_static: bool, // Const or Temporal Property
     ) -> Result<(), GraphError> {
-        create_property_index(
-            &self.edge_index.constant_property_indexes,
-            &self.edge_index.temporal_property_indexes,
+        self.edge_index.entity_index.create_property_index(
             prop_id,
             prop_name,
             prop_type,
@@ -173,9 +174,7 @@ impl GraphIndex {
         prop_type: &PropType,
         is_static: bool, // Const or Temporal Property
     ) -> Result<(), GraphError> {
-        create_property_index(
-            &self.node_index.constant_property_indexes,
-            &self.node_index.temporal_property_indexes,
+        self.node_index.entity_index.create_property_index(
             prop_id,
             prop_name,
             prop_type,

@@ -21,7 +21,7 @@ use crate::{
             latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields, get_const_property_index, get_temporal_property_index,
+        fields,
         graph_index::GraphIndex,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -151,11 +151,12 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        if let Some((cpi, _)) = get_const_property_index(
-            &self.index.edge_index.constant_property_indexes,
-            graph.edge_meta(),
-            prop_name,
-        )? {
+        if let Some((cpi, _)) = self
+            .index
+            .edge_index
+            .entity_index
+            .get_const_property_index(graph.edge_meta(), prop_name)?
+        {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
             Err(GraphError::PropertyNotFound(prop_name.to_string()))
@@ -174,11 +175,12 @@ impl<'a> EdgeFilterExecutor<'a> {
     where
         C: Collector<Fruit = HashSet<u64>>,
     {
-        if let Some((tpi, prop_id)) = get_temporal_property_index(
-            &self.index.edge_index.temporal_property_indexes,
-            graph.edge_meta(),
-            prop_name,
-        )? {
+        if let Some((tpi, prop_id)) = self
+            .index
+            .edge_index
+            .entity_index
+            .get_temporal_property_index(graph.edge_meta(), prop_name)?
+        {
             self.execute_or_fallback_temporal(
                 graph,
                 prop_id,
@@ -201,16 +203,16 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let cpi = get_const_property_index(
-            &self.index.edge_index.constant_property_indexes,
-            graph.edge_meta(),
-            prop_name,
-        )?;
-        let tpi = get_temporal_property_index(
-            &self.index.edge_index.temporal_property_indexes,
-            graph.edge_meta(),
-            prop_name,
-        )?;
+        let cpi = self
+            .index
+            .edge_index
+            .entity_index
+            .get_const_property_index(graph.edge_meta(), prop_name)?;
+        let tpi = self
+            .index
+            .edge_index
+            .entity_index
+            .get_temporal_property_index(graph.edge_meta(), prop_name)?;
 
         match (cpi, tpi) {
             (Some((cpi, _)), Some((tpi, prop_id))) => {
@@ -298,9 +300,13 @@ impl<'a> EdgeFilterExecutor<'a> {
         let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
 
         let results = match query {
-            Some(query) => {
-                self.execute_filter_query(graph, query, &edge_index.reader, limit, offset)?
-            }
+            Some(query) => self.execute_filter_query(
+                graph,
+                query,
+                &edge_index.entity_index.reader,
+                limit,
+                offset,
+            )?,
             None => vec![],
         };
 

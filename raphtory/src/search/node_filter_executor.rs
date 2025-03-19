@@ -14,7 +14,7 @@ use crate::{
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields, get_const_property_index, get_temporal_property_index,
+        fields,
         graph_index::GraphIndex,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -144,11 +144,12 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        if let Some((cpi, _)) = get_const_property_index(
-            &self.index.node_index.constant_property_indexes,
-            graph.node_meta(),
-            prop_name,
-        )? {
+        if let Some((cpi, _)) = self
+            .index
+            .node_index
+            .entity_index
+            .get_const_property_index(graph.node_meta(), prop_name)?
+        {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
             Err(GraphError::PropertyNotFound(prop_name.to_string()))
@@ -167,11 +168,12 @@ impl<'a> NodeFilterExecutor<'a> {
     where
         C: Collector<Fruit = HashSet<u64>>,
     {
-        if let Some((tpi, prop_id)) = get_temporal_property_index(
-            &self.index.node_index.temporal_property_indexes,
-            graph.node_meta(),
-            prop_name,
-        )? {
+        if let Some((tpi, prop_id)) = self
+            .index
+            .node_index
+            .entity_index
+            .get_temporal_property_index(graph.node_meta(), prop_name)?
+        {
             self.execute_or_fallback_temporal(
                 graph,
                 prop_id,
@@ -213,16 +215,16 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        let cpi = get_const_property_index(
-            &self.index.node_index.constant_property_indexes,
-            graph.node_meta(),
-            prop_name,
-        )?;
-        let tpi = get_temporal_property_index(
-            &self.index.node_index.temporal_property_indexes,
-            graph.node_meta(),
-            prop_name,
-        )?;
+        let cpi = self
+            .index
+            .node_index
+            .entity_index
+            .get_const_property_index(graph.node_meta(), prop_name)?;
+        let tpi = self
+            .index
+            .node_index
+            .entity_index
+            .get_temporal_property_index(graph.node_meta(), prop_name)?;
 
         match (cpi, tpi) {
             (Some((cpi, _)), Some((tpi, prop_id))) => {
@@ -310,9 +312,13 @@ impl<'a> NodeFilterExecutor<'a> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
         let results = match query {
-            Some(query) => {
-                self.execute_filter_query(graph, query, &node_index.reader, limit, offset)?
-            }
+            Some(query) => self.execute_filter_query(
+                graph,
+                query,
+                &node_index.entity_index.reader,
+                limit,
+                offset,
+            )?,
             None => {
                 vec![]
             }

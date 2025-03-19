@@ -13,9 +13,9 @@ use tantivy::{
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
-        FAST, INDEXED, STORED, TEXT,
+        FAST, INDEXED, TEXT,
     },
-    Document, Index, IndexReader, IndexSettings, TantivyDocument,
+    Document, Index, IndexReader, TantivyDocument,
 };
 
 #[derive(Clone)]
@@ -52,7 +52,7 @@ impl PropertyIndex {
             None
         };
 
-        let (index, reader) = new_index(schema, IndexSettings::default());
+        let (index, reader) = new_index(schema);
 
         Self {
             prop_name,

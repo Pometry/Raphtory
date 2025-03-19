@@ -1276,13 +1276,7 @@ mod test_graph_storage {
             let g = init_graph_for_nodes_tests(g);
             let filter = PropertyFilter::property("p1").eq(1u64);
             let mut results = g
-                .search_nodes(
-                    // &CompositeNodeFilter::Property(PropertyFilter::eq(
-                    //     PropertyRef::Property("p1".to_string()),
-                    //     1u64,
-                    // )),
-                    filter, 10, 0,
-                )
+                .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|v| v.name())
@@ -1311,13 +1305,7 @@ mod test_graph_storage {
             let g = init_graph_for_edges_tests(g);
             let filter = PropertyFilter::property("p1").eq(1u64);
             let mut results = g
-                .search_edges(
-                    // &CompositeEdgeFilter::Property(PropertyFilter::eq(
-                    //     PropertyRef::Property("p1".to_string()),
-                    //     1u64,
-                    // )),
-                    filter, 10, 0,
-                )
+                .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")
                 .into_iter()
                 .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))

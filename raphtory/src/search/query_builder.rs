@@ -133,7 +133,7 @@ impl<'a> QueryBuilder<'a> {
         filter: &Filter,
     ) -> Result<(Arc<NodeIndex>, Option<Box<dyn Query>>), GraphError> {
         let node_index = &self.index.node_index;
-        let index = &node_index.index;
+        let index = &node_index.entity_index.index;
         let field_name = &filter.field_name;
         let field = node_index.get_node_field(field_name)?;
         let filter_value = &filter.field_value;
@@ -148,7 +148,7 @@ impl<'a> QueryBuilder<'a> {
         filter: &Filter,
     ) -> Result<(Arc<EdgeIndex>, Option<Box<dyn Query>>), GraphError> {
         let edge_index = &self.index.edge_index;
-        let index = &edge_index.index;
+        let index = &edge_index.entity_index.index;
         let field_name = &filter.field_name;
         let field = edge_index.get_edge_field(field_name)?;
         let filter_value = &filter.field_value;
