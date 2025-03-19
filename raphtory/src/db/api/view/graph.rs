@@ -27,6 +27,7 @@ use crate::{
             },
         },
     },
+    prelude::*,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -420,7 +421,31 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     #[inline]
     fn earliest_time(&self) -> Option<i64> {
-        self.earliest_time_global()
+        match self.filter_state() {
+            FilterState::Neither => self.earliest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history().next())
+                .min()
+                .into_iter()
+                .chain(
+                    self.nodes()
+                        .earliest_time()
+                        .par_iter_values()
+                        .flatten()
+                        .min(),
+                )
+                .chain(
+                    self.core_graph()
+                        .edges_par(self)
+                        .map(|e| self.edge_earliest_time(e, self.layer_ids()))
+                        .flatten()
+                        .min(),
+                )
+                .min(),
+        }
     }
 
     #[inline]
