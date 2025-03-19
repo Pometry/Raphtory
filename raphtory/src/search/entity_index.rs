@@ -233,18 +233,17 @@ impl EntityIndex {
         )
     }
 
-    pub(crate) fn delete_node_const_properties(
+    pub(crate) fn delete_const_properties_index_docs(
         &self,
-        node_id: VID,
+        entity_id: u64,
         writers: &mut [Option<IndexWriter>],
         props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Result<(), GraphError> {
-        let node_id = node_id.as_u64();
         let property_indexes = self.const_property_indexes.read();
         for (prop_id, _prop_value) in props {
             if let Some(Some(prop_writer)) = writers.get(prop_id) {
                 if let Some(property_index) = &property_indexes[prop_id] {
-                    let term = Term::from_field_u64(property_index.entity_id_field, node_id);
+                    let term = Term::from_field_u64(property_index.entity_id_field, entity_id);
                     prop_writer.delete_term(term);
                 }
             }

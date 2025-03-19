@@ -182,7 +182,7 @@ mod graph_index_test {
             api::view::{internal::InternalIndexSearch, SearchableGraphOps},
             graph::views::property_filter::{FilterExpr, PropertyFilterOps},
         },
-        prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
+        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
 
     fn init_nodes_graph(graph: Graph) -> Graph {
@@ -288,5 +288,50 @@ mod graph_index_test {
         let res = graph.search_nodes(filter, 20, 0).unwrap();
         let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
         assert_eq!(res, vec!["1"]);
+    }
+
+    #[test]
+    fn test_edge_const_property_graph_index_is_ok() {
+        let graph = Graph::new();
+        let graph = init_edges_graph(graph);
+        graph
+            .edge(1, 2)
+            .unwrap()
+            .add_constant_properties([("x", 1u64)], Some("fire_nation"))
+            .unwrap();
+
+        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let res = graph.search_edges(filter, 20, 0).unwrap();
+        let res = res
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        assert_eq!(res, vec!["1->2"]);
+
+        graph
+            .edge(1, 2)
+            .unwrap()
+            .update_constant_properties([("x", 2u64)], Some("fire_nation"))
+            .unwrap();
+        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let res = graph.search_edges(filter, 20, 0).unwrap();
+        let res = res
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        assert_eq!(res, Vec::<&str>::new());
+
+        graph
+            .edge(1, 2)
+            .unwrap()
+            .update_constant_properties([("x", 2u64)], Some("fire_nation"))
+            .unwrap();
+        let filter = PropertyFilter::constant_property("x").eq(2u64);
+        let res = graph.search_edges(filter, 20, 0).unwrap();
+        let res = res
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        assert_eq!(res, vec!["1->2"]);
     }
 }

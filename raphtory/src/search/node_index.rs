@@ -329,8 +329,8 @@ impl NodeIndex {
             .get_const_property_writers(const_property_ids)?;
 
         // Delete existing constant property document
-        self.entity_index.delete_node_const_properties(
-            node_id,
+        self.entity_index.delete_const_properties_index_docs(
+            node_id.as_u64(),
             &mut const_writers,
             props.iter().map(|(id, prop)| (*id, prop)),
         )?;

@@ -148,7 +148,7 @@ impl EdgeIndex {
         &self,
         edge_id: EID,
         layer_id: usize,
-        const_writers: &[Option<IndexWriter>],
+        const_writers: &mut [Option<IndexWriter>],
         const_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let edge_id = edge_id.as_u64();
@@ -157,7 +157,9 @@ impl EdgeIndex {
             layer_id,
             const_writers,
             const_props.iter().map(|(id, prop)| (*id, prop)),
-        )
+        )?;
+
+        self.entity_index.commit_writers(const_writers)
     }
 
     fn index_edge_t(
@@ -166,8 +168,8 @@ impl EdgeIndex {
         time: TimeIndexEntry,
         edge_id: MaybeNew<EID>,
         layer_id: usize,
-        writer: &IndexWriter,
-        temporal_writers: &[Option<IndexWriter>],
+        writer: &mut IndexWriter,
+        temporal_writers: &mut [Option<IndexWriter>],
         temporal_props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let eid_u64 = edge_id.inner().as_u64();
@@ -191,6 +193,9 @@ impl EdgeIndex {
                 Ok::<(), GraphError>(())
             })
             .transpose()?;
+
+        self.entity_index.commit_writers(temporal_writers)?;
+        writer.commit()?;
 
         Ok(())
     }
@@ -271,31 +276,15 @@ impl EdgeIndex {
         })?;
 
         // Commit writers
-        for writer_option in &mut const_writers {
-            if let Some(const_writer) = writer_option {
-                const_writer.commit()?;
-            }
-        }
-        for writer_option in &mut temporal_writers {
-            if let Some(temporal_writer) = writer_option {
-                temporal_writer.commit()?;
-            }
-        }
+        edge_index.entity_index.commit_writers(&mut const_writers)?;
+        edge_index
+            .entity_index
+            .commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
         // Reload readers
-        {
-            let const_indexes = edge_index.entity_index.const_property_indexes.read();
-            for property_index_option in const_indexes.iter().flatten() {
-                property_index_option.reader.reload()?;
-            }
-        }
-        {
-            let temporal_indexes = edge_index.entity_index.temporal_property_indexes.read();
-            for property_index_option in temporal_indexes.iter().flatten() {
-                property_index_option.reader.reload()?;
-            }
-        }
+        edge_index.entity_index.reload_const_property_indexes()?;
+        edge_index.entity_index.reload_temporal_property_indexes()?;
         edge_index.entity_index.reader.reload()?;
 
         Ok(edge_index)
@@ -317,20 +306,21 @@ impl EdgeIndex {
             .at(t.t());
 
         let temporal_prop_ids = edge.temporal_prop_ids();
-        let temporal_writers = self
+        let mut temporal_writers = self
             .entity_index
             .get_temporal_property_writers(temporal_prop_ids)?;
 
-        let writer = self.entity_index.index.writer(100_000_000)?;
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
         self.index_edge_t(
             graph,
             t,
             edge_id,
             layer_id,
-            &writer,
-            &temporal_writers,
+            &mut writer,
+            &mut temporal_writers,
             props,
         )?;
+
         self.entity_index.reader.reload()?;
 
         Ok(())
@@ -350,17 +340,17 @@ impl EdgeIndex {
             .expect("Edge for internal id should exist.");
 
         let const_property_ids = edge.const_prop_ids();
-        let const_writers = self
+        let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;
 
-        self.index_edge_c(edge_id, layer_id, &const_writers, props)?;
-        self.entity_index.reader.reload()?;
+        self.index_edge_c(edge_id, layer_id, &mut const_writers, props)?;
+
+        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
 
-    // TODO: Update the constant property by deleting and recreating tantivy doc?
     pub(crate) fn update_edge_constant_properties(
         &self,
         graph: &GraphStorage,
@@ -375,12 +365,21 @@ impl EdgeIndex {
             .expect("Edge for internal id should exist.");
 
         let const_property_ids = edge.const_prop_ids();
-        let const_writers = self
+        let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;
 
-        self.index_edge_c(edge_id, layer_id, &const_writers, props)?;
-        self.entity_index.reader.reload()?;
+        // Delete existing constant property document
+        self.entity_index.delete_const_properties_index_docs(
+            edge_id.as_u64(),
+            &mut const_writers,
+            props.iter().map(|(id, prop)| (*id, prop)),
+        )?;
+
+        // Reindex the edge's constant properties
+        self.index_edge_c(edge_id, layer_id, &mut const_writers, props)?;
+
+        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
