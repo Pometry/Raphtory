@@ -6,7 +6,7 @@ use crate::{
     db::{
         api::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::internal::{CoreGraphOps, TimeSemantics},
+            view::internal::{CoreGraphOps, GraphTimeSemanticsOps},
         },
         graph::edge::EdgeView,
     },

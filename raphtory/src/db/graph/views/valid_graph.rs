@@ -1,37 +1,30 @@
 use crate::{
-    core::Prop,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
             storage::graph::{
                 edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                nodes::node_ref::NodeStorageRef,
                 tprop_storage_ops::TPropOps,
             },
             view::{
                 internal::{
-                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InternalLayerOps, NodeFilterOps, Static,
-                    TimeSemantics,
+                    CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
+                    InternalLayerOps, NodeFilterOps, Static,
                 },
                 Base,
             },
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps},
 };
-use itertools::Itertools;
-use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
-        Direction,
-    },
-    iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed},
+use raphtory_api::core::{
+    entities::{LayerIds, ELID},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use rayon::prelude::*;
-use std::{borrow::Cow, iter, ops::Range};
+use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]
 pub struct ValidGraph<G> {
@@ -103,371 +96,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for ValidGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ValidGraph<G> {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_earliest_time(v)
-    }
-
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_latest_time(v)
-    }
-
-    fn view_start(&self) -> Option<i64> {
-        self.graph.view_start()
-    }
-
-    fn view_end(&self) -> Option<i64> {
-        self.graph.view_end()
-    }
-
-    fn earliest_time_global(&self) -> Option<i64> {
-        self.graph.earliest_time_global()
-    }
-
-    fn latest_time_global(&self) -> Option<i64> {
-        self.graph.latest_time_global()
-    }
-
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph.earliest_time_window(start, end)
-    }
-
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph.latest_time_window(start, end)
-    }
-
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph.node_earliest_time_window(v, start, end)
-    }
-
-    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph.node_latest_time_window(v, start, end)
-    }
-
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        self.graph.include_node_window(v, w.clone(), layer_ids)
-    }
-
-    fn include_edge_window(
-        &self,
-        edge: EdgeStorageRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        let valid_layer_ids = self.valid_layer_ids(edge, layer_ids);
-        self.graph
-            .edge_is_valid_at_end(edge.out_ref(), &valid_layer_ids, w.end)
-            && self.graph.include_edge_window(edge, w, &valid_layer_ids)
-    }
-
-    fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry> {
-        self.node_property_history(v, None)
-            .merge(self.node_edge_history(v, None))
-            .into_dyn_boxed()
-    }
-
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<TimeIndexEntry> {
-        self.node_property_history(v, Some(w.clone()))
-            .merge(self.node_edge_history(v, Some(w)))
-            .into_dyn_boxed()
-    }
-
-    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        self.graph.node_property_history(v, w)
-    }
-
-    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        let edge_iter = self
-            .core_node_entry(v)
-            .into_edges_iter(self.layer_ids(), Direction::BOTH);
-        let edges = self.core_edges();
-        let layer_ids = self.layer_ids();
-        match w {
-            None => edge_iter
-                .filter(move |e| self.filter_edge(edges.edge(e.pid()), layer_ids))
-                .map(|e| {
-                    self.edge_history(e, Cow::Borrowed(layer_ids))
-                        .merge(self.edge_deletion_history(e, Cow::Borrowed(layer_ids)))
-                })
-                .kmerge()
-                .into_dyn_boxed(),
-            Some(w) => edge_iter
-                .filter(|e| {
-                    let edge = edges.edge(e.pid());
-                    self.graph.filter_edge(edge, layer_ids)
-                        && self.include_edge_window(edge, w.clone(), layer_ids)
-                })
-                .map(|e| {
-                    self.edge_history_window(e, Cow::Borrowed(layer_ids), w.clone())
-                        .merge(self.edge_deletion_history_window(
-                            e,
-                            w.clone(),
-                            Cow::Borrowed(layer_ids),
-                        ))
-                })
-                .kmerge()
-                .into_dyn_boxed(),
-        }
-    }
-
-    fn node_history_rows(
-        &self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        self.graph.node_history_rows(v, w)
-    }
-
-    fn edge_history<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), &layer_ids);
-        self.graph.edge_history(e, Cow::Owned(layer_ids))
-    }
-
-    fn edge_history_window<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-        w: Range<i64>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), &layer_ids, w.clone());
-        self.graph.edge_history_window(e, Cow::Owned(layer_ids), w)
-    }
-
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        let layer_ids = self.valid_layer_ids(edge, &layer_ids);
-        self.graph.edge_exploded_count(edge, &layer_ids)
-    }
-
-    fn edge_exploded_count_window(
-        &self,
-        edge: EdgeStorageRef,
-        layer_ids: &LayerIds,
-        w: Range<i64>,
-    ) -> usize {
-        let layer_ids = self.valid_layer_ids_window(edge, &layer_ids, w.clone());
-        self.graph.edge_exploded_count_window(edge, &layer_ids, w)
-    }
-
-    fn edge_exploded<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), &layer_ids);
-        self.graph.edge_exploded(e, Cow::Owned(layer_ids))
-    }
-
-    fn edge_layers<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), &layer_ids);
-        self.graph.edge_layers(e, Cow::Owned(layer_ids))
-    }
-
-    fn edge_window_exploded<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), &layer_ids, w.clone());
-        self.graph.edge_window_exploded(e, w, Cow::Owned(layer_ids))
-    }
-
-    fn edge_window_layers<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), &layer_ids, w.clone());
-        self.graph.edge_window_layers(e, w, Cow::Owned(layer_ids))
-    }
-
-    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), layer_ids);
-        self.graph.edge_earliest_time(e, &layer_ids)
-    }
-
-    fn edge_earliest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Option<i64> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), layer_ids, w.clone());
-        self.graph.edge_earliest_time_window(e, w, &layer_ids)
-    }
-
-    fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), layer_ids);
-        self.graph.edge_latest_time(e, &layer_ids)
-    }
-
-    fn edge_latest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Option<i64> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), layer_ids, w.clone());
-        self.graph.edge_latest_time_window(e, w, &layer_ids)
-    }
-
-    fn edge_deletion_history<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), &layer_ids);
-        self.graph.edge_deletion_history(e, Cow::Owned(layer_ids))
-    }
-
-    fn edge_deletion_history_window<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), &layer_ids, w.clone());
-        self.graph
-            .edge_deletion_history_window(e, w, Cow::Owned(layer_ids))
-    }
-
-    fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
-        self.graph.edge_is_valid(e, layer_ids)
-    }
-
-    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, t: i64) -> bool {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), layer_ids, i64::MIN..t);
-        !layer_ids.is_none()
-    }
-
-    fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        self.graph.has_temporal_prop(prop_id)
-    }
-
-    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec(prop_id)
-    }
-
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph.has_temporal_prop_window(prop_id, w)
-    }
-
-    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(prop_id, start, end)
-    }
-
-    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_node_prop_hist(v, id)
-    }
-
-    fn temporal_node_prop_hist_window(
-        &self,
-        v: VID,
-        id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_node_prop_hist_window(v, id, start, end)
-    }
-
-    fn temporal_edge_prop_hist_window<'a>(
-        &'a self,
-        e: EdgeRef,
-        id: usize,
-        start: i64,
-        end: i64,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
-        let layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), &layer_ids, start..end);
-        self.graph
-            .temporal_edge_prop_hist_window(e, id, start, end, Cow::Owned(layer_ids))
-    }
-
-    fn temporal_edge_prop_at(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> Option<Prop> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), layer_ids);
-        self.graph.temporal_edge_prop_at(e, id, t, &layer_ids)
-    }
-
-    fn temporal_edge_prop_hist<'a>(
-        &'a self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
-        let layer_ids = self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), &layer_ids);
-        self.graph
-            .temporal_edge_prop_hist(e, id, Cow::Owned(layer_ids))
-    }
-
-    fn constant_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: &LayerIds) -> Option<Prop> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        let restricted_layer_ids =
-            self.valid_layer_ids(self.core_edge(e.pid()).as_ref(), &layer_ids);
-        let prop = self
-            .graph
-            .constant_edge_prop(e, id, &restricted_layer_ids)?;
-        if self.unfiltered_num_layers() > 1 && !layer_ids.is_single() {
-            match restricted_layer_ids {
-                LayerIds::One(id) => {
-                    let name = self.get_layer_name(id);
-                    Some(Prop::map([(name, prop)]))
-                }
-                _ => Some(prop),
-            }
-        } else {
-            Some(prop)
-        }
-    }
-
-    fn constant_edge_prop_window(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: &LayerIds,
-        w: Range<i64>,
-    ) -> Option<Prop> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        let restricted_layer_ids =
-            self.valid_layer_ids_window(self.core_edge(e.pid()).as_ref(), &layer_ids, w.clone());
-        let prop = self
-            .graph
-            .constant_edge_prop_window(e, id, &restricted_layer_ids, w)?;
-        if self.unfiltered_num_layers() > 1 && !layer_ids.is_single() {
-            match restricted_layer_ids {
-                LayerIds::One(id) => {
-                    let name = self.get_layer_name(id);
-                    Some(Prop::map([(name, prop)]))
-                }
-                _ => Some(prop),
-            }
-        } else {
-            Some(prop)
-        }
-    }
-}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for ValidGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for ValidGraph<G> {
     fn nodes_filtered(&self) -> bool {
@@ -484,14 +113,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for ValidGraph<G> {
 
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids)
-            && (self
-                .graph
-                .node_property_history(node.vid(), None)
-                .next()
-                .is_some()
-                || (&&self.graph).node(node.vid()).map_or(false, |node| {
-                    node.edges().into_iter().any(|edge| edge.is_valid())
-                }))
+            && !node
+                .history(LayeredGraph::new(self, layer_ids.clone()))
+                .is_empty()
     }
 }
 

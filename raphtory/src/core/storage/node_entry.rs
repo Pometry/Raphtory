@@ -102,6 +102,11 @@ impl<'a> NodeStorageOps<'a> for NodePtr<'a> {
         self.t_prop(prop_id)
     }
 
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
+        self.temporal_prop_ids()
+            .map(move |tid| (tid, self.tprop(tid)))
+    }
+
     fn prop(self, prop_id: usize) -> Option<Prop> {
         self.node.constant_property(prop_id).cloned()
     }

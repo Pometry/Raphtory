@@ -86,9 +86,7 @@ mod test {
             .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
             .unwrap();
         let gf = Graph::new();
-        gf.add_node(0, 1, NO_PROPS, None).unwrap();
-        gf.add_node(0, 2, NO_PROPS, None).unwrap();
-
+        assert_eq!(filtered.count_nodes(), 0);
         assert_graph_equal(&filtered, &gf);
     }
 

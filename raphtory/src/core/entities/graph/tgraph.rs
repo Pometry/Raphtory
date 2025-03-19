@@ -24,7 +24,7 @@ use crate::{
 use dashmap::DashSet;
 use either::Either;
 use raphtory_api::core::{
-    entities::{GidRef, ELID},
+    entities::GidRef,
     input::input_node::InputNode,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };

@@ -2,11 +2,12 @@ use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
         storage::graph::storage_ops::GraphStorage,
+        view::internal::NodeTimeSemanticsOps,
     },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
+use raphtory_api::core::entities::VID;
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {
@@ -16,8 +17,10 @@ pub struct EarliestTime<G> {
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
     type Output = Option<i64>;
 
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_earliest_time(node)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.graph.node_time_semantics();
+        let node = storage.node_entry(node);
+        semantics.earliest_time(node.as_ref(), &self.graph)
     }
 }
 
@@ -47,8 +50,10 @@ pub struct LatestTime<G> {
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
     type Output = Option<i64>;
 
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_latest_time(node)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.graph.node_time_semantics();
+        let node = storage.node_entry(node);
+        semantics.latest_time(node.as_ref(), &self.graph)
     }
 }
 
@@ -78,10 +83,11 @@ pub struct History<G> {
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
     type Output = Vec<i64>;
 
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph
-            .node_history(node)
-            .map(|t| t.t())
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.graph.node_time_semantics();
+        let node = storage.node_entry(node);
+        semantics
+            .history(node.as_ref(), &self.graph)
             .dedup()
             .collect()
     }

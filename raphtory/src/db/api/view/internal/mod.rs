@@ -43,7 +43,7 @@ pub trait BoxableGraphView:
     + EdgeFilterOps
     + NodeFilterOps
     + InternalLayerOps
-    + TimeSemantics
+    + GraphTimeSemanticsOps
     + InternalMaterialize
     + PropertiesOps
     + ConstPropertiesOps
@@ -58,7 +58,7 @@ impl<
             + EdgeFilterOps
             + NodeFilterOps
             + InternalLayerOps
-            + TimeSemantics
+            + GraphTimeSemanticsOps
             + InternalMaterialize
             + PropertiesOps
             + ConstPropertiesOps

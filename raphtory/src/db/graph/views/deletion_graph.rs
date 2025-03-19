@@ -12,7 +12,7 @@ use crate::{
             storage::{
                 graph::{
                     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                    nodes::node_storage_ops::NodeStorageOps,
                     storage_ops::GraphStorage,
                     tprop_storage_ops::TPropOps,
                 },
@@ -29,7 +29,6 @@ use raphtory_api::{
     iter::{BoxedLDIter, IntoDynDBoxed},
     GraphType,
 };
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -209,15 +208,7 @@ impl InheritEdgeFilterOps for PersistentGraph {}
 
 impl InheritNodeFilterOps for PersistentGraph {}
 
-impl TimeSemantics for PersistentGraph {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.0.node_earliest_time(v)
-    }
-
-    fn node_latest_time(&self, _v: VID) -> Option<i64> {
-        self.latest_time_global()
-    }
-
+impl GraphTimeSemanticsOps for PersistentGraph {
     fn view_start(&self) -> Option<i64> {
         self.0.view_start()
     }
@@ -248,34 +239,6 @@ impl TimeSemantics for PersistentGraph {
             .map(|t| t.min(end.saturating_sub(1)).max(start))
     }
 
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        let v = self.core_node_entry(v);
-        let additions = v.additions();
-        if additions.first_t()? <= start {
-            Some(start)
-        } else {
-            additions.range_t(start..end).first_t()
-        }
-    }
-
-    fn node_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
-        let v = self.core_node_entry(v);
-        if v.additions().first_t()? < end {
-            Some(end - 1)
-        } else {
-            None
-        }
-    }
-
-    fn include_node_window(
-        &self,
-        node: NodeStorageRef,
-        w: Range<i64>,
-        _layer_ids: &LayerIds,
-    ) -> bool {
-        node.additions().first_t().filter(|&t| t < w.end).is_some()
-    }
-
     fn include_edge_window(
         &self,
         edge: EdgeStorageRef,
@@ -287,75 +250,6 @@ impl TimeSemantics for PersistentGraph {
         edge.added(layer_ids, w.start.saturating_add(1)..w.end)
             || edge.deleted(layer_ids, w.start.saturating_add(1)..w.end)
             || edge_alive_at_start(edge, w.start, layer_ids)
-    }
-
-    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
-        self.0.node_history(v)
-    }
-
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
-        self.0.node_history_window(v, w)
-    }
-
-    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        self.0.node_edge_history(v, w)
-    }
-
-    fn node_history_rows(
-        &self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        // if window exists, we need to add the first row before the window
-        if let Some(w) = w {
-            let node = self.core_node_entry(v);
-            let first_row = if node.additions().active_t(i64::MIN..w.start) {
-                Some(
-                    (0..self.node_meta().temporal_prop_meta().len())
-                        .filter_map(|prop_id| {
-                            let prop = node.tprop(prop_id);
-                            if prop.active(w.start..w.start.saturating_add(1)) {
-                                None
-                            } else {
-                                prop.last_before(TimeIndexEntry::start(w.start))
-                                    .map(|(_, v)| (prop_id, v))
-                            }
-                        })
-                        .collect_vec(),
-                )
-            } else {
-                None
-            };
-            Box::new(
-                first_row
-                    .into_iter()
-                    .map(move |row| (TimeIndexEntry::start(w.start), row))
-                    .chain(self.0.node_history_rows(v, Some(w))),
-            )
-        } else {
-            self.0.node_history_rows(v, w)
-        }
-    }
-
-    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
-        match w {
-            None => self.0.node_property_history(v, w),
-            Some(w) => {
-                let node = self.core_node_entry(v);
-                GenLockedIter::from(node, |node| {
-                    has_persisted_event(
-                        node.additions().into_prop_events(),
-                        &TimeIndex::Empty,
-                        w.start,
-                    )
-                    .then_some(TimeIndexEntry::start(w.start))
-                    .into_iter()
-                    .chain(node.additions().into_range_t(w).into_prop_events().iter())
-                    .into_dyn_boxed()
-                })
-                .into_dyn_boxed()
-            }
-        }
     }
 
     fn edge_history<'a>(
@@ -853,6 +747,10 @@ impl TimeSemantics for PersistentGraph {
             }
         }
     }
+
+    fn node_time_semantics(&self) -> TimeSemantics {
+        TimeSemantics::persistent()
+    }
 }
 
 #[cfg(test)]
@@ -863,7 +761,7 @@ mod test_deletions {
             graph::{
                 edge::EdgeView,
                 graph::assert_graph_equal,
-                views::deletion_graph::{PersistentGraph, TimeSemantics},
+                views::deletion_graph::{GraphTimeSemanticsOps, PersistentGraph},
             },
         },
         prelude::*,
@@ -1169,10 +1067,10 @@ mod test_deletions {
         assert_eq!(e.latest_time(), Some(4));
         let n1 = wg.node(1).unwrap();
         assert_eq!(n1.earliest_time(), Some(3));
-        assert_eq!(n1.latest_time(), Some(4));
+        assert_eq!(n1.latest_time(), Some(3));
         let n2 = wg.node(2).unwrap();
         assert_eq!(n2.earliest_time(), Some(3));
-        assert_eq!(n2.latest_time(), Some(4));
+        assert_eq!(n2.latest_time(), Some(3));
 
         let actual_lt = wg.latest_time();
         assert_eq!(actual_lt, Some(4));

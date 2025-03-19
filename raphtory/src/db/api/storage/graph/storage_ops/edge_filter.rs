@@ -14,7 +14,7 @@ impl EdgeFilterOps for GraphStorage {
         true
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+    fn filter_edge_history(&self, _eid: ELID, _t: TimeIndexEntry, _layer_ids: &LayerIds) -> bool {
         true
     }
 

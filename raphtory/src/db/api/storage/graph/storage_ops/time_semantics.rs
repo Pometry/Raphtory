@@ -19,18 +19,18 @@ use crate::{
     db::api::{
         storage::graph::{
             edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            nodes::node_storage_ops::NodeStorageOps,
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, EventSemantics, NodeTimeSemantics, TimeSemantics},
+            internal::{CoreGraphOps, GraphTimeSemanticsOps, TimeSemantics},
             BoxedLIter, IntoDynBoxed,
         },
     },
     prelude::Prop,
 };
 
-impl TimeSemantics for GraphStorage {
+impl GraphTimeSemanticsOps for GraphStorage {
     fn view_start(&self) -> Option<i64> {
         None
     }
@@ -559,7 +559,7 @@ impl TimeSemantics for GraphStorage {
         }
     }
 
-    fn node_time_semantics(&self) -> Box<dyn NodeTimeSemantics> {
-        Box::new(EventSemantics())
+    fn node_time_semantics(&self) -> TimeSemantics {
+        TimeSemantics::event()
     }
 }

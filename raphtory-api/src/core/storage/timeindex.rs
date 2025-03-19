@@ -90,6 +90,10 @@ pub trait TimeIndexOps<'a>: Send + Sync {
     }
 
     fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
 }
 
 impl From<i64> for TimeIndexEntry {

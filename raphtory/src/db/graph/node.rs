@@ -12,11 +12,10 @@ use crate::{
                 time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
-                TemporalPropertyViewOps,
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
-                internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
+                internal::{CoreGraphOps, GraphTimeSemanticsOps, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
@@ -26,9 +25,15 @@ use crate::{
 };
 
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime, PropType},
+    core::{
+        entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime,
+        utils::iter::GenLockedIter, PropType,
+    },
     db::{
-        api::{state::NodeOp, storage::graph::storage_ops::GraphStorage},
+        api::{
+            state::NodeOp, storage::graph::storage_ops::GraphStorage,
+            view::internal::NodeTimeSemanticsOps,
+        },
         graph::edges::Edges,
     },
 };
@@ -189,7 +194,7 @@ impl<G, GH: CoreGraphOps> Hash for NodeView<G, GH> {
     }
 }
 
-impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, GH> {
+impl<G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps for NodeView<G, GH> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().temporal_prop_meta().get_id(name)
     }
@@ -207,7 +212,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, 
     }
 }
 
-impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
+impl<G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertyViewOps for NodeView<G, GH> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .node_meta()
@@ -273,9 +278,18 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     }
 }
 
-impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesRowView for NodeView<G, GH> {
-    fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        self.graph.node_history_rows(self.node, None)
+impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<G, GH> {
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (TimeIndexEntry, Vec<(usize, Prop)>)>
+    where
+        'graph: 'a,
+    {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node_entry(self.node);
+        let graph = &self.graph;
+        GenLockedIter::from(node, move |node| {
+            semantics.node_updates(node.as_ref(), graph)
+        })
+        .into_dyn_boxed()
     }
 }
 

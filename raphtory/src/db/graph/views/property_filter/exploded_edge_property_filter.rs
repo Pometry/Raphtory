@@ -13,15 +13,16 @@ use crate::{
             },
             view::{
                 internal::{
-                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritNodeFilterOps, InternalLayerOps,
-                    Static, TimeSemantics,
+                    CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InternalLayerOps, NodeFilterOps, NodeTimeSemanticsOps, Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::views::property_filter::{
-            internal::InternalExplodedEdgeFilterOps, PropertyValueFilter,
+        graph::views::{
+            layer_graph::LayeredGraph,
+            property_filter::{internal::InternalExplodedEdgeFilterOps, PropertyValueFilter},
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
@@ -117,10 +118,6 @@ impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ExplodedEdgePropertyFil
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ExplodedEdgePropertyFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps
-    for ExplodedEdgePropertyFilteredGraph<G>
-{
-}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
@@ -135,14 +132,15 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     }
 
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge_history(eid, t, layer_ids) && {
+        let res = self.graph.filter_edge_history(eid, t, layer_ids) && {
             let edge_ref = self.core_edge(eid.edge).out_ref();
             if eid.is_deletion() {
                 self.filter(edge_ref, t.previous(), &LayerIds::One(eid.layer()))
             } else {
                 self.filter(edge_ref, t, &LayerIds::One(eid.layer()))
             }
-        }
+        };
+        res
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
@@ -154,15 +152,31 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilteredGraph<G> {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_earliest_time(v)
+impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for ExplodedEdgePropertyFilteredGraph<G> {
+    fn nodes_filtered(&self) -> bool {
+        true
     }
 
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_latest_time(v)
+    fn node_list_trusted(&self) -> bool {
+        false
     }
 
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        let res = self.graph.filter_node(node, layer_ids)
+            && self
+                .node_time_semantics()
+                .valid(node, LayeredGraph::new(self, layer_ids.clone()));
+        res
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
     fn view_start(&self) -> Option<i64> {
         self.graph.view_start()
     }
@@ -190,25 +204,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         // separate timestamps from node property updates and edge additions currently
         self.graph.latest_time_window(start, end)
     }
-
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.node_earliest_time_window(v, start, end)
-    }
-
-    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.node_latest_time_window(v, start, end)
-    }
-
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.include_node_window(v, w, layer_ids)
-    }
-
     fn include_edge_window(
         &self,
         edge: EdgeStorageRef,
@@ -218,42 +213,6 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         self.edge_window_exploded(edge.out_ref(), w, Cow::Borrowed(layer_ids))
             .next()
             .is_some()
-    }
-
-    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.node_history(v)
-    }
-
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.node_history_window(v, w)
-    }
-
-    fn node_edge_history<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.graph.node_edge_history(v, w)
-    }
-
-    fn node_history_rows(
-        &self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
-        self.graph.node_history_rows(v, w)
-    }
-
-    fn node_property_history<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.graph.node_property_history(v, w)
     }
 
     fn edge_history<'a>(
@@ -528,5 +487,9 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         w: Range<i64>,
     ) -> Option<Prop> {
         self.graph.constant_edge_prop_window(e, id, layer_ids, w)
+    }
+
+    fn node_time_semantics(&self) -> TimeSemantics {
+        self.graph.node_time_semantics()
     }
 }
