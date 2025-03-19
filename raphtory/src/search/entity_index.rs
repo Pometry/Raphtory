@@ -405,4 +405,12 @@ impl EntityIndex {
         }
         Ok(())
     }
+
+    pub(crate) fn reload_temporal_property_indexes(&self) -> Result<(), GraphError> {
+        let temporal_indexes = self.temporal_property_indexes.read();
+        for property_index_option in temporal_indexes.iter().flatten() {
+            property_index_option.reader.reload()?;
+        }
+        Ok(())
+    }
 }

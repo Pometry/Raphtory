@@ -244,31 +244,15 @@ impl NodeIndex {
         })?;
 
         // Commit writers
-        for writer_option in &mut const_writers {
-            if let Some(const_writer) = writer_option {
-                const_writer.commit()?;
-            }
-        }
-        for writer_option in &mut temporal_writers {
-            if let Some(temporal_writer) = writer_option {
-                temporal_writer.commit()?;
-            }
-        }
+        node_index.entity_index.commit_writers(&mut const_writers)?;
+        node_index
+            .entity_index
+            .commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
         // Reload readers
-        {
-            let const_indexes = node_index.entity_index.const_property_indexes.read();
-            for property_index_option in const_indexes.iter().flatten() {
-                property_index_option.reader.reload()?;
-            }
-        }
-        {
-            let temporal_indexes = node_index.entity_index.temporal_property_indexes.read();
-            for property_index_option in temporal_indexes.iter().flatten() {
-                property_index_option.reader.reload()?;
-            }
-        }
+        node_index.entity_index.reload_const_property_indexes()?;
+        node_index.entity_index.reload_temporal_property_indexes()?;
         node_index.entity_index.reader.reload()?;
 
         Ok(node_index)
