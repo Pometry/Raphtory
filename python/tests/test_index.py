@@ -59,6 +59,7 @@ def init_graph(graph):
 
 
 def search_nodes(graph, filter_expr, limit=20, offset=0):
+    graph.create_index()
     return sorted([node.name for node in graph.search_nodes(filter_expr, limit, offset)])
 
 
@@ -583,6 +584,7 @@ def init_edges_graph(graph):
 
 
 def search_edges(graph, filter_expr, limit=20, offset=0):
+    graph.create_index()
     return sorted([(edge.src.name, edge.dst.name) for edge in graph.search_edges(filter_expr, limit, offset)])
 
 

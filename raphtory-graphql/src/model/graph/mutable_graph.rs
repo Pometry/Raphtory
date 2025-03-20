@@ -44,19 +44,16 @@ pub struct EdgeAddition {
 pub struct GqlMutableGraph {
     path: ExistingGraphFolder,
     graph: GraphWithVectors,
-    is_index_available: bool,
 }
 
 impl GqlMutableGraph {
     pub(crate) fn new(
         path: ExistingGraphFolder,
         graph: GraphWithVectors,
-        is_index_available: bool,
     ) -> Self {
         Self {
             path: path.into(),
             graph,
-            is_index_available,
         }
     }
 }
@@ -73,7 +70,6 @@ impl GqlMutableGraph {
         GqlGraph::new(
             self.path.clone(),
             self.graph.graph.clone(),
-            self.is_index_available,
         )
     }
 

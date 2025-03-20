@@ -1,15 +1,21 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{DynamicGraph, InternalStorageOps},
+        api::view::internal::{DynamicGraph},
         graph::{edge::EdgeView, node::NodeView},
     },
+    prelude::SearchableGraphOps,
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };
 use pyo3::prelude::*;
 
 #[pymethods]
 impl PyGraphView {
+    /// Create graph index
+    fn create_index(&self) -> Result<(), GraphError> {
+        self.graph.create_index()
+    }
+
     /// Searches for nodes which match the given filter expression. This uses Tantivy's exact search.
     ///
     /// Arguments:
@@ -26,9 +32,7 @@ impl PyGraphView {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<DynamicGraph>>, GraphError> {
-        self.graph
-            .searcher()?
-            .search_nodes(&self.graph, filter.0.clone(), limit, offset)
+        self.graph.search_nodes(filter.0.clone(), limit, offset)
     }
 
     /// Searches for edges which match the given filter expression. This uses Tantivy's exact search.
@@ -47,8 +51,6 @@ impl PyGraphView {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, GraphError> {
-        self.graph
-            .searcher()?
-            .search_edges(&self.graph, filter.0.clone(), limit, offset)
+        self.graph.search_edges(filter.0.clone(), limit, offset)
     }
 }

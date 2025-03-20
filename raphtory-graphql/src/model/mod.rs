@@ -81,14 +81,14 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Ok(data
             .get_graph(path)
-            .map(|(g, folder)| GqlGraph::new(folder, g.graph, data.is_index_available))?)
+            .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
         let graph = data
             .get_graph(path.as_ref())
-            .map(|(g, folder)| GqlMutableGraph::new(folder, g, data.is_index_available))?;
+            .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
         Ok(graph)
     }
 

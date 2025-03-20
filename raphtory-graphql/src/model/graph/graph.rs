@@ -415,7 +415,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -432,7 +431,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -449,7 +447,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -466,7 +463,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -483,7 +479,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -500,7 +495,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -516,7 +510,6 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
-                    self.is_index_available,
                 ))
             }
             Operator::IsSome => {
@@ -526,7 +519,6 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
-                    self.is_index_available,
                 ))
             }
             Operator::Any => {
@@ -538,7 +530,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -556,7 +547,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -583,7 +573,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -600,7 +589,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -617,7 +605,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -634,7 +621,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -651,7 +637,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -668,7 +653,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -684,7 +668,6 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
-                    self.is_index_available,
                 ))
             }
             Operator::IsSome => {
@@ -694,7 +677,6 @@ impl GqlGraph {
                 Ok(GqlGraph::new(
                     self.path.clone(),
                     filtered_graph.into_dynamic(),
-                    self.is_index_available,
                 ))
             }
             Operator::Any => {
@@ -706,7 +688,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -724,7 +705,6 @@ impl GqlGraph {
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
-                        self.is_index_available,
                     ))
                 } else {
                     Err(GraphError::ExpectedValueForOperator(
@@ -779,7 +759,6 @@ impl GqlGraph {
         let mut return_view: GqlGraph = GqlGraph::new(
             self.path.clone(),
             self.graph.clone(),
-            self.is_index_available,
         );
 
         for view in views {
