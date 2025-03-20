@@ -1,3 +1,4 @@
+use super::GraphFolder;
 use crate::{
     core::{
         utils::errors::{GraphError, WriteError},
@@ -29,12 +30,11 @@ use std::{
 };
 use tracing::instrument;
 
-use super::GraphFolder;
-
 #[derive(Debug)]
 pub struct GraphWriter {
     writer: Arc<Mutex<File>>,
     proto_delta: Mutex<ProtoGraph>,
+    folder: GraphFolder,
 }
 
 fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
@@ -50,11 +50,13 @@ fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
 }
 
 impl GraphWriter {
-    pub fn new(file: File) -> Self {
-        Self {
+    pub fn new(folder: GraphFolder) -> Result<Self, GraphError> {
+        let file = folder.get_appendable_graph_file()?;
+        Ok(Self {
             writer: Arc::new(Mutex::new(file)),
             proto_delta: Default::default(),
-        }
+            folder,
+        })
     }
 
     /// Get an independent writer pointing at the same underlying cache file
@@ -62,6 +64,7 @@ impl GraphWriter {
         GraphWriter {
             writer: self.writer.clone(),
             proto_delta: Default::default(),
+            folder: self.folder.clone(),
         }
     }
 
@@ -243,10 +246,8 @@ pub trait InternalCache {
 
 impl InternalCache for Storage {
     fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache.get_or_try_init(|| {
-            let file = path.get_appendable_graph_file()?;
-            Ok::<_, GraphError>(GraphWriter::new(file))
-        })?;
+        self.cache
+            .get_or_try_init(|| GraphWriter::new(path.clone()))?;
         Ok(())
     }
 
@@ -291,7 +292,7 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
+impl<'graph, G: InternalCache + StableDecode + StableEncode<'graph>> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;
@@ -300,7 +301,8 @@ impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
     #[instrument(level = "debug", skip(self))]
     fn write_updates(&self) -> Result<(), GraphError> {
         let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
-        cache.write()
+        cache.write()?;
+        cache.folder.write_metadata(self)
     }
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
@@ -319,16 +321,15 @@ mod test {
         storage::dict_mapper::MaybeNew,
         utils::logging::global_info_logger,
     };
-    use std::fs::File;
     use tempfile::NamedTempFile;
 
     #[test]
     fn test_write_failure() {
         global_info_logger();
         let tmp_file = NamedTempFile::new().unwrap();
-        let read_only = File::open(tmp_file.path()).unwrap();
+        let folder = tmp_file.path().into();
 
-        let cache = GraphWriter::new(read_only);
+        let cache = GraphWriter::new(folder).unwrap();
         cache.resolve_node(MaybeNew::New(VID(0)), GidRef::Str("0"));
         let res = cache.write();
         assert!(res.is_err());

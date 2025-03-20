@@ -2,6 +2,7 @@ use memmap2::Mmap;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 pub(crate) mod incremental;
+pub mod metadata;
 pub(crate) mod parquet;
 mod proto_ext;
 mod serialise;
@@ -10,16 +11,18 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
+pub use proto::Graph as ProtoGraph;
+pub use serialise::{CacheOps, StableDecode, StableEncode};
+use std::io::BufReader;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
 };
 
-pub use proto::Graph as ProtoGraph;
-pub use serialise::{CacheOps, StableDecode, StableEncode};
-
 use crate::core::utils::errors::GraphError;
+use crate::prelude::GraphViewOps;
+use crate::serialise::metadata::GraphMetadata;
 
 const GRAPH_FILE_NAME: &str = "graph";
 const META_FILE_NAME: &str = ".raph";
@@ -98,6 +101,27 @@ impl GraphFolder {
             let mut file = File::create(self.get_graph_path())?;
             Ok(file.write_all(buf)?)
         }
+    }
+
+    pub fn read_metadata(&self) -> Result<GraphMetadata, io::Error> {
+        let file = File::open(self.get_meta_path())?;
+        let reader = BufReader::new(file);
+        let metadata = serde_json::from_reader(reader)?;
+        Ok(metadata)
+    }
+
+    fn write_metadata<'graph>(&self, graph: &impl GraphViewOps<'graph>) -> Result<(), GraphError> {
+        let node_count = graph.count_nodes();
+        let edge_count = graph.count_edges();
+        let properties = graph.properties();
+        let metadata = GraphMetadata {
+            node_count,
+            edge_count,
+            properties: properties.as_vec(),
+        };
+        let path = self.get_meta_path();
+        let meta_file = File::create(path.clone())?;
+        Ok(serde_json::to_writer(meta_file, &metadata)?)
     }
 
     pub(crate) fn get_appendable_graph_file(&self) -> Result<File, GraphError> {

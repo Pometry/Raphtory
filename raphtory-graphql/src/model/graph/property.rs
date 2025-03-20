@@ -144,7 +144,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(Clone, ResolvedObject)]
 pub(crate) struct GqlProp {
     key: String,
     prop: Prop,
@@ -354,7 +354,7 @@ impl GqlProperties {
         self.props.temporal().into()
     }
 
-    async fn constant(&self) -> GqlConstantProperties {
+    pub(crate) async fn constant(&self) -> GqlConstantProperties {
         self.props.constant().into()
     }
 }
@@ -373,7 +373,7 @@ impl GqlConstantProperties {
         self.props.keys().map(|k| k.clone().into()).collect()
     }
 
-    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
+    pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
         match keys {
             Some(keys) => self
                 .props

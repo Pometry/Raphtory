@@ -1202,4 +1202,166 @@ mod graphql_test {
             }),
         );
     }
+
+    #[tokio::test]
+    async fn test_query_namespace() {
+        let graph = Graph::new();
+        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        graph.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        graph.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        graph.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let graph = graph.into();
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let tmp_dir = tempdir().unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = r#"
+        {
+          namespace(path: "") {
+            path
+            graphs {
+              path
+              name
+              metadata {
+                nodeCount
+                edgeCount
+                properties {
+                  key
+                  value
+                }
+              }
+            }
+            children {
+              path
+            }
+            parent {
+              path
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "namespace": {
+                    "path": "",
+                    "graphs": [
+                        {
+                            "path": "graph",
+                            "name": "graph",
+                            "metadata": {
+                                "nodeCount": 6,
+                                "edgeCount": 6,
+                                "properties": [
+                                    {
+                                        "key": "name",
+                                        "value": "graph"
+                                    },
+                                ]
+                            }
+                        },
+                    ],
+                    "children": [],
+                    "parent": null
+                },
+            }),
+        );
+
+        let req = r#"
+        mutation CreateSubgraph {
+          createSubgraph(parentPath: "graph", newPath: "graph2", nodes: ["1", "2"], overwrite: false)
+        }
+        "#;
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+
+        let req = r#"
+        {
+          namespace(path: "") {
+            path
+            graphs {
+              path
+              name
+              metadata {
+                nodeCount
+                edgeCount
+                properties {
+                  key
+                  value
+                }
+              }
+            }
+            children {
+              path
+            }
+            parent {
+              path
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "namespace": {
+                    "path": "",
+                    "graphs": [
+                        {
+                            "path": "graph2",
+                            "name": "graph2",
+                            "metadata": {
+                                "nodeCount": 2,
+                                "edgeCount": 1,
+                                "properties": [
+                                    {
+                                        "key": "name",
+                                        "value": "graph"
+                                    },
+                                ]
+                            }
+                        },
+                        {
+                            "path": "graph",
+                            "name": "graph",
+                            "metadata": {
+                                "nodeCount": 6,
+                                "edgeCount": 6,
+                                "properties": [
+                                    {
+                                        "key": "name",
+                                        "value": "graph"
+                                    },
+                                ]
+                            }
+                        },
+                    ],
+                    "children": [],
+                    "parent": null
+                },
+            }),
+        );
+    }
 }
