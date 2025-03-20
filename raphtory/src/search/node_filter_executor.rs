@@ -53,15 +53,15 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        let collector = UniqueEntityFilterCollector::new(
-            fields::NODE_ID.to_string(),
-            TopDocs::with_limit(limit).and_offset(offset),
-            reader.clone(),
-            graph.clone(),
-        );
+        let collector = UniqueEntityFilterCollector::new(fields::NODE_ID.to_string());
         let node_ids = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
-        Ok(nodes)
+
+        if offset == 0 && limit >= nodes.len() {
+            Ok(nodes)
+        } else {
+            Ok(nodes.into_iter().skip(offset).take(limit).collect())
+        }
     }
 
     fn execute_filter_property_query<G: StaticGraphViewOps, C>(
@@ -87,7 +87,12 @@ impl<'a> NodeFilterExecutor<'a> {
         );
         let node_ids = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
-        Ok(nodes.into_iter().skip(offset).take(limit).collect())
+
+        if offset == 0 && limit >= nodes.len() {
+            Ok(nodes)
+        } else {
+            Ok(nodes.into_iter().skip(offset).take(limit).collect())
+        }
     }
 
     fn execute_or_fallback<G: StaticGraphViewOps>(

@@ -55,16 +55,15 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         let searcher = reader.searcher();
-        let collector = UniqueEntityFilterCollector::new(
-            fields::EDGE_ID.to_string(),
-            TopDocs::with_limit(limit).and_offset(offset),
-            reader.clone(),
-            graph.clone(),
-        );
+        let collector = UniqueEntityFilterCollector::new(fields::EDGE_ID.to_string());
         let edge_ids = searcher.search(&query, &collector)?;
         let edges = self.resolve_edges_from_edge_ids(graph, edge_ids)?;
 
-        Ok(edges)
+        if offset == 0 && limit >= edges.len() {
+            Ok(edges)
+        } else {
+            Ok(edges.into_iter().skip(offset).take(limit).collect())
+        }
     }
 
     fn execute_filter_property_query<G: StaticGraphViewOps, C>(
@@ -90,7 +89,12 @@ impl<'a> EdgeFilterExecutor<'a> {
         );
         let edge_ids = searcher.search(&query, &collector)?;
         let edges = self.resolve_edges_from_edge_ids(graph, edge_ids)?;
-        Ok(edges.into_iter().skip(offset).take(limit).collect())
+
+        if offset == 0 && limit >= edges.len() {
+            Ok(edges)
+        } else {
+            Ok(edges.into_iter().skip(offset).take(limit).collect())
+        }
     }
 
     fn execute_or_fallback<G: StaticGraphViewOps>(

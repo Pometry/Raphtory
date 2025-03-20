@@ -6,41 +6,19 @@ use tantivy::{
     DocAddress, IndexReader, Score, Searcher, SegmentReader,
 };
 
-pub struct UniqueEntityFilterCollector<TCollector, G>
-where
-    TCollector: Collector<Fruit = Vec<(Score, DocAddress)>> + Send + Sync,
-    G: StaticGraphViewOps,
-{
+pub struct UniqueEntityFilterCollector {
     field: String,
-    collector: TCollector,
-    reader: IndexReader,
-    graph: G,
 }
 
-impl<TCollector, G> UniqueEntityFilterCollector<TCollector, G>
-where
-    TCollector: Collector<Fruit = Vec<(Score, DocAddress)>> + Send + Sync,
-    G: StaticGraphViewOps,
-{
-    pub fn new(field: String, collector: TCollector, reader: IndexReader, graph: G) -> Self {
-        Self {
-            field,
-            collector,
-            reader,
-            graph,
-        }
+impl UniqueEntityFilterCollector {
+    pub fn new(field: String) -> Self {
+        Self { field }
     }
 }
 
-impl<TCollector, G> Collector for UniqueEntityFilterCollector<TCollector, G>
-where
-    TCollector: Collector<Fruit = Vec<(Score, DocAddress)>> + Send + Sync,
-    TCollector::Child: SegmentCollector<Fruit = Vec<(Score, DocAddress)>>,
-    G: StaticGraphViewOps,
-{
-    // type Fruit = Vec<(Score, DocAddress)>;
+impl Collector for UniqueEntityFilterCollector {
     type Fruit = HashSet<u64>;
-    type Child = UniqueFilterSegmentCollector<TCollector::Child, G>;
+    type Child = UniqueFilterSegmentCollector;
 
     fn for_segment(
         &self,
@@ -50,75 +28,36 @@ where
         let column_opt_time = segment_reader.fast_fields().column_opt(fields::TIME)?;
         let column_opt_entity_id = segment_reader.fast_fields().column_opt(&self.field)?;
 
-        let segment_collector = self
-            .collector
-            .for_segment(segment_local_id, segment_reader)?;
-
         Ok(UniqueFilterSegmentCollector {
             column_opt_time,
             column_opt_entity_id,
-            segment_collector,
             seen_entities: HashSet::new(),
-            segment_ord: segment_local_id,
-            graph: self.graph.clone(),
         })
     }
 
     fn requires_scoring(&self) -> bool {
-        self.collector.requires_scoring()
+        false
     }
 
-    fn merge_fruits(
-        &self,
-        segment_fruits: Vec<<Self::Child as SegmentCollector>::Fruit>,
-    ) -> tantivy::Result<Self::Fruit> {
-        let mut global_seen_entities: HashSet<u64> = HashSet::new();
-        // let mut unique_docs = Vec::new();
+    fn merge_fruits(&self, segment_fruits: Vec<HashSet<u64>>) -> tantivy::Result<HashSet<u64>> {
+        let mut global_unique_entity_ids: HashSet<u64> = HashSet::new();
 
-        let searcher = self.reader.searcher();
-        // let schema = searcher.schema();
-
-        let all_docs = segment_fruits
-            .clone()
-            .into_iter()
-            .flatten()
-            .collect::<Vec<(Score, DocAddress)>>();
-
-        for (_score, doc_address) in all_docs {
-            let segment_reader = searcher.segment_reader(doc_address.segment_ord);
-            let column_opt_entity_id = segment_reader.fast_fields().column_opt(&self.field)?;
-            if let Some(entity_id) = column_opt_entity_id
-                .as_ref()
-                .and_then(|col| col.values_for_doc(doc_address.doc_id).next())
-            {
-                // let doc = searcher.doc::<TantivyDocument>(doc_address)?;
-                // println!("doc = {:?}", doc.to_json(schema));
-                if global_seen_entities.insert(entity_id) {
-                    // unique_docs.push((score, doc_address));
-                }
-            }
+        for entity_id in segment_fruits.into_iter().flatten() {
+            global_unique_entity_ids.insert(entity_id);
         }
 
-        // Ok(unique_docs)
-        Ok(global_seen_entities)
+        Ok(global_unique_entity_ids)
     }
 }
 
-pub struct UniqueFilterSegmentCollector<TSegmentCollector, G> {
+pub struct UniqueFilterSegmentCollector {
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
-    segment_collector: TSegmentCollector,
     seen_entities: HashSet<u64>,
-    segment_ord: u32,
-    graph: G,
 }
 
-impl<TSegmentCollector, G> SegmentCollector for UniqueFilterSegmentCollector<TSegmentCollector, G>
-where
-    TSegmentCollector: SegmentCollector<Fruit = Vec<(Score, DocAddress)>>,
-    G: StaticGraphViewOps,
-{
-    type Fruit = Vec<(Score, DocAddress)>;
+impl SegmentCollector for UniqueFilterSegmentCollector {
+    type Fruit = HashSet<u64>;
 
     fn collect(&mut self, doc_id: u32, score: Score) {
         let opt_entity_id = self
@@ -127,24 +66,11 @@ where
             .and_then(|col| col.values_for_doc(doc_id).next());
 
         if let Some(entity_id) = opt_entity_id {
-            if self.seen_entities.insert(entity_id) {
-                self.segment_collector.collect(doc_id, score);
-            }
+            self.seen_entities.insert(entity_id);
         }
     }
 
     fn harvest(self) -> Self::Fruit {
-        self.segment_collector.harvest()
+        self.seen_entities
     }
-}
-
-fn extract_time(searcher: &Searcher, doc_address: DocAddress) -> Option<i64> {
-    searcher
-        .segment_reader(doc_address.segment_ord)
-        .fast_fields()
-        .column_opt(fields::TIME)
-        .ok()
-        .flatten()
-        .as_ref()
-        .and_then(|col| col.values_for_doc(doc_address.doc_id).next())
 }
