@@ -1081,12 +1081,12 @@ mod search_tests {
             assert_eq!(results, vec!["2", "3"]);
         }
 
-        // #[test]
-        // fn search_nodes_for_property_is_none() {
-        //     let filter = PropertyFilter::property("p2").is_none();
-        //     let results = search_nodes_by_composite_filter(filter);
-        //     assert_eq!(results, vec!["1", "4"]);
-        // }
+        #[test]
+        fn search_nodes_for_property_is_none() {
+            let filter = PropertyFilter::property("p2").is_none();
+            let results = search_nodes_by_composite_filter(filter);
+            assert_eq!(results, vec!["1", "4"]);
+        }
 
         #[test]
         fn test_search_nodes_by_props_added_at_different_times() {
