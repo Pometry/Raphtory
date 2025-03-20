@@ -23,7 +23,7 @@ use raphtory::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps},
+    prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
     serialise::GraphFolder,
     vectors::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
@@ -113,6 +113,7 @@ impl GraphWithVectors {
         folder: &ExistingGraphFolder,
         embedding: Arc<dyn EmbeddingFunction>,
         cache: Arc<Option<EmbeddingCache>>,
+        create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();
         let graph = if graph_path.is_dir() {
@@ -129,6 +130,11 @@ impl GraphWithVectors {
         );
 
         println!("Graph loaded = {}", folder.get_original_path_str());
+
+        if create_index {
+            graph.create_index()?;
+        }
+
         Ok(Self {
             graph: graph.clone(),
             vectors,

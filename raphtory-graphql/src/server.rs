@@ -99,7 +99,7 @@ impl GraphServer {
 
     /// Turn off index for all graphs
     pub fn turn_off_index(mut self) -> Self {
-        self.data.is_index_available = false;
+        self.data.create_index = false;
         self
     }
 

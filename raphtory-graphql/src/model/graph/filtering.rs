@@ -1,6 +1,7 @@
 use crate::model::graph::property::Value;
 use dynamic_graphql::{Enum, InputObject};
 use raphtory::{
+    core::{utils::errors::GraphError, Prop},
     db::graph::views::property_filter::{
         Filter, FilterExpr, FilterOperator, FilterValue, PropertyFilterValue, PropertyRef, Temporal,
     },
@@ -208,8 +209,9 @@ pub enum TemporalType {
     Latest,
 }
 
-impl From<NodeFilter> for FilterExpr {
-    fn from(node_filter: NodeFilter) -> Self {
+impl TryFrom<NodeFilter> for FilterExpr {
+    type Error = GraphError;
+    fn try_from(node_filter: NodeFilter) -> Result<Self, Self::Error> {
         let NodeFilter {
             node,
             property,
@@ -230,38 +232,43 @@ impl From<NodeFilter> for FilterExpr {
         }
 
         if let Some(property) = property {
-            exprs.push(FilterExpr::Property(property.into()));
+            exprs.push(FilterExpr::Property(property.try_into()?));
         }
 
         if let Some(constant_property) = constant_property {
-            exprs.push(FilterExpr::Property(constant_property.into()));
+            exprs.push(FilterExpr::Property(constant_property.try_into()?));
         }
 
         if let Some(temporal_property) = temporal_property {
-            exprs.push(FilterExpr::Property(temporal_property.into()));
+            exprs.push(FilterExpr::Property(temporal_property.try_into()?));
         }
 
         if let Some(and) = and {
             exprs.push(FilterExpr::And(
-                and.into_iter().map(FilterExpr::from).collect(),
+                and.into_iter()
+                    .map(FilterExpr::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
             ));
         }
 
         if let Some(or) = or {
             exprs.push(FilterExpr::Or(
-                or.into_iter().map(FilterExpr::from).collect(),
+                or.into_iter()
+                    .map(FilterExpr::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
             ));
         }
 
-        match exprs.len() {
+        Ok(match exprs.len() {
             1 => exprs.into_iter().next().unwrap(),
             _ => FilterExpr::And(exprs),
-        }
+        })
     }
 }
 
-impl From<EdgeFilter> for FilterExpr {
-    fn from(edge_filter: EdgeFilter) -> Self {
+impl TryFrom<EdgeFilter> for FilterExpr {
+    type Error = GraphError;
+    fn try_from(edge_filter: EdgeFilter) -> Result<Self, Self::Error> {
         let EdgeFilter {
             src,
             dst,
@@ -291,69 +298,75 @@ impl From<EdgeFilter> for FilterExpr {
         }
 
         if let Some(property) = property {
-            exprs.push(FilterExpr::Property(property.into()));
+            exprs.push(FilterExpr::Property(property.try_into()?));
         }
 
         if let Some(constant_property) = constant_property {
-            exprs.push(FilterExpr::Property(constant_property.into()));
+            exprs.push(FilterExpr::Property(constant_property.try_into()?));
         }
 
         if let Some(temporal_property) = temporal_property {
-            exprs.push(FilterExpr::Property(temporal_property.into()));
+            exprs.push(FilterExpr::Property(temporal_property.try_into()?));
         }
 
         if let Some(and) = and {
             exprs.push(FilterExpr::And(
-                and.into_iter().map(FilterExpr::from).collect(),
+                and.into_iter()
+                    .map(FilterExpr::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
             ));
         }
 
         if let Some(or) = or {
             exprs.push(FilterExpr::Or(
-                or.into_iter().map(FilterExpr::from).collect(),
+                or.into_iter()
+                    .map(FilterExpr::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
             ));
         }
 
-        match exprs.len() {
+        Ok(match exprs.len() {
             1 => exprs.into_iter().next().unwrap(),
             _ => FilterExpr::And(exprs),
-        }
+        })
     }
 }
 
-impl From<PropertyFilterExpr> for PropertyFilter {
-    fn from(expr: PropertyFilterExpr) -> Self {
-        PropertyFilter {
+impl TryFrom<PropertyFilterExpr> for PropertyFilter {
+    type Error = GraphError;
+
+    fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
+        let prop = expr.value.map(Prop::try_from).transpose()?;
+        Ok(PropertyFilter {
             prop_ref: PropertyRef::Property(expr.name),
-            prop_value: expr.value.map_or(PropertyFilterValue::None, |v| {
-                PropertyFilterValue::Single(v.into())
-            }),
+            prop_value: prop.into(),
             operator: expr.operator.into(),
-        }
+        })
     }
 }
 
-impl From<ConstantPropertyFilterExpr> for PropertyFilter {
-    fn from(expr: ConstantPropertyFilterExpr) -> Self {
-        PropertyFilter {
+impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
+    type Error = GraphError;
+
+    fn try_from(expr: ConstantPropertyFilterExpr) -> Result<Self, Self::Error> {
+        let prop = expr.value.map(Prop::try_from).transpose()?;
+        Ok(PropertyFilter {
             prop_ref: PropertyRef::ConstantProperty(expr.name),
-            prop_value: expr.value.map_or(PropertyFilterValue::None, |v| {
-                PropertyFilterValue::Single(v.into())
-            }),
+            prop_value: prop.into(),
             operator: expr.operator.into(),
-        }
+        })
     }
 }
 
-impl From<TemporalPropertyFilterExpr> for PropertyFilter {
-    fn from(expr: TemporalPropertyFilterExpr) -> Self {
-        PropertyFilter {
+impl TryFrom<TemporalPropertyFilterExpr> for PropertyFilter {
+    type Error = GraphError;
+    fn try_from(expr: TemporalPropertyFilterExpr) -> Result<Self, Self::Error> {
+        let prop = expr.value.map(Prop::try_from).transpose()?;
+        Ok(PropertyFilter {
             prop_ref: PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
-            prop_value: expr.value.map_or(PropertyFilterValue::None, |v| {
-                PropertyFilterValue::Single(v.into())
-            }),
+            prop_value: prop.into(),
             operator: expr.operator.into(),
-        }
+        })
     }
 }
 

@@ -14,7 +14,7 @@ use raphtory::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rustc_hash::FxHashMap;
 use serde_json::Number;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 
 #[derive(InputObject, Clone, Debug, Default)]
 pub struct ObjectEntry {
@@ -33,40 +33,45 @@ pub struct Value {
     pub object: Option<Vec<ObjectEntry>>,
 }
 
-impl From<Value> for Prop {
-    fn from(value: Value) -> Self {
+impl TryFrom<Value> for Prop {
+    type Error = GraphError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
         value_to_prop(value)
     }
 }
 
-fn value_to_prop(value: Value) -> Prop {
+fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     if let Some(n) = value.u64 {
-        return Prop::U64(n);
+        return Ok(Prop::U64(n));
     }
     if let Some(n) = value.i64 {
-        return Prop::I64(n);
+        return Ok(Prop::I64(n));
     }
     if let Some(n) = value.f64 {
-        return Prop::F64(n);
+        return Ok(Prop::F64(n));
     }
     if let Some(s) = value.str {
-        return Prop::Str(s.into());
+        return Ok(Prop::Str(s.into()));
     }
     if let Some(b) = value.bool {
-        return Prop::Bool(b);
+        return Ok(Prop::Bool(b));
     }
     if let Some(list) = value.list {
-        let prop_list: Vec<Prop> = list.into_iter().map(value_to_prop).collect();
-        return return Prop::List(prop_list.into());
+        let prop_list: Vec<Prop> = list
+            .into_iter()
+            .map(value_to_prop)
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(Prop::List(prop_list.into()));
     }
     if let Some(object) = value.object {
         let prop_map: FxHashMap<ArcStr, Prop> = object
             .into_iter()
-            .map(|oe| (ArcStr::from(oe.key), value_to_prop(oe.value)))
-            .collect();
-        return Prop::Map(Arc::new(prop_map));
+            .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
+            .collect::<Result<FxHashMap<_, _>, _>>()?;
+        return Ok(Prop::Map(Arc::new(prop_map)));
     }
-    unreachable!("No value property found")
+    Err(GraphError::EmptyValue)
 }
 
 #[derive(Clone, Debug, Scalar)]

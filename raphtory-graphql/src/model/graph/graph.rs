@@ -411,7 +411,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::eq(prop_ref.clone(), v))?;
+                        .filter_nodes(PropertyFilter::eq(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -427,7 +427,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::ne(prop_ref.clone(), v))?;
+                        .filter_nodes(PropertyFilter::ne(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -443,7 +443,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::ge(prop_ref.clone(), v))?;
+                        .filter_nodes(PropertyFilter::ge(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -459,7 +459,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::le(prop_ref.clone(), v))?;
+                        .filter_nodes(PropertyFilter::le(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -475,7 +475,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::gt(prop_ref.clone(), v))?;
+                        .filter_nodes(PropertyFilter::gt(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -491,7 +491,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::lt(prop_ref.clone(), v))?;
+                        .filter_nodes(PropertyFilter::lt(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -522,7 +522,8 @@ impl GqlGraph {
                 ))
             }
             Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
+                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
+                {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
@@ -539,7 +540,8 @@ impl GqlGraph {
                 }
             }
             Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
+                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
+                {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
@@ -569,7 +571,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::eq(prop_ref.clone(), v))?;
+                        .filter_edges(PropertyFilter::eq(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -585,7 +587,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::ne(prop_ref.clone(), v))?;
+                        .filter_edges(PropertyFilter::ne(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -601,7 +603,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::ge(prop_ref.clone(), v))?;
+                        .filter_edges(PropertyFilter::ge(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -617,7 +619,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::le(prop_ref.clone(), v))?;
+                        .filter_edges(PropertyFilter::le(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -633,7 +635,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::gt(prop_ref.clone(), v))?;
+                        .filter_edges(PropertyFilter::gt(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -649,7 +651,7 @@ impl GqlGraph {
                 if let Some(v) = condition.value {
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::lt(prop_ref.clone(), v))?;
+                        .filter_edges(PropertyFilter::lt(prop_ref.clone(), Prop::try_from(v)?))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -680,7 +682,8 @@ impl GqlGraph {
                 ))
             }
             Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
+                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
+                {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
@@ -697,7 +700,8 @@ impl GqlGraph {
                 }
             }
             Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
+                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
+                {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
@@ -728,7 +732,7 @@ impl GqlGraph {
         self.execute_search(|| {
             Ok(self
                 .graph
-                .search_nodes(filter.into(), limit, offset)
+                .search_nodes(filter.try_into()?, limit, offset)
                 .into_iter()
                 .flatten()
                 .map(|vv| vv.into())
@@ -746,7 +750,7 @@ impl GqlGraph {
         self.execute_search(|| {
             Ok(self
                 .graph
-                .search_edges(filter.into(), limit, offset)
+                .search_edges(filter.try_into()?, limit, offset)
                 .into_iter()
                 .flatten()
                 .map(|vv| vv.into())
@@ -756,10 +760,7 @@ impl GqlGraph {
     }
 
     async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
-        let mut return_view: GqlGraph = GqlGraph::new(
-            self.path.clone(),
-            self.graph.clone(),
-        );
+        let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());
 
         for view in views {
             let mut count = 0;

@@ -119,7 +119,7 @@ impl GqlNodes {
                 if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::eq(
                         PropertyRef::Property(property),
-                        Prop::from(v),
+                        Prop::try_from(v)?,
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -133,7 +133,7 @@ impl GqlNodes {
                 if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ne(
                         PropertyRef::Property(property),
-                        Prop::from(v),
+                        Prop::try_from(v)?,
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -147,7 +147,7 @@ impl GqlNodes {
                 if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ge(
                         PropertyRef::Property(property),
-                        Prop::from(v),
+                        Prop::try_from(v)?,
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -161,7 +161,7 @@ impl GqlNodes {
                 if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::le(
                         PropertyRef::Property(property),
-                        Prop::from(v),
+                        Prop::try_from(v)?,
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -175,7 +175,7 @@ impl GqlNodes {
                 if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::gt(
                         PropertyRef::Property(property),
-                        Prop::from(v),
+                        Prop::try_from(v)?,
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -189,7 +189,7 @@ impl GqlNodes {
                 if let Some(v) = condition.value {
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::lt(
                         PropertyRef::Property(property),
-                        Prop::from(v),
+                        Prop::try_from(v)?,
                     ))?;
                     Ok(self.update(filtered_nodes))
                 } else {
@@ -212,7 +212,8 @@ impl GqlNodes {
                 Ok(self.update(filtered_nodes))
             }
             Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
+                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
+                {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::includes(
                         PropertyRef::Property(property),
@@ -227,7 +228,8 @@ impl GqlNodes {
                 }
             }
             Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.map(Prop::from) {
+                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
+                {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_nodes = self.nn.filter_nodes(PropertyFilter::excludes(
                         PropertyRef::Property(property),

@@ -35,7 +35,7 @@ pub struct EmbeddingConf {
 pub struct Data {
     pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
-    pub(crate) is_index_available: bool,
+    pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
 
@@ -57,7 +57,7 @@ impl Data {
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
-            is_index_available: true,
+            create_index: true,
             embedding_conf: Default::default(),
         }
     }
@@ -241,7 +241,7 @@ impl Data {
             .map(|conf| conf.cache.clone())
             .unwrap_or(Arc::new(None));
 
-        GraphWithVectors::read_from_folder(folder, embedding, cache)
+        GraphWithVectors::read_from_folder(folder, embedding, cache, self.create_index)
     }
 }
 
