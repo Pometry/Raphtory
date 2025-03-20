@@ -17,16 +17,16 @@ use crate::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
         storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{internal::InternalIndexSearch, Base, InheritViewOps},
+        view::{Base, InheritViewOps},
     },
 };
 
 use crate::db::api::{
     storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter},
+    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
 };
 #[cfg(feature = "search")]
-use crate::search::{graph_index::GraphIndex, searcher::Searcher};
+use crate::search::graph_index::GraphIndex;
 #[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
 #[cfg(feature = "proto")]
@@ -142,17 +142,14 @@ impl Storage {
             .get_or_try_init(|| Ok::<_, GraphError>(GraphIndex::try_from(&self.graph)?))
     }
 
-    pub(crate) fn index(&self) -> Option<&GraphIndex> {
+    pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
         self.index.get()
     }
 }
 
-impl InternalIndexSearch for Storage {
-    #[inline]
-    #[cfg(feature = "search")]
-    fn searcher(&self) -> Result<Searcher, GraphError> {
-        let index = self.get_or_create_index()?;
-        Ok(Searcher::new(index))
+impl InternalStorageOps for Storage {
+    fn get_storage(&self) -> Option<&Storage> {
+        Some(self)
     }
 }
 

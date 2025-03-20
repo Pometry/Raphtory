@@ -88,12 +88,11 @@ impl MaterializedGraph {
     }
 }
 
-impl InternalIndexSearch for MaterializedGraph {
-    #[cfg(feature = "search")]
-    fn searcher(&self) -> Result<Searcher, GraphError> {
+impl InternalStorageOps for MaterializedGraph {
+    fn get_storage(&self) -> Option<&Storage> {
         match self {
-            MaterializedGraph::EventGraph(g) => g.searcher(),
-            MaterializedGraph::PersistentGraph(g) => g.searcher(),
+            MaterializedGraph::EventGraph(g) => g.get_storage(),
+            MaterializedGraph::PersistentGraph(g) => g.get_storage(),
         }
     }
 }

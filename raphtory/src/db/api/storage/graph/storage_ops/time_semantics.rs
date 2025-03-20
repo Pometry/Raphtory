@@ -1258,6 +1258,7 @@ mod test_graph_storage {
         fn test_search_nodes_latest() {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
+            g.create_index().unwrap();
             let filter = PropertyFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_nodes(filter, 10, 0)
@@ -1282,6 +1283,7 @@ mod test_graph_storage {
         fn test_search_edges_latest() {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
+            g.create_index().unwrap();
             let filter = PropertyFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_edges(filter, 10, 0)

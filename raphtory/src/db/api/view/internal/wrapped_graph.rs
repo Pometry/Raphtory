@@ -1,12 +1,13 @@
 use crate::db::api::view::internal::{
-    BoxableGraphView, InheritEdgeHistoryFilter, InheritIndexSearch, InheritNodeHistoryFilter,
-    InheritViewOps,
+    BoxableGraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritViewOps,
 };
 use std::sync::Arc;
 
+use crate::db::api::view::internal::InheritStorageOps;
+
 impl InheritViewOps for Arc<dyn BoxableGraphView> {}
 
-impl InheritIndexSearch for Arc<dyn BoxableGraphView> {}
+impl InheritStorageOps for Arc<dyn BoxableGraphView> {}
 
 impl InheritNodeHistoryFilter for Arc<dyn BoxableGraphView> {}
 

@@ -117,6 +117,10 @@ pub enum GraphError {
     DiskGraphNotFound,
     #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
     IndexMissing,
+    #[error("Missing graph index. You need to create an index first.")]
+    IndexNotCreated,
+    #[error("Failed to create index.")]
+    FailedToCreateIndex,
     #[error("Disk Graph is immutable")]
     ImmutableDiskGraph,
     #[error("Event Graph doesn't support deletions")]

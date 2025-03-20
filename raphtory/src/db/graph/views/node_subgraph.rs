@@ -9,13 +9,15 @@ use crate::{
         },
         view::internal::{
             Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-            InheritIndexSearch, InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, ListOps, NodeFilterOps, NodeList, Static,
+            InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, InheritTimeSemantics,
+            ListOps, NodeFilterOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
 use std::fmt::{Debug, Formatter};
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {
@@ -45,7 +47,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for NodeSubgraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> Immutable for NodeSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodeSubgraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeSubgraph<G> {}
@@ -240,6 +242,7 @@ mod subgraph_tests {
             node_names: Vec<String>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let mut results = graph
                 .subgraph(node_names)
                 .search_nodes(filter, 10, 0)
@@ -257,6 +260,7 @@ mod subgraph_tests {
             node_names: Vec<String>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let mut results = graph
                 .subgraph(node_names)
                 .window(w.start, w.end)
@@ -382,6 +386,7 @@ mod subgraph_tests {
             node_names: Vec<String>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let mut results = graph
                 .subgraph(node_names)
                 .search_edges(filter, 10, 0)
@@ -399,6 +404,7 @@ mod subgraph_tests {
             node_names: Vec<String>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let mut results = graph
                 .subgraph(node_names)
                 .window(w.start, w.end)

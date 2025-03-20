@@ -13,14 +13,16 @@ use crate::{
         view::{
             internal::{
                 Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritIndexSearch, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                InheritNodeHistoryFilter, InheritTimeSemantics, InternalLayerOps, Static,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
     },
     prelude::GraphViewOps,
 };
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -65,7 +67,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
@@ -299,6 +301,7 @@ mod test_layers {
             filter: FilterExpr,
             layers: Vec<String>,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let lgv = graph
                 .layers(layers.clone())
                 .expect("Failed to get graph for layers");
@@ -318,6 +321,7 @@ mod test_layers {
             filter: FilterExpr,
             layers: Vec<String>,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let lgv = graph
                 .layers(layers.clone())
                 .expect("Failed to get graph for layers");
@@ -496,6 +500,7 @@ mod test_layers {
             filter: FilterExpr,
             layers: Vec<String>,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let lgv = graph
                 .layers(layers.clone())
                 .expect("Failed to get graph for layers");
@@ -515,6 +520,7 @@ mod test_layers {
             filter: FilterExpr,
             layers: Vec<String>,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let lgv = graph
                 .layers(layers.clone())
                 .expect("Failed to get graph for layers");

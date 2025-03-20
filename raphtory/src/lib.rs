@@ -136,6 +136,9 @@ pub mod prelude {
         parquet::{ParquetDecoder, ParquetEncoder},
         CacheOps, StableDecode, StableEncode,
     };
+
+    #[cfg(feature = "search")]
+    pub use crate::db::api::view::SearchableGraphOps;
 }
 
 #[cfg(feature = "storage")]

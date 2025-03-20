@@ -10,9 +10,8 @@ use crate::{
             view::{
                 internal::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritIndexSearch, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritNodeFilterOps, InheritNodeHistoryFilter, InternalLayerOps, Static,
-                    TimeSemantics,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InheritNodeHistoryFilter, InternalLayerOps, Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
@@ -29,6 +28,8 @@ use raphtory_api::{
     iter::BoxedLDIter,
 };
 use std::ops::Range;
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -92,7 +93,8 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter
     for ExplodedEdgePropertyFilteredGraph<G>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for ExplodedEdgePropertyFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ExplodedEdgePropertyFilteredGraph<G> {}

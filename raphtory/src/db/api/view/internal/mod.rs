@@ -23,10 +23,8 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "search")]
-use crate::search::searcher::Searcher;
 use crate::{
-    core::utils::errors::GraphError, db::graph::views::deletion_graph::PersistentGraph,
+    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
 };
 pub use core_deletion_ops::*;
@@ -53,7 +51,7 @@ pub trait BoxableGraphView:
     + InternalMaterialize
     + PropertiesOps
     + ConstPropertiesOps
-    + InternalIndexSearch
+    + InternalStorageOps
     + NodeHistoryFilter
     + EdgeHistoryFilter
     + Send
@@ -71,7 +69,7 @@ impl<
             + InternalMaterialize
             + PropertiesOps
             + ConstPropertiesOps
-            + InternalIndexSearch
+            + InternalStorageOps
             + NodeHistoryFilter
             + EdgeHistoryFilter
             + Send
@@ -100,21 +98,18 @@ impl<G: InheritViewOps> InheritMaterialize for G {}
 
 impl<G: InheritViewOps> InheritPropertiesOps for G {}
 
-pub trait InheritIndexSearch: Base {}
+pub trait InheritStorageOps: Base {}
 
-pub trait InternalIndexSearch {
-    #[cfg(feature = "search")]
-    fn searcher(&self) -> Result<Searcher, GraphError>;
+pub trait InternalStorageOps {
+    fn get_storage(&self) -> Option<&Storage>;
 }
 
-impl<G: InheritIndexSearch> InternalIndexSearch for G
+impl<G: InheritStorageOps> InternalStorageOps for G
 where
-    G::Base: InternalIndexSearch,
+    G::Base: InternalStorageOps,
 {
-    #[inline]
-    #[cfg(feature = "search")]
-    fn searcher(&self) -> Result<Searcher, GraphError> {
-        self.base().searcher()
+    fn get_storage(&self) -> Option<&Storage> {
+        self.base().get_storage()
     }
 }
 
@@ -206,7 +201,7 @@ impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 
-impl InheritIndexSearch for DynamicGraph {}
+impl InheritStorageOps for DynamicGraph {}
 
 impl InheritNodeHistoryFilter for DynamicGraph {}
 
@@ -214,7 +209,7 @@ impl InheritEdgeHistoryFilter for DynamicGraph {}
 
 impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritIndexSearch for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritStorageOps for &'graph1 G {}
 
 impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritNodeHistoryFilter for &'graph1 G {}
 

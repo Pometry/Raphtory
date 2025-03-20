@@ -8,9 +8,8 @@ use crate::{
         },
         view::internal::{
             Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-            InheritIndexSearch, InheritLayerOps, InheritListOps, InheritMaterialize,
-            InheritNodeHistoryFilter, InheritTimeSemantics, InternalLayerOps, NodeFilterOps,
-            Static,
+            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+            InheritTimeSemantics, InternalLayerOps, NodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -21,6 +20,8 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Clone)]
 pub struct CachedView<G> {
@@ -53,7 +54,8 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for CachedView<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for CachedView<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G> {}
 
@@ -359,6 +361,7 @@ mod test {
             graph: &G,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let cv = graph.cache_view();
             let mut results = cv
                 .search_nodes(filter, 10, 0)
@@ -375,6 +378,7 @@ mod test {
             w: Range<i64>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let cv = graph.cache_view();
             let mut results = cv
                 .window(w.start, w.end)
@@ -501,6 +505,7 @@ mod test {
             graph: &G,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let cv = graph.cache_view();
             let mut results = cv
                 .search_edges(filter, 10, 0)
@@ -517,6 +522,7 @@ mod test {
             w: Range<i64>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let cv = graph.cache_view();
             let mut results = cv
                 .window(w.start, w.end)

@@ -1,7 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{DynamicGraph, InternalIndexSearch},
+        api::view::internal::{DynamicGraph, InternalStorageOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},

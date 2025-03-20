@@ -7,8 +7,8 @@ use crate::{
             view::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                    InheritIndexSearch, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritNodeHistoryFilter, InheritTimeSemantics, NodeFilterOps, Static,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+                    InheritTimeSemantics, NodeFilterOps, Static,
                 },
                 node::NodeViewOps,
                 Base,
@@ -18,6 +18,8 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
@@ -70,7 +72,9 @@ impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodePropertyFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for NodePropertyFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFilteredGraph<G> {}

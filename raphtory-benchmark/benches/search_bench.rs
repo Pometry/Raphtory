@@ -12,7 +12,7 @@ use raphtory::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
-                internal::{CoreGraphOps, InternalIndexSearch},
+                internal::{CoreGraphOps, InternalStorageOps},
                 SearchableGraphOps,
             },
         },

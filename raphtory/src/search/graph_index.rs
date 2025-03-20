@@ -6,7 +6,10 @@ use crate::{
     },
     db::api::storage::graph::storage_ops::GraphStorage,
     prelude::*,
-    search::{edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex},
+    search::{
+        edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex,
+        searcher::Searcher,
+    },
 };
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::fmt::{Debug, Formatter};
@@ -50,6 +53,10 @@ impl GraphIndex {
             node_index: NodeIndex::new(),
             edge_index: EdgeIndex::new(),
         }
+    }
+
+    pub fn searcher(&self) -> Searcher {
+        Searcher::new(self)
     }
 
     pub fn print(&self) -> Result<(), GraphError> {
@@ -179,7 +186,7 @@ impl GraphIndex {
 mod graph_index_test {
     use crate::{
         db::{
-            api::view::{internal::InternalIndexSearch, SearchableGraphOps},
+            api::view::{internal::InternalStorageOps, SearchableGraphOps},
             graph::views::property_filter::{FilterExpr, PropertyFilterOps},
         },
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
@@ -224,40 +231,35 @@ mod graph_index_test {
 
         assert_eq!(graph.count_nodes(), 3);
 
-        // Creates graph index
-        let _ = graph.searcher().unwrap();
+        let _ = graph.create_index().unwrap();
     }
 
     #[test]
     fn test_if_adding_nodes_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
-        // Creates graph index
-        let _ = graph.searcher().unwrap();
+        let _ = graph.create_index().unwrap();
 
         let graph = init_nodes_graph(graph);
 
         assert_eq!(graph.count_nodes(), 3);
-
-        graph.searcher().unwrap().index.print().unwrap();
     }
 
     #[test]
     fn test_if_adding_edges_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
         // Creates graph index
-        let _ = graph.searcher().unwrap();
+        let _ = graph.create_index().unwrap();
 
         let graph = init_edges_graph(graph);
 
         assert_eq!(graph.count_edges(), 3);
-
-        graph.searcher().unwrap().index.print().unwrap();
     }
 
     #[test]
     fn test_node_const_property_graph_index_is_ok() {
         let graph = Graph::new();
         let graph = init_nodes_graph(graph);
+        graph.create_index().unwrap();
         graph
             .node(1)
             .unwrap()
@@ -294,6 +296,7 @@ mod graph_index_test {
     fn test_edge_const_property_graph_index_is_ok() {
         let graph = Graph::new();
         let graph = init_edges_graph(graph);
+        graph.create_index().unwrap();
         graph
             .edge(1, 2)
             .unwrap()

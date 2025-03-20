@@ -63,8 +63,8 @@ impl<'a> Searcher<'a> {
 mod search_tests {
     use super::*;
     use crate::{
-        db::{api::view::internal::InternalIndexSearch, graph::views::property_filter::NodeFilter},
-        prelude::{Graph, GraphViewOps, NodeViewOps, StableDecode},
+        db::{api::view::internal::InternalStorageOps, graph::views::property_filter::NodeFilter},
+        prelude::*,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
@@ -90,7 +90,9 @@ mod search_tests {
                 db::{
                     api::{
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::{internal::InternalIndexSearch, StaticGraphViewOps},
+                        view::{
+                            internal::InternalStorageOps, SearchableGraphOps, StaticGraphViewOps,
+                        },
                     },
                     graph::views::property_filter::{FilterExpr, PropertyFilterOps},
                 },
@@ -196,12 +198,11 @@ mod search_tests {
                 let g = init_graph(g);
                 // g.encode("/tmp/graphs/master").unwrap();
                 let g = init_graph_for_secondary_indexes(g);
+                g.create_index().unwrap();
 
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -219,12 +220,11 @@ mod search_tests {
                 let g = Graph::new();
                 let g = init_graph(g);
                 let g = init_graph_for_secondary_indexes(g);
+                g.create_index().unwrap();
 
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").latest().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -239,12 +239,11 @@ mod search_tests {
                 let g = Graph::new();
                 let g = init_graph(g);
                 let g = init_graph_for_secondary_indexes(g);
+                g.create_index().unwrap();
 
                 let filter: FilterExpr = PropertyFilter::property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -261,11 +260,11 @@ mod search_tests {
             fn test_temporal_any_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -281,11 +280,11 @@ mod search_tests {
             fn test_temporal_latest_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::temporal_property("p1").latest().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -298,11 +297,11 @@ mod search_tests {
             fn test_constant_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::constant_property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -333,12 +332,11 @@ mod search_tests {
                     .unwrap()
                     .add_constant_properties([("p1", Prop::U64(1u64))])
                     .unwrap();
+                graph.create_index().unwrap();
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let mut results = graph
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&graph, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -375,12 +373,11 @@ mod search_tests {
                     .unwrap();
 
                 graph.add_node(2, "N4", NO_PROPS, None).unwrap();
+                graph.create_index().unwrap();
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let mut results = graph
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&graph, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -393,11 +390,11 @@ mod search_tests {
             fn test_property_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_nodes(&g, filter, 10, 0)
+                    .search_nodes(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|nv| nv.name())
@@ -414,7 +411,9 @@ mod search_tests {
                 db::{
                     api::{
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::{internal::InternalIndexSearch, StaticGraphViewOps},
+                        view::{
+                            internal::InternalStorageOps, SearchableGraphOps, StaticGraphViewOps,
+                        },
                     },
                     graph::views::property_filter::{FilterExpr, PropertyFilterOps},
                 },
@@ -599,11 +598,10 @@ mod search_tests {
             fn test_secondary_indexes_edges() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
-                g.searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
-                    .unwrap();
+                g.search_edges(filter, 10, 0).unwrap();
             }
 
             #[test]
@@ -611,12 +609,11 @@ mod search_tests {
                 let g = Graph::new();
                 let g = init_graph(g);
                 let g = init_graph_for_secondary_indexes(g);
+                g.create_index().unwrap();
 
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -637,12 +634,11 @@ mod search_tests {
                 let g = Graph::new();
                 let g = init_graph(g);
                 let g = init_graph_for_secondary_indexes(g);
+                g.create_index().unwrap();
 
                 let filter: FilterExpr = PropertyFilter::temporal_property("p1").latest().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -660,12 +656,11 @@ mod search_tests {
                 let g = Graph::new();
                 let g = init_graph(g);
                 let g = init_graph_for_secondary_indexes(g);
+                g.create_index().unwrap();
 
                 let filter: FilterExpr = PropertyFilter::property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -685,11 +680,11 @@ mod search_tests {
             fn test_temporal_any_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::temporal_property("p1").any().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -708,11 +703,11 @@ mod search_tests {
             fn test_temporal_latest_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::temporal_property("p1").latest().eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -728,11 +723,11 @@ mod search_tests {
             fn test_constant_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::constant_property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -763,12 +758,11 @@ mod search_tests {
                     .unwrap()
                     .add_constant_properties([("p1", Prop::U64(1u64))], None)
                     .unwrap();
+                g.create_index().unwrap();
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -799,12 +793,11 @@ mod search_tests {
                     .unwrap();
 
                 g.add_edge(2, "N4", "N5", NO_PROPS, None).unwrap();
+                g.create_index().unwrap();
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -817,11 +810,11 @@ mod search_tests {
             fn test_property_semantics() {
                 let g = Graph::new();
                 let g = init_graph(g);
+                g.create_index().unwrap();
+
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let mut results = g
-                    .searcher()
-                    .unwrap()
-                    .search_edges(&g, filter, 10, 0)
+                    .search_edges(filter, 10, 0)
                     .unwrap()
                     .into_iter()
                     .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
@@ -883,6 +876,8 @@ mod search_tests {
             graph.add_node(3, 4, [("p4", "pometry")], None).unwrap();
             graph.add_node(4, 4, [("p5", 12u64)], None).unwrap();
 
+            graph.create_index().unwrap();
+
             let mut results = graph
                 .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
@@ -912,6 +907,8 @@ mod search_tests {
                     Some("fire_nation"),
                 )
                 .unwrap();
+
+            graph.create_index().unwrap();
 
             let mut results = graph
                 .search_nodes(filter, 10, 0)
@@ -1191,6 +1188,8 @@ mod search_tests {
                 .add_edge(3, 2, 1, [("p2", 6u64), ("p3", 1u64)], None)
                 .unwrap();
 
+            graph.create_index().unwrap();
+
             let mut results = graph
                 .search_edges(filter, 5, 0)
                 .expect("Failed to search for nodes")
@@ -1231,6 +1230,8 @@ mod search_tests {
                     Some("fire_nation"),
                 )
                 .unwrap();
+
+            graph.create_index().unwrap();
 
             let mut results = graph
                 .search_edges(filter, 5, 0)
@@ -1574,12 +1575,10 @@ mod search_tests {
 
         let elapsed = now.elapsed().unwrap().as_secs();
         info!("indexing took: {:?}", elapsed);
+        graph.create_index().unwrap();
 
         let filter = NodeFilter::node_name().eq("DEV-1690");
-        let issues = graph
-            .searcher()
-            .unwrap()
-            .search_nodes(&graph, filter, 5, 0)?;
+        let issues = graph.search_nodes(filter, 5, 0)?;
 
         assert!(!issues.is_empty());
 

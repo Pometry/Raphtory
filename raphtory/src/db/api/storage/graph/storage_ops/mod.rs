@@ -36,7 +36,7 @@ use crate::{
 };
 use rayon::prelude::*;
 
-use crate::db::api::view::internal::InternalIndexSearch;
+use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -55,9 +55,6 @@ use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
-
-#[cfg(feature = "search")]
-use crate::search::searcher::Searcher;
 
 pub mod additions;
 pub mod const_props;
@@ -85,13 +82,6 @@ impl CoreGraphOps for GraphStorage {
     #[inline(always)]
     fn core_graph(&self) -> &GraphStorage {
         self
-    }
-}
-
-impl InternalIndexSearch for GraphStorage {
-    #[cfg(feature = "search")]
-    fn searcher(&self) -> Result<Searcher, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -767,5 +757,11 @@ impl GraphStorage {
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.graph_meta(),
         }
+    }
+}
+
+impl InternalStorageOps for GraphStorage {
+    fn get_storage(&self) -> Option<&Storage> {
+        None
     }
 }

@@ -15,8 +15,8 @@ use raphtory::{
             storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{
-                    CoreGraphOps, InheritEdgeHistoryFilter, InheritIndexSearch,
-                    InheritNodeHistoryFilter, Static,
+                    CoreGraphOps, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
+                    InheritStorageOps, Static,
                 },
                 Base, InheritViewOps, MaterializedGraph,
             },
@@ -169,7 +169,7 @@ impl InheritEdgeHistoryFilter for GraphWithVectors {}
 
 impl InheritMutationOps for GraphWithVectors {}
 
-impl InheritIndexSearch for GraphWithVectors {}
+impl InheritStorageOps for GraphWithVectors {}
 
 impl DeletionOps for GraphWithVectors {}
 

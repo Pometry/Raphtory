@@ -53,8 +53,8 @@ use crate::{
             view::{
                 internal::{
                     Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable,
-                    InheritCoreOps, InheritIndexSearch, InheritLayerOps, InheritMaterialize,
-                    ListOps, NodeFilterOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
+                    InheritCoreOps, InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps,
+                    NodeHistoryFilter, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -77,6 +77,8 @@ use std::{
     ops::Range,
     sync::Arc,
 };
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]
@@ -142,7 +144,7 @@ impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritIndexSearch for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
     fn is_node_prop_update_available(
@@ -1660,6 +1662,7 @@ mod views_test {
             w: Range<i64>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let mut results = graph
                 .window(w.start, w.end)
                 .search_nodes(filter, 20, 0)
@@ -2699,6 +2702,7 @@ mod views_test {
             w: Range<i64>,
             filter: FilterExpr,
         ) -> Vec<String> {
+            graph.create_index().unwrap();
             let mut results = graph
                 .window(w.start, w.end)
                 .search_edges(filter, 20, 0)

@@ -46,19 +46,13 @@ use std::{collections::HashSet, convert::Into, sync::Arc};
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
-    is_index_available: bool,
 }
 
 impl GqlGraph {
-    pub fn new<G: StaticGraphViewOps + IntoDynamic>(
-        path: ExistingGraphFolder,
-        graph: G,
-        is_index_available: bool,
-    ) -> Self {
+    pub fn new<G: StaticGraphViewOps + IntoDynamic>(path: ExistingGraphFolder, graph: G) -> Self {
         Self {
             path,
             graph: graph.into_dynamic(),
-            is_index_available,
         }
     }
 
@@ -70,7 +64,6 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-            is_index_available: self.is_index_available,
         }
     }
 
@@ -78,7 +71,7 @@ impl GqlGraph {
     where
         F: FnOnce() -> Result<R, GraphError>,
     {
-        if self.is_index_available {
+        if self.graph.is_indexed() {
             search_fn()
         } else {
             Err(GraphError::IndexMissing)
