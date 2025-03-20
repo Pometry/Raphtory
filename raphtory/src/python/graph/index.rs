@@ -1,7 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{DynamicGraph},
+        api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::SearchableGraphOps,

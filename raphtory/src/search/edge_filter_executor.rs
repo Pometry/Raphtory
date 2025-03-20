@@ -362,6 +362,8 @@ impl<'a> EdgeFilterExecutor<'a> {
         self.filter_edges_internal(graph, filter, limit, offset)
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn resolve_edge_from_search_result<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,

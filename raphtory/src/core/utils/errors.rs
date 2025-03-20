@@ -346,7 +346,7 @@ pub enum GraphError {
     IllegalFilterExpr(FilterExpr, String),
 
     #[error("Value cannot be empty.")]
-    EmptyValue
+    EmptyValue,
 }
 
 impl GraphError {
