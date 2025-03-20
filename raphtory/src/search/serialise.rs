@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-impl<G: StableEncode> StableEncode for IndexedGraph<G> {
+impl<'graph, G: StableEncode<'graph> + 'static> StableEncode<'graph> for IndexedGraph<G> {
     fn encode_to_proto(&self) -> ProtoGraph {
         self.graph.encode_to_proto()
     }
