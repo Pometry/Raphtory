@@ -49,11 +49,8 @@ pub trait StableEncode<'graph>: GraphViewOps<'graph> {
     }
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        let bytes = self.encode_to_vec();
         let folder = path.into();
-        folder.write_graph(&bytes)?;
-        folder.write_metadata(self)?;
-        Ok(())
+        folder.write_graph(self)
     }
 }
 
