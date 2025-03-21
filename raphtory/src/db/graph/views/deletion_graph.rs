@@ -1112,7 +1112,7 @@ mod test_deletions {
         assert_eq!(n2.latest_time(), Some(3));
 
         let actual_lt = wg.latest_time();
-        assert_eq!(actual_lt, Some(4));
+        assert_eq!(actual_lt, Some(3));
 
         let actual_et = wg.earliest_time();
         assert_eq!(actual_et, Some(3));

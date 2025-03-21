@@ -207,7 +207,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        todo!()
+        self.graph.temporal_value_at(id, self.end_bound())
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {

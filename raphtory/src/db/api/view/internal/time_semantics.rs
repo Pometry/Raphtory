@@ -442,6 +442,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             None
         } else {
             prop.last_before(TimeIndexEntry::start(w.start))
+                .map(|(t, v)| (t.max(TimeIndexEntry::start(w.start)), v))
         };
         first
             .into_iter()
