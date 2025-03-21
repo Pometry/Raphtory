@@ -10,38 +10,33 @@ use crate::{
     },
     prelude::Prop,
 };
-use raphtory_api::core::storage::{
-    arc_str::ArcStr,
-    timeindex::{AsTime, TimeIndexEntry},
+use raphtory_api::{
+    core::storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
+    },
+    iter::IntoDynBoxed,
 };
 
 impl TemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter_t().map(|(t, _)| t).collect())
-            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|prop| GenLockedIter::from(prop, |prop| prop.iter().into_dyn_boxed()))
+            .into_dyn_boxed()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
-        Box::new(
-            self.graph_meta()
-                .get_temporal_prop(id)
-                .into_iter()
-                .flat_map(|prop| {
-                    GenLockedIter::from(prop, |prop| Box::new(prop.iter_t().map(|(t, _)| t)))
-                }),
-        )
-    }
-
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter_t().map(|(_, v)| v).collect())
-            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|prop| GenLockedIter::from(prop, |prop| prop.iter().rev().into_dyn_boxed()))
+            .into_dyn_boxed()
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
@@ -50,12 +45,6 @@ impl TemporalPropertyViewOps for GraphStorage {
                 .last_before(TimeIndexEntry::MAX)
                 .map(|(_, v)| v)
         })
-    }
-
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<chrono::DateTime<chrono::Utc>>> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .and_then(|prop| prop.iter_t().map(|(t, _)| t.dt()).collect())
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {

@@ -32,7 +32,7 @@ use rayon::prelude::*;
 /// # Returns
 /// An `f64` which is the net sum of weights for the node considering the specified direction.
 fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    v: &NodeView<G, GH>,
+    v: &NodeView<'graph, G, GH>,
     name: &str,
     direction: Direction,
 ) -> f64 {

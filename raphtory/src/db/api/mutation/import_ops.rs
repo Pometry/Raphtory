@@ -46,9 +46,9 @@ pub trait ImportOps:
     /// A `Result` which is `Ok` if the node was successfully imported, and `Err` otherwise.
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         merge: bool,
-    ) -> Result<NodeView<Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
     /// Imports a single node into the graph.
     ///
@@ -70,10 +70,10 @@ pub trait ImportOps:
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         new_id: V,
         merge: bool,
-    ) -> Result<NodeView<Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
     /// Imports multiple nodes into the graph.
     ///
@@ -89,7 +89,7 @@ pub trait ImportOps:
     /// A `Result` which is `Ok` if the nodes were successfully imported, and `Err` otherwise.
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         merge: bool,
     ) -> Result<(), GraphError>;
 
@@ -113,7 +113,7 @@ pub trait ImportOps:
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         new_ids: impl IntoIterator<Item = V>,
         merge: bool,
     ) -> Result<(), GraphError>;
@@ -215,9 +215,9 @@ impl<
 {
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         merge: bool,
-    ) -> Result<NodeView<G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G, G>, GraphError> {
         import_node_internal(&self, node, node.id(), merge)
     }
 
@@ -228,16 +228,16 @@ impl<
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         new_id: V,
         merge: bool,
-    ) -> Result<NodeView<Self, Self>, GraphError> {
+    ) -> Result<NodeView<'static, Self, Self>, GraphError> {
         import_node_internal(&self, node, new_id, merge)
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         merge: bool,
     ) -> Result<(), GraphError> {
         let nodes: Vec<_> = nodes.into_iter().collect();
@@ -256,7 +256,7 @@ impl<
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         new_ids: impl IntoIterator<Item = V>,
         merge: bool,
     ) -> Result<(), GraphError> {
@@ -336,10 +336,10 @@ fn import_node_internal<
     V: AsNodeRef + Clone + Debug,
 >(
     graph: &G,
-    node: &NodeView<GHH, GH>,
+    node: &NodeView<'a, GHH, GH>,
     id: V,
     merge: bool,
-) -> Result<NodeView<G, G>, GraphError> {
+) -> Result<NodeView<'static, G, G>, GraphError> {
     if !merge {
         if let Some(existing_node) = graph.node(&id) {
             return Err(NodeExistsError(existing_node.id()));
@@ -430,9 +430,9 @@ fn import_edge_internal<
         }
 
         if graph.include_deletions() {
-            for t in edge
+            for (t, _) in edge
                 .graph
-                .edge_deletion_history(edge.edge, Cow::Borrowed(&layer_ids))
+                .edge_deletion_history(edge.edge.pid(), Cow::Borrowed(&layer_ids))
             {
                 let ti = time_from_input(graph, t.t())?;
                 let src_node = graph.resolve_node(&src_id)?.inner();

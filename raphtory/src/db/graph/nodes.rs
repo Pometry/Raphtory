@@ -210,7 +210,7 @@ where
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
-    pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
+    pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<'graph, G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
         self.iter_refs()
@@ -225,7 +225,7 @@ where
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<'graph, G, GH>> + 'graph {
         self.par_iter_refs().map(move |n| {
             NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
         })
@@ -273,7 +273,7 @@ where
         self.indexed(index)
     }
 
-    pub fn collect(&self) -> Vec<NodeView<G, GH>> {
+    pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter_owned().collect()
     }
 
@@ -315,7 +315,7 @@ where
     type BaseGraph = G;
     type Graph = GH;
     type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH>;
-    type PropType = NodeView<GH, GH>;
+    type PropType = NodeView<'graph, GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
@@ -408,7 +408,7 @@ where
     G: GraphViewOps<'graph> + 'graph,
     GH: GraphViewOps<'graph> + 'graph,
 {
-    type Item = NodeView<G, GH>;
+    type Item = NodeView<'graph, G, GH>;
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {

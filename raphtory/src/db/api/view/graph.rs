@@ -120,7 +120,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
 
     /// Get an edge `(src, dst)`.
     fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
@@ -276,8 +276,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 additions.insert(t);
                             }
                             for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in self.temporal_edge_prop_hist(
-                                    edge.edge,
+                                for (t, _, prop_value) in self.temporal_edge_prop_hist(
+                                    edge.edge.pid(),
                                     t_prop,
                                     Cow::Borrowed(&old_layer),
                                 ) {
@@ -293,11 +293,14 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             }
                             if self.include_deletions() {
                                 let mut deletion_history = self
-                                    .edge_deletion_history(edge.edge, Cow::Borrowed(&old_layer))
+                                    .edge_deletion_history(
+                                        edge.edge.pid(),
+                                        Cow::Borrowed(&old_layer),
+                                    )
                                     .peekable();
                                 if deletion_history.peek().is_some() {
                                     let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
-                                    for t in deletion_history {
+                                    for (t, _) in deletion_history {
                                         edge_deletions.insert(t);
                                     }
                                 }
@@ -343,9 +346,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
                     if self.include_deletions() {
                         for layer in self.layer_ids().iter(self.unfiltered_num_layers()) {
-                            for t in self
-                                .edge_deletion_history(edge.edge, Cow::Owned(LayerIds::One(layer)))
-                            {
+                            for (t, _) in self.edge_deletion_history(
+                                edge.edge.pid(),
+                                Cow::Owned(LayerIds::One(layer)),
+                            ) {
                                 if let Some(src_node) =
                                     shard.get_mut(node_map[edge.edge.src().index()])
                                 {
@@ -583,7 +587,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.nodes_filtered() {

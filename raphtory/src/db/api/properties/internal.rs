@@ -4,40 +4,44 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::{
+    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    iter::IntoDynBoxed,
+};
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
-    fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.temporal_values(id).last().cloned()
+    fn temporal_value(&self, id: usize) -> Option<Prop>;
+
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        self.temporal_iter(id).map(|(t, _)| t.t()).into_dyn_boxed()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64>;
-
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
-        Box::new(self.temporal_history(id).into_iter())
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<i64> {
+        self.temporal_iter_rev(id)
+            .map(|(t, _)| t.t())
+            .into_dyn_boxed()
     }
 
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
-        self.temporal_history(id)
-            .iter()
+        self.temporal_history_iter(id)
             .map(|t| t.dt())
             .collect::<Option<Vec<_>>>()
     }
-    fn temporal_values(&self, id: usize) -> Vec<Prop>;
 
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
-        Box::new(self.temporal_values(id).into_iter())
+        self.temporal_iter(id).map(|(_, v)| v).into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        let history = self.temporal_history(id);
-        match history.binary_search(&t) {
-            Ok(index) => Some(self.temporal_values(id)[index].clone()),
-            Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
-        }
+    fn temporal_values_iter_rev(&self, id: usize) -> BoxedLIter<Prop> {
+        self.temporal_iter_rev(id).map(|(_, v)| v).into_dyn_boxed()
     }
+
+    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop>;
 }
 
 pub trait TemporalPropertiesRowView {
@@ -102,17 +106,38 @@ where
     }
 
     #[inline]
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
-        self.base().temporal_history(id)
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.base().temporal_iter(id)
     }
+
+    #[inline]
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.base().temporal_iter_rev(id)
+    }
+
+    #[inline]
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        self.base().temporal_history_iter(id)
+    }
+
+    #[inline]
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<i64> {
+        self.base().temporal_history_iter_rev(id)
+    }
+
     #[inline]
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.base().temporal_history_date_time(id)
     }
 
     #[inline]
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
-        self.base().temporal_values(id)
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
+        self.base().temporal_values_iter(id)
+    }
+
+    #[inline]
+    fn temporal_values_iter_rev(&self, id: usize) -> BoxedLIter<Prop> {
+        self.base().temporal_values_iter_rev(id)
     }
 
     #[inline]

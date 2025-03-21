@@ -6,14 +6,25 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::VID;
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
-pub struct GetProperties<G> {
+pub struct GetProperties<'graph, G> {
     pub(crate) graph: G,
+    _marker: PhantomData<&'graph ()>,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<G> {
-    type Output = Properties<NodeView<G, G>>;
+impl<'graph, G> GetProperties<'graph, G> {
+    pub fn new(graph: G) -> Self {
+        Self {
+            graph,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<'graph, G> {
+    type Output = Properties<NodeView<'graph, G, G>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Properties::new(NodeView::new_internal(self.graph.clone(), node))

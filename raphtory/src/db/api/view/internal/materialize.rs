@@ -41,7 +41,6 @@ use raphtory_api::{
         entities::{GidType, ELID},
         storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
     },
-    iter::BoxedLDIter,
     GraphType,
 };
 use serde::{Deserialize, Serialize};

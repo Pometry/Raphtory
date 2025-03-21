@@ -45,7 +45,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
     fn create_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
@@ -53,7 +53,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
@@ -62,7 +62,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<Self, Self>, GraphError> {
+    ) -> Result<NodeView<'static, Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_node(time, v, props, node_type)
     }
@@ -117,7 +117,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G, G>, GraphError> {
         let ti = time_from_input(self, t)?;
         let properties = props.collect_properties(|name, dtype| {
             Ok(self.resolve_node_property(name, dtype, false)?.inner())
@@ -139,7 +139,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G, G>, GraphError> {
         let ti = time_from_input(self, t)?;
         let v_id = match node_type {
             None => self.resolve_node(v)?,
