@@ -32,10 +32,16 @@ def assert_correct_documents(client):
     vectorisedGraph(path: "abb") {
         algorithms {
           similaritySearch(query:"ab", limit: 1) {
-            content
-            entityType
-            embedding
-            name
+                documents {
+                    content
+                    entityType
+                    embedding
+                    name
+                }
+                nodes {
+                    name
+                    nodeType
+                }
           }
         }
       }
@@ -54,14 +60,17 @@ def assert_correct_documents(client):
         },
         "vectorisedGraph": {
             "algorithms": {
-                "similaritySearch": [
-                    {
-                        "content": "aab",
-                        "embedding": [2.0, 1.0],
-                        "entityType": "node",
-                        "name": ["aab"],
-                    }
-                ]
+                "similaritySearch": {
+                    "documents": [
+                        {
+                            "content": "aab",
+                            "embedding": [2.0, 1.0],
+                            "entityType": "node",
+                            "name": ["aab"],
+                        }
+                    ],
+                    "nodes": [{"name": "aab", "nodeType": None}],
+                }
             }
         },
     }
