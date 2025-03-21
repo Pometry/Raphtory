@@ -39,8 +39,7 @@
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
+        entities::{edges::edge_ref::EdgeRef, LayerIds},
         Prop, PropType,
     },
     db::{
@@ -63,7 +62,6 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use chrono::{DateTime, Utc};
 use raphtory_api::{
     core::{
         entities::{EID, ELID},
@@ -189,7 +187,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
             && self.graph.filter_node(node, layer_ids)
-            && self.graph.node_time_semantics().valid_window(
+            && self.graph.node_time_semantics().node_valid_window(
                 node,
                 LayeredGraph::new(&self.graph, layer_ids.clone()),
                 self.start_bound()..self.end_bound(),

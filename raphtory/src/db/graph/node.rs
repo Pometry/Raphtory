@@ -25,10 +25,7 @@ use crate::{
 };
 
 use crate::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime,
-        utils::iter::GenLockedIter, PropType,
-    },
+    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter, PropType},
     db::{
         api::{
             state::NodeOp, storage::graph::storage_ops::GraphStorage,
@@ -231,7 +228,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node_entry(self.node);
         let res = semantics
-            .tprop_iter(node.as_ref(), &self.graph, id)
+            .node_tprop_iter(node.as_ref(), &self.graph, id)
             .next_back()
             .map(|(_, v)| v);
         res
@@ -242,7 +239,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
         let node = self.graph.core_node_entry(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .tprop_iter(node.as_ref(), &self.graph, id)
+                .node_tprop_iter(node.as_ref(), &self.graph, id)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -253,7 +250,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
         let node = self.graph.core_node_entry(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .tprop_iter(node.as_ref(), &self.graph, id)
+                .node_tprop_iter(node.as_ref(), &self.graph, id)
                 .rev()
                 .into_dyn_boxed()
         })
@@ -264,7 +261,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node_entry(self.node);
         semantics
-            .tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
+            .node_tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
             .map(|(_, v)| v)
     }
 }

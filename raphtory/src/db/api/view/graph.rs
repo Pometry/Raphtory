@@ -8,7 +8,7 @@ use crate::{
         api::{
             mutation::internal::InternalAdditionOps,
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView},
+                internal::{ConstPropertiesOps, TemporalPropertiesOps},
                 Properties,
             },
             storage::graph::{
