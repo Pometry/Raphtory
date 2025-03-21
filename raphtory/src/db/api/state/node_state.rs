@@ -384,7 +384,8 @@ impl<
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<'a,
+            NodeView<
+                'a,
                 &'a <Self as NodeStateOps<'graph>>::BaseGraph,
                 &'a <Self as NodeStateOps<'graph>>::Graph,
             >,
