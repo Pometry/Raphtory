@@ -893,7 +893,7 @@ impl GqlGraph {
             return vec![];
         }
 
-        let neighbours: Vec<HashSet<NodeView<DynamicGraph>>> = selected_nodes
+        let neighbours: Vec<HashSet<NodeView<'static, DynamicGraph>>> = selected_nodes
             .iter()
             .filter_map(|n| self.graph.node(n))
             .map(|n| {
@@ -901,7 +901,7 @@ impl GqlGraph {
                     .collect()
                     .iter()
                     .map(|vv| vv.clone())
-                    .collect::<HashSet<NodeView<DynamicGraph>>>()
+                    .collect::<HashSet<NodeView<'static, DynamicGraph>>>()
             })
             .collect();
 

@@ -30,7 +30,7 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    pub fn new_local_state<O: Debug + Default, F: Fn(NodeView<G, G>) -> O>(
+    pub fn new_local_state<O: Debug + Default, F: Fn(NodeView<'static, G, G>) -> O>(
         &self,
         init_f: F,
     ) -> Vec<O> {

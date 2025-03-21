@@ -20,7 +20,7 @@ pub trait GraphEntity: Sized {
         D: Display;
 }
 
-impl<'graph, G: GraphViewOps<'graph>> GraphEntity for NodeView<G> {
+impl<'graph, G: GraphViewOps<'graph>> GraphEntity for NodeView<'graph, G> {
     fn generate_property_list<F, D>(
         &self,
         time_fmt: &F,

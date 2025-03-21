@@ -543,10 +543,7 @@ mod db_tests {
 
             assert!(graph.is_empty());
 
-            assert_eq!(
-                graph.nodes().collect(),
-                Vec::<NodeView<Graph, Graph>>::new()
-            );
+            assert!(graph.nodes().collect().is_empty());
             assert_eq!(
                 graph.edges().collect(),
                 Vec::<EdgeView<Graph, Graph>>::new()
@@ -3685,15 +3682,14 @@ mod db_tests {
             .neighbours()
             .is_empty());
 
-        assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .type_filter(&vec!["d"])
-                .iter()
-                .collect_vec(),
-            Vec::<NodeView<Graph, Graph>>::new()
-        );
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .iter()
+            .collect_vec()
+            .is_empty(),);
 
         assert_eq!(
             g.node("2")

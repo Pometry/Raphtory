@@ -15,19 +15,19 @@ use raphtory::{
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
-    pub(crate) vv: NodeView<DynamicGraph>,
+    pub(crate) vv: NodeView<'static, DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<G, GH>> for Node
+    From<NodeView<'static, G, GH>> for Node
 {
-    fn from(value: NodeView<G, GH>) -> Self {
+    fn from(value: NodeView<'static, G, GH>) -> Self {
         Self {
-            vv: NodeView {
-                base_graph: value.base_graph.into_dynamic(),
-                graph: value.graph.into_dynamic(),
-                node: value.node,
-            },
+            vv: NodeView::new_one_hop_filtered(
+                value.base_graph.into_dynamic(),
+                value.graph.into_dynamic(),
+                value.node,
+            ),
         }
     }
 }

@@ -137,7 +137,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         )
     }
 
-    pub fn collect(&self) -> Vec<Vec<NodeView<G, GH>>> {
+    pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G, GH>>> {
         self.iter().map(|path| path.collect()).collect()
     }
 }
