@@ -228,7 +228,7 @@ impl PyGraph {
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         let props = properties
             .into_iter()
             .flat_map(|map| {
@@ -269,7 +269,7 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         match secondary_index {
             None => {
                 self.graph
@@ -402,7 +402,7 @@ impl PyGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -426,7 +426,7 @@ impl PyGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 
@@ -572,7 +572,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///   MutableNode: The node object with the specified id, or None if the node does not exist
-    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<Graph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, Graph>> {
         self.graph.node(id)
     }
 

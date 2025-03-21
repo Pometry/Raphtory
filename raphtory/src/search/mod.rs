@@ -202,7 +202,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     }
 
     fn index_node_view<W: Deref<Target = IndexWriter>>(
-        node: NodeView<G>,
+        node: NodeView<'graph, G>,
         schema: &Schema,
         writer: &W,
     ) -> tantivy::Result<()> {
@@ -386,7 +386,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         &self,
         node_id: Field,
         doc: TantivyDocument,
-    ) -> Option<NodeView<G>> {
+    ) -> Option<NodeView<'graph, G>> {
         let node_id: usize = doc
             .get_first(node_id)
             .and_then(|value| value.as_u64())?
@@ -461,7 +461,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         q: &str,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'graph, G>>, GraphError> {
         let searcher = self.node_reader.searcher();
         let query_parser = self.node_parser()?;
         let query = query_parser.parse_query(q)?;
@@ -535,7 +535,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         offset: usize,
         prefix: bool,
         levenshtein_distance: u8,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'graph, G>>, GraphError> {
         let searcher = self.node_reader.searcher();
         let mut query_parser = self.node_parser()?;
 

@@ -286,7 +286,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     Optional[Node]: the node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<DynamicGraph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, DynamicGraph>> {
         self.graph.node(id)
     }
 

@@ -241,7 +241,7 @@ where
         self.iter().next().is_none()
     }
 
-    pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<G, GH>> {
+    pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<'graph, G, GH>> {
         let vid = self.graph.internalise_node(node.as_node_ref())?;
         self.contains(vid).then(|| {
             NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), vid)

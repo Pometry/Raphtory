@@ -65,30 +65,30 @@ use std::collections::{HashMap, HashSet};
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyNode {
-    pub node: NodeView<DynamicGraph, DynamicGraph>,
+    pub node: NodeView<'static, DynamicGraph, DynamicGraph>,
 }
 
 impl_nodeviewops!(
     PyNode,
     node,
-    NodeView<DynamicGraph>,
+    NodeView<'static, DynamicGraph>,
     "Node",
     "Edges",
     "PathFromNode"
 );
-impl_edge_property_filter_ops!(PyNode<NodeView<DynamicGraph, DynamicGraph>>, node, "Node");
+impl_edge_property_filter_ops!(
+    PyNode<NodeView<'static, DynamicGraph, DynamicGraph>>,
+    node,
+    "Node"
+);
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<G, GH>> for PyNode
+    From<NodeView<'static, G, GH>> for PyNode
 {
-    fn from(value: NodeView<G, GH>) -> Self {
+    fn from(value: NodeView<'static, G, GH>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
         let graph = value.graph.into_dynamic();
-        let node = NodeView {
-            base_graph,
-            graph,
-            node: value.node,
-        };
+        let node = NodeView::new_one_hop_filtered(base_graph, graph, value.node);
         Self { node }
     }
 }
@@ -204,7 +204,7 @@ impl PyNode {
     /// Returns:
     ///     Properties: A list of properties.
     #[getter]
-    pub fn properties(&self) -> Properties<NodeView<DynamicGraph, DynamicGraph>> {
+    pub fn properties(&self) -> Properties<NodeView<'static, DynamicGraph, DynamicGraph>> {
         self.node.properties()
     }
 
@@ -282,9 +282,9 @@ impl Repr for PyNode {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeView<'graph, G, GH> {
     fn repr(&self) -> String {
-        let repr_struc = StructReprBuilder::new("Node")
+        let repr_struct = StructReprBuilder::new("Node")
             .add_field("name", self.name())
             .add_field("earliest_time", self.earliest_time())
             .add_field("latest_time", self.latest_time());
@@ -292,18 +292,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
         match self.node_type() {
             None => {
                 if self.properties().is_empty() {
-                    repr_struc.finish()
+                    repr_struct.finish()
                 } else {
-                    repr_struc
+                    repr_struct
                         .add_field("properties", self.properties())
                         .finish()
                 }
             }
             Some(node_type) => {
                 if self.properties().is_empty() {
-                    repr_struc.add_field("node_type", node_type).finish()
+                    repr_struct.add_field("node_type", node_type).finish()
                 } else {
-                    repr_struc
+                    repr_struct
                         .add_field("properties", self.properties())
                         .add_field("node_type", node_type)
                         .finish()
@@ -315,14 +315,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
 
 #[pyclass(name = "MutableNode", extends = PyNode, module="raphtory", frozen)]
 pub struct PyMutableNode {
-    node: NodeView<MaterializedGraph, MaterializedGraph>,
+    node: NodeView<'static, MaterializedGraph, MaterializedGraph>,
 }
 
 impl PyMutableNode {
-    fn new_bound<G: StaticGraphViewOps + IntoDynamic + Into<MaterializedGraph>>(
-        node: NodeView<G>,
-        py: Python,
-    ) -> PyResult<Bound<PyMutableNode>> {
+    fn new_bound<'py, G: StaticGraphViewOps + IntoDynamic + Into<MaterializedGraph>>(
+        node: NodeView<'static, G>,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyMutableNode>> {
         Bound::new(py, (PyMutableNode::from(node.clone()), PyNode::from(node)))
     }
 }
@@ -336,7 +336,7 @@ impl<
         'py,
         G: StaticGraphViewOps + IntoDynamicOrMutable,
         GH: StaticGraphViewOps + IntoDynamicOrMutable,
-    > IntoPyObject<'py> for NodeView<G, GH>
+    > IntoPyObject<'py> for NodeView<'static, G, GH>
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -367,8 +367,8 @@ impl<
     }
 }
 
-impl<G: Into<MaterializedGraph>> From<NodeView<G>> for PyMutableNode {
-    fn from(value: NodeView<G>) -> Self {
+impl<G: Into<MaterializedGraph>> From<NodeView<'static, G>> for PyMutableNode {
+    fn from(value: NodeView<'static, G>) -> Self {
         let graph = value.graph.into();
         let node = NodeView::new_internal(graph, value.node);
         PyMutableNode { node }
@@ -496,7 +496,7 @@ impl PyNodes {
     #[doc = r""]
     #[doc = r" Returns:"]
     #[doc = concat!("     ","list[Node]",": the list of ","node","s")]
-    fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
+    fn collect(&self) -> Vec<NodeView<'static, DynamicGraph>> {
         self.nodes.collect()
     }
 }
@@ -695,7 +695,10 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    pub fn __getitem__(&self, node: PyNodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
+    pub fn __getitem__(
+        &self,
+        node: PyNodeRef,
+    ) -> PyResult<NodeView<'static, DynamicGraph, DynamicGraph>> {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
@@ -807,7 +810,7 @@ impl_nodeviewops!(
 impl_iterable_mixin!(
     PyPathFromGraph,
     path,
-    Vec<Vec<NodeView<DynamicGraph>>>,
+    Vec<Vec<NodeView<'static, DynamicGraph>>>,
     "list[list[Node]]",
     "node"
 );
@@ -971,7 +974,7 @@ impl_nodeviewops!(
 impl_iterable_mixin!(
     PyPathFromNode,
     path,
-    Vec<NodeView<DynamicGraph>>,
+    Vec<NodeView<'static, DynamicGraph>>,
     "list[Node]",
     "node"
 );

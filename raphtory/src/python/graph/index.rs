@@ -61,7 +61,7 @@ impl GraphIndex {
         offset: usize,
         prefix: bool,
         levenshtein_distance: u8,
-    ) -> Result<Vec<NodeView<DynamicGraph>>, PyErr> {
+    ) -> Result<Vec<NodeView<'static, DynamicGraph>>, PyErr> {
         self.graph
             .fuzzy_search_nodes(query, limit, offset, prefix, levenshtein_distance)
             .map_err(|e| adapt_err_value(&e))
@@ -108,7 +108,7 @@ impl GraphIndex {
         query: &str,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<DynamicGraph>>, PyErr> {
+    ) -> Result<Vec<NodeView<'static, DynamicGraph>>, PyErr> {
         self.graph
             .search_nodes(query, limit, offset)
             .map_err(|e| adapt_err_value(&e))

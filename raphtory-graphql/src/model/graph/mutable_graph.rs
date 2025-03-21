@@ -259,7 +259,7 @@ impl GqlMutableGraph {
             .await;
     }
 
-    fn get_node_view(&self, name: &str) -> Result<NodeView<GraphWithVectors>, GraphError> {
+    fn get_node_view(&self, name: &str) -> Result<NodeView<'static, GraphWithVectors>, GraphError> {
         self.graph
             .node(name)
             .ok_or_else(|| GraphError::NodeMissingError(GID::Str(name.to_owned())))
@@ -281,11 +281,11 @@ impl GqlMutableGraph {
 
 #[derive(ResolvedObject)]
 pub struct GqlMutableNode {
-    node: NodeView<GraphWithVectors>,
+    node: NodeView<'static, GraphWithVectors>,
 }
 
-impl From<NodeView<GraphWithVectors>> for GqlMutableNode {
-    fn from(node: NodeView<GraphWithVectors>) -> Self {
+impl From<NodeView<'static, GraphWithVectors>> for GqlMutableNode {
+    fn from(node: NodeView<'static, GraphWithVectors>) -> Self {
         Self { node }
     }
 }

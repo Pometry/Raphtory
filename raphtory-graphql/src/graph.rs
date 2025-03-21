@@ -173,7 +173,7 @@ pub(crate) trait UpdateEmbeddings {
     async fn update_embeddings(&self) -> GraphResult<()>;
 }
 
-impl UpdateEmbeddings for NodeView<GraphWithVectors> {
+impl UpdateEmbeddings for NodeView<'static, GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph.update_node_embeddings(self.name()).await
     }

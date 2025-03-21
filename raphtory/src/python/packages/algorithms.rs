@@ -744,7 +744,7 @@ pub fn betweenness_centrality(
 pub fn label_propagation(
     graph: &PyGraphView,
     seed: Option<[u8; 32]>,
-) -> PyResult<Vec<HashSet<NodeView<DynamicGraph>>>> {
+) -> PyResult<Vec<HashSet<NodeView<'static, DynamicGraph>>>> {
     match label_propagation_rs(&graph.graph, seed) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
