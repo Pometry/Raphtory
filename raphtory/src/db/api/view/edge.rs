@@ -146,8 +146,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, e| {
-            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
-                .map(|ti| ti.t())
+            g.edge_history(e.pid(), g.layer_ids().constrain_from_edge(e))
+                .map(|(ti, _)| ti.t())
                 .collect()
         })
     }
@@ -158,25 +158,25 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(move |g, e| {
-            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
-                .map(|t| t.dt())
+            g.edge_history(e.pid(), g.layer_ids().constrain_from_edge(e))
+                .map(|(t, _)| t.dt())
                 .collect()
         })
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(move |g, e| {
-            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
-                .map(|t| t.t())
+            g.edge_deletion_history(e.pid(), g.layer_ids().constrain_from_edge(e))
+                .map(|(t, _)| t.t())
                 .collect()
         })
     }
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
-            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
+            g.edge_deletion_history(e.pid(), g.layer_ids().constrain_from_edge(e))
                 .into_iter()
-                .map(|t| t.dt())
+                .map(|(t, _)| t.dt())
                 .collect()
         })
     }
