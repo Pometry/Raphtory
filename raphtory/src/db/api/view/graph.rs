@@ -441,20 +441,24 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         .flatten()
                         .min(),
                 )
-                .chain(
-                    self.core_graph()
-                        .edges_par(self)
-                        .map(|e| self.edge_earliest_time(e, self.layer_ids()))
-                        .flatten()
-                        .min(),
-                )
                 .min(),
         }
     }
 
     #[inline]
     fn latest_time(&self) -> Option<i64> {
-        self.latest_time_global()
+        match self.filter_state() {
+            FilterState::Neither => self.latest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history_rev().next())
+                .max()
+                .into_iter()
+                .chain(self.nodes().latest_time().par_iter_values().flatten().max())
+                .max(),
+        }
     }
 
     #[inline]

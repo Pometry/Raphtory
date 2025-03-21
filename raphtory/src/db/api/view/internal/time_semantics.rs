@@ -433,7 +433,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn tprop_iter_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
-    _view: G,
+        _view: G,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLDIter<'graph, (TimeIndexEntry, Prop)> {

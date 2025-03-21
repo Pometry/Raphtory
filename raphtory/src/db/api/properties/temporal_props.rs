@@ -29,6 +29,11 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn history(&self) -> BoxedLIter<i64> {
         self.props.temporal_history_iter(self.id)
     }
+
+    pub fn history_rev(&self) -> BoxedLIter<i64> {
+        self.props.temporal_history_iter_rev(self.id)
+    }
+
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }

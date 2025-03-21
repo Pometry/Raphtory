@@ -14,8 +14,8 @@ use crate::{
             view::{
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritLayerOps, InheritListOps, InheritMaterialize
-                    , NodeFilterOps, NodeTimeSemanticsOps, Static, TimeSemantics,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, NodeFilterOps,
+                    NodeTimeSemanticsOps, Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
