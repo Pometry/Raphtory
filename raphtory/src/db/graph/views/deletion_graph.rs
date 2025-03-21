@@ -12,7 +12,6 @@ use crate::{
             storage::{
                 graph::{
                     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                    nodes::node_storage_ops::NodeStorageOps,
                     storage_ops::GraphStorage,
                     tprop_storage_ops::TPropOps,
                 },
@@ -36,7 +35,7 @@ use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    ops::{Deref, Range},
+    ops::Range,
     sync::Arc,
 };
 

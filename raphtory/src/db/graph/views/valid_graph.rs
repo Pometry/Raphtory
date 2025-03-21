@@ -5,13 +5,12 @@ use crate::{
             storage::graph::{
                 edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
                 nodes::node_ref::NodeStorageRef,
-                tprop_storage_ops::TPropOps,
             },
             view::{
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
-                    InternalLayerOps, NodeFilterOps, Static,
+                    NodeFilterOps, Static,
                 },
                 Base,
             },

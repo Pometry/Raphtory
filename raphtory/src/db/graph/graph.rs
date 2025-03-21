@@ -424,7 +424,7 @@ mod db_tests {
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},

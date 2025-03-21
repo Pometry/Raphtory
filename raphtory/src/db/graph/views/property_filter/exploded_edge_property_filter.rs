@@ -13,7 +13,7 @@ use crate::{
             },
             view::{
                 internal::{
-                    CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
+                    EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
                     InheritLayerOps, InheritListOps, InheritMaterialize, NodeFilterOps,
                     NodeTimeSemanticsOps, Static, TimeSemantics,
                 },
@@ -168,7 +168,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for ExplodedEdgePropertyFilt
         let res = self.graph.filter_node(node, layer_ids)
             && self
                 .node_time_semantics()
-                .valid(node, LayeredGraph::new(self, layer_ids.clone()));
+                .node_valid(node, LayeredGraph::new(self, layer_ids.clone()));
         res
     }
 }

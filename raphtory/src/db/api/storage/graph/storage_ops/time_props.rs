@@ -13,7 +13,7 @@ use crate::{
 use raphtory_api::{
     core::storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{TimeIndexEntry},
     },
     iter::IntoDynBoxed,
 };

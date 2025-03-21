@@ -20,7 +20,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
         let node = storage.node_entry(node);
-        semantics.earliest_time(node.as_ref(), &self.graph)
+        semantics.node_earliest_time(node.as_ref(), &self.graph)
     }
 }
 
@@ -53,7 +53,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
         let node = storage.node_entry(node);
-        semantics.latest_time(node.as_ref(), &self.graph)
+        semantics.node_latest_time(node.as_ref(), &self.graph)
     }
 }
 
@@ -87,7 +87,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
         let semantics = self.graph.node_time_semantics();
         let node = storage.node_entry(node);
         semantics
-            .history(node.as_ref(), &self.graph)
+            .node_history(node.as_ref(), &self.graph)
             .dedup()
             .collect()
     }
