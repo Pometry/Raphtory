@@ -4,7 +4,7 @@ use crate::serialise::GraphFolder;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize, Debug)]
 pub struct GraphMetadata {
     pub node_count: usize,
     pub edge_count: usize,

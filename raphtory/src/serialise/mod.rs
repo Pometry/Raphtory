@@ -11,18 +11,19 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
+use crate::core::utils::errors::GraphError;
+use crate::db::api::view::MaterializedGraph;
+use crate::prelude::GraphViewOps;
+use crate::serialise::metadata::GraphMetadata;
 pub use proto::Graph as ProtoGraph;
 pub use serialise::{CacheOps, StableDecode, StableEncode};
-use std::io::BufReader;
+use std::io::{BufReader, ErrorKind};
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
 };
-
-use crate::core::utils::errors::GraphError;
-use crate::prelude::GraphViewOps;
-use crate::serialise::metadata::GraphMetadata;
+use tracing::info;
 
 const GRAPH_FILE_NAME: &str = "graph";
 const META_FILE_NAME: &str = ".raph";
@@ -90,24 +91,59 @@ impl GraphFolder {
         }
     }
 
-    pub fn write_graph(&self, buf: &[u8]) -> Result<(), GraphError> {
+    pub fn write_graph<'graph>(&self, graph: &impl StableEncode<'graph>) -> Result<(), GraphError> {
+        self.write_graph_data(graph)?;
+        self.write_metadata(graph)
+    }
+
+    fn write_graph_data<'graph>(&self, graph: &impl StableEncode<'graph>) -> Result<(), io::Error> {
+        let bytes = graph.encode_to_vec();
         if self.prefer_zip_format {
             let file = File::create(&self.root_folder)?;
             let mut zip = ZipWriter::new(file);
             zip.start_file::<_, ()>(GRAPH_FILE_NAME, FileOptions::default())?;
-            Ok(zip.write_all(buf)?)
+            zip.write_all(&bytes)
         } else {
             self.ensure_clean_root_dir()?;
             let mut file = File::create(self.get_graph_path())?;
-            Ok(file.write_all(buf)?)
+            file.write_all(&bytes)
         }
     }
 
     pub fn read_metadata(&self) -> Result<GraphMetadata, io::Error> {
-        let file = File::open(self.get_meta_path())?;
-        let reader = BufReader::new(file);
-        let metadata = serde_json::from_reader(reader)?;
-        Ok(metadata)
+        match self.try_read_metadata() {
+            Ok(data) => Ok(data),
+            Err(e) => {
+                match e.kind() {
+                    // In the case that the file is not found or invalid, try creating it then re-reading
+                    ErrorKind::NotFound | ErrorKind::InvalidData | ErrorKind::UnexpectedEof => {
+                        info!(
+                            "Metadata file does not exist or is invalid. Attempting to recreate..."
+                        );
+                        let graph = MaterializedGraph::decode(self)?;
+                        self.write_metadata(&graph)?;
+                        self.try_read_metadata()
+                    }
+                    _ => Err(e),
+                }
+            }
+        }
+    }
+
+    pub fn try_read_metadata(&self) -> Result<GraphMetadata, io::Error> {
+        if self.root_folder.is_file() {
+            let file = File::open(&self.root_folder)?;
+            let mut archive = ZipArchive::new(file)?;
+            let zip_file = archive.by_name(META_FILE_NAME)?;
+            let reader = BufReader::new(zip_file);
+            let metadata = serde_json::from_reader(reader)?;
+            Ok(metadata)
+        } else {
+            let file = File::open(self.get_meta_path())?;
+            let reader = BufReader::new(file);
+            let metadata = serde_json::from_reader(reader)?;
+            Ok(metadata)
+        }
     }
 
     fn write_metadata<'graph>(&self, graph: &impl GraphViewOps<'graph>) -> Result<(), GraphError> {
@@ -119,9 +155,19 @@ impl GraphFolder {
             edge_count,
             properties: properties.as_vec(),
         };
-        let path = self.get_meta_path();
-        let meta_file = File::create(path.clone())?;
-        Ok(serde_json::to_writer(meta_file, &metadata)?)
+        if self.prefer_zip_format {
+            let file = File::options()
+                .read(true)
+                .write(true)
+                .open(&self.root_folder)?;
+            let mut zip = ZipWriter::new_append(file)?;
+            zip.start_file::<_, ()>(META_FILE_NAME, FileOptions::default())?;
+            Ok(serde_json::to_writer(zip, &metadata)?)
+        } else {
+            let path = self.get_meta_path();
+            let file = File::create(path.clone())?;
+            Ok(serde_json::to_writer(file, &metadata)?)
+        }
     }
 
     pub(crate) fn get_appendable_graph_file(&self) -> Result<File, GraphError> {
@@ -163,12 +209,13 @@ impl From<&GraphFolder> for GraphFolder {
 // the default and is largelly exercised in other places
 #[cfg(test)]
 mod zip_tests {
+    use super::{StableDecode, StableEncode};
+    use crate::serialise::metadata::GraphMetadata;
     use crate::{
         prelude::{AdditionOps, CacheOps, Graph, GraphViewOps, NO_PROPS},
         serialise::GraphFolder,
     };
-
-    use super::{StableDecode, StableEncode};
+    use raphtory_api::core::utils::logging::global_info_logger;
 
     #[test]
     fn test_zip() {
@@ -188,5 +235,47 @@ mod zip_tests {
         graph.encode(GraphFolder::new_as_zip(&temp_file)).unwrap();
         let result = Graph::load_cached(&temp_file);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_metadata_from_noninitialized_zip() {
+        global_info_logger();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let folder = GraphFolder::new_as_zip(&temp_file);
+        folder.write_graph_data(&graph).unwrap();
+        let err = folder.try_read_metadata();
+        assert!(err.is_err());
+        let result = folder.read_metadata().unwrap();
+        assert_eq!(
+            result,
+            GraphMetadata {
+                node_count: 1,
+                edge_count: 0,
+                properties: vec![]
+            }
+        );
+    }
+
+    #[test]
+    fn test_read_metadata_from_noninitialized_folder() {
+        global_info_logger();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        let temp_folder = tempfile::TempDir::new().unwrap();
+        let folder = GraphFolder::from(temp_folder.path());
+        folder.write_graph_data(&graph).unwrap();
+        let err = folder.try_read_metadata();
+        assert!(err.is_err());
+        let result = folder.read_metadata().unwrap();
+        assert_eq!(
+            result,
+            GraphMetadata {
+                node_count: 1,
+                edge_count: 0,
+                properties: vec![]
+            }
+        );
     }
 }
