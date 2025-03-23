@@ -1,4 +1,10 @@
-use crate::core::{DocumentInput, Lifespan};
+use crate::{
+    core::{DocumentInput, Lifespan},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, node::NodeView},
+    },
+};
 use futures_util::future::BoxFuture;
 use std::{error, future::Future, ops::Deref, sync::Arc};
 
@@ -18,23 +24,23 @@ pub mod vectorised_graph;
 
 pub type Embedding = Arc<[f32]>;
 
-#[derive(Debug)]
-pub enum Document {
+// FIXME: better have all the common fields just once and then an enum only for the entity!!!!
+#[derive(Debug, Clone)]
+pub enum Document<G: StaticGraphViewOps> {
     Graph {
-        name: Option<String>,
+        entity: G,
         content: String,
         embedding: Embedding,
         life: Lifespan,
     },
     Node {
-        name: String,
+        entity: NodeView<G>,
         content: String,
         embedding: Embedding,
         life: Lifespan,
     },
     Edge {
-        src: String,
-        dst: String,
+        entity: EdgeView<G>,
         content: String,
         embedding: Embedding,
         life: Lifespan,
@@ -47,7 +53,7 @@ pub trait DocumentOps {
     fn into_content(self) -> String;
 }
 
-impl DocumentOps for Document {
+impl<G: StaticGraphViewOps> DocumentOps for Document<G> {
     fn content(&self) -> &str {
         match self {
             Document::Graph { content, .. } => content,
