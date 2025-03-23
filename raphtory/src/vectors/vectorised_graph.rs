@@ -153,7 +153,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     /// Return all the graph level documents
-    pub fn get_graph_documents(&self) -> Vec<Document> {
+    pub fn get_graph_documents(&self) -> Vec<Document<G>> {
         self.graph_documents
             .read()
             .iter()
