@@ -1,89 +1,65 @@
 use crate::model::graph::{edge::Edge, node::Node};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
-use raphtory::{core::Lifespan, vectors::Document};
+use dynamic_graphql::{SimpleObject, Union};
+use raphtory::{core::Lifespan, db::api::view::DynamicGraph, vectors::Document};
 
-#[derive(ResolvedObject)]
-pub struct GqlDocuments {
-    documents: Vec<GqlDocument>,
-    nodes: Vec<Node>,
-    edges: Vec<Edge>,
+#[derive(SimpleObject)]
+struct DocumentGraph {
+    name: String,
 }
 
-impl GqlDocuments {
-    pub fn new(documents: Vec<GqlDocument>, nodes: Vec<Node>, edges: Vec<Edge>) -> Self {
-        Self {
-            documents,
-            nodes,
-            edges,
-        }
-    }
-    pub fn into_iter(self) -> (Vec<GqlDocument>, Vec<Node>, Vec<Edge>) {
-        (self.documents, self.nodes, self.edges)
+impl From<String> for DocumentGraph {
+    fn from(value: String) -> Self {
+        Self { name: value }
     }
 }
 
-#[ResolvedObjectFields]
-impl GqlDocuments {
-    async fn documents(&self) -> Vec<GqlDocument> {
-        self.documents.clone()
-    }
-
-    async fn nodes(&self) -> Vec<Node> {
-        self.nodes.clone()
-    }
-
-    async fn edges(&self) -> Vec<Edge> {
-        self.edges.clone()
-    }
+#[derive(Union)]
+enum DocumentEntity {
+    Node(Node),
+    Edge(Edge),
+    Graph(DocumentGraph),
 }
 
-#[derive(SimpleObject, Clone)]
+#[derive(SimpleObject)]
 pub struct GqlDocument {
-    /// Return a vector with the name of the node or the names of src and dst of the edge: [src, dst]
-    name: Vec<String>, // size 1 for nodes, size 2 for edges: [src, dst]
-    /// Return the type of entity: "node" or "edge"
-    entity_type: String,
+    entity: DocumentEntity,
     content: String,
     embedding: Vec<f32>,
     life: Vec<i64>,
 }
 
-impl From<Document> for GqlDocument {
-    fn from(value: Document) -> Self {
-        match value {
+impl From<Document<DynamicGraph>> for GqlDocument {
+    fn from(value: Document<DynamicGraph>) -> Self {
+        match document {
             Document::Graph {
-                name,
+                entity,
                 content,
                 embedding,
                 life,
             } => Self {
-                name: name.map(|name| vec![name]).unwrap_or(vec![]),
-                entity_type: "graph".to_owned(),
+                entity: DocumentEntity::Graph(DocumentGraph { name: name? }),
                 content,
                 embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
             Document::Node {
-                name,
+                entity,
                 content,
                 embedding,
                 life,
             } => Self {
-                name: vec![name],
-                entity_type: "node".to_owned(),
+                entity: DocumentEntity::Node(entity),
                 content,
                 embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
             Document::Edge {
-                src,
-                dst,
+                entity,
                 content,
                 embedding,
                 life,
             } => Self {
-                name: vec![src, dst],
-                entity_type: "edge".to_owned(),
+                entity: DocumentEntity::Edge(entity),
                 content,
                 embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),

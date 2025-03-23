@@ -55,7 +55,7 @@ impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
 
             let gql_documents = documents
                 .into_iter()
-                .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
+                .map(|doc| FieldValue::owned_any(GqlDocument::new(doc)));
             Ok(Some(FieldValue::list(gql_documents)))
         })
     }

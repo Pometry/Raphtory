@@ -106,7 +106,7 @@ impl DocumentRef {
                 life: self.life,
             },
             EntityId::Node { id } => Document::Node {
-                name: original_graph.node(id).unwrap().name(),
+                entity: original_graph.node(id).unwrap(),
                 content: template
                     .node((&&original_graph).node(id).unwrap())
                     .nth(self.index)
@@ -116,8 +116,7 @@ impl DocumentRef {
                 life: self.life,
             },
             EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.node(src).unwrap().name(),
-                dst: original_graph.node(dst).unwrap().name(),
+                entity: original_graph.edge(src, dst).unwrap(),
                 content: template
                     .edge(original_graph.edge(src, dst).unwrap().as_ref())
                     .nth(self.index)
