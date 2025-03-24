@@ -1,6 +1,9 @@
 use crate::{
     core::utils::{errors::GraphError, time::IntoTime},
-    db::api::view::{DynamicGraph, MaterializedGraph, StaticGraphViewOps},
+    db::{
+        api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -73,6 +76,7 @@ impl<'source> FromPyObject<'source> for PyQuery {
 //     }
 // }
 
+// TODO: move this to types/wrappers/document.rs ?
 impl<'py> IntoPyObject<'py> for Document<DynamicGraph> {
     type Target = PyDocument;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
@@ -83,9 +87,68 @@ impl<'py> IntoPyObject<'py> for Document<DynamicGraph> {
     }
 }
 
-impl From<Document<DynamicGraph>> for PyDocument {
-    fn from(value: Document<DynamicGraph>) -> Self {
-        Self(value)
+// TODO: double check if im using this?
+// impl From<Document<DynamicGraph>> for PyDocument {
+//     fn from(value: Document<DynamicGraph>) -> Self {
+//         Self(value)
+//     }
+// }
+
+impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
+    pub fn into_dynamic(self) -> Document<DynamicGraph> {
+        match self {
+            Document::Graph {
+                name,
+                entity,
+                content,
+                embedding,
+                life,
+            } => Document::Graph {
+                name,
+                entity: entity.into_dynamic(),
+                content,
+                embedding,
+                life,
+            },
+            Document::Node {
+                entity,
+                content,
+                embedding,
+                life,
+            } => Document::Node {
+                entity: NodeView {
+                    // TODO: define a common method node.into_dynamic for NodeView, as this code is duplicated in model/graph/node.rs
+                    base_graph: entity.base_graph.into_dynamic(),
+                    graph: entity.graph.into_dynamic(),
+                    node: entity.node,
+                },
+                content,
+                embedding,
+                life,
+            },
+            Document::Edge {
+                entity,
+                content,
+                embedding,
+                life,
+            } => Document::Edge {
+                entity: EdgeView {
+                    // TODO: same as for nodes
+                    base_graph: entity.base_graph.into_dynamic(),
+                    graph: entity.graph.into_dynamic(),
+                    edge: entity.edge,
+                },
+                content,
+                embedding,
+                life,
+            },
+        }
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> From<Document<G>> for PyDocument {
+    fn from(value: Document<G>) -> Self {
+        Self(value.into_dynamic())
     }
 }
 

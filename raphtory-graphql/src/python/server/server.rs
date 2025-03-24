@@ -23,13 +23,14 @@ use pyo3::{
     IntoPyObjectExt,
 };
 use raphtory::{
+    db::api::view::DynamicGraph,
     python::{packages::vectors::TemplateConfig, types::wrappers::document::PyDocument},
     vectors::{
         embeddings::openai_embedding,
         template::{
             DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
         },
-        EmbeddingFunction,
+        Document, EmbeddingFunction,
     },
 };
 use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
@@ -131,7 +132,7 @@ impl PyGraphServer {
             let registry = registry.register::<GqlDocument>();
             let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
             let mut field = Field::new(name, output_type, move |ctx| {
-                let documents = Python::with_gil(|py| {
+                let documents: Vec<Document<DynamicGraph>> = Python::with_gil(|py| {
                     let entry_point = adapter(ctx.parent_value.downcast_ref().unwrap(), py);
                     let kw_args: HashMap<&str, PyObject> = ctx
                         .args
@@ -144,9 +145,7 @@ impl PyGraphServer {
                         .unwrap();
                     let list = result.downcast_bound::<PyList>(py).unwrap();
                     let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
-                    py_documents
-                        .map(|doc| doc.extract_rust_document(py).unwrap())
-                        .collect::<Vec<_>>()
+                    py_documents.map(|doc| doc.into()).collect()
                 });
 
                 let gql_documents = documents

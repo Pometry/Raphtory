@@ -1,16 +1,10 @@
 use crate::{
-    core::{DocumentInput, Lifespan},
+    core::Lifespan,
     db::api::view::DynamicGraph,
     python::types::repr::{Repr, StructReprBuilder},
     vectors::{Document, DocumentOps, Embedding},
 };
-use itertools::Itertools;
-use pyo3::{
-    exceptions::PyAttributeError,
-    prelude::*,
-    types::{PyNone, PyTuple},
-    IntoPyObjectExt,
-};
+use pyo3::{prelude::*, types::PyNone, IntoPyObjectExt};
 
 impl<'py> IntoPyObject<'py> for Lifespan {
     type Target = PyAny;
@@ -47,6 +41,12 @@ impl Repr for Lifespan {
 #[derive(Clone)]
 pub struct PyDocument(pub(crate) Document<DynamicGraph>);
 
+impl From<PyDocument> for Document<DynamicGraph> {
+    fn from(value: PyDocument) -> Self {
+        value.0
+    }
+}
+
 #[pymethods]
 impl PyDocument {
     /// the document content
@@ -77,11 +77,12 @@ impl PyDocument {
     ///     Optional[Embedding]: the embedding for the document if it was computed
     #[getter]
     fn embedding(&self) -> PyEmbedding {
-        match self.0 {
+        let embedding = match &self.0 {
             Document::Graph { embedding, .. } => embedding.clone(),
             Document::Node { embedding, .. } => embedding.clone(),
             Document::Edge { embedding, .. } => embedding.clone(),
-        }
+        };
+        PyEmbedding(embedding)
     }
 
     /// the life span
@@ -115,11 +116,11 @@ impl PyEmbedding {
     }
 }
 
-impl PyEmbedding {
-    pub fn embedding(&self) -> Embedding {
-        self.0.clone()
-    }
-}
+// impl PyEmbedding {
+//     pub fn embedding(&self) -> Embedding {
+//         self.0.clone()
+//     }
+// }
 
 // impl From<DocumentInput> for PyDocument {
 //     fn from(value: DocumentInput) -> Self {
