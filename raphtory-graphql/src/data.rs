@@ -238,7 +238,7 @@ impl Data {
             })
             .collect::<HashMap<_, _>>();
         QueryPlugin {
-            graphs: graphs.into(), // TODO: if at these point these were dynamic graphs instead of materialized graphs, that would simplyfy a lot of things maybe?
+            graphs: graphs.into(),
         }
     }
 
