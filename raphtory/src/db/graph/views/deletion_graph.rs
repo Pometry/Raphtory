@@ -2006,7 +2006,7 @@ mod test_node_history_filter_persistent_graph {
             },
             graph::views::deletion_graph::PersistentGraph,
         },
-        prelude::{AdditionOps, GraphViewOps, SearchableGraphOps},
+        prelude::{AdditionOps, GraphViewOps},
     };
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
@@ -2068,7 +2068,6 @@ mod test_node_history_filter_persistent_graph {
     fn test_is_prop_update_latest() {
         let g = PersistentGraph::new();
         let g = init_graph(g);
-        g.create_index().unwrap();
 
         let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
 
@@ -2115,7 +2114,6 @@ mod test_node_history_filter_persistent_graph {
     fn test_is_prop_update_latest_w() {
         let g = PersistentGraph::new();
         let g = init_graph(g);
-        g.create_index().unwrap();
 
         let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
         let w = 6..9;
@@ -2221,7 +2219,7 @@ mod test_edge_history_filter_persistent_graph {
             },
             graph::views::deletion_graph::PersistentGraph,
         },
-        prelude::{AdditionOps, GraphViewOps, SearchableGraphOps},
+        prelude::{AdditionOps, GraphViewOps},
     };
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
@@ -2290,7 +2288,6 @@ mod test_edge_history_filter_persistent_graph {
     fn test_is_edge_prop_update_latest() {
         let g = PersistentGraph::new();
         let g = init_graph(g);
-        g.create_index().unwrap();
 
         let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
 
@@ -2402,7 +2399,6 @@ mod test_edge_history_filter_persistent_graph {
     fn test_is_edge_prop_update_latest_w() {
         let g = PersistentGraph::new();
         let g = init_graph(g);
-        g.create_index().unwrap();
 
         let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
         let w = 6..9;
