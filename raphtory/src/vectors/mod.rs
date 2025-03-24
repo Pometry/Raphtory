@@ -24,52 +24,44 @@ pub mod vectorised_graph;
 
 pub type Embedding = Arc<[f32]>;
 
+#[derive(Debug, Clone)]
+pub enum DocumentEntity<G: StaticGraphViewOps> {
+    Graph { name: Option<String>, graph: G },
+    Node(NodeView<G>),
+    Edge(EdgeView<G>),
+}
+
 // FIXME: better have all the common fields just once and then an enum only for the entity!!!!
 #[derive(Debug, Clone)]
-pub enum Document<G: StaticGraphViewOps> {
-    Graph {
-        name: Option<String>,
-        entity: G,
-        content: String,
-        embedding: Embedding,
-        life: Lifespan,
-    },
-    Node {
-        entity: NodeView<G>,
-        content: String,
-        embedding: Embedding,
-        life: Lifespan,
-    },
-    Edge {
-        entity: EdgeView<G>,
-        content: String,
-        embedding: Embedding,
-        life: Lifespan,
-    },
+pub struct Document<G: StaticGraphViewOps> {
+    pub entity: DocumentEntity<G>,
+    pub content: String,
+    pub embedding: Embedding,
+    pub life: Lifespan,
 }
 
 // TODO: remove this interface, only used by Document (?)
-pub trait DocumentOps {
-    fn content(&self) -> &str;
-    fn into_content(self) -> String;
-}
+// pub trait DocumentOps {
+//     fn content(&self) -> &str;
+//     fn into_content(self) -> String;
+// }
 
-impl<G: StaticGraphViewOps> DocumentOps for Document<G> {
-    fn content(&self) -> &str {
-        match self {
-            Document::Graph { content, .. } => content,
-            Document::Node { content, .. } => content,
-            Document::Edge { content, .. } => content,
-        }
-    }
-    fn into_content(self) -> String {
-        match self {
-            Document::Graph { content, .. } => content,
-            Document::Node { content, .. } => content,
-            Document::Edge { content, .. } => content,
-        }
-    }
-}
+// impl<G: StaticGraphViewOps> DocumentOps for Document<G> {
+//     fn content(&self) -> &str {
+//         match self {
+//             Document::Graph { content, .. } => content,
+//             Document::Node { content, .. } => content,
+//             Document::Edge { content, .. } => content,
+//         }
+//     }
+//     fn into_content(self) -> String {
+//         match self {
+//             Document::Graph { content, .. } => content,
+//             Document::Node { content, .. } => content,
+//             Document::Edge { content, .. } => content,
+//         }
+//     }
+// }
 
 impl Lifespan {
     #![allow(dead_code)]

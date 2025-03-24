@@ -2,75 +2,61 @@ use crate::model::graph::{edge::Edge, node::Node};
 use dynamic_graphql::{SimpleObject, Union};
 use raphtory::{
     core::Lifespan,
-    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
-    vectors::Document,
+    db::api::view::{IntoDynamic, StaticGraphViewOps},
+    vectors::{Document as RustDocument, DocumentEntity},
 };
 
 #[derive(SimpleObject)]
-struct DocumentGraph {
+struct Graph {
     name: String, // TODO: maybe return the graph as well here
 }
 
-impl From<String> for DocumentGraph {
+impl From<String> for Graph {
     fn from(value: String) -> Self {
         Self { name: value }
     }
 }
 
 #[derive(Union)]
-enum DocumentEntity {
+enum GqlDocumentEntity {
     Node(Node),
     Edge(Edge),
-    Graph(DocumentGraph),
+    Graph(Graph),
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
+    fn from(value: DocumentEntity<G>) -> Self {
+        match value {
+            DocumentEntity::Graph { name, .. } => Self::Graph(Graph {
+                name: name.unwrap(),
+            }),
+            DocumentEntity::Node(node) => Self::Node(Node::from(node)),
+            DocumentEntity::Edge(edge) => Self::Edge(Edge::from(edge)),
+        }
+    }
 }
 
 #[derive(SimpleObject)]
-pub struct GqlDocument {
-    entity: DocumentEntity,
+pub struct Document {
+    entity: GqlDocumentEntity,
     content: String,
     embedding: Vec<f32>,
-    life: Vec<i64>,
+    life: Vec<i64>, // TODO: give this a proper type
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> From<Document<G>> for GqlDocument {
-    fn from(value: Document<G>) -> Self {
-        match value {
-            Document::Graph {
-                name,
-                entity,
-                content,
-                embedding,
-                life,
-            } => Self {
-                entity: DocumentEntity::Graph(DocumentGraph {
-                    name: name.unwrap(), // FIXME: make this optional maybe...?
-                }),
-                content,
-                embedding: embedding.to_vec(),
-                life: lifespan_into_vec(life),
-            },
-            Document::Node {
-                entity,
-                content,
-                embedding,
-                life,
-            } => Self {
-                entity: DocumentEntity::Node(entity.into()),
-                content,
-                embedding: embedding.to_vec(),
-                life: lifespan_into_vec(life),
-            },
-            Document::Edge {
-                entity,
-                content,
-                embedding,
-                life,
-            } => Self {
-                entity: DocumentEntity::Edge(entity.into()),
-                content,
-                embedding: embedding.to_vec(),
-                life: lifespan_into_vec(life),
-            },
+impl<G: StaticGraphViewOps + IntoDynamic> From<RustDocument<G>> for Document {
+    fn from(value: RustDocument<G>) -> Self {
+        let RustDocument {
+            entity,
+            content,
+            embedding,
+            life,
+        } = value;
+        Self {
+            entity: entity.into(),
+            content,
+            embedding: embedding.to_vec(),
+            life: lifespan_into_vec(life),
         }
     }
 }
