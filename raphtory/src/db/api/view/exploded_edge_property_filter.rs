@@ -47,8 +47,6 @@ mod test {
     ) -> Graph {
         let g = Graph::new();
         for (src, dst, t, str_prop, int_prop) in edges {
-            g.add_node(*t, *src, NO_PROPS, None).unwrap();
-            g.add_node(*t, *dst, NO_PROPS, None).unwrap();
             if filter(*int_prop) {
                 g.add_edge(
                     *t,
@@ -196,7 +194,12 @@ mod test {
             if let Some(node) = g.node(0) {
                 let filtered_node = node.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
                 let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
-                assert_node_equal(filtered_node, expected_filtered_g.node(0).unwrap())
+                if filtered_node.degree() == 0 {
+                    // should be filtered out
+                    assert!(expected_filtered_g.node(0).is_none())
+                } else {
+                    assert_node_equal(filtered_node, expected_filtered_g.node(0).unwrap())
+                }
             }
         })
     }
