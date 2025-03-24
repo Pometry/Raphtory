@@ -11,10 +11,7 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::{
-    core::storage::{
-        arc_str::ArcStr,
-        timeindex::{TimeIndexEntry},
-    },
+    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     iter::IntoDynBoxed,
 };
 
