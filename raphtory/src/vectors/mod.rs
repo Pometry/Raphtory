@@ -419,7 +419,7 @@ mod vector_tests {
             .nodes_by_similarity(&embedding, 1, None)
             .get_documents();
         // TODO: use the ids instead in all of these cases
-        assert!(docs[0].content().contains("Gandalf is a wizard"));
+        assert!(docs[0].content.contains("Gandalf is a wizard"));
 
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
             .await
@@ -428,7 +428,7 @@ mod vector_tests {
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
             .get_documents();
-        assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
+        assert!(docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
@@ -438,7 +438,7 @@ mod vector_tests {
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
             .get_documents();
-        assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
+        assert!(!docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let embedding = openai_embedding(vec!["Has anyone appeared with anyone else?".to_owned()])
             .await
@@ -448,6 +448,6 @@ mod vector_tests {
         let docs = vectors
             .edges_by_similarity(&embedding, 1, None)
             .get_documents();
-        assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
+        assert!(docs[0].content.contains("Frodo appeared with Gandalf"));
     }
 }
