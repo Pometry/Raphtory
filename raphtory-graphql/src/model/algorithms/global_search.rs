@@ -1,7 +1,7 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::document::GqlDocument,
+        algorithms::document::Document,
         plugins::{operation::Operation, query_plugin::QueryPlugin},
     },
 };
@@ -18,10 +18,10 @@ use tracing::info;
 pub(crate) struct GlobalSearch;
 
 impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
-    type OutputType = GqlDocument;
+    type OutputType = Document;
 
     fn output_type() -> TypeRef {
-        TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
+        TypeRef::named_nn_list_nn(Document::get_type_name())
     }
 
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
@@ -55,7 +55,7 @@ impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
 
             let gql_documents = documents
                 .into_iter()
-                .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
+                .map(|doc| FieldValue::owned_any(Document::from(doc)));
             Ok(Some(FieldValue::list(gql_documents)))
         })
     }

@@ -2,7 +2,7 @@ use crate::{
     core::Lifespan,
     db::api::view::DynamicGraph,
     python::types::repr::{Repr, StructReprBuilder},
-    vectors::{Document, DocumentOps, Embedding},
+    vectors::{Document, DocumentEntity, Embedding},
 };
 use pyo3::{prelude::*, types::PyNone, IntoPyObjectExt};
 
@@ -55,7 +55,7 @@ impl PyDocument {
     ///     str:
     #[getter]
     fn content(&self) -> &str {
-        &self.0.content()
+        &self.0.content
     }
 
     /// the entity corresponding to the document
@@ -64,10 +64,10 @@ impl PyDocument {
     ///     Optional[Any]:
     #[getter]
     fn entity(&self, py: Python) -> PyResult<PyObject> {
-        match &self.0 {
-            Document::Graph { entity, .. } => entity.clone().into_py_any(py),
-            Document::Node { entity, .. } => entity.clone().into_py_any(py),
-            Document::Edge { entity, .. } => entity.clone().into_py_any(py),
+        match &self.0.entity {
+            DocumentEntity::Graph { graph, .. } => graph.clone().into_py_any(py),
+            DocumentEntity::Node(entity) => entity.clone().into_py_any(py),
+            DocumentEntity::Edge(entity) => entity.clone().into_py_any(py),
         }
     }
 
@@ -77,12 +77,7 @@ impl PyDocument {
     ///     Optional[Embedding]: the embedding for the document if it was computed
     #[getter]
     fn embedding(&self) -> PyEmbedding {
-        let embedding = match &self.0 {
-            Document::Graph { embedding, .. } => embedding.clone(),
-            Document::Node { embedding, .. } => embedding.clone(),
-            Document::Edge { embedding, .. } => embedding.clone(),
-        };
-        PyEmbedding(embedding)
+        PyEmbedding(self.0.embedding.clone())
     }
 
     /// the life span
@@ -91,11 +86,7 @@ impl PyDocument {
     ///     Optional[Union[int | Tuple[int, int]]]:
     #[getter]
     fn life(&self) -> Lifespan {
-        match self.0 {
-            Document::Graph { life, .. } => life,
-            Document::Node { life, .. } => life,
-            Document::Edge { life, .. } => life,
-        }
+        self.0.life
     }
 }
 
@@ -135,10 +126,13 @@ impl PyEmbedding {
 
 impl Repr for PyDocument {
     fn repr(&self) -> String {
-        let entity = match &self.0 {
-            Document::Graph { .. } => "graph".to_owned(), // FIXME:
-            Document::Node { entity, .. } => entity.repr(),
-            Document::Edge { entity, .. } => entity.repr(),
+        let entity = match &self.0.entity {
+            DocumentEntity::Graph { name, .. } => name
+                .as_ref()
+                .map(|name| format!("Graph {name}"))
+                .unwrap_or_else(|| "Unnamed graph".to_owned()), // FIXME: use entity??
+            DocumentEntity::Node(entity) => entity.repr(),
+            DocumentEntity::Edge(entity) => entity.repr(),
         };
         StructReprBuilder::new("Document")
             .add_field("content", &self.content())

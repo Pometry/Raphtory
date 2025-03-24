@@ -1,7 +1,7 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::document::GqlDocument,
+        algorithms::document::Document,
         plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
     },
 };
@@ -16,10 +16,10 @@ use tracing::info;
 pub(crate) struct SimilaritySearch;
 
 impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
-    type OutputType = GqlDocument;
+    type OutputType = Document;
 
     fn output_type() -> TypeRef {
-        TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
+        TypeRef::named_nn_list_nn(Document::get_type_name())
     }
 
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
@@ -54,7 +54,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
 
             let gql_documents = documents
                 .into_iter()
-                .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
+                .map(|doc| FieldValue::owned_any(Document::from(doc)));
             Ok(Some(FieldValue::list(gql_documents)))
         })
     }

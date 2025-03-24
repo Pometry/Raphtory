@@ -1,7 +1,7 @@
 use crate::{
     config::app_config::AppConfigBuilder,
     model::{
-        algorithms::document::GqlDocument,
+        algorithms::document::Document as GqlDocument,
         plugins::{entry_point::EntryPoint, query_plugin::QueryPlugin},
     },
     python::{
