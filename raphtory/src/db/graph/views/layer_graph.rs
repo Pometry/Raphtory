@@ -242,9 +242,7 @@ mod test_layers {
                     property_filter::{FilterExpr, PropertyFilterOps},
                 },
             },
-            prelude::{
-                AdditionOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps,
-            },
+            prelude::{AdditionOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps},
         };
         use std::ops::Range;
 
