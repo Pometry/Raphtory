@@ -164,7 +164,7 @@ impl InternalAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        self.link_nodes(src, dst, t, layer, move |mut edge| {
+        self.link_nodes(src, dst, t, layer, false, move |mut edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);
@@ -184,7 +184,7 @@ impl InternalAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.link_edge(edge, t, layer, |mut edge| {
+        self.link_edge(edge, t, layer, false, |mut edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);

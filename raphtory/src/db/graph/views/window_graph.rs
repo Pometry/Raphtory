@@ -65,7 +65,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::{
-    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    core::{
+        entities::ELID,
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use std::{
@@ -659,6 +662,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.window_is_empty()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]

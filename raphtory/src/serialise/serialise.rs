@@ -440,10 +440,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -451,10 +451,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }

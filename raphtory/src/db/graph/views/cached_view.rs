@@ -14,6 +14,7 @@ use crate::{
     },
     prelude::{GraphViewOps, LayerOps},
 };
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
@@ -107,6 +108,18 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        let layer = eid.layer();
+        if layer_ids.contains(&layer) {
+            self.layered_mask
+                .get(layer)
+                .map_or(false, |(_, edges)| edges.contains(eid.edge.as_u64()))
+                && self.graph.filter_edge_history(eid, t, layer_ids)
+        } else {
+            false
+        }
     }
 
     #[inline]

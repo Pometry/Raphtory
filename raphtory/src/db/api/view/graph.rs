@@ -310,8 +310,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for t in edge.explode().time_and_index() {
-                            src_node.update_time(t?, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index()?;
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            src_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             src_node.add_edge(
@@ -323,8 +325,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         }
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for t in edge.explode().time_and_index() {
-                            dst_node.update_time(t?, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index()?;
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            dst_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             dst_node.add_edge(
@@ -337,16 +341,22 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     }
 
                     if self.include_deletions() {
-                        for t in
-                            self.edge_deletion_history(edge.edge, Cow::Borrowed(self.layer_ids()))
-                        {
-                            if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
+                        for layer in self.layer_ids().iter(self.unfiltered_num_layers()) {
+                            for t in self
+                                .edge_deletion_history(edge.edge, Cow::Owned(LayerIds::One(layer)))
                             {
-                                src_node.update_time(t, edge.edge.pid());
-                            }
-                            if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()])
-                            {
-                                dst_node.update_time(t, edge.edge.pid());
+                                if let Some(src_node) =
+                                    shard.get_mut(node_map[edge.edge.src().index()])
+                                {
+                                    src_node
+                                        .update_time(t, edge.edge.pid().with_layer_deletion(layer));
+                                }
+                                if let Some(dst_node) =
+                                    shard.get_mut(node_map[edge.edge.dst().index()])
+                                {
+                                    dst_node
+                                        .update_time(t, edge.edge.pid().with_layer_deletion(layer));
+                                }
                             }
                         }
                     }

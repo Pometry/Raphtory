@@ -33,9 +33,15 @@ use raphtory_api::core::{
 };
 use std::{iter, ops::Range};
 
-use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
+use crate::{
+    db::api::storage::graph::variants::storage_variants::StorageVariants, prelude::GraphViewOps,
+};
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;
+use raphtory_api::{
+    core::entities::ELID,
+    iter::{IntoDynBoxed, IntoDynDBoxed},
+};
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -274,21 +280,19 @@ impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
 impl TimeIndexOps for NodeTimestamps {
     type IndexType = TimeIndexEntry;
 
-    type RangeType<'b>
-        = TimeIndexWindow<'b, TimeIndexEntry, Self>
-    where
-        Self: 'b;
-
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.edge_ts.active(w.clone()) || self.props_ts.active(w)
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
-        TimeIndexWindow::TimeIndexRange {
+    fn range(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        Box::new(TimeIndexWindow::TimeIndexRange {
             timeindex: self,
             range: w,
-        }
+        })
     }
 
     fn first(&self) -> Option<Self::IndexType> {
@@ -400,6 +404,56 @@ impl<'a> NodeAdditions<'a> {
         }
     }
 
+    pub fn prop_events(&self) -> impl DoubleEndedIterator<Item = TimeIndexEntry> + use<'a> {
+        match self {
+            NodeAdditions::Mem(index) => index.props_ts.iter().map(|(t, _)| *t).into_dyn_dboxed(),
+            NodeAdditions::Range(index) => match index {
+                TimeIndexWindow::Empty => iter::empty().into_dyn_dboxed(),
+                TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
+                    .props_ts
+                    .iter_window(range.clone())
+                    .map(|(t, _)| *t)
+                    .into_dyn_dboxed(),
+                TimeIndexWindow::All(index) => {
+                    index.props_ts.iter().map(|(t, _)| *t).into_dyn_dboxed()
+                }
+            },
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(index) => index
+                .clone()
+                .prop_events()
+                .flat_map(|t| t.into_iter())
+                .into_dyn_dboxed(),
+        }
+    }
+
+    pub fn edge_events(&self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, ELID)> + use<'a> {
+        match self {
+            NodeAdditions::Mem(index) => index
+                .edge_ts
+                .iter()
+                .map(|(t, e)| (*t, *e))
+                .into_dyn_dboxed(),
+            NodeAdditions::Range(index) => match index {
+                TimeIndexWindow::Empty => iter::empty().into_dyn_dboxed(),
+                TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
+                    .edge_ts
+                    .iter_window(range.clone())
+                    .map(|(t, e)| (*t, *e))
+                    .into_dyn_dboxed(),
+                TimeIndexWindow::All(index) => index
+                    .edge_ts
+                    .iter()
+                    .map(|(t, e)| (*t, *e))
+                    .into_dyn_dboxed(),
+            },
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(_) => {
+                todo!()
+            }
+        }
+    }
+
     pub fn into_edge_events(self) -> BoxedLIter<'a, TimeIndexEntry> {
         match self {
             NodeAdditions::Mem(index) => Box::new(index.edge_ts.iter().map(|(time, _)| *time)),
@@ -416,14 +470,22 @@ impl<'a> NodeAdditions<'a> {
             }
         }
     }
+
+    pub fn with_range(&self, w: Range<TimeIndexEntry>) -> Self {
+        match self {
+            NodeAdditions::Mem(index) => NodeAdditions::Range(TimeIndexWindow::TimeIndexRange {
+                timeindex: index,
+                range: w,
+            }),
+            NodeAdditions::Range(index) => NodeAdditions::Range(index.with_range(w)),
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
+        }
+    }
 }
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'a>
-        = NodeAdditions<'a>
-    where
-        Self: 'a;
 
     #[inline]
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
@@ -435,12 +497,15 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         }
     }
 
-    fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
+    fn range(
+        &self,
+        w: Range<TimeIndexEntry>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
-            NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
-            NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
+            NodeAdditions::Mem(index) => index.range(w),
+            NodeAdditions::Range(index) => index.range(w),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
+            NodeAdditions::Col(index) => Box::new(index.with_range(w)),
         }
     }
 
@@ -488,7 +553,10 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
 
     fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
         match self {
-            NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
+            NodeAdditions::Mem(index) => NodeAdditions::Range(TimeIndexWindow::TimeIndexRange {
+                timeindex: index,
+                range: w,
+            }),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.into_range(w)),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
@@ -504,5 +572,84 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
                 Box::new(index.into_iter().flat_map(|index| index.into_iter()))
             }
         }
+    }
+}
+
+pub struct NodeHistory<'a, G> {
+    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) view: G,
+}
+
+impl<'b, G: GraphViewOps<'b>> TimeIndexOps for NodeHistory<'b, G> {
+    type IndexType = TimeIndexEntry;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        self.additions
+            .with_range(w.clone())
+            .prop_events()
+            .next()
+            .is_some()
+            || self
+                .additions
+                .with_range(w)
+                .edge_events()
+                .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
+                .next()
+                .is_some()
+    }
+
+    fn range(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        let additions = self.additions.with_range(w);
+        let view = self.view.clone();
+        Box::new(NodeHistory { additions, view })
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        self.additions
+            .prop_events()
+            .next()
+            .into_iter()
+            .chain(
+                self.additions
+                    .edge_events()
+                    .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
+                    .next()
+                    .map(|(t, _)| t),
+            )
+            .min()
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.additions
+            .prop_events()
+            .next_back()
+            .into_iter()
+            .chain(
+                self.additions
+                    .edge_events()
+                    .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
+                    .next_back()
+                    .map(|(t, _)| t),
+            )
+            .max()
+    }
+
+    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+        self.additions
+            .prop_events()
+            .merge(
+                self.additions
+                    .edge_events()
+                    .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
+                    .map(|(t, _)| t),
+            )
+            .into_dyn_boxed()
+    }
+
+    fn len(&self) -> usize {
+        self.iter().count()
     }
 }

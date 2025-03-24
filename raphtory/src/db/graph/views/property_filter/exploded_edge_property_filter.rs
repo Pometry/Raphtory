@@ -13,9 +13,9 @@ use crate::{
             },
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
-                    InheritMaterialize, InheritNodeFilterOps, InternalLayerOps, Static,
-                    TimeSemantics,
+                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritNodeFilterOps, InternalLayerOps,
+                    Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
@@ -28,7 +28,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, ELID, VID},
         storage::timeindex::TimeIndexEntry,
     },
     iter::BoxedLDIter,
@@ -132,6 +132,17 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
 
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
+            let edge_ref = self.core_edge(eid.edge).out_ref();
+            if eid.is_deletion() {
+                self.filter(edge_ref, t.previous(), &LayerIds::One(eid.layer()))
+            } else {
+                self.filter(edge_ref, t, &LayerIds::One(eid.layer()))
+            }
+        }
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {

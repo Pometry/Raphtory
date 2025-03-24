@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{borrow::Cow, path::Path};
 
 use super::*;
 use crate::{
@@ -49,7 +49,7 @@ pub(crate) fn encode_edge_tprop(
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    g.edge_exploded(edge_ref, &all_layers)
+                    g.edge_exploded(edge_ref, Cow::Borrowed(&all_layers))
                 })
                 .map(|edge| ParquetTEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)
