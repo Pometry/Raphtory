@@ -10,11 +10,12 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::graph::nodes::node_ref::NodeStorageRef,
         view::{
             internal::{
                 Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
-                InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
-                Static,
+                InheritMaterialize, InheritTimeSemantics, InternalLayerOps, NodeFilterOps,
+                NodeTimeSemanticsOps, Static,
             },
             Layer,
         },
@@ -54,8 +55,6 @@ impl<'graph, G: GraphViewOps<'graph>> Base for LayeredGraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
 
@@ -109,6 +108,25 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
     fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.constrain(self.graph.valid_layer_ids_from_names(key))
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for LayeredGraph<G> {
+    fn nodes_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
+    fn node_list_trusted(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        true
+    }
+
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_node(node, layer_ids)
+            && self.graph.node_time_semantics().node_valid(node, &self)
     }
 }
 

@@ -1840,4 +1840,15 @@ mod test_deletions {
         assert_eq!(view.count_edges(), 0);
         assert_graph_equal(&view, &view.materialize().unwrap())
     }
+
+    #[test]
+    fn filtering_all_layers_removes_other_nodes() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        let view = g.valid_layers(Layer::None).window(0, 1);
+        assert_eq!(view.count_nodes(), 0);
+        assert_eq!(view.count_edges(), 0);
+        assert_graph_equal(&view, &view.materialize().unwrap())
+    }
 }
