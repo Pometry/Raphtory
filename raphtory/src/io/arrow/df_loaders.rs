@@ -933,6 +933,10 @@ mod tests {
 
             let g = TemporalGraph::new(graph_dir.path()).unwrap();
 
+            for edge in g.edges_iter() {
+                assert!(g.find_edge(edge.src_id(), edge.dst_id()).is_some());
+            }
+
             let actual =
                 Graph::from_internal_graph(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
             assert_graph_equal(&expected, &actual);

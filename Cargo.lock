@@ -4820,12 +4820,17 @@ dependencies = [
 name = "raphtory-benchmark"
 version = "0.14.0"
 dependencies = [
+ "chrono",
  "criterion",
+ "csv",
+ "fake",
+ "itertools 0.13.0",
  "once_cell",
  "rand",
  "raphtory",
  "raphtory-api",
  "rayon",
+ "serde",
  "sorted_vector_map",
  "tempfile",
  "tracing",

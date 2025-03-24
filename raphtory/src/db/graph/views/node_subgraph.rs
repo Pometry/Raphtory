@@ -122,10 +122,16 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for NodeSubgraph<G> {
 #[cfg(test)]
 mod subgraph_tests {
     use crate::{
-        algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
-        prelude::*, test_storage,
+        algorithms::{
+            components::weakly_connected_components, motifs::triangle_count::triangle_count,
+        },
+        db::graph::graph::assert_graph_equal,
+        prelude::*,
+        test_storage,
     };
+    use ahash::{HashSet, HashSetExt};
     use itertools::Itertools;
+    use std::collections::BTreeSet;
 
     #[test]
     fn test_materialize_no_edges() {
@@ -195,6 +201,31 @@ mod subgraph_tests {
                 sgm.unique_layers().collect_vec()
             );
         });
+    }
+
+    #[test]
+    fn test_cc() {
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 0, 1, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(1, 3, 4, NO_PROPS, Some("1")).unwrap();
+        let sg = graph.subgraph([0, 1, 3, 4]);
+        let cc = weakly_connected_components(&sg, 100, None);
+        let groups = cc.groups();
+        let group_sets = groups
+            .iter()
+            .map(|(_, g)| g.id().into_iter_values().collect::<BTreeSet<_>>())
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            group_sets,
+            HashSet::from_iter([
+                BTreeSet::from([GID::U64(0), GID::U64(1)]),
+                BTreeSet::from([GID::U64(3), GID::U64(4)])
+            ])
+        );
     }
 
     #[cfg(all(test, feature = "search"))]
