@@ -1830,4 +1830,14 @@ mod test_deletions {
             [Prop::I32(2), Prop::I32(3), Prop::I32(4), Prop::I32(5)]
         )
     }
+
+    #[test]
+    fn filtering_all_layers_keeps_explicitly_added_nodes() {
+        let g = PersistentGraph::new();
+        g.add_node(0, 0, [("prop1", false)], None).unwrap();
+        let view = g.valid_layers(Layer::None).window(0, 1);
+        assert_eq!(view.count_nodes(), 1);
+        assert_eq!(view.count_edges(), 0);
+        assert_graph_equal(&view, &view.materialize().unwrap())
+    }
 }

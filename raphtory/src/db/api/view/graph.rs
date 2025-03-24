@@ -183,7 +183,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
-                return Ok(self.new_base_graph(g.into()));
+                // no layers to map
+                vec![]
             }
             LayerIds::All => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
