@@ -34,6 +34,7 @@ pub enum TimeIndexRef<'a> {
 
 impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
     type IndexType = TimeIndexEntry;
+    type RangeType = Self;
 
     #[inline(always)]
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
@@ -45,15 +46,12 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         }
     }
 
-    fn range(
-        &self,
-        w: Range<TimeIndexEntry>,
-    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+    fn range(&self, w: Range<TimeIndexEntry>) -> Self {
         match self {
-            TimeIndexRef::Ref(t) => t.range(w),
-            TimeIndexRef::Range(ref t) => t.range(w),
+            TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
+            TimeIndexRef::Range(ref t) => TimeIndexRef::Range(t.range(w)),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.range(w),
+            TimeIndexRef::External(ref t) => TimeIndexRef::External(t.range(w)),
         }
     }
 
@@ -77,10 +75,10 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 
     fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
-            TimeIndexRef::Ref(t) => t.iter(),
-            TimeIndexRef::Range(t) => t.iter(),
+            TimeIndexRef::Ref(t) => t.iter().into_dyn_boxed(),
+            TimeIndexRef::Range(t) => t.iter().into_dyn_boxed(),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.iter(),
+            TimeIndexRef::External(ref t) => t.iter().into_dyn_boxed(),
         }
     }
 

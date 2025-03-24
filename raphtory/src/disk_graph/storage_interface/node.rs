@@ -273,6 +273,15 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             .unwrap_or(DiskTProp::empty())
     }
 
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
+        self.graph
+            .node_properties()
+            .temporal_props()
+            .iter()
+            .flat_map(move |t_props| t_props.props(self.vid))
+            .enumerate()
+    }
+
     fn prop(self, prop_id: usize) -> Option<Prop> {
         let cprops = self.graph.node_properties().const_props.as_ref()?;
         let prop_type = cprops.prop_dtype(prop_id);
@@ -528,6 +537,10 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
         self.as_ref().prop(prop_id)
+    }
+
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
+        self.as_ref().tprops()
     }
 }
 

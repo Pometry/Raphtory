@@ -290,14 +290,17 @@ impl<
 {
     type IndexType = Mem::IndexType;
 
+    #[cfg(not(feature = "storage"))]
+    type RangeType = Mem::RangeType;
+
+    #[cfg(feature = "storage")]
+    type RangeType = StorageVariants<Mem::RangeType, Disk::RangeType>;
+
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         for_all!(self, props => props.active(w))
     }
 
-    fn range(
-        &self,
-        w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         for_all_iter!(self, props => props.range(w))
     }
 

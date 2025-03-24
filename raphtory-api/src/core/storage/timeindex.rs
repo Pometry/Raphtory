@@ -1,4 +1,4 @@
-use crate::iter::BoxedLIter;
+use crate::iter::{BoxedLIter, IntoDynBoxed};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
@@ -50,8 +50,9 @@ pub trait TimeIndexIntoOps: Sized {
     }
 }
 
-pub trait TimeIndexOps<'a>: Send + Sync {
+pub trait TimeIndexOps<'a>: Send + Sync + 'a {
     type IndexType: AsTime;
+    type RangeType: TimeIndexOps<'a, IndexType = Self::IndexType> + 'a;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
 
@@ -59,15 +60,9 @@ pub trait TimeIndexOps<'a>: Send + Sync {
         self.active(Self::IndexType::range(w))
     }
 
-    fn range(
-        &self,
-        w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a>;
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType;
 
-    fn range_t(
-        &self,
-        w: Range<i64>,
-    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+    fn range_t(&self, w: Range<i64>) -> Self::RangeType {
         self.range(Self::IndexType::range(w))
     }
 
@@ -86,7 +81,7 @@ pub trait TimeIndexOps<'a>: Send + Sync {
     fn iter(&self) -> BoxedLIter<'a, Self::IndexType>;
 
     fn iter_t(&self) -> BoxedLIter<'a, i64> {
-        Box::new(self.iter().map(|time| time.t()))
+        self.iter().map(|time| time.t()).into_dyn_boxed()
     }
 
     fn len(&self) -> usize;

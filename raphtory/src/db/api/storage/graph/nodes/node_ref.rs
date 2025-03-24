@@ -148,6 +148,14 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
     }
 
     fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
-        for_all_iter!(self, node => node.tprops())
+        match self {
+            NodeStorageRef::Mem(node) => {
+                StorageVariants::Mem(node.tprops().map(|(k, v)| (k, StorageVariants::Mem(v))))
+            }
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(node) => {
+                StorageVariants::Disk(node.tprops().map(|(k, v)| (k, StorageVariants::Disk(v))))
+            }
+        }
     }
 }

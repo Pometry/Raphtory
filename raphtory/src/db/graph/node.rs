@@ -37,7 +37,6 @@ use crate::{
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     fmt,
-    fmt::Debug,
     hash::{Hash, Hasher},
     marker::PhantomData,
     sync::Arc,

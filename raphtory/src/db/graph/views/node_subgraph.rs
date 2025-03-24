@@ -131,7 +131,7 @@ mod subgraph_tests {
         prelude::*,
         test_storage,
     };
-    use ahash::{HashSet, HashSetExt};
+    use ahash::HashSet;
     use itertools::Itertools;
     use std::collections::BTreeSet;
 

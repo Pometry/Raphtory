@@ -8,7 +8,7 @@ use std::{
 };
 
 pub use raphtory_api::core::storage::timeindex::*;
-use raphtory_api::iter::BoxedLIter;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
@@ -240,13 +240,14 @@ impl<'a, T: AsTime, TI: TimeIndexLike<'a, IndexType = T>> TimeIndexIntoOps
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex.range_iter(range),
-            TimeIndexWindow::All(timeindex) => timeindex.iter(),
+            TimeIndexWindow::All(timeindex) => timeindex.iter().into_dyn_boxed(),
         }
     }
 }
 
 impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
     type IndexType = T;
+    type RangeType = TimeIndexWindow<'a, T, TimeIndex<T>>;
 
     #[inline(always)]
     fn active(&self, w: Range<T>) -> bool {
@@ -257,7 +258,7 @@ impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
         }
     }
 
-    fn range(&self, w: Range<T>) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+    fn range(&self, w: Range<T>) -> Self::RangeType {
         let range = match self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
@@ -286,7 +287,7 @@ impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
                 }
             }
         };
-        Box::new(range)
+        range
     }
 
     fn first(&self) -> Option<T> {
@@ -307,9 +308,9 @@ impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
 
     fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
-            TimeIndex::Empty => Box::new(iter::empty()),
-            TimeIndex::One(t) => Box::new(iter::once(*t)),
-            TimeIndex::Set(ts) => Box::new(ts.iter().copied()),
+            TimeIndex::Empty => iter::empty().into_dyn_boxed(),
+            TimeIndex::One(t) => iter::once(*t).into_dyn_boxed(),
+            TimeIndex::Set(ts) => ts.iter().copied().into_dyn_boxed(),
         }
     }
 
@@ -328,6 +329,7 @@ where
     Self: 'b,
 {
     type IndexType = T;
+    type RangeType = Self;
 
     #[inline(always)]
     fn active(&self, w: Range<T>) -> bool {
@@ -342,7 +344,7 @@ where
         }
     }
 
-    fn range(&self, w: Range<T>) -> Box<dyn TimeIndexOps<'b, IndexType = Self::IndexType> + 'b> {
+    fn range(&self, w: Range<T>) -> Self {
         let range = match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -362,7 +364,7 @@ where
                 range: w,
             },
         };
-        Box::new(range)
+        range
     }
 
     fn first(&self) -> Option<T> {
@@ -385,13 +387,13 @@ where
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'b, T> {
+    fn iter(&self) -> BoxedLIter<'b, Self::IndexType> {
         match self {
-            TimeIndexWindow::Empty => Box::new(iter::empty()),
+            TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                Box::new(timeindex.range_iter(range.clone()))
+                timeindex.range_iter(range.clone()).into_dyn_boxed()
             }
-            TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter()),
+            TimeIndexWindow::All(timeindex) => timeindex.iter().into_dyn_boxed(),
         }
     }
 

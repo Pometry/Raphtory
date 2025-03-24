@@ -65,7 +65,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, i64> {
-        node.history(view).iter_t()
+        node.history(view).iter_t().into_dyn_boxed()
     }
 
     fn node_history_window<'graph, G: GraphViewOps<'graph>>(
@@ -74,7 +74,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, i64> {
-        node.history(view).range_t(w).iter_t()
+        node.history(view).range_t(w).iter_t().into_dyn_boxed()
     }
 
     fn node_updates<'graph, G: GraphViewOps<'graph>>(

@@ -1,7 +1,7 @@
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
 use raphtory_api::{
     core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike},
-    iter::BoxedLIter,
+    iter::{BoxedLIter, IntoDynBoxed},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
@@ -142,6 +142,7 @@ impl<A: Sync + Send> TCell<A> {
 
 impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
     type IndexType = TimeIndexEntry;
+    type RangeType = TimeIndexWindow<'a, Self::IndexType, TCell<A>>;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -153,10 +154,7 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
         }
     }
 
-    fn range(
-        &self,
-        w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         let range = match self {
             TCell::Empty => TimeIndexWindow::Empty,
             TCell::TCell1(t, _) => w
@@ -182,7 +180,7 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
                 }
             }
         };
-        Box::new(range)
+        range
     }
 
     fn first(&self) -> Option<Self::IndexType> {
@@ -205,10 +203,10 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
 
     fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, _) => Box::new(std::iter::once(*t)),
-            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(ti, _)| *ti)),
-            TCell::TCellN(btm) => Box::new(btm.keys().copied()),
+            TCell::Empty => std::iter::empty().into_dyn_boxed(),
+            TCell::TCell1(t, _) => std::iter::once(*t).into_dyn_boxed(),
+            TCell::TCellCap(svm) => svm.iter().map(|(ti, _)| *ti).into_dyn_boxed(),
+            TCell::TCellN(btm) => btm.keys().copied().into_dyn_boxed(),
         }
     }
 
