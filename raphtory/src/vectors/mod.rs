@@ -31,7 +31,6 @@ pub enum DocumentEntity<G: StaticGraphViewOps> {
     Edge(EdgeView<G>),
 }
 
-// FIXME: better have all the common fields just once and then an enum only for the entity!!!!
 #[derive(Debug, Clone)]
 pub struct Document<G: StaticGraphViewOps> {
     pub entity: DocumentEntity<G>,
@@ -39,29 +38,6 @@ pub struct Document<G: StaticGraphViewOps> {
     pub embedding: Embedding,
     pub life: Lifespan,
 }
-
-// TODO: remove this interface, only used by Document (?)
-// pub trait DocumentOps {
-//     fn content(&self) -> &str;
-//     fn into_content(self) -> String;
-// }
-
-// impl<G: StaticGraphViewOps> DocumentOps for Document<G> {
-//     fn content(&self) -> &str {
-//         match self {
-//             Document::Graph { content, .. } => content,
-//             Document::Node { content, .. } => content,
-//             Document::Edge { content, .. } => content,
-//         }
-//     }
-//     fn into_content(self) -> String {
-//         match self {
-//             Document::Graph { content, .. } => content,
-//             Document::Node { content, .. } => content,
-//             Document::Edge { content, .. } => content,
-//         }
-//     }
-// }
 
 impl Lifespan {
     #![allow(dead_code)]
