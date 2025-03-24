@@ -129,13 +129,13 @@ impl<T: AsTime> TimeIndex<T> {
     }
 }
 
-impl<T: AsTime> TimeIndexLike for TimeIndex<T> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
-        Box::new(self.range_iter(w))
+impl<'a, T: AsTime> TimeIndexLike<'a> for &'a TimeIndex<T> {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
+        Box::new((*self).range_iter(w))
     }
 
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.range_iter(w).next_back()
+        (*self).range_iter(w).next_back()
     }
 }
 
@@ -146,7 +146,10 @@ pub enum TimeIndexWindow<'a, T: AsTime, TI> {
     All(&'a TI),
 }
 
-impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'a, T, TI> {
+impl<'a, T: AsTime, TI> TimeIndexWindow<'a, T, TI>
+where
+    &'a TI: TimeIndexLike<'a, IndexType = T>,
+{
     pub fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,
@@ -195,7 +198,7 @@ impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'a, T, TI>
     }
 }
 
-impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
+impl<'a, T: AsTime, TI: TimeIndexLike<'a, IndexType = T>> TimeIndexIntoOps
     for TimeIndexWindow<'a, T, TI>
 {
     type IndexType = T;
@@ -247,7 +250,7 @@ impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
     }
 }
 
-impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
+impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
     type IndexType = T;
 
     #[inline(always)]
@@ -259,12 +262,12 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn range(&self, w: Range<T>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
-        let range = match &self {
+    fn range(&self, w: Range<T>) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+        let range = match self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
                 if w.contains(t) {
-                    TimeIndexWindow::All(self)
+                    TimeIndexWindow::All(*self)
                 } else {
                     TimeIndexWindow::Empty
                 }
@@ -273,10 +276,10 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
                 if let Some(min_val) = ts.first() {
                     if let Some(max_val) = ts.last() {
                         if min_val >= &w.start && max_val < &w.end {
-                            TimeIndexWindow::All(self)
+                            TimeIndexWindow::All(*self)
                         } else {
                             TimeIndexWindow::TimeIndexRange {
-                                timeindex: self,
+                                timeindex: *self,
                                 range: w,
                             }
                         }
@@ -307,7 +310,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
             TimeIndex::Empty => Box::new(iter::empty()),
             TimeIndex::One(t) => Box::new(iter::once(*t)),
@@ -324,8 +327,9 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     }
 }
 
-impl<'b, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexOps for TimeIndexWindow<'b, T, TI>
+impl<'b, T: AsTime, TI> TimeIndexOps<'b> for TimeIndexWindow<'b, T, TI>
 where
+    &'b TI: TimeIndexLike<'b, IndexType = T>,
     Self: 'b,
 {
     type IndexType = T;
@@ -343,7 +347,7 @@ where
         }
     }
 
-    fn range(&self, w: Range<T>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<T>) -> Box<dyn TimeIndexOps<'b, IndexType = Self::IndexType> + 'b> {
         let range = match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -386,7 +390,7 @@ where
         }
     }
 
-    fn iter(&self) -> BoxedLIter<T> {
+    fn iter(&self) -> BoxedLIter<'b, T> {
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {

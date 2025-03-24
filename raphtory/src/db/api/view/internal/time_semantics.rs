@@ -9,9 +9,101 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use std::{borrow::Cow, ops::Range};
+use futures_util::StreamExt;
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps};
+use std::{any::Any, borrow::Cow, ops::Range};
 
+pub trait HistoryTimeSemantics {
+    fn earliest_time(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+    ) -> Option<i64>;
+
+    fn latest_time(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+    ) -> Option<i64>;
+
+    fn earliest_time_window(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> Option<i64>;
+
+    fn latest_time_window(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> Option<i64>;
+
+    fn history<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    ) -> BoxedLIter<'a, i64>;
+
+    fn history_window<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, i64>;
+}
+
+struct PersistentSemantics();
+
+impl HistoryTimeSemantics for PersistentSemantics {
+    fn earliest_time(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+    ) -> Option<i64> {
+        history.first_t()
+    }
+
+    fn latest_time(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+    ) -> Option<i64> {
+        history.last_t()
+    }
+
+    fn earliest_time_window(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        if history.active_t(i64::MIN..w.start) {
+            Some(w.start)
+        } else {
+            history.range(TimeIndexEntry::range(w)).first_t()
+        }
+    }
+
+    fn latest_time_window(
+        &self,
+        history: Box<dyn TimeIndexOps<IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        if history.active_t(i64::MIN..w.end) {
+            Some(w.end.saturating_sub(1))
+        } else {
+            None
+        }
+    }
+
+    fn history<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+    ) -> BoxedLIter<'a, i64> {
+        history.iter_t()
+    }
+
+    fn history_window<'a>(
+        &'a self,
+        history: Box<dyn TimeIndexOps<'a, IndexType = TimeIndexEntry>>,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, i64> {
+        history.range_t(w).iter_t()
+    }
+}
 /// Methods for defining time windowing semantics for a graph
 #[enum_dispatch]
 pub trait TimeSemantics {

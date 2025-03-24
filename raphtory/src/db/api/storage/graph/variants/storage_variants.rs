@@ -283,9 +283,10 @@ impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> 
 }
 
 impl<
-        Mem: TimeIndexOps,
-        #[cfg(feature = "storage")] Disk: TimeIndexOps<IndexType = Mem::IndexType>,
-    > TimeIndexOps for SelfType!(Mem, Disk)
+        'a,
+        Mem: TimeIndexOps<'a>,
+        #[cfg(feature = "storage")] Disk: TimeIndexOps<'a, IndexType = Mem::IndexType>,
+    > TimeIndexOps<'a> for SelfType!(Mem, Disk)
 {
     type IndexType = Mem::IndexType;
 
@@ -296,7 +297,7 @@ impl<
     fn range(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
         for_all_iter!(self, props => props.range(w))
     }
 
@@ -308,7 +309,7 @@ impl<
         for_all!(self, props => props.last())
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         for_all!(self, props => props.iter())
     }
 

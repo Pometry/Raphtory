@@ -130,13 +130,8 @@ impl TimeSemantics for GraphStorage {
                 .additions()
                 .into_range(TimeIndexEntry::range(w))
                 .into_prop_events()
-                .into_iter()
-                .into_dyn_boxed(),
-            None => node
-                .additions()
-                .into_prop_events()
-                .into_iter()
-                .into_dyn_boxed(),
+                .iter(),
+            None => node.additions().into_prop_events().iter(),
         })
         .into_dyn_boxed()
     }

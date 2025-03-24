@@ -140,17 +140,7 @@ impl<A: Sync + Send> TCell<A> {
     }
 }
 
-impl<A: Send + Sync> TimeIndexLike for TCell<A> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
-        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
-    }
-
-    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.iter_window(w).next_back().map(|(ti, _)| *ti)
-    }
-}
-
-impl<A: Send + Sync> TimeIndexOps for TCell<A> {
+impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
     type IndexType = TimeIndexEntry;
 
     #[inline]
@@ -166,21 +156,21 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
     fn range(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
-        let range = match &self {
+    ) -> Box<dyn TimeIndexOps<'a, IndexType = Self::IndexType> + 'a> {
+        let range = match self {
             TCell::Empty => TimeIndexWindow::Empty,
             TCell::TCell1(t, _) => w
                 .contains(t)
-                .then(|| TimeIndexWindow::All(self))
+                .then(|| TimeIndexWindow::All(*self))
                 .unwrap_or(TimeIndexWindow::Empty),
             _ => {
                 if let Some(min_val) = self.first() {
                     if let Some(max_val) = self.last() {
                         if min_val >= w.start && max_val < w.end {
-                            TimeIndexWindow::All(self)
+                            TimeIndexWindow::All(*self)
                         } else {
                             TimeIndexWindow::TimeIndexRange {
-                                timeindex: self,
+                                timeindex: *self,
                                 range: w,
                             }
                         }
@@ -213,7 +203,7 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, _) => Box::new(std::iter::once(*t)),
@@ -232,39 +222,8 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
     }
 }
 
-impl<'b, A: Send + Sync> TimeIndexOps for &'b TCell<A> {
-    type IndexType = TimeIndexEntry;
-
-    fn active(&self, w: Range<Self::IndexType>) -> bool {
-        TimeIndexOps::active(*self, w)
-    }
-
-    fn range(
-        &self,
-        w: Range<Self::IndexType>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
-        TimeIndexOps::range(*self, w)
-    }
-
-    fn first(&self) -> Option<Self::IndexType> {
-        TimeIndexOps::first(*self)
-    }
-
-    fn last(&self) -> Option<Self::IndexType> {
-        TimeIndexOps::last(*self)
-    }
-
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
-        TimeIndexOps::iter(*self)
-    }
-
-    fn len(&self) -> usize {
-        TimeIndexOps::len(*self)
-    }
-}
-
-impl<'a, A: Send + Sync> TimeIndexLike for &'a TCell<A> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
+impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
         Box::new(self.iter_window(w).map(|(ti, _)| *ti))
     }
 

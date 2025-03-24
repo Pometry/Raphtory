@@ -26,7 +26,7 @@ use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
     entities::{properties::props::PropMapper, GidRef, EID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     unify_types, Direction, PropType,
 };
 use rayon::prelude::*;
