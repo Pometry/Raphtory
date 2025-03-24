@@ -59,6 +59,8 @@ impl GraphIndex {
         Searcher::new(self)
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     pub fn print(&self) -> Result<(), GraphError> {
         self.node_index.print()?;
         self.edge_index.print()?;
@@ -185,10 +187,7 @@ impl GraphIndex {
 #[cfg(test)]
 mod graph_index_test {
     use crate::{
-        db::{
-            api::view::{internal::InternalStorageOps, SearchableGraphOps},
-            graph::views::property_filter::{FilterExpr, PropertyFilterOps},
-        },
+        db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
 

@@ -26,10 +26,8 @@ use itertools::Itertools;
 use raphtory_api::core::entities::EID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
-    collector::{Collector, TopDocs},
-    query::Query,
-    schema::Value,
-    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
+    collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
+    Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -74,19 +72,14 @@ impl<'a> EdgeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+        collector_fn: impl Fn(String, usize, G) -> C,
     ) -> Result<Vec<EdgeView<G, G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<u64>>,
     {
         let searcher = reader.searcher();
-        let collector = collector_fn(
-            fields::EDGE_ID.to_string(),
-            prop_id,
-            reader.clone(),
-            graph.clone(),
-        );
+        let collector = collector_fn(fields::EDGE_ID.to_string(), prop_id, graph.clone());
         let edge_ids = searcher.search(&query, &collector)?;
         let edges = self.resolve_edges_from_edge_ids(graph, edge_ids)?;
 
@@ -121,7 +114,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+        collector_fn: impl Fn(String, usize, G) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<u64>>,
@@ -169,7 +162,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+        collector_fn: impl Fn(String, usize, G) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<u64>>,
@@ -443,6 +436,8 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn print_docs(
         searcher: &Searcher,
         query: &Box<dyn Query>,
@@ -463,6 +458,8 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn print_schema_fields(schema: &tantivy::schema::Schema) {
         println!("Schema fields and their IDs:");
         for (field_name, _field_entry) in schema.fields() {
@@ -470,6 +467,8 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn print_schema(schema: &tantivy::schema::Schema) {
         println!("Schema:\n{:?}", schema);
     }

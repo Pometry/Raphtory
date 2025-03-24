@@ -4,13 +4,12 @@ use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    IndexReader, Score, SegmentReader,
+    Score, SegmentReader,
 };
 
 pub struct LatestEdgePropertyFilterCollector<G> {
     prop_id: usize,
     field: String,
-    reader: IndexReader,
     graph: G,
 }
 
@@ -18,11 +17,10 @@ impl<G> LatestEdgePropertyFilterCollector<G>
 where
     G: StaticGraphViewOps,
 {
-    pub fn new(field: String, prop_id: usize, reader: IndexReader, graph: G) -> Self {
+    pub fn new(field: String, prop_id: usize, graph: G) -> Self {
         Self {
             field,
             prop_id,
-            reader,
             graph,
         }
     }
@@ -37,7 +35,7 @@ where
 
     fn for_segment(
         &self,
-        segment_local_id: u32,
+        _segment_local_id: u32,
         segment_reader: &SegmentReader,
     ) -> tantivy::Result<Self::Child> {
         let column_opt_time = segment_reader.fast_fields().column_opt(fields::TIME)?;
@@ -53,10 +51,8 @@ where
             column_opt_entity_id,
             column_opt_layer_id,
             column_opt_secondary_time,
-            segment_ord: segment_local_id,
             unique_entity_ids: HashSet::new(),
             graph: self.graph.clone(),
-            reader: self.reader.clone(),
         })
     }
 
@@ -81,10 +77,8 @@ pub struct LatestEdgePropertyFilterSegmentCollector<G> {
     column_opt_entity_id: Option<Column<u64>>,
     column_opt_layer_id: Option<Column<u64>>,
     column_opt_secondary_time: Option<Column<u64>>,
-    segment_ord: u32,
     unique_entity_ids: HashSet<u64>,
     graph: G,
-    reader: IndexReader,
 }
 
 impl<G> SegmentCollector for LatestEdgePropertyFilterSegmentCollector<G>
@@ -110,13 +104,6 @@ where
             .column_opt_secondary_time
             .as_ref()
             .and_then(|col| col.values_for_doc(doc_id).next());
-
-        // let searcher = self.reader.searcher();
-        // let schema = searcher.schema();
-        // let doc = searcher
-        //     .doc::<TantivyDocument>(DocAddress::new(self.segment_ord, doc_id))
-        //     .unwrap();
-        // println!("doc = {:?}", doc.to_json(schema));
 
         if let (Some(time), Some(entity_id), Some(layer_id), Some(secondary_time)) =
             (opt_time, opt_entity_id, opt_layer_id, opt_secondary_time)

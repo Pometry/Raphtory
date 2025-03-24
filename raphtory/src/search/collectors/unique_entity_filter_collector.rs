@@ -1,9 +1,8 @@
-use crate::{db::api::view::StaticGraphViewOps, search::fields};
 use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    DocAddress, IndexReader, Score, Searcher, SegmentReader,
+    Score, SegmentReader,
 };
 
 pub struct UniqueEntityFilterCollector {
@@ -22,14 +21,12 @@ impl Collector for UniqueEntityFilterCollector {
 
     fn for_segment(
         &self,
-        segment_local_id: u32,
+        _segment_local_id: u32,
         segment_reader: &SegmentReader,
     ) -> tantivy::Result<Self::Child> {
-        let column_opt_time = segment_reader.fast_fields().column_opt(fields::TIME)?;
         let column_opt_entity_id = segment_reader.fast_fields().column_opt(&self.field)?;
 
         Ok(UniqueFilterSegmentCollector {
-            column_opt_time,
             column_opt_entity_id,
             seen_entities: HashSet::new(),
         })
@@ -51,7 +48,6 @@ impl Collector for UniqueEntityFilterCollector {
 }
 
 pub struct UniqueFilterSegmentCollector {
-    column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
     seen_entities: HashSet<u64>,
 }
@@ -59,7 +55,7 @@ pub struct UniqueFilterSegmentCollector {
 impl SegmentCollector for UniqueFilterSegmentCollector {
     type Fruit = HashSet<u64>;
 
-    fn collect(&mut self, doc_id: u32, score: Score) {
+    fn collect(&mut self, doc_id: u32, _score: Score) {
         let opt_entity_id = self
             .column_opt_entity_id
             .as_ref()

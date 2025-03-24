@@ -1,20 +1,15 @@
-use crate::{db::api::view::StaticGraphViewOps, prelude::TimeOps, search::fields};
-use raphtory_api::{
-    core::{entities::EID, storage::timeindex::TimeIndexEntry},
-    GraphType,
-};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::collections::{HashMap, HashSet};
+use crate::{db::api::view::StaticGraphViewOps, search::fields};
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
     columnar::Column,
-    DocAddress, IndexReader, Score, SegmentReader,
+    Score, SegmentReader,
 };
 
 pub struct EdgePropertyFilterCollector<G> {
     prop_id: usize,
     field: String,
-    reader: IndexReader,
     graph: G,
 }
 
@@ -22,11 +17,10 @@ impl<G> EdgePropertyFilterCollector<G>
 where
     G: StaticGraphViewOps,
 {
-    pub fn new(field: String, prop_id: usize, reader: IndexReader, graph: G) -> Self {
+    pub fn new(field: String, prop_id: usize, graph: G) -> Self {
         Self {
             field,
             prop_id,
-            reader,
             graph,
         }
     }
@@ -41,7 +35,7 @@ where
 
     fn for_segment(
         &self,
-        segment_local_id: u32,
+        _segment_local_id: u32,
         segment_reader: &SegmentReader,
     ) -> tantivy::Result<Self::Child> {
         let column_opt_time = segment_reader.fast_fields().column_opt(fields::TIME)?;
@@ -57,8 +51,6 @@ where
             column_opt_entity_id,
             column_opt_layer_id,
             column_opt_secondary_time,
-            segment_ord: segment_local_id,
-            reader: self.reader.clone(),
             unique_entity_ids: HashSet::new(),
             graph: self.graph.clone(),
         })
@@ -85,8 +77,6 @@ pub struct EdgePropertyFilterSegmentCollector<G> {
     column_opt_entity_id: Option<Column<u64>>,
     column_opt_layer_id: Option<Column<u64>>,
     column_opt_secondary_time: Option<Column<u64>>,
-    segment_ord: u32,
-    reader: IndexReader,
     unique_entity_ids: HashSet<u64>,
     graph: G,
 }

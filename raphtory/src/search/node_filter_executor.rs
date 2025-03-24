@@ -24,10 +24,8 @@ use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
-    collector::{Collector, TopDocs},
-    query::Query,
-    schema::Value,
-    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
+    collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
+    Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -72,19 +70,14 @@ impl<'a> NodeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+        collector_fn: impl Fn(String, usize, G) -> C,
     ) -> Result<Vec<NodeView<G, G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<u64>>,
     {
         let searcher = reader.searcher();
-        let collector = collector_fn(
-            fields::NODE_ID.to_string(),
-            prop_id,
-            reader.clone(),
-            graph.clone(),
-        );
+        let collector = collector_fn(fields::NODE_ID.to_string(), prop_id, graph.clone());
         let node_ids = searcher.search(&query, &collector)?;
         let nodes = self.resolve_nodes_from_node_ids(graph, node_ids)?;
 
@@ -119,7 +112,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+        collector_fn: impl Fn(String, usize, G) -> C,
     ) -> Result<Vec<NodeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<u64>>,
@@ -168,7 +161,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, IndexReader, G) -> C,
+        collector_fn: impl Fn(String, usize, G) -> C,
     ) -> Result<Vec<NodeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<u64>>,
@@ -388,6 +381,8 @@ impl<'a> NodeFilterExecutor<'a> {
         self.filter_nodes_internal(graph, filter, limit, offset)
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn resolve_nodes_from_search_results<'graph, G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -441,6 +436,8 @@ impl<'a> NodeFilterExecutor<'a> {
             .collect())
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn print_docs(searcher: &Searcher, top_docs: &Vec<(Score, DocAddress)>) {
         // println!("Top Docs (debugging):");
         // println!("Query:{:?}", query,);
@@ -457,6 +454,8 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn print_schema_fields(schema: &tantivy::schema::Schema) {
         println!("Schema fields and their IDs:");
         for (field_name, _field_entry) in schema.fields() {
@@ -464,6 +463,8 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
+    #[allow(dead_code)]
+    // Useful for debugging
     fn print_schema(schema: &tantivy::schema::Schema) {
         println!("Schema:\n{:?}", schema);
     }

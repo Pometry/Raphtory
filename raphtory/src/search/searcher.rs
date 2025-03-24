@@ -16,7 +16,6 @@ use crate::{
 
 #[derive(Copy, Clone)]
 pub struct Searcher<'a> {
-    pub(crate) index: &'a GraphIndex,
     node_filter_executor: NodeFilterExecutor<'a>,
     edge_filter_executor: EdgeFilterExecutor<'a>,
 }
@@ -24,7 +23,6 @@ pub struct Searcher<'a> {
 impl<'a> Searcher<'a> {
     pub(crate) fn new(index: &'a GraphIndex) -> Self {
         Self {
-            index,
             node_filter_executor: NodeFilterExecutor::new(index),
             edge_filter_executor: EdgeFilterExecutor::new(index),
         }
@@ -63,7 +61,7 @@ impl<'a> Searcher<'a> {
 mod search_tests {
     use super::*;
     use crate::{
-        db::{api::view::internal::InternalStorageOps, graph::views::property_filter::NodeFilter},
+        db::{graph::views::property_filter::NodeFilter},
         prelude::*,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
@@ -90,9 +88,7 @@ mod search_tests {
                 db::{
                     api::{
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::{
-                            internal::InternalStorageOps, SearchableGraphOps, StaticGraphViewOps,
-                        },
+                        view::{SearchableGraphOps, StaticGraphViewOps},
                     },
                     graph::views::property_filter::{FilterExpr, PropertyFilterOps},
                 },
@@ -412,7 +408,7 @@ mod search_tests {
                     api::{
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::{
-                            internal::InternalStorageOps, SearchableGraphOps, StaticGraphViewOps,
+                            SearchableGraphOps, StaticGraphViewOps,
                         },
                     },
                     graph::views::property_filter::{FilterExpr, PropertyFilterOps},

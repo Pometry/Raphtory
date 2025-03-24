@@ -6,10 +6,7 @@ use crate::{
 use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory_api::core::{
-    entities::{
-        properties::props::{Meta, PropMapper},
-        VID,
-    },
+    entities::properties::props::{Meta, PropMapper},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     PropType,
 };
