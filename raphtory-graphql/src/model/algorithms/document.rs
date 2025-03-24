@@ -1,10 +1,14 @@
 use crate::model::graph::{edge::Edge, node::Node};
 use dynamic_graphql::{SimpleObject, Union};
-use raphtory::{core::Lifespan, db::api::view::DynamicGraph, vectors::Document};
+use raphtory::{
+    core::Lifespan,
+    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
+    vectors::Document,
+};
 
 #[derive(SimpleObject)]
 struct DocumentGraph {
-    name: String,
+    name: String, // TODO: maybe return the graph as well here
 }
 
 impl From<String> for DocumentGraph {
@@ -28,16 +32,19 @@ pub struct GqlDocument {
     life: Vec<i64>,
 }
 
-impl From<Document<DynamicGraph>> for GqlDocument {
-    fn from(value: Document<DynamicGraph>) -> Self {
-        match document {
+impl<G: StaticGraphViewOps + IntoDynamic> From<Document<G>> for GqlDocument {
+    fn from(value: Document<G>) -> Self {
+        match value {
             Document::Graph {
+                name,
                 entity,
                 content,
                 embedding,
                 life,
             } => Self {
-                entity: DocumentEntity::Graph(DocumentGraph { name: name? }),
+                entity: DocumentEntity::Graph(DocumentGraph {
+                    name: name.unwrap(), // FIXME: make this optional maybe...?
+                }),
                 content,
                 embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
@@ -48,7 +55,7 @@ impl From<Document<DynamicGraph>> for GqlDocument {
                 embedding,
                 life,
             } => Self {
-                entity: DocumentEntity::Node(entity),
+                entity: DocumentEntity::Node(entity.into()),
                 content,
                 embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
@@ -59,7 +66,7 @@ impl From<Document<DynamicGraph>> for GqlDocument {
                 embedding,
                 life,
             } => Self {
-                entity: DocumentEntity::Edge(entity),
+                entity: DocumentEntity::Edge(entity.into()),
                 content,
                 embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),

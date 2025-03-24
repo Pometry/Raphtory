@@ -1,10 +1,10 @@
 use crate::model::plugins::query_plugin::QueryPlugin;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 use raphtory::{
+    db::api::view::DynamicGraph,
     python::{
         packages::vectors::{
-            compute_embedding, into_py_document, translate_window, PyQuery, PyVectorisedGraph,
-            PyWindow,
+            compute_embedding, translate_window, PyQuery, PyVectorisedGraph, PyWindow,
         },
         types::wrappers::document::PyDocument,
     },
@@ -33,9 +33,9 @@ impl PyGlobalPlugins {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> PyResult<Vec<PyDocument>> {
-        self.search_graph_documents_with_scores(py, query, limit, window)
-            .map(|docs| docs.into_iter().map(|(doc, _)| doc).collect())
+    ) -> PyResult<Vec<Document<DynamicGraph>>> {
+        let docs = self.search_graph_documents_with_scores(py, query, limit, window)?;
+        Ok(docs.into_iter().map(|(doc, _)| doc).collect())
     }
 
     /// Same as `search_graph_documents` but it also returns the scores alongside the documents
@@ -53,7 +53,7 @@ impl PyGlobalPlugins {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> PyResult<Vec<(PyDocument, f32)>> {
+    ) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
         let window = translate_window(window);
         let graphs = &self.0.graphs;
         let cluster = VectorisedCluster::new(&graphs);
@@ -62,15 +62,10 @@ impl PyGlobalPlugins {
             .expect("trying to search documents with no vectorised graphs on the server");
         let embedding = compute_embedding(first_graph, query)?;
         let documents = cluster.search_graph_documents_with_scores(&embedding, limit, window);
-        documents.into_iter().map(|(doc, score)| {
-            let graph = match &doc {
-                Document::Graph { name, .. } => {
-                    graphs.get(name.as_ref().unwrap()).unwrap()
-                }
-                _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
-            };
-            Ok((into_py_document(doc, &graph.clone().into_dynamic(), py)?, score))
-        }).collect()
+        Ok(documents
+            .into_iter()
+            .map(|(doc, score)| (doc.into_dynamic(), score))
+            .collect())
     }
 
     /// Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist

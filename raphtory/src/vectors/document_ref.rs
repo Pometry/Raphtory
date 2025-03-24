@@ -87,7 +87,7 @@ impl DocumentRef {
         }
     }
 
-    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document
+    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document<G>
     where
         G: StaticGraphViewOps,
     {
@@ -97,6 +97,7 @@ impl DocumentRef {
         match &self.entity_id {
             EntityId::Graph { name } => Document::Graph {
                 name: name.clone(),
+                entity: original_graph.clone(),
                 content: template
                     .graph(original_graph)
                     .nth(self.index)
