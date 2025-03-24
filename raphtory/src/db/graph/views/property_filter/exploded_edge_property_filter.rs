@@ -33,7 +33,7 @@ use raphtory_api::{
     },
     iter::BoxedLDIter,
 };
-use std::ops::Range;
+use std::{borrow::Cow, ops::Range};
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -137,7 +137,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self
-                .edge_exploded(edge.out_ref(), layer_ids)
+                .edge_exploded(edge.out_ref(), Cow::Borrowed(layer_ids))
                 .next()
                 .is_some()
     }
@@ -204,7 +204,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        self.edge_window_exploded(edge.out_ref(), w, layer_ids)
+        self.edge_window_exploded(edge.out_ref(), w, Cow::Borrowed(layer_ids))
             .next()
             .is_some()
     }
@@ -248,28 +248,29 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
-            .edge_history(e, layer_ids)
-            .filter(move |t| self.filter(e, *t, layer_ids))
+            .edge_history(e, layer_ids.clone())
+            .filter(move |t| self.filter(e, *t, &layer_ids))
             .into_dyn_boxed()
     }
 
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
-            .edge_history_window(e, layer_ids, w)
-            .filter(move |t| self.filter(e, *t, layer_ids))
+            .edge_history_window(e, layer_ids.clone(), w)
+            .filter(move |t| self.filter(e, *t, &layer_ids))
             .into_dyn_boxed()
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        self.edge_exploded(edge.out_ref(), layer_ids).count()
+        self.edge_exploded(edge.out_ref(), Cow::Borrowed(layer_ids))
+            .count()
     }
 
     fn edge_exploded_count_window(
@@ -278,27 +279,39 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        self.edge_window_exploded(edge.out_ref(), w, layer_ids)
+        self.edge_window_exploded(edge.out_ref(), w, Cow::Borrowed(layer_ids))
             .count()
     }
 
-    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_exploded<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: Cow<'a, LayerIds>,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph
-            .edge_exploded(e, layer_ids)
+            .edge_exploded(e, layer_ids.clone())
             .filter(move |&e| {
                 self.filter(
                     e,
                     e.time().expect("exploded edge should have timestamp"),
-                    layer_ids,
+                    &layer_ids,
                 )
             })
             .into_dyn_boxed()
     }
 
-    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_layers<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: Cow<'a, LayerIds>,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph
-            .edge_layers(e, layer_ids)
-            .filter(move |&e| self.edge_exploded(e, layer_ids).next().is_some())
+            .edge_layers(e, layer_ids.clone())
+            .filter(move |&e| {
+                self.edge_exploded(e, Cow::Borrowed(&layer_ids))
+                    .next()
+                    .is_some()
+            })
             .into_dyn_boxed()
     }
 
@@ -306,15 +319,15 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, EdgeRef> {
         self.graph
-            .edge_window_exploded(e, w, layer_ids)
+            .edge_window_exploded(e, w, layer_ids.clone())
             .filter(move |&e| {
                 self.filter(
                     e,
                     e.time().expect("exploded edge should have timestamp"),
-                    layer_ids,
+                    &layer_ids,
                 )
             })
             .into_dyn_boxed()
@@ -324,7 +337,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, EdgeRef> {
         self.graph
             .edge_window_layers(e, w.clone(), layer_ids)
@@ -332,7 +345,9 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
                 self.edge_window_exploded(
                     e,
                     w.clone(),
-                    &LayerIds::One(e.layer().expect("exploded edge should have layer")),
+                    Cow::Borrowed(&LayerIds::One(
+                        e.layer().expect("exploded edge should have layer"),
+                    )),
                 )
                 .next()
                 .is_some()
@@ -341,7 +356,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        self.edge_exploded(e, layer_ids)
+        self.edge_exploded(e, Cow::Borrowed(layer_ids))
             .next()
             .map(|e| e.time_t().unwrap())
     }
@@ -352,14 +367,14 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
-        self.edge_window_exploded(e, w, layer_ids)
+        self.edge_window_exploded(e, w, Cow::Borrowed(layer_ids))
             .next()
             .map(|e| e.time_t().unwrap())
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         // FIXME: this is inefficient, need exploded to return something more useful
-        self.edge_exploded(e, layer_ids)
+        self.edge_exploded(e, Cow::Borrowed(layer_ids))
             .last()
             .map(|e| e.time_t().unwrap())
     }
@@ -371,7 +386,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         layer_ids: &LayerIds,
     ) -> Option<i64> {
         // FIXME: this is inefficient, need exploded to return something more useful
-        self.edge_window_exploded(e, w, layer_ids)
+        self.edge_window_exploded(e, w, Cow::Borrowed(layer_ids))
             .last()
             .map(|e| e.time_t().unwrap())
     }
@@ -379,11 +394,11 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     fn edge_deletion_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
-            .edge_deletion_history(e, layer_ids)
-            .filter(move |t| self.filter(e, t.previous(), layer_ids))
+            .edge_deletion_history(e, layer_ids.clone())
+            .filter(move |t| self.filter(e, t.previous(), &layer_ids))
             .into_dyn_boxed()
     }
 
@@ -391,11 +406,11 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
-            .edge_deletion_history_window(e, w, layer_ids)
-            .filter(move |t| self.filter(e, t.previous(), layer_ids))
+            .edge_deletion_history_window(e, w, layer_ids.clone())
+            .filter(move |t| self.filter(e, t.previous(), &layer_ids))
             .into_dyn_boxed()
     }
 
@@ -458,7 +473,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         id: usize,
         start: i64,
         end: i64,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph
             .temporal_edge_prop_hist_window(e, id, start, end, layer_ids)
@@ -482,7 +497,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         &'a self,
         e: EdgeRef,
         id: usize,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph
             .temporal_edge_prop_hist(e, id, layer_ids)

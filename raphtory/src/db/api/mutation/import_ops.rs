@@ -20,7 +20,10 @@ use raphtory_api::core::{
     entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
-use std::{borrow::Borrow, fmt::Debug};
+use std::{
+    borrow::{Borrow, Cow},
+    fmt::Debug,
+};
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -427,7 +430,10 @@ fn import_edge_internal<
         }
 
         if graph.include_deletions() {
-            for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
+            for t in edge
+                .graph
+                .edge_deletion_history(edge.edge, Cow::Borrowed(&layer_ids))
+            {
                 let ti = time_from_input(graph, t.t())?;
                 let src_node = graph.resolve_node(&src_id)?.inner();
                 let dst_node = graph.resolve_node(&dst_id)?.inner();

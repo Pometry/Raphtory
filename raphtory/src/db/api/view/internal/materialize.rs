@@ -57,7 +57,7 @@ use serde::{Deserialize, Serialize};
 #[enum_dispatch(ConstPropertiesOps)]
 #[enum_dispatch(InternalAdditionOps)]
 #[enum_dispatch(InternalPropertyAdditionOps)]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),

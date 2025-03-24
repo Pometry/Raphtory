@@ -36,6 +36,7 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
+    borrow::Cow,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -100,12 +101,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
         }
     }
 
-    #[allow(dead_code)]
-    fn layer_ids(&self) -> LayerIds {
-        self.graph
-            .layer_ids()
-            .constrain_from_edge(self.edge)
-            .into_owned()
+    fn layer_ids(&self) -> Cow<LayerIds> {
+        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
 }
 
@@ -392,14 +389,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.t())
             .collect()
     }
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -408,7 +405,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         let layer_ids = self.layer_ids();
         self.graph
-            .temporal_edge_prop_hist(self.edge, id, &layer_ids)
+            .temporal_edge_prop_hist(self.edge, id, layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -418,7 +415,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
         let layer_ids = self.layer_ids();
         Box::new(
             self.graph
-                .temporal_edge_prop_hist(self.edge, id, &layer_ids)
+                .temporal_edge_prop_hist(self.edge, id, layer_ids)
                 .into_iter()
                 .map(|(_, v)| v),
         )
@@ -427,7 +424,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
         Box::new(
             self.graph
-                .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+                .temporal_edge_prop_hist(self.edge, id, self.layer_ids())
                 .into_iter()
                 .map(|(t, _)| t.t()),
         )

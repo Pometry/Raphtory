@@ -1,5 +1,3 @@
-use std::{iter, ops::Range};
-
 use itertools::{kmerge, Itertools};
 use raphtory_api::{
     core::{
@@ -9,6 +7,7 @@ use raphtory_api::{
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use rayon::iter::ParallelIterator;
+use std::{borrow::Cow, iter, ops::Range};
 
 use super::GraphStorage;
 use crate::{
@@ -191,7 +190,7 @@ impl TimeSemantics for GraphStorage {
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
@@ -215,7 +214,7 @@ impl TimeSemantics for GraphStorage {
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.pid());
@@ -246,7 +245,11 @@ impl TimeSemantics for GraphStorage {
             .sum()
     }
 
-    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_exploded<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: Cow<'a, LayerIds>,
+    ) -> BoxedLIter<'a, EdgeRef> {
         let edge = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(edge, move |edge| {
@@ -258,7 +261,11 @@ impl TimeSemantics for GraphStorage {
         .into_dyn_boxed()
     }
 
-    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_layers<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: Cow<'a, LayerIds>,
+    ) -> BoxedLIter<'a, EdgeRef> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, move |edge| {
@@ -271,7 +278,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, EdgeRef> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
@@ -292,7 +299,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &'a LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, EdgeRef> {
         let entry = self.core_edge(e.pid());
         self.edge_layers(e, layer_ids)
@@ -359,7 +366,7 @@ impl TimeSemantics for GraphStorage {
     fn edge_deletion_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let entry = self.core_edge(e.pid());
         GenLockedIter::from(entry, |entry| {
@@ -376,7 +383,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let entry = self.core_edge(e.pid());
         GenLockedIter::from(entry, |entry| {
@@ -473,7 +480,7 @@ impl TimeSemantics for GraphStorage {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
         match e.time() {
@@ -520,7 +527,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: &LayerIds,
+        layer_ids: Cow<'a, LayerIds>,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);

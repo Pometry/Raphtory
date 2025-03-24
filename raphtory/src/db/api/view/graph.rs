@@ -23,7 +23,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, valid_graph::ValidGraph,
             },
         },
     },
@@ -37,11 +37,12 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
+    GraphType,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     sync::{atomic::Ordering, Arc},
 };
 
@@ -68,6 +69,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
 
     fn cache_view(&self) -> CachedView<Self>;
+
+    fn valid(&self) -> Result<ValidGraph<Self>, GraphError>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
         &self,
@@ -272,9 +275,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 additions.insert(t);
                             }
                             for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in
-                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
-                                {
+                                for (t, prop_value) in self.temporal_edge_prop_hist(
+                                    edge.edge,
+                                    t_prop,
+                                    Cow::Borrowed(&old_layer),
+                                ) {
                                     new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
                                 }
                             }
@@ -286,8 +291,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 }
                             }
                             if self.include_deletions() {
-                                let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
+                                let mut deletion_history = self
+                                    .edge_deletion_history(edge.edge, Cow::Borrowed(&old_layer))
+                                    .peekable();
                                 if deletion_history.peek().is_some() {
                                     let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
                                     for t in deletion_history {
@@ -304,7 +310,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
+                        for t in self.edge_history(edge.edge, Cow::Borrowed(self.layer_ids())) {
                             src_node.update_time(t, EID(eid));
                         }
                         for ee in edge.explode_layers() {
@@ -317,7 +323,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         }
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
+                        for t in self.edge_history(edge.edge, Cow::Borrowed(self.layer_ids())) {
                             dst_node.update_time(t, EID(eid));
                         }
                         for ee in edge.explode_layers() {
@@ -331,7 +337,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     }
 
                     if self.include_deletions() {
-                        for t in self.edge_deletion_history(edge.edge, self.layer_ids()) {
+                        for t in
+                            self.edge_deletion_history(edge.edge, Cow::Borrowed(self.layer_ids()))
+                        {
                             if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
                             {
                                 src_node.update_time(t, edge.edge.pid());
@@ -357,6 +365,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn cache_view(&self) -> CachedView<G> {
         CachedView::new(self.clone())
+    }
+
+    fn valid(&self) -> Result<ValidGraph<Self>, GraphError> {
+        match self.graph_type() {
+            GraphType::EventGraph => Err(GraphError::EventGraphNoValidView),
+            GraphType::PersistentGraph => Ok(ValidGraph::new(self.clone())),
+        }
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
