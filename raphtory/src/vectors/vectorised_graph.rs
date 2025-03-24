@@ -9,7 +9,7 @@ use crate::{
         entity_id::EntityId,
         similarity_search_utils::{find_top_k, score_documents},
         template::DocumentTemplate,
-        DocumentOps, Embedding, EmbeddingFunction,
+        Embedding, EmbeddingFunction,
     },
 };
 use async_trait::async_trait;
@@ -141,7 +141,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         chain!(node_documents.iter(), edge_documents.iter()).for_each(|(_, group)| {
             group.iter().for_each(|doc| {
                 let original = doc.regenerate(&self.source_graph, &self.template);
-                cache.upsert_embedding(original.content(), doc.embedding.clone());
+                cache.upsert_embedding(&original.content, doc.embedding.clone());
             })
         });
         cache.dump_to_disk();

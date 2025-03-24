@@ -17,7 +17,7 @@ use crate::{
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
-        Document, Embedding, EmbeddingFunction, EmbeddingResult,
+        Document, DocumentEntity, Embedding, EmbeddingFunction, EmbeddingResult,
     },
 };
 use futures_util::future::BoxFuture;
@@ -96,52 +96,35 @@ impl<'py> IntoPyObject<'py> for Document<DynamicGraph> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
     pub fn into_dynamic(self) -> Document<DynamicGraph> {
-        match self {
-            Document::Graph {
+        let Document {
+            entity,
+            content,
+            embedding,
+            life,
+        } = self;
+        let entity = match entity {
+            DocumentEntity::Graph { name, graph } => DocumentEntity::Graph {
                 name,
-                entity,
-                content,
-                embedding,
-                life,
-            } => Document::Graph {
-                name,
-                entity: entity.into_dynamic(),
-                content,
-                embedding,
-                life,
+                graph: graph.into_dynamic(),
             },
-            Document::Node {
-                entity,
-                content,
-                embedding,
-                life,
-            } => Document::Node {
-                entity: NodeView {
-                    // TODO: define a common method node.into_dynamic for NodeView, as this code is duplicated in model/graph/node.rs
-                    base_graph: entity.base_graph.into_dynamic(),
-                    graph: entity.graph.into_dynamic(),
-                    node: entity.node,
-                },
-                content,
-                embedding,
-                life,
-            },
-            Document::Edge {
-                entity,
-                content,
-                embedding,
-                life,
-            } => Document::Edge {
-                entity: EdgeView {
-                    // TODO: same as for nodes
-                    base_graph: entity.base_graph.into_dynamic(),
-                    graph: entity.graph.into_dynamic(),
-                    edge: entity.edge,
-                },
-                content,
-                embedding,
-                life,
-            },
+            // TODO: define a common method node/edge.into_dynamic for NodeView, as this code is duplicated in model/graph/node.rs and model/graph/edge.rs
+            DocumentEntity::Node(node) => DocumentEntity::Node(NodeView {
+                base_graph: node.base_graph.into_dynamic(),
+                graph: node.graph.into_dynamic(),
+                node: node.node,
+            }),
+            DocumentEntity::Edge(edge) => DocumentEntity::Edge(EdgeView {
+                // TODO: same as for nodes
+                base_graph: edge.base_graph.into_dynamic(),
+                graph: edge.graph.into_dynamic(),
+                edge: edge.edge,
+            }),
+        };
+        Document {
+            entity,
+            content,
+            embedding,
+            life,
         }
     }
 }
