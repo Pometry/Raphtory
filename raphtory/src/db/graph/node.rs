@@ -77,11 +77,14 @@ impl<'graph, G: Send + Sync, GH: Send + Sync> AsNodeRef for NodeView<'graph, G, 
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> fmt::Debug
+    for NodeView<'graph, G, GH>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeView")
             .field("node", &self.node)
-            .field("graph", &self.graph as &dyn Debug)
+            .field("node_id", &self.id())
+            .field("properties", &self.properties())
             .finish()
     }
 }

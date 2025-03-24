@@ -5,12 +5,21 @@ use crate::{
     },
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+};
 
 /// View of the properties of an entity (graph|node|edge)
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Properties<P: PropertiesOps + Clone> {
     pub(crate) props: P,
+}
+
+impl<P: PropertiesOps + Clone> Debug for Properties<P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Properties({:?})", self.iter().collect::<Vec<_>>())
+    }
 }
 
 impl<P: PropertiesOps + Clone> Properties<P> {
