@@ -294,4 +294,30 @@ mod test {
             check(&edge_list);
         })
     }
+
+    #[test]
+    fn failing() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(2, 0, 0, NO_PROPS, Some("1")).unwrap();
+
+        let earliest = graph.earliest_time().unwrap();
+        let latest = graph.latest_time().unwrap();
+        let middle = earliest + (latest - earliest) / 2;
+
+        let layers = graph
+            .unique_layers()
+            .take(graph.unique_layers().count() / 2)
+            .collect_vec();
+
+        if !layers.is_empty() && earliest < middle && middle < latest {
+            let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
+            let masked = subgraph.cache_view();
+            println!("view nodes: {:?}", subgraph.nodes());
+            println!("view edges: {:?}", subgraph.edges());
+            println!("cached nodes: {:?}", masked.nodes());
+            println!("cached edges: {:?}", masked.edges());
+            assert_graph_equal(&subgraph, &masked);
+        }
+    }
 }
