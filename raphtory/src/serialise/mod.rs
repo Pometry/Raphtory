@@ -91,12 +91,12 @@ impl GraphFolder {
         }
     }
 
-    pub fn write_graph<'graph>(&self, graph: &impl StableEncode<'graph>) -> Result<(), GraphError> {
+    pub fn write_graph(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
         self.write_graph_data(graph)?;
         self.write_metadata(graph)
     }
 
-    fn write_graph_data<'graph>(&self, graph: &impl StableEncode<'graph>) -> Result<(), io::Error> {
+    fn write_graph_data(&self, graph: &impl StableEncode) -> Result<(), io::Error> {
         let bytes = graph.encode_to_vec();
         if self.prefer_zip_format {
             let file = File::create(&self.root_folder)?;

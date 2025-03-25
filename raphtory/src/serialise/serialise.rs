@@ -1,5 +1,5 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
-use crate::prelude::GraphViewOps;
+use crate::db::api::view::StaticGraphViewOps;
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},
@@ -42,7 +42,7 @@ macro_rules! zip_tprop_updates {
     };
 }
 
-pub trait StableEncode<'graph>: GraphViewOps<'graph> {
+pub trait StableEncode: StaticGraphViewOps {
     fn encode_to_proto(&self) -> proto::Graph;
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
@@ -79,7 +79,7 @@ pub trait CacheOps: Sized {
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
 }
 
-impl<'graph> StableEncode<'graph> for GraphStorage {
+impl StableEncode for GraphStorage {
     fn encode_to_proto(&self) -> proto::Graph {
         let storage = self.lock();
         let mut graph = proto::Graph::default();
@@ -229,7 +229,7 @@ impl<'graph> StableEncode<'graph> for GraphStorage {
     }
 }
 
-impl<'graph> StableEncode<'graph> for Graph {
+impl StableEncode for Graph {
     fn encode_to_proto(&self) -> proto::Graph {
         let mut graph = self.core_graph().encode_to_proto();
         graph.set_graph_type(proto::GraphType::Event);
@@ -237,7 +237,7 @@ impl<'graph> StableEncode<'graph> for Graph {
     }
 }
 
-impl<'graph> StableEncode<'graph> for PersistentGraph {
+impl StableEncode for PersistentGraph {
     fn encode_to_proto(&self) -> proto::Graph {
         let mut graph = self.core_graph().encode_to_proto();
         graph.set_graph_type(proto::GraphType::Persistent);
@@ -245,7 +245,7 @@ impl<'graph> StableEncode<'graph> for PersistentGraph {
     }
 }
 
-impl<'graph> StableEncode<'graph> for MaterializedGraph {
+impl StableEncode for MaterializedGraph {
     fn encode_to_proto(&self) -> proto::Graph {
         match self {
             MaterializedGraph::EventGraph(graph) => graph.encode_to_proto(),
