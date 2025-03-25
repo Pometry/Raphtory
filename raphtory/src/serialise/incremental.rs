@@ -292,7 +292,7 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<'graph, G: InternalCache + StableDecode + StableEncode<'graph>> CacheOps for G {
+impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;
