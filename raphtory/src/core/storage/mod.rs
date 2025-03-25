@@ -104,7 +104,16 @@ impl TColumns {
         }
     }
 
-    pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
+    pub fn push_null(&mut self) -> usize {
+        let id = self.num_rows;
+        for col in self.t_props_log.iter_mut() {
+            col.push_null();
+        }
+        self.num_rows += 1;
+        id
+    }
+
+    pub fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
         self.t_props_log.get(prop_id).map(|col| col)
     }
 
@@ -114,6 +123,10 @@ impl TColumns {
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &TPropColumn> {
         self.t_props_log.iter()
+    }
+
+    pub fn num_columns(&self) -> usize {
+        self.t_props_log.len()
     }
 }
 

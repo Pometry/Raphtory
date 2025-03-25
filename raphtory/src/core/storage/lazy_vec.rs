@@ -51,6 +51,7 @@ impl<T: Default> MaskedCol<T> {
         self.mask[index] = is_some;
     }
 
+    #[inline(always)]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.mask
             .get(index)
@@ -78,7 +79,7 @@ impl<T: Default> MaskedCol<T> {
 }
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
-pub(crate) struct TupleCol<T> {
+pub struct TupleCol<T> {
     size: usize,
     tuples: Vec<(usize, T)>,
 }
@@ -120,6 +121,7 @@ impl<T> TupleCol<T> {
         self.size
     }
 
+    #[inline(always)]
     pub fn get(&self, id: usize) -> Option<&T> {
         self.tuples.iter().find(|(i, _)| *i == id).map(|(_, t)| t)
     }
@@ -172,7 +174,7 @@ where
     A: PartialEq + Default + Debug + Sync + Send + Clone,
 {
     // fails if there is already a value set for the given id to a different value
-    pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
+    pub fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
         match self {
             LazyVec::Empty => {
                 *self = Self::from(id, value);
@@ -297,7 +299,8 @@ where
         }
     }
 
-    pub(crate) fn get_opt(&self, id: usize) -> Option<&A> {
+    #[inline(always)]
+    pub fn get_opt(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(_, tuples) => tuples.get(id),
             LazyVec::LazyVecN(_, vec) => vec.get(id),

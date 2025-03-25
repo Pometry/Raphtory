@@ -46,7 +46,7 @@ pub struct TPropCell<'a> {
 }
 
 impl<'a> TPropCell<'a> {
-    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
+    pub fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
         Self {
             t_cell: Some(t_cell),
             log,

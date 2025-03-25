@@ -31,8 +31,8 @@ pub struct NodeStore {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct PropTimestamps {
     // all the timestamps that have been seen by this node
-    pub(crate) edge_ts: TCell<EID>,
-    pub(crate) props_ts: TCell<Option<usize>>,
+    pub edge_ts: TCell<EID>,
+    pub props_ts: TCell<Option<usize>>,
 }
 
 impl NodeStore {
