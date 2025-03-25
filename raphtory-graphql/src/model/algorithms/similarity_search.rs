@@ -26,6 +26,8 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
         vec![
             ("query", TypeRef::named_nn(TypeRef::STRING)),
             ("limit", TypeRef::named_nn(TypeRef::INT)),
+            ("start", TypeRef::named(TypeRef::INT)),
+            ("end", TypeRef::named(TypeRef::INT)),
         ]
     }
 
@@ -43,13 +45,30 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
             .to_owned();
         let limit = ctx.args.try_get("limit").unwrap().u64().unwrap() as usize;
         let graph = entry_point.graph.clone();
+        let start = ctx
+            .args
+            .try_get("start")
+            .map(|start| start.u64().ok().map(|value| value as i64))
+            .ok()
+            .flatten();
+
+        let end = ctx
+            .args
+            .try_get("end")
+            .map(|end| end.u64().ok().map(|value| value as i64))
+            .ok()
+            .flatten();
+        let window = match (start, end) {
+            (Some(start), Some(end)) => Some((start, end)),
+            _ => None,
+        };
 
         Box::pin(async move {
             info!("running similarity search for {query}");
             let embedding = data.embed_query(query).await?;
 
             let documents = graph
-                .documents_by_similarity(&embedding, limit, None)
+                .documents_by_similarity(&embedding, limit, window)
                 .get_documents();
 
             let gql_documents = documents
