@@ -26,6 +26,8 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
 pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
     fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
 
+    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
+
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         self.range_iter(w).next()
     }
@@ -70,18 +72,28 @@ pub trait TimeIndexOps<'a>: Send + Sync + 'a {
         self.first().map(|ti| ti.t())
     }
 
-    fn first(&self) -> Option<Self::IndexType>;
+    fn first(&self) -> Option<Self::IndexType> {
+        self.iter().next()
+    }
 
     fn last_t(&self) -> Option<i64> {
         self.last().map(|ti| ti.t())
     }
 
-    fn last(&self) -> Option<Self::IndexType>;
+    fn last(&self) -> Option<Self::IndexType> {
+        self.iter_rev().next()
+    }
 
     fn iter(&self) -> BoxedLIter<'a, Self::IndexType>;
 
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType>;
+
     fn iter_t(&self) -> BoxedLIter<'a, i64> {
         self.iter().map(|time| time.t()).into_dyn_boxed()
+    }
+
+    fn iter_rev_t(&self) -> BoxedLIter<'a, i64> {
+        self.iter_rev().map(|time| time.t()).into_dyn_boxed()
     }
 
     fn len(&self) -> usize;

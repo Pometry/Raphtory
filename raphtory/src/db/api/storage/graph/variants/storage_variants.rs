@@ -316,6 +316,10 @@ impl<
         for_all!(self, props => props.iter())
     }
 
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+        for_all!(self, props => props.iter_rev())
+    }
+
     fn len(&self) -> usize {
         for_all!(self, props => props.len())
     }

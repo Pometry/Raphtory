@@ -210,6 +210,15 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
         }
     }
 
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+        match self {
+            TCell::Empty => std::iter::empty().into_dyn_boxed(),
+            TCell::TCell1(t, _) => std::iter::once(*t).into_dyn_boxed(),
+            TCell::TCellCap(svm) => svm.iter().rev().map(|(ti, _)| *ti).into_dyn_boxed(),
+            TCell::TCellN(btm) => btm.keys().rev().copied().into_dyn_boxed(),
+        }
+    }
+
     fn len(&self) -> usize {
         match self {
             TCell::Empty => 0,
@@ -223,6 +232,13 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
 impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
     fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
         Box::new(self.iter_window(w).map(|(ti, _)| *ti))
+    }
+
+    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
+        self.iter_window(w)
+            .map(|(ti, _)| *ti)
+            .rev()
+            .into_dyn_boxed()
     }
 
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {

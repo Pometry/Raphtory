@@ -75,10 +75,19 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 
     fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
-            TimeIndexRef::Ref(t) => t.iter().into_dyn_boxed(),
-            TimeIndexRef::Range(t) => t.iter().into_dyn_boxed(),
+            TimeIndexRef::Ref(t) => t.iter(),
+            TimeIndexRef::Range(t) => t.iter(),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.iter().into_dyn_boxed(),
+            TimeIndexRef::External(ref t) => t.iter(),
+        }
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+        match self {
+            TimeIndexRef::Ref(t) => t.iter_rev(),
+            TimeIndexRef::Range(t) => t.iter_rev(),
+            #[cfg(feature = "storage")]
+            TimeIndexRef::External(ref t) => t.iter_rev(),
         }
     }
 

@@ -129,6 +129,10 @@ impl<'a, T: AsTime> TimeIndexLike<'a> for &'a TimeIndex<T> {
         Box::new((*self).range_iter(w))
     }
 
+    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
+        (*self).range_iter(w).rev().into_dyn_boxed()
+    }
+
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         (*self).range_iter(w).next_back()
     }
@@ -314,6 +318,14 @@ impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
         }
     }
 
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+        match self {
+            TimeIndex::Empty => iter::empty().into_dyn_boxed(),
+            TimeIndex::One(t) => iter::once(*t).into_dyn_boxed(),
+            TimeIndex::Set(ts) => ts.iter().rev().copied().into_dyn_boxed(),
+        }
+    }
+
     fn len(&self) -> usize {
         match self {
             TimeIndex::Empty => 0,
@@ -388,6 +400,16 @@ where
     }
 
     fn iter(&self) -> BoxedLIter<'b, Self::IndexType> {
+        match self {
+            TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                timeindex.range_iter(range.clone()).into_dyn_boxed()
+            }
+            TimeIndexWindow::All(timeindex) => timeindex.iter().into_dyn_boxed(),
+        }
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<'b, Self::IndexType> {
         match self {
             TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
