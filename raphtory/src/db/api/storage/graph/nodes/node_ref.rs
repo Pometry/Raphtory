@@ -1,3 +1,4 @@
+use super::row::Row;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -5,10 +6,13 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
-        view::internal::NodeAdditions,
+        storage::graph::{
+            nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
+            variants::storage_variants::StorageVariants,
+        },
+        view::internal::{NodeAdditions, NodeHistory},
     },
-    prelude::Prop,
+    prelude::{GraphViewOps, Prop},
 };
 use raphtory_api::{
     core::{entities::GidRef, storage::timeindex::TimeIndexEntry},
@@ -16,12 +20,8 @@ use raphtory_api::{
 };
 use std::{borrow::Cow, ops::Range};
 
-use super::row::Row;
-#[cfg(feature = "storage")]
-use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
-use crate::{db::api::view::internal::NodeHistory, prelude::GraphViewOps};
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
