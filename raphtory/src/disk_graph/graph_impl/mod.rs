@@ -40,13 +40,15 @@ mod test {
 
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
 
+    use super::{DiskGraphStorage, ParquetLayerCols};
     use crate::{
-        db::api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        db::{
+            api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
+            graph::graph::assert_graph_equal,
+        },
         disk_graph::Time,
         prelude::*,
     };
-
-    use super::{DiskGraphStorage, ParquetLayerCols};
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
         let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
@@ -105,6 +107,20 @@ mod test {
         // check latest_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
         assert_eq!(g.latest_time(), Some(expected));
+    }
+
+    #[test]
+    fn test_no_prop_nodes() {
+        let test_dir = TempDir::new().unwrap();
+        let g = Graph::new();
+        g.add_node(0, 0, NO_PROPS, None).unwrap();
+        // g.add_node(1, 1, [("test", "test")], None).unwrap();
+        let disk_g = g
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
+        assert_eq!(disk_g.node(0).unwrap().earliest_time(), Some(0));
+        assert_graph_equal(&g, &disk_g);
     }
 
     #[test]

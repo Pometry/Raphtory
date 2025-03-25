@@ -197,8 +197,7 @@ fn produce_record_batch(
         .map(|c| c.clone())
         .collect::<Vec<_>>();
     let temporal_props_chunks = edges
-        .temporal_props()
-        .values()
+        .temporal_prop_values()
         .sliced(start_offset..end_offset)
         .iter_chunks()
         .map(|c| c.clone())

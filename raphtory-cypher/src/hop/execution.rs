@@ -238,7 +238,7 @@ where
 {
     let col = layer
         .edges_storage()
-        .temporal_props()
+        .temporal_props()?
         .values()
         .primitive_col::<T::Native>(p_id)?;
     for r in indices {
@@ -257,7 +257,10 @@ fn load_into_utf8_builder_2<I: OffsetSizeTrait + Offset>(
     p_id: usize,
     indices: &[Range<usize>],
 ) -> Option<()> {
-    let array = layer.edges_storage().temporal_props().utf8_col::<I>(p_id)?;
+    let array = layer
+        .edges_storage()
+        .temporal_props()?
+        .utf8_col::<I>(p_id)?;
     let col = array.values();
     for r in indices {
         for i in r.clone() {
