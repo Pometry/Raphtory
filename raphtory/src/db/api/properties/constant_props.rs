@@ -38,6 +38,13 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
         Box::new(self.into_iter())
     }
 
+    pub fn iter_id(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
+        self.props
+            .const_prop_ids()
+            .zip(self.props.const_prop_values())
+            .filter_map(|(id, v)| Some((id, v?)))
+    }
+
     pub fn get(&self, key: &str) -> Option<Prop> {
         let id = self.props.get_const_prop_id(key)?;
         self.props.get_const_prop(id)

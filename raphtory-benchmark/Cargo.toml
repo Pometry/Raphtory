@@ -9,15 +9,17 @@ edition = "2021"
 criterion = { workspace = true }
 raphtory = { path = "../raphtory", features = ["io", "proto"], version = "0.14.0" }
 raphtory-api = { path = "../raphtory-api", version = "0.14.0" }
-pometry-storage.workspace = true
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
-clap = { workspace = true }
-csv = { workspace = true }
-flate2 = { workspace = true }
 tracing = {workspace = true}
+once_cell = { workspace = true }
+serde =  { workspace = true }
+itertools =  { workspace = true }
+fake = { workspace = true }
+csv = { workspace = true }
+chrono = { workspace = true }
 
 [[bench]]
 name = "tgraph_benchmarks"
@@ -58,3 +60,11 @@ harness = false
 # [[bench]]
 # name = "arrow_algobench"
 # harness = false
+
+[[bench]]
+name = "search_bench"
+harness = false
+required-features = ["search"]
+
+[features]
+search = ["raphtory/search"]

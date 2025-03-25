@@ -44,6 +44,7 @@ use raphtory_api::{
     GraphType,
 };
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -87,6 +88,15 @@ impl MaterializedGraph {
     }
 }
 
+impl InternalStorageOps for MaterializedGraph {
+    fn get_storage(&self) -> Option<&Storage> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.get_storage(),
+            MaterializedGraph::PersistentGraph(g) => g.get_storage(),
+        }
+    }
+}
+
 impl InternalDeletionOps for MaterializedGraph {
     fn internal_delete_edge(
         &self,
@@ -115,6 +125,148 @@ impl InternalDeletionOps for MaterializedGraph {
 }
 
 impl DeletionOps for MaterializedGraph {}
+
+impl NodeHistoryFilter for MaterializedGraph {
+    fn is_node_prop_update_available(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_node_prop_update_available(prop_id, node_id, time)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_node_prop_update_available(prop_id, node_id, time)
+            }
+        }
+    }
+
+    fn is_node_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_node_prop_update_available_window(prop_id, node_id, time, w)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_node_prop_update_available_window(prop_id, node_id, time, w)
+            }
+        }
+    }
+
+    fn is_node_prop_update_latest(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_node_prop_update_latest(prop_id, node_id, time)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_node_prop_update_latest(prop_id, node_id, time)
+            }
+        }
+    }
+
+    fn is_node_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_node_prop_update_latest_window(prop_id, node_id, time, w)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_node_prop_update_latest_window(prop_id, node_id, time, w)
+            }
+        }
+    }
+}
+
+impl EdgeHistoryFilter for MaterializedGraph {
+    fn is_edge_prop_update_available(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time)
+            }
+        }
+    }
+
+    fn is_edge_prop_update_available_window(
+        &self,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
+            }
+        }
+    }
+
+    fn is_edge_prop_update_latest(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
+            }
+        }
+    }
+
+    fn is_edge_prop_update_latest_window(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        match self {
+            MaterializedGraph::EventGraph(g) => {
+                g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
+            }
+            MaterializedGraph::PersistentGraph(g) => {
+                g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
+            }
+        }
+    }
+}
 
 #[enum_dispatch]
 pub trait InternalMaterialize {
