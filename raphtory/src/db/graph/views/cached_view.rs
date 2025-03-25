@@ -176,10 +176,11 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
 mod test {
     use crate::{
         algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
-        prelude::*, test_storage,
+        prelude::*, test_storage, test_utils::test_graph,
     };
     use itertools::Itertools;
     use proptest::prelude::*;
+    use tempfile::TempDir;
 
     #[test]
     fn empty_graph() {
@@ -293,6 +294,52 @@ mod test {
         proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 0 ))| {
             check(&edge_list);
         })
+    }
+
+    #[test]
+    fn failing_latest_time() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("2")).unwrap();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("2")).unwrap();
+        graph.add_edge(-889, 0, 0, NO_PROPS, Some("0")).unwrap();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(16715, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("3")).unwrap();
+        graph.add_edge(-16714, 0, 0, NO_PROPS, Some("4")).unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+        let disk_graph = graph
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
+
+        assert_graph_equal(&disk_graph, &graph);
+
+        let layers = disk_graph
+            .unique_layers()
+            .take(disk_graph.unique_layers().count() / 2)
+            .collect_vec();
+
+        let earliest = disk_graph.earliest_time().unwrap();
+        let latest = disk_graph.latest_time().unwrap();
+        let middle = earliest + (latest - earliest) / 2;
+
+        println!("earliest: {earliest}, middle: {middle}, latest: {latest}");
+
+        if !layers.is_empty() && earliest < middle && middle < latest {
+            let subgraph = disk_graph
+                .layers(layers.clone())
+                .unwrap()
+                .window(earliest, middle);
+            let latest = subgraph.nodes().latest_time().max().flatten();
+            println!("latest node time: {latest:?}");
+            let subgraph_2 = graph.layers(layers).unwrap().window(earliest, middle);
+            assert_graph_equal(&subgraph, &subgraph_2);
+            let masked = subgraph.cache_view();
+            assert_graph_equal(&subgraph, &masked);
+        }
     }
 
     #[test]

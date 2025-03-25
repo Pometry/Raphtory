@@ -669,11 +669,12 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
         let view = self.view.clone();
         self.additions
             .prop_events_rev()
-            .merge(
+            .merge_by(
                 self.additions
                     .edge_events_rev()
                     .filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids()))
                     .map(|(t, _)| t),
+                |t1, t2| t1 >= t2,
             )
             .into_dyn_boxed()
     }
