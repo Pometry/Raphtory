@@ -30,13 +30,7 @@ use raphtory::{
                 TimeOps,
             },
         },
-        graph::{
-            node::NodeView,
-            views::property_filter::{
-                resolve_as_node_filter, CompositeEdgeFilter, CompositeNodeFilter, FilterExpr,
-                PropertyRef,
-            },
-        },
+        graph::{node::NodeView, views::property_filter::PropertyRef},
     },
     prelude::*,
 };

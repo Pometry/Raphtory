@@ -2,6 +2,7 @@ from raphtory import Graph, Prop, PersistentGraph
 import pytest
 from raphtory import filter
 
+
 def init_graph(graph):
     """Initializes the graph with nodes and properties."""
 
@@ -60,7 +61,9 @@ def init_graph(graph):
 
 def search_nodes(graph, filter_expr, limit=20, offset=0):
     graph.create_index()
-    return sorted([node.name for node in graph.search_nodes(filter_expr, limit, offset)])
+    return sorted(
+        [node.name for node in graph.search_nodes(filter_expr, limit, offset)]
+    )
 
 
 def test_search_nodes_for_node_name_eq():
@@ -78,7 +81,22 @@ def test_search_nodes_for_node_name_ne():
 
     filter_expr = filter.Node.node_name() != "N1"
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert [
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N14",
+        "N15",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N9",
+    ] == results
 
 
 def test_search_nodes_for_node_name_includes():
@@ -87,25 +105,25 @@ def test_search_nodes_for_node_name_includes():
 
     filter_expr = filter.Node.node_name().includes(["N1", "N9"])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N9'] == results
+    assert ["N1", "N9"] == results
 
 
 def test_search_nodes_for_node_name_excludes():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_name().excludes(['N10', 'N11', 'N12', 'N13', 'N14'])
+    filter_expr = filter.Node.node_name().excludes(["N10", "N11", "N12", "N13", "N14"])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N15', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert ["N1", "N15", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9"] == results
 
 
 def test_search_nodes_for_node_name_fuzzy_match():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_name().fuzzy_search('1', 1, False)
+    filter_expr = filter.Node.node_name().fuzzy_search("1", 1, False)
     results = search_nodes(g, filter_expr)
-    assert ['N1'] == results
+    assert ["N1"] == results
 
 
 def test_search_nodes_for_node_type_eq():
@@ -123,7 +141,7 @@ def test_search_nodes_for_node_type_ne():
 
     filter_expr = filter.Node.node_type() != "water_tribe"
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N6', 'N7', 'N8', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N2", "N6", "N7", "N8", "N9"] == results
 
 
 def test_search_nodes_for_node_type_includes():
@@ -132,25 +150,27 @@ def test_search_nodes_for_node_type_includes():
 
     filter_expr = filter.Node.node_type().includes(["air_nomads", "fire_nation"])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N6', 'N7', 'N8'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N6", "N7", "N8"] == results
 
 
 def test_search_nodes_for_node_type_excludes():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_type().excludes(['water_tribe', 'air_nomads', 'fire_nation'])
+    filter_expr = filter.Node.node_type().excludes(
+        ["water_tribe", "air_nomads", "fire_nation"]
+    )
     results = search_nodes(g, filter_expr)
-    assert ['N2', 'N9'] == results
+    assert ["N2", "N9"] == results
 
 
 def test_search_nodes_for_node_type_fuzzy_match():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_type().fuzzy_search('air', 1, False)
+    filter_expr = filter.Node.node_type().fuzzy_search("air", 1, False)
     results = search_nodes(g, filter_expr)
-    assert ['N12', 'N13', 'N7', 'N8'] == results
+    assert ["N12", "N13", "N7", "N8"] == results
 
 
 def test_search_nodes_for_property_eq():
@@ -159,7 +179,7 @@ def test_search_nodes_for_property_eq():
 
     filter_expr = filter.Node.property("p1") == 1
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N14', 'N15', 'N3', 'N4', 'N6', 'N7'] == results
+    assert ["N1", "N14", "N15", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_ne():
@@ -168,7 +188,19 @@ def test_search_nodes_for_property_ne():
 
     filter_expr = filter.Node.property("p1") != 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N3', 'N4', 'N6', 'N7'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N14",
+        "N15",
+        "N3",
+        "N4",
+        "N6",
+        "N7",
+    ] == results
 
 
 def test_search_nodes_for_property_lt():
@@ -177,7 +209,7 @@ def test_search_nodes_for_property_lt():
 
     filter_expr = filter.Node.property("q1") < 2
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13', 'N14'] == results
+    assert ["N10", "N11", "N12", "N13", "N14"] == results
 
 
 def test_search_nodes_for_property_le():
@@ -186,7 +218,7 @@ def test_search_nodes_for_property_le():
 
     filter_expr = filter.Node.property("q1") <= 3
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13', 'N14'] == results
+    assert ["N10", "N11", "N12", "N13", "N14"] == results
 
 
 def test_search_nodes_for_property_gt():
@@ -195,7 +227,7 @@ def test_search_nodes_for_property_gt():
 
     filter_expr = filter.Node.property("p1") > 2
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13'] == results
+    assert ["N10", "N11", "N12", "N13"] == results
 
 
 def test_search_nodes_for_property_ge():
@@ -204,7 +236,7 @@ def test_search_nodes_for_property_ge():
 
     filter_expr = filter.Node.property("p1") >= 2
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13', 'N2', 'N5', 'N8', 'N9'] == results
+    assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_includes():
@@ -213,7 +245,7 @@ def test_search_nodes_for_property_includes():
 
     filter_expr = filter.Node.property("p1").includes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N2', 'N5', 'N8', 'N9'] == results
+    assert ["N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_excludes():
@@ -222,7 +254,19 @@ def test_search_nodes_for_property_excludes():
 
     filter_expr = filter.Node.property("p1").excludes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N3', 'N4', 'N6', 'N7'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N14",
+        "N15",
+        "N3",
+        "N4",
+        "N6",
+        "N7",
+    ] == results
 
 
 def test_search_nodes_for_property_is_some():
@@ -231,7 +275,23 @@ def test_search_nodes_for_property_is_some():
 
     filter_expr = filter.Node.property("p1").is_some()
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N14",
+        "N15",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N9",
+    ] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -250,7 +310,7 @@ def test_search_nodes_for_property_constant_eq():
 
     filter_expr = filter.Node.property("p1").constant() == 1
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
 def test_search_nodes_for_property_constant_ne():
@@ -259,7 +319,7 @@ def test_search_nodes_for_property_constant_ne():
 
     filter_expr = filter.Node.property("p1").constant() != 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
 def test_search_nodes_for_property_constant_lt():
@@ -268,7 +328,7 @@ def test_search_nodes_for_property_constant_lt():
 
     filter_expr = filter.Node.property("p1").constant() < 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
 def test_search_nodes_for_property_constant_le():
@@ -277,7 +337,7 @@ def test_search_nodes_for_property_constant_le():
 
     filter_expr = filter.Node.property("p1").constant() <= 3
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N4', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
 
 def test_search_nodes_for_property_constant_gt():
@@ -286,7 +346,7 @@ def test_search_nodes_for_property_constant_gt():
 
     filter_expr = filter.Node.property("p1").constant() > 1
     results = search_nodes(g, filter_expr)
-    assert ['N4'] == results
+    assert ["N4"] == results
 
 
 def test_search_nodes_for_property_constant_ge():
@@ -295,7 +355,7 @@ def test_search_nodes_for_property_constant_ge():
 
     filter_expr = filter.Node.property("p1").constant() >= 2
     results = search_nodes(g, filter_expr)
-    assert ['N4'] == results
+    assert ["N4"] == results
 
 
 def test_search_nodes_for_property_constant_includes():
@@ -304,7 +364,7 @@ def test_search_nodes_for_property_constant_includes():
 
     filter_expr = filter.Node.property("p1").constant().includes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N4'] == results
+    assert ["N4"] == results
 
 
 def test_search_nodes_for_property_constant_excludes():
@@ -313,7 +373,7 @@ def test_search_nodes_for_property_constant_excludes():
 
     filter_expr = filter.Node.property("p1").constant().excludes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
 def test_search_nodes_for_property_constant_is_some():
@@ -322,7 +382,7 @@ def test_search_nodes_for_property_constant_is_some():
 
     filter_expr = filter.Node.property("p1").constant().is_some()
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N14', 'N15', 'N4', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -341,7 +401,7 @@ def test_search_nodes_for_property_temporal_any_eq():
 
     filter_expr = filter.Node.property("p1").temporal().any() == 1
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'] == results
+    assert ["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"] == results
 
 
 def test_search_nodes_for_property_temporal_any_ne():
@@ -350,7 +410,20 @@ def test_search_nodes_for_property_temporal_any_ne():
 
     filter_expr = filter.Node.property("p1").temporal().any() != 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+    ] == results
 
 
 def test_search_nodes_for_property_temporal_any_lt():
@@ -359,7 +432,7 @@ def test_search_nodes_for_property_temporal_any_lt():
 
     filter_expr = filter.Node.property("p1").temporal().any() < 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'] == results
+    assert ["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"] == results
 
 
 def test_search_nodes_for_property_temporal_any_le():
@@ -368,7 +441,21 @@ def test_search_nodes_for_property_temporal_any_le():
 
     filter_expr = filter.Node.property("p1").temporal().any() <= 3
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N9",
+    ] == results
 
 
 def test_search_nodes_for_property_temporal_any_gt():
@@ -377,7 +464,7 @@ def test_search_nodes_for_property_temporal_any_gt():
 
     filter_expr = filter.Node.property("p1").temporal().any() > 1
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N5', 'N8', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_temporal_any_ge():
@@ -386,7 +473,7 @@ def test_search_nodes_for_property_temporal_any_ge():
 
     filter_expr = filter.Node.property("p1").temporal().any() >= 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N5', 'N8', 'N9'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_temporal_any_includes():
@@ -395,7 +482,7 @@ def test_search_nodes_for_property_temporal_any_includes():
 
     filter_expr = filter.Node.property("p1").temporal().any().includes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N2', 'N5', 'N8', 'N9'] == results
+    assert ["N1", "N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_temporal_any_excludes():
@@ -404,7 +491,20 @@ def test_search_nodes_for_property_temporal_any_excludes():
 
     filter_expr = filter.Node.property("p1").temporal().any().excludes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+    ] == results
 
 
 def test_search_nodes_for_property_temporal_any_is_some():
@@ -413,7 +513,21 @@ def test_search_nodes_for_property_temporal_any_is_some():
 
     filter_expr = filter.Node.property("p1").temporal().any().is_some()
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N9",
+    ] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -432,7 +546,7 @@ def test_search_nodes_for_property_temporal_latest_eq():
 
     filter_expr = filter.Node.property("p1").temporal().latest() == 1
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N3', 'N4', 'N6', 'N7'] == results
+    assert ["N1", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_ne():
@@ -441,7 +555,7 @@ def test_search_nodes_for_property_temporal_latest_ne():
 
     filter_expr = filter.Node.property("p1").temporal().latest() != 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N3', 'N4', 'N6', 'N7'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_lt():
@@ -450,7 +564,7 @@ def test_search_nodes_for_property_temporal_latest_lt():
 
     filter_expr = filter.Node.property("p1").temporal().latest() < 2
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N3', 'N4', 'N6', 'N7'] == results
+    assert ["N1", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_le():
@@ -459,7 +573,21 @@ def test_search_nodes_for_property_temporal_latest_le():
 
     filter_expr = filter.Node.property("p1").temporal().latest() <= 3
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N9",
+    ] == results
 
 
 def test_search_nodes_for_property_temporal_latest_gt():
@@ -468,7 +596,7 @@ def test_search_nodes_for_property_temporal_latest_gt():
 
     filter_expr = filter.Node.property("p1").temporal().latest() > 1
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13', 'N2', 'N5', 'N8', 'N9'] == results
+    assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_ge():
@@ -477,7 +605,7 @@ def test_search_nodes_for_property_temporal_latest_ge():
 
     filter_expr = filter.Node.property("p1").temporal().latest() >= 2
     results = search_nodes(g, filter_expr)
-    assert ['N10', 'N11', 'N12', 'N13', 'N2', 'N5', 'N8', 'N9'] == results
+    assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_includes():
@@ -486,7 +614,7 @@ def test_search_nodes_for_property_temporal_latest_includes():
 
     filter_expr = filter.Node.property("p1").temporal().latest().includes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N2', 'N5', 'N8', 'N9'] == results
+    assert ["N2", "N5", "N8", "N9"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_excludes():
@@ -495,7 +623,7 @@ def test_search_nodes_for_property_temporal_latest_excludes():
 
     filter_expr = filter.Node.property("p1").temporal().latest().excludes([2])
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N3', 'N4', 'N6', 'N7'] == results
+    assert ["N1", "N10", "N11", "N12", "N13", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_temporal_latest_is_some():
@@ -504,7 +632,21 @@ def test_search_nodes_for_property_temporal_latest_is_some():
 
     filter_expr = filter.Node.property("p1").temporal().latest().is_some()
     results = search_nodes(g, filter_expr)
-    assert ['N1', 'N10', 'N11', 'N12', 'N13', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'] == results
+    assert [
+        "N1",
+        "N10",
+        "N11",
+        "N12",
+        "N13",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N9",
+    ] == results
 
 
 def test_search_nodes_for_composite_filter():
@@ -514,7 +656,7 @@ def test_search_nodes_for_composite_filter():
     filter1 = filter.Node.node_type() == "fire_nation"
     filter2 = filter.Node.property("p1").constant() > 1
     results = search_nodes(g, filter1 | filter2)
-    assert ['N1', 'N10', 'N11', 'N4', 'N6'] == results
+    assert ["N1", "N10", "N11", "N4", "N6"] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -585,7 +727,12 @@ def init_edges_graph(graph):
 
 def search_edges(graph, filter_expr, limit=20, offset=0):
     graph.create_index()
-    return sorted([(edge.src.name, edge.dst.name) for edge in graph.search_edges(filter_expr, limit, offset)])
+    return sorted(
+        [
+            (edge.src.name, edge.dst.name)
+            for edge in graph.search_edges(filter_expr, limit, offset)
+        ]
+    )
 
 
 def test_search_edges_for_src_eq():
@@ -603,7 +750,22 @@ def test_search_edges_for_src_ne():
 
     filter_expr = filter.Edge.src() != "N1"
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_src_includes():
@@ -612,25 +774,36 @@ def test_search_edges_for_src_includes():
 
     filter_expr = filter.Edge.src().includes(["N1", "N9"])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N9', 'N10')] == results
+    assert [("N1", "N2"), ("N9", "N10")] == results
 
 
 def test_search_edges_for_src_excludes():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().excludes(['N10', 'N11', 'N12', 'N13', 'N14'])
+    filter_expr = filter.Edge.src().excludes(["N10", "N11", "N12", "N13", "N14"])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N15', 'N1'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N15", "N1"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_src_fuzzy_match():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().fuzzy_search('1', 1, False)
+    filter_expr = filter.Edge.src().fuzzy_search("1", 1, False)
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2')] == results
+    assert [("N1", "N2")] == results
 
 
 def test_search_edges_for_dst_eq():
@@ -639,7 +812,7 @@ def test_search_edges_for_dst_eq():
 
     filter_expr = filter.Edge.dst() == "N1"
     results = search_edges(g, filter_expr)
-    assert [('N15', 'N1')] == results
+    assert [("N15", "N1")] == results
 
 
 def test_search_edges_for_dst_ne():
@@ -648,7 +821,22 @@ def test_search_edges_for_dst_ne():
 
     filter_expr = filter.Edge.dst() != "N1"
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_dst_includes():
@@ -657,25 +845,38 @@ def test_search_edges_for_dst_includes():
 
     filter_expr = filter.Edge.dst().includes(["N1", "N9"])
     results = search_edges(g, filter_expr)
-    assert [('N15', 'N1'), ('N8', 'N9')] == results
+    assert [("N15", "N1"), ("N8", "N9")] == results
 
 
 def test_search_edges_for_dst_excludes():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().excludes(['N1', 'N9', 'N10'])
+    filter_expr = filter.Edge.dst().excludes(["N1", "N9", "N10"])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_dst_fuzzy_match():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().fuzzy_search('1', 1, False)
+    filter_expr = filter.Edge.dst().fuzzy_search("1", 1, False)
     results = search_edges(g, filter_expr)
-    assert [('N15', 'N1')] == results
+    assert [("N15", "N1")] == results
 
 
 def test_search_edges_for_property_eq():
@@ -684,7 +885,15 @@ def test_search_edges_for_property_eq():
 
     filter_expr = filter.Edge.property("p1") == 1
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N14', 'N15'), ('N15', 'N1'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_ne():
@@ -693,7 +902,19 @@ def test_search_edges_for_property_ne():
 
     filter_expr = filter.Edge.property("p1") != 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_lt():
@@ -702,7 +923,13 @@ def test_search_edges_for_property_lt():
 
     filter_expr = filter.Edge.property("q1") < 2
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15')]== results
+    assert [
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+    ] == results
 
 
 def test_search_edges_for_property_le():
@@ -711,7 +938,13 @@ def test_search_edges_for_property_le():
 
     filter_expr = filter.Edge.property("q1") <= 3
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15')] == results
+    assert [
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+    ] == results
 
 
 def test_search_edges_for_property_gt():
@@ -720,7 +953,7 @@ def test_search_edges_for_property_gt():
 
     filter_expr = filter.Edge.property("p1") > 2
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14')] == results
+    assert [("N10", "N11"), ("N11", "N12"), ("N12", "N13"), ("N13", "N14")] == results
 
 
 def test_search_edges_for_property_ge():
@@ -729,7 +962,16 @@ def test_search_edges_for_property_ge():
 
     filter_expr = filter.Edge.property("p1") >= 2
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N5", "N6"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_includes():
@@ -738,7 +980,7 @@ def test_search_edges_for_property_includes():
 
     filter_expr = filter.Edge.property("p1").includes([2])
     results = search_edges(g, filter_expr)
-    assert [('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [("N2", "N3"), ("N5", "N6"), ("N8", "N9"), ("N9", "N10")] == results
 
 
 def test_search_edges_for_property_excludes():
@@ -747,7 +989,19 @@ def test_search_edges_for_property_excludes():
 
     filter_expr = filter.Edge.property("p1").excludes([2])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_is_some():
@@ -756,7 +1010,23 @@ def test_search_edges_for_property_is_some():
 
     filter_expr = filter.Edge.property("p1").is_some()
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -775,7 +1045,16 @@ def test_search_edges_for_property_constant_eq():
 
     filter_expr = filter.Edge.property("p1").constant() == 1
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_constant_ne():
@@ -784,7 +1063,16 @@ def test_search_edges_for_property_constant_ne():
 
     filter_expr = filter.Edge.property("p1").constant() != 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_constant_lt():
@@ -793,7 +1081,16 @@ def test_search_edges_for_property_constant_lt():
 
     filter_expr = filter.Edge.property("p1").constant() < 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_constant_le():
@@ -802,7 +1099,17 @@ def test_search_edges_for_property_constant_le():
 
     filter_expr = filter.Edge.property("p1").constant() <= 3
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N4', 'N5'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N4", "N5"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_constant_gt():
@@ -811,7 +1118,7 @@ def test_search_edges_for_property_constant_gt():
 
     filter_expr = filter.Edge.property("p1").constant() > 1
     results = search_edges(g, filter_expr)
-    assert [('N4', 'N5')] == results
+    assert [("N4", "N5")] == results
 
 
 def test_search_edges_for_property_constant_ge():
@@ -820,7 +1127,7 @@ def test_search_edges_for_property_constant_ge():
 
     filter_expr = filter.Edge.property("p1").constant() >= 2
     results = search_edges(g, filter_expr)
-    assert [('N4', 'N5')] == results
+    assert [("N4", "N5")] == results
 
 
 def test_search_edges_for_property_constant_includes():
@@ -829,7 +1136,7 @@ def test_search_edges_for_property_constant_includes():
 
     filter_expr = filter.Edge.property("p1").constant().includes([2])
     results = search_edges(g, filter_expr)
-    assert [('N4', 'N5')] == results
+    assert [("N4", "N5")] == results
 
 
 def test_search_edges_for_property_constant_excludes():
@@ -838,7 +1145,16 @@ def test_search_edges_for_property_constant_excludes():
 
     filter_expr = filter.Edge.property("p1").constant().excludes([2])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_constant_is_some():
@@ -847,7 +1163,17 @@ def test_search_edges_for_property_constant_is_some():
 
     filter_expr = filter.Edge.property("p1").constant().is_some()
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N14', 'N15'), ('N15', 'N1'), ('N4', 'N5'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N14", "N15"),
+        ("N15", "N1"),
+        ("N4", "N5"),
+        ("N9", "N10"),
+    ] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -866,7 +1192,16 @@ def test_search_edges_for_property_temporal_any_eq():
 
     filter_expr = filter.Edge.property("p1").temporal().any() == 1
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
+    assert [
+        ("N1", "N2"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_ne():
@@ -875,7 +1210,20 @@ def test_search_edges_for_property_temporal_any_ne():
 
     filter_expr = filter.Edge.property("p1").temporal().any() != 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_lt():
@@ -884,7 +1232,16 @@ def test_search_edges_for_property_temporal_any_lt():
 
     filter_expr = filter.Edge.property("p1").temporal().any() < 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
+    assert [
+        ("N1", "N2"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_le():
@@ -893,7 +1250,21 @@ def test_search_edges_for_property_temporal_any_le():
 
     filter_expr = filter.Edge.property("p1").temporal().any() <= 3
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_gt():
@@ -902,7 +1273,17 @@ def test_search_edges_for_property_temporal_any_gt():
 
     filter_expr = filter.Edge.property("p1").temporal().any() > 1
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N5", "N6"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_ge():
@@ -911,7 +1292,17 @@ def test_search_edges_for_property_temporal_any_ge():
 
     filter_expr = filter.Edge.property("p1").temporal().any() >= 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N5", "N6"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_includes():
@@ -920,7 +1311,13 @@ def test_search_edges_for_property_temporal_any_includes():
 
     filter_expr = filter.Edge.property("p1").temporal().any().includes([2])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N2", "N3"),
+        ("N5", "N6"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_excludes():
@@ -929,7 +1326,20 @@ def test_search_edges_for_property_temporal_any_excludes():
 
     filter_expr = filter.Edge.property("p1").temporal().any().excludes([2])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_is_some():
@@ -938,7 +1348,21 @@ def test_search_edges_for_property_temporal_any_is_some():
 
     filter_expr = filter.Edge.property("p1").temporal().any().is_some()
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -957,7 +1381,13 @@ def test_search_edges_for_property_temporal_latest_eq():
 
     filter_expr = filter.Edge.property("p1").temporal().latest() == 1
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_ne():
@@ -966,7 +1396,17 @@ def test_search_edges_for_property_temporal_latest_ne():
 
     filter_expr = filter.Edge.property("p1").temporal().latest() != 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_lt():
@@ -975,7 +1415,13 @@ def test_search_edges_for_property_temporal_latest_lt():
 
     filter_expr = filter.Edge.property("p1").temporal().latest() < 2
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_le():
@@ -984,7 +1430,21 @@ def test_search_edges_for_property_temporal_latest_le():
 
     filter_expr = filter.Edge.property("p1").temporal().latest() <= 3
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_gt():
@@ -993,7 +1453,16 @@ def test_search_edges_for_property_temporal_latest_gt():
 
     filter_expr = filter.Edge.property("p1").temporal().latest() > 1
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N5", "N6"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_ge():
@@ -1002,7 +1471,16 @@ def test_search_edges_for_property_temporal_latest_ge():
 
     filter_expr = filter.Edge.property("p1").temporal().latest() >= 2
     results = search_edges(g, filter_expr)
-    assert [('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N5", "N6"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_includes():
@@ -1011,7 +1489,7 @@ def test_search_edges_for_property_temporal_latest_includes():
 
     filter_expr = filter.Edge.property("p1").temporal().latest().includes([2])
     results = search_edges(g, filter_expr)
-    assert  [('N2', 'N3'), ('N5', 'N6'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [("N2", "N3"), ("N5", "N6"), ("N8", "N9"), ("N9", "N10")] == results
 
 
 def test_search_edges_for_property_temporal_latest_excludes():
@@ -1020,7 +1498,17 @@ def test_search_edges_for_property_temporal_latest_excludes():
 
     filter_expr = filter.Edge.property("p1").temporal().latest().excludes([2])
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N3', 'N4'), ('N4', 'N5'), ('N6', 'N7'), ('N7', 'N8')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_latest_is_some():
@@ -1029,7 +1517,21 @@ def test_search_edges_for_property_temporal_latest_is_some():
 
     filter_expr = filter.Edge.property("p1").temporal().latest().is_some()
     results = search_edges(g, filter_expr)
-    assert [('N1', 'N2'), ('N10', 'N11'), ('N11', 'N12'), ('N12', 'N13'), ('N13', 'N14'), ('N2', 'N3'), ('N3', 'N4'), ('N4', 'N5'), ('N5', 'N6'), ('N6', 'N7'), ('N7', 'N8'), ('N8', 'N9'), ('N9', 'N10')] == results
+    assert [
+        ("N1", "N2"),
+        ("N10", "N11"),
+        ("N11", "N12"),
+        ("N12", "N13"),
+        ("N13", "N14"),
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N4", "N5"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+        ("N9", "N10"),
+    ] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -1049,7 +1551,7 @@ def test_search_edges_for_composite_filter():
     filter1 = filter.Edge.src() == "N13"
     filter2 = filter.Edge.property("p1").temporal().latest() == 3
     results = search_edges(g, filter1 & filter2)
-    assert [('N13', 'N14')] == results
+    assert [("N13", "N14")] == results
 
 
 def test_search_edges_for_composite_filter_pg():
@@ -1059,4 +1561,4 @@ def test_search_edges_for_composite_filter_pg():
     filter1 = filter.Edge.src() == "N13"
     filter2 = filter.Edge.property("p1").temporal().latest() == 3
     results = search_edges(g, filter1 & filter2)
-    assert [('N13', 'N14')] == results
+    assert [("N13", "N14")] == results
