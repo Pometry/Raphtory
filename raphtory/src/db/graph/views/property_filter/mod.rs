@@ -911,7 +911,7 @@ pub struct EdgeSourceFilterBuilder;
 
 impl EdgeFilterOps for EdgeSourceFilterBuilder {
     fn field_name(&self) -> &'static str {
-        "from"
+        "src"
     }
 }
 
@@ -919,7 +919,7 @@ pub struct EdgeDestinationFilterBuilder;
 
 impl EdgeFilterOps for EdgeDestinationFilterBuilder {
     fn field_name(&self) -> &'static str {
-        "to"
+        "dst"
     }
 }
 
@@ -1075,7 +1075,7 @@ mod test_fluent_builder_apis {
     fn test_edge_src_filter_build() {
         let filter_expr = EdgeFilter::src().eq("raphtory");
         let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
-        let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("from", "raphtory"));
+        let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
             edge_property_filter2.to_string()
@@ -1086,7 +1086,7 @@ mod test_fluent_builder_apis {
     fn test_edge_dst_filter_build() {
         let filter_expr = EdgeFilter::dst().eq("raphtory");
         let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
-        let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("to", "raphtory"));
+        let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
             edge_property_filter2.to_string()
@@ -1111,7 +1111,7 @@ mod test_fluent_builder_apis {
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(vec![
             CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Edge(Filter::eq("from", "fire_nation")),
+                CompositeEdgeFilter::Edge(Filter::eq("src", "fire_nation")),
                 CompositeEdgeFilter::Property(PropertyFilter::eq(
                     PropertyRef::ConstantProperty("p2".to_string()),
                     2u64,
@@ -1131,7 +1131,7 @@ mod test_fluent_builder_apis {
                     )),
                 ]),
             ]),
-            CompositeEdgeFilter::Edge(Filter::eq("from", "raphtory")),
+            CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory")),
             CompositeEdgeFilter::Property(PropertyFilter::eq(
                 PropertyRef::Property("p5".to_string()),
                 9u64,
@@ -1216,7 +1216,7 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((EDGE(edge_type NOT_IN [fire_nation, water_tribe])) AND (EDGE_PROPERTY(p2 == 2)) AND (EDGE_PROPERTY(p1 == 1)) AND ((EDGE_PROPERTY(p3 <= 5)) OR (EDGE_PROPERTY(p4 IN [2, 10])))) OR (EDGE(from == pometry)) OR (EDGE_PROPERTY(p5 == 9))",
+            "((EDGE(edge_type NOT_IN [fire_nation, water_tribe])) AND (EDGE_PROPERTY(p2 == 2)) AND (EDGE_PROPERTY(p1 == 1)) AND ((EDGE_PROPERTY(p3 <= 5)) OR (EDGE_PROPERTY(p4 IN [2, 10])))) OR (EDGE(src == pometry)) OR (EDGE_PROPERTY(p5 == 9))",
             CompositeEdgeFilter::Or(vec![
                 CompositeEdgeFilter::And(vec![
                     CompositeEdgeFilter::Edge(Filter::excludes(
@@ -1230,7 +1230,7 @@ mod test_composite_filters {
                         CompositeEdgeFilter::Property(PropertyFilter::includes(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
                     ]),
                 ]),
-                CompositeEdgeFilter::Edge(Filter::eq("from", "pometry")),
+                CompositeEdgeFilter::Edge(Filter::eq("src", "pometry")),
                 CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p5".to_string()), 9u64)),
             ])
                 .to_string()
