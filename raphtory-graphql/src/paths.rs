@@ -86,14 +86,10 @@ pub(crate) fn valid_path(
     namespace: bool,
 ) -> Result<PathBuf, InvalidPathReason> {
     let user_facing_path = PathBuf::from(relative_path);
-    // // check for errors in the path
-    // //additionally ban any backslash
-    // if relative_path.contains(r"\") {
-    //     return Err(BackslashError(user_facing_path));
-    // }
-    // if relative_path.contains(r"//") {
-    //     return Err(DoubleForwardSlash(user_facing_path));
-    // }
+
+    if relative_path.contains(r"//") {
+        return Err(DoubleForwardSlash(user_facing_path));
+    }
 
     let mut full_path = base_path.clone();
     // fail if any component is a Prefix (C://), tries to access root,
@@ -109,9 +105,6 @@ pub(crate) fn valid_path(
                     Some(component) => {
                         if component.contains(r"\") {
                             return Err(BackslashError(user_facing_path));
-                        }
-                        if component.contains(r"//") {
-                            return Err(DoubleForwardSlash(user_facing_path));
                         }
                     }
                     None => return Err(NonUTFCharacters),
