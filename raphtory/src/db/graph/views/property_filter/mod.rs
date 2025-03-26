@@ -972,7 +972,10 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_any_temporal_property_filter_build() {
-        let filter_expr = PropertyFilter::property("p").temporal().any().eq("raphtory");
+        let filter_expr = PropertyFilter::property("p")
+            .temporal()
+            .any()
+            .eq("raphtory");
         let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
@@ -986,7 +989,8 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_latest_temporal_property_filter_build() {
-        let filter_expr = PropertyFilter::property("p").temporal()
+        let filter_expr = PropertyFilter::property("p")
+            .temporal()
             .latest()
             .eq("raphtory");
         let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
@@ -1029,7 +1033,8 @@ mod test_fluent_builder_apis {
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
             .and(
-                PropertyFilter::property("p3").temporal()
+                PropertyFilter::property("p3")
+                    .temporal()
                     .any()
                     .eq(5u64)
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
@@ -1102,7 +1107,8 @@ mod test_fluent_builder_apis {
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
             .and(
-                PropertyFilter::property("p3").temporal()
+                PropertyFilter::property("p3")
+                    .temporal()
                     .any()
                     .eq(5u64)
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),

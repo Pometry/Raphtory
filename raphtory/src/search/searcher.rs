@@ -215,7 +215,8 @@ mod search_tests {
                 let g = init_graph_for_secondary_indexes(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::property("p1").temporal().latest().eq(1u64);
+                let filter: FilterExpr =
+                    PropertyFilter::property("p1").temporal().latest().eq(1u64);
                 let mut results = g
                     .search_nodes(filter, 10, 0)
                     .unwrap()
@@ -627,7 +628,8 @@ mod search_tests {
                 let g = init_graph_for_secondary_indexes(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::property("p1").temporal().latest().eq(1u64);
+                let filter: FilterExpr =
+                    PropertyFilter::property("p1").temporal().latest().eq(1u64);
                 let mut results = g
                     .search_edges(filter, 10, 0)
                     .unwrap()
@@ -1274,10 +1276,7 @@ mod search_tests {
         fn search_edges_for_dst_eq() {
             let filter = EdgeFilter::dst().eq("2");
             let results = search_edges(filter);
-            assert_eq!(
-                results,
-                vec![("1".into(), "2".into())]
-            );
+            assert_eq!(results, vec![("1".into(), "2".into())]);
         }
 
         #[test]
