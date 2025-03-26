@@ -57,7 +57,7 @@ pub(crate) fn get_relative_path(
 pub struct Data {
     pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
-    pub(crate) index: bool,
+    pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
 
@@ -79,7 +79,7 @@ impl Data {
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
-            index: true,
+            create_index: true,
             embedding_conf: Default::default(),
         }
     }
@@ -101,8 +101,7 @@ impl Data {
     ) -> Result<(), GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
         let vectors = self.vectorise(graph.clone(), &folder).await;
-        let index = self.index.then(|| graph.clone().into());
-        let graph = GraphWithVectors::new(graph, index, vectors);
+        let graph = GraphWithVectors::new(graph, vectors);
         self.insert_graph_with_vectors(path, graph)
     }
 
@@ -258,7 +257,7 @@ impl Data {
             .map(|conf| conf.cache.clone())
             .unwrap_or(Arc::new(None));
 
-        GraphWithVectors::read_from_folder(folder, self.index, embedding, cache)
+        GraphWithVectors::read_from_folder(folder, embedding, cache, self.create_index)
     }
 }
 

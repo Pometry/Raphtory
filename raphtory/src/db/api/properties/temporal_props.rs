@@ -23,6 +23,10 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         TemporalPropertyView { props, id: key }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
+
     pub fn dtype(&self) -> PropType {
         self.props.dtype(self.id)
     }

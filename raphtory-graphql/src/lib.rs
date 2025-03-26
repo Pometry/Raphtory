@@ -44,29 +44,64 @@ mod graphql_test {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn search_for_gandalf_query() {
-        let graph = PersistentGraph::new();
-        graph
-            .add_node(
-                0,
-                "Gandalf",
-                [("kind".to_string(), Prop::str("wizard"))],
-                None,
-            )
-            .expect("Could not add node!");
-        graph
-            .add_node(
-                0,
-                "Frodo",
-                [("kind".to_string(), Prop::str("Hobbit"))],
-                None,
-            )
-            .expect("Could not add node!");
-        graph.add_constant_properties([("name", "lotr")]).unwrap();
+    async fn test_search_nodes_gql() {
+        let mut graph = Graph::new();
+
+        let nodes = vec![
+            (6, "N1", vec![("p1", Prop::U64(2u64))]),
+            (7, "N1", vec![("p1", Prop::U64(1u64))]),
+            (6, "N2", vec![("p1", Prop::U64(1u64))]),
+            (7, "N2", vec![("p1", Prop::U64(2u64))]),
+            (8, "N3", vec![("p1", Prop::U64(1u64))]),
+            (9, "N4", vec![("p1", Prop::U64(1u64))]),
+            (5, "N5", vec![("p1", Prop::U64(1u64))]),
+            (6, "N5", vec![("p1", Prop::U64(2u64))]),
+            (5, "N6", vec![("p1", Prop::U64(1u64))]),
+            (6, "N6", vec![("p1", Prop::U64(1u64))]),
+            (3, "N7", vec![("p1", Prop::U64(1u64))]),
+            (5, "N7", vec![("p1", Prop::U64(1u64))]),
+            (3, "N8", vec![("p1", Prop::U64(1u64))]),
+            (4, "N8", vec![("p1", Prop::U64(2u64))]),
+            (2, "N9", vec![("p1", Prop::U64(2u64))]),
+            (2, "N10", vec![("q1", Prop::U64(0u64))]),
+            (2, "N10", vec![("p1", Prop::U64(3u64))]),
+            (2, "N11", vec![("p1", Prop::U64(3u64))]),
+            (2, "N11", vec![("q1", Prop::U64(0u64))]),
+            (2, "N12", vec![("q1", Prop::U64(0u64))]),
+            (3, "N12", vec![("p1", Prop::U64(3u64))]),
+            (2, "N13", vec![("q1", Prop::U64(0u64))]),
+            (3, "N13", vec![("p1", Prop::U64(3u64))]),
+            (2, "N14", vec![("q1", Prop::U64(0u64))]),
+            (2, "N15", vec![]),
+        ];
+
+        for (id, name, props) in nodes {
+            graph.add_node(id, name, props, None).unwrap();
+        }
+
+        let constant_props = vec![
+            ("N1", vec![("p1", Prop::U64(1u64))]),
+            ("N4", vec![("p1", Prop::U64(2u64))]),
+            ("N9", vec![("p1", Prop::U64(1u64))]),
+            ("N10", vec![("p1", Prop::U64(1u64))]),
+            ("N11", vec![("p1", Prop::U64(1u64))]),
+            ("N12", vec![("p1", Prop::U64(1u64))]),
+            ("N13", vec![("p1", Prop::U64(1u64))]),
+            ("N14", vec![("p1", Prop::U64(1u64))]),
+            ("N15", vec![("p1", Prop::U64(1u64))]),
+        ];
+
+        for (name, props) in constant_props {
+            graph
+                .node(name)
+                .unwrap()
+                .add_constant_properties(props)
+                .unwrap();
+        }
 
         let graph: MaterializedGraph = graph.into();
 
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graphs = HashMap::from([("master".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
@@ -75,26 +110,77 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
-        {
-          graph(path: "lotr") {
-            searchNodes(query: "kind:wizard", limit: 10, offset: 0) {
-              name
+            {
+              graph(path: "master") {
+                searchNodes(
+                    filter: {
+                      or: [
+                        {
+                          property: {
+                            name: "p1",
+                            operator: GREATER_THAN,
+                            value: {
+                              u64: 2
+                            }
+                          }
+                        },
+                        {
+                          and: [
+                        {
+                          node: {
+                                field: NODE_NAME,
+                                operator: EQUAL,
+                                value: "N1"
+                            }
+                        },
+                        {
+                          node: {
+                            field: NODE_TYPE,
+                            operator: NOT_EQUAL,
+                            value: "air_nomads"
+                          }
+                        },
+                        {
+                          property: {
+                            name: "p1",
+                            operator: LESS_THAN,
+                            value: {
+                              u64: 5
+                            }
+                          }
+                        }
+                      ]
+                        }
+                      ]
+
+
+                    },
+                  limit: 20,
+                  offset: 0
+                ) {
+                  name
+                }
+              }
             }
-          }
-        }
         "#;
         let req = Request::new(query);
         let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
+        let mut data = res.data.into_json().unwrap();
+
+        if let Some(nodes) = data["graph"]["searchNodes"].as_array_mut() {
+            nodes.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+        }
 
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "searchNodes": [
-                        {
-                            "name": "Gandalf"
-                        }
+                        { "name": "N1" },
+                        { "name": "N10" },
+                        { "name": "N11" },
+                        { "name": "N12" },
+                        { "name": "N13" }
                     ]
                 }
             }),

@@ -1949,6 +1949,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deunicode"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "339544cc9e2c4dc3fc7149fd630c5f22263a4fdf18a98afd0075784968b5cf00"
+
+[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2103,6 +2109,17 @@ dependencies = [
  "futures-core",
  "nom",
  "pin-project-lite",
+]
+
+[[package]]
+name = "fake"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef603df4ba9adbca6a332db7da6f614f21eafefbaf8e087844e452fdec152d0"
+dependencies = [
+ "chrono",
+ "deunicode",
+ "rand",
 ]
 
 [[package]]
@@ -4715,6 +4732,7 @@ dependencies = [
  "dotenv",
  "either",
  "enum_dispatch",
+ "fake",
  "flate2",
  "futures-util",
  "glam",
@@ -4763,6 +4781,7 @@ dependencies = [
  "serde",
  "serde_json",
  "streaming-stats",
+ "strsim",
  "tantivy",
  "tempfile",
  "thiserror 2.0.7",
@@ -4801,15 +4820,17 @@ dependencies = [
 name = "raphtory-benchmark"
 version = "0.14.0"
 dependencies = [
- "clap",
+ "chrono",
  "criterion",
  "csv",
- "flate2",
- "pometry-storage",
+ "fake",
+ "itertools 0.13.0",
+ "once_cell",
  "rand",
  "raphtory",
  "raphtory-api",
  "rayon",
+ "serde",
  "sorted_vector_map",
  "tempfile",
  "tracing",

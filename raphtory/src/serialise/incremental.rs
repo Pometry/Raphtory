@@ -147,14 +147,14 @@ impl GraphWriter {
         &self,
         prop: &str,
         prop_id: MaybeNew<usize>,
-        dtype: PropType,
+        dtype: &PropType,
         is_static: bool,
     ) {
         prop_id.if_new(|id| {
             if is_static {
-                self.proto_delta.lock().new_node_cprop(prop, id, &dtype);
+                self.proto_delta.lock().new_node_cprop(prop, id, dtype);
             } else {
-                self.proto_delta.lock().new_node_tprop(prop, id, &dtype);
+                self.proto_delta.lock().new_node_tprop(prop, id, dtype);
             }
         });
     }
@@ -163,14 +163,14 @@ impl GraphWriter {
         &self,
         prop: &str,
         prop_id: MaybeNew<usize>,
-        dtype: PropType,
+        dtype: &PropType,
         is_static: bool,
     ) {
         prop_id.if_new(|id| {
             if is_static {
-                self.proto_delta.lock().new_edge_cprop(prop, id, &dtype);
+                self.proto_delta.lock().new_edge_cprop(prop, id, dtype);
             } else {
-                self.proto_delta.lock().new_edge_tprop(prop, id, &dtype);
+                self.proto_delta.lock().new_edge_tprop(prop, id, dtype);
             }
         });
     }

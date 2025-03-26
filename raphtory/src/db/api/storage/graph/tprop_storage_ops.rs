@@ -43,9 +43,15 @@ macro_rules! for_all_variants {
 }
 
 pub trait TPropOps<'a>: Sized + 'a + Send + Copy + Clone {
-    fn active(self, w: Range<i64>) -> bool {
+    fn active(self, w: Range<TimeIndexEntry>) -> bool {
+        self.iter_window(w).next().is_some()
+    }
+
+    /// Is there any event in this window
+    fn active_t(self, w: Range<i64>) -> bool {
         self.iter_window_t(w).next().is_some()
     }
+
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)>;
 
     fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
@@ -63,12 +69,14 @@ pub trait TPropOps<'a>: Sized + 'a + Send + Copy + Clone {
         self.iter_window(TimeIndexEntry::range(r))
             .map(|(t, v)| (t.t(), v))
     }
+
     fn iter_window_te(
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(r).map(|(t, v)| (t.t(), v))
     }
+
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop>;
 }
 

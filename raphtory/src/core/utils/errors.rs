@@ -1,4 +1,7 @@
-use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+use crate::{
+    core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
+    db::graph::views::property_filter::{FilterExpr, FilterOperator},
+};
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
@@ -24,6 +27,7 @@ use std::{
 use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
+use tracing::error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -127,6 +131,10 @@ pub enum GraphError {
     DiskGraphNotFound,
     #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
     IndexMissing,
+    #[error("Missing graph index. You need to create an index first.")]
+    IndexNotCreated,
+    #[error("Failed to create index.")]
+    FailedToCreateIndex,
     #[error("Disk Graph is immutable")]
     ImmutableDiskGraph,
     #[error("Event Graph doesn't support deletions")]
@@ -321,8 +329,38 @@ pub enum GraphError {
     #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
     UnsupportedArrowDataType(PropType),
 
+    #[error("Not supported")]
+    NotSupported,
+
+    #[error("Operator {0} requires a property value, but none was provided.")]
+    InvalidFilter(FilterOperator),
+
+    #[error("Property {0} not found in temporal or constant metadata")]
+    PropertyNotFound(String),
+
+    #[error("PropertyIndex not found for property {0}")]
+    PropertyIndexNotFound(String),
+
+    #[error("Tokenization is support only for str field type")]
+    UnsupportedFieldTypeForTokenization,
+
+    #[error("Not tokens found")]
+    NoTokensFound,
+
     #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
     TooManyViewsSet,
+
+    #[error("Invalid Value conversion")]
+    InvalidValueConversion,
+
+    #[error("Unsupported Value: {0}")]
+    UnsupportedValue(String),
+
+    #[error("Illegal FilterExpr: {0}, Reason: {1}.")]
+    IllegalFilterExpr(FilterExpr, String),
+
+    #[error("Value cannot be empty.")]
+    EmptyValue,
 }
 
 impl GraphError {

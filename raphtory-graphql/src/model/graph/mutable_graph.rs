@@ -1,6 +1,6 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::graph::{edge::Edge, graph::GqlGraph, node::Node, property::GqlPropValue},
+    model::graph::{edge::Edge, graph::GqlGraph, node::Node, property::Value},
     paths::ExistingGraphFolder,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
@@ -14,7 +14,7 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 #[derive(InputObject)]
 pub struct GqlPropInput {
     key: String,
-    value: GqlPropValue,
+    value: Value,
 }
 
 #[derive(InputObject)]
@@ -55,8 +55,18 @@ impl GqlMutableGraph {
     }
 }
 
-fn as_properties(properties: Vec<GqlPropInput>) -> impl Iterator<Item = (String, Prop)> {
-    properties.into_iter().map(|p| (p.key, p.value.0))
+fn as_properties(
+    properties: Vec<GqlPropInput>,
+) -> Result<impl Iterator<Item = (String, Prop)>, GraphError> {
+    let props: Result<Vec<(String, Prop)>, GraphError> = properties
+        .into_iter()
+        .map(|p| {
+            let v = Prop::try_from(p.value)?;
+            Ok((p.key, v))
+        })
+        .collect();
+
+    props.map(|vec| vec.into_iter())
 }
 
 #[ResolvedObjectFields]
@@ -64,11 +74,7 @@ impl GqlMutableGraph {
     /// Get the non-mutable graph
 
     async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(
-            self.path.clone(),
-            self.graph.graph.clone(),
-            self.graph.index.clone(),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.graph.clone())
     }
 
     /// Get mutable existing node
@@ -85,12 +91,10 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
-        let node = self.graph.add_node(
-            time,
-            &name,
-            as_properties(properties.unwrap_or(vec![])),
-            node_type.as_str(),
-        )?;
+        let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
+        let node = self
+            .graph
+            .add_node(time, &name, prop_iter, node_type.as_str())?;
         node.update_embeddings().await?;
         self.graph.write_updates()?;
         Ok(node.into())
@@ -104,12 +108,10 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
-        let node = self.graph.create_node(
-            time,
-            &name,
-            as_properties(properties.unwrap_or(vec![])),
-            node_type.as_str(),
-        )?;
+        let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
+        let node = self
+            .graph
+            .create_node(time, &name, prop_iter, node_type.as_str())?;
         node.update_embeddings().await?;
         self.graph.write_updates()?;
         Ok(node.into())
@@ -121,20 +123,17 @@ impl GqlMutableGraph {
             let name = node.name.as_str();
 
             for prop in node.updates.unwrap_or(vec![]) {
-                self.graph.add_node(
-                    prop.time,
-                    name,
-                    as_properties(prop.properties.unwrap_or(vec![])),
-                    None,
-                )?;
+                let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
+                self.graph.add_node(prop.time, name, prop_iter, None)?;
             }
             if let Some(node_type) = node.node_type.as_str() {
                 self.get_node_view(name)?.set_node_type(node_type)?;
             }
             let constant_props = node.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
+                let prop_iter = as_properties(constant_props)?;
                 self.get_node_view(name)?
-                    .add_constant_properties(as_properties(constant_props))?;
+                    .add_constant_properties(prop_iter)?;
             }
             if let Ok(node) = self.get_node_view(name) {
                 let _ = node.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
@@ -159,13 +158,10 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropInput>>,
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
-        let edge = self.graph.add_edge(
-            time,
-            src,
-            dst,
-            as_properties(properties.unwrap_or(vec![])),
-            layer.as_str(),
-        )?;
+        let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
+        let edge = self
+            .graph
+            .add_edge(time, src, dst, prop_iter, layer.as_str())?;
         let _ = edge.update_embeddings().await;
         self.graph.write_updates()?;
         Ok(edge.into())
@@ -178,18 +174,14 @@ impl GqlMutableGraph {
             let dst = edge.dst.as_str();
             let layer = edge.layer.as_str();
             for prop in edge.updates.unwrap_or(vec![]) {
-                self.graph.add_edge(
-                    prop.time,
-                    src,
-                    dst,
-                    as_properties(prop.properties.unwrap_or(vec![])),
-                    layer,
-                )?;
+                let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
+                self.graph.add_edge(prop.time, src, dst, prop_iter, layer)?;
             }
             let constant_props = edge.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
+                let prop_iter = as_properties(constant_props)?;
                 self.get_edge_view(src, dst)?
-                    .add_constant_properties(as_properties(constant_props), layer)?;
+                    .add_constant_properties(prop_iter, layer)?;
             }
             if let Ok(edge) = self.get_edge_view(src, dst) {
                 let _ = edge.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
@@ -220,7 +212,7 @@ impl GqlMutableGraph {
         t: i64,
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
-        self.graph.add_properties(t, as_properties(properties))?;
+        self.graph.add_properties(t, as_properties(properties)?)?;
         self.update_graph_embeddings().await;
         self.graph.write_updates()?;
         Ok(true)
@@ -232,7 +224,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
         self.graph
-            .add_constant_properties(as_properties(properties))?;
+            .add_constant_properties(as_properties(properties)?)?;
         self.update_graph_embeddings().await;
         self.graph.write_updates()?;
         Ok(true)
@@ -244,7 +236,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
         self.graph
-            .update_constant_properties(as_properties(properties))?;
+            .update_constant_properties(as_properties(properties)?)?;
         self.update_graph_embeddings().await;
         self.graph.write_updates()?;
         Ok(true)
@@ -308,7 +300,7 @@ impl GqlMutableNode {
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
         self.node
-            .add_constant_properties(as_properties(properties))?;
+            .add_constant_properties(as_properties(properties)?)?;
         let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
@@ -328,7 +320,7 @@ impl GqlMutableNode {
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
         self.node
-            .update_constant_properties(as_properties(properties))?;
+            .update_constant_properties(as_properties(properties)?)?;
         let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
@@ -341,7 +333,7 @@ impl GqlMutableNode {
         properties: Option<Vec<GqlPropInput>>,
     ) -> Result<bool, GraphError> {
         self.node
-            .add_updates(time, as_properties(properties.unwrap_or(vec![])))?;
+            .add_updates(time, as_properties(properties.unwrap_or(vec![]))?)?;
         let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
@@ -399,7 +391,7 @@ impl GqlMutableEdge {
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
         self.edge
-            .add_constant_properties(as_properties(properties), layer.as_str())?;
+            .add_constant_properties(as_properties(properties)?, layer.as_str())?;
         let _ = self.edge.update_embeddings().await;
         self.edge.graph.write_updates()?;
         Ok(true)
@@ -415,7 +407,7 @@ impl GqlMutableEdge {
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
         self.edge
-            .update_constant_properties(as_properties(properties), layer.as_str())?;
+            .update_constant_properties(as_properties(properties)?, layer.as_str())?;
         let _ = self.edge.update_embeddings().await;
         self.edge.graph.write_updates()?;
         Ok(true)
@@ -433,7 +425,7 @@ impl GqlMutableEdge {
     ) -> Result<bool, GraphError> {
         self.edge.add_updates(
             time,
-            as_properties(properties.unwrap_or(vec![])),
+            as_properties(properties.unwrap_or(vec![]))?,
             layer.as_str(),
         )?;
         let _ = self.edge.update_embeddings().await;
