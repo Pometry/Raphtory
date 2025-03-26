@@ -1,14 +1,7 @@
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        Prop,
-    },
-    db::api::{
-        storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::{internal::Base, BoxedLDIter, BoxedLIter, MaterializedGraph},
-    },
+    core::entities::{LayerIds, VID},
+    db::api::view::internal::Base,
 };
-use enum_dispatch::enum_dispatch;
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use std::ops::Range;
 

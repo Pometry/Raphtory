@@ -12,6 +12,7 @@ use crate::{
             storage::{
                 graph::{
                     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                    nodes::node_storage_ops::NodeStorageOps,
                     storage_ops::GraphStorage,
                     tprop_storage_ops::TPropOps,
                 },
@@ -25,7 +26,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::{
-    core::entities::EID,
+    core::entities::{EID, VID},
     iter::{BoxedLDIter, IntoDynDBoxed},
     GraphType,
 };

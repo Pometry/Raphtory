@@ -9,7 +9,8 @@ use crate::{
             view::{
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritTimeSemantics,
+                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
+                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
                     NodeFilterOps, Static,
                 },
                 Base,
@@ -88,7 +89,9 @@ impl<'graph, G: GraphViewOps<'graph>> ValidGraph<G> {
 
 impl<G> Static for ValidGraph<G> {}
 impl<G> Immutable for ValidGraph<G> {}
-
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for ValidGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for ValidGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ValidGraph<G> {}

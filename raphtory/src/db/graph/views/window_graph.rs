@@ -51,9 +51,10 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, CoreGraphOps, EdgeFilterOps, EdgeList, GraphTimeSemanticsOps, Immutable,
-                    InheritCoreOps, InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps,
-                    NodeList, NodeTimeSemanticsOps, Static, TimeSemantics,EdgeHistoryFilter,NodeHistoryFilter
+                    Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList,
+                    GraphTimeSemanticsOps, Immutable, InheritCoreOps, InheritLayerOps,
+                    InheritMaterialize, InheritStorageOps, ListOps, NodeFilterOps,
+                    NodeHistoryFilter, NodeList, NodeTimeSemanticsOps, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -64,7 +65,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{EID, ELID},
+        entities::{EID, ELID, VID},
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
@@ -76,8 +77,6 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]

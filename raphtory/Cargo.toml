@@ -16,11 +16,9 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.14.0" }
-arrow-ipc = {workspace = true}
-arrow-array = {workspace = true, features = ["chrono-tz"]}
-arrow-schema = {workspace = true}
-arrow-buffer = {workspace = true}
-arrow-data ={ workspace = true }
+arrow-ipc = { workspace = true }
+arrow-array = { workspace = true, features = ["chrono-tz"] }
+arrow-schema = { workspace = true }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -82,12 +80,11 @@ arrow-json = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
-pyo3-arrow = {workspace = true, optional = true}
+pyo3-arrow = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 roaring = { workspace = true }
-fake = { workspace = true }
 strsim = { workspace = true }
 
 [dev-dependencies]

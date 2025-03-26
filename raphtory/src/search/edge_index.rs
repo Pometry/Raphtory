@@ -227,7 +227,7 @@ impl EdgeIndex {
                 )?;
 
                 for edge in edge.explode() {
-                    if let Some(time) = edge.time_and_index() {
+                    if let Ok(time) = edge.time_and_index() {
                         let temporal_properties = self.collect_temporal_properties(&edge);
                         self.entity_index.index_edge_temporal_properties(
                             time,

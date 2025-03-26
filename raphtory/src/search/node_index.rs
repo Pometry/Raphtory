@@ -6,9 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
-            },
+            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::storage_ops::GraphStorage,
         },
         graph::node::NodeView,
@@ -183,7 +181,7 @@ impl NodeIndex {
 
     fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<G, GH>,
+        node: NodeView<'graph, G, GH>,
         writer: &IndexWriter,
         const_writers: &[Option<IndexWriter>],
         temporal_writers: &[Option<IndexWriter>],

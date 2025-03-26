@@ -103,7 +103,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             Some(
                 node.tprops()
                     .filter_map(|(i, tprop)| {
-                        if tprop.active(start..start.saturating_add(1)) {
+                        if tprop.active_t(start..start.saturating_add(1)) {
                             None
                         } else {
                             tprop
@@ -165,7 +165,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<i64>,
     ) -> BoxedLDIter<'graph, (TimeIndexEntry, Prop)> {
         let prop = node.tprop(prop_id);
-        let first = if prop.active(w.start..w.start.saturating_add(1)) {
+        let first = if prop.active_t(w.start..w.start.saturating_add(1)) {
             None
         } else {
             prop.last_before(TimeIndexEntry::start(w.start))

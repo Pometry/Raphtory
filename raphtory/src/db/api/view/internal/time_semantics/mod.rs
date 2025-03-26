@@ -5,6 +5,9 @@ mod time_semantics;
 mod time_semantics_ops;
 mod window_time_semantics;
 
+mod history_filter;
+
+pub use history_filter::*;
 pub use time_semantics::TimeSemantics;
 pub use time_semantics_ops::*;
 

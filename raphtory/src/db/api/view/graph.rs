@@ -23,7 +23,8 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, valid_graph::ValidGraph,property_filter::FilterExpr,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
+                valid_graph::ValidGraph,
             },
         },
     },
@@ -142,7 +143,7 @@ pub trait SearchableGraphOps: Sized {
         filter: FilterExpr,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+    ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
     fn search_edges(
         &self,
@@ -674,7 +675,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 }
 
 #[cfg(feature = "search")]
-impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+impl<G: StaticGraphViewOps> SearchableGraphOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
@@ -688,7 +689,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         filter: FilterExpr,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let index = self
             .get_storage()
             .and_then(|s| s.get_index())

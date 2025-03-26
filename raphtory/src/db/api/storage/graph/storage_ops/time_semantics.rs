@@ -12,7 +12,10 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, GraphTimeSemanticsOps, EdgeHistoryFilter, NodeHistoryFilter, TimeSemantics},
+            internal::{
+                CoreGraphOps, EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter,
+                TimeSemantics,
+            },
             BoxedLIter, IntoDynBoxed,
         },
     },
@@ -21,7 +24,7 @@ use crate::{
 use itertools::{kmerge, Itertools};
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, EID},
+        entities::{edges::edge_ref::EdgeRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
     },
     iter::{BoxedLDIter, IntoDynDBoxed},

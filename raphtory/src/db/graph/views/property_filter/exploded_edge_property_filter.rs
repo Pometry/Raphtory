@@ -10,15 +10,15 @@ use crate::{
             view::{
                 internal::{
                     EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, NodeFilterOps,
-                    NodeTimeSemanticsOps, Static, TimeSemantics, InheritEdgeHistoryFilter,InheritNodeHistoryFilter,
+                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
+                    InheritNodeHistoryFilter, NodeFilterOps, NodeTimeSemanticsOps, Static,
+                    TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
         },
         graph::views::{
-            layer_graph::LayeredGraph,
-            property_filter::{internal::InternalExplodedEdgeFilterOps, PropertyValueFilter},
+            layer_graph::LayeredGraph, property_filter::internal::InternalExplodedEdgeFilterOps,
         },
     },
     prelude::{GraphViewOps, PropertyFilter},

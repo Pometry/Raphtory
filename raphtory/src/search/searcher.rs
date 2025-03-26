@@ -34,7 +34,7 @@ impl<'a> Searcher<'a> {
         filter: FilterExpr,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let filter = resolve_as_node_filter(filter)?;
         self.node_filter_executor
             .filter_nodes(graph, &filter, limit, offset)

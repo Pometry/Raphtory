@@ -45,7 +45,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_search_nodes_gql() {
-        let mut graph = Graph::new();
+        let graph = Graph::new();
 
         let nodes = vec![
             (6, "N1", vec![("p1", Prop::U64(2u64))]),
