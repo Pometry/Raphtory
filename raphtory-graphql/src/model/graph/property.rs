@@ -1,6 +1,6 @@
-use async_graphql::{registry::MetaType, Error, Name, Value as GqlValue};
+use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{
-    internal::{GetOutputTypeRef, InputObject, Register, Registry, Resolve},
+    internal::{InputObject, Resolve},
     Enum, InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
 };
 use itertools::Itertools;

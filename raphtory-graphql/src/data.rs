@@ -41,8 +41,7 @@ pub(crate) fn get_relative_path(
     let path_str = path_buf.to_str();
     match path_str {
         Some(path) => {
-            let path = path.clone();
-            valid_path(work_dir, path.clone(), namespace)?;
+            valid_path(work_dir, path, namespace)?;
         }
         None => return Err(InvalidPathReason::NonUTFCharacters),
     }
