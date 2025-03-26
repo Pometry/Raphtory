@@ -29,10 +29,8 @@ impl Namespace {
             .filter_map(|e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = get_relative_path(base_path.clone(), path).ok()?;
-                let relative_str = relative.to_str()?; // potential UTF8 error here
-                let cleaned = relative_str.replace(r"\", "/");
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned).ok()?;
+                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
                 Some(folder)
             })
             .collect()
@@ -43,10 +41,7 @@ impl Namespace {
             .into_iter()
             .filter_map(|e| {
                 let entry = e.ok()?;
-                let file_name = entry.file_name();
-                let file_name = file_name.to_string_lossy();
-                let file_name = file_name.to_string();
-                let file_name = file_name.as_str();
+                let file_name = entry.file_name().to_str()?;
                 let path = entry.path();
                 if path.is_dir()
                     && path != self.current_dir
@@ -70,9 +65,9 @@ impl Namespace {
             .collect()
     }
     async fn path(&self) -> Option<String> {
-        let relative = get_relative_path(self.base_dir.clone(), self.current_dir.as_path()).ok()?;
-        let relative_str = relative.to_str()?; // potential UTF8 error here
-        Some(relative_str.replace(r"\", "/"))
+        get_relative_path(self.base_dir.clone(), self.current_dir.as_path(), true)
+            .ok()
+            .map(|s| s.to_string())
     }
 
     async fn parent(&self) -> Option<Namespace> {
@@ -90,10 +85,7 @@ impl Namespace {
             .into_iter()
             .filter_map(|e| {
                 let entry = e.ok()?;
-                let file_name = entry.file_name();
-                let file_name = file_name.to_string_lossy();
-                let file_name = file_name.to_string();
-                let file_name = file_name.as_str();
+                let file_name = entry.file_name().to_str()?;
                 let path = entry.path();
                 if path.is_dir()
                     && path != self.current_dir

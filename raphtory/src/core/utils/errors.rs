@@ -14,7 +14,12 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     PropType,
 };
-use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
+use std::{
+    fmt::Debug,
+    io,
+    path::{PathBuf, StripPrefixError},
+    time::SystemTimeError,
+};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -42,6 +47,13 @@ pub enum InvalidPathReason {
     ParentIsGraph(PathBuf),
     #[error("The path provided does not exists as a namespace: {0}")]
     NamespaceDoesNotExist(String),
+    #[error("The path provided contains non-UTF8 characters.")]
+    NonUTFCharacters,
+    #[error("Failed to strip prefix")]
+    StripPrefix {
+        #[from]
+        source: StripPrefixError,
+    },
 }
 
 #[cfg(feature = "arrow")]

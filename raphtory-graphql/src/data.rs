@@ -2,11 +2,12 @@ use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::plugins::query_plugin::QueryPlugin,
-    paths::{ExistingGraphFolder, ValidGraphFolder},
+    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
+use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphResult},
+    core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
     db::api::view::MaterializedGraph,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
@@ -17,7 +18,7 @@ use raphtory::{
 use std::{
     collections::HashMap,
     fs,
-    path::{Path, PathBuf, StripPrefixError},
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tracing::{error, warn};
@@ -34,8 +35,22 @@ pub struct EmbeddingConf {
 pub(crate) fn get_relative_path(
     work_dir: PathBuf,
     path: &Path,
-) -> Result<PathBuf, StripPrefixError> {
-    Ok(path.strip_prefix(work_dir)?.to_path_buf())
+    namespace: bool,
+) -> Result<String, InvalidPathReason> {
+    let path_buf = path.strip_prefix(work_dir.clone())?.to_path_buf();
+    let path_str = path_buf.to_str();
+    match path_str {
+        Some(path) => {
+            let path = path.clone();
+            valid_path(work_dir, path.clone(), namespace)?;
+        }
+        None => return Err(InvalidPathReason::NonUTFCharacters),
+    }
+    Ok(path_buf
+        .components()
+        .into_iter()
+        .map(|c| c.as_os_str().to_str().unwrap()) //a safe unwrap as checking above
+        .join("/"))
 }
 
 #[derive(Clone)]
@@ -205,10 +220,8 @@ impl Data {
             .filter_map(|e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = get_relative_path(base_path.clone(), path).ok()?;
-                let relative_str = relative.to_str()?; // potential UTF8 error here
-                let cleaned = relative_str.replace(r"\", "/");
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned).ok()?;
+                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
                 Some(folder)
             })
             .collect()

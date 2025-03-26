@@ -211,7 +211,7 @@ def test_wrong_paths():
             )
 
         query = """{
-                  namespace(path: ""./test"") {
+                  namespace(path: "./test") {
                     children {
                       path
                     }
