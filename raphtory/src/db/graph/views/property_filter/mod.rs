@@ -725,6 +725,16 @@ pub trait PropertyFilterOps {
 
 pub struct PropertyFilterBuilder(String);
 
+impl PropertyFilterBuilder {
+    pub fn constant(self) -> ConstPropertyFilterBuilder {
+        ConstPropertyFilterBuilder(self.0)
+    }
+
+    pub fn temporal(self) -> TemporalPropertyFilterBuilder {
+        TemporalPropertyFilterBuilder(self.0)
+    }
+}
+
 impl PropertyFilterOps for PropertyFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Property(self.0.clone())
@@ -770,14 +780,6 @@ impl TemporalPropertyFilterBuilder {
 impl PropertyFilter {
     pub fn property(name: impl AsRef<str>) -> PropertyFilterBuilder {
         PropertyFilterBuilder(name.as_ref().to_string())
-    }
-
-    pub fn constant_property(name: impl AsRef<str>) -> ConstPropertyFilterBuilder {
-        ConstPropertyFilterBuilder(name.as_ref().to_string())
-    }
-
-    pub fn temporal_property(name: impl AsRef<str>) -> TemporalPropertyFilterBuilder {
-        TemporalPropertyFilterBuilder(name.as_ref().to_string())
     }
 }
 
@@ -956,7 +958,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_const_property_filter_build() {
-        let filter_expr = PropertyFilter::constant_property("p").eq("raphtory");
+        let filter_expr = PropertyFilter::property("p").constant().eq("raphtory");
         let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::ConstantProperty("p".to_string()),
@@ -970,7 +972,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_any_temporal_property_filter_build() {
-        let filter_expr = PropertyFilter::temporal_property("p").any().eq("raphtory");
+        let filter_expr = PropertyFilter::property("p").temporal().any().eq("raphtory");
         let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
@@ -984,7 +986,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_latest_temporal_property_filter_build() {
-        let filter_expr = PropertyFilter::temporal_property("p")
+        let filter_expr = PropertyFilter::property("p").temporal()
             .latest()
             .eq("raphtory");
         let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
@@ -1024,13 +1026,13 @@ mod test_fluent_builder_apis {
     fn test_node_filter_composition() {
         let filter_expr = NodeFilter::node_name()
             .eq("fire_nation")
-            .and(PropertyFilter::constant_property("p2").eq(2u64))
+            .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
             .and(
-                PropertyFilter::temporal_property("p3")
+                PropertyFilter::property("p3").temporal()
                     .any()
                     .eq(5u64)
-                    .or(PropertyFilter::temporal_property("p4").latest().eq(7u64)),
+                    .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(NodeFilter::node_type().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));
@@ -1097,13 +1099,13 @@ mod test_fluent_builder_apis {
     fn test_edge_filter_composition() {
         let filter_expr = EdgeFilter::src()
             .eq("fire_nation")
-            .and(PropertyFilter::constant_property("p2").eq(2u64))
+            .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
             .and(
-                PropertyFilter::temporal_property("p3")
+                PropertyFilter::property("p3").temporal()
                     .any()
                     .eq(5u64)
-                    .or(PropertyFilter::temporal_property("p4").latest().eq(7u64)),
+                    .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(EdgeFilter::src().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));

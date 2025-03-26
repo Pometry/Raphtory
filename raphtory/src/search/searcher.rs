@@ -193,7 +193,7 @@ mod search_tests {
                 let g = init_graph_for_secondary_indexes(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let filter: FilterExpr = PropertyFilter::property("p1").temporal().any().eq(1u64);
                 let mut results = g
                     .search_nodes(filter, 10, 0)
                     .unwrap()
@@ -215,7 +215,7 @@ mod search_tests {
                 let g = init_graph_for_secondary_indexes(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::temporal_property("p1").latest().eq(1u64);
+                let filter: FilterExpr = PropertyFilter::property("p1").temporal().latest().eq(1u64);
                 let mut results = g
                     .search_nodes(filter, 10, 0)
                     .unwrap()
@@ -255,7 +255,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let filter: FilterExpr = PropertyFilter::property("p1").temporal().any().eq(1u64);
                 let mut results = g
                     .search_nodes(filter, 10, 0)
                     .unwrap()
@@ -275,7 +275,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter = PropertyFilter::temporal_property("p1").latest().eq(1u64);
+                let filter = PropertyFilter::property("p1").temporal().latest().eq(1u64);
                 let mut results = g
                     .search_nodes(filter, 10, 0)
                     .unwrap()
@@ -292,7 +292,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter = PropertyFilter::constant_property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").constant().eq(1u64);
                 let mut results = g
                     .search_nodes(filter, 10, 0)
                     .unwrap()
@@ -591,7 +591,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let filter: FilterExpr = PropertyFilter::property("p1").temporal().any().eq(1u64);
                 g.search_edges(filter, 10, 0).unwrap();
             }
 
@@ -602,7 +602,7 @@ mod search_tests {
                 let g = init_graph_for_secondary_indexes(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let filter: FilterExpr = PropertyFilter::property("p1").temporal().any().eq(1u64);
                 let mut results = g
                     .search_edges(filter, 10, 0)
                     .unwrap()
@@ -627,7 +627,7 @@ mod search_tests {
                 let g = init_graph_for_secondary_indexes(g);
                 g.create_index().unwrap();
 
-                let filter: FilterExpr = PropertyFilter::temporal_property("p1").latest().eq(1u64);
+                let filter: FilterExpr = PropertyFilter::property("p1").temporal().latest().eq(1u64);
                 let mut results = g
                     .search_edges(filter, 10, 0)
                     .unwrap()
@@ -673,7 +673,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter = PropertyFilter::temporal_property("p1").any().eq(1u64);
+                let filter = PropertyFilter::property("p1").temporal().any().eq(1u64);
                 let mut results = g
                     .search_edges(filter, 10, 0)
                     .unwrap()
@@ -696,7 +696,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter = PropertyFilter::temporal_property("p1").latest().eq(1u64);
+                let filter = PropertyFilter::property("p1").temporal().latest().eq(1u64);
                 let mut results = g
                     .search_edges(filter, 10, 0)
                     .unwrap()
@@ -716,7 +716,7 @@ mod search_tests {
                 let g = init_graph(g);
                 g.create_index().unwrap();
 
-                let filter = PropertyFilter::constant_property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").constant().eq(1u64);
                 let mut results = g
                     .search_edges(filter, 10, 0)
                     .unwrap()
