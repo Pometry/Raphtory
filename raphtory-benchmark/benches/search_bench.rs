@@ -778,9 +778,9 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
                 let random_name = iter.next().unwrap().clone();
                 let random_src_name = random_name.0;
                 let random_dst_name = random_name.1;
-                EdgeFilter::from()
+                EdgeFilter::src()
                     .eq(random_src_name)
-                    .and(EdgeFilter::to().eq(random_dst_name))
+                    .and(EdgeFilter::dst().eq(random_dst_name))
             },
             |random_filter| {
                 graph.search_edges(random_filter, 5, 0).unwrap();

@@ -926,11 +926,11 @@ impl EdgeFilterOps for EdgeDestinationFilterBuilder {
 pub struct EdgeFilter;
 
 impl EdgeFilter {
-    pub fn from() -> EdgeSourceFilterBuilder {
+    pub fn src() -> EdgeSourceFilterBuilder {
         EdgeSourceFilterBuilder
     }
 
-    pub fn to() -> EdgeDestinationFilterBuilder {
+    pub fn dst() -> EdgeDestinationFilterBuilder {
         EdgeDestinationFilterBuilder
     }
 }
@@ -1072,8 +1072,8 @@ mod test_fluent_builder_apis {
     }
 
     #[test]
-    fn test_edge_from_filter_build() {
-        let filter_expr = EdgeFilter::from().eq("raphtory");
+    fn test_edge_src_filter_build() {
+        let filter_expr = EdgeFilter::src().eq("raphtory");
         let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("from", "raphtory"));
         assert_eq!(
@@ -1083,8 +1083,8 @@ mod test_fluent_builder_apis {
     }
 
     #[test]
-    fn test_edge_to_filter_build() {
-        let filter_expr = EdgeFilter::to().eq("raphtory");
+    fn test_edge_dst_filter_build() {
+        let filter_expr = EdgeFilter::dst().eq("raphtory");
         let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("to", "raphtory"));
         assert_eq!(
@@ -1095,7 +1095,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_edge_filter_composition() {
-        let filter_expr = EdgeFilter::from()
+        let filter_expr = EdgeFilter::src()
             .eq("fire_nation")
             .and(PropertyFilter::constant_property("p2").eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
@@ -1105,7 +1105,7 @@ mod test_fluent_builder_apis {
                     .eq(5u64)
                     .or(PropertyFilter::temporal_property("p4").latest().eq(7u64)),
             )
-            .or(EdgeFilter::from().eq("raphtory"))
+            .or(EdgeFilter::src().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));
         let edge_composite_filter = resolve_as_edge_filter(filter_expr).unwrap();
 
