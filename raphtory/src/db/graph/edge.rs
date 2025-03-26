@@ -133,11 +133,6 @@ impl<
     }
 }
 
-impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Eq
-    for EdgeView<G1, GH1>
-{
-}
-
 impl<
         'graph_1,
         'graph_2,
@@ -163,15 +158,6 @@ impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>
         self.id()
             .cmp(&other.id())
             .then(self.edge.time().cmp(&other.edge.time()))
-    }
-}
-
-impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Hash
-    for EdgeView<G1, GH1>
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id().hash(state);
-        self.edge.time().hash(state);
     }
 }
 
@@ -492,6 +478,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
             self.temporal_prop_ids()
                 .map(move |id| reverse_map[id].clone()),
         )
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for EdgeView<G, GH> {}
+
+impl<'graph, G1: GraphViewOps<'graph>, GH1: GraphViewOps<'graph>> Hash for EdgeView<G1, GH1> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+        self.edge.time().hash(state);
     }
 }
 

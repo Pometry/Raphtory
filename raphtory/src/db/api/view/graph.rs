@@ -23,7 +23,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, valid_graph::ValidGraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, valid_graph::ValidGraph,property_filter::FilterExpr,
             },
         },
     },
@@ -131,6 +131,27 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
+}
+
+#[cfg(feature = "search")]
+pub trait SearchableGraphOps: Sized {
+    fn create_index(&self) -> Result<(), GraphError>;
+
+    fn search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
+    fn search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn is_indexed(&self) -> bool;
 }
 
 impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
@@ -649,6 +670,48 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
+    }
+}
+
+#[cfg(feature = "search")]
+impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+    fn create_index(&self) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
+                storage.get_or_create_index()?;
+                Ok(())
+            })
+    }
+
+    fn search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        let index = self
+            .get_storage()
+            .and_then(|s| s.get_index())
+            .ok_or(GraphError::IndexNotCreated)?;
+        index.searcher().search_nodes(self, filter, limit, offset)
+    }
+
+    fn search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        let index = self
+            .get_storage()
+            .and_then(|s| s.get_index())
+            .ok_or(GraphError::IndexNotCreated)?;
+        index.searcher().search_edges(self, filter, limit, offset)
+    }
+
+    fn is_indexed(&self) -> bool {
+        self.get_storage()
+            .map_or(false, |s| s.get_index().is_some())
     }
 }
 

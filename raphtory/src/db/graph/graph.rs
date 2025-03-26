@@ -15,14 +15,15 @@
 //! graph.count_edges();
 //! ```
 //!
-
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
-            view::internal::{Base, InheritViewOps, Static},
+            view::internal::{
+                Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritViewOps, Static,
+            },
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
@@ -35,6 +36,8 @@ use std::{
     fmt::{Display, Formatter},
     sync::Arc,
 };
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -353,6 +356,12 @@ impl Base for Graph {
 impl InheritMutationOps for Graph {}
 
 impl InheritViewOps for Graph {}
+
+impl InheritStorageOps for Graph {}
+
+impl InheritNodeHistoryFilter for Graph {}
+
+impl InheritEdgeHistoryFilter for Graph {}
 
 impl Graph {
     /// Create a new graph

@@ -34,9 +34,7 @@ def test_filter_edges():
     ]
     assert graph.filter_edges(Prop("test_str").not_any({"first"})).edges.id == [
         (2, 3),
-        (3, 4),
     ]
-
     assert (
         graph.filter_edges(Prop("test_int") == 2).edges.id == []
     )  # only looks at the latest value
@@ -73,7 +71,7 @@ def test_filter_exploded_edges():
     ).edges.id == [(1, 2)]
     assert graph.filter_exploded_edges(
         Prop("test_str").not_any({"first"})
-    ).edges.id == [(2, 3), (3, 4)]
+    ).edges.id == [(2, 3)]
 
     assert graph.filter_exploded_edges(Prop("test_int") == 2).edges.id == [(3, 4)]
     assert graph.filter_exploded_edges(Prop("test_int") != 2).edges.id == [

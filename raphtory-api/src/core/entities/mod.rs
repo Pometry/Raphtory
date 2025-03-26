@@ -15,7 +15,7 @@ use std::{
 pub mod edges;
 pub mod properties;
 
-// the only reason this is public is because the physical ids of the nodes don't move
+// The only reason this is public is because the physical IDs of the nodes don’t move.
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Pod, Zeroable,

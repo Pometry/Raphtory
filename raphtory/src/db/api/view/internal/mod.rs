@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 mod core_deletion_ops;
 pub mod core_ops;
 mod edge_filter_ops;
@@ -22,7 +23,10 @@ use std::{
     sync::Arc,
 };
 
-use crate::{db::graph::views::deletion_graph::PersistentGraph, prelude::Graph};
+use crate::{
+    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    prelude::Graph,
+};
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
@@ -47,6 +51,9 @@ pub trait BoxableGraphView:
     + InternalMaterialize
     + PropertiesOps
     + ConstPropertiesOps
+    + InternalStorageOps
+    + NodeHistoryFilter
+    + EdgeHistoryFilter
     + Send
     + Sync
 {
@@ -62,6 +69,9 @@ impl<
             + InternalMaterialize
             + PropertiesOps
             + ConstPropertiesOps
+            + InternalStorageOps
+            + NodeHistoryFilter
+            + EdgeHistoryFilter
             + Send
             + Sync,
     > BoxableGraphView for G
@@ -75,12 +85,33 @@ impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 impl<G: InheritViewOps> InheritListOps for G {}
 
 impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
+
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
+
 impl<G: InheritViewOps> InheritLayerOps for G {}
+
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
+
 impl<G: InheritViewOps> InheritCoreOps for G {}
+
 impl<G: InheritViewOps> InheritMaterialize for G {}
+
 impl<G: InheritViewOps> InheritPropertiesOps for G {}
+
+pub trait InheritStorageOps: Base {}
+
+pub trait InternalStorageOps {
+    fn get_storage(&self) -> Option<&Storage>;
+}
+
+impl<G: InheritStorageOps> InternalStorageOps for G
+where
+    G::Base: InternalStorageOps,
+{
+    fn get_storage(&self) -> Option<&Storage> {
+        self.base().get_storage()
+    }
+}
 
 /// Trait for marking a struct as not dynamically dispatched.
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
@@ -170,7 +201,19 @@ impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 
+impl InheritStorageOps for DynamicGraph {}
+
+impl InheritNodeHistoryFilter for DynamicGraph {}
+
+impl InheritEdgeHistoryFilter for DynamicGraph {}
+
 impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
+
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritStorageOps for &'graph1 G {}
+
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritNodeHistoryFilter for &'graph1 G {}
+
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritEdgeHistoryFilter for &'graph1 G {}
 
 #[cfg(test)]
 mod test {

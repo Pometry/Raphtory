@@ -1,9 +1,5 @@
 use crate::{
-    core::{
-        entities::{properties::props::Meta, LayerIds},
-        utils::errors::GraphError,
-        Prop, PropType,
-    },
+    core::{entities::LayerIds, utils::errors::GraphError, Prop},
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
@@ -15,7 +11,7 @@ use crate::{
                 internal::{
                     EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
                     InheritLayerOps, InheritListOps, InheritMaterialize, NodeFilterOps,
-                    NodeTimeSemanticsOps, Static, TimeSemantics,
+                    NodeTimeSemanticsOps, Static, TimeSemantics, InheritEdgeHistoryFilter,InheritNodeHistoryFilter,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
@@ -36,52 +32,34 @@ use raphtory_api::{
 };
 use std::{borrow::Cow, ops::Range};
 
+use crate::db::api::view::internal::InheritStorageOps;
+
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
     graph: G,
     prop_id: Option<usize>,
-    filter: PropertyValueFilter,
+    filter: PropertyFilter,
 }
 
 impl<G> Static for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        prop_id: Option<usize>,
-        filter: impl Into<PropertyValueFilter>,
-    ) -> Self {
+    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: PropertyFilter) -> Self {
         Self {
             graph,
             prop_id,
-            filter: filter.into(),
+            filter,
         }
     }
 
     fn filter(&self, e: EID, t: TimeIndexEntry, layer: usize) -> bool {
-        self.filter.filter(
+        self.filter.matches(
             self.prop_id
                 .and_then(|prop_id| self.graph.temporal_edge_prop_at(e, prop_id, t, layer))
                 .as_ref(),
         )
     }
-}
-
-fn get_id_and_check_type(
-    meta: &Meta,
-    property: &str,
-    dtype: PropType,
-) -> Result<Option<usize>, GraphError> {
-    let t_prop_id = meta
-        .temporal_prop_meta()
-        .get_and_validate(property, dtype)?;
-    Ok(t_prop_id)
-}
-
-fn get_id(meta: &Meta, property: &str) -> Option<usize> {
-    let t_prop_id = meta.temporal_prop_meta().get_id(property);
-    t_prop_id
 }
 
 impl InternalExplodedEdgeFilterOps for PropertyFilter {
@@ -92,16 +70,11 @@ impl InternalExplodedEdgeFilterOps for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = match &self.filter {
-            PropertyValueFilter::ByValue(filter) => {
-                get_id_and_check_type(graph.edge_meta(), &self.name, filter.dtype())?
-            }
-            _ => get_id(graph.edge_meta(), &self.name),
-        };
+        let t_prop_id = self.resolve_temporal_prop_ids(graph.edge_meta())?;
         Ok(ExplodedEdgePropertyFilteredGraph::new(
             graph.clone(),
             t_prop_id,
-            self.filter,
+            self,
         ))
     }
 }
@@ -115,6 +88,16 @@ impl<'graph, G> Base for ExplodedEdgePropertyFilteredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ExplodedEdgePropertyFilteredGraph<G> {}

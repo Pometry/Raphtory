@@ -163,12 +163,6 @@ impl StableEncode for GraphStorage {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
 
-            for (t, group) in
-                zip_tprop_updates!((0..n_temporal_meta.len()).map(|id| (id, node.tprop(id))))
-            {
-                graph.update_node_tprops(node.vid(), t, group.map(|(_, v)| v));
-            }
-
             for (time, row) in node.temp_prop_rows() {
                 graph.update_node_tprops(
                     node.vid(),

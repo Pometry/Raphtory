@@ -81,7 +81,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Ok(data
             .get_graph(path)
-            .map(|(g, folder)| GqlGraph::new(folder, g.graph, g.index))?)
+            .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {

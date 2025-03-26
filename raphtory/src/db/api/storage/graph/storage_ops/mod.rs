@@ -34,6 +34,9 @@ use crate::{
     },
     prelude::{DeletionOps, GraphViewOps},
 };
+use rayon::prelude::*;
+
+use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -50,7 +53,6 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
 
@@ -298,6 +300,7 @@ impl GraphStorage {
         }
     }
 
+    // TODO: This could just take the layer ids
     pub fn layer_ids_iter<'graph, G: GraphViewOps<'graph>>(
         &self,
         view: &G,
@@ -311,7 +314,7 @@ impl GraphStorage {
         }
     }
 
-    pub fn count_nodes<'graph, G: GraphViewOps<'graph>>(&self, view: &G) -> usize {
+    pub fn internal_count_nodes<'graph, G: GraphViewOps<'graph>>(&self, view: &G) -> usize {
         if view.node_list_trusted() {
             view.node_list().len()
         } else {
@@ -753,5 +756,11 @@ impl GraphStorage {
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.graph_meta(),
         }
+    }
+}
+
+impl InternalStorageOps for GraphStorage {
+    fn get_storage(&self) -> Option<&Storage> {
+        None
     }
 }
