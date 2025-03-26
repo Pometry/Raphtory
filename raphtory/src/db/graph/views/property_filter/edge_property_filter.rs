@@ -6,9 +6,9 @@ use crate::{
             storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics,
-                    Static,InheritNodeHistoryFilter,InheritEdgeHistoryFilter,
+                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps,
+                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
+                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritTimeSemantics, Static,
                 },
                 Base,
             },

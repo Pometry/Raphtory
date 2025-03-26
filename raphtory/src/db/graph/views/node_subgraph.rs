@@ -9,8 +9,9 @@ use crate::{
         },
         view::internal::{
             Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
-            InheritLayerOps, InheritMaterialize, InheritTimeSemantics, ListOps, NodeFilterOps,
-            NodeList, Static,InheritEdgeHistoryFilter,InheritNodeHistoryFilter,
+            InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
+            InheritNodeHistoryFilter, InheritTimeSemantics, ListOps, NodeFilterOps, NodeList,
+            Static,
         },
     },
     prelude::GraphViewOps,

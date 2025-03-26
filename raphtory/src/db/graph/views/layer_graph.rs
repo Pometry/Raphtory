@@ -11,9 +11,9 @@ use crate::{
         },
         view::{
             internal::{
-                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
-                InheritTimeSemantics, InternalLayerOps, NodeFilterOps, NodeTimeSemanticsOps,InheritEdgeHistoryFilter,InheritNodeHistoryFilter,
-                Static,
+                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritTimeSemantics,
+                InternalLayerOps, NodeFilterOps, NodeTimeSemanticsOps, Static,
             },
             Layer,
         },
