@@ -465,12 +465,12 @@ pub struct PyEdgeFilter;
 impl PyEdgeFilter {
     #[staticmethod]
     fn src() -> PyEdgeFilterOp {
-        PyEdgeFilterOp::new("from".to_string())
+        PyEdgeFilterOp::new("src".to_string())
     }
 
     #[staticmethod]
     fn dst() -> PyEdgeFilterOp {
-        PyEdgeFilterOp::new("to".to_string())
+        PyEdgeFilterOp::new("dst".to_string())
     }
 
     #[staticmethod]
