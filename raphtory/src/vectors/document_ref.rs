@@ -6,6 +6,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
+use super::DocumentEntity;
+
 /// this struct contains the minimum amount of information need to regenerate a document using a
 /// template and to quickly apply windows over them
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -87,45 +89,47 @@ impl DocumentRef {
         }
     }
 
-    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document
+    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document<G>
     where
         G: StaticGraphViewOps,
     {
         // FIXME: there is a problem here. We need to use the original graph so the number of
         // documents is the same and the index is therefore consistent. However, we want to return
         // the document using the windowed values for the properties of the entities
-        match &self.entity_id {
-            EntityId::Graph { name } => Document::Graph {
-                name: name.clone(),
-                content: template
+        let (entity, content) = match &self.entity_id {
+            EntityId::Graph { name } => (
+                DocumentEntity::Graph {
+                    name: name.clone(),
+                    graph: original_graph.clone(),
+                },
+                template
                     .graph(original_graph)
                     .nth(self.index)
                     .unwrap()
                     .content,
-                embedding: self.embedding.clone(),
-                life: self.life,
-            },
-            EntityId::Node { id } => Document::Node {
-                name: original_graph.node(id).unwrap().name(),
-                content: template
+            ),
+            EntityId::Node { id } => (
+                DocumentEntity::Node(original_graph.node(id).unwrap()),
+                template
                     .node((&&original_graph).node(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
-                embedding: self.embedding.clone(),
-                life: self.life,
-            },
-            EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.node(src).unwrap().name(),
-                dst: original_graph.node(dst).unwrap().name(),
-                content: template
+            ),
+            EntityId::Edge { src, dst } => (
+                DocumentEntity::Edge(original_graph.edge(src, dst).unwrap()),
+                template
                     .edge(original_graph.edge(src, dst).unwrap().as_ref())
                     .nth(self.index)
                     .unwrap()
                     .content,
-                embedding: self.embedding.clone(),
-                life: self.life,
-            },
+            ),
+        };
+        Document {
+            entity,
+            content,
+            embedding: self.embedding.clone(),
+            life: self.life,
         }
     }
 }

@@ -25,7 +25,7 @@ impl<'a, G: StaticGraphViewOps> VectorisedCluster<'a, G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Vec<Document> {
+    ) -> Vec<Document<G>> {
         self.search_graph_documents_with_scores(query, limit, window)
             .into_iter()
             .map(|(document, _score)| document)
@@ -37,7 +37,7 @@ impl<'a, G: StaticGraphViewOps> VectorisedCluster<'a, G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Vec<(Document, f32)> {
+    ) -> Vec<(Document<G>, f32)> {
         let documents = self
             .graphs
             .iter()

@@ -1,14 +1,13 @@
 use crate::{
-    core::{DocumentInput, Lifespan},
-    python::types::repr::{Repr, StructReprBuilder},
-    vectors::Embedding,
+    core::Lifespan,
+    db::api::view::DynamicGraph,
+    python::{
+        graph::views::graph_view::PyGraphView,
+        types::repr::{Repr, StructReprBuilder},
+    },
+    vectors::{Document, DocumentEntity, Embedding},
 };
-use itertools::Itertools;
-use pyo3::{
-    exceptions::PyAttributeError,
-    prelude::*,
-    types::{PyNone, PyTuple},
-};
+use pyo3::{prelude::*, types::PyNone, IntoPyObjectExt};
 
 impl<'py> IntoPyObject<'py> for Lifespan {
     type Target = PyAny;
@@ -42,11 +41,13 @@ impl Repr for Lifespan {
 ///                                             corresponds to an event, a tuple corresponds to a
 ///                                             window).
 #[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
-pub struct PyDocument {
-    pub(crate) content: String,
-    pub(crate) entity: Option<PyObject>,
-    pub(crate) embedding: Option<PyEmbedding>,
-    pub(crate) life: Lifespan,
+#[derive(Clone)]
+pub struct PyDocument(pub(crate) Document<DynamicGraph>);
+
+impl From<PyDocument> for Document<DynamicGraph> {
+    fn from(value: PyDocument) -> Self {
+        value.0
+    }
 }
 
 #[pymethods]
@@ -57,7 +58,7 @@ impl PyDocument {
     ///     str:
     #[getter]
     fn content(&self) -> &str {
-        &self.content
+        &self.0.content
     }
 
     /// the entity corresponding to the document
@@ -65,8 +66,12 @@ impl PyDocument {
     /// Returns:
     ///     Optional[Any]:
     #[getter]
-    fn entity<'py>(&self) -> Option<&PyObject> {
-        self.entity.as_ref()
+    fn entity(&self, py: Python) -> PyResult<PyObject> {
+        match &self.0.entity {
+            DocumentEntity::Graph { graph, .. } => graph.clone().into_py_any(py),
+            DocumentEntity::Node(entity) => entity.clone().into_py_any(py),
+            DocumentEntity::Edge(entity) => entity.clone().into_py_any(py),
+        }
     }
 
     /// the embedding
@@ -74,8 +79,8 @@ impl PyDocument {
     /// Returns:
     ///     Optional[Embedding]: the embedding for the document if it was computed
     #[getter]
-    fn embedding(&self) -> Option<PyEmbedding> {
-        self.embedding.clone()
+    fn embedding(&self) -> PyEmbedding {
+        PyEmbedding(self.0.embedding.clone())
     }
 
     /// the life span
@@ -84,22 +89,7 @@ impl PyDocument {
     ///     Optional[Union[int | Tuple[int, int]]]:
     #[getter]
     fn life(&self) -> Lifespan {
-        self.life
-    }
-}
-
-impl Clone for PyDocument {
-    fn clone(&self) -> Self {
-        let entity = self
-            .entity
-            .as_ref()
-            .map(|entity| Python::with_gil(|py| entity.clone_ref(py)));
-        Self {
-            content: self.content.clone(),
-            entity: entity,
-            embedding: self.embedding.clone(),
-            life: self.life.clone(),
-        }
+        self.0.life
     }
 }
 
@@ -120,69 +110,27 @@ impl PyEmbedding {
     }
 }
 
-impl PyEmbedding {
-    pub fn embedding(&self) -> Embedding {
-        self.0.clone()
-    }
-}
-
-impl From<DocumentInput> for PyDocument {
-    fn from(value: DocumentInput) -> Self {
-        Self {
-            content: value.content,
-            entity: None,
-            embedding: None,
-            life: value.life,
-        }
-    }
-}
-
 impl Repr for PyDocument {
     fn repr(&self) -> String {
-        StructReprBuilder::new("Document")
-            .add_field("content", &self.content)
-            .add_field("entity", &self.entity)
-            .add_field("embedding", &self.embedding)
-            .add_field("life", &self.life)
+        let repr = StructReprBuilder::new("Document");
+        let with_entity = match &self.0.entity {
+            DocumentEntity::Graph { graph, .. } => {
+                let graph = graph.clone();
+                repr.add_field("entity", PyGraphView { graph })
+            }
+            DocumentEntity::Node(node) => repr.add_field("entity", node),
+            DocumentEntity::Edge(edge) => repr.add_field("entity", edge),
+        };
+        with_entity
+            .add_field("content", &self.content())
+            .add_field("embedding", &self.embedding())
+            .add_field("life", &self.life())
             .finish()
     }
 }
 
 #[pymethods]
 impl PyDocument {
-    #[new]
-    #[pyo3(signature = (content, life=None))]
-    fn new(content: String, life: Option<&Bound<PyAny>>) -> PyResult<Self> {
-        let life = match life {
-            None => Lifespan::Inherited,
-            Some(life) => {
-                if let Ok(time) = life.extract::<i64>() {
-                    Lifespan::Event { time }
-                } else if let Ok(life) = life.downcast::<PyTuple>() {
-                    match life.iter().collect_vec().as_slice() {
-                        [start, end] => Lifespan::Interval {
-                            start: start.extract::<i64>()?,
-                            end: end.extract::<i64>()?,
-                        },
-                        _ => Err(PyAttributeError::new_err(
-                            "if life is a tuple it has to have two elements",
-                        ))?,
-                    }
-                } else {
-                    Err(PyAttributeError::new_err(
-                        "life has to be an int or a tuple with two numbers",
-                    ))?
-                }
-            }
-        };
-        Ok(Self {
-            content,
-            entity: None,
-            embedding: None,
-            life,
-        })
-    }
-
     fn __repr__(&self) -> String {
         self.repr()
     }
