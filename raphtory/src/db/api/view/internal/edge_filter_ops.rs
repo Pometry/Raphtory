@@ -3,6 +3,7 @@ use crate::{
     db::api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::internal::Base},
 };
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {
@@ -11,6 +12,8 @@ pub trait EdgeFilterOps {
 
     /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
     fn edge_list_trusted(&self) -> bool;
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool;
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool;
 }
@@ -44,6 +47,10 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph().edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph().filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]

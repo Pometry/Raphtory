@@ -1,8 +1,3 @@
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
-
 use crate::{
     core::{
         entities::{LayerIds, Multiple},
@@ -10,16 +5,25 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::graph::{
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            nodes::node_ref::NodeStorageRef,
+        },
         view::{
             internal::{
-                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritTimeSemantics, InternalLayerOps, Static,
+                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritTimeSemantics,
+                InternalLayerOps, NodeFilterOps, NodeTimeSemanticsOps, Static,
             },
             Layer,
         },
     },
     prelude::GraphViewOps,
+};
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
 };
 
 use crate::db::api::view::internal::InheritStorageOps;
@@ -57,15 +61,11 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
 
@@ -117,6 +117,43 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
     fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.constrain(self.graph.valid_layer_ids_from_names(key))
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for LayeredGraph<G> {
+    fn nodes_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
+    fn node_list_trusted(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        true
+    }
+
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_node(node, layer_ids)
+            && self.graph.node_time_semantics().node_valid(node, &self)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
+    fn edges_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
+    fn edge_list_trusted(&self) -> bool {
+        matches!(self.layers, LayerIds::All) && self.graph.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, layer_ids)
+    }
+
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, layer_ids)
     }
 }
 

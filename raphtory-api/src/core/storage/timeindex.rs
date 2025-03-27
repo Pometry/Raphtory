@@ -1,4 +1,4 @@
-use crate::iter::BoxedLIter;
+use crate::iter::{BoxedLIter, IntoDynBoxed};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
@@ -23,8 +23,10 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn new(t: i64, s: usize) -> Self;
 }
 
-pub trait TimeIndexLike: TimeIndexOps {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType>;
+pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
+
+    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
 
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         self.range_iter(w).next()
@@ -50,11 +52,9 @@ pub trait TimeIndexIntoOps: Sized {
     }
 }
 
-pub trait TimeIndexOps: Send + Sync {
+pub trait TimeIndexOps<'a>: Send + Sync + 'a {
     type IndexType: AsTime;
-    type RangeType<'a>: TimeIndexOps<IndexType = Self::IndexType> + 'a
-    where
-        Self: 'a;
+    type RangeType: TimeIndexOps<'a, IndexType = Self::IndexType> + 'a;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
 
@@ -62,9 +62,9 @@ pub trait TimeIndexOps: Send + Sync {
         self.active(Self::IndexType::range(w))
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_>;
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType;
 
-    fn range_t(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range_t(&self, w: Range<i64>) -> Self::RangeType {
         self.range(Self::IndexType::range(w))
     }
 
@@ -72,21 +72,35 @@ pub trait TimeIndexOps: Send + Sync {
         self.first().map(|ti| ti.t())
     }
 
-    fn first(&self) -> Option<Self::IndexType>;
+    fn first(&self) -> Option<Self::IndexType> {
+        self.iter().next()
+    }
 
     fn last_t(&self) -> Option<i64> {
         self.last().map(|ti| ti.t())
     }
 
-    fn last(&self) -> Option<Self::IndexType>;
+    fn last(&self) -> Option<Self::IndexType> {
+        self.iter_rev().next()
+    }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType>;
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType>;
 
-    fn iter_t(&self) -> BoxedLIter<i64> {
-        Box::new(self.iter().map(|time| time.t()))
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType>;
+
+    fn iter_t(&self) -> BoxedLIter<'a, i64> {
+        self.iter().map(|time| time.t()).into_dyn_boxed()
+    }
+
+    fn iter_rev_t(&self) -> BoxedLIter<'a, i64> {
+        self.iter_rev().map(|time| time.t()).into_dyn_boxed()
     }
 
     fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
 }
 
 impl From<i64> for TimeIndexEntry {

@@ -22,8 +22,8 @@ struct PropUpdate {
     value: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> for Value {
-    fn from(value: TemporalPropertyView<NodeView<G>>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<'graph, G>>> for Value {
+    fn from(value: TemporalPropertyView<NodeView<'graph, G>>) -> Self {
         value
             .iter()
             .map(|(time, value)| PropUpdate {
@@ -72,8 +72,8 @@ struct NodeTemplateContext {
     temporal_properties: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
-    fn from(value: NodeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplateContext {
+    fn from(value: NodeView<'graph, G>) -> Self {
         Self {
             name: value.name(),
             node_type: value.node_type(),
@@ -195,7 +195,7 @@ impl DocumentTemplate {
     /// A function that translate a node into an iterator of documents
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<G>,
+        node: NodeView<'graph, G>,
     ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
         match &self.node_template {
             Some(template) => {

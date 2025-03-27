@@ -50,8 +50,6 @@ mod test {
     ) -> Graph {
         let g = Graph::new();
         for (src, dst, t, str_prop, int_prop) in edges {
-            g.add_node(*t, *src, NO_PROPS, None).unwrap();
-            g.add_node(*t, *dst, NO_PROPS, None).unwrap();
             if filter(*int_prop) {
                 g.add_edge(
                     *t,
@@ -94,9 +92,7 @@ mod test {
             ))
             .unwrap();
         let gf = Graph::new();
-        gf.add_node(0, 1, NO_PROPS, None).unwrap();
-        gf.add_node(0, 2, NO_PROPS, None).unwrap();
-
+        assert_eq!(filtered.count_nodes(), 0);
         assert_graph_equal(&filtered, &gf);
     }
 
@@ -206,7 +202,12 @@ mod test {
             if let Some(node) = g.node(0) {
                 let filtered_node = node.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
                 let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
-                assert_node_equal(filtered_node, expected_filtered_g.node(0).unwrap())
+                if filtered_node.degree() == 0 {
+                    // should be filtered out
+                    assert!(expected_filtered_g.node(0).is_none())
+                } else {
+                    assert_node_equal(filtered_node, expected_filtered_g.node(0).unwrap())
+                }
             }
         })
     }

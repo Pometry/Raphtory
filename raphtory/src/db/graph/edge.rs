@@ -5,8 +5,6 @@
 //! and can have properties associated with them.
 //!
 
-use chrono::{DateTime, Utc};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -34,8 +32,9 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
+    borrow::Cow,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -100,12 +99,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
         }
     }
 
-    #[allow(dead_code)]
-    fn layer_ids(&self) -> LayerIds {
-        self.graph
-            .layer_ids()
-            .constrain_from_edge(self.edge)
-            .into_owned()
+    fn layer_ids(&self) -> Cow<LayerIds> {
+        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
 }
 
@@ -182,7 +177,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     where
         T: 'graph;
     type PropType = Self;
-    type Nodes = NodeView<G, G>;
+    type Nodes = NodeView<'graph, G, G>;
     type Exploded = Edges<'graph, G, GH>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
@@ -361,7 +356,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
         self.graph
-            .constant_edge_prop(self.edge, id, self.graph.layer_ids())
+            .constant_edge_prop(self.edge.pid(), id, self.layer_ids())
     }
 }
 
@@ -376,48 +371,85 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .unwrap()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
-        self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-            .into_iter()
-            .map(|(t, _)| t.t())
-            .collect()
+    fn temporal_value(&self, id: usize) -> Option<Prop> {
+        match self.edge.time() {
+            None => self
+                .graph
+                .temporal_edge_prop_hist_rev(self.edge.pid(), id, self.layer_ids())
+                .next()
+                .map(|(_, _, v)| v),
+            Some(t) => self.graph.temporal_edge_prop_at(
+                self.edge.pid(),
+                id,
+                t,
+                self.edge.layer().expect("Exploded edge should have layer"),
+            ),
+        }
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
-        self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-            .into_iter()
-            .map(|(t, _)| t.dt())
-            .collect()
-    }
-
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
-        let layer_ids = self.layer_ids();
-        self.graph
-            .temporal_edge_prop_hist(self.edge, id, &layer_ids)
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect()
-    }
-
-    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
-        let layer_ids = self.layer_ids();
-        Box::new(
-            self.graph
-                .temporal_edge_prop_hist(self.edge, id, &layer_ids)
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        match self.edge.time() {
+            None => self
+                .graph
+                .temporal_edge_prop_hist(self.edge.pid(), id, self.layer_ids())
+                .map(|(t, _, v)| (t, v))
+                .into_dyn_boxed(),
+            Some(t) => self
+                .graph
+                .temporal_edge_prop_at(
+                    self.edge.pid(),
+                    id,
+                    t,
+                    self.edge.layer().expect("Exploded edge should have layer"),
+                )
                 .into_iter()
-                .map(|(_, v)| v),
-        )
+                .map(move |v| (t, v))
+                .into_dyn_boxed(),
+        }
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
-        Box::new(
-            self.graph
-                .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        match self.edge.time() {
+            None => self
+                .graph
+                .temporal_edge_prop_hist_rev(self.edge.pid(), id, self.layer_ids())
+                .map(|(t, _, v)| (t, v))
+                .into_dyn_boxed(),
+            Some(t) => self
+                .graph
+                .temporal_edge_prop_at(
+                    self.edge.pid(),
+                    id,
+                    t,
+                    self.edge.layer().expect("Exploded edge should have layer"),
+                )
                 .into_iter()
-                .map(|(t, _)| t.t()),
-        )
+                .map(move |v| (t, v))
+                .into_dyn_boxed(),
+        }
+    }
+
+    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+        match self.edge.time() {
+            None => self.graph.temporal_edge_prop_last_at(
+                self.edge.pid(),
+                id,
+                TimeIndexEntry::start(t),
+                self.layer_ids(),
+            ),
+            Some(ti) => {
+                if ti.t() == t {
+                    self.graph.temporal_edge_prop_at(
+                        self.edge.pid(),
+                        id,
+                        ti,
+                        self.edge.layer().expect("Exploded edge should have layer"),
+                    )
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 
@@ -460,7 +492,14 @@ impl<'graph, G1: GraphViewOps<'graph>, GH1: GraphViewOps<'graph>> Hash for EdgeV
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EdgeView({:?}, {:?})", self.src().id(), self.dst().id())
+        write!(
+            f,
+            "EdgeView(src={:?}, dst={:?}, time={:?}, layer={:?})",
+            self.src().id(),
+            self.dst().id(),
+            self.time().ok(),
+            self.layer_name().ok()
+        )
     }
 }
 

@@ -18,6 +18,8 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)>;
+
     fn prop(self, prop_id: usize) -> Option<Prop>;
 
     fn edges_iter(

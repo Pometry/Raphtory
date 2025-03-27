@@ -1,7 +1,7 @@
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
 use raphtory_api::{
     core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike},
-    iter::BoxedLIter,
+    iter::{BoxedLIter, IntoDynBoxed},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
@@ -140,22 +140,9 @@ impl<A: Sync + Send> TCell<A> {
     }
 }
 
-impl<A: Send + Sync> TimeIndexLike for TCell<A> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
-        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
-    }
-
-    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.iter_window(w).next_back().map(|(ti, _)| *ti)
-    }
-}
-
-impl<A: Send + Sync> TimeIndexOps for TCell<A> {
+impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'a>
-        = TimeIndexWindow<'a, TimeIndexEntry, Self>
-    where
-        Self: 'a;
+    type RangeType = TimeIndexWindow<'a, Self::IndexType, TCell<A>>;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -167,21 +154,21 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
         }
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
-        match &self {
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        let range = match self {
             TCell::Empty => TimeIndexWindow::Empty,
             TCell::TCell1(t, _) => w
                 .contains(t)
-                .then(|| TimeIndexWindow::All(self))
+                .then(|| TimeIndexWindow::All(*self))
                 .unwrap_or(TimeIndexWindow::Empty),
             _ => {
                 if let Some(min_val) = self.first() {
                     if let Some(max_val) = self.last() {
                         if min_val >= w.start && max_val < w.end {
-                            TimeIndexWindow::All(self)
+                            TimeIndexWindow::All(*self)
                         } else {
                             TimeIndexWindow::TimeIndexRange {
-                                timeindex: self,
+                                timeindex: *self,
                                 range: w,
                             }
                         }
@@ -192,7 +179,8 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
                     TimeIndexWindow::Empty
                 }
             }
-        }
+        };
+        range
     }
 
     fn first(&self) -> Option<Self::IndexType> {
@@ -213,12 +201,21 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, _) => Box::new(std::iter::once(*t)),
-            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(ti, _)| *ti)),
-            TCell::TCellN(btm) => Box::new(btm.keys().copied()),
+            TCell::Empty => std::iter::empty().into_dyn_boxed(),
+            TCell::TCell1(t, _) => std::iter::once(*t).into_dyn_boxed(),
+            TCell::TCellCap(svm) => svm.iter().map(|(ti, _)| *ti).into_dyn_boxed(),
+            TCell::TCellN(btm) => btm.keys().copied().into_dyn_boxed(),
+        }
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+        match self {
+            TCell::Empty => std::iter::empty().into_dyn_boxed(),
+            TCell::TCell1(t, _) => std::iter::once(*t).into_dyn_boxed(),
+            TCell::TCellCap(svm) => svm.iter().rev().map(|(ti, _)| *ti).into_dyn_boxed(),
+            TCell::TCellN(btm) => btm.keys().rev().copied().into_dyn_boxed(),
         }
     }
 
@@ -229,6 +226,23 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
             TCell::TCellCap(svm) => svm.len(),
             TCell::TCellN(btm) => btm.len(),
         }
+    }
+}
+
+impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
+    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
+        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
+    }
+
+    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
+        self.iter_window(w)
+            .map(|(ti, _)| *ti)
+            .rev()
+            .into_dyn_boxed()
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.iter_window(w).next_back().map(|(ti, _)| *ti)
     }
 }
 

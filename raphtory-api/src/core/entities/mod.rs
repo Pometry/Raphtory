@@ -1,4 +1,5 @@
 use super::input::input_node::parse_u64_strict;
+use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
 use edges::edge_ref::EdgeRef;
 use num_traits::ToPrimitive;
@@ -7,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
+    iter,
     sync::Arc,
 };
 
@@ -64,6 +66,14 @@ impl EID {
     pub fn as_u64(self) -> u64 {
         self.0 as u64
     }
+
+    pub fn with_layer(self, layer: usize) -> ELID {
+        ELID::new(self, layer)
+    }
+
+    pub fn with_layer_deletion(self, layer: usize) -> ELID {
+        ELID::new_deletion(self, layer)
+    }
 }
 
 impl From<EID> for usize {
@@ -81,6 +91,38 @@ impl From<usize> for EID {
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
+    }
+}
+
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
+)]
+pub struct ELID {
+    pub edge: EID,
+    layer_and_deletion: i64,
+}
+
+impl ELID {
+    pub fn new(edge: EID, layer: usize) -> Self {
+        ELID {
+            edge,
+            layer_and_deletion: layer as i64,
+        }
+    }
+
+    pub fn new_deletion(edge: EID, layer: usize) -> Self {
+        ELID {
+            edge,
+            layer_and_deletion: -(layer as i64),
+        }
+    }
+
+    pub fn layer(&self) -> usize {
+        self.layer_and_deletion.unsigned_abs() as usize
+    }
+
+    pub fn is_deletion(&self) -> bool {
+        self.layer_and_deletion < 0
     }
 }
 
@@ -456,6 +498,19 @@ impl LayerIds {
 
     pub fn is_none(&self) -> bool {
         matches!(self, LayerIds::None)
+    }
+
+    pub fn is_single(&self) -> bool {
+        matches!(self, LayerIds::One(_))
+    }
+
+    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> {
+        match self {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
+        }
     }
 }
 

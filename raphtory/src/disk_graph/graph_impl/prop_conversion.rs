@@ -30,9 +30,6 @@ pub fn make_node_properties_from_graph(
 
     let temporal_meta = graph.node_meta().temporal_prop_meta();
     let constant_meta = graph.node_meta().const_prop_meta();
-    if temporal_meta.is_empty() && constant_meta.is_empty() {
-        return Ok(Properties::default());
-    }
 
     let gs = graph.core_graph();
 
@@ -52,6 +49,20 @@ pub fn make_node_properties_from_graph(
         .with_timestamps(|vid| {
             let node = gs.node_entry(vid);
             node.as_ref().temp_prop_rows().map(|(ts, _)| ts).collect()
+        })
+        .with_const_props(const_prop_keys, |prop_id, prop_key| {
+            let prop_type = constant_meta.get_dtype(prop_id).unwrap();
+            let col = arrow_array_from_props(
+                (0..n).map(|vid| {
+                    let node = gs.node_entry(VID(vid));
+                    node.prop(prop_id)
+                }),
+                prop_type,
+            );
+            col.map(|col| {
+                let dtype = col.data_type().clone();
+                (Field::new(prop_key, dtype, true), col)
+            })
         })
         .with_temporal_props(temporal_prop_keys, |prop_id, prop_key, ts, offsets| {
             let prop_type = temporal_meta.get_dtype(prop_id).unwrap();
@@ -73,21 +84,8 @@ pub fn make_node_properties_from_graph(
                 let dtype = col.data_type().clone();
                 (Field::new(prop_key, dtype, true), col)
             })
-        })
-        .with_const_props(const_prop_keys, |prop_id, prop_key| {
-            let prop_type = constant_meta.get_dtype(prop_id).unwrap();
-            let col = arrow_array_from_props(
-                (0..n).map(|vid| {
-                    let node = gs.node_entry(VID(vid));
-                    node.prop(prop_id)
-                }),
-                prop_type,
-            );
-            col.map(|col| {
-                let dtype = col.data_type().clone();
-                (Field::new(prop_key, dtype, true), col)
-            })
         });
+
     let props = builder.build()?;
     Ok(props)
 }

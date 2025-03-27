@@ -276,7 +276,7 @@ impl<
         GH: GraphViewOps<'graph>,
     > IntoIterator for NodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<G, GH>, V);
+    type Item = (NodeView<'graph, G, GH>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -339,7 +339,7 @@ impl<
         &'a self,
     ) -> impl Iterator<
         Item = (
-            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
             Self::Value<'a>,
         ),
     > + 'a
@@ -385,6 +385,7 @@ impl<
     ) -> impl ParallelIterator<
         Item = (
             NodeView<
+                'a,
                 &'a <Self as NodeStateOps<'graph>>::BaseGraph,
                 &'a <Self as NodeStateOps<'graph>>::Graph,
             >,

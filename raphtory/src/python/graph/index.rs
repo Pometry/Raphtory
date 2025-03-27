@@ -31,7 +31,7 @@ impl PyGraphView {
         filter: PyFilterExpr,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<DynamicGraph>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, DynamicGraph>>, GraphError> {
         self.graph.search_nodes(filter.0.clone(), limit, offset)
     }
 
