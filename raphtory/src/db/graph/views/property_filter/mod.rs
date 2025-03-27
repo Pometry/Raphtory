@@ -3,7 +3,7 @@ use crate::core::{
 };
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 use strsim::levenshtein;
 
 pub mod edge_property_filter;
@@ -626,94 +626,98 @@ pub fn resolve_as_property_filter(filter: FilterExpr) -> Result<PropertyFilter, 
     }
 }
 
-pub trait PropertyFilterOps {
+pub trait InternalPropertyFilterOps: Send + Sync {
     fn property_ref(&self) -> PropertyRef;
+}
 
-    fn eq(self, value: impl Into<Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
+    fn property_ref(&self) -> PropertyRef {
+        self.deref().property_ref()
+    }
+}
+
+pub trait PropertyFilterOps {
+    fn eq(&self, value: impl Into<Prop>) -> FilterExpr;
+
+    fn ne(&self, value: impl Into<Prop>) -> FilterExpr;
+
+    fn le(&self, value: impl Into<Prop>) -> FilterExpr;
+
+    fn ge(&self, value: impl Into<Prop>) -> FilterExpr;
+
+    fn lt(&self, value: impl Into<Prop>) -> FilterExpr;
+
+    fn gt(&self, value: impl Into<Prop>) -> FilterExpr;
+
+    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr;
+
+    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr;
+
+    fn is_none(&self) -> FilterExpr;
+
+    fn is_some(&self) -> FilterExpr;
+
+    fn fuzzy_search(
+        &self,
+        prop_value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> FilterExpr;
+}
+
+impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
+    fn eq(&self, value: impl Into<Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::eq(self.property_ref(), value.into()))
     }
 
-    fn ne(self, value: impl Into<Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn ne(&self, value: impl Into<Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::ne(self.property_ref(), value.into()))
     }
 
-    fn le(self, value: impl Into<Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn le(&self, value: impl Into<Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::le(self.property_ref(), value.into()))
     }
 
-    fn ge(self, value: impl Into<Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn ge(&self, value: impl Into<Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::ge(self.property_ref(), value.into()))
     }
 
-    fn lt(self, value: impl Into<Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn lt(&self, value: impl Into<Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::lt(self.property_ref(), value.into()))
     }
 
-    fn gt(self, value: impl Into<Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn gt(&self, value: impl Into<Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::gt(self.property_ref(), value.into()))
     }
 
-    fn includes(self, values: impl IntoIterator<Item = Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::includes(
             self.property_ref(),
             values.into_iter(),
         ))
     }
 
-    fn excludes(self, values: impl IntoIterator<Item = Prop>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::excludes(
             self.property_ref(),
             values.into_iter(),
         ))
     }
 
-    fn is_none(self) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn is_none(&self) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::is_none(self.property_ref()))
     }
 
-    fn is_some(self) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn is_some(&self) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::is_some(self.property_ref()))
     }
 
     fn fuzzy_search(
-        self,
+        &self,
         prop_value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    ) -> FilterExpr {
         FilterExpr::Property(PropertyFilter::fuzzy_search(
             self.property_ref(),
             prop_value.into(),
@@ -723,7 +727,8 @@ pub trait PropertyFilterOps {
     }
 }
 
-pub struct PropertyFilterBuilder(String);
+#[derive(Clone)]
+pub struct PropertyFilterBuilder(pub String);
 
 impl PropertyFilterBuilder {
     pub fn constant(self) -> ConstPropertyFilterBuilder {
@@ -735,37 +740,41 @@ impl PropertyFilterBuilder {
     }
 }
 
-impl PropertyFilterOps for PropertyFilterBuilder {
+impl InternalPropertyFilterOps for PropertyFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Property(self.0.clone())
     }
 }
 
-pub struct ConstPropertyFilterBuilder(String);
+#[derive(Clone)]
+pub struct ConstPropertyFilterBuilder(pub String);
 
-impl PropertyFilterOps for ConstPropertyFilterBuilder {
+impl InternalPropertyFilterOps for ConstPropertyFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::ConstantProperty(self.0.clone())
     }
 }
 
-pub struct AnyTemporalPropertyFilterBuilder(String);
+#[derive(Clone)]
+pub struct AnyTemporalPropertyFilterBuilder(pub String);
 
-impl PropertyFilterOps for AnyTemporalPropertyFilterBuilder {
+impl InternalPropertyFilterOps for AnyTemporalPropertyFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
     }
 }
 
-pub struct LatestTemporalPropertyFilterBuilder(String);
+#[derive(Clone)]
+pub struct LatestTemporalPropertyFilterBuilder(pub String);
 
-impl PropertyFilterOps for LatestTemporalPropertyFilterBuilder {
+impl InternalPropertyFilterOps for LatestTemporalPropertyFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
     }
 }
 
-pub struct TemporalPropertyFilterBuilder(String);
+#[derive(Clone)]
+pub struct TemporalPropertyFilterBuilder(pub String);
 
 impl TemporalPropertyFilterBuilder {
     pub fn any(self) -> AnyTemporalPropertyFilterBuilder {
@@ -786,43 +795,28 @@ impl PropertyFilter {
 pub trait NodeFilterOps {
     fn field_name(&self) -> &'static str;
 
-    fn eq(self, value: impl Into<String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn eq(&self, value: impl Into<String>) -> FilterExpr {
         FilterExpr::Node(Filter::eq(self.field_name(), value))
     }
 
-    fn ne(self, value: impl Into<String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn ne(&self, value: impl Into<String>) -> FilterExpr {
         FilterExpr::Node(Filter::ne(self.field_name(), value))
     }
 
-    fn includes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
         FilterExpr::Node(Filter::includes(self.field_name(), values))
     }
 
-    fn excludes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
         FilterExpr::Node(Filter::excludes(self.field_name(), values))
     }
 
     fn fuzzy_search(
-        self,
+        &self,
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    ) -> FilterExpr {
         FilterExpr::Node(Filter::fuzzy_search(
             self.field_name(),
             value,
@@ -863,43 +857,28 @@ impl NodeFilter {
 pub trait EdgeFilterOps {
     fn field_name(&self) -> &'static str;
 
-    fn eq(self, value: impl Into<String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn eq(&self, value: impl Into<String>) -> FilterExpr {
         FilterExpr::Edge(Filter::eq(self.field_name(), value))
     }
 
-    fn ne(self, value: impl Into<String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn ne(&self, value: impl Into<String>) -> FilterExpr {
         FilterExpr::Edge(Filter::ne(self.field_name(), value))
     }
 
-    fn includes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
         FilterExpr::Edge(Filter::includes(self.field_name(), values))
     }
 
-    fn excludes(self, values: impl IntoIterator<Item = String>) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
         FilterExpr::Edge(Filter::excludes(self.field_name(), values))
     }
 
     fn fuzzy_search(
-        self,
+        &self,
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr
-    where
-        Self: Sized,
-    {
+    ) -> FilterExpr {
         FilterExpr::Edge(Filter::fuzzy_search(
             self.field_name(),
             value,
