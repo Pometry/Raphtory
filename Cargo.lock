@@ -4715,8 +4715,6 @@ version = "0.14.0"
 dependencies = [
  "ahash",
  "arrow-array",
- "arrow-buffer",
- "arrow-data",
  "arrow-ipc",
  "arrow-json",
  "arrow-schema",
@@ -4732,7 +4730,6 @@ dependencies = [
  "dotenv",
  "either",
  "enum_dispatch",
- "fake",
  "flate2",
  "futures-util",
  "glam",
