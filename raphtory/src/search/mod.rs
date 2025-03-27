@@ -23,8 +23,8 @@ pub(in crate::search) mod fields {
     pub const NODE_NAME: &str = "node_name";
     pub const NODE_TYPE: &str = "node_type";
     pub const EDGE_ID: &str = "edge_id";
-    pub const SOURCE: &str = "from";
-    pub const DESTINATION: &str = "to";
+    pub const SOURCE: &str = "src";
+    pub const DESTINATION: &str = "dst";
     pub const LAYER_ID: &str = "layer_id";
 }
 
