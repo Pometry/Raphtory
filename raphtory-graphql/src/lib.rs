@@ -1,4 +1,5 @@
 pub use crate::server::GraphServer;
+mod auth;
 pub mod data;
 mod graph;
 pub mod model;

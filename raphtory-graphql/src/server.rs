@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
+    auth::AuthenticatedGraphQL,
     config::app_config::{load_config, AppConfig},
     data::{Data, EmbeddingConf},
     model::{
@@ -11,7 +12,6 @@ use crate::{
     routes::{health, ui},
     server::ServerError::SchemaError,
 };
-use async_graphql_poem::GraphQL;
 use config::ConfigError;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
@@ -244,7 +244,10 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))?;
 
         let app = Route::new()
-            .at("/", get(ui).post(GraphQL::new(schema)))
+            .at(
+                "/",
+                get(ui).post(AuthenticatedGraphQL::new(schema, "secret".to_owned())),
+            )
             .at("/graph", get(ui))
             .at("/search", get(ui))
             .at("/saved-graphs", get(ui))

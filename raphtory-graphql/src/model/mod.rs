@@ -1,4 +1,5 @@
 use crate::{
+    auth::Role,
     data::Data,
     model::{
         graph::{
@@ -86,6 +87,7 @@ impl QueryRoot {
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
+
         let graph = data
             .get_graph(path.as_ref())
             .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
@@ -142,6 +144,9 @@ impl Mut {
         path: String,
         graph_type: GqlGraphType,
     ) -> Result<bool> {
+        let role = ctx.data::<Role>().unwrap();
+        dbg!(role);
+
         let data = ctx.data_unchecked::<Data>();
         let graph = match graph_type {
             GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
