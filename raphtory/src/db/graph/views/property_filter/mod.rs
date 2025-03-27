@@ -792,9 +792,33 @@ impl PropertyFilter {
     }
 }
 
-pub trait NodeFilterOps {
+pub trait InternalNodeFilterOps: Send + Sync {
     fn field_name(&self) -> &'static str;
+}
 
+impl<T: InternalNodeFilterOps> InternalNodeFilterOps for Arc<T> {
+    fn field_name(&self) -> &'static str {
+        self.deref().field_name()
+    }
+}
+
+pub trait NodeFilterOps {
+    fn eq(&self, value: impl Into<String>) -> FilterExpr;
+
+    fn ne(&self, value: impl Into<String>) -> FilterExpr;
+
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+    fn fuzzy_search(
+        &self,
+        value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> FilterExpr;
+}
+
+impl<T: ?Sized + InternalNodeFilterOps> NodeFilterOps for T {
     fn eq(&self, value: impl Into<String>) -> FilterExpr {
         FilterExpr::Node(Filter::eq(self.field_name(), value))
     }
@@ -828,7 +852,7 @@ pub trait NodeFilterOps {
 
 pub struct NodeNameFilterBuilder;
 
-impl NodeFilterOps for NodeNameFilterBuilder {
+impl InternalNodeFilterOps for NodeNameFilterBuilder {
     fn field_name(&self) -> &'static str {
         "node_name"
     }
@@ -836,12 +860,13 @@ impl NodeFilterOps for NodeNameFilterBuilder {
 
 pub struct NodeTypeFilterBuilder;
 
-impl NodeFilterOps for NodeTypeFilterBuilder {
+impl InternalNodeFilterOps for NodeTypeFilterBuilder {
     fn field_name(&self) -> &'static str {
         "node_type"
     }
 }
 
+#[derive(Clone)]
 pub struct NodeFilter;
 
 impl NodeFilter {
@@ -854,9 +879,34 @@ impl NodeFilter {
     }
 }
 
-pub trait EdgeFilterOps {
+pub trait InternalEdgeFilterOps: Send + Sync {
     fn field_name(&self) -> &'static str;
+}
 
+impl<T: InternalEdgeFilterOps> InternalEdgeFilterOps for Arc<T> {
+    fn field_name(&self) -> &'static str {
+        self.deref().field_name()
+    }
+}
+
+pub trait EdgeFilterOps {
+    fn eq(&self, value: impl Into<String>) -> FilterExpr;
+
+    fn ne(&self, value: impl Into<String>) -> FilterExpr;
+
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+
+    fn fuzzy_search(
+        &self,
+        value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> FilterExpr;
+}
+
+impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
     fn eq(&self, value: impl Into<String>) -> FilterExpr {
         FilterExpr::Edge(Filter::eq(self.field_name(), value))
     }
@@ -890,7 +940,7 @@ pub trait EdgeFilterOps {
 
 pub struct EdgeSourceFilterBuilder;
 
-impl EdgeFilterOps for EdgeSourceFilterBuilder {
+impl InternalEdgeFilterOps for EdgeSourceFilterBuilder {
     fn field_name(&self) -> &'static str {
         "src"
     }
@@ -898,12 +948,13 @@ impl EdgeFilterOps for EdgeSourceFilterBuilder {
 
 pub struct EdgeDestinationFilterBuilder;
 
-impl EdgeFilterOps for EdgeDestinationFilterBuilder {
+impl InternalEdgeFilterOps for EdgeDestinationFilterBuilder {
     fn field_name(&self) -> &'static str {
         "dst"
     }
 }
 
+#[derive(Clone)]
 pub struct EdgeFilter;
 
 impl EdgeFilter {

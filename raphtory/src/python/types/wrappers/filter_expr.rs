@@ -1,8 +1,9 @@
 use crate::{
     core::Prop,
     db::graph::views::property_filter::{
-        Filter, FilterExpr, InternalPropertyFilterOps, PropertyFilterBuilder, PropertyFilterOps,
-        TemporalPropertyFilterBuilder,
+        EdgeFilter, EdgeFilterOps, Filter, FilterExpr, InternalEdgeFilterOps,
+        InternalNodeFilterOps, InternalPropertyFilterOps, NodeFilter, NodeFilterOps,
+        PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
     },
 };
 use pyo3::prelude::*;
@@ -113,10 +114,10 @@ impl PyTemporalPropertyFilterBuilder {
 
 #[pyclass(frozen, name = "PropertyFilterBuilder", module = "raphtory.filter", extends=PyPropertyFilterOps)]
 #[derive(Clone)]
-pub struct PyPropertyFilter(PropertyFilterBuilder);
+pub struct PyPropertyFilterBuilder(PropertyFilterBuilder);
 
 impl<'py> IntoPyObject<'py> for PropertyFilterBuilder {
-    type Target = PyPropertyFilter;
+    type Target = PyPropertyFilterBuilder;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
@@ -124,7 +125,7 @@ impl<'py> IntoPyObject<'py> for PropertyFilterBuilder {
         Bound::new(
             py,
             (
-                PyPropertyFilter(self.clone()),
+                PyPropertyFilterBuilder(self.clone()),
                 PyPropertyFilterOps(Arc::new(self.clone())),
             ),
         )
@@ -132,17 +133,17 @@ impl<'py> IntoPyObject<'py> for PropertyFilterBuilder {
 }
 
 #[pymethods]
-impl PyPropertyFilter {
+impl PyPropertyFilterBuilder {
     #[new]
     fn new(name: String) -> (Self, PyPropertyFilterOps) {
         let builder = PropertyFilterBuilder(name);
         (
-            PyPropertyFilter(builder.clone()),
+            PyPropertyFilterBuilder(builder.clone()),
             PyPropertyFilterOps(Arc::new(builder)),
         )
     }
 
-    fn constant<'py>(&self) -> PyPropertyFilterOps {
+    fn constant(&self) -> PyPropertyFilterOps {
         PyPropertyFilterOps(Arc::new(self.0.clone().constant()))
     }
 
@@ -153,37 +154,30 @@ impl PyPropertyFilter {
 
 #[pyclass(frozen, name = "NodeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyNodeFilterOp {
-    field: String,
+pub struct PyNodeFilterOp(Arc<dyn InternalNodeFilterOps>);
+
+impl<T: InternalNodeFilterOps + 'static> From<T> for PyNodeFilterOp {
+    fn from(value: T) -> Self {
+        PyNodeFilterOp(Arc::new(value))
+    }
 }
 
 #[pymethods]
 impl PyNodeFilterOp {
-    #[new]
-    fn new(field: String) -> Self {
-        PyNodeFilterOp { field }
-    }
-
     fn __eq__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Node(Filter::eq(self.field.clone(), value)))
+        PyFilterExpr(self.0.eq(value))
     }
 
     fn __ne__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Node(Filter::ne(self.field.clone(), value)))
+        PyFilterExpr(self.0.ne(value))
     }
 
     fn includes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Node(Filter::includes(
-            self.field.clone(),
-            values.into_iter(),
-        )))
+        PyFilterExpr(self.0.includes(values))
     }
 
     fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Node(Filter::excludes(
-            self.field.clone(),
-            values.into_iter(),
-        )))
+        PyFilterExpr(self.0.excludes(values))
     }
 
     fn fuzzy_search(
@@ -192,12 +186,10 @@ impl PyNodeFilterOp {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Node(Filter::fuzzy_search(
-            self.field.clone(),
-            value,
-            levenshtein_distance,
-            prefix_match,
-        )))
+        PyFilterExpr(
+            self.0
+                .fuzzy_search(value, levenshtein_distance, prefix_match),
+        )
     }
 }
 
@@ -209,12 +201,12 @@ pub struct PyNodeFilter;
 impl PyNodeFilter {
     #[staticmethod]
     fn node_name() -> PyNodeFilterOp {
-        PyNodeFilterOp::new("node_name".to_string())
+        PyNodeFilterOp(Arc::new(NodeFilter::node_name()))
     }
 
     #[staticmethod]
     fn node_type() -> PyNodeFilterOp {
-        PyNodeFilterOp::new("node_type".to_string())
+        PyNodeFilterOp(Arc::new(NodeFilter::node_type()))
     }
 
     #[staticmethod]
@@ -225,37 +217,30 @@ impl PyNodeFilter {
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilterOp {
-    field: String,
+pub struct PyEdgeFilterOp(Arc<dyn InternalEdgeFilterOps>);
+
+impl<T: InternalEdgeFilterOps + 'static> From<T> for PyEdgeFilterOp {
+    fn from(value: T) -> Self {
+        PyEdgeFilterOp(Arc::new(value))
+    }
 }
 
 #[pymethods]
 impl PyEdgeFilterOp {
-    #[new]
-    fn new(field: String) -> Self {
-        PyEdgeFilterOp { field }
-    }
-
     fn __eq__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Edge(Filter::eq(self.field.clone(), value)))
+        PyFilterExpr(self.0.eq(value))
     }
 
     fn __ne__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Edge(Filter::ne(self.field.clone(), value)))
+        PyFilterExpr(self.0.ne(value))
     }
 
     fn includes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Edge(Filter::includes(
-            self.field.clone(),
-            values.into_iter(),
-        )))
+        PyFilterExpr(self.0.includes(values))
     }
 
     fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Edge(Filter::excludes(
-            self.field.clone(),
-            values.into_iter(),
-        )))
+        PyFilterExpr(self.0.excludes(values))
     }
 
     fn fuzzy_search(
@@ -264,12 +249,10 @@ impl PyEdgeFilterOp {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Edge(Filter::fuzzy_search(
-            self.field.clone(),
-            value,
-            levenshtein_distance,
-            prefix_match,
-        )))
+        PyFilterExpr(
+            self.0
+                .fuzzy_search(value, levenshtein_distance, prefix_match),
+        )
     }
 }
 
@@ -281,12 +264,12 @@ pub struct PyEdgeFilter;
 impl PyEdgeFilter {
     #[staticmethod]
     fn src() -> PyEdgeFilterOp {
-        PyEdgeFilterOp::new("src".to_string())
+        PyEdgeFilterOp(Arc::new(EdgeFilter::src()))
     }
 
     #[staticmethod]
     fn dst() -> PyEdgeFilterOp {
-        PyEdgeFilterOp::new("dst".to_string())
+        PyEdgeFilterOp(Arc::new(EdgeFilter::dst()))
     }
 
     #[staticmethod]
@@ -303,7 +286,7 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyNodeFilter>()?;
     filter_module.add_class::<PyEdgeFilterOp>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
-    filter_module.add_class::<PyPropertyFilter>()?;
+    filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyTemporalPropertyFilterBuilder>()?;
 
     Ok(filter_module)
