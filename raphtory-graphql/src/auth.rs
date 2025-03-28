@@ -1,48 +1,69 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use async_graphql::{
+    async_trait,
+    extensions::{
+        Extension, ExtensionContext, ExtensionFactory, NextParseQuery, NextPrepareRequest,
+    },
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
-    Executor,
+    parser::types::{ExecutableDocument, OperationType},
+    Context, Executor, Request as GqlRequest, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use poem::{Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result};
+use poem::{
+    error::Unauthorized, Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
+};
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 
-#[derive(Clone, Debug, Deserialize)]
+use crate::config::auth_config::AuthConfig;
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum Role {
     Read,
     Write,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub(crate) struct TokenClaims {
+    pub(crate) role: Role,
+}
+
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
-    secret: String,
+    config: AuthConfig,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
-    pub fn new(executor: E, secret: String) -> Self {
-        Self { executor, secret }
-    }
-
-    fn extract_role_from_header(&self, header: &str) -> Option<Role> {
-        if header.starts_with("Bearer ") {
-            let jwt = header.replace("Bearer ", "");
-            let decoded = decode::<Role>(
-                &jwt,
-                &DecodingKey::from_secret(self.secret.as_ref()),
-                &Validation::new(Algorithm::HS256),
-            );
-            Some(decoded.ok()?.claims)
-        } else {
-            None
-        }
+    pub fn new(executor: E, config: AuthConfig) -> Self {
+        Self { executor, config }
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum AuthError {
+    #[error("The requested endpoint requires at least read privileges")]
+    RequireRead,
+    #[error("The requested endpoint requires write privileges")]
+    RequireWrite,
+}
+
+impl From<AuthError> for ServerError {
+    fn from(value: AuthError) -> Self {
+        ServerError::new(value.to_string(), None)
+    }
+}
+
+// this is copied over from async_graphql_poem::GraphQL, but including the bits to extract the role from the header
+// I found no alternative way of doing this because the data field inside of poem::Request data is not mapped into async_graphql::Request.data
+// So either:
+// - I have access to headers and can include the role in the data, but then gets lost along the way
+// - or I hook into async_graphql by implementing Extension::prepare_request, where I can actually include data into the request, but don't have access to any headers there
+// FIXME: Have a look at this: https://github.com/async-graphql/examples/blob/master/poem/token-from-header/src/main.rs
 impl<E> Endpoint for AuthenticatedGraphQL<E>
 where
     E: Executor,
@@ -50,9 +71,25 @@ where
     type Output = Response;
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
-        let role = req
-            .header(AUTHORIZATION)
-            .and_then(|header| self.extract_role_from_header(header));
+        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
+        let role = match &self.config.secret {
+            Some(secret) => {
+                let presented_role = req
+                    .header(AUTHORIZATION)
+                    .and_then(|header| extract_role_from_header(header, secret));
+                match presented_role {
+                    Some(role) => role,
+                    None => {
+                        if self.config.require_read_permissions {
+                            return Err(Unauthorized(AuthError::RequireRead));
+                        } else {
+                            Role::Read // if read privileges are not required, we give read privileges to all requests
+                        }
+                    }
+                }
+            }
+            None => Role::Write, // if auth is not setup, we give write privileges to all requests
+        };
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -62,12 +99,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            // FIXME: a bit verbose innit?
-            let req = if let Some(role) = role {
-                req.0.data(role)
-            } else {
-                req.0
-            };
+            let req = req.0.data(role);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -78,12 +110,86 @@ where
         } else {
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
-            let req = if let Some(role) = role {
-                req.0.data(role)
-            } else {
-                req.0
-            };
+            let req = req.0.data(role);
             Ok(GraphQLBatchResponse(self.executor.execute_batch(req).await).into_response())
         }
+    }
+}
+
+fn extract_role_from_header(header: &str, secret: &str) -> Option<Role> {
+    if header.starts_with("Bearer ") {
+        let jwt = header.replace("Bearer ", "");
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
+        let decoded = decode::<TokenClaims>(
+            &jwt,
+            &DecodingKey::from_secret(secret.as_ref()),
+            &validation,
+        );
+        Some(decoded.ok()?.claims.role)
+    } else {
+        None
+    }
+}
+
+pub(crate) trait ContextValidation {
+    fn require_write_access(&self) -> Result<(), AuthError>;
+}
+
+impl<'a> ContextValidation for &Context<'a> {
+    fn require_write_access(&self) -> Result<(), AuthError> {
+        if self.data::<Role>().is_ok_and(|role| role == &Role::Write) {
+            Ok(())
+        } else {
+            Err(AuthError::RequireWrite)
+        }
+    }
+}
+
+pub(crate) struct MutationAuth;
+
+impl ExtensionFactory for MutationAuth {
+    fn create(&self) -> Arc<dyn Extension> {
+        Arc::new(MutationAuth)
+    }
+}
+
+#[async_trait::async_trait]
+impl Extension for MutationAuth {
+    // this doesnt work because the role is inside of request.data, but I can't read from it
+    // async fn prepare_request(
+    //     &self,
+    //     ctx: &ExtensionContext<'_>,
+    //     request: GqlRequest,
+    //     next: NextPrepareRequest<'_>,
+    // ) -> ServerResult<GqlRequest> {
+    //     if ctx.data::<Role>().is_ok() {
+    //         next.run(ctx, request).await
+    //     } else {
+    //         dbg!(&ctx.query_data);
+    //         // dbg!(&ctx.schema_env);
+    //         dbg!(&ctx.session_data);
+    //         Err(AuthError::RequireRead.into())
+    //     }
+    // }
+
+    async fn parse_query(
+        &self,
+        ctx: &ExtensionContext<'_>,
+        query: &str,
+        variables: &Variables,
+        next: NextParseQuery<'_>,
+    ) -> ServerResult<ExecutableDocument> {
+        next.run(ctx, query, variables).await.and_then(|doc| {
+            let mutation = doc
+                .operations
+                .iter()
+                .any(|op| op.1.node.ty == OperationType::Mutation);
+            if mutation && ctx.data::<Role>() != Ok(&Role::Write) {
+                Err(AuthError::RequireWrite.into())
+            } else {
+                Ok(doc)
+            }
+        })
     }
 }

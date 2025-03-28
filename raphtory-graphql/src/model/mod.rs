@@ -1,5 +1,5 @@
 use crate::{
-    auth::Role,
+    auth::{ContextValidation, Role},
     data::Data,
     model::{
         graph::{
@@ -86,6 +86,7 @@ impl QueryRoot {
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
+        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
 
         let graph = data
@@ -144,8 +145,7 @@ impl Mut {
         path: String,
         graph_type: GqlGraphType,
     ) -> Result<bool> {
-        let role = ctx.data::<Role>().unwrap();
-        dbg!(role);
+        ctx.require_write_access()?;
 
         let data = ctx.data_unchecked::<Data>();
         let graph = match graph_type {

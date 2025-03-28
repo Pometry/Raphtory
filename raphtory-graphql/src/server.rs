@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
-    auth::AuthenticatedGraphQL,
+    auth::{AuthenticatedGraphQL, MutationAuth},
     config::app_config::{load_config, AppConfig},
     data::{Data, EmbeddingConf},
     model::{
@@ -18,7 +18,7 @@ use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
     get,
     listener::TcpListener,
-    middleware::{CookieJarManager, CookieJarManagerEndpoint, Cors, CorsEndpoint},
+    middleware::{Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
 use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
@@ -204,7 +204,7 @@ impl GraphServer {
         let work_dir = self.data.work_dir.clone();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
-        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self
+        let app: CorsEndpoint<Route> = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
             .await?;
 
@@ -232,28 +232,27 @@ impl GraphServer {
     async fn generate_endpoint(
         self,
         tracer: Option<Tracer>,
-    ) -> Result<CorsEndpoint<CookieJarManagerEndpoint<Route>>, ServerError> {
+    ) -> Result<CorsEndpoint<Route>, ServerError> {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
-        let schema = schema_builder;
+        let schema_builder = schema_builder.extension(MutationAuth);
         let schema = if let Some(t) = tracer {
-            schema.extension(OpenTelemetry::new(t)).finish()
+            schema_builder.extension(OpenTelemetry::new(t)).finish()
         } else {
-            schema.finish()
+            schema_builder.finish()
         }
         .map_err(|e| SchemaError(e.to_string()))?;
 
         let app = Route::new()
             .at(
                 "/",
-                get(ui).post(AuthenticatedGraphQL::new(schema, "secret".to_owned())),
+                get(ui).post(AuthenticatedGraphQL::new(schema, self.config.auth)),
             )
             .at("/graph", get(ui))
             .at("/search", get(ui))
             .at("/saved-graphs", get(ui))
             .at("/playground", get(ui))
             .at("/health", get(health))
-            .with(CookieJarManager::new())
             .with(Cors::new());
         Ok(app)
     }

@@ -5,11 +5,14 @@ use config::{Config, ConfigError, File};
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use super::auth_config::AuthConfig;
+
 #[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
+    pub auth: AuthConfig,
 }
 
 impl Default for AppConfig {
@@ -18,6 +21,7 @@ impl Default for AppConfig {
             logging: LoggingConfig::default(),
             cache: CacheConfig::default(),
             tracing: TracingConfig::default(),
+            auth: AuthConfig::default(),
         }
     }
 }
@@ -26,23 +30,23 @@ pub struct AppConfigBuilder {
     logging: LoggingConfig,
     cache: CacheConfig,
     tracing: TracingConfig,
+    auth: AuthConfig,
 }
 
-impl AppConfigBuilder {
-    pub fn new() -> Self {
-        Self {
-            logging: LoggingConfig::default(),
-            cache: CacheConfig::default(),
-            tracing: TracingConfig::default(),
-        }
-    }
-
-    pub fn from(config: AppConfig) -> Self {
+impl From<AppConfig> for AppConfigBuilder {
+    fn from(config: AppConfig) -> Self {
         Self {
             logging: config.logging,
             cache: config.cache,
             tracing: config.tracing,
+            auth: config.auth,
         }
+    }
+}
+
+impl AppConfigBuilder {
+    pub fn new() -> Self {
+        AppConfig::default().into()
     }
 
     pub fn with_log_level(mut self, log_level: String) -> Self {
@@ -80,11 +84,22 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_authorization_enabled(
+        mut self,
+        secret: String,
+        require_read_permissions: bool,
+    ) -> Self {
+        self.auth.secret = Some(secret);
+        self.auth.require_read_permissions = require_read_permissions;
+        self
+    }
+
     pub fn build(self) -> AppConfig {
         AppConfig {
             logging: self.logging,
             cache: self.cache,
             tracing: self.tracing,
+            auth: self.auth,
         }
     }
 }
