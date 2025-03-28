@@ -7,7 +7,7 @@ use crate::{
         },
         storage::{
             raw_edges::EdgeShard,
-            timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
+            timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
         },
         Prop,
     },
@@ -97,29 +97,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
             TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => t.len(),
-        }
-    }
-}
-
-impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
-    type IndexType = TimeIndexEntry;
-
-    type RangeType = Self;
-
-    fn into_range(self, w: Range<TimeIndexEntry>) -> TimeIndexRef<'a> {
-        match self {
-            TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range_inner(w)),
-            TimeIndexRef::Range(t) => TimeIndexRef::Range(t.with_range(w)),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => TimeIndexRef::External(t.into_range(w)),
-        }
-    }
-    fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send {
-        match self {
-            TimeIndexRef::Ref(t) => t.iter(),
-            TimeIndexRef::Range(t) => t.iter().into_dyn_boxed(),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => t.into_iter().into_dyn_boxed(),
         }
     }
 }

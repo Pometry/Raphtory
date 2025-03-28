@@ -23,7 +23,7 @@ use pometry_storage::{
     graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
 };
 use raphtory_api::{
-    core::storage::timeindex::{TimeIndexEntry, TimeIndexIntoOps},
+    core::storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     iter::IntoDynBoxed,
 };
 use std::{borrow::Cow, iter, ops::Range, sync::Arc};
@@ -61,8 +61,8 @@ impl<'a> DiskNode<'a> {
             .enumerate()
             .flat_map(move |(layer, props)| {
                 let ts = props.timestamps::<TimeIndexEntry>(self.vid);
-                let ts = ts.into_range(window.clone());
-                ts.into_iter().zip(0..ts.len()).map(move |(t, row)| {
+                let ts = ts.range(window.clone());
+                ts.iter().zip(0..ts.len()).map(move |(t, row)| {
                     let row = DiskRow::new(self.graph, ts, row, layer);
                     (t, Row::Disk(row))
                 })

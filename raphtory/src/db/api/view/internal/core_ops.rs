@@ -30,7 +30,7 @@ use raphtory_api::{
         entities::{EID, ELID, GID},
         storage::{
             arc_str::ArcStr,
-            timeindex::{TimeIndexEntry, TimeIndexIntoOps, TimeIndexLike},
+            timeindex::{TimeIndexEntry, TimeIndexLike},
         },
     },
     iter::IntoDynBoxed,
@@ -583,36 +583,6 @@ impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
             NodeAdditions::Range(range) => range.len(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(col) => col.len(),
-        }
-    }
-}
-
-impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
-    type IndexType = TimeIndexEntry;
-
-    type RangeType = Self;
-
-    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
-        match self {
-            NodeAdditions::Mem(index) => NodeAdditions::Range(TimeIndexWindow::TimeIndexRange {
-                timeindex: index,
-                range: w,
-            }),
-            NodeAdditions::Range(index) => NodeAdditions::Range(index.with_range(w)),
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
-        }
-    }
-
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
-        match self {
-            NodeAdditions::Mem(index) => index.iter().into_dyn_boxed(),
-            NodeAdditions::Range(index) => index.iter().into_dyn_boxed(),
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index
-                .into_iter()
-                .flat_map(|index| index.into_iter())
-                .into_dyn_boxed(),
         }
     }
 }

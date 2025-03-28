@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds},
-        storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
         utils::iter::{GenLockedDIter, GenLockedIter},
         Prop,
     },
@@ -280,10 +280,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                 .updates_iter(&layer_ids)
                 .map(|(layer, additions, deletions)| {
                     let window = interior_window(w.clone(), &deletions);
-                    additions
-                        .into_range(window)
-                        .into_iter()
-                        .map(move |t| (t, layer))
+                    additions.range(window).iter().map(move |t| (t, layer))
                 })
                 .kmerge()
                 .into_dyn_boxed()
@@ -367,8 +364,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                     .map(move |(l, additions, deletions)| {
                         let window = interior_window(w.clone(), &deletions);
                         additions
-                            .into_range(window)
-                            .into_iter()
+                            .range(window)
+                            .iter()
                             .map(move |t| e.at(t).at_layer(l))
                     })
                     .kmerge_by(|e1, e2| e1.time() <= e2.time())
@@ -526,8 +523,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             entry
                 .deletions_iter(&layer_ids)
                 .map(|(l, d)| {
-                    d.into_range_t(w.start.saturating_add(1)..w.end)
-                        .into_iter()
+                    d.range_t(w.start.saturating_add(1)..w.end)
+                        .iter()
                         .map(move |t| (t, l))
                 })
                 .kmerge()

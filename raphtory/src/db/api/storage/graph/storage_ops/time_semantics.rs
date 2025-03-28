@@ -2,7 +2,7 @@ use super::GraphStorage;
 use crate::{
     core::{
         entities::LayerIds,
-        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+        storage::timeindex::TimeIndexOps,
         utils::iter::{GenLockedDIter, GenLockedIter},
     },
     db::api::{
@@ -156,7 +156,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(edge, move |edge| {
             edge.additions_iter(&layer_ids)
-                .map(move |(l, a)| a.into_iter().map(move |t| e.at(t).at_layer(l)))
+                .map(move |(l, a)| a.iter().map(move |t| e.at(t).at_layer(l)))
                 .kmerge_by(|e1, e2| e1.time() <= e2.time())
                 .into_dyn_boxed()
         })
@@ -187,8 +187,8 @@ impl GraphTimeSemanticsOps for GraphStorage {
         GenLockedIter::from(entry, move |edge| {
             edge.additions_iter(&layer_ids)
                 .map(move |(l, a)| {
-                    a.into_range(TimeIndexEntry::range(w.clone()))
-                        .into_iter()
+                    a.range(TimeIndexEntry::range(w.clone()))
+                        .iter()
                         .map(move |t| e.at(t).at_layer(l))
                 })
                 .kmerge_by(|e1, e2| e1.time() <= e2.time())
@@ -274,7 +274,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         GenLockedIter::from(entry, |entry| {
             entry
                 .deletions_iter(&layer_ids)
-                .map(|(l, d)| d.into_iter().map(move |t| (t, l)))
+                .map(|(l, d)| d.iter().map(move |t| (t, l)))
                 .kmerge()
                 .into_dyn_boxed()
         })
@@ -291,7 +291,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         GenLockedIter::from(entry, |entry| {
             entry
                 .deletions_iter(&layer_ids)
-                .map(|(l, d)| d.into_range_t(w.clone()).into_iter().map(move |t| (t, l)))
+                .map(|(l, d)| d.range_t(w.clone()).iter().map(move |t| (t, l)))
                 .kmerge()
                 .into_dyn_boxed()
         })

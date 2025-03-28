@@ -70,6 +70,17 @@ impl<'a, 'b: 'a, G: Clone + 'b, GH: Clone + 'b> NodeView<'a, &'a G, &'a GH> {
     }
 }
 
+impl<'a, G: 'a, GH: 'a> NodeView<'a, G, GH> {
+    pub fn as_ref(&self) -> NodeView<&G, &GH> {
+        NodeView {
+            base_graph: &self.base_graph,
+            graph: &self.graph,
+            node: self.node,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<'graph, G: Send + Sync, GH: Send + Sync> AsNodeRef for NodeView<'graph, G, GH> {
     fn as_node_ref(&self) -> NodeRef {
         NodeRef::Internal(self.node)

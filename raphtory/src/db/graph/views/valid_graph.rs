@@ -325,6 +325,14 @@ mod tests {
         g.delete_edge(10, 5, 4, None).unwrap();
 
         let gv = g.valid().unwrap().window(0, 20);
+        let expected = PersistentGraph::new();
+        expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
+        expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
+        expected.add_edge(0, 4, 6, NO_PROPS, Some("b")).unwrap();
+        expected.add_edge(1, 4, 9, NO_PROPS, Some("a")).unwrap();
+        expected.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
+        assert_graph_equal(&gv, &expected);
+
         let n4 = gv.node(4).unwrap();
         assert_eq!(n4.out_degree(), 2);
         assert_eq!(n4.in_degree(), 1);

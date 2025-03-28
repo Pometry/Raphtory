@@ -1,6 +1,6 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
 use raphtory_api::{
-    core::storage::timeindex::{TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
+    core::storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     iter::BoxedLIter,
 };
 use rayon::iter::{
@@ -322,26 +322,5 @@ impl<
 
     fn len(&self) -> usize {
         for_all!(self, props => props.len())
-    }
-}
-
-impl<
-        Mem: TimeIndexIntoOps,
-        #[cfg(feature = "storage")] Disk: TimeIndexIntoOps<IndexType = Mem::IndexType>,
-    > TimeIndexIntoOps for SelfType!(Mem, Disk)
-{
-    type IndexType = Mem::IndexType;
-    #[cfg(feature = "storage")]
-    type RangeType = StorageVariants<Mem::RangeType, Disk::RangeType>;
-
-    #[cfg(not(feature = "storage"))]
-    type RangeType = Mem::RangeType;
-
-    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
-        for_all_iter!(self, props => props.into_range(w))
-    }
-
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync {
-        for_all_iter!(self, props => props.into_iter())
     }
 }

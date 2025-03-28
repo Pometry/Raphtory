@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::LayerIds, storage::timeindex::TimeIndexIntoOps, utils::iter::GenLockedIter,
-        Direction,
-    },
+    core::{entities::LayerIds, utils::iter::GenLockedIter, Direction},
     db::api::{
         storage::graph::{
             edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
@@ -21,7 +18,7 @@ use polars_arrow::array::Array;
 use pometry_storage::interop::GraphLike;
 use raphtory_api::core::{
     entities::{EID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
 impl GraphLike<TimeIndexEntry> for Graph {
@@ -100,9 +97,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = TimeIndexEntry> + '_ {
         let edge = self.core_edge(eid);
-        GenLockedIter::from(edge, |edge| {
-            edge.additions(layer).into_iter().into_dyn_boxed()
-        })
+        GenLockedIter::from(edge, |edge| edge.additions(layer).iter().into_dyn_boxed())
     }
 
     fn edge_prop_keys(&self) -> Vec<String> {

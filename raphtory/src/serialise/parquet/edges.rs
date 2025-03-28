@@ -17,7 +17,7 @@ use model::ParquetCEdge;
 use raphtory_api::{
     core::{
         entities::{LayerIds, EID},
-        storage::timeindex::TimeIndexIntoOps,
+        storage::timeindex::TimeIndexOps,
     },
     iter::IntoDynBoxed,
 };
@@ -104,7 +104,7 @@ pub(crate) fn encode_edge_deletions(
                         let edge = g_edges.edge(eid);
                         let edge_ref = edge.out_ref();
                         GenLockedIter::from(edge, |edge| {
-                            edge.deletions(layer_id).into_iter().into_dyn_boxed()
+                            edge.deletions(layer_id).iter().into_dyn_boxed()
                         })
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,

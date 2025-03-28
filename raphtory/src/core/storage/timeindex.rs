@@ -197,58 +197,6 @@ where
     }
 }
 
-impl<'a, T: AsTime, TI: TimeIndexLike<'a, IndexType = T>> TimeIndexIntoOps
-    for TimeIndexWindow<'a, T, TI>
-{
-    type IndexType = T;
-    type RangeType = Self;
-
-    fn into_range(self, w: Range<T>) -> Self {
-        match self {
-            TimeIndexWindow::Empty => TimeIndexWindow::Empty,
-            TimeIndexWindow::TimeIndexRange { range, timeindex } => {
-                let start = range.start.max(w.start);
-                let end = range.start.min(w.end);
-                if end <= start {
-                    TimeIndexWindow::Empty
-                } else {
-                    TimeIndexWindow::TimeIndexRange {
-                        timeindex,
-                        range: start..end,
-                    }
-                }
-            }
-            TimeIndexWindow::All(ts) => {
-                if ts.len() == 0 {
-                    TimeIndexWindow::Empty
-                } else {
-                    ts.first()
-                        .zip(ts.last())
-                        .map(|(min_val, max_val)| {
-                            if min_val >= w.start && max_val < w.end {
-                                TimeIndexWindow::All(ts)
-                            } else {
-                                TimeIndexWindow::TimeIndexRange {
-                                    timeindex: ts,
-                                    range: w,
-                                }
-                            }
-                        })
-                        .unwrap_or(TimeIndexWindow::Empty)
-                }
-            }
-        }
-    }
-
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync {
-        match self {
-            TimeIndexWindow::Empty => Box::new(iter::empty()),
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex.range_iter(range),
-            TimeIndexWindow::All(timeindex) => timeindex.iter().into_dyn_boxed(),
-        }
-    }
-}
-
 impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
     type IndexType = T;
     type RangeType = TimeIndexWindow<'a, T, TimeIndex<T>>;
