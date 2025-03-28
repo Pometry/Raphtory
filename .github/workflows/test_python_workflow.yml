@@ -67,21 +67,21 @@ jobs:
           command: build
           target: ${{ matrix.target }}
           args: --release --features storage
-      - name: Install Python dependencies (Unix)
+      - name: Install dependencies
+        run: |
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets pyjwt
+          python -m pip install -e examples/netflow
+      - name: Install raphtory (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           python -m pip install target/wheels/raphtory-*.whl
-          python -m pip install -e examples/netflow
-      - name: Install Python dependencies (Windows)
+      - name: Install raphtory (Windows)
         if: "contains(matrix.os, 'Windows')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           $folder_path = "target/wheels/"
           Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
             python -m pip install "$($_.FullName)"
           }
-          python -m pip install -e examples/netflow
       - name: Run Python tests
         run: |
           cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
@@ -91,4 +91,3 @@ jobs:
       - name: Run example notebook
         working-directory: examples/python/socio-patterns
         run: jupyter nbconvert --to notebook --execute example.ipynb
-
