@@ -63,7 +63,6 @@ impl From<AuthError> for ServerError {
 // So either:
 // - I have access to headers and can include the role in the data, but then gets lost along the way
 // - or I hook into async_graphql by implementing Extension::prepare_request, where I can actually include data into the request, but don't have access to any headers there
-// FIXME: Have a look at this: https://github.com/async-graphql/examples/blob/master/poem/token-from-header/src/main.rs
 impl<E> Endpoint for AuthenticatedGraphQL<E>
 where
     E: Executor,
@@ -156,23 +155,6 @@ impl ExtensionFactory for MutationAuth {
 
 #[async_trait::async_trait]
 impl Extension for MutationAuth {
-    // this doesnt work because the role is inside of request.data, but I can't read from it
-    // async fn prepare_request(
-    //     &self,
-    //     ctx: &ExtensionContext<'_>,
-    //     request: GqlRequest,
-    //     next: NextPrepareRequest<'_>,
-    // ) -> ServerResult<GqlRequest> {
-    //     if ctx.data::<Role>().is_ok() {
-    //         next.run(ctx, request).await
-    //     } else {
-    //         dbg!(&ctx.query_data);
-    //         // dbg!(&ctx.schema_env);
-    //         dbg!(&ctx.session_data);
-    //         Err(AuthError::RequireRead.into())
-    //     }
-    // }
-
     async fn parse_query(
         &self,
         ctx: &ExtensionContext<'_>,

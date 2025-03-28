@@ -9,12 +9,10 @@ SECRET = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
 
 READ_HEADERS = {
     "Authorization": f"Bearer {jwt.encode({"role": "read"}, SECRET, algorithm="HS256")}",
-    # "Content-Type": "application/json"
 }
 
 WRITE_HEADERS = {
     "Authorization": f"Bearer {jwt.encode({"role": "write"}, SECRET, algorithm="HS256")}",
-    # "Content-Type": "application/json"
 }
 
 QUERY_GRAPHS = """

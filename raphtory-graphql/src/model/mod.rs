@@ -145,8 +145,6 @@ impl Mut {
         path: String,
         graph_type: GqlGraphType,
     ) -> Result<bool> {
-        ctx.require_write_access()?;
-
         let data = ctx.data_unchecked::<Data>();
         let graph = match graph_type {
             GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
