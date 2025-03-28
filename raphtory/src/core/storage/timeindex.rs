@@ -378,6 +378,33 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     }
 }
 
+impl<'b, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'b, T, TI>
+where
+    Self: 'b,
+{
+    pub fn range_internal(&self, w: Range<T>) -> Self {
+        match self {
+            TimeIndexWindow::Empty => TimeIndexWindow::Empty,
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                let start = max(range.start, w.start);
+                let end = min(range.start, w.start);
+                if end <= start {
+                    TimeIndexWindow::Empty
+                } else {
+                    TimeIndexWindow::TimeIndexRange {
+                        timeindex,
+                        range: start..end,
+                    }
+                }
+            }
+            TimeIndexWindow::All(timeindex) => TimeIndexWindow::TimeIndexRange {
+                timeindex,
+                range: w,
+            },
+        }
+    }
+}
+
 impl<'b, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexOps for TimeIndexWindow<'b, T, TI>
 where
     Self: 'b,
@@ -402,25 +429,7 @@ where
     }
 
     fn range(&self, w: Range<T>) -> Self::RangeType<'_> {
-        match self {
-            TimeIndexWindow::Empty => TimeIndexWindow::Empty,
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                let start = max(range.start, w.start);
-                let end = min(range.start, w.start);
-                if end <= start {
-                    TimeIndexWindow::Empty
-                } else {
-                    TimeIndexWindow::TimeIndexRange {
-                        timeindex,
-                        range: start..end,
-                    }
-                }
-            }
-            TimeIndexWindow::All(timeindex) => TimeIndexWindow::TimeIndexRange {
-                timeindex,
-                range: w,
-            },
-        }
+        self.range_internal(w)
     }
 
     fn first(&self) -> Option<T> {
