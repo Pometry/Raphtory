@@ -144,7 +144,7 @@ pub use polars_arrow as arrow2;
 pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
-mod test_utils {
+pub mod test_utils {
     use crate::{core::DECIMAL_MAX, prelude::*};
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
@@ -433,20 +433,28 @@ mod test_utils {
         )
     }
 
-    pub fn build_edge_list_dyn(
+    pub fn build_raw_edges(
         len: usize,
         num_nodes: usize,
         del_edges: bool,
-    ) -> impl Strategy<Value = GraphFixture> {
-        let num_nodes = num_nodes as u64;
-        let edges = proptest::collection::hash_map(any::<String>(), prop_type(), 0..10)
-            .prop_flat_map(move |schema| {
+    ) -> impl Strategy<
+        Value = Vec<(
+            u64,
+            u64,
+            i64,
+            Vec<(String, Prop)>,
+            Vec<(String, Prop)>,
+            Option<&'static str>,
+        )>,
+    > {
+        proptest::collection::hash_map(any::<String>(), prop_type(), 0..10).prop_flat_map(
+            move |schema| {
                 let (t_props, c_props) = make_props(schema);
 
                 proptest::collection::vec(
                     (
-                        0..num_nodes,
-                        0..num_nodes,
+                        0u64..num_nodes as u64,
+                        0u64..num_nodes as u64,
                         i64::MIN..i64::MAX,
                         t_props,
                         c_props,
@@ -454,49 +462,57 @@ mod test_utils {
                     ),
                     0..=len,
                 )
-                .prop_flat_map(move |edges| {
-                    let no_props = proptest::collection::vec(
-                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=len,
-                    );
-                    let del_len = if del_edges { len } else { 0 };
-                    let del_edges = proptest::collection::vec(
-                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=del_len,
-                    );
-                    (no_props, del_edges).prop_map(move |(no_prop_edges, del_edges)| {
-                        let edges = edges.clone();
-                        let const_props = edges
-                            .iter()
-                            .into_group_map_by(|(src, dst, _, _, _, _)| (src, dst))
-                            .iter()
-                            .map(|(&a, &ref b)| {
-                                let (src, dst) = a;
-                                let c_props = b
-                                    .iter()
-                                    .flat_map(|(_, _, _, _, c, _)| c.clone())
-                                    .collect::<Vec<_>>();
-                                ((*src, *dst), c_props)
-                            })
-                            .collect::<HashMap<_, _>>();
+            },
+        )
+    }
 
-                        let edges = edges
-                            .into_iter()
-                            .map(|(src, dst, time, t_props, _, layer)| {
-                                (src, dst, time, t_props, layer)
-                            })
+    pub fn build_edge_list_dyn(
+        len: usize,
+        num_nodes: usize,
+        del_edges: bool,
+    ) -> impl Strategy<Value = GraphFixture> {
+        let raw_edges = build_raw_edges(len, num_nodes, del_edges);
+        let num_nodes = num_nodes as u64;
+        let edges = raw_edges.prop_flat_map(move |edges| {
+            let no_props = proptest::collection::vec(
+                (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                0..=len,
+            );
+            let del_len = if del_edges { len } else { 0 };
+            let del_edges = proptest::collection::vec(
+                (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                0..=del_len,
+            );
+            (no_props, del_edges).prop_map(move |(no_prop_edges, del_edges)| {
+                let edges = edges.clone();
+                let const_props = edges
+                    .iter()
+                    .into_group_map_by(|(src, dst, _, _, _, _)| (src, dst))
+                    .iter()
+                    .map(|(&a, &ref b)| {
+                        let (src, dst) = a;
+                        let c_props = b
+                            .iter()
+                            .flat_map(|(_, _, _, _, c, _)| c.clone())
                             .collect::<Vec<_>>();
-
-                        GraphFixture {
-                            edges,
-                            edge_const_props: const_props,
-                            edge_deletions: del_edges,
-                            no_props_edges: no_prop_edges,
-                            nodes: Default::default(),
-                        }
+                        ((*src, *dst), c_props)
                     })
-                })
-            });
+                    .collect::<HashMap<_, _>>();
+
+                let edges = edges
+                    .into_iter()
+                    .map(|(src, dst, time, t_props, _, layer)| (src, dst, time, t_props, layer))
+                    .collect::<Vec<_>>();
+
+                GraphFixture {
+                    edges,
+                    edge_const_props: const_props,
+                    edge_deletions: del_edges,
+                    no_props_edges: no_prop_edges,
+                    nodes: Default::default(),
+                }
+            })
+        });
         edges
     }
 

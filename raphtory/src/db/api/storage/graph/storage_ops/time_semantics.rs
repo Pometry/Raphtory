@@ -1,12 +1,9 @@
 use std::{iter, ops::Range};
 
 use itertools::{kmerge, Itertools};
-use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
-    iter::{BoxedLDIter, IntoDynDBoxed},
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, VID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::iter::ParallelIterator;
 
@@ -15,7 +12,7 @@ use crate::{
     core::{
         entities::LayerIds,
         storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
-        utils::iter::{GenLockedDIter, GenLockedIter},
+        utils::iter::GenLockedIter,
     },
     db::api::{
         storage::graph::{
@@ -446,25 +443,34 @@ impl TimeSemantics for GraphStorage {
             .into_dyn_boxed()
     }
 
-    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        let node = self.node_entry(v);
-        GenLockedDIter::from(node, |node| node.tprop(id).iter().into_dyn_dboxed()).into_dyn_dboxed()
-    }
-
-    fn temporal_node_prop_hist_window(
+    fn temporal_node_prop_hist(
         &self,
         v: VID,
         id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let node = self.node_entry(v);
-        GenLockedDIter::from(node, |node| {
+        GenLockedIter::from(node, |node| {
             node.tprop(id)
-                .iter_window(TimeIndexEntry::range(start..end))
-                .into_dyn_dboxed()
+                .iter_inner(w.map(TimeIndexEntry::range))
+                .into_dyn_boxed()
         })
-        .into_dyn_dboxed()
+        .into_dyn_boxed()
+    }
+
+    fn temporal_node_prop_hist_rev(
+        &self,
+        v: VID,
+        id: usize,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        let node = self.node_entry(v);
+        GenLockedIter::from(node, |node| {
+            node.tprop(id)
+                .iter_inner_rev(w.map(TimeIndexEntry::range))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_edge_prop_hist_window<'a>(

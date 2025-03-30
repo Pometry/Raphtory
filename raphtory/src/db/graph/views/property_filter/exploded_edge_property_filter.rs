@@ -26,12 +26,9 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::TimeIndexEntry,
-    },
-    iter::BoxedLDIter,
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, VID},
+    storage::timeindex::TimeIndexEntry,
 };
 use std::ops::Range;
 
@@ -437,19 +434,23 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
-    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        // FIXME: this is wrong as we should not include filtered-out edges here
-        self.graph.temporal_node_prop_hist(v, id)
-    }
-    fn temporal_node_prop_hist_window(
+    fn temporal_node_prop_hist(
         &self,
         v: VID,
         id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         // FIXME: this is wrong as we should not include filtered-out edges here
-        self.graph.temporal_node_prop_hist_window(v, id, start, end)
+        self.graph.temporal_node_prop_hist(v, id, w)
+    }
+    fn temporal_node_prop_hist_rev(
+        &self,
+        v: VID,
+        id: usize,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        // FIXME: this is wrong as we should not include filtered-out edges here
+        self.graph.temporal_node_prop_hist_rev(v, id, w)
     }
 
     fn temporal_edge_prop_hist_window<'a>(

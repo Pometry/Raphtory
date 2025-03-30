@@ -64,10 +64,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::{
-    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-    iter::{BoxedLDIter, IntoDynDBoxed},
-};
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     fmt::{Debug, Formatter},
     iter,
@@ -567,22 +564,47 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &self,
         v: VID,
         prop_id: usize,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         if self.window_is_empty() {
-            return iter::empty().into_dyn_dboxed();
+            return iter::empty().into_dyn_boxed();
         }
-        self.graph
-            .temporal_node_prop_hist_window(v, prop_id, self.start_bound(), self.end_bound())
+        match w {
+            Some(w) => {
+                let start = w.start;
+                let end = w.end;
+                self.graph
+                    .temporal_node_prop_hist(v, prop_id, Some(start..end))
+            }
+            None => self.graph.temporal_node_prop_hist(
+                v,
+                prop_id,
+                Some(self.start_bound()..self.end_bound()),
+            ),
+        }
     }
-    fn temporal_node_prop_hist_window(
+    fn temporal_node_prop_hist_rev(
         &self,
         v: VID,
         prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        self.graph
-            .temporal_node_prop_hist_window(v, prop_id, start, end)
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        if self.window_is_empty() {
+            return iter::empty().into_dyn_boxed();
+        }
+        match w {
+            Some(w) => {
+                let start = w.start;
+                let end = w.end;
+                self.graph
+                    .temporal_node_prop_hist_rev(v, prop_id, Some(start..end))
+            }
+            None => self.graph.temporal_node_prop_hist_rev(
+                v,
+                prop_id,
+                Some(self.start_bound()..self.end_bound()),
+            ),
+        }
     }
 
     fn temporal_edge_prop_hist_window<'a>(

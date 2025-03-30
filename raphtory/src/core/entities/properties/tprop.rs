@@ -9,6 +9,7 @@ use crate::{
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use either::Either;
 use raphtory_api::{
     core::storage::arc_str::ArcStr,
     iter::{BoxedLDIter, BoxedLIter},
@@ -63,6 +64,14 @@ impl<'a> TPropCell<'a> {
                 .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
         })
     }
+
+    fn iter_inner(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter()
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
 }
 
 impl<'a> TPropOps<'a> for TPropCell<'a> {
@@ -70,23 +79,40 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
         self.iter_window_inner(TimeIndexEntry::MIN..t).next_back()
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.t_cell.into_iter().flat_map(move |t_cell| {
-            t_cell
-                .iter()
-                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
-        })
-    }
-
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.iter_window_inner(r)
-    }
-
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         self.t_cell?.at(ti).and_then(|&id| self.log?.get(id?))
+    }
+
+    fn iter_inner(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        match range {
+            Some(w) => {
+                let iter = self.iter_window_inner(w);
+                Either::Right(iter)
+            }
+            None => {
+                let iter = self.iter_inner();
+                Either::Left(iter)
+            }
+        }
+    }
+
+    fn iter_inner_rev(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        match range {
+            Some(w) => {
+                let iter = self.iter_window_inner(w).rev();
+                Either::Right(iter)
+            }
+            None => {
+                let iter = self.iter_inner().rev();
+                Either::Left(iter)
+            }
+        }
     }
 }
 
@@ -351,17 +377,6 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
-        self.iter_inner()
-    }
-
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
-        self.iter_window_inner(r)
-    }
-
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         match self {
             TProp::Empty => None,
@@ -381,6 +396,38 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
             TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
             TProp::Decimal(cell) => cell.at(ti).map(|v| Prop::Decimal(v.clone())),
+        }
+    }
+
+    fn iter_inner(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        match range {
+            Some(w) => {
+                let iter = self.iter_window_inner(w);
+                Either::Right(iter)
+            }
+            None => {
+                let iter = self.iter_inner();
+                Either::Left(iter)
+            }
+        }
+    }
+
+    fn iter_inner_rev(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        match range {
+            Some(w) => {
+                let iter = self.iter_window_inner(w).rev();
+                Either::Right(iter)
+            }
+            None => {
+                let iter = self.iter_inner().rev();
+                Either::Left(iter)
+            }
         }
     }
 }

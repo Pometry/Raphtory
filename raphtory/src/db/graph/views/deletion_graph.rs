@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
-        utils::iter::{GenLockedDIter, GenLockedIter},
+        utils::iter::GenLockedIter,
         Prop,
     },
     db::{
@@ -25,10 +25,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
-use raphtory_api::{
-    iter::{BoxedLDIter, IntoDynDBoxed},
-    GraphType,
-};
+use raphtory_api::GraphType;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -656,26 +653,51 @@ impl TimeSemantics for PersistentGraph {
         &self,
         v: VID,
         prop_id: usize,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        self.0.temporal_node_prop_hist(v, prop_id)
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        match w {
+            Some(w) => {
+                let start = w.start;
+                let end = w.end;
+                let node = self.core_node_entry(v);
+                GenLockedIter::from(node, move |node| {
+                    let prop = node.tprop(prop_id);
+                    persisted_prop_value_at(start, prop, TimeIndex::Empty)
+                        .into_iter()
+                        .map(move |v| (TimeIndexEntry::start(start), v))
+                        .chain(prop.iter_inner(Some(TimeIndexEntry::range(start..end))))
+                        .into_dyn_boxed()
+                })
+                .into_dyn_boxed()
+            }
+            None => self.0.temporal_node_prop_hist(v, prop_id, w),
+        }
     }
-    fn temporal_node_prop_hist_window(
+    fn temporal_node_prop_hist_rev(
         &self,
         v: VID,
         prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        let node = self.core_node_entry(v);
-        GenLockedDIter::from(node, move |node| {
-            let prop = node.tprop(prop_id);
-            persisted_prop_value_at(start, prop, TimeIndex::Empty)
-                .into_iter()
-                .map(move |v| (TimeIndexEntry::start(start), v))
-                .chain(prop.iter_window(TimeIndexEntry::range(start..end)))
-                .into_dyn_dboxed()
-        })
-        .into_dyn_dboxed()
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        match w {
+            Some(w) => {
+                let start = w.start;
+                let end = w.end;
+                let node = self.core_node_entry(v);
+                GenLockedIter::from(node, move |node| {
+                    let prop = node.tprop(prop_id);
+                    prop.iter_inner_rev(Some(TimeIndexEntry::range(start..end)))
+                        .chain(
+                            persisted_prop_value_at(end, prop, TimeIndex::Empty)
+                                .into_iter()
+                                .map(move |v| (TimeIndexEntry::start(end), v)),
+                        )
+                        .into_dyn_boxed()
+                })
+                .into_dyn_boxed()
+            }
+            None => self.0.temporal_node_prop_hist_rev(v, prop_id, w),
+        }
     }
 
     fn temporal_edge_prop_hist_window<'a>(

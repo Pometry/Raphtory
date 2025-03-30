@@ -217,15 +217,14 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     }
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
-            .temporal_node_prop_hist(self.node, id)
-            .next_back()
+            .temporal_node_prop_hist_rev(self.node, id, None)
+            .next()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_node_prop_hist(self.node, id)
-            .into_iter()
+            .temporal_node_prop_hist(self.node, id, None)
             .map(|(t, _)| t.t())
             .collect()
     }
@@ -233,24 +232,21 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
         Box::new(
             self.graph
-                .temporal_node_prop_hist(self.node, id)
-                .into_iter()
+                .temporal_node_prop_hist(self.node, id, None)
                 .map(|(t, _)| t.t()),
         )
     }
 
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_node_prop_hist(self.node, id)
-            .into_iter()
+            .temporal_node_prop_hist(self.node, id, None)
             .map(|(t, _)| t.dt())
             .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.graph
-            .temporal_node_prop_hist(self.node, id)
-            .into_iter()
+            .temporal_node_prop_hist(self.node, id, None)
             .map(|(_, v)| v)
             .collect()
     }
@@ -258,8 +254,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
         Box::new(
             self.graph
-                .temporal_node_prop_hist(self.node, id)
-                .into_iter()
+                .temporal_node_prop_hist(self.node, id, None)
                 .map(|(_, v)| v),
         )
     }
