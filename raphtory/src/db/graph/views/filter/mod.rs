@@ -7,7 +7,6 @@ use std::{
     collections::HashSet,
     fmt,
     fmt::{Debug, Display},
-    marker::PhantomData,
     ops::Deref,
     sync::Arc,
 };
