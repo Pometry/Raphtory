@@ -1,5 +1,6 @@
 use super::{utils::errors::GraphError, Prop, PropArray};
 use crate::core::entities::nodes::node_store::NodeStore;
+use bigdecimal::BigDecimal;
 use lazy_vec::LazyVec;
 use lock_api;
 use node_entry::NodePtr;
@@ -134,6 +135,7 @@ pub(crate) enum TPropColumn {
     Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
     DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
+    Decimal(LazyVec<BigDecimal>),
 }
 
 impl Default for TPropColumn {
@@ -173,6 +175,7 @@ impl TPropColumn {
             (TPropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
             (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
             (TPropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
+            (TPropColumn::Decimal(col), Prop::Decimal(v)) => col.set(index, v)?,
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())
@@ -196,6 +199,7 @@ impl TPropColumn {
             (TPropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
             (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
             (TPropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
+            (TPropColumn::Decimal(col), Prop::Decimal(v)) => col.push(Some(v)),
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())
@@ -219,6 +223,7 @@ impl TPropColumn {
                 Prop::Map(_) => *self = TPropColumn::Map(LazyVec::with_len(*len)),
                 Prop::NDTime(_) => *self = TPropColumn::NDTime(LazyVec::with_len(*len)),
                 Prop::DTime(_) => *self = TPropColumn::DTime(LazyVec::with_len(*len)),
+                Prop::Decimal(_) => *self = TPropColumn::Decimal(LazyVec::with_len(*len)),
             },
             _ => {}
         }
@@ -246,6 +251,7 @@ impl TPropColumn {
             TPropColumn::Map(col) => col.push(None),
             TPropColumn::NDTime(col) => col.push(None),
             TPropColumn::DTime(col) => col.push(None),
+            TPropColumn::Decimal(col) => col.push(None),
             TPropColumn::Empty(count) => {
                 *count += 1;
             }
@@ -269,6 +275,7 @@ impl TPropColumn {
             TPropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
             TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(prop.clone())),
             TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(prop.clone())),
+            TPropColumn::Decimal(col) => col.get_opt(index).map(|prop| Prop::Decimal(prop.clone())),
             TPropColumn::Empty(_) => None,
         }
     }
@@ -290,6 +297,7 @@ impl TPropColumn {
             TPropColumn::Map(col) => col.len(),
             TPropColumn::NDTime(col) => col.len(),
             TPropColumn::DTime(col) => col.len(),
+            TPropColumn::Decimal(col) => col.len(),
             TPropColumn::Empty(count) => *count,
         }
     }

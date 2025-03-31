@@ -140,6 +140,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::NDTime(t) => GqlValue::Number(t.and_utc().timestamp_millis().into()),
         Prop::Array(a) => GqlValue::List(a.iter_prop().map(|p| prop_to_gql(&p)).collect()),
+        Prop::Decimal(d) => GqlValue::String(d.to_string()),
     }
 }
 
