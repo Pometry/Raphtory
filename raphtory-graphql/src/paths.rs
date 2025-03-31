@@ -90,6 +90,9 @@ pub(crate) fn valid_path(
     if relative_path.contains(r"//") {
         return Err(DoubleForwardSlash(user_facing_path));
     }
+    if relative_path.contains(r"\") {
+        return Err(BackslashError(user_facing_path));
+    }
 
     let mut full_path = base_path.clone();
     // fail if any component is a Prefix (C://), tries to access root,
@@ -101,14 +104,6 @@ pub(crate) fn valid_path(
             Component::CurDir => return Err(CurDirNotAllowed(user_facing_path)),
             Component::ParentDir => return Err(ParentDirNotAllowed(user_facing_path)),
             Component::Normal(component) => {
-                match component.to_str() {
-                    Some(component) => {
-                        if component.contains(r"\") {
-                            return Err(BackslashError(user_facing_path));
-                        }
-                    }
-                    None => return Err(NonUTFCharacters),
-                }
                 // check if some intermediate path is already a graph
                 if full_path.join(".raph").exists() {
                     return Err(ParentIsGraph(user_facing_path));
