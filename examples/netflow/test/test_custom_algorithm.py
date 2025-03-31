@@ -14,6 +14,6 @@ def test_one_path():
 
 
 def test_error_for_wrong_type():
-    """ calling with the wrong type should still raise a type error (unless it defines a bincode method)"""
+    """calling with the wrong type should still raise a type error (unless it defines a bincode method)"""
     with raises(TypeError):
         netflow_one_path_node(1, True)
