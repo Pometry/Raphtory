@@ -202,13 +202,10 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
             }
             Ok(PropType::Map(merged))
         }
-        (PropType::Decimal { scale: l_scale }, PropType::Decimal { scale: r_scale }) => {
-            if l_scale != r_scale {
-                *unified = true;
-            }
-            Ok(PropType::Decimal {
-                scale: *l_scale.max(r_scale),
-            })
+        (PropType::Decimal { scale: l_scale }, PropType::Decimal { scale: r_scale })
+            if l_scale == r_scale =>
+        {
+            Ok(PropType::Decimal { scale: *l_scale })
         }
         (_, _) => Err(PropError::PropertyTypeError {
             name: "unknown".to_string(),

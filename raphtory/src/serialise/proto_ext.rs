@@ -77,6 +77,9 @@ fn as_prop_type2(p_type: PType) -> Option<PropType> {
             let p_type = as_prop_type(array.p_type())?;
             Some(PropType::Array(Box::new(p_type)))
         }
+        proto::prop_type::p_type::Kind::Decimal(decimal) => {
+            Some(PropType::Decimal {scale: decimal.scale as i64})
+        }
     }
 }
 
@@ -735,7 +738,7 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::Array(blob) => Some(prop::Value::Array(Array {
             data: blob.to_vec_u8(),
         })),
-        Prop::Decimal(_) => None,
+        Prop::Decimal(bd) => Some(prop::Value::Decimal(bd.to_string())),
     };
 
     proto::Prop { value }
