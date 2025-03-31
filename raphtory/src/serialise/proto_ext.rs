@@ -77,9 +77,9 @@ fn as_prop_type2(p_type: PType) -> Option<PropType> {
             let p_type = as_prop_type(array.p_type())?;
             Some(PropType::Array(Box::new(p_type)))
         }
-        proto::prop_type::p_type::Kind::Decimal(decimal) => {
-            Some(PropType::Decimal {scale: decimal.scale as i64})
-        }
+        proto::prop_type::p_type::Kind::Decimal(decimal) => Some(PropType::Decimal {
+            scale: decimal.scale as i64,
+        }),
     }
 }
 

@@ -302,7 +302,10 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
-        Prop::Decimal(value) => format!("{{ key: \"{}\", value: {{ decimal: \"{}\" }} }}", key, value),
+        Prop::Decimal(value) => format!(
+            "{{ key: \"{}\", value: {{ decimal: \"{}\" }} }}",
+            key, value
+        ),
     }
 }
 
