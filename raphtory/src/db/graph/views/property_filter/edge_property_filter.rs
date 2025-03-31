@@ -89,6 +89,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
+
     fn edge_list_trusted(&self) -> bool {
         false
     }

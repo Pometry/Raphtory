@@ -10,6 +10,8 @@ pub trait EdgeFilterOps {
     /// If true, the edges from the underlying storage are filtered
     fn edges_filtered(&self) -> bool;
 
+    fn edge_history_filtered(&self) -> bool;
+
     /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
     fn edge_list_trusted(&self) -> bool;
 
@@ -42,6 +44,11 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
     fn edges_filtered(&self) -> bool {
         self.graph().edges_filtered()
+    }
+
+    #[inline]
+    fn edge_history_filtered(&self) -> bool {
+        self.graph().edge_history_filtered()
     }
 
     #[inline]

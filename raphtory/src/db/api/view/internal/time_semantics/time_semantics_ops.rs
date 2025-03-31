@@ -127,7 +127,7 @@ pub trait EdgeTimeSemanticsOps {
     ///
     /// An iterator over timestamp and layer pairs
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         edge: EdgeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
@@ -138,7 +138,7 @@ pub trait EdgeTimeSemanticsOps {
     ///
     /// An iterator over timestamp and layer pairs
     fn edge_history_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         edge: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
@@ -161,21 +161,21 @@ pub trait EdgeTimeSemanticsOps {
 
     /// Exploded edge iterator for edge `e`
     fn edge_exploded<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, EdgeRef>;
 
     /// Explode edge iterator for edge `e` for every layer
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, EdgeRef>;
 
     /// Exploded edge iterator for edge`e` over window `w`
     fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
@@ -183,7 +183,7 @@ pub trait EdgeTimeSemanticsOps {
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
     fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
@@ -221,14 +221,14 @@ pub trait EdgeTimeSemanticsOps {
 
     /// Get the edge deletions for use with materialize
     fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// Get the edge deletions for use with materialize restricted to window `w`
     fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
@@ -277,7 +277,7 @@ pub trait EdgeTimeSemanticsOps {
     ///
     /// Items are (timestamp, layer_id, property value)
     fn temporal_edge_prop_hist<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
@@ -287,7 +287,7 @@ pub trait EdgeTimeSemanticsOps {
     ///
     /// Items are (timestamp, layer_id, property value)
     fn temporal_edge_prop_hist_rev<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
@@ -305,7 +305,7 @@ pub trait EdgeTimeSemanticsOps {
     ///
     /// Items are (timestamp, layer_id, property value)
     fn temporal_edge_prop_hist_window<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         id: usize,
@@ -317,7 +317,7 @@ pub trait EdgeTimeSemanticsOps {
     ///
     /// Items are (timestamp, layer_id, property value)
     fn temporal_edge_prop_hist_window_rev<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
+        self,
         e: EdgeStorageRef<'graph>,
         view: G,
         id: usize,

@@ -126,6 +126,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        true
+    }
+
     fn edge_list_trusted(&self) -> bool {
         false
     }

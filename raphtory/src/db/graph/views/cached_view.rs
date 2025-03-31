@@ -112,6 +112,11 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
+
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph.edge_list_trusted()
     }

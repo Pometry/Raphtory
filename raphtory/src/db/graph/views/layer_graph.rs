@@ -144,6 +144,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
         !matches!(self.layers, LayerIds::All)
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All)
+    }
+
     fn edge_list_trusted(&self) -> bool {
         matches!(self.layers, LayerIds::All) && self.graph.edge_list_trusted()
     }

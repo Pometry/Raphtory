@@ -734,6 +734,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.window_is_empty()
