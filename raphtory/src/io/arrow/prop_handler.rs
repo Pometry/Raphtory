@@ -321,12 +321,12 @@ impl PropCol for DTimeCol {
     }
 }
 
-struct DecimalTimeCol {
+struct DecimalPropCol {
     arr: PrimitiveArray<i128>,
     scale: i64,
 }
 
-impl PropCol for DecimalTimeCol {
+impl PropCol for DecimalPropCol {
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
     }
@@ -477,7 +477,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
         }
         DataType::Decimal(precision, scale) if *precision <= 38 => {
             let arr = arr.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
-            Box::new(DecimalTimeCol {
+            Box::new(DecimalPropCol {
                 arr: arr.clone(),
                 scale: *scale as i64,
             })
