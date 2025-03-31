@@ -3,12 +3,20 @@ use crate::core::{
 };
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
+use std::{
+    collections::HashSet,
+    fmt,
+    fmt::{Debug, Display},
+    marker::PhantomData,
+    ops::Deref,
+    sync::Arc,
+};
 use strsim::levenshtein;
 
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
+pub mod node_filtered_graph;
 pub mod node_property_filter;
 
 #[derive(Debug, Clone, Copy)]
@@ -1188,10 +1196,9 @@ mod test_fluent_builder_apis {
 mod test_composite_filters {
     use crate::{
         core::Prop,
-        db::graph::views::property_filter::{
-            CompositeEdgeFilter, CompositeNodeFilter, Filter, PropertyRef,
+        db::graph::views::filter::{
+            CompositeEdgeFilter, CompositeNodeFilter, Filter, PropertyFilter, PropertyRef,
         },
-        prelude::PropertyFilter,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
 

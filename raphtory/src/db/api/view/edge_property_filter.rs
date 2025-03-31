@@ -2,7 +2,7 @@ use crate::{
     core::utils::errors::GraphError,
     db::{
         api::view::internal::{InternalMaterialize, OneHopFilter},
-        graph::views::property_filter::internal::InternalEdgeFilterOps,
+        graph::views::filter::internal::InternalEdgeFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -28,7 +28,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::property_filter::{PropertyFilter, PropertyRef},
+        db::graph::views::filter::{PropertyFilter, PropertyRef},
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };

@@ -2,7 +2,7 @@ use crate::{
     core::utils::errors::GraphError,
     db::{
         api::view::internal::{InternalMaterialize, OneHopFilter},
-        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
+        graph::views::filter::internal::InternalExplodedEdgeFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -36,7 +36,7 @@ mod test {
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 },
-                views::property_filter::PropertyRef,
+                views::filter::{PropertyFilter, PropertyRef},
             },
         },
         prelude::*,

@@ -14,7 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::{node::NodeView, views::property_filter::internal::InternalNodePropertyFilterOps},
+        graph::{node::NodeView, views::filter::internal::InternalNodeFilterOps},
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
@@ -45,10 +45,10 @@ impl<'graph, G> NodePropertyFilteredGraph<G> {
     }
 }
 
-impl InternalNodePropertyFilterOps for PropertyFilter {
+impl InternalNodeFilterOps for PropertyFilter {
     type NodePropertyFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
 
-    fn create_node_property_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {

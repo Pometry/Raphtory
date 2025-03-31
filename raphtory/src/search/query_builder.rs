@@ -2,7 +2,7 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::StaticGraphViewOps,
-        graph::views::property_filter::{Filter, FilterOperator, FilterValue, PropertyFilterValue},
+        graph::views::filter::{Filter, FilterOperator, FilterValue, PropertyFilterValue},
     },
     prelude::PropertyFilter,
     search::{

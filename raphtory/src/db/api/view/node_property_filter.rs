@@ -1,20 +1,18 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::OneHopFilter,
-        graph::views::property_filter::internal::InternalNodePropertyFilterOps,
+        api::view::internal::OneHopFilter, graph::views::filter::internal::InternalNodeFilterOps,
     },
     prelude::GraphViewOps,
 };
 
 pub trait NodePropertyFilterOps<'graph>: OneHopFilter<'graph> {
-    fn filter_nodes<F: InternalNodePropertyFilterOps>(
+    fn filter_nodes<F: InternalNodeFilterOps>(
         &self,
         filter: F,
     ) -> Result<Self::Filtered<F::NodePropertyFiltered<'graph, Self::FilteredGraph>>, GraphError>
     {
-        Ok(self
-            .one_hop_filtered(filter.create_node_property_filter(self.current_filter().clone())?))
+        Ok(self.one_hop_filtered(filter.create_node_filter(self.current_filter().clone())?))
     }
 }
 
@@ -23,9 +21,15 @@ impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::{
-            graph::assert_edges_equal,
-            views::property_filter::{PropertyFilter, PropertyRef},
+        db::{
+            api::view::BaseNodeViewOps,
+            graph::{
+                graph::assert_edges_equal,
+                views::filter::{
+                    CompositeNodeFilter, Filter, FilterExpr, NodeFilter, NodeFilterOps,
+                    PropertyFilter, PropertyRef,
+                },
+            },
         },
         prelude::*,
         test_utils::{
@@ -35,6 +39,26 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+
+    #[test]
+    fn test_node_filter_on_nodes() {
+        let g = Graph::new();
+        g.add_node(0, "Jimi", [("band", "JH Experience")], None)
+            .unwrap();
+        g.add_node(1, "John", [("band", "Dead & Company")], None)
+            .unwrap();
+        g.add_node(2, "David", [("band", "Pink Floyd")], None)
+            .unwrap();
+
+        // let filter_expr = NodeFilter::node_name().eq("Jimi");
+        let filter_expr = CompositeNodeFilter::Node(Filter::eq("node_name", "Jimi"));
+        let filtered_nodes = g.nodes().filter_nodes(filter_expr).unwrap();
+
+        assert_eq!(
+            filtered_nodes.iter().map(|n| n.name()).collect::<Vec<_>>(),
+            vec!["Jimi"]
+        );
+    }
 
     #[test]
     fn test_node_property_filter_on_nodes() {
