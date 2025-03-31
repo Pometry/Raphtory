@@ -308,7 +308,7 @@ pub fn read_parquet_file(
     // in the schema to create PretendDF
     let names = schema.fields.iter().map(|f| f.name.clone()).collect_vec();
 
-    let reader = FileReader::new(file, row_groups, schema, None, None, None);
+    let reader = FileReader::new(file, row_groups, schema, None);
     Ok((names, reader, num_rows))
 }
 

@@ -38,6 +38,9 @@ pub enum PropType {
     NDTime,
     DTime,
     Array(Box<PropType>),
+    Decimal {
+        scale: i64,
+    },
 }
 
 impl Display for PropType {
@@ -66,6 +69,7 @@ impl Display for PropType {
             PropType::NDTime => "NDTime",
             PropType::DTime => "DTime",
             PropType::Array(p_type) => return write!(f, "Array<{}>", p_type),
+            PropType::Decimal { scale } => return write!(f, "Decimal({})", scale),
         };
 
         write!(f, "{}", type_str)
@@ -92,6 +96,7 @@ impl PropType {
                 | PropType::I64
                 | PropType::F32
                 | PropType::F64
+                | PropType::Decimal { .. }
         )
     }
 
@@ -196,6 +201,11 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
                 }
             }
             Ok(PropType::Map(merged))
+        }
+        (PropType::Decimal { scale: l_scale }, PropType::Decimal { scale: r_scale })
+            if l_scale == r_scale =>
+        {
+            Ok(PropType::Decimal { scale: *l_scale })
         }
         (_, _) => Err(PropError::PropertyTypeError {
             name: "unknown".to_string(),

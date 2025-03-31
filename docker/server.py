@@ -70,6 +70,6 @@ server = graphql.GraphServer(
     otlp_agent_port=args.otlp_agent_port,
     otlp_tracing_service_name=args.otlp_tracing_service_name,
     cache_capacity=args.cache_capacity,
-    cache_tti_seconds=args.cache_tti_seconds
+    cache_tti_seconds=args.cache_tti_seconds,
 )
 server.run(port=args.port)

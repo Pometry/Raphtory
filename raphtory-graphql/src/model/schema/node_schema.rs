@@ -175,34 +175,38 @@ mod test {
     fn check_schema(g: &Graph) {
         let gs = GraphSchema::new(&g.clone().into_dynamic());
 
-        let actual: Vec<(String, Vec<PropertySchema>)> = gs
+        let mut actual: Vec<(String, Vec<PropertySchema>)> = gs
             .nodes
             .iter()
             .map(|ns| (ns.type_name_inner(), ns.properties_inner()))
             .collect_vec();
+
+        actual.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+
+        actual.iter_mut().for_each(|(_, v)| v.sort());
 
         let expected = vec![
             ("None".to_string(), vec![(("t", "Str"), ["person"]).into()]),
             (
                 "a".to_string(),
                 vec![
-                    (("t", "Str"), ["wallet"]).into(),
                     (("cost", "F64"), ["99.5"]).into(),
                     (("lol", "Str"), ["smile"]).into(),
+                    (("t", "Str"), ["wallet"]).into(),
                 ],
             ),
             (
                 "b".to_string(),
                 vec![
+                    (("bool_prop", "Bool"), ["true"]).into(),
+                    (("cost_b", "F64"), ["76"]).into(),
                     (("list_prop", "List<F64>"), ["[1.1, 2.2, 3.3]"]).into(),
                     (
                         ("map_prop", "Map{ a: F64, b: F64 }"),
                         ["{\"a\": 1, \"b\": 2}"],
                     )
                         .into(),
-                    (("cost_b", "F64"), ["76"]).into(),
                     (("str_prop", "Str"), ["hello"]).into(),
-                    (("bool_prop", "Bool"), ["true"]).into(),
                 ],
             ),
         ];
