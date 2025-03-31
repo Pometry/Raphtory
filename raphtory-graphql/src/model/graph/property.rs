@@ -1,7 +1,5 @@
 use async_graphql::{Error, Name, Value as GqlValue};
-use dynamic_graphql::{
-    InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
-};
+use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, IntoPropMap, Prop},
