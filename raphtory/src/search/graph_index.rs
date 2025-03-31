@@ -187,7 +187,7 @@ impl GraphIndex {
 #[cfg(test)]
 mod graph_index_test {
     use crate::{
-        db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
+        db::{api::view::SearchableGraphOps, graph::views::filter::PropertyFilterOps},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
 
@@ -265,7 +265,7 @@ mod graph_index_test {
             .add_constant_properties([("x", 1u64)])
             .unwrap();
 
-        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let filter = PropertyFilter::property("x").constant().eq(1u64);
         let res = graph.search_nodes(filter, 20, 0).unwrap();
         let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
         assert_eq!(res, vec!["1"]);
@@ -275,7 +275,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)])
             .unwrap();
-        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let filter = PropertyFilter::property("x").constant().eq(1u64);
         let res = graph.search_nodes(filter, 20, 0).unwrap();
         let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
         assert_eq!(res, Vec::<&str>::new());
@@ -285,7 +285,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)])
             .unwrap();
-        let filter = PropertyFilter::constant_property("x").eq(2u64);
+        let filter = PropertyFilter::property("x").constant().eq(2u64);
         let res = graph.search_nodes(filter, 20, 0).unwrap();
         let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
         assert_eq!(res, vec!["1"]);
@@ -302,7 +302,7 @@ mod graph_index_test {
             .add_constant_properties([("x", 1u64)], Some("fire_nation"))
             .unwrap();
 
-        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let filter = PropertyFilter::property("x").constant().eq(1u64);
         let res = graph.search_edges(filter, 20, 0).unwrap();
         let res = res
             .iter()
@@ -315,7 +315,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)], Some("fire_nation"))
             .unwrap();
-        let filter = PropertyFilter::constant_property("x").eq(1u64);
+        let filter = PropertyFilter::property("x").constant().eq(1u64);
         let res = graph.search_edges(filter, 20, 0).unwrap();
         let res = res
             .iter()
@@ -328,7 +328,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)], Some("fire_nation"))
             .unwrap();
-        let filter = PropertyFilter::constant_property("x").eq(2u64);
+        let filter = PropertyFilter::property("x").constant().eq(2u64);
         let res = graph.search_edges(filter, 20, 0).unwrap();
         let res = res
             .iter()

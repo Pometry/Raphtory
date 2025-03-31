@@ -476,8 +476,8 @@ impl Filter {
 pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter),
-    And(Vec<CompositeNodeFilter>),
-    Or(Vec<CompositeNodeFilter>),
+    And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
+    Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
 }
 
 impl Display for CompositeNodeFilter {
@@ -485,22 +485,8 @@ impl Display for CompositeNodeFilter {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "NODE_PROPERTY({})", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "NODE({})", filter),
-            CompositeNodeFilter::And(filters) => {
-                let formatted = filters
-                    .iter()
-                    .map(|filter| format!("({})", filter))
-                    .collect::<Vec<String>>()
-                    .join(" AND ");
-                write!(f, "{}", formatted)
-            }
-            CompositeNodeFilter::Or(filters) => {
-                let formatted = filters
-                    .iter()
-                    .map(|filter| format!("({})", filter))
-                    .collect::<Vec<String>>()
-                    .join(" OR ");
-                write!(f, "{}", formatted)
-            }
+            CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
+            CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
         }
     }
 }
@@ -509,8 +495,8 @@ impl Display for CompositeNodeFilter {
 pub enum CompositeEdgeFilter {
     Edge(Filter),
     Property(PropertyFilter),
-    And(Vec<CompositeEdgeFilter>),
-    Or(Vec<CompositeEdgeFilter>),
+    And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
+    Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
 }
 
 impl Display for CompositeEdgeFilter {
@@ -518,22 +504,8 @@ impl Display for CompositeEdgeFilter {
         match self {
             CompositeEdgeFilter::Property(filter) => write!(f, "EDGE_PROPERTY({})", filter),
             CompositeEdgeFilter::Edge(filter) => write!(f, "EDGE({})", filter),
-            CompositeEdgeFilter::And(filters) => {
-                let formatted = filters
-                    .iter()
-                    .map(|filter| format!("({})", filter))
-                    .collect::<Vec<String>>()
-                    .join(" AND ");
-                write!(f, "{}", formatted)
-            }
-            CompositeEdgeFilter::Or(filters) => {
-                let formatted = filters
-                    .iter()
-                    .map(|filter| format!("({})", filter))
-                    .collect::<Vec<String>>()
-                    .join(" OR ");
-                write!(f, "{}", formatted)
-            }
+            CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
+            CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
         }
     }
 }
@@ -544,8 +516,8 @@ pub enum FilterExpr {
     Node(Filter),
     Edge(Filter),
     Property(PropertyFilter),
-    And(Vec<FilterExpr>),
-    Or(Vec<FilterExpr>),
+    And(Box<FilterExpr>, Box<FilterExpr>),
+    Or(Box<FilterExpr>, Box<FilterExpr>),
 }
 
 impl Display for FilterExpr {
@@ -556,23 +528,11 @@ impl Display for FilterExpr {
 
 impl FilterExpr {
     pub fn and(self, other: FilterExpr) -> Self {
-        match self {
-            FilterExpr::And(mut filters) => {
-                filters.push(other);
-                FilterExpr::And(filters)
-            }
-            _ => FilterExpr::And(vec![self, other]),
-        }
+        FilterExpr::And(Box::new(self), Box::new(other))
     }
 
     pub fn or(self, other: FilterExpr) -> Self {
-        match self {
-            FilterExpr::Or(mut filters) => {
-                filters.push(other);
-                FilterExpr::Or(filters)
-            }
-            _ => FilterExpr::Or(vec![self, other]),
-        }
+        FilterExpr::Or(Box::new(self), Box::new(other))
     }
 }
 
@@ -580,17 +540,13 @@ pub fn resolve_as_node_filter(filter: FilterExpr) -> Result<CompositeNodeFilter,
     match filter {
         FilterExpr::Property(prop) => Ok(CompositeNodeFilter::Property(prop)),
         FilterExpr::Node(filter) => Ok(CompositeNodeFilter::Node(filter)),
-        FilterExpr::And(filters) => Ok(CompositeNodeFilter::And(
-            filters
-                .into_iter()
-                .map(resolve_as_node_filter)
-                .collect::<Result<Vec<_>, _>>()?,
+        FilterExpr::And(left, right) => Ok(CompositeNodeFilter::And(
+            Box::new(resolve_as_node_filter(*left)?),
+            Box::new(resolve_as_node_filter(*right)?),
         )),
-        FilterExpr::Or(filters) => Ok(CompositeNodeFilter::Or(
-            filters
-                .into_iter()
-                .map(resolve_as_node_filter)
-                .collect::<Result<Vec<_>, _>>()?,
+        FilterExpr::Or(left, right) => Ok(CompositeNodeFilter::Or(
+            Box::new(resolve_as_node_filter(*left)?),
+            Box::new(resolve_as_node_filter(*right)?),
         )),
         FilterExpr::Edge(_) => Err(GraphError::IllegalFilterExpr(
             filter,
@@ -603,17 +559,13 @@ pub fn resolve_as_edge_filter(filter: FilterExpr) -> Result<CompositeEdgeFilter,
     match filter {
         FilterExpr::Property(prop) => Ok(CompositeEdgeFilter::Property(prop)),
         FilterExpr::Edge(filter) => Ok(CompositeEdgeFilter::Edge(filter)),
-        FilterExpr::And(filters) => Ok(CompositeEdgeFilter::And(
-            filters
-                .into_iter()
-                .map(resolve_as_edge_filter)
-                .collect::<Result<Vec<_>, _>>()?,
+        FilterExpr::And(left, right) => Ok(CompositeEdgeFilter::And(
+            Box::new(resolve_as_edge_filter(*left)?),
+            Box::new(resolve_as_edge_filter(*right)?),
         )),
-        FilterExpr::Or(filters) => Ok(CompositeEdgeFilter::Or(
-            filters
-                .into_iter()
-                .map(resolve_as_edge_filter)
-                .collect::<Result<Vec<_>, _>>()?,
+        FilterExpr::Or(left, right) => Ok(CompositeEdgeFilter::Or(
+            Box::new(resolve_as_edge_filter(*left)?),
+            Box::new(resolve_as_edge_filter(*right)?),
         )),
         FilterExpr::Node(_) => Err(GraphError::IllegalFilterExpr(
             filter,
@@ -1080,34 +1032,46 @@ mod test_fluent_builder_apis {
             .or(PropertyFilter::property("p5").eq(9u64));
         let node_composite_filter = resolve_as_node_filter(filter_expr).unwrap();
 
-        let node_composite_filter2 = CompositeNodeFilter::Or(vec![
-            CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Node(Filter::eq("node_name", "fire_nation")),
-                CompositeNodeFilter::Property(PropertyFilter::eq(
-                    PropertyRef::ConstantProperty("p2".to_string()),
-                    2u64,
-                )),
-                CompositeNodeFilter::Property(PropertyFilter::eq(
-                    PropertyRef::Property("p1".to_string()),
-                    1u64,
-                )),
-                CompositeNodeFilter::Or(vec![
-                    CompositeNodeFilter::Property(PropertyFilter::eq(
-                        PropertyRef::TemporalProperty("p3".to_string(), Temporal::Any),
-                        5u64,
+        let node_composite_filter2 = CompositeNodeFilter::Or(
+            Box::new(CompositeNodeFilter::Or(
+                Box::new(CompositeNodeFilter::And(
+                    Box::new(CompositeNodeFilter::And(
+                        Box::new(CompositeNodeFilter::And(
+                            Box::new(CompositeNodeFilter::Node(Filter::eq(
+                                "node_name",
+                                "fire_nation",
+                            ))),
+                            Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                                PropertyRef::ConstantProperty("p2".to_string()),
+                                2u64,
+                            ))),
+                        )),
+                        Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::Property("p1".to_string()),
+                            1u64,
+                        ))),
                     )),
-                    CompositeNodeFilter::Property(PropertyFilter::eq(
-                        PropertyRef::TemporalProperty("p4".to_string(), Temporal::Latest),
-                        7u64,
+                    Box::new(CompositeNodeFilter::Or(
+                        Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::TemporalProperty("p3".to_string(), Temporal::Any),
+                            5u64,
+                        ))),
+                        Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::TemporalProperty("p4".to_string(), Temporal::Latest),
+                            7u64,
+                        ))),
                     )),
-                ]),
-            ]),
-            CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory")),
-            CompositeNodeFilter::Property(PropertyFilter::eq(
+                )),
+                Box::new(CompositeNodeFilter::Node(Filter::eq(
+                    "node_type",
+                    "raphtory",
+                ))),
+            )),
+            Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
                 PropertyRef::Property("p5".to_string()),
                 9u64,
-            )),
-        ]);
+            ))),
+        );
 
         assert_eq!(
             node_composite_filter.to_string(),
@@ -1154,34 +1118,40 @@ mod test_fluent_builder_apis {
             .or(PropertyFilter::property("p5").eq(9u64));
         let edge_composite_filter = resolve_as_edge_filter(filter_expr).unwrap();
 
-        let edge_composite_filter2 = CompositeEdgeFilter::Or(vec![
-            CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Edge(Filter::eq("src", "fire_nation")),
-                CompositeEdgeFilter::Property(PropertyFilter::eq(
-                    PropertyRef::ConstantProperty("p2".to_string()),
-                    2u64,
-                )),
-                CompositeEdgeFilter::Property(PropertyFilter::eq(
-                    PropertyRef::Property("p1".to_string()),
-                    1u64,
-                )),
-                CompositeEdgeFilter::Or(vec![
-                    CompositeEdgeFilter::Property(PropertyFilter::eq(
-                        PropertyRef::TemporalProperty("p3".to_string(), Temporal::Any),
-                        5u64,
+        let edge_composite_filter2 = CompositeEdgeFilter::Or(
+            Box::new(CompositeEdgeFilter::Or(
+                Box::new(CompositeEdgeFilter::And(
+                    Box::new(CompositeEdgeFilter::And(
+                        Box::new(CompositeEdgeFilter::And(
+                            Box::new(CompositeEdgeFilter::Edge(Filter::eq("src", "fire_nation"))),
+                            Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                                PropertyRef::ConstantProperty("p2".into()),
+                                2u64,
+                            ))),
+                        )),
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::Property("p1".into()),
+                            1u64,
+                        ))),
                     )),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq(
-                        PropertyRef::TemporalProperty("p4".to_string(), Temporal::Latest),
-                        7u64,
+                    Box::new(CompositeEdgeFilter::Or(
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::TemporalProperty("p3".into(), Temporal::Any),
+                            5u64,
+                        ))),
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::TemporalProperty("p4".into(), Temporal::Latest),
+                            7u64,
+                        ))),
                     )),
-                ]),
-            ]),
-            CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory")),
-            CompositeEdgeFilter::Property(PropertyFilter::eq(
-                PropertyRef::Property("p5".to_string()),
-                9u64,
+                )),
+                Box::new(CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"))),
             )),
-        ]);
+            Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                PropertyRef::Property("p5".into()),
+                9u64,
+            ))),
+        );
 
         assert_eq!(
             edge_composite_filter.to_string(),
@@ -1213,38 +1183,57 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((NODE(node_type NOT_IN [fire_nation, water_tribe])) AND (NODE_PROPERTY(p2 == 2)) AND (NODE_PROPERTY(p1 == 1)) AND ((NODE_PROPERTY(p3 <= 5)) OR (NODE_PROPERTY(p4 IN [2, 10])))) OR (NODE(node_name == pometry)) OR (NODE_PROPERTY(p5 == 9))",
-            CompositeNodeFilter::Or(vec![
-                CompositeNodeFilter::And(vec![
-                    CompositeNodeFilter::Node(Filter::excludes(
-                        "node_type",
-                        vec!["fire_nation".into(), "water_tribe".into()]
+            "((((NODE(node_type NOT_IN [fire_nation, water_tribe]) AND NODE_PROPERTY(p2 == 2)) AND NODE_PROPERTY(p1 == 1)) AND (NODE_PROPERTY(p3 <= 5) OR NODE_PROPERTY(p4 IN [2, 10]))) OR (NODE(node_name == pometry) OR NODE_PROPERTY(p5 == 9)))",
+            CompositeNodeFilter::Or(Box::new(CompositeNodeFilter::And(
+                Box::new(CompositeNodeFilter::And(
+                    Box::new(CompositeNodeFilter::And(
+                        Box::new(CompositeNodeFilter::Node(Filter::excludes(
+                            "node_type",
+                            vec!["fire_nation".into(), "water_tribe".into()],
+                        ))),
+                        Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::Property("p2".to_string()),
+                            2u64,
+                        ))),
                     )),
-                    CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p2".to_string()), 2u64)),
-                    CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p1".to_string()), 1u64)),
-                    CompositeNodeFilter::Or(vec![
-                        CompositeNodeFilter::Property(PropertyFilter::le(PropertyRef::Property("p3".to_string()), 5u64)),
-                        CompositeNodeFilter::Property(PropertyFilter::includes(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
-                    ]),
-                ]),
-                CompositeNodeFilter::Node(Filter::eq("node_name", "pometry")),
-                CompositeNodeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p5".to_string()), 9u64)),
-            ])
-                .to_string()
+                    Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p1".to_string()),
+                        1u64,
+                    ))),
+                )),
+                Box::new(CompositeNodeFilter::Or(
+                    Box::new(CompositeNodeFilter::Property(PropertyFilter::le(
+                        PropertyRef::Property("p3".to_string()),
+                        5u64,
+                    ))),
+                    Box::new(CompositeNodeFilter::Property(PropertyFilter::includes(
+                        PropertyRef::Property("p4".to_string()),
+                        vec![Prop::U64(10), Prop::U64(2)],
+                    ))),
+                )),
+            )),
+            Box::new(CompositeNodeFilter::Or(
+                Box::new(CompositeNodeFilter::Node(Filter::eq("node_name", "pometry"))),
+                Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
+                    PropertyRef::Property("p5".to_string()),
+                    9u64,
+                ))),
+            )),
+        ).to_string()
         );
 
         assert_eq!(
-            "(NODE(name FUZZY_SEARCH(1,true) shivam)) AND (NODE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
-            CompositeNodeFilter::And(vec![
-                CompositeNodeFilter::Node(Filter::fuzzy_search("name", "shivam", 1, true)),
-                CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
+            "(NODE(name FUZZY_SEARCH(1,true) shivam) AND NODE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
+            CompositeNodeFilter::And(
+                Box::from(CompositeNodeFilter::Node(Filter::fuzzy_search("name", "shivam", 1, true))),
+                Box::from(CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
                     PropertyRef::Property("nation".to_string()),
                     "air_nomad",
                     1,
                     false,
-                )),
-            ])
-            .to_string()
+                ))),
+            )
+                .to_string()
         );
     }
 
@@ -1260,38 +1249,59 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((EDGE(edge_type NOT_IN [fire_nation, water_tribe])) AND (EDGE_PROPERTY(p2 == 2)) AND (EDGE_PROPERTY(p1 == 1)) AND ((EDGE_PROPERTY(p3 <= 5)) OR (EDGE_PROPERTY(p4 IN [2, 10])))) OR (EDGE(src == pometry)) OR (EDGE_PROPERTY(p5 == 9))",
-            CompositeEdgeFilter::Or(vec![
-                CompositeEdgeFilter::And(vec![
-                    CompositeEdgeFilter::Edge(Filter::excludes(
-                        "edge_type",
-                        vec!["fire_nation".into(), "water_tribe".into()]
+            "((((EDGE(edge_type NOT_IN [fire_nation, water_tribe]) AND EDGE_PROPERTY(p2 == 2)) AND EDGE_PROPERTY(p1 == 1)) AND (EDGE_PROPERTY(p3 <= 5) OR EDGE_PROPERTY(p4 IN [2, 10]))) OR (EDGE(src == pometry) OR EDGE_PROPERTY(p5 == 9)))",
+            CompositeEdgeFilter::Or(
+                Box::new(CompositeEdgeFilter::And(
+                    Box::new(CompositeEdgeFilter::And(
+                        Box::new(CompositeEdgeFilter::And(
+                            Box::new(CompositeEdgeFilter::Edge(Filter::excludes(
+                                "edge_type",
+                                vec!["fire_nation".into(), "water_tribe".into()],
+                            ))),
+                            Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                                PropertyRef::Property("p2".to_string()),
+                                2u64,
+                            ))),
+                        )),
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                            PropertyRef::Property("p1".to_string()),
+                            1u64,
+                        ))),
                     )),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p2".to_string()), 2u64)),
-                    CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p1".to_string()), 1u64)),
-                    CompositeEdgeFilter::Or(vec![
-                        CompositeEdgeFilter::Property(PropertyFilter::le(PropertyRef::Property("p3".to_string()), 5u64)),
-                        CompositeEdgeFilter::Property(PropertyFilter::includes(PropertyRef::Property("p4".to_string()), vec![Prop::U64(10), Prop::U64(2)]))
-                    ]),
-                ]),
-                CompositeEdgeFilter::Edge(Filter::eq("src", "pometry")),
-                CompositeEdgeFilter::Property(PropertyFilter::eq(PropertyRef::Property("p5".to_string()), 9u64)),
-            ])
+                    Box::new(CompositeEdgeFilter::Or(
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::le(
+                            PropertyRef::Property("p3".to_string()),
+                            5u64,
+                        ))),
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::includes(
+                            PropertyRef::Property("p4".to_string()),
+                            vec![Prop::U64(10), Prop::U64(2)],
+                        ))),
+                    )),
+                )),
+                Box::new(CompositeEdgeFilter::Or(
+                    Box::new(CompositeEdgeFilter::Edge(Filter::eq("src", "pometry"))),
+                    Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
+                        PropertyRef::Property("p5".to_string()),
+                        9u64,
+                    ))),
+                )),
+            )
                 .to_string()
         );
 
         assert_eq!(
-            "(EDGE(name FUZZY_SEARCH(1,true) shivam)) AND (EDGE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
-            CompositeEdgeFilter::And(vec![
-                CompositeEdgeFilter::Edge(Filter::fuzzy_search("name", "shivam", 1, true)),
-                CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
+            "(EDGE(name FUZZY_SEARCH(1,true) shivam) AND EDGE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
+            CompositeEdgeFilter::And(
+                Box::from(CompositeEdgeFilter::Edge(Filter::fuzzy_search("name", "shivam", 1, true))),
+                Box::from(CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
                     PropertyRef::Property("nation".to_string()),
                     "air_nomad",
                     1,
                     false,
-                )),
-            ])
-            .to_string()
+                ))),
+            )
+                .to_string()
         );
     }
 

@@ -339,34 +339,27 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
             }
-            CompositeNodeFilter::And(filters) => {
-                let mut results = None;
+            CompositeNodeFilter::And(left, right) => {
+                let left_result = self.filter_nodes(graph, left, limit, offset)?;
+                let right_result = self.filter_nodes(graph, right, limit, offset)?;
 
-                for sub_filter in filters {
-                    let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
+                let left_set: HashSet<_> = left_result.into_iter().collect();
+                let intersection = right_result
+                    .into_iter()
+                    .filter(|n| left_set.contains(n))
+                    .collect::<Vec<_>>();
 
-                    results = Some(
-                        results
-                            .map(|r: Vec<_>| {
-                                r.into_iter()
-                                    .filter(|item| sub_result.contains(item))
-                                    .collect::<Vec<_>>() // Ensure intersection results stay in a Vec
-                            })
-                            .unwrap_or(sub_result),
-                    );
-                }
-
-                Ok(results.unwrap_or_default())
+                Ok(intersection)
             }
-            CompositeNodeFilter::Or(filters) => {
-                let mut results = HashSet::new();
+            CompositeNodeFilter::Or(left, right) => {
+                let left_result = self.filter_nodes(graph, left, limit, offset)?;
+                let right_result = self.filter_nodes(graph, right, limit, offset)?;
 
-                for sub_filter in filters {
-                    let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
-                    results.extend(sub_result);
-                }
+                let mut combined = HashSet::new();
+                combined.extend(left_result);
+                combined.extend(right_result);
 
-                Ok(results.into_iter().collect())
+                Ok(combined.into_iter().collect())
             }
         }
     }

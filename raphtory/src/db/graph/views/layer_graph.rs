@@ -239,7 +239,7 @@ mod test_layers {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
+                    filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps},
@@ -430,7 +430,7 @@ mod test_layers {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
+                    filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{

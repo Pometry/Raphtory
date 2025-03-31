@@ -317,33 +317,29 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Edge(filter) => {
                 self.filter_edge_index(graph, filter, limit, offset)
             }
-            CompositeEdgeFilter::And(filters) => {
-                let mut results = None;
+            CompositeEdgeFilter::And(left, right) => {
+                let left_result = self.filter_edges(graph, left, limit, offset)?;
+                let right_result = self.filter_edges(graph, right, limit, offset)?;
 
-                for sub_filter in filters {
-                    let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
-                    results = Some(
-                        results
-                            .map(|r: Vec<_>| {
-                                r.into_iter()
-                                    .filter(|item| sub_result.contains(item))
-                                    .collect::<Vec<_>>() // Ensure intersection results stay in a Vec
-                            })
-                            .unwrap_or(sub_result),
-                    );
-                }
+                // Intersect results
+                let left_set: HashSet<_> = left_result.into_iter().collect();
+                let intersection = right_result
+                    .into_iter()
+                    .filter(|e| left_set.contains(e))
+                    .collect::<Vec<_>>();
 
-                Ok(results.unwrap_or_default())
+                Ok(intersection)
             }
-            CompositeEdgeFilter::Or(filters) => {
-                let mut results = HashSet::new();
+            CompositeEdgeFilter::Or(left, right) => {
+                let left_result = self.filter_edges(graph, left, limit, offset)?;
+                let right_result = self.filter_edges(graph, right, limit, offset)?;
 
-                for sub_filter in filters {
-                    let sub_result = self.filter_edges(graph, sub_filter, limit, offset)?;
-                    results.extend(sub_result);
-                }
+                // Union results
+                let mut combined = HashSet::new();
+                combined.extend(left_result);
+                combined.extend(right_result);
 
-                Ok(results.into_iter().collect())
+                Ok(combined.into_iter().collect())
             }
         }
     }

@@ -1462,7 +1462,7 @@ mod views_test {
                 },
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps},
+                    filter::{FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps},
                 },
             },
             prelude::{
@@ -2457,7 +2457,7 @@ mod views_test {
                 },
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{EdgeFilter, EdgeFilterOps, FilterExpr, PropertyFilterOps},
+                    filter::{EdgeFilter, EdgeFilterOps, FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{
@@ -2723,7 +2723,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = EdgeFilter::from().eq("N2");
+            let filter = EdgeFilter::src().eq("N2");
             let results = search_edges(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, vec!["N2->N3"]);
         }
@@ -2747,7 +2747,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = EdgeFilter::from().ne("N2");
+            let filter = EdgeFilter::src().ne("N2");
             let results = search_edges(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, expected);
         }
@@ -2777,11 +2777,11 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = EdgeFilter::to().includes(vec!["N2".into()]);
+            let filter = EdgeFilter::dst().includes(vec!["N2".into()]);
             let results = search_edges(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, vec!["N1->N2"]);
 
-            let filter = EdgeFilter::to().includes(vec!["N2".into(), "N5".into()]);
+            let filter = EdgeFilter::dst().includes(vec!["N2".into(), "N5".into()]);
             let results = search_edges(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, vec!["N1->N2"]);
         }
@@ -2805,7 +2805,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = EdgeFilter::to().excludes(vec!["N5".into()]);
+            let filter = EdgeFilter::dst().excludes(vec!["N5".into()]);
             let results = search_edges(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, expected);
         }
@@ -3337,7 +3337,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = EdgeFilter::from().eq("N1").and(EdgeFilter::to().eq("N2"));
+            let filter = EdgeFilter::src().eq("N1").and(EdgeFilter::dst().eq("N2"));
             let results = search_edges(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, expected);
         }

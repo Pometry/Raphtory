@@ -296,7 +296,7 @@ mod test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
+                    filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -440,7 +440,7 @@ mod test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
+                    filter::{FilterExpr, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},

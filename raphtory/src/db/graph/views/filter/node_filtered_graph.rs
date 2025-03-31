@@ -113,21 +113,30 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeFilteredGraph<G> {
                         });
                     filter.matches(prop_value.as_ref())
                 }
-                CompositeNodeFilter::And(filters) => filters.iter().all(|f| {
-                    let sub_filter = NodeFilteredGraph {
+                CompositeNodeFilter::And(left, right) => {
+                    let left_filter = NodeFilteredGraph {
                         graph: self.graph.clone(),
-                        filter: f.clone(),
+                        filter: (**left).clone(),
                     };
-                    sub_filter.filter_node(node.clone(), layer_ids)
-                }),
-
-                CompositeNodeFilter::Or(filters) => filters.iter().any(|f| {
-                    let sub_filter = NodeFilteredGraph {
+                    let right_filter = NodeFilteredGraph {
                         graph: self.graph.clone(),
-                        filter: f.clone(),
+                        filter: (**right).clone(),
                     };
-                    sub_filter.filter_node(node.clone(), layer_ids)
-                }),
+                    left_filter.filter_node(node.clone(), layer_ids)
+                        && right_filter.filter_node(node, layer_ids)
+                }
+                CompositeNodeFilter::Or(left, right) => {
+                    let left_filter = NodeFilteredGraph {
+                        graph: self.graph.clone(),
+                        filter: (**left).clone(),
+                    };
+                    let right_filter = NodeFilteredGraph {
+                        graph: self.graph.clone(),
+                        filter: (**right).clone(),
+                    };
+                    left_filter.filter_node(node.clone(), layer_ids)
+                        || right_filter.filter_node(node, layer_ids)
+                }
             }
         } else {
             false
