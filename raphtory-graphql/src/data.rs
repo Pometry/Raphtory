@@ -46,7 +46,7 @@ pub(crate) fn get_relative_path(
                 .to_str()
                 .ok_or(InvalidPathReason::NonUTFCharacters)
         })
-        .collect::<Result<&str, _>>()?;
+        .collect::<Result<Vec<_>, _>>()?;
     //a safe unwrap as checking above
     let path_str = components.into_iter().join("/");
     valid_path(work_dir, &path_str, namespace)?;
