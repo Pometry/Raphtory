@@ -71,7 +71,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedPrimitiveCol<'a, i128>, TimeInd
             .map(move |(t, v)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let scale = scale(self.data_type());
         let (props, timestamps) = self.into_inner();
         timestamps.into_iter().zip(props).filter_map(move |(t, v)| {
@@ -83,7 +83,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedPrimitiveCol<'a, i128>, TimeInd
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let scale = scale(self.data_type());
         self.iter_window_inner(r).filter_map(move |(t, v)| {
             v.zip(scale)
@@ -193,7 +193,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, StringViewCol<'a>, TimeIndexEntry> {
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
@@ -204,7 +204,7 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, StringViewCol<'a>, TimeIndexEntry> {
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
