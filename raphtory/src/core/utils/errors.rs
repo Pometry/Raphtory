@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
-    db::graph::views::property_filter::{FilterExpr, FilterOperator},
+    db::graph::views::filter::{FilterExpr, FilterOperator},
 };
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;

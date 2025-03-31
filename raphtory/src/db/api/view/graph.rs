@@ -22,8 +22,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
+                cached_view::CachedView, filter::FilterExpr, node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
         },
     },

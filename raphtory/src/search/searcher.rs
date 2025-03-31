@@ -5,7 +5,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::property_filter::{resolve_as_edge_filter, resolve_as_node_filter, FilterExpr},
+            views::filter::{resolve_as_edge_filter, resolve_as_node_filter, FilterExpr},
         },
     },
     search::{
@@ -60,7 +60,7 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{db::graph::views::property_filter::NodeFilter, prelude::*};
+    use crate::{db::graph::views::filter::NodeFilter, prelude::*};
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tracing::info;
@@ -71,9 +71,7 @@ mod search_tests {
             core::{IntoProp, Prop},
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::property_filter::{
-                    FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps,
-                },
+                graph::views::filter::{FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps},
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
         };
@@ -87,7 +85,7 @@ mod search_tests {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::{SearchableGraphOps, StaticGraphViewOps},
                     },
-                    graph::views::property_filter::{FilterExpr, PropertyFilterOps},
+                    graph::views::filter::{FilterExpr, PropertyFilterOps},
                 },
                 prelude::{
                     AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
@@ -406,7 +404,7 @@ mod search_tests {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::{SearchableGraphOps, StaticGraphViewOps},
                     },
-                    graph::views::property_filter::{FilterExpr, PropertyFilterOps},
+                    graph::views::filter::{FilterExpr, PropertyFilterOps},
                 },
                 prelude::{
                     AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps,
@@ -1139,9 +1137,7 @@ mod search_tests {
             core::{IntoProp, Prop},
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::property_filter::{
-                    EdgeFilter, EdgeFilterOps, FilterExpr, PropertyFilterOps,
-                },
+                graph::views::filter::{EdgeFilter, EdgeFilterOps, FilterExpr, PropertyFilterOps},
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
@@ -1557,7 +1553,7 @@ mod search_tests {
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        use crate::db::graph::views::property_filter::NodeFilterOps;
+        use crate::db::graph::views::filter::NodeFilterOps;
         global_info_logger();
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);

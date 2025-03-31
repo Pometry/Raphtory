@@ -4,9 +4,7 @@ use crate::{
         api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::property_filter::{
-                CompositeEdgeFilter, Filter, FilterOperator, PropertyRef, Temporal,
-            },
+            views::filter::{CompositeEdgeFilter, Filter, FilterOperator, PropertyRef, Temporal},
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},

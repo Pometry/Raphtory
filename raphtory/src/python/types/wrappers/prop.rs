@@ -1,9 +1,7 @@
 use crate::{
     core::{prop_array::PropArray, utils::errors::GraphError, Prop},
-    db::graph::views::property_filter::{
-        internal::{
-            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
-        },
+    db::graph::views::filter::{
+        internal::{InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps},
         PropertyRef,
     },
     prelude::{GraphViewOps, PropertyFilter},
@@ -144,18 +142,18 @@ impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
     }
 }
 
-impl InternalNodePropertyFilterOps for PyPropertyFilter {
+impl InternalNodeFilterOps for PyPropertyFilter {
     type NodePropertyFiltered<'graph, G>
-        = <PropertyFilter as InternalNodePropertyFilterOps>::NodePropertyFiltered<'graph, G>
+        = <PropertyFilter as InternalNodeFilterOps>::NodePropertyFiltered<'graph, G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
 
-    fn create_node_property_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
-        self.0.create_node_property_filter(graph)
+        self.0.create_node_filter(graph)
     }
 }
 

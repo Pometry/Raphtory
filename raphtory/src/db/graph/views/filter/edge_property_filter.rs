@@ -13,12 +13,12 @@ use crate::{
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::property_filter::internal::InternalEdgeFilterOps},
+        graph::{edge::EdgeView, views::filter::internal::InternalEdgeFilterOps},
     },
-    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
+    prelude::{EdgeViewOps, GraphViewOps},
 };
 
-use crate::db::api::view::internal::InheritStorageOps;
+use crate::db::{api::view::internal::InheritStorageOps, graph::views::filter::PropertyFilter};
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {

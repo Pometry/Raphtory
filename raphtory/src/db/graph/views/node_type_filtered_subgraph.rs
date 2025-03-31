@@ -90,7 +90,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
             api::view::{SearchableGraphOps, StaticGraphViewOps},
             graph::views::{
                 deletion_graph::PersistentGraph,
-                property_filter::{FilterExpr, PropertyFilterOps},
+                filter::{FilterExpr, PropertyFilterOps},
             },
         },
         prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -242,7 +242,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
             api::view::{SearchableGraphOps, StaticGraphViewOps},
             graph::views::{
                 deletion_graph::PersistentGraph,
-                property_filter::{FilterExpr, PropertyFilterOps},
+                filter::{FilterExpr, PropertyFilterOps},
             },
         },
         prelude::{
@@ -412,7 +412,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
 
 #[cfg(test)]
 mod tests {
-    use crate::{db::graph::views::property_filter::PropertyRef, prelude::*};
+    use crate::{db::graph::views::filter::PropertyRef, prelude::*};
 
     #[test]
     fn test_type_filtered_subgraph() {

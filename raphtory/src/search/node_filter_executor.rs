@@ -4,7 +4,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
-            views::property_filter::{CompositeNodeFilter, Filter, PropertyRef, Temporal},
+            views::filter::{CompositeNodeFilter, Filter, PropertyRef, Temporal},
         },
     },
     prelude::{NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
