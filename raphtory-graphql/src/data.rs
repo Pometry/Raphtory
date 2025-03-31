@@ -38,18 +38,19 @@ pub(crate) fn get_relative_path(
     namespace: bool,
 ) -> Result<String, InvalidPathReason> {
     let path_buf = path.strip_prefix(work_dir.clone())?.to_path_buf();
-    let path_str = path_buf.to_str();
-    match path_str {
-        Some(path) => {
-            valid_path(work_dir, path, namespace)?;
-        }
-        None => return Err(InvalidPathReason::NonUTFCharacters),
-    }
-    Ok(path_buf
+    let components = path_buf
         .components()
         .into_iter()
-        .map(|c| c.as_os_str().to_str().unwrap()) //a safe unwrap as checking above
-        .join("/"))
+        .map(|c| {
+            c.as_os_str()
+                .to_str()
+                .ok_or(InvalidPathReason::NonUTFCharacters)
+        })
+        .collect::<Result<&str, _>>()?;
+    //a safe unwrap as checking above
+    let path_str = components.into_iter().join("/");
+    valid_path(work_dir, &path_str, namespace)?;
+    Ok(path_str)
 }
 
 #[derive(Clone)]
