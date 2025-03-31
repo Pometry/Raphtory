@@ -1,5 +1,4 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
-use crate::db::api::view::StaticGraphViewOps;
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},
@@ -13,7 +12,7 @@ use crate::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
             },
-            view::{internal::CoreGraphOps, MaterializedGraph},
+            view::{internal::CoreGraphOps, MaterializedGraph, StaticGraphViewOps},
         },
         graph::views::deletion_graph::PersistentGraph,
     },
@@ -661,14 +660,13 @@ mod proto_test {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::serialise::metadata::assert_metadata_correct;
     use crate::{
         db::{
             api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
-        serialise::{proto::GraphType, ProtoGraph},
+        serialise::{metadata::assert_metadata_correct, proto::GraphType, ProtoGraph},
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use chrono::{DateTime, NaiveDateTime};

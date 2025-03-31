@@ -1,6 +1,4 @@
-use crate::core::Prop;
-use crate::prelude::GraphViewOps;
-use crate::serialise::GraphFolder;
+use crate::{core::Prop, prelude::GraphViewOps, serialise::GraphFolder};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 

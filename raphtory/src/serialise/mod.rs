@@ -11,16 +11,15 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
-use crate::core::utils::errors::GraphError;
-use crate::db::api::view::MaterializedGraph;
-use crate::prelude::GraphViewOps;
-use crate::serialise::metadata::GraphMetadata;
+use crate::{
+    core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::GraphViewOps,
+    serialise::metadata::GraphMetadata,
+};
 pub use proto::Graph as ProtoGraph;
 pub use serialise::{CacheOps, StableDecode, StableEncode};
-use std::io::{BufReader, ErrorKind};
 use std::{
     fs::{self, File, OpenOptions},
-    io::{self, Read, Write},
+    io::{self, BufReader, ErrorKind, Read, Write},
     path::{Path, PathBuf},
 };
 use tracing::info;
@@ -210,10 +209,9 @@ impl From<&GraphFolder> for GraphFolder {
 #[cfg(test)]
 mod zip_tests {
     use super::{StableDecode, StableEncode};
-    use crate::serialise::metadata::GraphMetadata;
     use crate::{
         prelude::{AdditionOps, CacheOps, Graph, GraphViewOps, NO_PROPS},
-        serialise::GraphFolder,
+        serialise::{metadata::GraphMetadata, GraphFolder},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
 
