@@ -3,13 +3,13 @@ use std::{fmt::Debug, ops::Deref};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone)]
+#[derive(Clone)]
 pub struct Secret(SecretString);
 
 #[derive(Debug, Deserialize, Clone, Serialize, PartialEq)]
 pub struct AuthConfig {
     pub secret: Option<Secret>,
-    pub require_read_permissions: bool,
+    pub open_read_access: bool,
 }
 
 impl PartialEq for Secret {
@@ -27,6 +27,15 @@ impl Debug for Secret {
 impl From<String> for Secret {
     fn from(value: String) -> Self {
         Self(value.into())
+    }
+}
+
+impl<'de> Deserialize<'de> for Secret {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer).map(|string| string.into())
     }
 }
 
@@ -50,7 +59,7 @@ impl Default for AuthConfig {
     fn default() -> Self {
         Self {
             secret: None,
-            require_read_permissions: true,
+            open_read_access: false,
         }
     }
 }

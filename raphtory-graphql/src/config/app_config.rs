@@ -1,7 +1,7 @@
 use crate::config::{
     cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
 };
-use config::{Config, ConfigError, File};
+use config::{Config, ConfigError, File, FileFormat};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -84,13 +84,13 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_authorization_enabled(
-        mut self,
-        secret: String,
-        require_read_permissions: bool,
-    ) -> Self {
+    pub fn with_auth_enabled(mut self, secret: String) -> Self {
         self.auth.secret = Some(secret.into());
-        self.auth.require_read_permissions = require_read_permissions;
+        self
+    }
+
+    pub fn with_open_read_access(mut self, open_read_access: bool) -> Self {
+        self.auth.open_read_access = open_read_access;
         self
     }
 
@@ -112,48 +112,11 @@ pub fn load_config(
     app_config: Option<AppConfig>,
     config_path: Option<PathBuf>,
 ) -> Result<AppConfig, ConfigError> {
-    let mut settings_config_builder = Config::builder();
+    let app_config = app_config.unwrap_or_default();
+    let json = serde_json::to_string(&app_config).unwrap();
+    let mut builder = Config::builder().add_source(config::File::from_str(&json, FileFormat::Json));
     if let Some(config_path) = config_path {
-        settings_config_builder = settings_config_builder.add_source(File::from(config_path));
+        builder = builder.add_source(config::File::from(config_path.clone()));
     }
-    let settings = settings_config_builder.build()?;
-
-    let mut app_config_builder = if let Some(app_config) = app_config {
-        AppConfigBuilder::from(app_config)
-    } else {
-        AppConfigBuilder::new()
-    };
-
-    // Override with provided configs from config file if any
-    if let Some(log_level) = settings.get::<String>("logging.log_level").ok() {
-        app_config_builder = app_config_builder.with_log_level(log_level);
-    }
-    if let Some(tracing) = settings.get::<bool>("tracing.tracing_enabled").ok() {
-        app_config_builder = app_config_builder.with_tracing(tracing);
-    }
-
-    if let Some(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host").ok() {
-        app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
-    }
-
-    if let Some(otlp_agent_port) = settings.get::<String>("tracing.otlp_agent_port").ok() {
-        app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
-    }
-
-    if let Some(otlp_tracing_service_name) = settings
-        .get::<String>("tracing.otlp_tracing_service_name")
-        .ok()
-    {
-        app_config_builder =
-            app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
-    }
-
-    if let Some(cache_capacity) = settings.get::<u64>("cache.capacity").ok() {
-        app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-    }
-    if let Some(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
-        app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
-    }
-
-    Ok(app_config_builder.build())
+    builder.build()?.try_deserialize::<AppConfig>()
 }

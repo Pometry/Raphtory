@@ -6,7 +6,9 @@ pub mod otlp_config;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::app_config::{load_config, AppConfigBuilder};
+    use config::{Config, FileFormat};
+
+    use crate::config::app_config::{load_config, AppConfig, AppConfigBuilder};
     use std::{fs, path::PathBuf};
 
     #[test]
@@ -22,7 +24,7 @@ mod tests {
             tti_seconds = 1000
 
             [auth]
-            secret = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8=
+            secret = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
         "#;
         let config_path = PathBuf::from("test_config.toml");
         fs::write(&config_path, config_toml).unwrap();
@@ -33,10 +35,7 @@ mod tests {
             .with_tracing(true)
             .with_cache_capacity(30)
             .with_cache_tti_seconds(1000)
-            .with_authorization_enabled(
-                "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8=".to_owned(),
-                true,
-            )
+            .with_auth_enabled("SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8=".to_owned())
             .build();
 
         assert_eq!(result.unwrap(), expected_config);

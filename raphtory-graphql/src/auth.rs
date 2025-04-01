@@ -80,10 +80,10 @@ where
                 match presented_access {
                     Some(access) => access,
                     None => {
-                        if self.config.require_read_permissions {
-                            return Err(Unauthorized(AuthError::RequireRead));
-                        } else {
+                        if self.config.open_read_access {
                             Access::Ro // if read access is not required, we give read access to all requests
+                        } else {
+                            return Err(Unauthorized(AuthError::RequireRead));
                         }
                     }
                 }

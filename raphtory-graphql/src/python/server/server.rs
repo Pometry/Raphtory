@@ -172,7 +172,7 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_secret=None, read_requires_auth=true, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_secret=None, open_read_access=false, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -184,7 +184,7 @@ impl PyGraphServer {
         otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
         auth_secret: Option<String>,
-        read_requires_auth: bool,
+        open_read_access: bool,
         config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
@@ -211,8 +211,8 @@ impl PyGraphServer {
             app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
         }
         if let Some(secret) = auth_secret {
-            app_config_builder =
-                app_config_builder.with_authorization_enabled(secret, read_requires_auth);
+            app_config_builder = app_config_builder.with_auth_enabled(secret);
+            app_config_builder = app_config_builder.with_open_read_access(open_read_access);
         }
         let app_config = Some(app_config_builder.build());
 
