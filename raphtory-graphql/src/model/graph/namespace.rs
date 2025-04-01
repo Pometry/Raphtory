@@ -1,8 +1,7 @@
-use crate::paths::ValidGraphFolder;
 use crate::{
     data::get_relative_path,
     model::graph::meta_graph::MetaGraph,
-    paths::{valid_path, ExistingGraphFolder},
+    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
