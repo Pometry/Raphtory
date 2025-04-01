@@ -19,7 +19,8 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
 chrono.workspace = true
-dashmap = { workspace = true }
+dashmap = { workspace = true, features = ["raw-api"]}
+hashbrown = { workspace = true }
 rustc-hash = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }

@@ -3475,6 +3475,7 @@ dependencies = [
  "bytemuck",
  "chrono",
  "dashmap",
+ "hashbrown 0.15.2",
  "lock_api",
  "num-traits",
  "parking_lot",

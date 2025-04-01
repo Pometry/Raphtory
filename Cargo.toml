@@ -87,7 +87,7 @@ rand_distr = "0.4.3"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
-dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
+dashmap = { version = "6.0.1", features = ["serde", "rayon", "raw-api"] }
 enum_dispatch = "0.3.12"
 glam = "0.29.0"
 quad-rand = "0.2.1"
@@ -105,7 +105,7 @@ polars-core = "0.42.0"
 polars-io = "0.42.0"
 bigdecimal = { version = "0.4.7", features = ["serde"] }
 kdam = "0.6.2"
-hashbrown = "0.15.1"
+hashbrown = "0.15.2"
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
