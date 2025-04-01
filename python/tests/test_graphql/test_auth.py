@@ -42,14 +42,16 @@ def test_expired_token():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_secret=SECRET, read_requires_auth=True).start():
         exp = time() - 100
+        token = jwt.encode({"a": "ro", "exp": exp}, SECRET, algorithm="HS256")
         headers = {
-            "Authorization": f"Bearer {jwt.encode({"a": "ro", "exp": exp}, SECRET, algorithm="HS256")}",
+            "Authorization": f"Bearer {token}",
         }
         response = requests.post(RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
 
+        token = jwt.encode({"a": "rw", "exp": exp}, SECRET, algorithm="HS256")
         headers = {
-            "Authorization": f"Bearer {jwt.encode({"a": "rw", "exp": exp}, SECRET, algorithm="HS256")}",
+            "Authorization": f"Bearer {token}",
         }
         response = requests.post(RAPHTORY, headers=headers,  data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
