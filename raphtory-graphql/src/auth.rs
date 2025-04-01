@@ -16,9 +16,10 @@ use poem::{
     error::Unauthorized, Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
+use secrecy::ExposeSecret;
 use serde::Deserialize;
 
-use crate::config::auth_config::AuthConfig;
+use crate::config::auth_config::{AuthConfig, Secret};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -115,14 +116,14 @@ where
     }
 }
 
-fn extract_role_from_header(header: &str, secret: &str) -> Option<Role> {
+fn extract_role_from_header(header: &str, secret: &Secret) -> Option<Role> {
     if header.starts_with("Bearer ") {
         let jwt = header.replace("Bearer ", "");
         let mut validation = Validation::new(Algorithm::HS256);
         validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
         let decoded = decode::<TokenClaims>(
             &jwt,
-            &DecodingKey::from_secret(secret.as_ref()),
+            &DecodingKey::from_secret(secret.expose_secret().as_ref()),
             &validation,
         );
         Some(decoded.ok()?.claims.role)

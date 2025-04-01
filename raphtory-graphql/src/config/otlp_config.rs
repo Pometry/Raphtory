@@ -14,7 +14,7 @@ pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
 pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 
-#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Deserialize, Debug, serde::Serialize)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
     pub otlp_agent_host: String,

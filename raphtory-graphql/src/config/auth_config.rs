@@ -1,29 +1,42 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
-use serde::Deserialize;
+use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
 
-pub const DEFAULT_CAPACITY: u64 = 30;
-pub const DEFAULT_TTI_SECONDS: u64 = 900;
+#[derive(Deserialize, Clone)]
+pub struct Secret(SecretString);
 
-#[derive(Deserialize, PartialEq, Clone, serde::Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct AuthConfig {
-    pub secret: Option<String>,
+    pub secret: Option<Secret>,
     pub require_read_permissions: bool,
 }
 
-// implemented manually to avoid leaking the secret // TODO: Try to use secrecy crate for this?
-impl Debug for AuthConfig {
+impl Debug for Secret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            // deestructured in this way so i doesn't compile if the fields change
-            secret,
-            require_read_permissions,
-        } = &self;
-        let secret = secret.as_ref().map(|_| "...".to_owned());
-        f.debug_struct("AuthConfig")
-            .field("secret", &secret)
-            .field("require_read_permissions", require_read_permissions)
-            .finish()
+        self.0.fmt(f)
+    }
+}
+
+impl From<String> for Secret {
+    fn from(value: String) -> Self {
+        Self(value.into())
+    }
+}
+
+impl Serialize for Secret {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str("---hidden-secret---")
+    }
+}
+
+impl Deref for Secret {
+    type Target = SecretString;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -31,7 +44,7 @@ impl Default for AuthConfig {
     fn default() -> Self {
         Self {
             secret: None,
-            require_read_permissions: false,
+            require_read_permissions: true,
         }
     }
 }

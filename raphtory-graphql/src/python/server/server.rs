@@ -172,7 +172,7 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_secret=None, read_requires_auth=false, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_secret=None, read_requires_auth=true, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,

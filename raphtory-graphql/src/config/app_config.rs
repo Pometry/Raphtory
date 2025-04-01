@@ -2,12 +2,12 @@ use crate::config::{
     cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
 };
 use config::{Config, ConfigError, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use super::auth_config::AuthConfig;
 
-#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
@@ -89,7 +89,7 @@ impl AppConfigBuilder {
         secret: String,
         require_read_permissions: bool,
     ) -> Self {
-        self.auth.secret = Some(secret);
+        self.auth.secret = Some(secret.into());
         self.auth.require_read_permissions = require_read_permissions;
         self
     }

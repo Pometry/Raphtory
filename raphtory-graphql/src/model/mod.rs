@@ -1,5 +1,5 @@
 use crate::{
-    auth::{ContextValidation, Role},
+    auth::ContextValidation,
     data::Data,
     model::{
         graph::{

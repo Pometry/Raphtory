@@ -3,7 +3,7 @@ use tracing_subscriber::EnvFilter;
 
 pub const DEFAULT_LOG_LEVEL: &'static str = "INFO";
 
-#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
+#[derive(Debug, Deserialize, Clone, serde::Serialize)]
 pub struct LoggingConfig {
     pub log_level: String,
 }
