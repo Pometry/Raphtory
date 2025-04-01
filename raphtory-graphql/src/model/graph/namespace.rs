@@ -1,9 +1,10 @@
 use crate::{
     data::get_relative_path,
     model::graph::meta_graph::MetaGraph,
-    paths::{valid_path, ExistingGraphFolder},
+    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use itertools::Itertools;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
@@ -60,7 +61,14 @@ impl Namespace {
 impl Namespace {
     async fn graphs(&self) -> Vec<MetaGraph> {
         self.get_all_graph_folders()
-            .iter()
+            .into_iter()
+            .sorted_by(|a, b| {
+                let a_as_valid_folder: ValidGraphFolder = a.clone().into();
+                let b_as_valid_folder: ValidGraphFolder = b.clone().into();
+                a_as_valid_folder
+                    .get_original_path_str()
+                    .cmp(b_as_valid_folder.get_original_path_str())
+            })
             .map(|g| MetaGraph::new(g.clone()))
             .collect()
     }

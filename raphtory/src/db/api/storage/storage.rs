@@ -122,10 +122,8 @@ impl Storage {
     /// Initialise the cache by pointing it at a proto file.
     /// Future updates will be appended to the cache.
     pub(crate) fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache.get_or_try_init(|| {
-            let file = path.get_appendable_graph_file()?;
-            Ok::<_, GraphError>(GraphWriter::new(file))
-        })?;
+        self.cache
+            .get_or_try_init(|| Ok::<_, GraphError>(GraphWriter::new(path.clone())?))?;
         Ok(())
     }
 

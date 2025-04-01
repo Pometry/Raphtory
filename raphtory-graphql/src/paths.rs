@@ -1,13 +1,12 @@
+use raphtory::{
+    core::utils::errors::{GraphError, InvalidPathReason, InvalidPathReason::*},
+    serialise::GraphFolder,
+};
 use std::{
     fs,
     ops::Deref,
     path::{Component, Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
-};
-
-use raphtory::{
-    core::utils::errors::{GraphError, InvalidPathReason, InvalidPathReason::*},
-    serialise::GraphFolder,
 };
 
 #[derive(Clone, Debug)]
@@ -34,7 +33,6 @@ impl From<ExistingGraphFolder> for GraphFolder {
         value.folder.folder
     }
 }
-
 impl ExistingGraphFolder {
     pub(crate) fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, GraphError> {
         let graph_folder = ValidGraphFolder::try_from(base_path, relative_path)?;
@@ -70,6 +68,12 @@ impl ExistingGraphFolder {
 pub struct ValidGraphFolder {
     original_path: String,
     folder: GraphFolder,
+}
+
+impl From<ExistingGraphFolder> for ValidGraphFolder {
+    fn from(value: ExistingGraphFolder) -> Self {
+        value.folder
+    }
 }
 
 impl Deref for ValidGraphFolder {
