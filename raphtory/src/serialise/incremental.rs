@@ -315,21 +315,28 @@ impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
 
 #[cfg(test)]
 mod test {
-    use crate::serialise::incremental::GraphWriter;
+    use crate::serialise::{incremental::GraphWriter, GraphFolder};
     use raphtory_api::core::{
         entities::{GidRef, VID},
         storage::dict_mapper::MaybeNew,
         utils::logging::global_info_logger,
     };
-    use tempfile::NamedTempFile;
+    use std::{fs::File, sync::Arc};
+    use tempfile::{NamedTempFile, TempDir};
 
     #[test]
     fn test_write_failure() {
         global_info_logger();
-        let tmp_file = NamedTempFile::new().unwrap();
-        let folder = tmp_file.path().into();
-
-        let cache = GraphWriter::new(folder).unwrap();
+        let tmp_dir = TempDir::new().unwrap();
+        let folder = GraphFolder::from(tmp_dir.path());
+        let graph_file_path = folder.get_graph_path();
+        drop(File::create(&graph_file_path).unwrap());
+        let read_only = File::open(graph_file_path).unwrap();
+        let cache = GraphWriter {
+            writer: Arc::new(read_only.into()),
+            proto_delta: Default::default(),
+            folder,
+        };
         cache.resolve_node(MaybeNew::New(VID(0)), GidRef::Str("0"));
         let res = cache.write();
         assert!(res.is_err());
