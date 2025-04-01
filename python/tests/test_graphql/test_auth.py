@@ -40,7 +40,7 @@ def add_test_graph():
 
 def test_expired_token():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET, read_requires_auth=True).start():
+    with GraphServer(work_dir, auth_secret=SECRET).start():
         exp = time() - 100
         token = jwt.encode({"a": "ro", "exp": exp}, SECRET, algorithm="HS256")
         headers = {
@@ -75,7 +75,7 @@ def test_default_read_access(query):
 @pytest.mark.parametrize("query", TEST_QUERIES)
 def test_disabled_read_access(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET, read_requires_auth=False).start():
+    with GraphServer(work_dir, auth_secret=SECRET, open_read_access=True).start():
         add_test_graph()
         data = json.dumps({"query": query})
 
