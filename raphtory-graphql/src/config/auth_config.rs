@@ -1,15 +1,21 @@
 use std::{fmt::Debug, ops::Deref};
 
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Clone)]
 pub struct Secret(SecretString);
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, PartialEq)]
 pub struct AuthConfig {
     pub secret: Option<Secret>,
     pub require_read_permissions: bool,
+}
+
+impl PartialEq for Secret {
+    fn eq(&self, other: &Self) -> bool {
+        self.expose_secret() == other.expose_secret()
+    }
 }
 
 impl Debug for Secret {

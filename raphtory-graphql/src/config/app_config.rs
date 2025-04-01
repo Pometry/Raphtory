@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use super::auth_config::AuthConfig;
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,

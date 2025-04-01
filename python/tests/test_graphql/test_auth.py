@@ -9,6 +9,8 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 
 SECRET = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
 
+RAPHTORY = "http://localhost:1736"
+
 READ_HEADERS = {
     "Authorization": f"Bearer {jwt.encode({"a": "ro"}, SECRET, algorithm="HS256")}",
 }
@@ -32,7 +34,7 @@ def assert_successful_response(response: requests.Response):
 
 # TODO: implement this so we can use the with sintax
 def add_test_graph():
-    requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH}))
+    requests.post(RAPHTORY, headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH}))
 
 def test_expired_token():
     work_dir = tempfile.mkdtemp()
@@ -41,13 +43,13 @@ def test_expired_token():
         headers = {
             "Authorization": f"Bearer {jwt.encode({"a": "ro", "exp": exp}, SECRET, algorithm="HS256")}",
         }
-        response = requests.post("http://localhost:1736", headers=headers, data=json.dumps({"query": QUERY_GRAPHS}))
+        response = requests.post(RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
 
         headers = {
             "Authorization": f"Bearer {jwt.encode({"a": "rw", "exp": exp}, SECRET, algorithm="HS256")}",
         }
-        response = requests.post("http://localhost:1736", headers=headers,  data=json.dumps({"query": QUERY_GRAPHS}))
+        response = requests.post(RAPHTORY, headers=headers,  data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
 
 @pytest.mark.parametrize("query", TEST_QUERIES)
@@ -57,13 +59,13 @@ def test_default_read_access(query):
         add_test_graph()
         data = json.dumps({"query": query})
 
-        response = requests.post("http://localhost:1736", data=data)
+        response = requests.post(RAPHTORY, data=data)
         assert(response.status_code == 401)
 
-        response = requests.post("http://localhost:1736", headers=READ_HEADERS,  data=data)
+        response = requests.post(RAPHTORY, headers=READ_HEADERS,  data=data)
         assert_successful_response(response)
 
-        response = requests.post("http://localhost:1736", headers=WRITE_HEADERS,  data=data)
+        response = requests.post(RAPHTORY, headers=WRITE_HEADERS,  data=data)
         assert_successful_response(response)
 
 @pytest.mark.parametrize("query", TEST_QUERIES)
@@ -73,13 +75,13 @@ def test_disabled_read_access(query):
         add_test_graph()
         data = json.dumps({"query": query})
 
-        response = requests.post("http://localhost:1736", data=data)
+        response = requests.post(RAPHTORY, data=data)
         assert_successful_response(response)
 
-        response = requests.post("http://localhost:1736", headers=READ_HEADERS,  data=data)
+        response = requests.post(RAPHTORY, headers=READ_HEADERS,  data=data)
         assert_successful_response(response)
 
-        response = requests.post("http://localhost:1736", headers=WRITE_HEADERS,  data=data)
+        response = requests.post(RAPHTORY, headers=WRITE_HEADERS,  data=data)
         assert_successful_response(response)
 
 ADD_NODE = """
@@ -122,14 +124,14 @@ def test_update_graph(query):
         add_test_graph()
         data = json.dumps({"query": query})
 
-        response = requests.post("http://localhost:1736", data=data)
+        response = requests.post(RAPHTORY, data=data)
         assert(response.status_code == 401)
 
-        response = requests.post("http://localhost:1736", headers=READ_HEADERS, data=data)
+        response = requests.post(RAPHTORY, headers=READ_HEADERS, data=data)
         assert(response.json()["data"] is None)
         assert(response.json()["errors"][0]["message"] == "The requested endpoint requires write access")
 
-        response = requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=data)
+        response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
 
 NEW_GRAPH = """mutation { newGraph(path:"new", graphType:EVENT) }"""
@@ -145,12 +147,12 @@ def test_mutations(query):
         add_test_graph()
         data = json.dumps({"query": query})
 
-        response = requests.post("http://localhost:1736", data=data)
+        response = requests.post(RAPHTORY, data=data)
         assert(response.status_code == 401)
 
-        response = requests.post("http://localhost:1736", headers=READ_HEADERS, data=data)
+        response = requests.post(RAPHTORY, headers=READ_HEADERS, data=data)
         assert(response.json()["data"] is None)
         assert(response.json()["errors"][0]["message"] == "The requested endpoint requires write access")
 
-        response = requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=data)
+        response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
