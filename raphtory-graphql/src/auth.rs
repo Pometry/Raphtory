@@ -23,14 +23,14 @@ use crate::config::auth_config::{AuthConfig, Secret};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum Role {
-    Read,
-    Write,
+pub(crate) enum Access {
+    Ro,
+    Rw,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
-    pub(crate) role: Role,
+    pub(crate) a: Access,
 }
 
 pub struct AuthenticatedGraphQL<E> {
@@ -47,9 +47,9 @@ impl<E> AuthenticatedGraphQL<E> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {
-    #[error("The requested endpoint requires at least read privileges")]
+    #[error("The requested endpoint requires at least read access")]
     RequireRead,
-    #[error("The requested endpoint requires write privileges")]
+    #[error("The requested endpoint requires write access")]
     RequireWrite,
 }
 
@@ -72,23 +72,23 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let role = match &self.config.secret {
+        let access = match &self.config.secret {
             Some(secret) => {
-                let presented_role = req
+                let presented_access = req
                     .header(AUTHORIZATION)
-                    .and_then(|header| extract_role_from_header(header, secret));
-                match presented_role {
-                    Some(role) => role,
+                    .and_then(|header| extract_access_from_header(header, secret));
+                match presented_access {
+                    Some(access) => access,
                     None => {
                         if self.config.require_read_permissions {
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
-                            Role::Read // if read privileges are not required, we give read privileges to all requests
+                            Access::Ro // if read access is not required, we give read access to all requests
                         }
                     }
                 }
             }
-            None => Role::Write, // if auth is not setup, we give write privileges to all requests
+            None => Access::Rw, // if auth is not setup, we give write access to all requests
         };
 
         let is_accept_multipart_mixed = req
@@ -99,7 +99,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(role);
+            let req = req.0.data(access);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -110,13 +110,13 @@ where
         } else {
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(role);
+            let req = req.0.data(access);
             Ok(GraphQLBatchResponse(self.executor.execute_batch(req).await).into_response())
         }
     }
 }
 
-fn extract_role_from_header(header: &str, secret: &Secret) -> Option<Role> {
+fn extract_access_from_header(header: &str, secret: &Secret) -> Option<Access> {
     if header.starts_with("Bearer ") {
         let jwt = header.replace("Bearer ", "");
         let mut validation = Validation::new(Algorithm::HS256);
@@ -126,7 +126,7 @@ fn extract_role_from_header(header: &str, secret: &Secret) -> Option<Role> {
             &DecodingKey::from_secret(secret.expose_secret().as_ref()),
             &validation,
         );
-        Some(decoded.ok()?.claims.role)
+        Some(decoded.ok()?.claims.a)
     } else {
         None
     }
@@ -138,7 +138,7 @@ pub(crate) trait ContextValidation {
 
 impl<'a> ContextValidation for &Context<'a> {
     fn require_write_access(&self) -> Result<(), AuthError> {
-        if self.data::<Role>().is_ok_and(|role| role == &Role::Write) {
+        if self.data::<Access>().is_ok_and(|role| role == &Access::Rw) {
             Ok(())
         } else {
             Err(AuthError::RequireWrite)
@@ -168,7 +168,7 @@ impl Extension for MutationAuth {
                 .operations
                 .iter()
                 .any(|op| op.1.node.ty == OperationType::Mutation);
-            if mutation && ctx.data::<Role>() != Ok(&Role::Write) {
+            if mutation && ctx.data::<Access>() != Ok(&Access::Rw) {
                 Err(AuthError::RequireWrite.into())
             } else {
                 Ok(doc)

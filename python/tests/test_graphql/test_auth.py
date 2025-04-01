@@ -10,66 +10,77 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 SECRET = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
 
 READ_HEADERS = {
-    "Authorization": f"Bearer {jwt.encode({"role": "read"}, SECRET, algorithm="HS256")}",
+    "Authorization": f"Bearer {jwt.encode({"a": "ro"}, SECRET, algorithm="HS256")}",
 }
 
 WRITE_HEADERS = {
-    "Authorization": f"Bearer {jwt.encode({"role": "write"}, SECRET, algorithm="HS256")}",
+    "Authorization": f"Bearer {jwt.encode({"a": "rw"}, SECRET, algorithm="HS256")}",
 }
 
 NEW_TEST_GRAPH = """mutation { newGraph(path:"test", graphType:EVENT) }"""
 
-QUERY_GRAPHS = """
-query {
-  graphs {
-    name
-  }
-}
-"""
+QUERY_GRAPHS = """query { graphs { name } }"""
+QUERY_NAMEPSACES = """query { namespaces { path } }"""
+QUERY_ROOT = """query { root { graphs { path } } }"""
+QUERY_GRAPH = """query { graph(path: "test") { path } }"""
+TEST_QUERIES = [QUERY_GRAPHS, QUERY_NAMEPSACES, QUERY_ROOT, QUERY_GRAPH]
+
+def assert_successful_response(response: requests.Response):
+    assert("errors" not in response.json())
+    assert(type(response.json()["data"]) == dict)
+    assert(len(response.json()["data"]) == 1)
+
+# TODO: implement this so we can use the with sintax
+def add_test_graph():
+    requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH}))
 
 def test_expired_token():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_secret=SECRET, read_requires_auth=True).start():
         exp = time() - 100
         headers = {
-            "Authorization": f"Bearer {jwt.encode({"role": "read", "exp": exp}, SECRET, algorithm="HS256")}",
+            "Authorization": f"Bearer {jwt.encode({"a": "ro", "exp": exp}, SECRET, algorithm="HS256")}",
         }
         response = requests.post("http://localhost:1736", headers=headers, data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
 
         headers = {
-            "Authorization": f"Bearer {jwt.encode({"role": "write", "exp": exp}, SECRET, algorithm="HS256")}",
+            "Authorization": f"Bearer {jwt.encode({"a": "rw", "exp": exp}, SECRET, algorithm="HS256")}",
         }
         response = requests.post("http://localhost:1736", headers=headers,  data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
 
-def test_default_read_access():
+@pytest.mark.parametrize("query", TEST_QUERIES)
+def test_default_read_access(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_secret=SECRET).start():
-        data = json.dumps({"query": QUERY_GRAPHS})
+        add_test_graph()
+        data = json.dumps({"query": query})
 
         response = requests.post("http://localhost:1736", data=data)
         assert(response.status_code == 401)
 
         response = requests.post("http://localhost:1736", headers=READ_HEADERS,  data=data)
-        assert(response.json() == {"data": {'graphs': {'name': []}}})
+        assert_successful_response(response)
 
         response = requests.post("http://localhost:1736", headers=WRITE_HEADERS,  data=data)
-        assert(response.json() == {"data": {'graphs': {'name': []}}})
+        assert_successful_response(response)
 
-def test_disabled_read_access():
+@pytest.mark.parametrize("query", TEST_QUERIES)
+def test_disabled_read_access(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_secret=SECRET, read_requires_auth=False).start():
-        data = json.dumps({"query": QUERY_GRAPHS})
+        add_test_graph()
+        data = json.dumps({"query": query})
 
         response = requests.post("http://localhost:1736", data=data)
-        assert(response.json() == {"data": {'graphs': {'name': []}}})
+        assert_successful_response(response)
 
         response = requests.post("http://localhost:1736", headers=READ_HEADERS,  data=data)
-        assert(response.json() == {"data": {'graphs': {'name': []}}})
+        assert_successful_response(response)
 
         response = requests.post("http://localhost:1736", headers=WRITE_HEADERS,  data=data)
-        assert(response.json() == {"data": {'graphs': {'name': []}}})
+        assert_successful_response(response)
 
 ADD_NODE = """
 query {
@@ -108,8 +119,7 @@ query {
 def test_update_graph(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_secret=SECRET).start():
-        requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH}))
-
+        add_test_graph()
         data = json.dumps({"query": query})
 
         response = requests.post("http://localhost:1736", data=data)
@@ -117,11 +127,10 @@ def test_update_graph(query):
 
         response = requests.post("http://localhost:1736", headers=READ_HEADERS, data=data)
         assert(response.json()["data"] is None)
-        assert(response.json()["errors"][0]["message"] == "The requested endpoint requires write privileges")
+        assert(response.json()["errors"][0]["message"] == "The requested endpoint requires write access")
 
         response = requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=data)
-        assert("errors" not in response.json())
-        assert(len(response.json()["data"]) == 1)
+        assert_successful_response(response)
 
 NEW_GRAPH = """mutation { newGraph(path:"new", graphType:EVENT) }"""
 MOVE_GRAPH = """mutation { moveGraph(path:"test", newPath:"moved") }"""
@@ -133,8 +142,7 @@ CREATE_SUBGRAPH = """mutation { createSubgraph(parentPath:"test", newPath: "subg
 def test_mutations(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_secret=SECRET).start():
-        requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH}))
-
+        add_test_graph()
         data = json.dumps({"query": query})
 
         response = requests.post("http://localhost:1736", data=data)
@@ -142,8 +150,7 @@ def test_mutations(query):
 
         response = requests.post("http://localhost:1736", headers=READ_HEADERS, data=data)
         assert(response.json()["data"] is None)
-        assert(response.json()["errors"][0]["message"] == "The requested endpoint requires write privileges")
+        assert(response.json()["errors"][0]["message"] == "The requested endpoint requires write access")
 
         response = requests.post("http://localhost:1736", headers=WRITE_HEADERS, data=data)
-        assert("errors" not in response.json())
-        assert(len(response.json()["data"]) == 1)
+        assert_successful_response(response)
