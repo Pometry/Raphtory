@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
@@ -8,7 +8,7 @@ use crate::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritTimeSemantics, NodeFilterOps, Static,
+                    InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
                 },
                 node::NodeViewOps,
                 Base,
@@ -18,8 +18,7 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
+use raphtory_api::core::entities::LayerIds;
 
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
@@ -46,12 +45,12 @@ impl<'graph, G> NodePropertyFilteredGraph<G> {
 }
 
 impl InternalNodeFilterOps for PropertyFilter {
-    type NodePropertyFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         let t_prop_id = self.resolve_temporal_prop_ids(graph.node_meta())?;
         let c_prop_id = self.resolve_constant_prop_ids(graph.node_meta())?;
         Ok(NodePropertyFilteredGraph::new(
@@ -59,9 +58,6 @@ impl InternalNodeFilterOps for PropertyFilter {
         ))
     }
 }
-
-impl<G> Static for NodePropertyFilteredGraph<G> {}
-impl<G> Immutable for NodePropertyFilteredGraph<G> {}
 
 impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
     type Base = G;
@@ -71,10 +67,11 @@ impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
     }
 }
 
+impl<G> Static for NodePropertyFilteredGraph<G> {}
+impl<G> Immutable for NodePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFilteredGraph<G> {}

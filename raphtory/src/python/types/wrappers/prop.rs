@@ -143,8 +143,8 @@ impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
 }
 
 impl InternalNodeFilterOps for PyPropertyFilter {
-    type NodePropertyFiltered<'graph, G>
-        = <PropertyFilter as InternalNodeFilterOps>::NodePropertyFiltered<'graph, G>
+    type NodeFiltered<'graph, G>
+        = <PropertyFilter as InternalNodeFilterOps>::NodeFiltered<'graph, G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -152,7 +152,7 @@ impl InternalNodeFilterOps for PyPropertyFilter {
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         self.0.create_node_filter(graph)
     }
 }

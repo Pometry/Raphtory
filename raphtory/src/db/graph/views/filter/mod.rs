@@ -15,8 +15,9 @@ use strsim::levenshtein;
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
+mod node_field_filtered_graph;
 pub mod node_filtered_graph;
-pub mod node_property_filter;
+pub mod node_property_filtered_graph;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FilterOperator {
@@ -617,44 +618,6 @@ impl FilterExpr {
 
     pub fn or(self, other: FilterExpr) -> Self {
         FilterExpr::Or(Box::new(self), Box::new(other))
-    }
-}
-
-pub fn resolve_as_node_filter(filter: FilterExpr) -> Result<CompositeNodeFilter, GraphError> {
-    match filter {
-        FilterExpr::Property(prop) => Ok(CompositeNodeFilter::Property(prop)),
-        FilterExpr::Node(filter) => Ok(CompositeNodeFilter::Node(filter)),
-        FilterExpr::And(left, right) => Ok(CompositeNodeFilter::And(
-            Box::new(resolve_as_node_filter(*left)?),
-            Box::new(resolve_as_node_filter(*right)?),
-        )),
-        FilterExpr::Or(left, right) => Ok(CompositeNodeFilter::Or(
-            Box::new(resolve_as_node_filter(*left)?),
-            Box::new(resolve_as_node_filter(*right)?),
-        )),
-        FilterExpr::Edge(_) => Err(GraphError::IllegalFilterExpr(
-            filter,
-            "Edge filter cannot be used in node filtering!".to_string(),
-        )),
-    }
-}
-
-pub fn resolve_as_edge_filter(filter: FilterExpr) -> Result<CompositeEdgeFilter, GraphError> {
-    match filter {
-        FilterExpr::Property(prop) => Ok(CompositeEdgeFilter::Property(prop)),
-        FilterExpr::Edge(filter) => Ok(CompositeEdgeFilter::Edge(filter)),
-        FilterExpr::And(left, right) => Ok(CompositeEdgeFilter::And(
-            Box::new(resolve_as_edge_filter(*left)?),
-            Box::new(resolve_as_edge_filter(*right)?),
-        )),
-        FilterExpr::Or(left, right) => Ok(CompositeEdgeFilter::Or(
-            Box::new(resolve_as_edge_filter(*left)?),
-            Box::new(resolve_as_edge_filter(*right)?),
-        )),
-        FilterExpr::Node(_) => Err(GraphError::IllegalFilterExpr(
-            filter,
-            "Node filter cannot be used in edge filtering!".to_string(),
-        )),
     }
 }
 

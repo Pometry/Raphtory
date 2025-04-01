@@ -10,7 +10,6 @@ use crate::{
             filter::{
                 edge_property_filter::EdgePropertyFilteredGraph,
                 exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                node_property_filter::NodePropertyFilteredGraph,
             },
             layer_graph::LayeredGraph,
             node_subgraph::NodeSubgraph,

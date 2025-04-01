@@ -10,8 +10,7 @@ pub trait NodePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_nodes<F: InternalNodeFilterOps>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::NodePropertyFiltered<'graph, Self::FilteredGraph>>, GraphError>
-    {
+    ) -> Result<Self::Filtered<F::NodeFiltered<'graph, Self::FilteredGraph>>, GraphError> {
         Ok(self.one_hop_filtered(filter.create_node_filter(self.current_filter().clone())?))
     }
 }
@@ -27,7 +26,7 @@ mod test {
                 graph::assert_edges_equal,
                 views::filter::{
                     CompositeNodeFilter, Filter, FilterExpr, NodeFilter, NodeFilterOps,
-                    PropertyFilter, PropertyRef,
+                    PropertyFilter, PropertyFilterOps, PropertyRef,
                 },
             },
         },
@@ -51,12 +50,14 @@ mod test {
             .unwrap();
 
         // let filter_expr = NodeFilter::node_name().eq("Jimi");
-        let filter_expr = CompositeNodeFilter::Node(Filter::eq("node_name", "Jimi"));
+        let filter_expr = PropertyFilter::property("band").eq("Dead & Company");
+        // let filter_expr = CompositeNodeFilter::Node(Filter::eq("node_name", "Jimi"));
         let filtered_nodes = g.nodes().filter_nodes(filter_expr).unwrap();
 
         assert_eq!(
             filtered_nodes.iter().map(|n| n.name()).collect::<Vec<_>>(),
-            vec!["Jimi"]
+            // vec!["Jimi"]
+            vec!["John"]
         );
     }
 

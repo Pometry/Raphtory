@@ -24,7 +24,7 @@ pub trait InternalExplodedEdgeFilterOps: Sized {
 }
 
 pub trait InternalNodeFilterOps: Sized {
-    type NodePropertyFiltered<'graph, G>: GraphViewOps<'graph>
+    type NodeFiltered<'graph, G>: GraphViewOps<'graph>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -32,5 +32,5 @@ pub trait InternalNodeFilterOps: Sized {
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError>;
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError>;
 }
