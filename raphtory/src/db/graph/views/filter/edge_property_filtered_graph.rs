@@ -59,9 +59,6 @@ impl InternalEdgeFilterOps for PropertyFilter {
     }
 }
 
-impl<G> Static for EdgePropertyFilteredGraph<G> {}
-impl<G> Immutable for EdgePropertyFilteredGraph<G> {}
-
 impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
     type Base = G;
 
@@ -70,10 +67,11 @@ impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
     }
 }
 
+impl<G> Static for EdgePropertyFilteredGraph<G> {}
+impl<G> Immutable for EdgePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for EdgePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for EdgePropertyFilteredGraph<G> {}
@@ -84,14 +82,17 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgePropertyF
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGraph<G> {
+    #[inline]
     fn edges_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
     }
 
+    #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_edge(edge, layer_ids) {
             let props = EdgeView::new(&self.graph, edge.out_ref()).properties();

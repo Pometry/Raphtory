@@ -13,7 +13,7 @@ use std::{
 use strsim::levenshtein;
 
 pub mod edge_field_filtered_graph;
-pub mod edge_property_filter;
+pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
 mod node_field_filtered_graph;

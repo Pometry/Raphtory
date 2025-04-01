@@ -8,7 +8,7 @@ use crate::{
             cached_view::CachedView,
             deletion_graph::PersistentGraph,
             filter::{
-                edge_property_filter::EdgePropertyFilteredGraph,
+                edge_property_filtered_graph::EdgePropertyFilteredGraph,
                 exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
             },
             layer_graph::LayeredGraph,
