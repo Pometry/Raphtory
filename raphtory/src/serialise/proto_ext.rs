@@ -77,6 +77,9 @@ fn as_prop_type2(p_type: PType) -> Option<PropType> {
             let p_type = as_prop_type(array.p_type())?;
             Some(PropType::Array(Box::new(p_type)))
         }
+        proto::prop_type::p_type::Kind::Decimal(decimal) => Some(PropType::Decimal {
+            scale: decimal.scale as i64,
+        }),
     }
 }
 
@@ -687,27 +690,27 @@ pub fn collect_props<'a>(
 }
 
 fn as_proto_prop(prop: &Prop) -> proto::Prop {
-    let value: prop::Value = match prop {
-        Prop::Bool(b) => prop::Value::BoolValue(*b),
-        Prop::U8(u) => prop::Value::U8((*u).into()),
-        Prop::U16(u) => prop::Value::U16((*u).into()),
-        Prop::U32(u) => prop::Value::U32(*u),
-        Prop::I32(i) => prop::Value::I32(*i),
-        Prop::I64(i) => prop::Value::I64(*i),
-        Prop::U64(u) => prop::Value::U64(*u),
-        Prop::F32(f) => prop::Value::F32(*f),
-        Prop::F64(f) => prop::Value::F64(*f),
-        Prop::Str(s) => prop::Value::Str(s.to_string()),
+    let value: Option<prop::Value> = match prop {
+        Prop::Bool(b) => Some(prop::Value::BoolValue(*b)),
+        Prop::U8(u) => Some(prop::Value::U8((*u).into())),
+        Prop::U16(u) => Some(prop::Value::U16((*u).into())),
+        Prop::U32(u) => Some(prop::Value::U32(*u)),
+        Prop::I32(i) => Some(prop::Value::I32(*i)),
+        Prop::I64(i) => Some(prop::Value::I64(*i)),
+        Prop::U64(u) => Some(prop::Value::U64(*u)),
+        Prop::F32(f) => Some(prop::Value::F32(*f)),
+        Prop::F64(f) => Some(prop::Value::F64(*f)),
+        Prop::Str(s) => Some(prop::Value::Str(s.to_string())),
         Prop::List(list) => {
             let properties = list.iter().map(as_proto_prop).collect();
-            prop::Value::Prop(prop::Props { properties })
+            Some(prop::Value::Prop(prop::Props { properties }))
         }
         Prop::Map(map) => {
             let map = map
                 .iter()
                 .map(|(k, v)| (k.to_string(), as_proto_prop(v)))
                 .collect();
-            prop::Value::Map(prop::Dict { map })
+            Some(prop::Value::Map(prop::Dict { map }))
         }
         Prop::NDTime(ndt) => {
             let (year, month, day) = (ndt.date().year(), ndt.date().month(), ndt.date().day());
@@ -727,15 +730,16 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
                 second: second as u32,
                 nanos: nanos as u32,
             };
-            prop::Value::NdTime(proto_ndt)
+            Some(prop::Value::NdTime(proto_ndt))
         }
-        Prop::DTime(dt) => {
-            prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
-        }
-        Prop::Array(blob) => prop::Value::Array(Array {
+        Prop::DTime(dt) => Some(prop::Value::DTime(
+            dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true),
+        )),
+        Prop::Array(blob) => Some(prop::Value::Array(Array {
             data: blob.to_vec_u8(),
-        }),
+        })),
+        Prop::Decimal(bd) => Some(prop::Value::Decimal(bd.to_string())),
     };
 
-    proto::Prop { value: Some(value) }
+    proto::Prop { value }
 }

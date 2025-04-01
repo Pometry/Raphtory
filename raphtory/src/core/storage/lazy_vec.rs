@@ -12,7 +12,7 @@ pub struct IllegalSet<A: Debug> {
 }
 
 impl<A: Debug> IllegalSet<A> {
-    fn new(index: usize, previous_value: A, new_value: A) -> IllegalSet<A> {
+    pub fn new(index: usize, previous_value: A, new_value: A) -> IllegalSet<A> {
         IllegalSet {
             index,
             previous_value,

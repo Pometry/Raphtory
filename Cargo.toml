@@ -80,6 +80,7 @@ flate2 = "1.0.28"
 regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
+num-bigint = "0.4.6"
 rand_distr = "0.4.3"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
@@ -96,10 +97,11 @@ async-trait = "0.1.77"
 async-openai = "0.26.0"
 num = "0.4.1"
 display-error-chain = "0.2.0"
-polars-arrow = "0.40.0"
-polars-parquet = "0.40.0"
-polars-core = "0.40.0"
-polars-io = "0.40.0"
+polars-arrow = "0.42.0"
+polars-parquet = "0.42.0"
+polars-core = "0.42.0"
+polars-io = "0.42.0"
+bigdecimal = { version = "0.4.7", features = ["serde"] }
 kdam = "0.6.2"
 hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
@@ -142,15 +144,22 @@ minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
 datafusion = { version = "43.0.0" }
 sqlparser = "0.51.0"
 futures = "0.3"
-arrow = { version = "53.2.0" }
-parquet = { version = "53.2.0" }
-arrow-json = { version = "53.2.0" }
-arrow-buffer = { version = "53.2.0" }
-arrow-schema = { version = "53.2.0" }
-arrow-array = { version = "53.2.0" }
-arrow-data = { version = "53.2.0" }
-arrow-ipc = { version = "53.2.0" }
+arrow = { version = "=53.2.0" }
+parquet = { version = "=53.2.0" }
+arrow-json = { version = "=53.2.0" }
+arrow-buffer = { version = "=53.2.0" }
+arrow-schema = { version = "=53.2.0" }
+arrow-array = { version = "=53.2.0" }
+arrow-data = { version = "=53.2.0" }
+arrow-ipc = { version = "=53.2.0" }
 moka = { version = "0.12.7", features = ["sync"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
+
+# Make sure that transitive dependencies stick to disk_graph 50
+[patch.crates-io]
+arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
+arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
+arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
+arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }

@@ -4,10 +4,11 @@ use crate::{
     model::{
         graph::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
-            vectorised_graph::GqlVectorisedGraph,
+            namespace::Namespace, vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
+    paths::valid_path,
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
@@ -15,10 +16,11 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
+
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{GraphError, InvalidPathReason},
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
 };
@@ -101,6 +103,30 @@ impl QueryRoot {
         Some(g.into())
     }
 
+    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<Namespace> {
+        let data = ctx.data_unchecked::<Data>();
+        let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
+        root.get_all_children()
+    }
+    async fn namespace<'a>(
+        ctx: &Context<'a>,
+        path: String,
+    ) -> Result<Namespace, InvalidPathReason> {
+        let data = ctx.data_unchecked::<Data>();
+        let current_dir = valid_path(data.work_dir.clone(), path.as_str(), true)?;
+
+        if current_dir.exists() {
+            Ok(Namespace::new(data.work_dir.clone(), current_dir))
+        } else {
+            Err(InvalidPathReason::NamespaceDoesNotExist(path))
+        }
+    }
+    async fn root<'a>(ctx: &Context<'a>) -> Namespace {
+        let data = ctx.data_unchecked::<Data>();
+        Namespace::new(data.work_dir.clone(), data.work_dir.clone())
+    }
+
+    //To deprecate I think
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
         let paths = data.get_all_graph_folders();
