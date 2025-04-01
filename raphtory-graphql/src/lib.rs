@@ -1330,11 +1330,11 @@ mod graphql_test {
                     "path": "",
                     "graphs": [
                         {
-                            "path": "graph2",
-                            "name": "graph2",
+                            "path": "graph",
+                            "name": "graph",
                             "metadata": {
-                                "nodeCount": 2,
-                                "edgeCount": 1,
+                                "nodeCount": 6,
+                                "edgeCount": 6,
                                 "properties": [
                                     {
                                         "key": "name",
@@ -1344,11 +1344,11 @@ mod graphql_test {
                             }
                         },
                         {
-                            "path": "graph",
-                            "name": "graph",
+                            "path": "graph2",
+                            "name": "graph2",
                             "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
+                                "nodeCount": 2,
+                                "edgeCount": 1,
                                 "properties": [
                                     {
                                         "key": "name",
