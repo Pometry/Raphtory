@@ -11,12 +11,14 @@ SECRET = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
 
 RAPHTORY = "http://localhost:1736"
 
+READ_JWT = jwt.encode({"a": "ro"}, SECRET, algorithm="HS256")
 READ_HEADERS = {
-    "Authorization": f"Bearer {jwt.encode({"a": "ro"}, SECRET, algorithm="HS256")}",
+    "Authorization": f"Bearer {READ_JWT}",
 }
 
+WRITE_JWT = jwt.encode({"a": "rw"}, SECRET, algorithm="HS256")
 WRITE_HEADERS = {
-    "Authorization": f"Bearer {jwt.encode({"a": "rw"}, SECRET, algorithm="HS256")}",
+    "Authorization": f"Bearer {WRITE_JWT}",
 }
 
 NEW_TEST_GRAPH = """mutation { newGraph(path:"test", graphType:EVENT) }"""
