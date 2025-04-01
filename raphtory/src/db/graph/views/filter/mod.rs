@@ -511,6 +511,90 @@ impl Display for CompositeEdgeFilter {
 }
 
 // Fluent Composite Filter Builder APIs
+pub trait IntoNodeFilter {
+    fn into_node_filter(self) -> CompositeNodeFilter;
+}
+
+pub trait IntoEdgeFilter {
+    fn into_edge_filter(self) -> CompositeEdgeFilter;
+}
+
+impl IntoNodeFilter for CompositeNodeFilter {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        self
+    }
+}
+
+impl IntoEdgeFilter for CompositeEdgeFilter {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        self
+    }
+}
+
+impl IntoNodeFilter for PropertyFilter {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Property(self)
+    }
+}
+
+impl IntoEdgeFilter for PropertyFilter {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Property(self)
+    }
+}
+
+impl IntoNodeFilter for Filter {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Node(self)
+    }
+}
+
+impl IntoEdgeFilter for Filter {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Edge(self)
+    }
+}
+
+pub trait ComposableNodeFilter: IntoNodeFilter + Sized {
+    fn and<F: IntoNodeFilter>(self, other: F) -> CompositeNodeFilter {
+        CompositeNodeFilter::And(
+            Box::new(self.into_node_filter()),
+            Box::new(other.into_node_filter()),
+        )
+    }
+
+    fn or<F: IntoNodeFilter>(self, other: F) -> CompositeNodeFilter {
+        CompositeNodeFilter::Or(
+            Box::new(self.into_node_filter()),
+            Box::new(other.into_node_filter()),
+        )
+    }
+}
+
+pub trait ComposableEdgeFilter: IntoEdgeFilter + Sized {
+    fn and<F: IntoEdgeFilter>(self, other: F) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::And(
+            Box::new(self.into_edge_filter()),
+            Box::new(other.into_edge_filter()),
+        )
+    }
+
+    fn or<F: IntoEdgeFilter>(self, other: F) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Or(
+            Box::new(self.into_edge_filter()),
+            Box::new(other.into_edge_filter()),
+        )
+    }
+}
+
+impl ComposableNodeFilter for CompositeNodeFilter {}
+impl ComposableNodeFilter for PropertyFilter {}
+impl ComposableNodeFilter for Filter {}
+
+impl ComposableEdgeFilter for CompositeEdgeFilter {}
+impl ComposableEdgeFilter for PropertyFilter {}
+impl ComposableEdgeFilter for Filter {}
+
 #[derive(Clone, Debug)]
 pub enum FilterExpr {
     Node(Filter),
@@ -596,79 +680,73 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
 }
 
 pub trait PropertyFilterOps {
-    fn eq(&self, value: impl Into<Prop>) -> FilterExpr;
+    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn ne(&self, value: impl Into<Prop>) -> FilterExpr;
+    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn le(&self, value: impl Into<Prop>) -> FilterExpr;
+    fn le(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn ge(&self, value: impl Into<Prop>) -> FilterExpr;
+    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn lt(&self, value: impl Into<Prop>) -> FilterExpr;
+    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn gt(&self, value: impl Into<Prop>) -> FilterExpr;
+    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr;
+    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr;
+    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
 
-    fn is_none(&self) -> FilterExpr;
+    fn is_none(&self) -> PropertyFilter;
 
-    fn is_some(&self) -> FilterExpr;
+    fn is_some(&self) -> PropertyFilter;
 
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr;
+    ) -> PropertyFilter;
 }
 
 impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
-    fn eq(&self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::eq(self.property_ref(), value.into()))
+    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::eq(self.property_ref(), value.into())
     }
 
-    fn ne(&self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::ne(self.property_ref(), value.into()))
+    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::ne(self.property_ref(), value.into())
     }
 
-    fn le(&self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::le(self.property_ref(), value.into()))
+    fn le(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::le(self.property_ref(), value.into())
     }
 
-    fn ge(&self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::ge(self.property_ref(), value.into()))
+    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::ge(self.property_ref(), value.into())
     }
 
-    fn lt(&self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::lt(self.property_ref(), value.into()))
+    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::lt(self.property_ref(), value.into())
     }
 
-    fn gt(&self, value: impl Into<Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::gt(self.property_ref(), value.into()))
+    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::gt(self.property_ref(), value.into())
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::includes(
-            self.property_ref(),
-            values.into_iter(),
-        ))
+    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
+        PropertyFilter::includes(self.property_ref(), values.into_iter())
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::excludes(
-            self.property_ref(),
-            values.into_iter(),
-        ))
+    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
+        PropertyFilter::excludes(self.property_ref(), values.into_iter())
     }
 
-    fn is_none(&self) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::is_none(self.property_ref()))
+    fn is_none(&self) -> PropertyFilter {
+        PropertyFilter::is_none(self.property_ref())
     }
 
-    fn is_some(&self) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::is_some(self.property_ref()))
+    fn is_some(&self) -> PropertyFilter {
+        PropertyFilter::is_some(self.property_ref())
     }
 
     fn fuzzy_search(
@@ -676,13 +754,13 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         prop_value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr {
-        FilterExpr::Property(PropertyFilter::fuzzy_search(
+    ) -> PropertyFilter {
+        PropertyFilter::fuzzy_search(
             self.property_ref(),
             prop_value.into(),
             levenshtein_distance,
             prefix_match,
-        ))
+        )
     }
 }
 
@@ -762,36 +840,36 @@ impl<T: InternalNodeFilterOps> InternalNodeFilterOps for Arc<T> {
 }
 
 pub trait NodeFilterOps {
-    fn eq(&self, value: impl Into<String>) -> FilterExpr;
+    fn eq(&self, value: impl Into<String>) -> Filter;
 
-    fn ne(&self, value: impl Into<String>) -> FilterExpr;
+    fn ne(&self, value: impl Into<String>) -> Filter;
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter;
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr;
+    ) -> Filter;
 }
 
 impl<T: ?Sized + InternalNodeFilterOps> NodeFilterOps for T {
-    fn eq(&self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Node(Filter::eq(self.field_name(), value))
+    fn eq(&self, value: impl Into<String>) -> Filter {
+        Filter::eq(self.field_name(), value)
     }
 
-    fn ne(&self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Node(Filter::ne(self.field_name(), value))
+    fn ne(&self, value: impl Into<String>) -> Filter {
+        Filter::ne(self.field_name(), value)
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
-        FilterExpr::Node(Filter::includes(self.field_name(), values))
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter {
+        Filter::includes(self.field_name(), values)
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
-        FilterExpr::Node(Filter::excludes(self.field_name(), values))
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter {
+        Filter::excludes(self.field_name(), values)
     }
 
     fn fuzzy_search(
@@ -799,13 +877,8 @@ impl<T: ?Sized + InternalNodeFilterOps> NodeFilterOps for T {
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr {
-        FilterExpr::Node(Filter::fuzzy_search(
-            self.field_name(),
-            value,
-            levenshtein_distance,
-            prefix_match,
-        ))
+    ) -> Filter {
+        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match)
     }
 }
 
@@ -849,37 +922,37 @@ impl<T: InternalEdgeFilterOps> InternalEdgeFilterOps for Arc<T> {
 }
 
 pub trait EdgeFilterOps {
-    fn eq(&self, value: impl Into<String>) -> FilterExpr;
+    fn eq(&self, value: impl Into<String>) -> Filter;
 
-    fn ne(&self, value: impl Into<String>) -> FilterExpr;
+    fn ne(&self, value: impl Into<String>) -> Filter;
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr;
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter;
 
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr;
+    ) -> Filter;
 }
 
 impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
-    fn eq(&self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Edge(Filter::eq(self.field_name(), value))
+    fn eq(&self, value: impl Into<String>) -> Filter {
+        Filter::eq(self.field_name(), value)
     }
 
-    fn ne(&self, value: impl Into<String>) -> FilterExpr {
-        FilterExpr::Edge(Filter::ne(self.field_name(), value))
+    fn ne(&self, value: impl Into<String>) -> Filter {
+        Filter::ne(self.field_name(), value)
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
-        FilterExpr::Edge(Filter::includes(self.field_name(), values))
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter {
+        Filter::includes(self.field_name(), values)
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> FilterExpr {
-        FilterExpr::Edge(Filter::excludes(self.field_name(), values))
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter {
+        Filter::excludes(self.field_name(), values)
     }
 
     fn fuzzy_search(
@@ -887,13 +960,8 @@ impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> FilterExpr {
-        FilterExpr::Edge(Filter::fuzzy_search(
-            self.field_name(),
-            value,
-            levenshtein_distance,
-            prefix_match,
-        ))
+    ) -> Filter {
+        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match)
     }
 }
 
@@ -928,13 +996,19 @@ impl EdgeFilter {
 
 #[cfg(test)]
 mod test_fluent_builder_apis {
-    use super::*;
-    use PropertyFilter;
+    use crate::{
+        db::graph::views::filter::{
+            CompositeEdgeFilter, CompositeNodeFilter, EdgeFilter, EdgeFilterOps, Filter,
+            IntoEdgeFilter, IntoNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
+            PropertyRef, Temporal,
+        },
+        prelude::PropertyFilter,
+    };
 
     #[test]
     fn test_node_property_filter_build() {
         let filter_expr = PropertyFilter::property("p").eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
+        let node_property_filter = filter_expr.into_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Property("p".to_string()),
             "raphtory",
@@ -948,7 +1022,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_const_property_filter_build() {
         let filter_expr = PropertyFilter::property("p").constant().eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
+        let node_property_filter = filter_expr.into_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::ConstantProperty("p".to_string()),
             "raphtory",
@@ -965,7 +1039,7 @@ mod test_fluent_builder_apis {
             .temporal()
             .any()
             .eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
+        let node_property_filter = filter_expr.into_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
@@ -982,7 +1056,7 @@ mod test_fluent_builder_apis {
             .temporal()
             .latest()
             .eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
+        let node_property_filter = filter_expr.into_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
@@ -996,7 +1070,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_name_filter_build() {
         let filter_expr = NodeFilter::node_name().eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
+        let node_property_filter = filter_expr.into_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
         assert_eq!(
             node_property_filter.to_string(),
@@ -1007,7 +1081,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_type_filter_build() {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
-        let node_property_filter = resolve_as_node_filter(filter_expr).unwrap();
+        let node_property_filter = filter_expr.into_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
         assert_eq!(
             node_property_filter.to_string(),
@@ -1017,7 +1091,9 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_filter_composition() {
-        let filter_expr = NodeFilter::node_name()
+        use crate::db::graph::views::filter::ComposableNodeFilter;
+
+        let node_composite_filter = NodeFilter::node_name()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
@@ -1030,7 +1106,6 @@ mod test_fluent_builder_apis {
             )
             .or(NodeFilter::node_type().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));
-        let node_composite_filter = resolve_as_node_filter(filter_expr).unwrap();
 
         let node_composite_filter2 = CompositeNodeFilter::Or(
             Box::new(CompositeNodeFilter::Or(
@@ -1082,7 +1157,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_src_filter_build() {
         let filter_expr = EdgeFilter::src().eq("raphtory");
-        let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
+        let edge_property_filter = filter_expr.into_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
@@ -1093,7 +1168,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_dst_filter_build() {
         let filter_expr = EdgeFilter::dst().eq("raphtory");
-        let edge_property_filter = resolve_as_edge_filter(filter_expr).unwrap();
+        let edge_property_filter = filter_expr.into_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
@@ -1103,7 +1178,9 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_edge_filter_composition() {
-        let filter_expr = EdgeFilter::src()
+        use crate::db::graph::views::filter::ComposableEdgeFilter;
+
+        let edge_composite_filter = EdgeFilter::src()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
@@ -1116,7 +1193,6 @@ mod test_fluent_builder_apis {
             )
             .or(EdgeFilter::src().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64));
-        let edge_composite_filter = resolve_as_edge_filter(filter_expr).unwrap();
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(
             Box::new(CompositeEdgeFilter::Or(

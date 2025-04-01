@@ -1,6 +1,6 @@
 use crate::{
     core::Prop,
-    db::graph::views::property_filter::{Filter, FilterExpr, PropertyRef, Temporal},
+    db::graph::views::filter::{Filter, FilterExpr, PropertyRef, Temporal},
     prelude::PropertyFilter,
 };
 use pyo3::prelude::*;

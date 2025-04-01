@@ -22,7 +22,9 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, filter::FilterExpr, node_subgraph::NodeSubgraph,
+                cached_view::CachedView,
+                filter::{FilterExpr, IntoEdgeFilter, IntoNodeFilter},
+                node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
         },
@@ -133,16 +135,16 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
 
-    fn search_nodes(
+    fn search_nodes<F: IntoNodeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
-    fn search_edges(
+    fn search_edges<F: IntoEdgeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
@@ -624,9 +626,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
             })
     }
 
-    fn search_nodes(
+    fn search_nodes<F: IntoNodeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
@@ -637,9 +639,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         index.searcher().search_nodes(self, filter, limit, offset)
     }
 
-    fn search_edges(
+    fn search_edges<F: IntoEdgeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
