@@ -28,12 +28,38 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::filter::{PropertyFilter, PropertyRef},
+        db::graph::views::filter::{EdgeFilter, EdgeFilterOps, PropertyFilter, PropertyRef},
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+    #[test]
+    fn test_edge_filter_on_edges() {
+        use crate::db::graph::views::filter::PropertyFilterOps;
+
+        let g = Graph::new();
+        g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)
+            .unwrap();
+        g.add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+        g.add_edge(2, "David", "Jimi", [("band", "Pink Floyd")], None)
+            .unwrap();
+
+        // let filter_expr = EdgeFilter::src().eq("Jimi");
+        let filter_expr = PropertyFilter::property("band").eq("Dead & Company");
+        let filtered_edges = g.filter_edges(filter_expr).unwrap();
+
+        assert_eq!(
+            filtered_edges
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            // vec!["Jimi->John"],
+            vec!["John->David"]
+        );
+    }
 
     #[test]
     fn test_edge_property_filter_on_nodes() {
