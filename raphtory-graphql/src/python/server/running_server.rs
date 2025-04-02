@@ -87,10 +87,11 @@ impl PyRunningGraphServer {
     /// Returns:
     ///     RaphtoryClient: the client
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
+        // TODO: return an authenticated server with rw access to everything?
         self.apply_if_alive(|handler| {
             let port = handler.port;
             let url = format!("http://localhost:{port}");
-            Ok(PyRaphtoryClient::new(url)?)
+            Ok(PyRaphtoryClient::new(url, None)?)
         })
     }
 

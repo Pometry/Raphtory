@@ -5,6 +5,7 @@ import json
 import requests
 import tempfile
 from datetime import datetime, timezone
+from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
 SECRET = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
@@ -160,3 +161,27 @@ def test_mutations(query):
 
         response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
+
+def test_raphtory_client():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir, auth_secret=SECRET).start():
+        client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
+        client.new_graph("test", "EVENT")
+        g = client.remote_graph("test")
+        g.add_node(0, "test")
+        node = g.node("test")
+        g = client.receive_graph("test")
+        assert(g.node("test") is not None)
+
+def test_upload_graph():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir, auth_secret=SECRET).start():
+        client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
+        g = Graph()
+        g.add_node(0, "uploaded-node")
+        tmp_dir = tempfile.mkdtemp()
+        path = tmp_dir + "/graph"
+        g.save_to_zip(path)
+        client.upload_graph(path="uploaded", file_path=path)
+        g = client.receive_graph("uploaded")
+        assert(g.node("uploaded-node") is not None)
