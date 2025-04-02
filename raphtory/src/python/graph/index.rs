@@ -7,7 +7,7 @@ use crate::{
     prelude::SearchableGraphOps,
     python::{
         graph::views::graph_view::PyGraphView,
-        types::wrappers::filter_expr::{PyEdgeFilterExpr, PyNodeFilterExpr},
+        types::wrappers::filter_expr::{PyFilterExpr, TryIntoEdgeFilter, TryIntoNodeFilter},
     },
 };
 use pyo3::prelude::*;
@@ -31,11 +31,12 @@ impl PyGraphView {
     #[pyo3(signature = (filter, limit=25, offset=0))]
     fn search_nodes(
         &self,
-        filter: PyNodeFilterExpr,
+        filter: PyFilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<DynamicGraph>>, GraphError> {
-        self.graph.search_nodes(filter.clone(), limit, offset)
+        let filter = filter.try_into_node_filter()?;
+        self.graph.search_nodes(filter, limit, offset)
     }
 
     /// Searches for edges which match the given filter expression. This uses Tantivy's exact search.
@@ -50,10 +51,11 @@ impl PyGraphView {
     #[pyo3(signature = (filter, limit=25, offset=0))]
     fn search_edges(
         &self,
-        filter: PyEdgeFilterExpr,
+        filter: PyFilterExpr,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, GraphError> {
-        self.graph.search_edges(filter.clone(), limit, offset)
+        let filter = filter.try_into_edge_filter()?;
+        self.graph.search_edges(filter, limit, offset)
     }
 }
