@@ -35,8 +35,8 @@ use rayon::prelude::*;
 use std::{iter, sync::Arc, time::Instant};
 
 static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
-    let data_dir = "/tmp/graphs/raph_social/rf0.1";
-    // let data_dir = "/tmp/graphs/raph_social/rf1.0";
+    let data_dir = "/tmp/graphs/raph_social/rf0.1"; // TODO Fix this
+                                                    // let data_dir = "/tmp/graphs/raph_social/rf1.0";
     let graph = Graph::decode(data_dir).unwrap();
 
     println!("Nodes count = {}", graph.count_nodes());
@@ -778,9 +778,9 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
                 let random_name = iter.next().unwrap().clone();
                 let random_src_name = random_name.0;
                 let random_dst_name = random_name.1;
-                EdgeFilter::from()
+                EdgeFilter::src()
                     .eq(random_src_name)
-                    .and(EdgeFilter::to().eq(random_dst_name))
+                    .and(EdgeFilter::dst().eq(random_dst_name))
             },
             |random_filter| {
                 graph.search_edges(random_filter, 5, 0).unwrap();
