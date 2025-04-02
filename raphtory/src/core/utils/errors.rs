@@ -316,8 +316,8 @@ pub enum GraphError {
     TqdmError,
     #[error("An error when parsing Jinja query templates: {0}")]
     JinjaError(String),
-    #[error("An error when parsing the data to json")]
-    SerdeError,
+    #[error("An error when parsing the data to json: {0}")]
+    SerdeError(#[from] serde_json::Error),
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
     #[error("Property filtering not implemented on PersistentGraph yet")]
