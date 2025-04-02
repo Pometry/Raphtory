@@ -25,8 +25,8 @@ mod test {
             graph::{
                 graph::assert_edges_equal,
                 views::filter::{
-                    CompositeNodeFilter, Filter, FilterExpr, NodeFilter, NodeFilterOps,
-                    PropertyFilter, PropertyFilterOps, PropertyRef,
+                    ComposableFilter, CompositeNodeFilter, Filter, FilterExpr, NodeFilter,
+                    NodeFilterOps, PropertyFilter, PropertyFilterOps, PropertyRef,
                 },
             },
         },
@@ -49,8 +49,11 @@ mod test {
         g.add_node(2, "David", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        // let filter_expr = NodeFilter::node_name().eq("Jimi");
-        let filter_expr = PropertyFilter::property("band").eq("Dead & Company");
+        let filter_expr = NodeFilter::node_name().eq("Jimi");
+        let filter_expr = NodeFilter::node_name()
+            .eq("John")
+            // .and(PropertyFilter::property("band").eq("Dead & Company"))
+            .and(PropertyFilter::property("band").eq("Dead & Company"));
         // let filter_expr = CompositeNodeFilter::Node(Filter::eq("node_name", "Jimi"));
         let filtered_nodes = g.nodes().filter_nodes(filter_expr).unwrap();
 

@@ -14,7 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalNodeFilterOps, Filter},
+        graph::views::filter::{internal::InternalNodeFilterOps, Filter, NodeFieldFilter},
     },
     prelude::GraphViewOps,
 };
@@ -32,14 +32,14 @@ impl<'graph, G> NodeFieldFilteredGraph<G> {
     }
 }
 
-impl InternalNodeFilterOps for Filter {
+impl InternalNodeFilterOps for NodeFieldFilter {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodeFieldFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
-        Ok(NodeFieldFilteredGraph::new(graph, self))
+        Ok(NodeFieldFilteredGraph::new(graph, self.0))
     }
 }
 
@@ -84,13 +84,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeFieldFilteredGraph<G
     #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_node(node, layer_ids) {
-            match self.filter.field_name.as_str() {
-                "node_name" => self.filter.matches(node.name().as_str()),
-                "node_type" => self
-                    .filter
-                    .matches(self.graph.node_type(node.vid()).as_deref()),
-                _ => false,
-            }
+            self.filter.matches_node(&self.graph, node)
         } else {
             false
         }

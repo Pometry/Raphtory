@@ -100,20 +100,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGrap
     #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_node(node, layer_ids) {
-            let props = NodeView::new_internal(&self.graph, node.vid()).properties();
-            let prop_value = self
-                .t_prop_id
-                .and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                })
-                .or_else(|| {
-                    self.c_prop_id
-                        .and_then(|prop_id| props.constant().get_by_id(prop_id))
-                });
-            self.filter.matches(prop_value.as_ref())
+            self.filter
+                .matches_node(&self.graph, self.t_prop_id, self.c_prop_id, node)
         } else {
             false
         }

@@ -1,23 +1,34 @@
-use crate::core::{
-    entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop,
+use crate::{
+    core::{
+        entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop,
+    },
+    db::{
+        api::storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+        graph::node::NodeView,
+    },
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use std::{
     collections::HashSet,
     fmt,
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Formatter},
     ops::Deref,
     sync::Arc,
 };
 use strsim::levenshtein;
 
+mod edge_and_filtered_graph;
 pub mod edge_field_filtered_graph;
+mod edge_or_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
+mod node_and_filtered_graph;
 mod node_field_filtered_graph;
 pub mod node_filtered_graph;
+mod node_or_filtered_graph;
 pub mod node_property_filtered_graph;
 
 #[derive(Debug, Clone, Copy)]
@@ -379,6 +390,25 @@ impl PropertyFilter {
         let value = &self.prop_value;
         self.operator.apply_to_property(value, other)
     }
+
+    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        t_prop_id: Option<usize>,
+        c_prop_id: Option<usize>,
+        node: NodeStorageRef,
+    ) -> bool {
+        let props = NodeView::new_internal(graph, node.vid()).properties();
+        let prop_value = t_prop_id
+            .and_then(|prop_id| {
+                props
+                    .temporal()
+                    .get_by_id(prop_id)
+                    .and_then(|prop_view| prop_view.latest())
+            })
+            .or_else(|| c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id)));
+        self.matches(prop_value.as_ref())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -392,6 +422,24 @@ pub struct Filter {
     pub field_name: String,
     pub field_value: FilterValue,
     pub operator: FilterOperator,
+}
+
+#[derive(Debug, Clone)]
+pub struct NodeFieldFilter(pub Filter);
+
+impl Display for NodeFieldFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EdgeFieldFilter(pub Filter);
+
+impl Display for EdgeFieldFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
 }
 
 impl Display for Filter {
@@ -472,6 +520,18 @@ impl Filter {
     pub fn matches(&self, node_value: Option<&str>) -> bool {
         self.operator.apply(&self.field_value, node_value)
     }
+
+    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        node: NodeStorageRef,
+    ) -> bool {
+        match self.field_name.as_str() {
+            "node_name" => self.matches(node.name().as_str()),
+            "node_type" => self.matches(graph.node_type(node.vid()).as_deref()),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -545,93 +605,109 @@ impl IntoEdgeFilter for PropertyFilter {
     }
 }
 
-impl IntoNodeFilter for Filter {
+impl IntoNodeFilter for NodeFieldFilter {
     fn into_node_filter(self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Node(self)
+        CompositeNodeFilter::Node(self.0)
     }
 }
 
-impl IntoEdgeFilter for Filter {
+impl IntoEdgeFilter for EdgeFieldFilter {
     fn into_edge_filter(self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Edge(self)
+        CompositeEdgeFilter::Edge(self.0)
     }
 }
 
-pub trait ComposableNodeFilter: IntoNodeFilter + Sized {
-    fn and<F: IntoNodeFilter>(self, other: F) -> CompositeNodeFilter {
-        CompositeNodeFilter::And(
-            Box::new(self.into_node_filter()),
-            Box::new(other.into_node_filter()),
-        )
-    }
-
-    fn or<F: IntoNodeFilter>(self, other: F) -> CompositeNodeFilter {
-        CompositeNodeFilter::Or(
-            Box::new(self.into_node_filter()),
-            Box::new(other.into_node_filter()),
-        )
-    }
+#[derive(Debug, Clone)]
+pub struct AndFilter<L, R> {
+    left: L,
+    right: R,
 }
 
-pub trait ComposableEdgeFilter: IntoEdgeFilter + Sized {
-    fn and<F: IntoEdgeFilter>(self, other: F) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::And(
-            Box::new(self.into_edge_filter()),
-            Box::new(other.into_edge_filter()),
-        )
-    }
-
-    fn or<F: IntoEdgeFilter>(self, other: F) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Or(
-            Box::new(self.into_edge_filter()),
-            Box::new(other.into_edge_filter()),
-        )
-    }
-}
-
-impl ComposableNodeFilter for CompositeNodeFilter {}
-impl ComposableNodeFilter for PropertyFilter {}
-impl ComposableNodeFilter for Filter {}
-
-impl ComposableEdgeFilter for CompositeEdgeFilter {}
-impl ComposableEdgeFilter for PropertyFilter {}
-impl ComposableEdgeFilter for Filter {}
-
-#[derive(Clone, Debug)]
-pub enum FilterExpr {
-    Node(Filter),
-    Edge(Filter),
-    Property(PropertyFilter),
-    And(Box<FilterExpr>, Box<FilterExpr>),
-    Or(Box<FilterExpr>, Box<FilterExpr>),
-}
-
-impl Display for FilterExpr {
+impl<L: Display, R: Display> Display for AndFilter<L, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "({} AND {})", self.left, self.right)
     }
 }
 
-impl FilterExpr {
-    pub fn and(self, other: FilterExpr) -> Self {
-        FilterExpr::And(Box::new(self), Box::new(other))
+impl<L: IntoNodeFilter, R: IntoNodeFilter> IntoNodeFilter for AndFilter<L, R> {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        CompositeNodeFilter::And(
+            Box::new(self.left.into_node_filter()),
+            Box::new(self.right.into_node_filter()),
+        )
     }
+}
 
-    pub fn or(self, other: FilterExpr) -> Self {
-        FilterExpr::Or(Box::new(self), Box::new(other))
+impl<L: IntoEdgeFilter, R: IntoEdgeFilter> IntoEdgeFilter for AndFilter<L, R> {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::And(
+            Box::new(self.left.into_edge_filter()),
+            Box::new(self.right.into_edge_filter()),
+        )
     }
 }
 
-// TODO: This code may go once raphtory APIs start supporting FilterExpr
-pub fn resolve_as_property_filter(filter: FilterExpr) -> Result<PropertyFilter, GraphError> {
-    match filter {
-        FilterExpr::Property(prop) => Ok(prop),
-        _ => Err(GraphError::IllegalFilterExpr(
-            filter,
-            "Non-property filter cannot be used in strictly property filtering!".to_string(),
-        )),
+#[derive(Debug, Clone)]
+pub struct OrFilter<L, R> {
+    left: L,
+    right: R,
+}
+
+impl<L: Display, R: Display> Display for OrFilter<L, R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({} OR {})", self.left, self.right)
     }
 }
+
+impl<L: IntoNodeFilter, R: IntoNodeFilter> IntoNodeFilter for OrFilter<L, R> {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Or(
+            Box::new(self.left.into_node_filter()),
+            Box::new(self.right.into_node_filter()),
+        )
+    }
+}
+
+impl<L: IntoEdgeFilter, R: IntoEdgeFilter> IntoEdgeFilter for OrFilter<L, R> {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Or(
+            Box::new(self.left.into_edge_filter()),
+            Box::new(self.right.into_edge_filter()),
+        )
+    }
+}
+
+pub trait ComposableFilter: Sized {
+    fn and<F>(self, other: F) -> AndFilter<Self, F> {
+        AndFilter {
+            left: self,
+            right: other,
+        }
+    }
+
+    fn or<F>(self, other: F) -> OrFilter<Self, F> {
+        OrFilter {
+            left: self,
+            right: other,
+        }
+    }
+}
+
+impl ComposableFilter for PropertyFilter {}
+impl ComposableFilter for NodeFieldFilter {}
+impl ComposableFilter for EdgeFieldFilter {}
+impl<L, R> ComposableFilter for AndFilter<L, R> {}
+impl<L, R> ComposableFilter for OrFilter<L, R> {}
+
+// pub fn resolve_as_property_filter(filter: FilterExpr) -> Result<PropertyFilter, GraphError> {
+//     match filter {
+//         FilterExpr::Property(prop) => Ok(prop),
+//         _ => Err(GraphError::IllegalFilterExpr(
+//             filter,
+//             "Non-property filter cannot be used in strictly property filtering!".to_string(),
+//         )),
+//     }
+// }
 
 pub trait InternalPropertyFilterOps: Send + Sync {
     fn property_ref(&self) -> PropertyRef;
@@ -804,36 +880,36 @@ impl<T: InternalNodeFilterOps> InternalNodeFilterOps for Arc<T> {
 }
 
 pub trait NodeFilterOps {
-    fn eq(&self, value: impl Into<String>) -> Filter;
+    fn eq(&self, value: impl Into<String>) -> NodeFieldFilter;
 
-    fn ne(&self, value: impl Into<String>) -> Filter;
+    fn ne(&self, value: impl Into<String>) -> NodeFieldFilter;
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter;
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> NodeFieldFilter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter;
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> NodeFieldFilter;
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Filter;
+    ) -> NodeFieldFilter;
 }
 
 impl<T: ?Sized + InternalNodeFilterOps> NodeFilterOps for T {
-    fn eq(&self, value: impl Into<String>) -> Filter {
-        Filter::eq(self.field_name(), value)
+    fn eq(&self, value: impl Into<String>) -> NodeFieldFilter {
+        NodeFieldFilter(Filter::eq(self.field_name(), value))
     }
 
-    fn ne(&self, value: impl Into<String>) -> Filter {
-        Filter::ne(self.field_name(), value)
+    fn ne(&self, value: impl Into<String>) -> NodeFieldFilter {
+        NodeFieldFilter(Filter::ne(self.field_name(), value))
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter {
-        Filter::includes(self.field_name(), values)
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> NodeFieldFilter {
+        NodeFieldFilter(Filter::includes(self.field_name(), values))
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter {
-        Filter::excludes(self.field_name(), values)
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> NodeFieldFilter {
+        NodeFieldFilter(Filter::excludes(self.field_name(), values))
     }
 
     fn fuzzy_search(
@@ -841,8 +917,13 @@ impl<T: ?Sized + InternalNodeFilterOps> NodeFilterOps for T {
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Filter {
-        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match)
+    ) -> NodeFieldFilter {
+        NodeFieldFilter(Filter::fuzzy_search(
+            self.field_name(),
+            value,
+            levenshtein_distance,
+            prefix_match,
+        ))
     }
 }
 
@@ -886,37 +967,37 @@ impl<T: InternalEdgeFilterOps> InternalEdgeFilterOps for Arc<T> {
 }
 
 pub trait EdgeFilterOps {
-    fn eq(&self, value: impl Into<String>) -> Filter;
+    fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
-    fn ne(&self, value: impl Into<String>) -> Filter;
+    fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter;
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter;
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Filter;
+    ) -> EdgeFieldFilter;
 }
 
 impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
-    fn eq(&self, value: impl Into<String>) -> Filter {
-        Filter::eq(self.field_name(), value)
+    fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::eq(self.field_name(), value))
     }
 
-    fn ne(&self, value: impl Into<String>) -> Filter {
-        Filter::ne(self.field_name(), value)
+    fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::ne(self.field_name(), value))
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> Filter {
-        Filter::includes(self.field_name(), values)
+    fn includes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::includes(self.field_name(), values))
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Filter {
-        Filter::excludes(self.field_name(), values)
+    fn excludes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::excludes(self.field_name(), values))
     }
 
     fn fuzzy_search(
@@ -924,8 +1005,13 @@ impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Filter {
-        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match)
+    ) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::fuzzy_search(
+            self.field_name(),
+            value,
+            levenshtein_distance,
+            prefix_match,
+        ))
     }
 }
 
@@ -962,8 +1048,8 @@ impl EdgeFilter {
 mod test_fluent_builder_apis {
     use crate::{
         db::graph::views::filter::{
-            CompositeEdgeFilter, CompositeNodeFilter, EdgeFilter, EdgeFilterOps, Filter,
-            IntoEdgeFilter, IntoNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
+            ComposableFilter, CompositeEdgeFilter, CompositeNodeFilter, EdgeFilter, EdgeFilterOps,
+            Filter, IntoEdgeFilter, IntoNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
             PropertyRef, Temporal,
         },
         prelude::PropertyFilter,
@@ -1055,8 +1141,6 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_filter_composition() {
-        use crate::db::graph::views::filter::ComposableNodeFilter;
-
         let node_composite_filter = NodeFilter::node_name()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))
@@ -1142,8 +1226,6 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_edge_filter_composition() {
-        use crate::db::graph::views::filter::ComposableEdgeFilter;
-
         let edge_composite_filter = EdgeFilter::src()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))

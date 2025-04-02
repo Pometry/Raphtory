@@ -110,7 +110,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> ListOps for NodeSubgraph<G> {
     fn node_list(&self) -> NodeList {
         NodeList::List {
-            nodes: self.nodes.clone(),
+            elems: self.nodes.clone(),
         }
     }
 

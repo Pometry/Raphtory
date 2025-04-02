@@ -261,7 +261,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn node_list(&self) -> NodeList {
         if self.window_is_empty() {
             NodeList::List {
-                nodes: Index::default(),
+                elems: Index::default(),
             }
         } else {
             self.graph.node_list()
@@ -271,7 +271,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn edge_list(&self) -> EdgeList {
         if self.window_is_empty() {
             EdgeList::List {
-                edges: Arc::new([]),
+                elems: Index::default(),
             }
         } else {
             self.graph.edge_list()

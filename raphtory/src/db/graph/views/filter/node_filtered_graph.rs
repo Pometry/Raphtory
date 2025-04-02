@@ -36,12 +36,12 @@ impl<'graph, G> NodeFilteredGraph<G> {
 }
 
 impl InternalNodeFilterOps for CompositeNodeFilter {
-    type NodePropertyFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G>;
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         Ok(NodeFilteredGraph::new(graph, self))
     }
 }
@@ -88,30 +88,15 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeFilteredGraph<G> {
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_node(node, layer_ids) {
             match &self.filter {
-                CompositeNodeFilter::Node(filter) => match filter.field_name.as_str() {
-                    "node_name" => filter.matches(node.name().as_str()),
-                    "node_type" => filter.matches(self.graph.node_type(node.vid()).as_deref()),
-                    _ => unreachable!(""),
-                },
+                CompositeNodeFilter::Node(filter) => filter.matches_node(&self.graph, node),
                 CompositeNodeFilter::Property(filter) => {
-                    let props = NodeView::new_internal(&self.graph, node.vid()).properties();
                     let t_prop_id = filter
                         .resolve_temporal_prop_ids(self.graph.node_meta())
                         .unwrap_or(None);
                     let c_prop_id = filter
                         .resolve_constant_prop_ids(self.graph.node_meta())
                         .unwrap_or(None);
-                    let prop_value = t_prop_id
-                        .and_then(|prop_id| {
-                            props
-                                .temporal()
-                                .get_by_id(prop_id)
-                                .and_then(|prop_view| prop_view.latest())
-                        })
-                        .or_else(|| {
-                            c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id))
-                        });
-                    filter.matches(prop_value.as_ref())
+                    filter.matches_node(&self.graph, t_prop_id, c_prop_id, node)
                 }
                 CompositeNodeFilter::And(left, right) => {
                     let left_filter = NodeFilteredGraph {

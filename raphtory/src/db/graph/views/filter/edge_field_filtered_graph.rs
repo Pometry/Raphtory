@@ -14,7 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, Filter},
+        graph::views::filter::{internal::InternalEdgeFilterOps, EdgeFieldFilter, Filter},
     },
     prelude::GraphViewOps,
 };
@@ -32,14 +32,14 @@ impl<'graph, G> EdgeFieldFilteredGraph<G> {
     }
 }
 
-impl InternalEdgeFilterOps for Filter {
+impl InternalEdgeFilterOps for EdgeFieldFilter {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgeFieldFilteredGraph<G>;
 
     fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        Ok(EdgeFieldFilteredGraph::new(graph, self))
+        Ok(EdgeFieldFilteredGraph::new(graph, self.0))
     }
 }
 
