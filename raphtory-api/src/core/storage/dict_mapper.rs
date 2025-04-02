@@ -1,5 +1,5 @@
 use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec};
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -88,6 +88,61 @@ impl<Index> BorrowMut<Index> for MaybeNew<Index> {
     }
 }
 
+pub struct LockedDictMapper<'a> {
+    map: RwLockReadGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockReadGuard<'a, Vec<ArcStr>>,
+}
+
+pub struct WriteLockedDictMapper<'a> {
+    map: RwLockWriteGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockWriteGuard<'a, Vec<ArcStr>>,
+}
+
+impl LockedDictMapper<'_> {
+    pub fn get_id(&self, name: &str) -> Option<usize> {
+        self.map.get(name).copied()
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+}
+
+impl WriteLockedDictMapper<'_> {
+    pub fn get_or_create_id<Q, T>(&mut self, name: &Q) -> MaybeNew<usize>
+    where
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
+        T: Into<ArcStr>,
+    {
+        let name = name.to_owned().into();
+        let new_id = match self.map.entry(name.clone()) {
+            Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
+            Entry::Vacant(entry) => {
+                let id = self.reverse_map.len();
+                self.reverse_map.push(name);
+                entry.insert(id);
+                MaybeNew::New(id)
+            }
+        };
+        new_id
+    }
+
+    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) {
+        let arc_name = name.into();
+        let map_entry = self.map.entry(arc_name.clone());
+        let keys = self.reverse_map.deref_mut();
+        if keys.len() <= id {
+            keys.resize(id + 1, Default::default())
+        }
+        keys[id] = arc_name;
+        map_entry.insert_entry(id);
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+}
+
 impl DictMapper {
     pub fn deep_clone(&self) -> Self {
         let reverse_map = self.reverse_map.read().clone();
@@ -98,8 +153,18 @@ impl DictMapper {
         }
     }
 
-    pub fn read(&self) -> RwLockReadGuard<FxHashMap<ArcStr, usize>> {
-        self.map.read()
+    pub fn read(&self) -> LockedDictMapper {
+        LockedDictMapper {
+            map: self.map.read(),
+            reverse_map: self.reverse_map.read(),
+        }
+    }
+
+    pub fn write(&self) -> WriteLockedDictMapper {
+        WriteLockedDictMapper {
+            map: self.map.write(),
+            reverse_map: self.reverse_map.write(),
+        }
     }
 
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> MaybeNew<usize>

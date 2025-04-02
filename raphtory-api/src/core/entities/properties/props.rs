@@ -1,14 +1,18 @@
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use parking_lot::RwLock;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use polars_arrow::Either;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
     check_for_unification,
     storage::{
         arc_str::ArcStr,
-        dict_mapper::{DictMapper, MaybeNew},
+        dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, WriteLockedDictMapper},
         locked_vec::ArcReadLockedVec,
     },
     unify_types, PropType,
@@ -218,43 +222,6 @@ impl PropMapper {
         }
     }
 
-    /// Fast check for property type without unifying the types
-    /// Returns:
-    /// - `Some(Either::Left(id))` if the property type can be unified
-    /// - `Some(Either::Right(id))` if the property type is already set and no unification is needed
-    /// - `None` if the property type is not set
-    /// - `Err(PropError::PropertyTypeError)` if the property type cannot be unified
-    pub fn fast_proptype_check(
-        &self,
-        prop: &str,
-        dtype: PropType,
-    ) -> Result<Option<Either<usize, usize>>, PropError> {
-        match self.get_id(prop) {
-            Some(id) => {
-                let existing_dtype = self
-                    .get_dtype(id)
-                    .expect("Existing id should always have a dtype");
-
-                let fast_check = check_for_unification(&dtype, &existing_dtype);
-                if fast_check.is_none() {
-                    // means nothing to do
-                    return Ok(Some(Either::Right(id)))
-                }
-                let can_unify = fast_check.unwrap();
-                if can_unify {
-                    Ok(Some(Either::Left(id)))
-                } else {
-                    Err(PropError::PropertyTypeError {
-                        name: prop.to_string(),
-                        expected: existing_dtype,
-                        actual: dtype,
-                    })
-                }
-            }
-            None => Ok(None),
-        }
-    }
-
     pub fn get_or_create_and_validate(
         &self,
         prop: &str,
@@ -321,6 +288,125 @@ impl PropMapper {
 
     pub fn locked_dtypes(&self) -> &RwLock<Vec<PropType>> {
         self.dtypes.as_ref()
+    }
+
+    pub fn locked(&self) -> LockedPropMapper {
+        LockedPropMapper {
+            dict_mapper: self.id_mapper.read(),
+            d_types: self.dtypes.read_recursive(),
+        }
+    }
+
+    pub fn write_locked(&self) -> WriteLockedPropMapper {
+        WriteLockedPropMapper {
+            dict_mapper: self.id_mapper.write(),
+            d_types: self.dtypes.write(),
+        }
+    }
+}
+
+pub struct LockedPropMapper<'a> {
+    dict_mapper: LockedDictMapper<'a>,
+    d_types: RwLockReadGuard<'a, Vec<PropType>>,
+}
+
+pub struct WriteLockedPropMapper<'a> {
+    dict_mapper: WriteLockedDictMapper<'a>,
+    d_types: RwLockWriteGuard<'a, Vec<PropType>>,
+}
+
+impl<'a> WriteLockedPropMapper<'a> {
+    pub fn get_dtype(&'a self, prop_id: usize) -> Option<&'a PropType> {
+        self.d_types.get(prop_id)
+    }
+
+    /// Fast check for property type without unifying the types
+    /// Returns:
+    /// - `Some(Either::Left(id))` if the property type can be unified
+    /// - `Some(Either::Right(id))` if the property type is already set and no unification is needed
+    /// - `None` if the property type is not set
+    /// - `Err(PropError::PropertyTypeError)` if the property type cannot be unified
+    pub fn fast_proptype_check(
+        &mut self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<Option<Either<usize, usize>>, PropError> {
+        fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+    }
+
+    pub fn set_id_and_dtype(&mut self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
+        self.dict_mapper.set_id(key, id);
+        let dtypes = self.d_types.deref_mut();
+        if dtypes.len() <= id {
+            dtypes.resize(id + 1, PropType::Empty);
+        }
+        dtypes[id] = dtype;
+    }
+
+    pub fn new_id_and_dtype(&mut self, key: impl Into<ArcStr>, dtype: PropType) -> usize {
+        let id = self.dict_mapper.get_or_create_id(&key.into());
+        let dtypes = self.d_types.deref_mut();
+        if dtypes.len() <= id.inner() {
+            dtypes.resize(id.inner() + 1, PropType::Empty);
+        }
+        dtypes[id.inner()] = dtype;
+        id.inner()
+    }
+}
+
+impl<'a> LockedPropMapper<'a> {
+    pub fn get_id(&self, prop: &str) -> Option<usize> {
+        self.dict_mapper.get_id(prop)
+    }
+
+    pub fn get_dtype(&'a self, prop_id: usize) -> Option<&'a PropType> {
+        self.d_types.get(prop_id)
+    }
+
+    /// Fast check for property type without unifying the types
+    /// Returns:
+    /// - `Some(Either::Left(id))` if the property type can be unified
+    /// - `Some(Either::Right(id))` if the property type is already set and no unification is needed
+    /// - `None` if the property type is not set
+    /// - `Err(PropError::PropertyTypeError)` if the property type cannot be unified
+    pub fn fast_proptype_check(
+        &self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<Option<Either<usize, usize>>, PropError> {
+        fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+    }
+}
+
+fn fast_proptype_check(
+    mapper: &FxHashMap<ArcStr, usize>,
+    d_types: &[PropType],
+    prop: &str,
+    dtype: PropType,
+) -> Result<Option<Either<usize, usize>>, PropError> {
+    match mapper.get(prop) {
+        Some(&id) => {
+            let existing_dtype = d_types
+                .get(id)
+                .expect("Existing id should always have a dtype");
+
+            let fast_check = check_for_unification(&dtype, existing_dtype);
+            if fast_check.is_none() {
+                // means nothing to do
+                return Ok(Some(Either::Right(id)));
+            }
+            let can_unify = fast_check.unwrap();
+            if can_unify {
+                Ok(Some(Either::Left(id)))
+            } else {
+                Err(PropError::PropertyTypeError {
+                    name: prop.to_string(),
+                    expected: existing_dtype.clone(),
+                    actual: dtype,
+                })
+            }
+        }
+        None => Ok(None),
     }
 }
 
