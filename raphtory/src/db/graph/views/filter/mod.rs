@@ -698,16 +698,6 @@ impl ComposableFilter for EdgeFieldFilter {}
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
-// pub fn resolve_as_property_filter(filter: FilterExpr) -> Result<PropertyFilter, GraphError> {
-//     match filter {
-//         FilterExpr::Property(prop) => Ok(prop),
-//         _ => Err(GraphError::IllegalFilterExpr(
-//             filter,
-//             "Non-property filter cannot be used in strictly property filtering!".to_string(),
-//         )),
-//     }
-// }
-
 pub trait InternalPropertyFilterOps: Send + Sync {
     fn property_ref(&self) -> PropertyRef;
 }
