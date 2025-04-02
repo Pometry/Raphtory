@@ -358,6 +358,9 @@ pub enum GraphError {
 
     #[error("Value cannot be empty.")]
     EmptyValue,
+
+    #[error("Filter must contain at least one filter condition.")]
+    ParsingError,
 }
 
 impl GraphError {

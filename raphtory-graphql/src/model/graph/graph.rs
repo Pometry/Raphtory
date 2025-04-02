@@ -30,11 +30,18 @@ use raphtory::{
                 TimeOps,
             },
         },
-        graph::{node::NodeView, views::property_filter::PropertyRef},
+        graph::{
+            node::NodeView,
+            views::filter::{CompositeEdgeFilter, CompositeNodeFilter, PropertyRef},
+        },
     },
     prelude::*,
 };
-use std::{collections::HashSet, convert::Into, sync::Arc};
+use std::{
+    collections::HashSet,
+    convert::{Into, TryInto},
+    sync::Arc,
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
@@ -723,10 +730,11 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Node>, GraphError> {
+        let f: CompositeNodeFilter = filter.try_into()?;
         self.execute_search(|| {
             Ok(self
                 .graph
-                .search_nodes(filter.try_into()?, limit, offset)
+                .search_nodes(f, limit, offset)
                 .into_iter()
                 .flatten()
                 .map(|vv| vv.into())
@@ -741,10 +749,11 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Edge>, GraphError> {
+        let f: CompositeEdgeFilter = filter.try_into()?;
         self.execute_search(|| {
             Ok(self
                 .graph
-                .search_edges(filter.try_into()?, limit, offset)
+                .search_edges(f, limit, offset)
                 .into_iter()
                 .flatten()
                 .map(|vv| vv.into())
