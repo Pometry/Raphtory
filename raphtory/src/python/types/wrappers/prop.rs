@@ -7,9 +7,22 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
     python::types::repr::Repr,
 };
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
+use bigdecimal::BigDecimal;
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    sync::GILOnceCell,
+    types::{PyBool, PyType},
+    IntoPyObjectExt,
+};
 use pyo3_arrow::PyArray;
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, str::FromStr, sync::Arc};
+
+static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
 
 impl<'py> IntoPyObject<'py> for Prop {
     type Target = PyAny;
@@ -41,6 +54,10 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
             Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+            Prop::Decimal(d) => {
+                let decl_cls = get_decimal_cls(py)?;
+                decl_cls.call1((d.to_string(),))?
+            }
         })
     }
 }
@@ -53,6 +70,20 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::I64(v));
+        }
+        if ob.get_type().name()?.contains("Decimal")? {
+            // this sits before f64, otherwise it will be picked up as f64
+            let py_str = &ob.str()?;
+            let rs_str = &py_str.to_cow()?;
+
+            return Ok(BigDecimal::from_str(&rs_str)
+                .map_err(|_| {
+                    PyTypeError::new_err(format!("Could not convert {} to Decimal", rs_str))
+                })
+                .and_then(|bd| {
+                    Prop::try_from_bd(bd)
+                        .map_err(|_| PyTypeError::new_err(format!("Decimal too large {}", rs_str)))
+                })?);
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::F64(v));
@@ -101,6 +132,7 @@ impl Repr for Prop {
             Prop::F32(v) => v.repr(),
             Prop::List(v) => v.repr(),
             Prop::Map(v) => v.repr(),
+            Prop::Decimal(v) => v.repr(),
         }
     }
 }

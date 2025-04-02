@@ -19,16 +19,15 @@ use std::{
 };
 use strsim::levenshtein;
 
-mod edge_and_filtered_graph;
+pub mod edge_and_filtered_graph;
 pub mod edge_field_filtered_graph;
-mod edge_or_filtered_graph;
+pub mod edge_or_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
-mod node_and_filtered_graph;
-mod node_field_filtered_graph;
-pub mod node_filtered_graph;
-mod node_or_filtered_graph;
+pub mod node_and_filtered_graph;
+pub mod node_field_filtered_graph;
+pub mod node_or_filtered_graph;
 pub mod node_property_filtered_graph;
 
 #[derive(Debug, Clone, Copy)]
@@ -429,7 +428,7 @@ pub struct NodeFieldFilter(pub Filter);
 
 impl Display for NodeFieldFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -438,7 +437,7 @@ pub struct EdgeFieldFilter(pub Filter);
 
 impl Display for EdgeFieldFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -545,8 +544,8 @@ pub enum CompositeNodeFilter {
 impl Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeNodeFilter::Property(filter) => write!(f, "NODE_PROPERTY({})", filter),
-            CompositeNodeFilter::Node(filter) => write!(f, "NODE({})", filter),
+            CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
         }
@@ -564,8 +563,8 @@ pub enum CompositeEdgeFilter {
 impl Display for CompositeEdgeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeEdgeFilter::Property(filter) => write!(f, "EDGE_PROPERTY({})", filter),
-            CompositeEdgeFilter::Edge(filter) => write!(f, "EDGE({})", filter),
+            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
         }
@@ -1296,7 +1295,7 @@ mod test_composite_filters {
     #[test]
     fn test_composite_node_filter() {
         assert_eq!(
-            "NODE_PROPERTY(p2 == 2)",
+            "p2 == 2",
             CompositeNodeFilter::Property(PropertyFilter::eq(
                 PropertyRef::Property("p2".to_string()),
                 2u64
@@ -1305,7 +1304,7 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((((NODE(node_type NOT_IN [fire_nation, water_tribe]) AND NODE_PROPERTY(p2 == 2)) AND NODE_PROPERTY(p1 == 1)) AND (NODE_PROPERTY(p3 <= 5) OR NODE_PROPERTY(p4 IN [2, 10]))) OR (NODE(node_name == pometry) OR NODE_PROPERTY(p5 == 9)))",
+            "((((node_type NOT_IN [fire_nation, water_tribe] AND p2 == 2) AND p1 == 1) AND (p3 <= 5 OR p4 IN [2, 10])) OR (node_name == pometry OR p5 == 9))",
             CompositeNodeFilter::Or(Box::new(CompositeNodeFilter::And(
                 Box::new(CompositeNodeFilter::And(
                     Box::new(CompositeNodeFilter::And(
@@ -1345,9 +1344,11 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "(NODE(name FUZZY_SEARCH(1,true) shivam) AND NODE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
+            "(name FUZZY_SEARCH(1,true) shivam AND nation FUZZY_SEARCH(1,false) air_nomad)",
             CompositeNodeFilter::And(
-                Box::from(CompositeNodeFilter::Node(Filter::fuzzy_search("name", "shivam", 1, true))),
+                Box::from(CompositeNodeFilter::Node(Filter::fuzzy_search(
+                    "name", "shivam", 1, true
+                ))),
                 Box::from(CompositeNodeFilter::Property(PropertyFilter::fuzzy_search(
                     PropertyRef::Property("nation".to_string()),
                     "air_nomad",
@@ -1355,14 +1356,14 @@ mod test_composite_filters {
                     false,
                 ))),
             )
-                .to_string()
+            .to_string()
         );
     }
 
     #[test]
     fn test_composite_edge_filter() {
         assert_eq!(
-            "EDGE_PROPERTY(p2 == 2)",
+            "p2 == 2",
             CompositeEdgeFilter::Property(PropertyFilter::eq(
                 PropertyRef::Property("p2".to_string()),
                 2u64
@@ -1371,7 +1372,7 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((((EDGE(edge_type NOT_IN [fire_nation, water_tribe]) AND EDGE_PROPERTY(p2 == 2)) AND EDGE_PROPERTY(p1 == 1)) AND (EDGE_PROPERTY(p3 <= 5) OR EDGE_PROPERTY(p4 IN [2, 10]))) OR (EDGE(src == pometry) OR EDGE_PROPERTY(p5 == 9)))",
+            "((((edge_type NOT_IN [fire_nation, water_tribe] AND p2 == 2) AND p1 == 1) AND (p3 <= 5 OR p4 IN [2, 10])) OR (src == pometry OR p5 == 9))",
             CompositeEdgeFilter::Or(
                 Box::new(CompositeEdgeFilter::And(
                     Box::new(CompositeEdgeFilter::And(
@@ -1413,9 +1414,11 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "(EDGE(name FUZZY_SEARCH(1,true) shivam) AND EDGE_PROPERTY(nation FUZZY_SEARCH(1,false) air_nomad))",
+            "(name FUZZY_SEARCH(1,true) shivam AND nation FUZZY_SEARCH(1,false) air_nomad)",
             CompositeEdgeFilter::And(
-                Box::from(CompositeEdgeFilter::Edge(Filter::fuzzy_search("name", "shivam", 1, true))),
+                Box::from(CompositeEdgeFilter::Edge(Filter::fuzzy_search(
+                    "name", "shivam", 1, true
+                ))),
                 Box::from(CompositeEdgeFilter::Property(PropertyFilter::fuzzy_search(
                     PropertyRef::Property("nation".to_string()),
                     "air_nomad",
@@ -1423,7 +1426,7 @@ mod test_composite_filters {
                     false,
                 ))),
             )
-                .to_string()
+            .to_string()
         );
     }
 

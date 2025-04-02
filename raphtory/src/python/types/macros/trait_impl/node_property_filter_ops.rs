@@ -22,7 +22,7 @@ macro_rules! impl_node_property_filter_ops {
                 filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
             ) -> Result<
                 <$base_type as OneHopFilter<'static>>::Filtered<
-                    <PyPropertyFilter as InternalNodePropertyFilterOps>::NodePropertyFiltered<
+                    <PyPropertyFilter as InternalNodeFilterOps>::NodeFiltered<
                         'static,
                         <$base_type as OneHopFilter<'static>>::FilteredGraph,
                     >,

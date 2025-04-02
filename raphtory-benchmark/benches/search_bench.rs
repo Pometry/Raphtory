@@ -32,8 +32,8 @@ use rayon::prelude::*;
 use std::{iter, sync::Arc, time::Instant};
 
 static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
-    let data_dir = "/tmp/graphs/raph_social/rf0.1";
-    // let data_dir = "/tmp/graphs/raph_social/rf1.0";
+    let data_dir = "/tmp/graphs/raph_social/rf0.1"; // TODO Fix this
+                                                    // let data_dir = "/tmp/graphs/raph_social/rf1.0";
     let graph = Graph::decode(data_dir).unwrap();
 
     println!("Nodes count = {}", graph.count_nodes());

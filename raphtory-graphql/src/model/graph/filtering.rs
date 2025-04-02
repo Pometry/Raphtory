@@ -3,7 +3,7 @@ use dynamic_graphql::{Enum, InputObject};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::property_filter::{
-        Filter, FilterExpr, FilterOperator, FilterValue, PropertyFilterValue, PropertyRef, Temporal,
+        Filter, FilterExpr, FilterOperator, FilterValue, PropertyRef, Temporal,
     },
     prelude::PropertyFilter,
 };

@@ -2,11 +2,12 @@ use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::plugins::query_plugin::QueryPlugin,
-    paths::{ExistingGraphFolder, ValidGraphFolder},
+    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
+use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphResult},
+    core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
     db::api::view::MaterializedGraph,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
@@ -17,7 +18,7 @@ use raphtory::{
 use std::{
     collections::HashMap,
     fs,
-    path::{Path, PathBuf, StripPrefixError},
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tracing::{error, warn};
@@ -29,6 +30,27 @@ pub struct EmbeddingConf {
     pub(crate) cache: Arc<Option<EmbeddingCache>>, // FIXME: no need for this to be Option
     pub(crate) global_template: Option<DocumentTemplate>,
     pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
+}
+
+pub(crate) fn get_relative_path(
+    work_dir: PathBuf,
+    path: &Path,
+    namespace: bool,
+) -> Result<String, InvalidPathReason> {
+    let path_buf = path.strip_prefix(work_dir.clone())?.to_path_buf();
+    let components = path_buf
+        .components()
+        .into_iter()
+        .map(|c| {
+            c.as_os_str()
+                .to_str()
+                .ok_or(InvalidPathReason::NonUTFCharacters)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    //a safe unwrap as checking above
+    let path_str = components.into_iter().join("/");
+    valid_path(work_dir, &path_str, namespace)?;
+    Ok(path_str)
 }
 
 #[derive(Clone)]
@@ -197,17 +219,11 @@ impl Data {
             .filter_map(|e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = self.get_relative_path(path).ok()?;
-                let relative_str = relative.to_str()?; // potential UTF8 error here
-                let cleaned = relative_str.replace(r"\", "/");
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned).ok()?;
+                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
                 Some(folder)
             })
             .collect()
-    }
-
-    fn get_relative_path(&self, path: &Path) -> Result<PathBuf, StripPrefixError> {
-        Ok(path.strip_prefix(&self.work_dir)?.to_path_buf())
     }
 
     pub(crate) fn get_global_plugins(&self) -> QueryPlugin {

@@ -80,8 +80,7 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::{
-                    ComposableNodeFilter, IntoNodeFilter, NodeFilter, NodeFilterOps,
-                    PropertyFilterOps,
+                    ComposableFilter, IntoNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
@@ -1145,8 +1144,7 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::{
-                    ComposableEdgeFilter, EdgeFilter, EdgeFilterOps, IntoEdgeFilter,
-                    PropertyFilterOps,
+                    ComposableFilter, EdgeFilter, EdgeFilterOps, IntoEdgeFilter, PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},

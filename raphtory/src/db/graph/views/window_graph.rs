@@ -1463,7 +1463,7 @@ mod views_test {
                 graph::views::{
                     deletion_graph::PersistentGraph,
                     filter::{
-                        ComposableNodeFilter, IntoNodeFilter, NodeFilter, NodeFilterOps,
+                        ComposableFilter, IntoNodeFilter, NodeFilter, NodeFilterOps,
                         PropertyFilterOps,
                     },
                 },
@@ -2461,7 +2461,7 @@ mod views_test {
                 graph::views::{
                     deletion_graph::PersistentGraph,
                     filter::{
-                        ComposableEdgeFilter, EdgeFilter, EdgeFilterOps, IntoEdgeFilter,
+                        ComposableFilter, EdgeFilter, EdgeFilterOps, IntoEdgeFilter,
                         PropertyFilterOps,
                     },
                 },
@@ -2720,7 +2720,7 @@ mod views_test {
             results
         }
 
-        fn search_edges_for_from_eq<G, F>(constructor: F)
+        fn search_edges_for_src_eq<G, F>(constructor: F)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -2735,16 +2735,16 @@ mod views_test {
         }
 
         #[test]
-        fn test_search_edges_graph_for_from_eq() {
-            search_edges_for_from_eq(Graph::new);
+        fn test_search_edges_graph_for_src_eq() {
+            search_edges_for_src_eq(Graph::new);
         }
 
         #[test]
-        fn test_search_edges_persistent_graph_for_from_eq() {
-            search_edges_for_from_eq(PersistentGraph::new);
+        fn test_search_edges_persistent_graph_for_src_eq() {
+            search_edges_for_src_eq(PersistentGraph::new);
         }
 
-        fn search_edges_for_from_ne<G, F>(constructor: F, expected: Vec<&str>)
+        fn search_edges_for_src_ne<G, F>(constructor: F, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -2759,13 +2759,13 @@ mod views_test {
         }
 
         #[test]
-        fn test_search_edges_graph_for_from_ne() {
-            search_edges_for_from_ne(Graph::new, vec!["N1->N2", "N3->N4", "N5->N6", "N6->N7"]);
+        fn test_search_edges_graph_for_src_ne() {
+            search_edges_for_src_ne(Graph::new, vec!["N1->N2", "N3->N4", "N5->N6", "N6->N7"]);
         }
 
         #[test]
-        fn test_search_edges_persistent_graph_for_from_ne() {
-            search_edges_for_from_ne(
+        fn test_search_edges_persistent_graph_for_src_ne() {
+            search_edges_for_src_ne(
                 PersistentGraph::new,
                 vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
@@ -2774,7 +2774,7 @@ mod views_test {
             );
         }
 
-        fn search_edges_for_to_in<G, F>(constructor: F)
+        fn search_edges_for_dst_in<G, F>(constructor: F)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -2793,16 +2793,16 @@ mod views_test {
         }
 
         #[test]
-        fn test_search_edges_graph_for_to_in() {
-            search_edges_for_to_in(Graph::new);
+        fn test_search_edges_graph_for_dst_in() {
+            search_edges_for_dst_in(Graph::new);
         }
 
         #[test]
-        fn test_search_edges_persistent_graph_for_to_in() {
-            search_edges_for_to_in(PersistentGraph::new);
+        fn test_search_edges_persistent_graph_for_dst_in() {
+            search_edges_for_dst_in(PersistentGraph::new);
         }
 
-        fn search_edges_for_to_not_in<G, F>(constructor: F, expected: Vec<&str>)
+        fn search_edges_for_dst_not_in<G, F>(constructor: F, expected: Vec<&str>)
         where
             G: StaticGraphViewOps
                 + AdditionOps
@@ -2817,16 +2817,16 @@ mod views_test {
         }
 
         #[test]
-        fn test_search_edges_graph_for_to_not_in() {
-            search_edges_for_to_not_in(
+        fn test_search_edges_graph_for_dst_not_in() {
+            search_edges_for_dst_not_in(
                 Graph::new,
                 vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"],
             );
         }
 
         #[test]
-        fn test_search_edges_persistent_graph_for_to_not_in() {
-            search_edges_for_to_not_in(
+        fn test_search_edges_persistent_graph_for_dst_not_in() {
+            search_edges_for_dst_not_in(
                 PersistentGraph::new,
                 vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",

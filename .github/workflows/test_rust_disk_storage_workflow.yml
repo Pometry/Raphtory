@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - { os: macos-latest, flags: "" }
-          - { os: ubuntu-20.04, flags: "-C link-arg=-fuse-ld=lld" }
+          - { os: ubuntu-latest, flags: "-C link-arg=-fuse-ld=lld" }
           - { os: windows-latest, flags: "" }
     steps:
       - uses: maxim-lobanov/setup-xcode@v1

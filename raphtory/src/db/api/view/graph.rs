@@ -23,7 +23,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{FilterExpr, IntoEdgeFilter, IntoNodeFilter},
+                filter::{IntoEdgeFilter, IntoNodeFilter},
                 node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
             },

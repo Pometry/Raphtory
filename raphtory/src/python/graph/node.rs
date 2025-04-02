@@ -23,7 +23,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::property_filter::internal::*,
+            views::filter::internal::*,
         },
     },
     python::{
