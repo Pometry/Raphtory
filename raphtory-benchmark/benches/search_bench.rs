@@ -17,8 +17,8 @@ use raphtory::{
             edge::EdgeView,
             node::NodeView,
             views::filter::{
-                resolve_as_property_filter, EdgeFilter, EdgeFilterOps, FilterExpr, FilterOperator,
-                FilterOperator::*, NodeFilter, NodeFilterOps, PropertyFilterOps,
+                ComposableFilter, EdgeFilter, EdgeFilterOps, FilterOperator, FilterOperator::*,
+                NodeFilter, NodeFilterOps, PropertyFilterOps,
             },
         },
     },
@@ -199,7 +199,7 @@ fn convert_to_property_filter(
     prop_value: Prop,
     filter_op: FilterOperator,
     sampled_values: Option<Vec<Prop>>,
-) -> Option<FilterExpr> {
+) -> Option<PropertyFilter> {
     let mut rng = thread_rng();
 
     match prop_value.dtype() {
@@ -318,7 +318,7 @@ fn pick_node_property_filter(
     props: &[(String, usize)],
     is_const: bool,
     filter_op: FilterOperator,
-) -> Option<FilterExpr> {
+) -> Option<PropertyFilter> {
     let mut rng = thread_rng();
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
@@ -338,7 +338,10 @@ fn pick_node_property_filter(
     }
 }
 
-fn get_random_node_property_filters(graph: &Graph, filter_op: FilterOperator) -> Vec<FilterExpr> {
+fn get_random_node_property_filters(
+    graph: &Graph,
+    filter_op: FilterOperator,
+) -> Vec<PropertyFilter> {
     let mut rng = thread_rng();
     let node_names = get_random_node_names(graph);
 
@@ -425,7 +428,7 @@ fn pick_edge_property_filter(
     props: &[(String, usize)],
     is_const: bool,
     filter_op: FilterOperator,
-) -> Option<FilterExpr> {
+) -> Option<PropertyFilter> {
     let mut rng = thread_rng();
 
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
@@ -446,7 +449,10 @@ fn pick_edge_property_filter(
     }
 }
 
-fn get_random_edge_property_filters(graph: &Graph, filter_op: FilterOperator) -> Vec<FilterExpr> {
+fn get_random_edge_property_filters(
+    graph: &Graph,
+    filter_op: FilterOperator,
+) -> Vec<PropertyFilter> {
     let mut rng = thread_rng();
     let edges = get_random_edges_by_src_dst_names(graph);
 
@@ -530,9 +536,8 @@ fn bench_search_nodes_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap(),
             |random_filter| {
-                let prop_filter = resolve_as_property_filter(random_filter).unwrap();
                 graph
-                    .filter_nodes(prop_filter)
+                    .filter_nodes(random_filter)
                     .unwrap()
                     .nodes()
                     .into_iter()
@@ -601,9 +606,8 @@ fn bench_search_edges_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap().clone(),
             |random_filter| {
-                let prop_filter = resolve_as_property_filter(random_filter).unwrap();
                 graph
-                    .filter_edges(prop_filter)
+                    .filter_edges(random_filter)
                     .unwrap()
                     .edges()
                     .into_iter()
