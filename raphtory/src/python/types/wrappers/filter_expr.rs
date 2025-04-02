@@ -1,26 +1,133 @@
 use crate::{
     core::Prop,
     db::graph::views::filter::{
-        EdgeFilter, EdgeFilterOps, InternalEdgeFilterOps, InternalNodeFilterOps,
-        InternalPropertyFilterOps, NodeFilter, NodeFilterOps, PropertyFilterBuilder,
+        CompositeEdgeFilter, CompositeNodeFilter, EdgeFieldFilter, EdgeFilter, EdgeFilterOps,
+        InternalEdgeFilterOps, InternalNodeFilterOps, InternalPropertyFilterOps, IntoEdgeFilter,
+        IntoNodeFilter, NodeFieldFilter, NodeFilter, NodeFilterOps, PropertyFilterBuilder,
         PropertyFilterOps, TemporalPropertyFilterBuilder,
     },
+    prelude::PropertyFilter,
 };
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter")]
+#[pyclass(frozen, name = "PropertyFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyFilterExpr(pub FilterExpr);
+pub struct PyPropertyFilter(pub PropertyFilter);
+
+#[derive(Clone)]
+pub enum PyInnerNodeFilterExpr {
+    Field(NodeFieldFilter),
+    Property(PropertyFilter),
+    And(Box<PyInnerNodeFilterExpr>, Box<PyInnerNodeFilterExpr>),
+    Or(Box<PyInnerNodeFilterExpr>, Box<PyInnerNodeFilterExpr>),
+}
+
+impl IntoNodeFilter for PyInnerNodeFilterExpr {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        match self {
+            PyInnerNodeFilterExpr::Field(f) => f.into_node_filter(),
+            PyInnerNodeFilterExpr::Property(p) => p.into_node_filter(),
+            PyInnerNodeFilterExpr::And(left, right) => CompositeNodeFilter::And(
+                Box::new(left.into_node_filter()),
+                Box::new(right.into_node_filter()),
+            ),
+            PyInnerNodeFilterExpr::Or(left, right) => CompositeNodeFilter::Or(
+                Box::new(left.into_node_filter()),
+                Box::new(right.into_node_filter()),
+            ),
+        }
+    }
+}
+
+#[pyclass(name = "NodeFilterExpr", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyNodeFilterExpr {
+    pub inner: PyInnerNodeFilterExpr,
+}
 
 #[pymethods]
-impl PyFilterExpr {
-    fn __and__(&self, other: &PyFilterExpr) -> PyFilterExpr {
-        PyFilterExpr(self.0.clone().and(other.0.clone()))
+impl PyNodeFilterExpr {
+    pub fn __and__(&self, other: &Self) -> Self {
+        Self {
+            inner: PyInnerNodeFilterExpr::And(
+                Box::new(self.inner.clone()),
+                Box::new(other.inner.clone()),
+            ),
+        }
     }
 
-    fn __or__(&self, other: &PyFilterExpr) -> PyFilterExpr {
-        PyFilterExpr(self.0.clone().or(other.0.clone()))
+    pub fn __or__(&self, other: &Self) -> Self {
+        Self {
+            inner: PyInnerNodeFilterExpr::Or(
+                Box::new(self.inner.clone()),
+                Box::new(other.inner.clone()),
+            ),
+        }
+    }
+}
+
+impl IntoNodeFilter for PyNodeFilterExpr {
+    fn into_node_filter(self) -> CompositeNodeFilter {
+        self.inner.into_node_filter()
+    }
+}
+
+#[derive(Clone)]
+pub enum PyInnerEdgeFilterExpr {
+    Field(EdgeFieldFilter),
+    Property(PyPropertyFilter),
+    And(Box<PyInnerEdgeFilterExpr>, Box<PyInnerEdgeFilterExpr>),
+    Or(Box<PyInnerEdgeFilterExpr>, Box<PyInnerEdgeFilterExpr>),
+}
+
+impl IntoEdgeFilter for PyInnerEdgeFilterExpr {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        match self {
+            PyInnerEdgeFilterExpr::Field(f) => f.into_edge_filter(),
+            PyInnerEdgeFilterExpr::Property(p) => p.0.into_edge_filter(),
+            PyInnerEdgeFilterExpr::And(left, right) => CompositeEdgeFilter::And(
+                Box::new(left.into_edge_filter()),
+                Box::new(right.into_edge_filter()),
+            ),
+            PyInnerEdgeFilterExpr::Or(left, right) => CompositeEdgeFilter::Or(
+                Box::new(left.into_edge_filter()),
+                Box::new(right.into_edge_filter()),
+            ),
+        }
+    }
+}
+
+#[pyclass(name = "EdgeFilterExpr", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyEdgeFilterExpr {
+    pub inner: PyInnerEdgeFilterExpr,
+}
+
+#[pymethods]
+impl PyEdgeFilterExpr {
+    pub fn __and__(&self, other: &Self) -> Self {
+        Self {
+            inner: PyInnerEdgeFilterExpr::And(
+                Box::new(self.inner.clone()),
+                Box::new(other.inner.clone()),
+            ),
+        }
+    }
+
+    pub fn __or__(&self, other: &Self) -> Self {
+        Self {
+            inner: PyInnerEdgeFilterExpr::Or(
+                Box::new(self.inner.clone()),
+                Box::new(other.inner.clone()),
+            ),
+        }
+    }
+}
+
+impl IntoEdgeFilter for PyEdgeFilterExpr {
+    fn into_edge_filter(self) -> CompositeEdgeFilter {
+        self.inner.into_edge_filter()
     }
 }
 
@@ -40,44 +147,44 @@ impl<T: InternalPropertyFilterOps + 'static> From<T> for PyPropertyFilterOps {
 
 #[pymethods]
 impl PyPropertyFilterOps {
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.eq(value))
+    fn __eq__(&self, value: Prop) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.eq(value))
     }
 
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.ne(value))
+    fn __ne__(&self, value: Prop) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.ne(value))
     }
 
-    fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.lt(value))
+    fn __lt__(&self, value: Prop) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.lt(value))
     }
 
-    fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.le(value))
+    fn __le__(&self, value: Prop) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.le(value))
     }
 
-    fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.gt(value))
+    fn __gt__(&self, value: Prop) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.gt(value))
     }
 
-    fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.ge(value))
+    fn __ge__(&self, value: Prop) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.ge(value))
     }
 
-    fn includes(&self, values: Vec<Prop>) -> PyFilterExpr {
-        PyFilterExpr(self.0.includes(values))
+    fn includes(&self, values: Vec<Prop>) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.includes(values))
     }
 
-    fn excludes(&self, values: Vec<Prop>) -> PyFilterExpr {
-        PyFilterExpr(self.0.excludes(values))
+    fn excludes(&self, values: Vec<Prop>) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.excludes(values))
     }
 
-    fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(self.0.is_none())
+    fn is_none(&self) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.is_none())
     }
 
-    fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(self.0.is_some())
+    fn is_some(&self) -> PyPropertyFilter {
+        PyPropertyFilter(self.0.is_some())
     }
 
     fn fuzzy_search(
@@ -85,8 +192,8 @@ impl PyPropertyFilterOps {
         prop_value: String,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(
+    ) -> PyPropertyFilter {
+        PyPropertyFilter(
             self.0
                 .fuzzy_search(prop_value, levenshtein_distance, prefix_match),
         )
@@ -164,20 +271,32 @@ impl<T: InternalNodeFilterOps + 'static> From<T> for PyNodeFilterOp {
 
 #[pymethods]
 impl PyNodeFilterOp {
-    fn __eq__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(self.0.eq(value))
+    fn __eq__(&self, value: String) -> PyNodeFilterExpr {
+        let field = self.0.eq(value);
+        PyNodeFilterExpr {
+            inner: PyInnerNodeFilterExpr::Field(field),
+        }
     }
 
-    fn __ne__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(self.0.ne(value))
+    fn __ne__(&self, value: String) -> PyNodeFilterExpr {
+        let field = self.0.ne(value);
+        PyNodeFilterExpr {
+            inner: PyInnerNodeFilterExpr::Field(field),
+        }
     }
 
-    fn includes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(self.0.includes(values))
+    fn includes(&self, values: Vec<String>) -> PyNodeFilterExpr {
+        let field = self.0.includes(values);
+        PyNodeFilterExpr {
+            inner: PyInnerNodeFilterExpr::Field(field),
+        }
     }
 
-    fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(self.0.excludes(values))
+    fn excludes(&self, values: Vec<String>) -> PyNodeFilterExpr {
+        let field = self.0.excludes(values);
+        PyNodeFilterExpr {
+            inner: PyInnerNodeFilterExpr::Field(field),
+        }
     }
 
     fn fuzzy_search(
@@ -185,11 +304,13 @@ impl PyNodeFilterOp {
         value: String,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(
-            self.0
-                .fuzzy_search(value, levenshtein_distance, prefix_match),
-        )
+    ) -> PyNodeFilterExpr {
+        let field = self
+            .0
+            .fuzzy_search(value, levenshtein_distance, prefix_match);
+        PyNodeFilterExpr {
+            inner: PyInnerNodeFilterExpr::Field(field),
+        }
     }
 }
 
@@ -227,20 +348,32 @@ impl<T: InternalEdgeFilterOps + 'static> From<T> for PyEdgeFilterOp {
 
 #[pymethods]
 impl PyEdgeFilterOp {
-    fn __eq__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(self.0.eq(value))
+    fn __eq__(&self, value: String) -> PyEdgeFilterExpr {
+        let field = self.0.eq(value);
+        PyEdgeFilterExpr {
+            inner: PyInnerEdgeFilterExpr::Field(field),
+        }
     }
 
-    fn __ne__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(self.0.ne(value))
+    fn __ne__(&self, value: String) -> PyEdgeFilterExpr {
+        let field = self.0.ne(value);
+        PyEdgeFilterExpr {
+            inner: PyInnerEdgeFilterExpr::Field(field),
+        }
     }
 
-    fn includes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(self.0.includes(values))
+    fn includes(&self, values: Vec<String>) -> PyEdgeFilterExpr {
+        let field = self.0.includes(values);
+        PyEdgeFilterExpr {
+            inner: PyInnerEdgeFilterExpr::Field(field),
+        }
     }
 
-    fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(self.0.excludes(values))
+    fn excludes(&self, values: Vec<String>) -> PyEdgeFilterExpr {
+        let field = self.0.excludes(values);
+        PyEdgeFilterExpr {
+            inner: PyInnerEdgeFilterExpr::Field(field),
+        }
     }
 
     fn fuzzy_search(
@@ -248,11 +381,13 @@ impl PyEdgeFilterOp {
         value: String,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(
-            self.0
-                .fuzzy_search(value, levenshtein_distance, prefix_match),
-        )
+    ) -> PyEdgeFilterExpr {
+        let field = self
+            .0
+            .fuzzy_search(value, levenshtein_distance, prefix_match);
+        PyEdgeFilterExpr {
+            inner: PyInnerEdgeFilterExpr::Field(field),
+        }
     }
 }
 
@@ -281,7 +416,6 @@ impl PyEdgeFilter {
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;
 
-    filter_module.add_class::<PyFilterExpr>()?;
     filter_module.add_class::<PyNodeFilterOp>()?;
     filter_module.add_class::<PyNodeFilter>()?;
     filter_module.add_class::<PyEdgeFilterOp>()?;
