@@ -1,3 +1,5 @@
+use crate::db::api::view::DynamicGraph;
+
 /// Macro for implementing all the NodePropertyFilterOps methods on a python wrapper
 ///
 /// # Arguments
@@ -19,17 +21,10 @@ macro_rules! impl_node_property_filter_ops {
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_nodes(
                 &self,
-                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
-            ) -> Result<
-                <$base_type as OneHopFilter<'static>>::Filtered<
-                    <PyPropertyFilter as InternalNodeFilterOps>::NodeFiltered<
-                        'static,
-                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
-                    >,
-                >,
-                GraphError,
-            > {
-                self.$field.clone().filter_nodes(filter)
+                filter: PyFilterExpr,
+            ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
+            {
+                Ok(self.$field.clone().filter_nodes(filter)?.into_dyn_hop())
             }
         }
     };

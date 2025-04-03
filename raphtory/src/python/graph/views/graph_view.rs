@@ -6,7 +6,9 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic, MaterializedGraph, OneHopFilter},
+                internal::{
+                    DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
+                },
                 LayerOps, StaticGraphViewOps,
             },
         },
@@ -35,7 +37,7 @@ use crate::{
         graph::{edge::PyEdge, node::PyNode},
         types::{
             repr::{Repr, StructReprBuilder},
-            wrappers::prop::PyPropertyFilter,
+            wrappers::{filter_expr::PyFilterExpr, prop::PyPropertyFilter},
         },
         utils::PyNodeRef,
     },

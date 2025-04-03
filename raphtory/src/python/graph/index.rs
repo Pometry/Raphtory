@@ -5,10 +5,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::SearchableGraphOps,
-    python::{
-        graph::views::graph_view::PyGraphView,
-        types::wrappers::filter_expr::{PyFilterExpr, TryIntoEdgeFilter, TryIntoNodeFilter},
-    },
+    python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };
 use pyo3::prelude::*;
 
@@ -35,7 +32,7 @@ impl PyGraphView {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<DynamicGraph>>, GraphError> {
-        let filter = filter.try_into_node_filter()?;
+        let filter = filter.try_as_node_filter()?;
         self.graph.search_nodes(filter, limit, offset)
     }
 
@@ -55,7 +52,7 @@ impl PyGraphView {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, GraphError> {
-        let filter = filter.try_into_edge_filter()?;
+        let filter = filter.try_as_edge_filter()?;
         self.graph.search_edges(filter, limit, offset)
     }
 }

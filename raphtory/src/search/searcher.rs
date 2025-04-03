@@ -5,7 +5,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::filter::{IntoEdgeFilter, IntoNodeFilter},
+            views::filter::{AsEdgeFilter, AsNodeFilter},
         },
     },
     search::{
@@ -37,9 +37,9 @@ impl<'a> Searcher<'a> {
     ) -> Result<Vec<NodeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        F: IntoNodeFilter,
+        F: AsNodeFilter,
     {
-        let filter = filter.into_node_filter();
+        let filter = filter.as_node_filter();
         self.node_filter_executor
             .filter_nodes(graph, &filter, limit, offset)
     }
@@ -53,9 +53,9 @@ impl<'a> Searcher<'a> {
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        F: IntoEdgeFilter,
+        F: AsEdgeFilter,
     {
-        let filter = filter.into_edge_filter();
+        let filter = filter.as_edge_filter();
         self.edge_filter_executor
             .filter_edges(graph, &filter, limit, offset)
     }
@@ -80,7 +80,7 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::{
-                    ComposableFilter, IntoNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
+                    AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
@@ -825,7 +825,7 @@ mod search_tests {
             }
         }
 
-        fn search_nodes(filter: impl IntoNodeFilter) -> Vec<String> {
+        fn search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
             let graph = Graph::new();
             graph
                 .add_node(
@@ -887,7 +887,7 @@ mod search_tests {
             results
         }
 
-        fn fuzzy_search_nodes(filter: impl IntoNodeFilter) -> Vec<String> {
+        fn fuzzy_search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
             let graph = Graph::new();
             graph
                 .add_node(
@@ -1144,13 +1144,13 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::{
-                    ComposableFilter, EdgeFilter, EdgeFilterOps, IntoEdgeFilter, PropertyFilterOps,
+                    AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
 
-        fn search_edges(filter: impl IntoEdgeFilter) -> Vec<(String, String)> {
+        fn search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();
 
             graph
@@ -1197,7 +1197,7 @@ mod search_tests {
             results
         }
 
-        fn fuzzy_search_edges(filter: impl IntoEdgeFilter) -> Vec<(String, String)> {
+        fn fuzzy_search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();
             graph
                 .add_edge(

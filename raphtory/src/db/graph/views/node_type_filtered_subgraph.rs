@@ -90,7 +90,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
             api::view::{SearchableGraphOps, StaticGraphViewOps},
             graph::views::{
                 deletion_graph::PersistentGraph,
-                filter::{IntoNodeFilter, PropertyFilterOps},
+                filter::{AsNodeFilter, PropertyFilterOps},
             },
         },
         prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -126,7 +126,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
     fn search_nodes<G: StaticGraphViewOps + AdditionOps>(
         graph: &G,
         node_types: Vec<String>,
-        filter: impl IntoNodeFilter,
+        filter: impl AsNodeFilter,
     ) -> Vec<String> {
         graph.create_index().unwrap();
         let sgm = graph.subgraph_node_types(node_types);
@@ -144,7 +144,7 @@ mod search_nodes_node_type_filtered_subgraph_tests {
         graph: &G,
         w: Range<i64>,
         node_types: Vec<String>,
-        filter: impl IntoNodeFilter,
+        filter: impl AsNodeFilter,
     ) -> Vec<String> {
         graph.create_index().unwrap();
         let sgm = graph.subgraph_node_types(node_types);
@@ -242,7 +242,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
             api::view::{SearchableGraphOps, StaticGraphViewOps},
             graph::views::{
                 deletion_graph::PersistentGraph,
-                filter::{IntoEdgeFilter, PropertyFilterOps},
+                filter::{AsEdgeFilter, PropertyFilterOps},
             },
         },
         prelude::{
@@ -296,7 +296,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
     fn search_edges<G: StaticGraphViewOps + AdditionOps>(
         graph: &G,
         node_types: Vec<String>,
-        filter: impl IntoEdgeFilter,
+        filter: impl AsEdgeFilter,
     ) -> Vec<String> {
         graph.create_index().unwrap();
         let sgm = graph.subgraph_node_types(node_types);
@@ -314,7 +314,7 @@ mod search_edges_node_type_filtered_subgraph_tests {
         graph: &G,
         w: Range<i64>,
         node_types: Vec<String>,
-        filter: impl IntoEdgeFilter,
+        filter: impl AsEdgeFilter,
     ) -> Vec<String> {
         graph.create_index().unwrap();
         let sgm = graph.subgraph_node_types(node_types);

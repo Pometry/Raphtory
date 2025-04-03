@@ -572,54 +572,66 @@ impl Display for CompositeEdgeFilter {
 }
 
 // Fluent Composite Filter Builder APIs
-pub trait IntoNodeFilter {
-    fn into_node_filter(self) -> CompositeNodeFilter;
+pub trait AsNodeFilter: Send + Sync {
+    fn as_node_filter(&self) -> CompositeNodeFilter;
 }
 
-pub trait IntoEdgeFilter {
-    fn into_edge_filter(self) -> CompositeEdgeFilter;
-}
-
-impl IntoNodeFilter for CompositeNodeFilter {
-    fn into_node_filter(self) -> CompositeNodeFilter {
-        self
+impl<T: AsNodeFilter + ?Sized> AsNodeFilter for Arc<T> {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        self.deref().as_node_filter()
     }
 }
 
-impl IntoEdgeFilter for CompositeEdgeFilter {
-    fn into_edge_filter(self) -> CompositeEdgeFilter {
-        self
+pub trait AsEdgeFilter: Send + Sync {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter;
+}
+
+impl<T: AsEdgeFilter + ?Sized> AsEdgeFilter for Arc<T> {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
+        self.deref().as_edge_filter()
     }
 }
 
-impl IntoNodeFilter for PropertyFilter {
-    fn into_node_filter(self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Property(self)
+impl AsNodeFilter for CompositeNodeFilter {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        self.clone()
     }
 }
 
-impl IntoEdgeFilter for PropertyFilter {
-    fn into_edge_filter(self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Property(self)
+impl AsEdgeFilter for CompositeEdgeFilter {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
+        self.clone()
     }
 }
 
-impl IntoNodeFilter for NodeFieldFilter {
-    fn into_node_filter(self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Node(self.0)
+impl AsNodeFilter for PropertyFilter {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Property(self.clone())
     }
 }
 
-impl IntoEdgeFilter for EdgeFieldFilter {
-    fn into_edge_filter(self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Edge(self.0)
+impl AsEdgeFilter for PropertyFilter {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Property(self.clone())
+    }
+}
+
+impl AsNodeFilter for NodeFieldFilter {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Node(self.0.clone())
+    }
+}
+
+impl AsEdgeFilter for EdgeFieldFilter {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Edge(self.0.clone())
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct AndFilter<L, R> {
-    left: L,
-    right: R,
+    pub(crate) left: L,
+    pub(crate) right: R,
 }
 
 impl<L: Display, R: Display> Display for AndFilter<L, R> {
@@ -628,28 +640,28 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
     }
 }
 
-impl<L: IntoNodeFilter, R: IntoNodeFilter> IntoNodeFilter for AndFilter<L, R> {
-    fn into_node_filter(self) -> CompositeNodeFilter {
+impl<L: AsNodeFilter, R: AsNodeFilter> AsNodeFilter for AndFilter<L, R> {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
         CompositeNodeFilter::And(
-            Box::new(self.left.into_node_filter()),
-            Box::new(self.right.into_node_filter()),
+            Box::new(self.left.as_node_filter()),
+            Box::new(self.right.as_node_filter()),
         )
     }
 }
 
-impl<L: IntoEdgeFilter, R: IntoEdgeFilter> IntoEdgeFilter for AndFilter<L, R> {
-    fn into_edge_filter(self) -> CompositeEdgeFilter {
+impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for AndFilter<L, R> {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
         CompositeEdgeFilter::And(
-            Box::new(self.left.into_edge_filter()),
-            Box::new(self.right.into_edge_filter()),
+            Box::new(self.left.as_edge_filter()),
+            Box::new(self.right.as_edge_filter()),
         )
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct OrFilter<L, R> {
-    left: L,
-    right: R,
+    pub(crate) left: L,
+    pub(crate) right: R,
 }
 
 impl<L: Display, R: Display> Display for OrFilter<L, R> {
@@ -658,20 +670,20 @@ impl<L: Display, R: Display> Display for OrFilter<L, R> {
     }
 }
 
-impl<L: IntoNodeFilter, R: IntoNodeFilter> IntoNodeFilter for OrFilter<L, R> {
-    fn into_node_filter(self) -> CompositeNodeFilter {
+impl<L: AsNodeFilter, R: AsNodeFilter> AsNodeFilter for OrFilter<L, R> {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
         CompositeNodeFilter::Or(
-            Box::new(self.left.into_node_filter()),
-            Box::new(self.right.into_node_filter()),
+            Box::new(self.left.as_node_filter()),
+            Box::new(self.right.as_node_filter()),
         )
     }
 }
 
-impl<L: IntoEdgeFilter, R: IntoEdgeFilter> IntoEdgeFilter for OrFilter<L, R> {
-    fn into_edge_filter(self) -> CompositeEdgeFilter {
+impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for OrFilter<L, R> {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
         CompositeEdgeFilter::Or(
-            Box::new(self.left.into_edge_filter()),
-            Box::new(self.right.into_edge_filter()),
+            Box::new(self.left.as_edge_filter()),
+            Box::new(self.right.as_edge_filter()),
         )
     }
 }
@@ -1037,8 +1049,8 @@ impl EdgeFilter {
 mod test_fluent_builder_apis {
     use crate::{
         db::graph::views::filter::{
-            ComposableFilter, CompositeEdgeFilter, CompositeNodeFilter, EdgeFilter, EdgeFilterOps,
-            Filter, IntoEdgeFilter, IntoNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
+            AsEdgeFilter, AsNodeFilter, ComposableFilter, CompositeEdgeFilter, CompositeNodeFilter,
+            EdgeFilter, EdgeFilterOps, Filter, NodeFilter, NodeFilterOps, PropertyFilterOps,
             PropertyRef, Temporal,
         },
         prelude::PropertyFilter,
@@ -1047,7 +1059,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_property_filter_build() {
         let filter_expr = PropertyFilter::property("p").eq("raphtory");
-        let node_property_filter = filter_expr.into_node_filter();
+        let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Property("p".to_string()),
             "raphtory",
@@ -1061,7 +1073,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_const_property_filter_build() {
         let filter_expr = PropertyFilter::property("p").constant().eq("raphtory");
-        let node_property_filter = filter_expr.into_node_filter();
+        let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::ConstantProperty("p".to_string()),
             "raphtory",
@@ -1078,7 +1090,7 @@ mod test_fluent_builder_apis {
             .temporal()
             .any()
             .eq("raphtory");
-        let node_property_filter = filter_expr.into_node_filter();
+        let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
@@ -1095,7 +1107,7 @@ mod test_fluent_builder_apis {
             .temporal()
             .latest()
             .eq("raphtory");
-        let node_property_filter = filter_expr.into_node_filter();
+        let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
@@ -1109,7 +1121,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_name_filter_build() {
         let filter_expr = NodeFilter::node_name().eq("raphtory");
-        let node_property_filter = filter_expr.into_node_filter();
+        let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
         assert_eq!(
             node_property_filter.to_string(),
@@ -1120,7 +1132,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_type_filter_build() {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
-        let node_property_filter = filter_expr.into_node_filter();
+        let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
         assert_eq!(
             node_property_filter.to_string(),
@@ -1194,7 +1206,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_src_filter_build() {
         let filter_expr = EdgeFilter::src().eq("raphtory");
-        let edge_property_filter = filter_expr.into_edge_filter();
+        let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),
@@ -1205,7 +1217,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_dst_filter_build() {
         let filter_expr = EdgeFilter::dst().eq("raphtory");
-        let edge_property_filter = filter_expr.into_edge_filter();
+        let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
         assert_eq!(
             edge_property_filter.to_string(),

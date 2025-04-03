@@ -1463,7 +1463,7 @@ mod views_test {
                 graph::views::{
                     deletion_graph::PersistentGraph,
                     filter::{
-                        ComposableFilter, IntoNodeFilter, NodeFilter, NodeFilterOps,
+                        AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterOps,
                         PropertyFilterOps,
                     },
                 },
@@ -1663,7 +1663,7 @@ mod views_test {
         >(
             graph: G,
             w: Range<i64>,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph
@@ -2461,7 +2461,7 @@ mod views_test {
                 graph::views::{
                     deletion_graph::PersistentGraph,
                     filter::{
-                        ComposableFilter, EdgeFilter, EdgeFilterOps, IntoEdgeFilter,
+                        AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps,
                         PropertyFilterOps,
                     },
                 },
@@ -2706,7 +2706,7 @@ mod views_test {
         >(
             graph: G,
             w: Range<i64>,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph

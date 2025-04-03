@@ -1,11 +1,19 @@
 use crate::{
     core::{prop_array::PropArray, utils::errors::GraphError, Prop},
-    db::graph::views::filter::{
-        internal::{InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps},
-        PropertyRef,
+    db::{
+        api::view::{BoxableGraphView, DynamicGraph, IntoDynamic},
+        graph::views::filter::{
+            internal::{
+                InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+            },
+            AndFilter, AsEdgeFilter, AsNodeFilter, PropertyRef,
+        },
     },
     prelude::{GraphViewOps, PropertyFilter},
-    python::types::repr::Repr,
+    python::types::{
+        repr::Repr,
+        wrappers::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
+    },
 };
 use bigdecimal::BigDecimal;
 use pyo3::{
@@ -186,6 +194,108 @@ impl InternalNodeFilterOps for PyPropertyFilter {
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         self.0.create_node_filter(graph)
+    }
+}
+
+impl IntoDynamic for Arc<dyn BoxableGraphView> {
+    fn into_dynamic(self) -> DynamicGraph {
+        DynamicGraph(self)
+    }
+}
+
+impl InternalNodeFilterOps for PyFilterExpr {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Node(i) => i.create_node_filter(graph),
+            PyInnerFilterExpr::Property(i) => i.create_node_filter(graph),
+            PyInnerFilterExpr::Edge(i) => Err(GraphError::ParsingError),
+        }
+    }
+}
+
+pub trait DynInternalNodeFilterOps: AsNodeFilter {
+    fn create_dyn_node_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+}
+
+impl<T: InternalNodeFilterOps + AsNodeFilter + Clone + 'static> DynInternalNodeFilterOps for T {
+    fn create_dyn_node_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_node_filter(graph)?))
+    }
+}
+
+impl<T: DynInternalNodeFilterOps + ?Sized + 'static> InternalNodeFilterOps for Arc<T> {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        self.create_dyn_node_filter(Arc::new(graph))
+    }
+}
+
+impl InternalEdgeFilterOps for PyFilterExpr {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Edge(i) => i.create_edge_filter(graph),
+            PyInnerFilterExpr::Property(i) => i.create_edge_filter(graph),
+            PyInnerFilterExpr::Node(i) => Err(GraphError::ParsingError),
+        }
+    }
+}
+
+pub trait DynInternalEdgeFilterOps: AsEdgeFilter {
+    fn create_dyn_edge_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+}
+
+impl<T: InternalEdgeFilterOps + AsEdgeFilter + Clone + 'static> DynInternalEdgeFilterOps for T {
+    fn create_dyn_edge_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_edge_filter(graph)?))
+    }
+}
+
+impl<T: DynInternalEdgeFilterOps + ?Sized + 'static> InternalEdgeFilterOps for Arc<T> {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        self.create_dyn_edge_filter(Arc::new(graph))
     }
 }
 

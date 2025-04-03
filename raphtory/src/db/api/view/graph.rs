@@ -23,7 +23,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{IntoEdgeFilter, IntoNodeFilter},
+                filter::{AsEdgeFilter, AsNodeFilter},
                 node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
@@ -135,14 +135,14 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
 
-    fn search_nodes<F: IntoNodeFilter>(
+    fn search_nodes<F: AsNodeFilter>(
         &self,
         filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
-    fn search_edges<F: IntoEdgeFilter>(
+    fn search_edges<F: AsEdgeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -626,7 +626,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
             })
     }
 
-    fn search_nodes<F: IntoNodeFilter>(
+    fn search_nodes<F: AsNodeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -639,7 +639,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         index.searcher().search_nodes(self, filter, limit, offset)
     }
 
-    fn search_edges<F: IntoEdgeFilter>(
+    fn search_edges<F: AsEdgeFilter>(
         &self,
         filter: F,
         limit: usize,

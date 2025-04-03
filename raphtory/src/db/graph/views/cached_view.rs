@@ -296,7 +296,7 @@ mod test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    filter::{IntoNodeFilter, PropertyFilterOps},
+                    filter::{AsNodeFilter, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -332,7 +332,7 @@ mod test {
 
         fn search_nodes<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let cv = graph.cache_view();
@@ -349,7 +349,7 @@ mod test {
         fn search_nodes_w<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             w: Range<i64>,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let cv = graph.cache_view();
@@ -413,7 +413,7 @@ mod test {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    filter::{IntoEdgeFilter, PropertyFilterOps},
+                    filter::{AsEdgeFilter, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
@@ -449,7 +449,7 @@ mod test {
 
         fn search_edges<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let cv = graph.cache_view();
@@ -466,7 +466,7 @@ mod test {
         fn search_edges_w<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             w: Range<i64>,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let cv = graph.cache_view();

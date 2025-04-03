@@ -239,7 +239,7 @@ mod test_layers {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    filter::{IntoNodeFilter, PropertyFilterOps},
+                    filter::{AsNodeFilter, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps},
@@ -296,7 +296,7 @@ mod test_layers {
 
         fn search_nodes<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
             layers: Vec<String>,
         ) -> Vec<String> {
             graph.create_index().unwrap();
@@ -316,7 +316,7 @@ mod test_layers {
         fn search_nodes_w<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             w: Range<i64>,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
             layers: Vec<String>,
         ) -> Vec<String> {
             graph.create_index().unwrap();
@@ -430,7 +430,7 @@ mod test_layers {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    filter::{IntoEdgeFilter, PropertyFilterOps},
+                    filter::{AsEdgeFilter, PropertyFilterOps},
                 },
             },
             prelude::{
@@ -468,7 +468,7 @@ mod test_layers {
 
         fn search_edges<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
             layers: Vec<String>,
         ) -> Vec<String> {
             graph.create_index().unwrap();
@@ -488,7 +488,7 @@ mod test_layers {
         fn search_edges_w<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             w: Range<i64>,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
             layers: Vec<String>,
         ) -> Vec<String> {
             graph.create_index().unwrap();

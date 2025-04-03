@@ -236,7 +236,7 @@ mod subgraph_tests {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    filter::{IntoNodeFilter, PropertyFilterOps},
+                    filter::{AsNodeFilter, PropertyFilterOps},
                 },
             },
             prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
@@ -271,7 +271,7 @@ mod subgraph_tests {
         fn search_nodes<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             node_names: Vec<String>,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph
@@ -289,7 +289,7 @@ mod subgraph_tests {
             graph: &G,
             w: Range<i64>,
             node_names: Vec<String>,
-            filter: impl IntoNodeFilter,
+            filter: impl AsNodeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph
@@ -378,7 +378,7 @@ mod subgraph_tests {
                 api::view::{SearchableGraphOps, StaticGraphViewOps},
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    filter::{IntoEdgeFilter, PropertyFilterOps},
+                    filter::{AsEdgeFilter, PropertyFilterOps},
                 },
             },
             prelude::{
@@ -415,7 +415,7 @@ mod subgraph_tests {
         fn search_edges<G: StaticGraphViewOps + AdditionOps>(
             graph: &G,
             node_names: Vec<String>,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph
@@ -433,7 +433,7 @@ mod subgraph_tests {
             graph: &G,
             w: Range<i64>,
             node_names: Vec<String>,
-            filter: impl IntoEdgeFilter,
+            filter: impl AsEdgeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph
