@@ -247,7 +247,7 @@ impl<T: DynInternalNodeFilterOps + ?Sized + 'static> InternalNodeFilterOps for A
         self,
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
-        self.create_dyn_node_filter(Arc::new(graph))
+        self.deref().create_dyn_node_filter(Arc::new(graph))
     }
 }
 
@@ -295,7 +295,7 @@ impl<T: DynInternalEdgeFilterOps + ?Sized + 'static> InternalEdgeFilterOps for A
         self,
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        self.create_dyn_edge_filter(Arc::new(graph))
+        self.deref().create_dyn_edge_filter(Arc::new(graph))
     }
 }
 
