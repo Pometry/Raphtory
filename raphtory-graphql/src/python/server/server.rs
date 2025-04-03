@@ -210,11 +210,9 @@ impl PyGraphServer {
         if let Some(cache_tti_seconds) = cache_tti_seconds {
             app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
         }
-        if let Some(public_key) = auth_public_key {
-            app_config_builder = app_config_builder
-                .with_auth_enabled(public_key)
-                .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
-        }
+        app_config_builder = app_config_builder
+            .with_auth_public_key(auth_public_key)
+            .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
         if let Some(auth_enabled_for_reads) = auth_enabled_for_reads {
             app_config_builder =
                 app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);

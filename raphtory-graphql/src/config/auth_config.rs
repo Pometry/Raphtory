@@ -6,7 +6,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use spki::SubjectPublicKeyInfoRef;
 
 pub const DEFAULT_AUTH_ENABLED_FOR_READS: bool = true;
-pub(crate) const PUBLIC_KEY_DECODING_ERR_MSG: &str = "Could not successfully decode the public key. Make sure you use the standard alphabet with padding";
+pub const PUBLIC_KEY_DECODING_ERR_MSG: &str = "Could not successfully decode the public key. Make sure you use the standard alphabet with padding";
 
 #[derive(Clone)]
 pub struct PublicKey {

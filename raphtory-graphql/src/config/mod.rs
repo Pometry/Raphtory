@@ -35,7 +35,10 @@ mod tests {
             .with_tracing(true)
             .with_cache_capacity(30)
             .with_cache_tti_seconds(1000)
-            .with_auth_enabled("SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8=".to_owned())
+            .with_auth_public_key(Some(
+                "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8=".to_owned(),
+            ))
+            .unwrap()
             .build();
 
         assert_eq!(result.unwrap(), expected_config);

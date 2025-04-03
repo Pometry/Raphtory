@@ -84,8 +84,13 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_auth_enabled(mut self, public_key: String) -> Result<Self, PublicKeyError> {
-        self.auth.public_key = Some(public_key.try_into()?);
+    pub fn with_auth_public_key(
+        mut self,
+        public_key: Option<String>,
+    ) -> Result<Self, PublicKeyError> {
+        if let Some(public_key) = public_key {
+            self.auth.public_key = Some(public_key.try_into()?);
+        }
         Ok(self)
     }
 
@@ -155,9 +160,9 @@ pub fn load_config(
         app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
     }
 
-    if let Ok(Some(public_key)) = settings.get::<Option<String>>("auth.public_key") {
+    if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
         app_config_builder = app_config_builder
-            .with_auth_enabled(public_key)
+            .with_auth_public_key(public_key)
             .map_err(|_| ConfigError::Message(PUBLIC_KEY_DECODING_ERR_MSG.to_owned()))?;
     }
     if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {

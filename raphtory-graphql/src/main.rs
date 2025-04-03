@@ -2,6 +2,7 @@ use clap::{command, Parser};
 use raphtory_graphql::{
     config::{
         app_config::AppConfigBuilder,
+        auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
@@ -45,6 +46,12 @@ struct Args {
 
     #[arg(long, default_value = DEFAULT_OTLP_TRACING_SERVICE_NAME)]
     otlp_tracing_service_name: String,
+
+    #[arg(long, default_value = None)]
+    auth_public_key: Option<String>,
+
+    #[arg(long, default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
+    auth_enabled_for_reads: bool,
 }
 
 #[tokio::main]
@@ -60,6 +67,9 @@ async fn main() -> IoResult<()> {
             .with_otlp_agent_host(args.otlp_agent_host)
             .with_otlp_agent_port(args.otlp_agent_port)
             .with_otlp_tracing_service_name(args.otlp_tracing_service_name)
+            .with_auth_public_key(args.auth_public_key)
+            .expect(PUBLIC_KEY_DECODING_ERR_MSG)
+            .with_auth_enabled_for_reads(args.auth_enabled_for_reads)
             .build(),
     );
 
