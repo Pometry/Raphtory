@@ -250,7 +250,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeStorageRef,
         view: G,
-        id: usize,
+        prop_id: usize,
         t: TimeIndexEntry,
         layer_id: usize,
     ) -> Option<Prop>;
@@ -260,7 +260,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeStorageRef,
         view: G,
-        id: usize,
+        prop_id: usize,
         t: TimeIndexEntry,
     ) -> Option<Prop>;
 
@@ -308,9 +308,8 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        id: usize,
-        start: i64,
-        end: i64,
+        prop_id: usize,
+        w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)>;
 
     /// Return temporal property history for a window of an edge in reverse-temporal order
@@ -320,9 +319,8 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        id: usize,
-        start: i64,
-        end: i64,
+        prop_id: usize,
+        w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)>;
 
     /// Get constant edge property
@@ -330,7 +328,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeStorageRef,
         view: G,
-        id: usize,
+        prop_id: usize,
     ) -> Option<Prop>;
 
     /// Get constant edge property for a window
@@ -340,7 +338,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeStorageRef,
         view: G,
-        id: usize,
+        prop_id: usize,
         w: Range<i64>,
     ) -> Option<Prop>;
 }

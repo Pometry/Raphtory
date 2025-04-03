@@ -167,7 +167,7 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
                         if min_val >= w.start && max_val < w.end {
                             TimeIndexWindow::All(*self)
                         } else {
-                            TimeIndexWindow::TimeIndexRange {
+                            TimeIndexWindow::Range {
                                 timeindex: *self,
                                 range: w,
                             }

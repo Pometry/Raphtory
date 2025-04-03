@@ -279,7 +279,7 @@ impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
-        TimeIndexWindow::TimeIndexRange {
+        TimeIndexWindow::Range {
             timeindex: *self,
             range: w,
         }
@@ -396,7 +396,7 @@ impl<'a> NodeAdditions<'a> {
             NodeAdditions::Mem(index) => index.props_ts.iter().map(|(t, _)| *t).into_dyn_boxed(),
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
-                TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
+                TimeIndexWindow::Range { timeindex, range } => timeindex
                     .props_ts
                     .iter_window(range.clone())
                     .map(|(t, _)| *t)
@@ -425,7 +425,7 @@ impl<'a> NodeAdditions<'a> {
                 .into_dyn_boxed(),
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
-                TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
+                TimeIndexWindow::Range { timeindex, range } => timeindex
                     .props_ts
                     .iter_window(range.clone())
                     .map(|(t, _)| *t)
@@ -455,7 +455,7 @@ impl<'a> NodeAdditions<'a> {
             }
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
-                TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
+                TimeIndexWindow::Range { timeindex, range } => timeindex
                     .edge_ts
                     .iter_window(range.clone())
                     .map(|(t, e)| (*t, *e))
@@ -479,7 +479,7 @@ impl<'a> NodeAdditions<'a> {
                 .into_dyn_boxed(),
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
-                TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
+                TimeIndexWindow::Range { timeindex, range } => timeindex
                     .edge_ts
                     .iter_window(range.clone())
                     .map(|(t, e)| (*t, *e))
@@ -499,7 +499,7 @@ impl<'a> NodeAdditions<'a> {
 
     pub fn with_range(&self, w: Range<TimeIndexEntry>) -> Self {
         match self {
-            NodeAdditions::Mem(index) => NodeAdditions::Range(TimeIndexWindow::TimeIndexRange {
+            NodeAdditions::Mem(index) => NodeAdditions::Range(TimeIndexWindow::Range {
                 timeindex: index,
                 range: w,
             }),

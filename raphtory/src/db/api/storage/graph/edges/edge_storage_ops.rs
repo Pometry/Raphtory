@@ -193,6 +193,15 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+
+    fn constant_prop_iter(
+        self,
+        layer_ids: &LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

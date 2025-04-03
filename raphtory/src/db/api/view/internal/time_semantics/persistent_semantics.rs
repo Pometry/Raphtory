@@ -2,18 +2,109 @@ use crate::{
     core::Prop,
     db::api::{
         storage::graph::{
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
-        view::internal::time_semantics::time_semantics_ops::NodeTimeSemanticsOps,
+        view::internal::{
+            time_semantics::{
+                event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+            },
+            CoreGraphOps, EdgeTimeSemanticsOps,
+        },
     },
     prelude::GraphViewOps,
 };
+use itertools::Itertools;
 use raphtory_api::{
-    core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    core::{
+        entities::{edges::edge_ref::EdgeRef, LayerIds},
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
 };
 use std::ops::Range;
+
+fn alive_before<
+    'a,
+    A: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+    D: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+>(
+    additions: A,
+    deletions: D,
+    t: i64,
+) -> bool {
+    let last_addition_before_start = additions.range_t(i64::MIN..t).last();
+    let last_deletion_before_start = deletions.range_t(i64::MIN..t).last();
+    last_addition_before_start > last_deletion_before_start
+}
+
+fn has_persisted_event<
+    'a,
+    A: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+    D: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+>(
+    additions: A,
+    deletions: D,
+    t: i64,
+) -> bool {
+    let active_at_start =
+        deletions.active_t(t..t.saturating_add(1)) || additions.active_t(t..t.saturating_add(1));
+    !active_at_start && alive_before(additions, deletions, t)
+}
+
+fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
+    e.updates_iter(layer_ids)
+        .any(|(_, additions, deletions)| alive_before(additions, deletions, t))
+}
+
+fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
+    // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
+    e.updates_iter(layer_ids)
+        .any(|(_, additions, deletions)| alive_before(additions, deletions, t.saturating_add(1)))
+}
+
+/// Get the last update of a property before `t` (exclusive), taking deletions into account.
+/// The update is only returned if the edge was not deleted since.
+fn last_prop_value_before<'a>(
+    t: TimeIndexEntry,
+    props: impl TPropOps<'a>,
+    deletions: impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+) -> Option<(TimeIndexEntry, Prop)> {
+    props
+        .last_before(t) // inclusive
+        .filter(|(last_t, _)| !deletions.active(*last_t..t))
+}
+
+/// Gets the potentially persisted property value at a point in time
+///
+/// Persisted value can only exist if there is no update at time `t` and the edge is not deleted at time `t`
+/// and if it exists it is the last value of the property before `t` as computed by `last_prop_value_before`.
+fn persisted_prop_value_at<'a>(
+    t: i64,
+    props: impl TPropOps<'a>,
+    deletions: impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+) -> Option<Prop> {
+    if props.clone().active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1))
+    {
+        None
+    } else {
+        last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
+    }
+}
+
+/// Exclude anything from the window that happens before the last deletion at the start of the window
+fn interior_window<'a>(
+    w: Range<i64>,
+    deletions: &impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+) -> Range<TimeIndexEntry> {
+    let start = deletions
+        .range_t(w.start..w.start.saturating_add(1))
+        .last()
+        .map(|t| t.next())
+        .unwrap_or(TimeIndexEntry::start(w.start));
+    start..TimeIndexEntry::start(w.end)
+}
 
 pub struct PersistentSemantics();
 
@@ -203,5 +294,309 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         } else {
             None
         }
+    }
+}
+
+impl EdgeTimeSemanticsOps for PersistentSemantics {
+    fn include_edge_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        // If an edge has any event in the interior (both end exclusive) of the window it is always included.
+        // Additionally, the edge is included if the last event at or before the start of the window was an addition.
+        edge.added(view.layer_ids(), w.start.saturating_add(1)..w.end)
+            || edge.deleted(view.layer_ids(), w.start.saturating_add(1)..w.end)
+            || edge_alive_at_start(edge, w.start, view.layer_ids())
+    }
+
+    fn edge_history<'graph, G: GraphViewOps<'graph>>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
+        EventSemantics.edge_history(edge, view)
+    }
+
+    fn edge_history_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
+        if view.edge_history_filtered() {
+            let eid = edge.eid();
+            edge.updates_iter(view.layer_ids())
+                .map(move |(layer_id, additions, deletions)| {
+                    let window = interior_window(w.clone(), &deletions);
+                    let elid = eid.with_layer(layer_id);
+                    let view = view.clone();
+                    additions
+                        .range(window)
+                        .iter()
+                        .filter(move |t| view.filter_edge_history(elid, *t, view.layer_ids()))
+                        .map(move |t| (t, layer_id))
+                })
+                .kmerge()
+                .into_dyn_boxed()
+        } else {
+            edge.updates_iter(view.layer_ids())
+                .map(|(layer, additions, deletions)| {
+                    let window = interior_window(w.clone(), &deletions);
+                    additions.range(window).iter().map(move |t| (t, layer))
+                })
+                .kmerge()
+                .into_dyn_boxed()
+        }
+    }
+
+    fn edge_exploded_count<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+    ) -> usize {
+        EventSemantics.edge_exploded_count(edge, view)
+    }
+
+    fn edge_exploded_count_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        let layer_ids = view.layer_ids();
+        if view.edge_history_filtered() {
+            edge.updates_iter(view.layer_ids())
+                .map(|(layer_id, additions, deletions)| {
+                    let actual_window = interior_window(w.clone(), &deletions);
+                    let mut len = additions.range(actual_window).len();
+                    if has_persisted_event(additions, deletions, w.start) {
+                        len += 1
+                    }
+                    len
+                })
+                .sum()
+        } else {
+            edge.updates_iter(view.layer_ids())
+                .map(|(layer_id, additions, deletions)| {
+                    let actual_window = interior_window(w.clone(), &deletions);
+                    let mut len = additions.range(actual_window).len();
+                    if has_persisted_event(additions, deletions, w.start) {
+                        len += 1
+                    }
+                    len
+                })
+                .sum()
+        }
+        match layer_ids {
+            LayerIds::None => 0,
+            LayerIds::All => edge
+                .layer_ids_iter(view.layer_ids())
+                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
+                .sum(),
+            LayerIds::One(id) => {
+                let additions = edge.additions(*id);
+                let deletions = edge.deletions(*id);
+                let actual_window = interior_window(w.clone(), &deletions);
+                let mut len = additions.range(actual_window).len();
+                if has_persisted_event(additions, deletions, w.start) {
+                    len += 1
+                }
+                len
+            }
+            LayerIds::Multiple(layers) => layers
+                .clone()
+                .iter()
+                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
+                .sum(),
+        }
+    }
+
+    fn edge_exploded<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        todo!()
+    }
+
+    fn edge_layers<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        todo!()
+    }
+
+    fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        todo!()
+    }
+
+    fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        todo!()
+    }
+
+    fn edge_earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
+        todo!()
+    }
+
+    fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
+        todo!()
+    }
+
+    fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(&self, e: EdgeStorageRef, view: G) -> bool {
+        todo!()
+    }
+
+    fn edge_is_valid_at_end<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: i64,
+    ) -> bool {
+        todo!()
+    }
+
+    fn temporal_edge_prop_at<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        prop_id: usize,
+        t: TimeIndexEntry,
+        layer_id: usize,
+    ) -> Option<Prop> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        prop_id: usize,
+        t: TimeIndexEntry,
+    ) -> Option<Prop> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        prop_id: usize,
+        t: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_hist<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_hist_rev<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_hist_window<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_hist_window_rev<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
+        todo!()
+    }
+
+    fn constant_edge_prop<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        todo!()
+    }
+
+    fn constant_edge_prop_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        todo!()
     }
 }

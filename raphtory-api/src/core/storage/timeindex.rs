@@ -32,7 +32,9 @@ pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
         self.range_iter(w).next()
     }
 
-    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType>;
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.range_iter_rev(w).next()
+    }
 }
 
 pub trait TimeIndexOps<'a>: Send + Sync + 'a {
