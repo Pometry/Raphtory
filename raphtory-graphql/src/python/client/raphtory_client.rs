@@ -31,14 +31,6 @@ pub struct PyRaphtoryClient {
 }
 
 impl PyRaphtoryClient {
-    // pub(crate) fn get_auth_headers(&self) -> header::HeaderMap {
-    //     let mut headers = header::HeaderMap::new();
-    //     if let Some(token) = &self.token {
-    //         headers.insert(header::AUTHORIZATION, token);
-    //     }
-    //     headers
-    // }
-
     pub(crate) fn query_with_json_variables(
         &self,
         query: String,

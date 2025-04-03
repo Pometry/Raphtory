@@ -20,15 +20,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::auth_config::{AuthConfig, PublicKey};
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Access {
     Ro,
     Rw,
 }
 
-// TODO: remove serialize from here and Access
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
     pub(crate) a: Access,
 }

@@ -24,7 +24,7 @@ mod tests {
             tti_seconds = 1000
 
             [auth]
-            public_key = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
+            public_key = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
         "#;
         let config_path = PathBuf::from("test_config.toml");
         fs::write(&config_path, config_toml).unwrap();
@@ -36,7 +36,7 @@ mod tests {
             .with_cache_capacity(30)
             .with_cache_tti_seconds(1000)
             .with_auth_public_key(Some(
-                "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8=".to_owned(),
+                "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=".to_owned(),
             ))
             .unwrap()
             .build();
