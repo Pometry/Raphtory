@@ -1,5 +1,5 @@
 use crate::{
-    config::app_config::AppConfigBuilder,
+    config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
     model::{
         algorithms::document::GqlDocument,
         plugins::{entry_point::EntryPoint, query_plugin::QueryPlugin},
@@ -17,7 +17,7 @@ use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object,
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
-    exceptions::{PyAttributeError, PyException},
+    exceptions::{PyAttributeError, PyException, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyFunction, PyList},
     IntoPyObjectExt,
@@ -172,7 +172,7 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_secret=None, open_read_access=false, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -183,8 +183,8 @@ impl PyGraphServer {
         otlp_agent_host: Option<String>,
         otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
-        auth_secret: Option<String>,
-        open_read_access: bool,
+        auth_public_key: Option<String>,
+        auth_enabled_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
@@ -210,9 +210,14 @@ impl PyGraphServer {
         if let Some(cache_tti_seconds) = cache_tti_seconds {
             app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
         }
-        if let Some(secret) = auth_secret {
-            app_config_builder = app_config_builder.with_auth_enabled(secret);
-            app_config_builder = app_config_builder.with_open_read_access(open_read_access);
+        if let Some(public_key) = auth_public_key {
+            app_config_builder = app_config_builder
+                .with_auth_enabled(public_key)
+                .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
+        }
+        if let Some(auth_enabled_for_reads) = auth_enabled_for_reads {
+            app_config_builder =
+                app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);
         }
         let app_config = Some(app_config_builder.build());
 

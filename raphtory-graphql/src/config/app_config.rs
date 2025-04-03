@@ -5,7 +5,7 @@ use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use super::auth_config::AuthConfig;
+use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 
 #[derive(Debug, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
@@ -84,13 +84,13 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_auth_enabled(mut self, secret: String) -> Self {
-        self.auth.secret = Some(secret.into());
-        self
+    pub fn with_auth_enabled(mut self, public_key: String) -> Result<Self, PublicKeyError> {
+        self.auth.public_key = Some(public_key.try_into()?);
+        Ok(self)
     }
 
-    pub fn with_open_read_access(mut self, open_read_access: bool) -> Self {
-        self.auth.open_read_access = open_read_access;
+    pub fn with_auth_enabled_for_reads(mut self, enabled_for_reads: bool) -> Self {
+        self.auth.enabled_for_reads = enabled_for_reads;
         self
     }
 
@@ -155,11 +155,13 @@ pub fn load_config(
         app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
     }
 
-    if let Ok(Some(secret)) = settings.get::<Option<String>>("auth.secret") {
-        app_config_builder = app_config_builder.with_auth_enabled(secret);
+    if let Ok(Some(public_key)) = settings.get::<Option<String>>("auth.public_key") {
+        app_config_builder = app_config_builder
+            .with_auth_enabled(public_key)
+            .map_err(|_| ConfigError::Message(PUBLIC_KEY_DECODING_ERR_MSG.to_owned()))?;
     }
-    if let Ok(open_read_access) = settings.get::<bool>("auth.open_read_access") {
-        app_config_builder = app_config_builder.with_open_read_access(open_read_access);
+    if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
+        app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
     }
 
     Ok(app_config_builder.build())

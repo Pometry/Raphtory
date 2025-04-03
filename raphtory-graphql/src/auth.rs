@@ -11,24 +11,24 @@ use async_graphql::{
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use poem::{
     error::Unauthorized, Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
-use secrecy::ExposeSecret;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::config::auth_config::{AuthConfig, Secret};
+use crate::config::auth_config::{AuthConfig, PublicKey};
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Access {
     Ro,
     Rw,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+// TODO: remove serialize from here and Access
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
     pub(crate) a: Access,
 }
@@ -72,18 +72,18 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let access = match &self.config.secret {
-            Some(secret) => {
+        let access = match &self.config.public_key {
+            Some(public_key) => {
                 let presented_access = req
                     .header(AUTHORIZATION)
-                    .and_then(|header| extract_access_from_header(header, secret));
+                    .and_then(|header| extract_access_from_header(header, public_key));
                 match presented_access {
                     Some(access) => access,
                     None => {
-                        if self.config.open_read_access {
-                            Access::Ro // if read access is not required, we give read access to all requests
-                        } else {
+                        if self.config.enabled_for_reads {
                             return Err(Unauthorized(AuthError::RequireRead));
+                        } else {
+                            Access::Ro // if read access is not required, we give read access to all requests
                         }
                     }
                 }
@@ -116,16 +116,12 @@ where
     }
 }
 
-fn extract_access_from_header(header: &str, secret: &Secret) -> Option<Access> {
+fn extract_access_from_header(header: &str, public_key: &PublicKey) -> Option<Access> {
     if header.starts_with("Bearer ") {
         let jwt = header.replace("Bearer ", "");
-        let mut validation = Validation::new(Algorithm::HS256);
+        let mut validation = Validation::new(Algorithm::EdDSA);
         validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
-        let decoded = decode::<TokenClaims>(
-            &jwt,
-            &DecodingKey::from_secret(secret.expose_secret().as_ref()),
-            &validation,
-        );
+        let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
         Some(decoded.ok()?.claims.a)
     } else {
         None

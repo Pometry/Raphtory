@@ -1,6 +1,7 @@
 from time import time
 import pytest
 import jwt
+import base64
 import json
 import requests
 import tempfile
@@ -8,16 +9,22 @@ from datetime import datetime, timezone
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
-SECRET = "SpoDpkfhHNlcx0V5wG9vD5njzj0DAHNC17mWTa3B/h8="
+# openssl genpkey -algorithm ed25519 -out raphtory-key.pem
+# openssl pkey -in raphtory-key.pem -pubout -outform DER | base64
+PUB_KEY = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
+# cat raphtory-key.pem
+PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
+-----END PRIVATE KEY-----"""
 
 RAPHTORY = "http://localhost:1736"
 
-READ_JWT = jwt.encode({"a": "ro"}, SECRET, algorithm="HS256")
+READ_JWT = jwt.encode({"a": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
 READ_HEADERS = {
     "Authorization": f"Bearer {READ_JWT}",
 }
 
-WRITE_JWT = jwt.encode({"a": "rw"}, SECRET, algorithm="HS256")
+WRITE_JWT = jwt.encode({"a": "rw"}, PRIVATE_KEY, algorithm="EdDSA")
 WRITE_HEADERS = {
     "Authorization": f"Bearer {WRITE_JWT}",
 }
@@ -41,16 +48,16 @@ def add_test_graph():
 
 def test_expired_token():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         exp = time() - 100
-        token = jwt.encode({"a": "ro", "exp": exp}, SECRET, algorithm="HS256")
+        token = jwt.encode({"a": "ro", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
         headers = {
             "Authorization": f"Bearer {token}",
         }
         response = requests.post(RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_GRAPHS}))
         assert(response.status_code == 401)
 
-        token = jwt.encode({"a": "rw", "exp": exp}, SECRET, algorithm="HS256")
+        token = jwt.encode({"a": "rw", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
         headers = {
             "Authorization": f"Bearer {token}",
         }
@@ -60,7 +67,7 @@ def test_expired_token():
 @pytest.mark.parametrize("query", TEST_QUERIES)
 def test_default_read_access(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         add_test_graph()
         data = json.dumps({"query": query})
 
@@ -76,7 +83,7 @@ def test_default_read_access(query):
 @pytest.mark.parametrize("query", TEST_QUERIES)
 def test_disabled_read_access(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET, open_read_access=True).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY, auth_enabled_for_reads=False).start():
         add_test_graph()
         data = json.dumps({"query": query})
 
@@ -125,7 +132,7 @@ query {
 @pytest.mark.parametrize("query", [ADD_NODE, ADD_EDGE, ADD_TEMP_PROP, ADD_CONST_PROP])
 def test_update_graph(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         add_test_graph()
         data = json.dumps({"query": query})
 
@@ -148,7 +155,7 @@ CREATE_SUBGRAPH = """mutation { createSubgraph(parentPath:"test", newPath: "subg
 @pytest.mark.parametrize("query", [NEW_GRAPH, MOVE_GRAPH, COPY_GRAPH, DELETE_GRAPH, CREATE_SUBGRAPH])
 def test_mutations(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         add_test_graph()
         data = json.dumps({"query": query})
 
@@ -164,7 +171,7 @@ def test_mutations(query):
 
 def test_raphtory_client():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
         client.new_graph("test", "EVENT")
         g = client.remote_graph("test")
@@ -175,7 +182,7 @@ def test_raphtory_client():
 
 def test_upload_graph():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_secret=SECRET).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
         g = Graph()
         g.add_node(0, "uploaded-node")

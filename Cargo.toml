@@ -113,7 +113,7 @@ criterion = "0.5.1"
 crossbeam-channel = "0.5.11"
 base64 = "0.22.1"
 jsonwebtoken = "9.3.1"
-secrecy = { version = "0.10.3", features = ["serde"] }
+spki = "0.7.3"
 poem = { version = "3.0.1", features = ["cookie"] }
 opentelemetry = "0.27.1"
 opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
