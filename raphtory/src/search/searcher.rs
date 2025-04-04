@@ -1070,36 +1070,50 @@ mod search_tests {
         fn search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();
 
-            graph
-                .add_edge(1, 1, 2, [("p1", "shivam_kapoor")], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_edge(
+            let edge_data = [
+                (
+                    1,
+                    1,
+                    2,
+                    vec![("p1", "shivam_kapoor".into_prop())],
+                    Some("fire_nation"),
+                ),
+                (
                     2,
                     1,
                     2,
-                    [
+                    vec![
                         ("p1", "shivam_kapoor".into_prop()),
                         ("p2", 4u64.into_prop()),
                     ],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-                .add_edge(
+                ),
+                (
                     2,
                     2,
                     3,
-                    [("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                    vec![("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
                     Some("air_nomads"),
-                )
-                .unwrap();
-            graph
-                .add_edge(3, 3, 1, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_edge(3, 2, 1, [("p2", 6u64), ("p3", 1u64)], None)
-                .unwrap();
+                ),
+                (
+                    3,
+                    3,
+                    1,
+                    vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                    Some("fire_nation"),
+                ),
+                (
+                    3,
+                    2,
+                    1,
+                    vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                    None,
+                ),
+            ];
+
+            for (time, src, dst, props, edge_type) in edge_data {
+                graph.add_edge(time, src, dst, props, edge_type).unwrap();
+            }
 
             graph.create_index().unwrap();
 
@@ -1193,17 +1207,17 @@ mod search_tests {
         }
 
         #[test]
-        fn search_edges_for_src_from_eq() {
-            let filter = EdgeFilter::src().eq("2");
+        fn search_edges_for_dst_eq() {
+            let filter = EdgeFilter::dst().eq("2");
             let results = search_edges(filter);
             assert_eq!(
                 results,
-                vec![("2".into(), "1".into()), ("2".into(), "3".into())]
+                vec![("1".into(), "2".into())]
             );
         }
 
         #[test]
-        fn search_edges_for_src_to_ne() {
+        fn search_edges_for_dst_ne() {
             let filter = EdgeFilter::dst().ne("2");
             let results = search_edges(filter);
             assert_eq!(
@@ -1217,7 +1231,7 @@ mod search_tests {
         }
 
         #[test]
-        fn search_edges_for_to_in() {
+        fn search_edges_for_dst_in() {
             let filter = EdgeFilter::dst().includes(vec!["2".into()]);
             let results = search_edges(filter);
             assert_eq!(results, vec![("1".into(), "2".into())]);
@@ -1231,7 +1245,7 @@ mod search_tests {
         }
 
         #[test]
-        fn search_edges_for_to_not_in() {
+        fn search_edges_for_dst_not_in() {
             let filter = EdgeFilter::dst().excludes(vec!["1".into()]);
             let results = search_edges(filter);
             assert_eq!(
@@ -1241,14 +1255,14 @@ mod search_tests {
         }
 
         #[test]
-        fn search_edges_for_from_eq() {
+        fn search_edges_for_src_eq() {
             let filter = EdgeFilter::src().eq("3");
             let results = search_edges(filter);
             assert_eq!(results, vec![("3".into(), "1".into())]);
         }
 
         #[test]
-        fn search_edges_for_from_ne() {
+        fn search_edges_for_src_ne() {
             let filter = EdgeFilter::src().ne("1");
             let results = search_edges(filter);
             assert_eq!(
@@ -1262,7 +1276,7 @@ mod search_tests {
         }
 
         #[test]
-        fn search_edges_for_from_in() {
+        fn search_edges_for_src_in() {
             let filter = EdgeFilter::src().includes(vec!["1".into()]);
             let results = search_edges(filter);
             assert_eq!(results, vec![("1".into(), "2".into())]);
@@ -1280,7 +1294,7 @@ mod search_tests {
         }
 
         #[test]
-        fn search_edges_for_from_not_in() {
+        fn search_edges_for_src_not_in() {
             let filter = EdgeFilter::src().excludes(vec!["1".into()]);
             let results = search_edges(filter);
             assert_eq!(

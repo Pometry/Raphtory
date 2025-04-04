@@ -124,13 +124,13 @@ def test_filter_nodes_for_property_is_none():
     assert result_ids == expected_ids
 
 
-# def test_filter_nodes_by_props_added_at_different_times():
-#     graph = Graph()
-#     graph = init_graph(graph)
-#
-#     filter_expr = filter.Property("p4") == "pometry" & filter.Property("p5") == 12
-#     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-#     expected_ids = sorted(["1", "4"])
-#     assert result_ids == expected_ids
+def test_filter_nodes_by_props_added_at_different_times():
+    graph = Graph()
+    graph = init_graph(graph)
 
+    filter_expr1 = filter.Property("p4") == "pometry"
+    filter_expr2 = filter.Property("p5") == 12
+    result_ids = sorted(graph.filter_nodes(filter_expr1 & filter_expr2).nodes.id)
+    expected_ids = sorted(["4"])
+    assert result_ids == expected_ids
 
