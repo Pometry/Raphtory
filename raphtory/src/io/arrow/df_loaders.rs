@@ -349,10 +349,9 @@ pub(crate) fn load_edges_from_df<
                     if let Some(src_node) = shard.get_mut(*src) {
                         src_node.init(*src, src_gid);
                         update_time(TimeIndexEntry(time, start_idx + row));
-                        let EID(eid) = match src_node.find_edge_eid(*dst, &LayerIds::All) {
+                        let eid = match src_node.find_edge_eid(*dst, &LayerIds::All) {
                             None => {
                                 let eid = next_edge_id();
-                                src_node.add_edge(*dst, Direction::OUT, *layer, eid);
                                 if let Some(cache_shards) = cache_shards.as_ref() {
                                     cache_shards[shard_id].resolve_edge(
                                         MaybeNew::New(eid),
@@ -364,8 +363,9 @@ pub(crate) fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
-                        src_node.update_time(TimeIndexEntry(time, start_idx + row), EID(eid));
-                        eid_col_shared[row].store(eid, Ordering::Relaxed);
+                        src_node.update_time(TimeIndexEntry(time, start_idx + row), eid);
+                        src_node.add_edge(*dst, Direction::OUT, *layer, eid);
+                        eid_col_shared[row].store(eid.0, Ordering::Relaxed);
                     }
                 }
             });

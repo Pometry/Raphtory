@@ -37,7 +37,6 @@ def sort_lists_in_structure(key_main, obj):
 
 
 def test_node_edge_properties_schema():
-
     g = Graph()
     g.add_node(0, 1, {"t": "wallet", "cost": 99.5}, "a")
     g.add_node(1, 2, {"t": "person"})
