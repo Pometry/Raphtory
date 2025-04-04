@@ -261,7 +261,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn node_list(&self) -> NodeList {
         if self.window_is_empty() {
             NodeList::List {
-                nodes: Index::default(),
+                elems: Index::default(),
             }
         } else {
             self.graph.node_list()
@@ -271,7 +271,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn edge_list(&self) -> EdgeList {
         if self.window_is_empty() {
             EdgeList::List {
-                edges: Arc::new([]),
+                elems: Index::default(),
             }
         } else {
             self.graph.edge_list()
@@ -1462,7 +1462,10 @@ mod views_test {
                 },
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, NodeFilter, NodeFilterOps, PropertyFilterOps},
+                    filter::{
+                        AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterOps,
+                        PropertyFilterOps,
+                    },
                 },
             },
             prelude::{
@@ -1660,7 +1663,7 @@ mod views_test {
         >(
             graph: G,
             w: Range<i64>,
-            filter: FilterExpr,
+            filter: impl AsNodeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph
@@ -1683,7 +1686,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = NodeFilter::node_name().eq("N2");
+            let filter = NodeFilter::name().eq("N2");
             let results = search_nodes(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, vec!["N2"]);
         }
@@ -1707,7 +1710,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = NodeFilter::node_name().ne("N2");
+            let filter = NodeFilter::name().ne("N2");
             let results = search_nodes(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, expected);
         }
@@ -1737,11 +1740,11 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = NodeFilter::node_name().includes(vec!["N2".into()]);
+            let filter = NodeFilter::name().includes(vec!["N2".into()]);
             let results = search_nodes(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, vec!["N2"]);
 
-            let filter = NodeFilter::node_name().includes(vec!["N2".into(), "N5".into()]);
+            let filter = NodeFilter::name().includes(vec!["N2".into(), "N5".into()]);
             let results = search_nodes(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, vec!["N2", "N5"]);
         }
@@ -1765,7 +1768,7 @@ mod views_test {
                 + PropertyAdditionOps,
             F: Fn() -> G,
         {
-            let filter = NodeFilter::node_name().excludes(vec!["N5".into()]);
+            let filter = NodeFilter::name().excludes(vec!["N5".into()]);
             let results = search_nodes(init_graph(constructor()), 6..9, filter);
             assert_eq!(results, expected);
         }
@@ -2457,7 +2460,10 @@ mod views_test {
                 },
                 graph::views::{
                     deletion_graph::PersistentGraph,
-                    property_filter::{EdgeFilter, EdgeFilterOps, FilterExpr, PropertyFilterOps},
+                    filter::{
+                        AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps,
+                        PropertyFilterOps,
+                    },
                 },
             },
             prelude::{
@@ -2700,7 +2706,7 @@ mod views_test {
         >(
             graph: G,
             w: Range<i64>,
-            filter: FilterExpr,
+            filter: impl AsEdgeFilter,
         ) -> Vec<String> {
             graph.create_index().unwrap();
             let mut results = graph

@@ -16,7 +16,7 @@ use crate::{
                 Base, BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
+        graph::views::filter::internal::InternalExplodedEdgeFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
