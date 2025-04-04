@@ -14,7 +14,7 @@ def init_graph(graph):
     ]
 
     for time, id, props, node_type in nodes:
-            graph.add_node(time, str(id), props, node_type)
+            graph.add_node(time, id, props, node_type)
 
     return graph
 
@@ -25,7 +25,12 @@ def test_filter_nodes_for_property_eq():
 
     filter_expr = filter.Property("p2") == 2
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["2"])
+    expected_ids = sorted([2])
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p1") == "shivam_kapoor"
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = sorted([1])
     assert result_ids == expected_ids
 
 
@@ -35,7 +40,7 @@ def test_filter_nodes_for_property_ne():
 
     filter_expr = filter.Property("p2") != 2
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["3"])
+    expected_ids = sorted([3])
     assert result_ids == expected_ids
 
 
@@ -45,7 +50,7 @@ def test_filter_nodes_for_property_lt():
 
     filter_expr = filter.Property("p2") < 10
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["2", "3"])
+    expected_ids = sorted([2, 3])
     assert result_ids == expected_ids
 
 
@@ -55,7 +60,7 @@ def test_filter_nodes_for_property_le():
 
     filter_expr = filter.Property("p2") <= 6
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["2", "3"])
+    expected_ids = sorted([2, 3])
     assert result_ids == expected_ids
 
 
@@ -65,7 +70,7 @@ def test_filter_nodes_for_property_gt():
 
     filter_expr = filter.Property("p2") > 2
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["3"])
+    expected_ids = sorted([3])
     assert result_ids == expected_ids
 
 
@@ -75,7 +80,7 @@ def test_nodes_for_property_ge():
 
     filter_expr = filter.Property("p2") >= 2
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["3"])
+    expected_ids = sorted([2, 3])
     assert result_ids == expected_ids
 
 
@@ -85,12 +90,12 @@ def test_filter_nodes_for_property_in():
 
     filter_expr = filter.Property("p2").includes([6])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["3"])
+    expected_ids = sorted([3])
     assert result_ids == expected_ids
 
     filter_expr = filter.Property("p2").includes([2, 6])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["2", "3"])
+    expected_ids = sorted([2, 3])
     assert result_ids == expected_ids
 
 
@@ -100,7 +105,7 @@ def test_filter_nodes_for_property_not_in():
 
     filter_expr = filter.Property("p2").excludes([6])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["2"])
+    expected_ids = sorted([2])
     assert result_ids == expected_ids
 
 
@@ -110,7 +115,7 @@ def test_filter_nodes_for_property_is_some():
 
     filter_expr = filter.Property("p2").is_some()
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["2", "3"])
+    expected_ids = sorted([2, 3])
     assert result_ids == expected_ids
 
 
@@ -120,7 +125,7 @@ def test_filter_nodes_for_property_is_none():
 
     filter_expr = filter.Property("p2").is_none()
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["1", "4"])
+    expected_ids = sorted([1, 4])
     assert result_ids == expected_ids
 
 
@@ -131,6 +136,6 @@ def test_filter_nodes_by_props_added_at_different_times():
     filter_expr1 = filter.Property("p4") == "pometry"
     filter_expr2 = filter.Property("p5") == 12
     result_ids = sorted(graph.filter_nodes(filter_expr1 & filter_expr2).nodes.id)
-    expected_ids = sorted(["4"])
+    expected_ids = sorted([4])
     assert result_ids == expected_ids
 
