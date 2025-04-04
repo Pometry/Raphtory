@@ -729,19 +729,14 @@ class Matching(object):
 
     def __bool__(self):
         """True if self else False"""
-
     def __contains__(self, key):
-        """Return key in self."""
-
+        """Return bool(key in self)."""
     def __iter__(self):
         """Implement iter(self)."""
-
     def __len__(self):
         """Return len(self)."""
-
     def __repr__(self):
         """Return repr(self)."""
-
     def dst(self, src: NodeInput) -> Optional[Node]:
         """
         Get the matched destination node for a source node
@@ -753,7 +748,6 @@ class Matching(object):
             Optional[Node]: The matched destination node if it exists
 
         """
-
     def edge_for_dst(self, dst: NodeInput) -> Optional[Edge]:
         """
         Get the matched edge for a destination node
@@ -764,7 +758,6 @@ class Matching(object):
         Returns:
             Optional[Edge]: The matched edge if it exists
         """
-
     def edge_for_src(self, src: NodeInput) -> Optional[Edge]:
         """
         Get the matched edge for a source node
@@ -775,7 +768,6 @@ class Matching(object):
         Returns:
             Optional[Edge]: The matched edge if it exists
         """
-
     def edges(self) -> Edges:
         """
         Get a view of the matched edges
@@ -783,7 +775,6 @@ class Matching(object):
         Returns:
             Edges: The edges in the matching
         """
-
     def src(self, dst: NodeInput) -> Optional[Node]:
         """
         Get the matched source node for a destination node
@@ -799,7 +790,6 @@ class Matching(object):
 class Infected(object):
     def __repr__(self):
         """Return repr(self)."""
-
     @property
     def active(self) -> int:
         """
@@ -808,7 +798,6 @@ class Infected(object):
         Returns:
             int:
         """
-
     @property
     def infected(self) -> int:
         """
@@ -817,7 +806,6 @@ class Infected(object):
         Returns:
             int:
         """
-
     @property
     def recovered(self) -> int:
         """

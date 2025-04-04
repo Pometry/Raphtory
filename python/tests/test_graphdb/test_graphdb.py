@@ -908,26 +908,55 @@ def test_decimal_property():
     e.add_updates(3, decimal_properties)
 
     with pytest.raises(Exception):
-        g.add_edge(0, 1, 1, {"d_extra_max_super_ultra_x_x": Decimal("9999999999999999999999999999999999999999999999999999.999999999")})
+        g.add_edge(
+            0,
+            1,
+            1,
+            {
+                "d_extra_max_super_ultra_x_x": Decimal(
+                    "9999999999999999999999999999999999999999999999999999.999999999"
+                )
+            },
+        )
 
     @with_disk_graph
     def check(g):
-        assert g.node(2).properties.temporal.get("d_max").items() == [(2, Decimal("9999999999999999999999999999.999999999")), (3, Decimal("9999999999999999999999999999.999999999"))]
+        assert g.node(2).properties.temporal.get("d_max").items() == [
+            (2, Decimal("9999999999999999999999999999.999999999")),
+            (3, Decimal("9999999999999999999999999999.999999999")),
+        ]
 
-        assert g.edge(1, 1).properties.temporal.get("d_min").items() == [(0, Decimal("-9999999999999999999999999999.999999999")), (3, Decimal("-9999999999999999999999999999.999999999"))]
+        assert g.edge(1, 1).properties.temporal.get("d_min").items() == [
+            (0, Decimal("-9999999999999999999999999999.999999999")),
+            (3, Decimal("-9999999999999999999999999999.999999999")),
+        ]
 
         assert g.node(2).properties.temporal == {
-            "d_max": [(2, Decimal("9999999999999999999999999999.999999999")), (3, Decimal("9999999999999999999999999999.999999999"))],
-            "d_min": [(2, Decimal("-9999999999999999999999999999.999999999")), (3, Decimal("-9999999999999999999999999999.999999999"))],
-            "d_int": [(2, Decimal("9999999999999999999999999999")), (3, Decimal("9999999999999999999999999999"))],
+            "d_max": [
+                (2, Decimal("9999999999999999999999999999.999999999")),
+                (3, Decimal("9999999999999999999999999999.999999999")),
+            ],
+            "d_min": [
+                (2, Decimal("-9999999999999999999999999999.999999999")),
+                (3, Decimal("-9999999999999999999999999999.999999999")),
+            ],
+            "d_int": [
+                (2, Decimal("9999999999999999999999999999")),
+                (3, Decimal("9999999999999999999999999999")),
+            ],
             "d_small_neg": [(2, Decimal("-0.1")), (3, Decimal("-0.1"))],
             "d_small_pos": [(2, Decimal("0.1")), (3, Decimal("0.1"))],
-            "d_medium": [(2, Decimal("104447267751554560119.000000000")), (3, Decimal("104447267751554560119.000000000"))],
+            "d_medium": [
+                (2, Decimal("104447267751554560119.000000000")),
+                (3, Decimal("104447267751554560119.000000000")),
+            ],
         }
 
         assert g.node(2).properties.temporal.get("d_small_pos").sum() == Decimal("0.2")
         assert g.node(2).properties.temporal.get("d_small_neg").sum() == Decimal("-0.2")
-        assert g.node(2).properties.temporal.get("d_medium").sum() == Decimal("208894535503109120238.000000000")
+        assert g.node(2).properties.temporal.get("d_medium").sum() == Decimal(
+            "208894535503109120238.000000000"
+        )
 
     check(g)
 
