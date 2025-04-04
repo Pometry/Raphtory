@@ -526,7 +526,7 @@ impl Filter {
         node: NodeStorageRef,
     ) -> bool {
         match self.field_name.as_str() {
-            "node_name" => self.matches(node.name().as_str()),
+            "node_name" => self.matches(Some(&node.id().to_str())),
             "node_type" => self.matches(graph.node_type(node.vid()).as_deref()),
             _ => false,
         }
@@ -948,7 +948,7 @@ impl InternalNodeFilterOps for NodeTypeFilterBuilder {
 pub struct NodeFilter;
 
 impl NodeFilter {
-    pub fn node_name() -> NodeNameFilterBuilder {
+    pub fn name() -> NodeNameFilterBuilder {
         NodeNameFilterBuilder
     }
 
@@ -1120,7 +1120,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_name_filter_build() {
-        let filter_expr = NodeFilter::node_name().eq("raphtory");
+        let filter_expr = NodeFilter::name().eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
         assert_eq!(
@@ -1142,7 +1142,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_filter_composition() {
-        let node_composite_filter = NodeFilter::node_name()
+        let node_composite_filter = NodeFilter::name()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))

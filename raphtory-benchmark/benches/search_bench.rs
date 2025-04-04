@@ -658,7 +658,7 @@ fn bench_search_nodes_by_name(c: &mut Criterion) {
             || {
                 let mut iter = node_names.iter().cloned().cycle();
                 let random_name = iter.next().unwrap();
-                NodeFilter::node_name().eq(random_name)
+                NodeFilter::name().eq(random_name)
             },
             |random_filter| {
                 graph.search_nodes(random_filter, 5, 0).unwrap();

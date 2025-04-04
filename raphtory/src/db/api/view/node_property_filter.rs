@@ -49,8 +49,8 @@ mod test {
         g.add_node(2, "David", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        let filter_expr = NodeFilter::node_name().eq("Jimi");
-        let filter_expr = NodeFilter::node_name()
+        let filter_expr = NodeFilter::name().eq("Jimi");
+        let filter_expr = NodeFilter::name()
             .eq("John")
             // .and(PropertyFilter::property("band").eq("Dead & Company"))
             .and(PropertyFilter::property("band").eq("Dead & Company"));

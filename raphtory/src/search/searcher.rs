@@ -428,140 +428,59 @@ mod search_tests {
                     + InternalPropertyAdditionOps
                     + PropertyAdditionOps,
             >(
-                graph: G,
+                mut graph: G,
             ) -> G {
-                graph
-                    .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N1", "N2")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
+                let edge_data = [
+                    (6, "N1", "N2", vec![("p1", Prop::U64(2u64))]),
+                    (7, "N1", "N2", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N2", "N3", vec![("p1", Prop::U64(1u64))]),
+                    (7, "N2", "N3", vec![("p1", Prop::U64(2u64))]),
+                    (8, "N3", "N4", vec![("p1", Prop::U64(1u64))]),
+                    (9, "N4", "N5", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N5", "N6", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N5", "N6", vec![("p1", Prop::U64(2u64))]),
+                    (5, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N8", "N9", vec![("p1", Prop::U64(1u64))]),
+                    (4, "N8", "N9", vec![("p1", Prop::U64(2u64))]),
+                    (2, "N9", "N10", vec![("p1", Prop::U64(2u64))]),
+                    (2, "N10", "N11", vec![("q1", Prop::U64(0u64))]),
+                    (2, "N10", "N11", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N11", "N12", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N11", "N12", vec![("q1", Prop::U64(0u64))]),
+                    (2, "N12", "N13", vec![("q1", Prop::U64(0u64))]),
+                    (3, "N12", "N13", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N13", "N14", vec![("q1", Prop::U64(0u64))]),
+                    (3, "N13", "N14", vec![("p1", Prop::U64(3u64))]),
+                    (2, "N14", "N15", vec![("q1", Prop::U64(0u64))]),
+                    (2, "N15", "N1", vec![]),
+                ];
 
-                graph
-                    .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
+                for (time, src, dst, props) in edge_data {
+                    graph.add_edge(time, src, dst, props, None).unwrap();
+                }
 
-                graph
-                    .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
+                let constant_edges = [
+                    ("N1", "N2", vec![("p1", Prop::U64(1u64))]),
+                    ("N4", "N5", vec![("p1", Prop::U64(2u64))]),
+                    ("N9", "N10", vec![("p1", Prop::U64(1u64))]),
+                    ("N10", "N11", vec![("p1", Prop::U64(1u64))]),
+                    ("N11", "N12", vec![("p1", Prop::U64(1u64))]),
+                    ("N12", "N13", vec![("p1", Prop::U64(1u64))]),
+                    ("N13", "N14", vec![("p1", Prop::U64(1u64))]),
+                    ("N14", "N15", vec![("p1", Prop::U64(1u64))]),
+                    ("N15", "N1", vec![("p1", Prop::U64(1u64))]),
+                ];
 
-                graph
-                    .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N4", "N5")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(3, "N8", "N9", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(4, "N8", "N9", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(2, "N9", "N10", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N9", "N10")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(2, "N10", "N11", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(2, "N10", "N11", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N10", "N11")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(2, "N11", "N12", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(2, "N11", "N12", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N11", "N12")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(2, "N12", "N13", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(3, "N12", "N13", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N12", "N13")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(2, "N13", "N14", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(3, "N13", "N14", [("p1", Prop::U64(3u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N13", "N14")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph
-                    .add_edge(2, "N14", "N15", [("q1", Prop::U64(0u64))], None)
-                    .unwrap();
-                graph
-                    .edge("N14", "N15")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-
-                graph.add_edge(2, "N15", "N1", NO_PROPS, None).unwrap();
-                graph
-                    .edge("N15", "N1")
-                    .unwrap()
-                    .add_constant_properties([("p1", Prop::U64(1u64))], None)
-                    .unwrap();
+                for (src, dst, props) in constant_edges {
+                    graph
+                        .edge(src, dst)
+                        .unwrap()
+                        .add_constant_properties(props.clone(), None)
+                        .unwrap();
+                }
 
                 graph
             }
@@ -575,19 +494,16 @@ mod search_tests {
             >(
                 graph: G,
             ) -> G {
-                graph
-                    .add_edge(1, "N16", "N15", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(1, "N16", "N15", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
+                let edge_data = [
+                    (1, "N16", "N15", vec![("p1", Prop::U64(2u64))]),
+                    (1, "N16", "N15", vec![("p1", Prop::U64(1u64))]),
+                    (1, "N17", "N16", vec![("p1", Prop::U64(1u64))]),
+                    (1, "N17", "N16", vec![("p1", Prop::U64(2u64))]),
+                ];
 
-                graph
-                    .add_edge(1, "N17", "N16", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_edge(1, "N17", "N16", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
+                for (time, src, dst, props) in edge_data {
+                    graph.add_edge(time, src, dst, props, None).unwrap();
+                }
 
                 graph
             }
@@ -827,52 +743,53 @@ mod search_tests {
 
         fn search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
             let graph = Graph::new();
-            graph
-                .add_node(
+            let node_data = [
+                (
                     1,
                     1,
-                    [
+                    vec![
                         ("p1", "shivam_kapoor".into_prop()),
                         ("p9", 5u64.into_prop()),
                     ],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (
                     2,
                     2,
-                    [("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                    vec![("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
                     Some("air_nomads"),
-                )
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (
                     3,
                     1,
-                    [
+                    vec![
                         ("p1", "shivam_kapoor".into_prop()),
                         ("p9", 5u64.into_prop()),
                     ],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-                .add_node(3, 3, [("p2", 6u64), ("p3", 1u64)], Some("fire_nation"))
-                .unwrap();
-            graph
-                .add_node(
+                ),
+                (
+                    3,
+                    3,
+                    vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                    Some("fire_nation"),
+                ),
+                (
                     4,
                     1,
-                    [
+                    vec![
                         ("p1", "shivam_kapoor".into_prop()),
                         ("p9", 5u64.into_prop()),
                     ],
                     Some("fire_nation"),
-                )
-                .unwrap();
-            graph.add_node(3, 4, [("p4", "pometry")], None).unwrap();
-            graph.add_node(4, 4, [("p5", 12u64)], None).unwrap();
+                ),
+                (3, 4, vec![("p4", "pometry".into_prop())], None),
+                (4, 4, vec![("p5", 12u64.into_prop())], None),
+            ];
+
+            for (time, id, props, node_type) in node_data {
+                graph.add_node(time, id, props, node_type).unwrap();
+            }
 
             graph.create_index().unwrap();
 
@@ -949,32 +866,32 @@ mod search_tests {
 
         #[test]
         fn search_nodes_for_node_name_eq() {
-            let filter = NodeFilter::node_name().eq("3");
+            let filter = NodeFilter::name().eq("3");
             let results = search_nodes(filter);
             assert_eq!(results, vec!["3"]);
         }
 
         #[test]
         fn search_nodes_for_node_name_ne() {
-            let filter = NodeFilter::node_name().ne("2");
+            let filter = NodeFilter::name().ne("2");
             let results = search_nodes(filter);
             assert_eq!(results, vec!["1", "3", "4"]);
         }
 
         #[test]
         fn search_nodes_for_node_name_in() {
-            let filter = NodeFilter::node_name().includes(vec!["1".into()]);
+            let filter = NodeFilter::name().includes(vec!["1".into()]);
             let results = search_nodes(filter);
             assert_eq!(results, vec!["1"]);
 
-            let filter = NodeFilter::node_name().includes(vec!["2".into(), "3".into()]);
+            let filter = NodeFilter::name().includes(vec!["2".into(), "3".into()]);
             let results = search_nodes(filter);
             assert_eq!(results, vec!["2", "3"]);
         }
 
         #[test]
         fn search_nodes_for_node_name_not_in() {
-            let filter = NodeFilter::node_name().excludes(vec!["1".into()]);
+            let filter = NodeFilter::name().excludes(vec!["1".into()]);
             let results = search_nodes(filter);
             assert_eq!(results, vec!["2", "3", "4"]);
         }
@@ -1098,22 +1015,22 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search() {
-            let filter = NodeFilter::node_name().fuzzy_search("shivam_kapoor", 2, false);
+            let filter = NodeFilter::name().fuzzy_search("shivam_kapoor", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["shivam_kapoor"]);
 
-            let filter = NodeFilter::node_name().fuzzy_search("pomet", 2, false);
+            let filter = NodeFilter::name().fuzzy_search("pomet", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["pometry"]);
         }
 
         #[test]
         fn test_fuzzy_search_prefix_match() {
-            let filter = NodeFilter::node_name().fuzzy_search("pome", 2, false);
+            let filter = NodeFilter::name().fuzzy_search("pome", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, Vec::<String>::new());
 
-            let filter = NodeFilter::node_name().fuzzy_search("pome", 2, true);
+            let filter = NodeFilter::name().fuzzy_search("pome", 2, true);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["pometry"]);
         }
@@ -1573,7 +1490,7 @@ mod search_tests {
         info!("indexing took: {:?}", elapsed);
         graph.create_index().unwrap();
 
-        let filter = NodeFilter::node_name().eq("DEV-1690");
+        let filter = NodeFilter::name().eq("DEV-1690");
         let issues = graph.search_nodes(filter, 5, 0)?;
 
         assert!(!issues.is_empty());

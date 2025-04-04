@@ -6,7 +6,10 @@ use crate::{
         InternalPropertyFilterOps, NodeFilter, NodeFilterOps, OrFilter, PropertyFilterBuilder,
         PropertyFilterOps, TemporalPropertyFilterBuilder,
     },
-    python::types::wrappers::prop::{DynInternalEdgeFilterOps, DynInternalNodeFilterOps},
+    python::types::{
+        iterable::FromIterable,
+        wrappers::prop::{DynInternalEdgeFilterOps, DynInternalNodeFilterOps},
+    },
 };
 use pyo3::prelude::*;
 use std::{ops::Deref, sync::Arc};
@@ -203,12 +206,12 @@ impl PyPropertyFilterOps {
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
-    fn includes(&self, values: Vec<Prop>) -> PyFilterExpr {
+    fn includes(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.includes(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
-    fn excludes(&self, values: Vec<Prop>) -> PyFilterExpr {
+    fn excludes(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.excludes(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
@@ -318,12 +321,12 @@ impl PyNodeFilterOp {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
     }
 
-    fn includes(&self, values: Vec<String>) -> PyFilterExpr {
+    fn includes(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.includes(values);
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
     }
 
-    fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
+    fn excludes(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.excludes(values);
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
     }
@@ -348,18 +351,13 @@ pub struct PyNodeFilter;
 #[pymethods]
 impl PyNodeFilter {
     #[staticmethod]
-    fn node_name() -> PyNodeFilterOp {
-        PyNodeFilterOp(Arc::new(NodeFilter::node_name()))
+    fn name() -> PyNodeFilterOp {
+        PyNodeFilterOp(Arc::new(NodeFilter::name()))
     }
 
     #[staticmethod]
     fn node_type() -> PyNodeFilterOp {
         PyNodeFilterOp(Arc::new(NodeFilter::node_type()))
-    }
-
-    #[staticmethod]
-    fn property(name: String) -> PropertyFilterBuilder {
-        PropertyFilterBuilder(name)
     }
 }
 
@@ -385,12 +383,12 @@ impl PyEdgeFilterOp {
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    fn includes(&self, values: Vec<String>) -> PyFilterExpr {
+    fn includes(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.includes(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
+    fn excludes(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.excludes(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
@@ -423,11 +421,11 @@ impl PyEdgeFilter {
     fn dst() -> PyEdgeFilterOp {
         PyEdgeFilterOp(Arc::new(EdgeFilter::dst()))
     }
+}
 
-    #[staticmethod]
-    fn property(name: String) -> PropertyFilterBuilder {
-        PropertyFilterBuilder(name)
-    }
+#[pyfunction(name = "Property")]
+fn property(name: String) -> PropertyFilterBuilder {
+    PropertyFilterBuilder(name)
 }
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
@@ -439,6 +437,8 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyTemporalPropertyFilterBuilder>()?;
+
+    filter_module.add_function(wrap_pyfunction!(property, filter_module.clone())?)?;
 
     Ok(filter_module)
 }
