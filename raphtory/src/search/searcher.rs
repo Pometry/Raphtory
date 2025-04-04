@@ -176,19 +176,16 @@ mod search_tests {
             >(
                 graph: G,
             ) -> G {
-                graph
-                    .add_node(1, "N16", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(1, "N16", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
+                let nodes = [
+                    (1, "N16", vec![("p1", Prop::U64(2u64))]),
+                    (1, "N16", vec![("p1", Prop::U64(1u64))]),
+                    (1, "N17", vec![("p1", Prop::U64(1u64))]),
+                    (1, "N17", vec![("p1", Prop::U64(2u64))]),
+                ];
 
-                graph
-                    .add_node(1, "N17", [("p1", Prop::U64(1u64))], None)
-                    .unwrap();
-                graph
-                    .add_node(1, "N17", [("p1", Prop::U64(2u64))], None)
-                    .unwrap();
+                for (id, label, props) in nodes.iter() {
+                    graph.add_node(*id, label, props.clone(), None).unwrap();
+                }
 
                 graph
             }
@@ -1008,7 +1005,6 @@ mod search_tests {
             let filter = PropertyFilter::property("p4")
                 .eq("pometry")
                 .and(PropertyFilter::property("p5").eq(12u64));
-
             let results = search_nodes(filter);
             assert_eq!(results, vec!["4"]);
         }

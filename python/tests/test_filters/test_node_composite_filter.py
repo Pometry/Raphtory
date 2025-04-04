@@ -47,13 +47,11 @@ def test_node_composite_filter():
     expected_ids = sorted(["1"])
     assert result_ids == expected_ids
 
-
     filter_expr1 = filter.Node.name() == "2"
     filter_expr2 = filter.Property("p2") == 2
     result_ids = sorted(graph.filter_nodes(filter_expr1 & filter_expr2).nodes.id)
     expected_ids = sorted(["2"])
     assert result_ids == expected_ids
-
 
     filter_expr1 = filter.Node.name() == "2"
     filter_expr2 = filter.Property("p2") == 2

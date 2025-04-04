@@ -1489,3 +1489,895 @@ mod test_composite_filters {
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 }
+
+#[cfg(test)]
+mod test_filters {
+    use super::*;
+    use crate::{
+        core::IntoProp,
+        db::api::{
+            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+            view::StaticGraphViewOps,
+        },
+        prelude::{
+            AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, NodePropertyFilterOps,
+            PropertyAdditionOps,
+        },
+    };
+
+    #[cfg(test)]
+    mod test_property_semantics {
+        use crate::{
+            core::Prop,
+            db::api::{
+                mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                view::StaticGraphViewOps,
+            },
+            prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps},
+        };
+
+        fn init_graph<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
+            graph: G,
+        ) -> G {
+            let nodes = [
+                (6, "N1", vec![("p1", Prop::U64(2u64))]),
+                (7, "N1", vec![("p1", Prop::U64(1u64))]),
+                (6, "N2", vec![("p1", Prop::U64(1u64))]),
+                (7, "N2", vec![("p1", Prop::U64(2u64))]),
+                (8, "N3", vec![("p1", Prop::U64(1u64))]),
+                (9, "N4", vec![("p1", Prop::U64(1u64))]),
+                (5, "N5", vec![("p1", Prop::U64(1u64))]),
+                (6, "N5", vec![("p1", Prop::U64(2u64))]),
+                (5, "N6", vec![("p1", Prop::U64(1u64))]),
+                (6, "N6", vec![("p1", Prop::U64(1u64))]),
+                (3, "N7", vec![("p1", Prop::U64(1u64))]),
+                (5, "N7", vec![("p1", Prop::U64(1u64))]),
+                (3, "N8", vec![("p1", Prop::U64(1u64))]),
+                (4, "N8", vec![("p1", Prop::U64(2u64))]),
+                (2, "N9", vec![("p1", Prop::U64(2u64))]),
+                (2, "N10", vec![("q1", Prop::U64(0u64))]),
+                (2, "N10", vec![("p1", Prop::U64(3u64))]),
+                (2, "N11", vec![("p1", Prop::U64(3u64))]),
+                (2, "N11", vec![("q1", Prop::U64(0u64))]),
+                (2, "N12", vec![("q1", Prop::U64(0u64))]),
+                (3, "N12", vec![("p1", Prop::U64(3u64))]),
+                (2, "N13", vec![("q1", Prop::U64(0u64))]),
+                (3, "N13", vec![("p1", Prop::U64(3u64))]),
+                (2, "N14", vec![("q1", Prop::U64(0u64))]),
+                (2, "N15", vec![]),
+            ];
+
+            for (id, label, props) in nodes.iter() {
+                graph.add_node(*id, label, props.clone(), None).unwrap();
+            }
+
+            let constant_properties = [
+                ("N1", [("p1", Prop::U64(1u64))]),
+                ("N4", [("p1", Prop::U64(2u64))]),
+                ("N9", [("p1", Prop::U64(1u64))]),
+                ("N10", [("p1", Prop::U64(1u64))]),
+                ("N11", [("p1", Prop::U64(1u64))]),
+                ("N12", [("p1", Prop::U64(1u64))]),
+                ("N13", [("p1", Prop::U64(1u64))]),
+                ("N14", [("p1", Prop::U64(1u64))]),
+                ("N15", [("p1", Prop::U64(1u64))]),
+            ];
+
+            for (node, props) in constant_properties.iter() {
+                graph
+                    .node(node)
+                    .unwrap()
+                    .add_constant_properties(props.clone())
+                    .unwrap();
+            }
+
+            graph
+        }
+
+        fn init_graph_for_secondary_indexes<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
+            graph: G,
+        ) -> G {
+            let nodes = [
+                (1, "N16", vec![("p1", Prop::U64(2u64))]),
+                (1, "N16", vec![("p1", Prop::U64(1u64))]),
+                (1, "N17", vec![("p1", Prop::U64(1u64))]),
+                (1, "N17", vec![("p1", Prop::U64(2u64))]),
+            ];
+
+            for (id, label, props) in nodes.iter() {
+                graph.add_node(*id, label, props.clone(), None).unwrap();
+            }
+
+            graph
+        }
+
+        #[cfg(test)]
+        mod test_node_property_filter_semantics {
+            use crate::{
+                db::{
+                    api::view::node::NodeViewOps,
+                    graph::views::filter::{
+                        test_filters::test_property_semantics::init_graph, PropertyFilterOps,
+                    },
+                },
+                prelude::{Graph, GraphViewOps, NodePropertyFilterOps, PropertyFilter},
+            };
+
+            #[test]
+            fn test_constant_semantics() {
+                let graph = Graph::new();
+                let graph = init_graph(graph);
+
+                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                let fg = graph.filter_nodes(filter).unwrap();
+                let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
+                results.sort();
+                assert_eq!(
+                    results,
+                    vec!["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"]
+                );
+            }
+
+            #[test]
+            fn test_temporal_any_semantics() {}
+
+            #[test]
+            fn test_temporal_any_semantics_for_secondary_indexes() {}
+
+            #[test]
+            fn test_temporal_latest_semantics() {}
+
+            #[test]
+            fn test_temporal_latest_semantics_for_secondary_indexes() {}
+
+            #[test]
+            fn test_property_semantics() {}
+
+            #[test]
+            fn test_property_semantics_for_secondary_indexes() {}
+
+            #[test]
+            fn test_property_semantics_only_constant() {}
+
+            #[test]
+            fn test_property_semantics_only_temporal() {}
+        }
+
+        #[cfg(test)]
+        mod test_edge_property_filter_semantics {
+            #[test]
+            fn test_constant_semantics() {}
+
+            #[test]
+            fn test_temporal_any_semantics() {}
+
+            #[test]
+            fn test_temporal_any_semantics_for_secondary_indexes() {}
+
+            #[test]
+            fn test_temporal_latest_semantics() {}
+
+            #[test]
+            fn test_temporal_latest_semantics_for_secondary_indexes() {}
+
+            #[test]
+            fn test_property_semantics() {}
+
+            #[test]
+            fn test_property_semantics_for_secondary_indexes() {}
+
+            #[test]
+            fn test_property_semantics_only_constant() {}
+
+            #[test]
+            fn test_property_semantics_only_temporal() {}
+        }
+    }
+
+    fn init_nodes_graph<
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
+    >(
+        graph: G,
+    ) -> G {
+        let nodes = [
+            (
+                1,
+                1,
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p9", 5u64.into_prop()),
+                ],
+                Some("fire_nation"),
+            ),
+            (
+                2,
+                2,
+                vec![("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                Some("air_nomads"),
+            ),
+            (
+                3,
+                1,
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p9", 5u64.into_prop()),
+                ],
+                Some("fire_nation"),
+            ),
+            (
+                3,
+                3,
+                vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                Some("fire_nation"),
+            ),
+            (
+                4,
+                1,
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p9", 5u64.into_prop()),
+                ],
+                Some("fire_nation"),
+            ),
+            (3, 4, vec![("p4", "pometry".into_prop())], None),
+            (4, 4, vec![("p5", 12u64.into_prop())], None),
+        ];
+
+        for (time, id, props, node_type) in nodes {
+            graph.add_node(time, id, props, node_type).unwrap();
+        }
+
+        graph
+    }
+
+    fn init_edges_graph<
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
+    >(
+        graph: G,
+    ) -> G {
+        let edges = [
+            (
+                1,
+                1,
+                2,
+                vec![("p1", "shivam_kapoor".into_prop())],
+                Some("fire_nation"),
+            ),
+            (
+                2,
+                1,
+                2,
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p2", 4u64.into_prop()),
+                ],
+                Some("fire_nation"),
+            ),
+            (
+                2,
+                2,
+                3,
+                vec![("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                Some("air_nomads"),
+            ),
+            (
+                3,
+                3,
+                1,
+                vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                Some("fire_nation"),
+            ),
+            (
+                3,
+                2,
+                1,
+                vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                None,
+            ),
+        ];
+
+        for (time, src, dst, props, edge_type) in edges {
+            graph.add_edge(time, src, dst, props, edge_type).unwrap();
+        }
+
+        graph
+    }
+
+    fn filter_nodes_by_property(filter: PropertyFilter) -> Vec<String> {
+        let graph = Graph::new();
+        let graph = init_nodes_graph(graph);
+
+        let fg = graph.filter_nodes(filter).unwrap();
+        let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
+        results.sort();
+        results
+    }
+
+    fn filter_edges_by_property(filter: PropertyFilter) -> Vec<String> {
+        let graph = Graph::new();
+        let graph = init_edges_graph(graph);
+
+        let fg = graph.filter_edges(filter).unwrap();
+        let mut results = fg
+            .edges()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        results.sort();
+        results
+    }
+
+    #[cfg(test)]
+    mod test_node_property_filter {
+        use crate::{
+            core::Prop,
+            db::graph::views::filter::{test_filters::filter_nodes_by_property, PropertyFilterOps},
+            prelude::PropertyFilter,
+        };
+
+        #[test]
+        fn test_filter_nodes_for_property_eq() {
+            let filter = PropertyFilter::property("p2").eq(2u64);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_ne() {
+            let filter = PropertyFilter::property("p2").ne(2u64);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["3"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_lt() {
+            let filter = PropertyFilter::property("p2").lt(10u64);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2", "3"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_le() {
+            let filter = PropertyFilter::property("p2").le(6u64);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2", "3"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_gt() {
+            let filter = PropertyFilter::property("p2").gt(2u64);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["3"]);
+        }
+
+        #[test]
+        fn test_nodes_for_property_ge() {
+            let filter = PropertyFilter::property("p2").ge(2u64);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2", "3"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_in() {
+            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(6)]);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["3"]);
+
+            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(2), Prop::U64(6)]);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2", "3"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_not_in() {
+            let filter = PropertyFilter::property("p2").excludes(vec![Prop::U64(6)]);
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_is_some() {
+            let filter = PropertyFilter::property("p2").is_some();
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["2", "3"]);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_is_none() {
+            let filter = PropertyFilter::property("p2").is_none();
+            let results = filter_nodes_by_property(filter);
+            assert_eq!(results, vec!["1", "4"]);
+        }
+    }
+
+    #[cfg(test)]
+    mod test_edge_property_filter {
+        use crate::{
+            core::Prop,
+            db::graph::views::filter::{test_filters::filter_edges_by_property, PropertyFilterOps},
+            prelude::PropertyFilter,
+        };
+
+        #[test]
+        fn test_filter_edges_for_property_eq() {
+            let filter = PropertyFilter::property("p2").eq(2u64);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["2->3"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_ne() {
+            let filter = PropertyFilter::property("p2").ne(2u64);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_lt() {
+            let filter = PropertyFilter::property("p2").lt(10u64);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_le() {
+            let filter = PropertyFilter::property("p2").le(6u64);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_gt() {
+            let filter = PropertyFilter::property("p2").gt(2u64);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "3->1"]);
+        }
+
+        #[test]
+        fn test_edges_for_property_ge() {
+            let filter = PropertyFilter::property("p2").ge(2u64);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_in() {
+            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(6)]);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["2->1", "3->1"]);
+
+            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(2), Prop::U64(6)]);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_not_in() {
+            let filter = PropertyFilter::property("p2").excludes(vec![Prop::U64(6)]);
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->3"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_is_some() {
+            let filter = PropertyFilter::property("p2").is_some();
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_is_none() {
+            let filter = PropertyFilter::property("p2").is_none();
+            let results = filter_edges_by_property(filter);
+            assert_eq!(results, vec!["1"]);
+        }
+    }
+
+    #[cfg(test)]
+    mod test_node_filter {
+        use crate::{
+            db::{
+                api::view::node::NodeViewOps,
+                graph::views::filter::{
+                    test_filters::init_nodes_graph, NodeFieldFilter, NodeFilter, NodeFilterOps,
+                },
+            },
+            prelude::{Graph, GraphViewOps, NodePropertyFilterOps},
+        };
+
+        fn filter_nodes(filter: NodeFieldFilter) -> Vec<String> {
+            let graph = Graph::new();
+            let graph = init_nodes_graph(graph);
+
+            let fg = graph.filter_nodes(filter).unwrap();
+            let results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
+
+            results
+        }
+
+        #[test]
+        fn test_nodes_for_node_name_eq() {
+            let filter = NodeFilter::name().eq("3");
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["3"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_name_ne() {
+            let filter = NodeFilter::name().ne("2");
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["1", "3", "4"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_name_in() {
+            let filter = NodeFilter::name().includes(vec!["1".into()]);
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["1"]);
+
+            let filter = NodeFilter::name().includes(vec!["2".into(), "3".into()]);
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["2", "3"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_name_not_in() {
+            let filter = NodeFilter::name().excludes(vec!["1".into()]);
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["2", "3", "4"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_type_eq() {
+            let filter = NodeFilter::node_type().eq("fire_nation");
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["1", "3"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_type_ne() {
+            let filter = NodeFilter::node_type().ne("fire_nation");
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["2"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_type_in() {
+            let filter = NodeFilter::node_type().includes(vec!["fire_nation".into()]);
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["1", "3"]);
+
+            let filter =
+                NodeFilter::node_type().includes(vec!["fire_nation".into(), "air_nomads".into()]);
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["1", "2", "3"]);
+        }
+
+        #[test]
+        fn test_nodes_for_node_type_not_in() {
+            let filter = NodeFilter::node_type().excludes(vec!["fire_nation".into()]);
+            let results = filter_nodes(filter);
+            assert_eq!(results, vec!["2"]);
+        }
+    }
+
+    #[cfg(test)]
+    mod test_node_composite_filter {
+        use crate::{
+            db::{
+                api::view::node::NodeViewOps,
+                graph::views::filter::{
+                    internal::InternalNodeFilterOps, test_filters::init_nodes_graph, AndFilter,
+                    ComposableFilter, NodeFilter, NodeFilterOps, OrFilter, PropertyFilterOps,
+                },
+            },
+            prelude::{Graph, GraphViewOps, NodePropertyFilterOps, PropertyFilter},
+        };
+
+        fn filter_nodes_and<L: InternalNodeFilterOps, R: InternalNodeFilterOps>(
+            filter: AndFilter<L, R>,
+        ) -> Vec<String> {
+            let graph = Graph::new();
+            let graph = init_nodes_graph(graph);
+
+            let fg = graph.filter_nodes(filter).unwrap();
+            let results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
+
+            results
+        }
+
+        fn filter_nodes_or<L: InternalNodeFilterOps, R: InternalNodeFilterOps>(
+            filter: OrFilter<L, R>,
+        ) -> Vec<String> {
+            let graph = Graph::new();
+            let graph = init_nodes_graph(graph);
+
+            let fg = graph.filter_nodes(filter).unwrap();
+            let results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
+
+            results
+        }
+
+        #[test]
+        fn test_filter_nodes_by_props_added_at_different_times() {
+            let filter = PropertyFilter::property("p4")
+                .eq("pometry")
+                .and(PropertyFilter::property("p5").eq(12u64));
+            let results = filter_nodes_and(filter);
+            assert_eq!(results, vec!["4"]);
+        }
+
+        #[test]
+        fn test_node_composite_filter() {
+            let filter = PropertyFilter::property("p2")
+                .eq(2u64)
+                .and(PropertyFilter::property("p1").eq("kapoor"));
+            let results = filter_nodes_and(filter);
+            assert_eq!(results, Vec::<String>::new());
+
+            let filter = PropertyFilter::property("p2")
+                .eq(2u64)
+                .or(PropertyFilter::property("p1").eq("shivam_kapoor"));
+            let results = filter_nodes_or(filter);
+            assert_eq!(results, vec!["1", "2"]);
+
+            let filter = PropertyFilter::property("p1")
+                .eq("pometry")
+                .or(PropertyFilter::property("p2")
+                    .eq(6u64)
+                    .and(PropertyFilter::property("p3").eq(1u64)));
+            let results = filter_nodes_or(filter);
+            assert_eq!(results, vec!["3"]);
+
+            let filter = NodeFilter::node_type()
+                .eq("fire_nation")
+                .and(PropertyFilter::property("p1").eq("prop1"));
+            let results = filter_nodes_and(filter);
+            assert_eq!(results, Vec::<String>::new());
+
+            let filter = PropertyFilter::property("p9")
+                .eq(5u64)
+                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+            let results = filter_nodes_and(filter);
+            assert_eq!(results, vec!["1"]);
+
+            let filter = NodeFilter::node_type()
+                .eq("fire_nation")
+                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+            let results = filter_nodes_and(filter);
+            assert_eq!(results, vec!["1"]);
+
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(PropertyFilter::property("p2").eq(2u64));
+            let results = filter_nodes_and(filter);
+            assert_eq!(results, vec!["2"]);
+
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(PropertyFilter::property("p2").eq(2u64))
+                .or(PropertyFilter::property("p9").eq(5u64));
+            let results = filter_nodes_or(filter);
+            assert_eq!(results, vec!["1", "2"]);
+        }
+    }
+
+    #[cfg(test)]
+    mod test_edge_filter {
+        use crate::{
+            db::{
+                api::view::graph::GraphViewOps,
+                graph::views::filter::{
+                    test_filters::init_edges_graph, EdgeFieldFilter, EdgeFilter, EdgeFilterOps,
+                },
+            },
+            prelude::{EdgePropertyFilterOps, EdgeViewOps, Graph, NodeViewOps},
+        };
+
+        fn filter_edges(filter: EdgeFieldFilter) -> Vec<String> {
+            let graph = Graph::new();
+            let graph = init_edges_graph(graph);
+
+            let fg = graph.filter_edges(filter).unwrap();
+            let mut results = fg
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_eq() {
+            let filter = EdgeFilter::src().eq("3");
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_ne() {
+            let filter = EdgeFilter::src().ne("1");
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_in() {
+            let filter = EdgeFilter::src().includes(vec!["1".into()]);
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["1->2"]);
+
+            let filter = EdgeFilter::src().includes(vec!["1".into(), "2".into()]);
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["1->2", "2->1", "2->3"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_not_in() {
+            let filter = EdgeFilter::src().excludes(vec!["1".into()]);
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_eq() {
+            let filter = EdgeFilter::dst().eq("2");
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["1->2"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_ne() {
+            let filter = EdgeFilter::dst().ne("2");
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["2->1", "2->3", "3->1"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_in() {
+            let filter = EdgeFilter::dst().includes(vec!["2".into()]);
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["1->2"]);
+
+            let filter = EdgeFilter::dst().includes(vec!["2".into(), "3".into()]);
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["1->2", "2->3"]);
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_not_in() {
+            let filter = EdgeFilter::dst().excludes(vec!["1".into()]);
+            let results = filter_edges(filter);
+            assert_eq!(results, vec!["1->2", "2->3"]);
+        }
+    }
+
+    #[cfg(test)]
+    mod test_edge_composite_filter {
+        use crate::{
+            db::graph::views::filter::{
+                internal::InternalEdgeFilterOps, test_filters::init_edges_graph, AndFilter,
+                ComposableFilter, EdgeFilter, EdgeFilterOps, OrFilter, PropertyFilterOps,
+            },
+            prelude::{
+                EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps,
+                PropertyFilter,
+            },
+        };
+
+        fn filter_edges_and<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps>(
+            filter: AndFilter<L, R>,
+        ) -> Vec<String> {
+            let graph = Graph::new();
+            let graph = init_edges_graph(graph);
+
+            let fg = graph.filter_edges(filter).unwrap();
+            let mut results = fg
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        fn filter_edges_or<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps>(
+            filter: OrFilter<L, R>,
+        ) -> Vec<String> {
+            let graph = Graph::new();
+            let graph = init_edges_graph(graph);
+
+            let fg = graph.filter_edges(filter).unwrap();
+            let mut results = fg
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+
+            results
+        }
+
+        #[test]
+        fn test_edge_for_src_dst() {
+            let filter = EdgeFilter::src().eq("3").and(EdgeFilter::dst().eq("1"));
+            let results = filter_edges_and(filter);
+            assert_eq!(results, vec!["3->1"]);
+        }
+
+        #[test]
+        fn test_edge_composite_filter() {
+            let filter = PropertyFilter::property("p2")
+                .eq(2u64)
+                .and(PropertyFilter::property("p1").eq("kapoor"));
+            let results = filter_edges_and(filter);
+            assert_eq!(results, Vec::<String>::new());
+
+            let filter = PropertyFilter::property("p2")
+                .eq(2u64)
+                .or(PropertyFilter::property("p1").eq("shivam_kapoor"));
+            let results = filter_edges_or(filter);
+            assert_eq!(results, vec!["1->2", "2->3"]);
+
+            let filter = PropertyFilter::property("p1")
+                .eq("pometry")
+                .or(PropertyFilter::property("p2")
+                    .eq(6u64)
+                    .and(PropertyFilter::property("p3").eq(1u64)));
+            let results = filter_edges_or(filter);
+            assert_eq!(results, vec!["2->1", "3->1"]);
+
+            let filter = EdgeFilter::src()
+                .eq("13")
+                .and(PropertyFilter::property("p1").eq("prop1"));
+            let results = filter_edges_and(filter);
+            assert_eq!(results, Vec::<String>::new());
+
+            let filter = PropertyFilter::property("p2")
+                .eq(4u64)
+                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+            let results = filter_edges_and(filter);
+            assert_eq!(results, vec!["1->2"]);
+
+            let filter = EdgeFilter::src()
+                .eq("1")
+                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+            let results = filter_edges_and(filter);
+            assert_eq!(results, vec!["1->2"]);
+
+            let filter = EdgeFilter::dst()
+                .eq("1")
+                .and(PropertyFilter::property("p2").eq(6u64));
+            let results = filter_edges_and(filter);
+            assert_eq!(results, vec!["2->1", "3->1"]);
+
+            let filter = EdgeFilter::src()
+                .eq("1")
+                .and(PropertyFilter::property("p1").eq("shivam_kapoor"))
+                .or(PropertyFilter::property("p3").eq(5u64));
+            let results = filter_edges_or(filter);
+            assert_eq!(results, vec!["1->2"]);
+        }
+    }
+}
