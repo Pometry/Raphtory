@@ -1210,10 +1210,7 @@ mod search_tests {
         fn search_edges_for_dst_eq() {
             let filter = EdgeFilter::dst().eq("2");
             let results = search_edges(filter);
-            assert_eq!(
-                results,
-                vec![("1".into(), "2".into())]
-            );
+            assert_eq!(results, vec![("1".into(), "2".into())]);
         }
 
         #[test]
