@@ -76,11 +76,11 @@ mod search_tests {
     #[cfg(test)]
     mod search_nodes {
         use crate::{
-            core::{IntoProp, Prop},
+            core::IntoProp,
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::{
-                    AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
+                    AsNodeFilter, NodeFilter, NodeFilterOps, PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
@@ -161,11 +161,11 @@ mod search_tests {
     #[cfg(test)]
     mod search_edges {
         use crate::{
-            core::{IntoProp, Prop},
+            core::IntoProp,
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::{
-                    AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                    AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
