@@ -76,7 +76,7 @@ pub(crate) fn load_edges_from_pandas<
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
     cols_to_check.extend_from_slice(constant_properties);
-    if let Some(ref layer_col) = layer_col {
+    if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
 

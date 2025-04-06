@@ -29,7 +29,6 @@ def sort_dict(d):
 
 
 def test_children():
-
     work_dir = tempfile.mkdtemp()
 
     with GraphServer(work_dir).start():
@@ -120,7 +119,6 @@ def test_children():
 
 
 def test_escaping_parent():
-
     work_dir = tempfile.mkdtemp()
 
     with GraphServer(work_dir).start():
@@ -159,7 +157,6 @@ def test_escaping_parent():
 
 
 def test_wrong_paths():
-
     work_dir = tempfile.mkdtemp()
 
     with GraphServer(work_dir).start():

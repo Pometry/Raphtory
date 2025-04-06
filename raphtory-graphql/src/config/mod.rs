@@ -1,11 +1,14 @@
 pub mod app_config;
+pub mod auth_config;
 pub mod cache_config;
 pub mod log_config;
 pub mod otlp_config;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::app_config::{load_config, AppConfigBuilder};
+    use config::{Config, FileFormat};
+
+    use crate::config::app_config::{load_config, AppConfig, AppConfigBuilder};
     use std::{fs, path::PathBuf};
 
     #[test]
@@ -19,6 +22,9 @@ mod tests {
 
             [cache]
             tti_seconds = 1000
+
+            [auth]
+            public_key = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
         "#;
         let config_path = PathBuf::from("test_config.toml");
         fs::write(&config_path, config_toml).unwrap();
@@ -29,6 +35,10 @@ mod tests {
             .with_tracing(true)
             .with_cache_capacity(30)
             .with_cache_tti_seconds(1000)
+            .with_auth_public_key(Some(
+                "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=".to_owned(),
+            ))
+            .unwrap()
             .build();
 
         assert_eq!(result.unwrap(), expected_config);

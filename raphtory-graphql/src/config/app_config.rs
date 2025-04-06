@@ -2,14 +2,17 @@ use crate::config::{
     cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
 };
 use config::{Config, ConfigError, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
+use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
+
+#[derive(Debug, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
+    pub auth: AuthConfig,
 }
 
 impl Default for AppConfig {
@@ -18,6 +21,7 @@ impl Default for AppConfig {
             logging: LoggingConfig::default(),
             cache: CacheConfig::default(),
             tracing: TracingConfig::default(),
+            auth: AuthConfig::default(),
         }
     }
 }
@@ -26,23 +30,23 @@ pub struct AppConfigBuilder {
     logging: LoggingConfig,
     cache: CacheConfig,
     tracing: TracingConfig,
+    auth: AuthConfig,
 }
 
-impl AppConfigBuilder {
-    pub fn new() -> Self {
-        Self {
-            logging: LoggingConfig::default(),
-            cache: CacheConfig::default(),
-            tracing: TracingConfig::default(),
-        }
-    }
-
-    pub fn from(config: AppConfig) -> Self {
+impl From<AppConfig> for AppConfigBuilder {
+    fn from(config: AppConfig) -> Self {
         Self {
             logging: config.logging,
             cache: config.cache,
             tracing: config.tracing,
+            auth: config.auth,
         }
+    }
+}
+
+impl AppConfigBuilder {
+    pub fn new() -> Self {
+        AppConfig::default().into()
     }
 
     pub fn with_log_level(mut self, log_level: String) -> Self {
@@ -80,11 +84,27 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_auth_public_key(
+        mut self,
+        public_key: Option<String>,
+    ) -> Result<Self, PublicKeyError> {
+        if let Some(public_key) = public_key {
+            self.auth.public_key = Some(public_key.try_into()?);
+        }
+        Ok(self)
+    }
+
+    pub fn with_auth_enabled_for_reads(mut self, enabled_for_reads: bool) -> Self {
+        self.auth.enabled_for_reads = enabled_for_reads;
+        self
+    }
+
     pub fn build(self) -> AppConfig {
         AppConfig {
             logging: self.logging,
             cache: self.cache,
             tracing: self.tracing,
+            auth: self.auth,
         }
     }
 }
@@ -138,6 +158,15 @@ pub fn load_config(
     }
     if let Some(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
         app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
+    }
+
+    if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
+        app_config_builder = app_config_builder
+            .with_auth_public_key(public_key)
+            .map_err(|_| ConfigError::Message(PUBLIC_KEY_DECODING_ERR_MSG.to_owned()))?;
+    }
+    if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
+        app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
     }
 
     Ok(app_config_builder.build())

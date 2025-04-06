@@ -1,4 +1,5 @@
 use crate::{
+    auth::ContextValidation,
     data::Data,
     model::{
         graph::{
@@ -87,7 +88,9 @@ impl QueryRoot {
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
+        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
+
         let graph = data
             .get_graph(path.as_ref())
             .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
