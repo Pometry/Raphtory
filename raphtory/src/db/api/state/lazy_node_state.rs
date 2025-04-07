@@ -276,14 +276,14 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             self.iter().nth(index)
         } else {
             let vid = match self.graph().node_list() {
-                NodeList::All { num_nodes } => {
-                    if index < num_nodes {
+                NodeList::All { len } => {
+                    if index < len {
                         VID(index)
                     } else {
                         return None;
                     }
                 }
-                NodeList::List { nodes } => nodes.key(index)?,
+                NodeList::List { elems } => elems.key(index)?,
             };
             let cg = self.graph().core_graph();
             Some((

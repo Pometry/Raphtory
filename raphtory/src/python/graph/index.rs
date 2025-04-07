@@ -32,7 +32,8 @@ impl PyGraphView {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<DynamicGraph>>, GraphError> {
-        self.graph.search_nodes(filter.0.clone(), limit, offset)
+        let filter = filter.try_as_node_filter()?;
+        self.graph.search_nodes(filter, limit, offset)
     }
 
     /// Searches for edges which match the given filter expression. This uses Tantivy's exact search.
@@ -51,6 +52,7 @@ impl PyGraphView {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, GraphError> {
-        self.graph.search_edges(filter.0.clone(), limit, offset)
+        let filter = filter.try_as_edge_filter()?;
+        self.graph.search_edges(filter, limit, offset)
     }
 }

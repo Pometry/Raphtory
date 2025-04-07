@@ -82,13 +82,13 @@ impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps> Pr
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
-pub trait InheritStaticPropertiesOps: Base + Send + Sync {}
-pub trait InheritPropertiesOps: Base + Send + Sync {}
+pub trait InheritStaticPropertiesOps: Base {}
+pub trait InheritPropertiesOps: Base {}
 
 impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
 
-impl<P: InheritTemporalPropertyViewOps> TemporalPropertyViewOps for P
+impl<P: InheritTemporalPropertyViewOps + Send + Sync> TemporalPropertyViewOps for P
 where
     P::Base: TemporalPropertyViewOps,
 {
@@ -123,7 +123,7 @@ where
 
 impl<P: InheritTemporalPropertiesOps> InheritTemporalPropertyViewOps for P {}
 
-impl<P: InheritTemporalPropertiesOps> TemporalPropertiesOps for P
+impl<P: InheritTemporalPropertiesOps + Send + Sync> TemporalPropertiesOps for P
 where
     P::Base: TemporalPropertiesOps,
 {
@@ -148,7 +148,7 @@ where
     }
 }
 
-impl<P: InheritStaticPropertiesOps> ConstPropertiesOps for P
+impl<P: InheritStaticPropertiesOps + Send + Sync> ConstPropertiesOps for P
 where
     P::Base: ConstPropertiesOps,
 {

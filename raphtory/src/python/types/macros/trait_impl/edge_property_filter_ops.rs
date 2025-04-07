@@ -19,17 +19,10 @@ macro_rules! impl_edge_property_filter_ops {
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_edges(
                 &self,
-                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
-            ) -> Result<
-                <$base_type as OneHopFilter<'static>>::Filtered<
-                    <PyPropertyFilter as InternalEdgeFilterOps>::EdgeFiltered<
-                        'static,
-                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
-                    >,
-                >,
-                GraphError,
-            > {
-                self.$field.clone().filter_edges(filter)
+                filter: PyFilterExpr,
+            ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
+            {
+                Ok(self.$field.clone().filter_edges(filter)?.into_dyn_hop())
             }
 
             /// Return a filtered view that only includes exploded edges that satisfy the filter
