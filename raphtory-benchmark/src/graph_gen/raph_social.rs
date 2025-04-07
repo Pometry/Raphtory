@@ -16,9 +16,8 @@ use fake::{
     },
     Fake,
 };
-use itertools::Itertools;
 use rand::{prelude::SliceRandom, thread_rng, Rng};
-use raphtory::prelude::{GraphViewOps, NodeViewOps, StableEncode};
+use raphtory::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt::Debug, io::Write};
 
