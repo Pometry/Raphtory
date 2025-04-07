@@ -871,7 +871,7 @@ mod subgraph_tests {
             }
 
             #[test]
-            fn test_search_edges_subgraph() {
+            fn test_edges_filters() {
                 let graph = Graph::new();
                 let graph = init_graph(graph);
 
@@ -889,7 +889,7 @@ mod subgraph_tests {
             }
 
             #[test]
-            fn test_search_edges_subgraph_w() {
+            fn test_edges_filters_w() {
                 let graph = Graph::new();
                 let graph = init_graph(graph);
 
@@ -919,7 +919,7 @@ mod subgraph_tests {
             }
 
             #[test]
-            fn test_search_edges_persistent_subgraph() {
+            fn test_edges_filters_pg() {
                 let graph = PersistentGraph::new();
                 let graph = init_graph(graph);
 
@@ -939,7 +939,7 @@ mod subgraph_tests {
             }
 
             #[test]
-            fn test_search_edges_persistent_subgraph_w() {
+            fn test_edges_filters_pg_w() {
                 let graph = PersistentGraph::new();
                 let graph = init_graph(graph);
 
