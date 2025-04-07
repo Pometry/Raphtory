@@ -37,6 +37,7 @@ class VectorisedGraph(object):
         Returns:
           VectorSelection: The vector selection resulting from the search
         """
+
     def edges_by_similarity(
         self,
         query: str | list,
@@ -54,8 +55,10 @@ class VectorisedGraph(object):
         Returns:
           VectorSelection: The vector selection resulting from the search
         """
+
     def empty_selection(self):
         """Return an empty selection of documents"""
+
     def entities_by_similarity(
         self,
         query: str | list,
@@ -73,6 +76,7 @@ class VectorisedGraph(object):
         Returns:
           VectorSelection: The vector selection resulting from the search
         """
+
     def get_graph_documents(self) -> list[Document]:
         """
         Return all the graph level documents
@@ -80,6 +84,7 @@ class VectorisedGraph(object):
         Returns:
           list[Document]: list of graph level documents
         """
+
     def nodes_by_similarity(
         self,
         query: str | list,
@@ -97,6 +102,7 @@ class VectorisedGraph(object):
         Returns:
           VectorSelection: The vector selection resulting from the search
         """
+
     def save_embeddings(self, file):
         """Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`"""
 
@@ -115,8 +121,10 @@ class Document(object):
         cls, content: str, life: Optional[int | Tuple[int, int]] = None
     ) -> Document:
         """Create and return a new object.  See help(type) for accurate signature."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     @property
     def content(self) -> str:
         """
@@ -125,6 +133,7 @@ class Document(object):
         Returns:
             str:
         """
+
     @property
     def embedding(self) -> Optional[Embedding]:
         """
@@ -133,6 +142,7 @@ class Document(object):
         Returns:
             Optional[Embedding]: the embedding for the document if it was computed
         """
+
     @property
     def entity(self) -> Optional[Any]:
         """
@@ -141,6 +151,7 @@ class Document(object):
         Returns:
             Optional[Any]:
         """
+
     @property
     def life(self) -> Optional[Union[int | Tuple[int, int]]]:
         """
@@ -167,6 +178,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def add_nodes(self, nodes: list) -> None:
         """
         Add all the documents associated with the `nodes` to the current selection
@@ -179,6 +191,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def append(self, selection: VectorSelection) -> VectorSelection:
         """
         Add all the documents in `selection` to the current selection
@@ -189,6 +202,7 @@ class VectorSelection(object):
         Returns:
           VectorSelection: The selection with the new documents
         """
+
     def edges(self) -> list[Edge]:
         """
         Return the edges present in the current selection
@@ -196,6 +210,7 @@ class VectorSelection(object):
         Returns:
             list[Edge]: list of edges in the current selection
         """
+
     def expand(
         self, hops: int, window: Optional[Tuple[int | str, int | str]] = None
     ) -> None:
@@ -214,6 +229,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def expand_documents_by_similarity(
         self,
         query: str | list,
@@ -240,6 +256,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def expand_edges_by_similarity(
         self,
         query: str | list,
@@ -259,6 +276,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def expand_entities_by_similarity(
         self,
         query: str | list,
@@ -285,6 +303,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def expand_nodes_by_similarity(
         self,
         query: str | list,
@@ -304,6 +323,7 @@ class VectorSelection(object):
         Returns:
             None:
         """
+
     def get_documents(self) -> list[Document]:
         """
         Return the documents present in the current selection
@@ -311,6 +331,7 @@ class VectorSelection(object):
         Returns:
             list[Document]: list of documents in the current selection
         """
+
     def get_documents_with_scores(self) -> list[Tuple[Document, float]]:
         """
         Return the documents alongside their scores present in the current selection
@@ -318,6 +339,7 @@ class VectorSelection(object):
         Returns:
             list[Tuple[Document, float]]: list of documents and scores
         """
+
     def nodes(self) -> list[Node]:
         """
         Return the nodes present in the current selection
