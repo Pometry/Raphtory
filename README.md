@@ -224,11 +224,6 @@ To get you up and running with Raphtory we provide a full set of tutorials on th
 
 If API documentation is more your thing, you can dive straight in [here](https://docs.raphtory.com/)!
 
-### Online notebook sandbox
-Want to give this a go, but can't install? Check out Raphtory in action with our interactive Jupyter Notebooks! Just click the badge below to launch a Raphtory sandbox online, no installation needed.
-
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb)
-
 ## Community
 
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis!
