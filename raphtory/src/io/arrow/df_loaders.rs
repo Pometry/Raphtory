@@ -799,6 +799,74 @@ pub(crate) fn load_edges_props_from_df<
     Ok(())
 }
 
+pub(crate) fn load_graph_props_from_df<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+    time: &str,
+    properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
+    graph: &G,
+) -> Result<(), GraphError> {
+    let properties = properties.unwrap_or(&[]);
+    let constant_properties = constant_properties.unwrap_or(&[]);
+
+    let properties_indices = properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+    let constant_properties_indices = constant_properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+
+    let time_index = df_view.get_index(time)?;
+
+    #[cfg(feature = "python")]
+    let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
+
+    let mut start_id = graph.reserve_event_ids(df_view.num_rows)?;
+
+    for chunk in df_view.chunks {
+        let df = chunk?;
+        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
+            graph.resolve_graph_property(key, dtype, false)
+        })?;
+        let const_prop_cols = combine_properties(
+            constant_properties,
+            &constant_properties_indices,
+            &df,
+            |key, dtype| graph.resolve_graph_property(key, dtype, true),
+        )?;
+        let time_col = df.time_col(time_index)?;
+
+        time_col
+            .par_iter()
+            .zip(prop_cols.par_rows())
+            .zip(const_prop_cols.par_rows())
+            .enumerate()
+            .try_for_each(|(id, ((time, t_props), c_props))| {
+                let time = time.ok_or(LoadError::MissingTimeError)?;
+                let t = TimeIndexEntry(time, start_id + id);
+                let t_props: Vec<_> = t_props.collect();
+                if !t_props.is_empty() {
+                    graph.internal_add_properties(t, &t_props)?;
+                }
+
+                let c_props: Vec<_> = c_props.collect();
+
+                if !c_props.is_empty() {
+                    graph.internal_add_constant_properties(&c_props)?;
+                }
+                Ok::<(), GraphError>(())
+            })?;
+        #[cfg(feature = "python")]
+        let _ = pb.update(df.len());
+        start_id += df.len();
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -829,7 +897,7 @@ mod tests {
             },
             disk_graph::DiskGraphStorage,
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::Graph,
+            prelude::{Graph, GraphViewOps, LayerOps},
             test_utils::build_edge_list,
         };
         use polars_arrow::{
@@ -913,6 +981,8 @@ mod tests {
                 )
                 .unwrap();
             }
+
+            let expected = expected.exclude_layers("_default").unwrap();
 
             let g = TemporalGraph::from_parquets(
                 num_threads,
@@ -1068,72 +1138,4 @@ mod tests {
             assert_graph_equal(&g, &g2);
         })
     }
-}
-
-pub(crate) fn load_graph_props_from_df<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
->(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    time: &str,
-    properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
-    graph: &G,
-) -> Result<(), GraphError> {
-    let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
-
-    let properties_indices = properties
-        .iter()
-        .map(|name| df_view.get_index(name))
-        .collect::<Result<Vec<_>, GraphError>>()?;
-    let constant_properties_indices = constant_properties
-        .iter()
-        .map(|name| df_view.get_index(name))
-        .collect::<Result<Vec<_>, GraphError>>()?;
-
-    let time_index = df_view.get_index(time)?;
-
-    #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
-
-    let mut start_id = graph.reserve_event_ids(df_view.num_rows)?;
-
-    for chunk in df_view.chunks {
-        let df = chunk?;
-        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph.resolve_graph_property(key, dtype, false)
-        })?;
-        let const_prop_cols = combine_properties(
-            constant_properties,
-            &constant_properties_indices,
-            &df,
-            |key, dtype| graph.resolve_graph_property(key, dtype, true),
-        )?;
-        let time_col = df.time_col(time_index)?;
-
-        time_col
-            .par_iter()
-            .zip(prop_cols.par_rows())
-            .zip(const_prop_cols.par_rows())
-            .enumerate()
-            .try_for_each(|(id, ((time, t_props), c_props))| {
-                let time = time.ok_or(LoadError::MissingTimeError)?;
-                let t = TimeIndexEntry(time, start_id + id);
-                let t_props: Vec<_> = t_props.collect();
-                if !t_props.is_empty() {
-                    graph.internal_add_properties(t, &t_props)?;
-                }
-
-                let c_props: Vec<_> = c_props.collect();
-
-                if !c_props.is_empty() {
-                    graph.internal_add_constant_properties(&c_props)?;
-                }
-                Ok::<(), GraphError>(())
-            })?;
-        #[cfg(feature = "python")]
-        let _ = pb.update(df.len());
-        start_id += df.len();
-    }
-    Ok(())
 }
