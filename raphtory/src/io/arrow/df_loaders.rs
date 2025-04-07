@@ -897,7 +897,7 @@ mod tests {
             },
             disk_graph::DiskGraphStorage,
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::Graph,
+            prelude::{Graph, GraphViewOps, LayerOps},
             test_utils::build_edge_list,
         };
         use polars_arrow::{
@@ -981,6 +981,8 @@ mod tests {
                 )
                 .unwrap();
             }
+
+            let expected = expected.exclude_layers("_default").unwrap();
 
             let g = TemporalGraph::from_parquets(
                 num_threads,
