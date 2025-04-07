@@ -22,12 +22,16 @@ import pyvis  # type: ignore
 class NodeGroups(object):
     def __bool__(self):
         """True if self else False"""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __len__(self):
         """Return len(self)."""
+
     def group(self, index: int) -> Tuple[Any, Nodes]:
         """
         Get group nodes and value
@@ -38,6 +42,7 @@ class NodeGroups(object):
         Returns:
             Tuple[Any, Nodes]: Nodes and corresponding value
         """
+
     def group_subgraph(self, index: int) -> Tuple[Any, GraphView]:
         """
         Get group as subgraph
@@ -48,6 +53,7 @@ class NodeGroups(object):
         Returns:
             Tuple[Any, GraphView]: The group as a subgraph and corresponding value
         """
+
     def iter_subgraphs(self) -> Iterator[Tuple[Any, GraphView]]:
         """
         Iterate over group subgraphs
@@ -61,24 +67,34 @@ class DegreeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events after `start` (exclusive).
@@ -89,6 +105,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def at(self, time: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events at `time`.
@@ -99,6 +116,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def before(self, end: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events before `end` (exclusive).
@@ -109,6 +127,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def bottom_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k smallest values
@@ -119,6 +138,7 @@ class DegreeView(object):
         Returns:
              NodeStateUsize: The k smallest values as a node state
         """
+
     def collect(self) -> list[int]:
         """
         Compute all values and return the result as a list
@@ -126,6 +146,7 @@ class DegreeView(object):
         Returns:
              list[int]: all values as a list
         """
+
     def compute(self) -> NodeStateUsize:
         """
         Compute all values and return the result as a node view
@@ -133,12 +154,14 @@ class DegreeView(object):
         Returns:
              NodeStateUsize: the computed `NodeState`
         """
+
     def default_layer(self) -> DegreeView:
         """
          Return a view of DegreeView containing only the default edge layer
         Returns:
              DegreeView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -147,6 +170,7 @@ class DegreeView(object):
         Returns:
            Optional[int]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -155,6 +179,7 @@ class DegreeView(object):
         Returns:
              Optional[datetime]: The latest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> DegreeView:
         """
          Return a view of DegreeView containing all layers except the excluded `name`
@@ -166,6 +191,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> DegreeView:
         """
          Return a view of DegreeView containing all layers except the excluded `names`
@@ -177,6 +203,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> DegreeView:
         """
          Return a view of DegreeView containing all layers except the excluded `name`
@@ -186,6 +213,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> DegreeView:
         """
          Return a view of DegreeView containing all layers except the excluded `names`
@@ -195,6 +223,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -207,6 +236,7 @@ class DegreeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
         """
         Get value for node
@@ -218,6 +248,7 @@ class DegreeView(object):
         Returns:
             Optional[int]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -225,6 +256,7 @@ class DegreeView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if DegreeView has the layer `"name"`
@@ -235,6 +267,7 @@ class DegreeView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, int]]:
         """
         Iterate over items
@@ -242,6 +275,7 @@ class DegreeView(object):
         Returns:
              Iterator[Tuple[Node, int]]: Iterator over items
         """
+
     def latest(self) -> DegreeView:
         """
          Create a view of the DegreeView including all events at the latest time.
@@ -249,6 +283,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def layer(self, name: str) -> DegreeView:
         """
          Return a view of DegreeView containing the layer `"name"`
@@ -260,6 +295,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def layers(self, names: list[str]) -> DegreeView:
         """
          Return a view of DegreeView containing all layers `names`
@@ -271,6 +307,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def max(self) -> Optional[int]:
         """
         Return the maximum value
@@ -278,6 +315,7 @@ class DegreeView(object):
         Returns:
              Optional[int]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return largest value and corresponding node
@@ -285,6 +323,7 @@ class DegreeView(object):
         Returns:
              Optional[Tuple[Node, int]]: The Node and maximum value or `None` if empty
         """
+
     def mean(self) -> float:
         """
         mean of values over all nodes
@@ -292,6 +331,7 @@ class DegreeView(object):
         Returns:
             float: mean value
         """
+
     def median(self) -> Optional[int]:
         """
         Return the median value
@@ -299,6 +339,7 @@ class DegreeView(object):
         Returns:
              Optional[int]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return median value and corresponding node
@@ -306,6 +347,7 @@ class DegreeView(object):
         Returns:
              Optional[Tuple[Node, int]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[int]:
         """
         Return the minimum value
@@ -313,6 +355,7 @@ class DegreeView(object):
         Returns:
              Optional[int]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return smallest value and corresponding node
@@ -320,6 +363,7 @@ class DegreeView(object):
         Returns:
              Optional[Tuple[Node, int]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -327,6 +371,7 @@ class DegreeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -341,6 +386,7 @@ class DegreeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> DegreeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -350,6 +396,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def shrink_start(self, start: TimeInput) -> DegreeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -360,6 +407,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> DegreeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -371,6 +419,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def snapshot_at(self, time: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events that have not been explicitly deleted at `time`.
@@ -383,6 +432,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def snapshot_latest(self) -> DegreeView:
         """
          Create a view of the DegreeView including all events that have not been explicitly deleted at the latest time.
@@ -392,6 +442,7 @@ class DegreeView(object):
         Returns:
              DegreeView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateUsize:
         """
         Sort by value
@@ -402,6 +453,7 @@ class DegreeView(object):
         Returns:
              NodeStateUsize: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateUsize:
         """
         Sort results by node id
@@ -409,6 +461,7 @@ class DegreeView(object):
         Returns:
              NodeStateUsize: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -417,6 +470,7 @@ class DegreeView(object):
         Returns:
             Optional[int]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -425,6 +479,7 @@ class DegreeView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
+
     def sum(self) -> int:
         """
         sum of values over all nodes
@@ -432,6 +487,7 @@ class DegreeView(object):
         Returns:
                 int: the sum
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -442,6 +498,7 @@ class DegreeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k largest values
@@ -452,6 +509,7 @@ class DegreeView(object):
         Returns:
              NodeStateUsize: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> DegreeView:
         """
          Return a view of DegreeView containing all layers `names`
@@ -463,6 +521,7 @@ class DegreeView(object):
         Returns:
              DegreeView: The layered view
         """
+
     def values(self) -> Iterator[int]:
         """
         Iterate over values
@@ -470,6 +529,7 @@ class DegreeView(object):
         Returns:
              Iterator[int]: Iterator over values
         """
+
     def window(self, start: TimeInput | None, end: TimeInput | None) -> DegreeView:
         """
          Create a view of the DegreeView including all events between `start` (inclusive) and `end` (exclusive)
@@ -481,6 +541,7 @@ class DegreeView(object):
         Returns:
             DegreeView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -493,24 +554,34 @@ class DegreeView(object):
 class NodeStateUsize(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k smallest values
@@ -521,6 +592,7 @@ class NodeStateUsize(object):
         Returns:
              NodeStateUsize: The k smallest values as a node state
         """
+
     def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
         """
         Get value for node
@@ -532,6 +604,7 @@ class NodeStateUsize(object):
         Returns:
             Optional[int]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -539,6 +612,7 @@ class NodeStateUsize(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, int]]:
         """
         Iterate over items
@@ -546,6 +620,7 @@ class NodeStateUsize(object):
         Returns:
              Iterator[Tuple[Node, int]]: Iterator over items
         """
+
     def max(self) -> Optional[int]:
         """
         Return the maximum value
@@ -553,6 +628,7 @@ class NodeStateUsize(object):
         Returns:
              Optional[int]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return largest value and corresponding node
@@ -560,6 +636,7 @@ class NodeStateUsize(object):
         Returns:
              Optional[Tuple[Node, int]]: The Node and maximum value or `None` if empty
         """
+
     def mean(self) -> float:
         """
         mean of values over all nodes
@@ -567,6 +644,7 @@ class NodeStateUsize(object):
         Returns:
             float: mean value
         """
+
     def median(self) -> Optional[int]:
         """
         Return the median value
@@ -574,6 +652,7 @@ class NodeStateUsize(object):
         Returns:
              Optional[int]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return median value and corresponding node
@@ -581,6 +660,7 @@ class NodeStateUsize(object):
         Returns:
              Optional[Tuple[Node, int]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[int]:
         """
         Return the minimum value
@@ -588,6 +668,7 @@ class NodeStateUsize(object):
         Returns:
              Optional[int]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return smallest value and corresponding node
@@ -595,6 +676,7 @@ class NodeStateUsize(object):
         Returns:
              Optional[Tuple[Node, int]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -602,6 +684,7 @@ class NodeStateUsize(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateUsize:
         """
         Sort by value
@@ -612,6 +695,7 @@ class NodeStateUsize(object):
         Returns:
              NodeStateUsize: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateUsize:
         """
         Sort results by node id
@@ -619,6 +703,7 @@ class NodeStateUsize(object):
         Returns:
              NodeStateUsize: The sorted node state
         """
+
     def sum(self) -> int:
         """
         sum of values over all nodes
@@ -626,6 +711,7 @@ class NodeStateUsize(object):
         Returns:
                 int: the sum
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -636,6 +722,7 @@ class NodeStateUsize(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k largest values
@@ -646,6 +733,7 @@ class NodeStateUsize(object):
         Returns:
              NodeStateUsize: The k largest values as a node state
         """
+
     def values(self) -> Iterator[int]:
         """
         Iterate over values
@@ -657,24 +745,34 @@ class NodeStateUsize(object):
 class NodeStateU64(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateU64:
         """
         Compute the k smallest values
@@ -685,6 +783,7 @@ class NodeStateU64(object):
         Returns:
              NodeStateU64: The k smallest values as a node state
         """
+
     def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
         """
         Get value for node
@@ -696,6 +795,7 @@ class NodeStateU64(object):
         Returns:
             Optional[int]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, int]]:
         """
         Iterate over items
@@ -703,6 +803,7 @@ class NodeStateU64(object):
         Returns:
              Iterator[Tuple[Node, int]]: Iterator over items
         """
+
     def max(self) -> Optional[int]:
         """
         Return the maximum value
@@ -710,6 +811,7 @@ class NodeStateU64(object):
         Returns:
              Optional[int]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return largest value and corresponding node
@@ -717,6 +819,7 @@ class NodeStateU64(object):
         Returns:
              Optional[Tuple[Node, int]]: The Node and maximum value or `None` if empty
         """
+
     def mean(self) -> float:
         """
         mean of values over all nodes
@@ -724,6 +827,7 @@ class NodeStateU64(object):
         Returns:
             float: mean value
         """
+
     def median(self) -> Optional[int]:
         """
         Return the median value
@@ -731,6 +835,7 @@ class NodeStateU64(object):
         Returns:
              Optional[int]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return median value and corresponding node
@@ -738,6 +843,7 @@ class NodeStateU64(object):
         Returns:
              Optional[Tuple[Node, int]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[int]:
         """
         Return the minimum value
@@ -745,6 +851,7 @@ class NodeStateU64(object):
         Returns:
              Optional[int]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, int]]:
         """
         Return smallest value and corresponding node
@@ -752,6 +859,7 @@ class NodeStateU64(object):
         Returns:
              Optional[Tuple[Node, int]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -759,6 +867,7 @@ class NodeStateU64(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateU64:
         """
         Sort by value
@@ -769,6 +878,7 @@ class NodeStateU64(object):
         Returns:
              NodeStateU64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateU64:
         """
         Sort results by node id
@@ -776,6 +886,7 @@ class NodeStateU64(object):
         Returns:
              NodeStateU64: The sorted node state
         """
+
     def sum(self) -> int:
         """
         sum of values over all nodes
@@ -783,6 +894,7 @@ class NodeStateU64(object):
         Returns:
                 int: the sum
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -793,6 +905,7 @@ class NodeStateU64(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateU64:
         """
         Compute the k largest values
@@ -803,6 +916,7 @@ class NodeStateU64(object):
         Returns:
              NodeStateU64: The k largest values as a node state
         """
+
     def values(self) -> Iterator[int]:
         """
         Iterate over values
@@ -814,24 +928,34 @@ class NodeStateU64(object):
 class NodeStateOptionI64(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -842,6 +966,7 @@ class NodeStateOptionI64(object):
         Returns:
              NodeStateOptionI64: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[int]] = None
     ) -> Optional[Optional[int]]:
@@ -855,6 +980,7 @@ class NodeStateOptionI64(object):
         Returns:
             Optional[Optional[int]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -862,6 +988,7 @@ class NodeStateOptionI64(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[int]]]:
         """
         Iterate over items
@@ -869,6 +996,7 @@ class NodeStateOptionI64(object):
         Returns:
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
         """
+
     def max(self) -> Optional[Optional[int]]:
         """
         Return the maximum value
@@ -876,6 +1004,7 @@ class NodeStateOptionI64(object):
         Returns:
              Optional[Optional[int]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return largest value and corresponding node
@@ -883,6 +1012,7 @@ class NodeStateOptionI64(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[int]]:
         """
         Return the median value
@@ -890,6 +1020,7 @@ class NodeStateOptionI64(object):
         Returns:
              Optional[Optional[int]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return median value and corresponding node
@@ -897,6 +1028,7 @@ class NodeStateOptionI64(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[int]]:
         """
         Return the minimum value
@@ -904,6 +1036,7 @@ class NodeStateOptionI64(object):
         Returns:
              Optional[Optional[int]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return smallest value and corresponding node
@@ -911,6 +1044,7 @@ class NodeStateOptionI64(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -918,6 +1052,7 @@ class NodeStateOptionI64(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionI64:
         """
         Sort by value
@@ -928,6 +1063,7 @@ class NodeStateOptionI64(object):
         Returns:
              NodeStateOptionI64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionI64:
         """
         Sort results by node id
@@ -935,6 +1071,7 @@ class NodeStateOptionI64(object):
         Returns:
              NodeStateOptionI64: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -945,6 +1082,7 @@ class NodeStateOptionI64(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k largest values
@@ -955,6 +1093,7 @@ class NodeStateOptionI64(object):
         Returns:
              NodeStateOptionI64: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Optional[int]]:
         """
         Iterate over values
@@ -968,24 +1107,34 @@ class IdView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateGID:
         """
         Compute the k smallest values
@@ -996,6 +1145,7 @@ class IdView(object):
         Returns:
              NodeStateGID: The k smallest values as a node state
         """
+
     def collect(self) -> list[GID]:
         """
         Compute all values and return the result as a list
@@ -1003,6 +1153,7 @@ class IdView(object):
         Returns:
              list[GID]: all values as a list
         """
+
     def compute(self) -> NodeStateGID:
         """
         Compute all values and return the result as a node view
@@ -1010,6 +1161,7 @@ class IdView(object):
         Returns:
              NodeStateGID: the computed `NodeState`
         """
+
     def get(self, node: NodeInput, default: Optional[GID] = None) -> Optional[GID]:
         """
         Get value for node
@@ -1021,6 +1173,7 @@ class IdView(object):
         Returns:
             Optional[GID]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, GID]]:
         """
         Iterate over items
@@ -1028,6 +1181,7 @@ class IdView(object):
         Returns:
              Iterator[Tuple[Node, GID]]: Iterator over items
         """
+
     def max(self) -> Optional[GID]:
         """
         Return the maximum value
@@ -1035,6 +1189,7 @@ class IdView(object):
         Returns:
              Optional[GID]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, GID]]:
         """
         Return largest value and corresponding node
@@ -1042,6 +1197,7 @@ class IdView(object):
         Returns:
              Optional[Tuple[Node, GID]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[GID]:
         """
         Return the median value
@@ -1049,6 +1205,7 @@ class IdView(object):
         Returns:
              Optional[GID]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, GID]]:
         """
         Return median value and corresponding node
@@ -1056,6 +1213,7 @@ class IdView(object):
         Returns:
              Optional[Tuple[Node, GID]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[GID]:
         """
         Return the minimum value
@@ -1063,6 +1221,7 @@ class IdView(object):
         Returns:
              Optional[GID]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, GID]]:
         """
         Return smallest value and corresponding node
@@ -1070,6 +1229,7 @@ class IdView(object):
         Returns:
              Optional[Tuple[Node, GID]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -1077,6 +1237,7 @@ class IdView(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateGID:
         """
         Sort by value
@@ -1087,6 +1248,7 @@ class IdView(object):
         Returns:
              NodeStateGID: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateGID:
         """
         Sort results by node id
@@ -1094,6 +1256,7 @@ class IdView(object):
         Returns:
              NodeStateGID: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -1104,6 +1267,7 @@ class IdView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateGID:
         """
         Compute the k largest values
@@ -1114,6 +1278,7 @@ class IdView(object):
         Returns:
              NodeStateGID: The k largest values as a node state
         """
+
     def values(self) -> Iterator[GID]:
         """
         Iterate over values
@@ -1125,24 +1290,34 @@ class IdView(object):
 class NodeStateGID(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateGID:
         """
         Compute the k smallest values
@@ -1153,6 +1328,7 @@ class NodeStateGID(object):
         Returns:
              NodeStateGID: The k smallest values as a node state
         """
+
     def get(self, node: NodeInput, default: Optional[GID] = None) -> Optional[GID]:
         """
         Get value for node
@@ -1164,6 +1340,7 @@ class NodeStateGID(object):
         Returns:
             Optional[GID]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, GID]]:
         """
         Iterate over items
@@ -1171,6 +1348,7 @@ class NodeStateGID(object):
         Returns:
              Iterator[Tuple[Node, GID]]: Iterator over items
         """
+
     def max(self) -> Optional[GID]:
         """
         Return the maximum value
@@ -1178,6 +1356,7 @@ class NodeStateGID(object):
         Returns:
              Optional[GID]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, GID]]:
         """
         Return largest value and corresponding node
@@ -1185,6 +1364,7 @@ class NodeStateGID(object):
         Returns:
              Optional[Tuple[Node, GID]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[GID]:
         """
         Return the median value
@@ -1192,6 +1372,7 @@ class NodeStateGID(object):
         Returns:
              Optional[GID]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, GID]]:
         """
         Return median value and corresponding node
@@ -1199,6 +1380,7 @@ class NodeStateGID(object):
         Returns:
              Optional[Tuple[Node, GID]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[GID]:
         """
         Return the minimum value
@@ -1206,6 +1388,7 @@ class NodeStateGID(object):
         Returns:
              Optional[GID]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, GID]]:
         """
         Return smallest value and corresponding node
@@ -1213,6 +1396,7 @@ class NodeStateGID(object):
         Returns:
              Optional[Tuple[Node, GID]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -1220,6 +1404,7 @@ class NodeStateGID(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateGID:
         """
         Sort by value
@@ -1230,6 +1415,7 @@ class NodeStateGID(object):
         Returns:
              NodeStateGID: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateGID:
         """
         Sort results by node id
@@ -1237,6 +1423,7 @@ class NodeStateGID(object):
         Returns:
              NodeStateGID: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -1247,6 +1434,7 @@ class NodeStateGID(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateGID:
         """
         Compute the k largest values
@@ -1257,6 +1445,7 @@ class NodeStateGID(object):
         Returns:
              NodeStateGID: The k largest values as a node state
         """
+
     def values(self) -> Iterator[GID]:
         """
         Iterate over values
@@ -1270,24 +1459,34 @@ class EarliestTimeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events after `start` (exclusive).
@@ -1298,6 +1497,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def at(self, time: TimeInput) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events at `time`.
@@ -1308,6 +1508,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def before(self, end: TimeInput) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events before `end` (exclusive).
@@ -1318,6 +1519,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -1328,6 +1530,7 @@ class EarliestTimeView(object):
         Returns:
              NodeStateOptionI64: The k smallest values as a node state
         """
+
     def collect(self) -> list[Optional[int]]:
         """
         Compute all values and return the result as a list
@@ -1335,6 +1538,7 @@ class EarliestTimeView(object):
         Returns:
              list[Optional[int]]: all values as a list
         """
+
     def compute(self) -> NodeStateOptionI64:
         """
         Compute all values and return the result as a node view
@@ -1342,12 +1546,14 @@ class EarliestTimeView(object):
         Returns:
              NodeStateOptionI64: the computed `NodeState`
         """
+
     def default_layer(self) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing only the default edge layer
         Returns:
              EarliestTimeView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -1356,6 +1562,7 @@ class EarliestTimeView(object):
         Returns:
            Optional[int]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -1364,6 +1571,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing all layers except the excluded `name`
@@ -1375,6 +1583,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing all layers except the excluded `names`
@@ -1386,6 +1595,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing all layers except the excluded `name`
@@ -1395,6 +1605,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing all layers except the excluded `names`
@@ -1404,6 +1615,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -1416,6 +1628,7 @@ class EarliestTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[int]] = None
     ) -> Optional[Optional[int]]:
@@ -1429,6 +1642,7 @@ class EarliestTimeView(object):
         Returns:
             Optional[Optional[int]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -1436,6 +1650,7 @@ class EarliestTimeView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if EarliestTimeView has the layer `"name"`
@@ -1446,6 +1661,7 @@ class EarliestTimeView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[int]]]:
         """
         Iterate over items
@@ -1453,6 +1669,7 @@ class EarliestTimeView(object):
         Returns:
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
         """
+
     def latest(self) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events at the latest time.
@@ -1460,6 +1677,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def layer(self, name: str) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing the layer `"name"`
@@ -1471,6 +1689,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def layers(self, names: list[str]) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing all layers `names`
@@ -1482,6 +1701,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def max(self) -> Optional[Optional[int]]:
         """
         Return the maximum value
@@ -1489,6 +1709,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[Optional[int]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return largest value and corresponding node
@@ -1496,6 +1717,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[int]]:
         """
         Return the median value
@@ -1503,6 +1725,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[Optional[int]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return median value and corresponding node
@@ -1510,6 +1733,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[int]]:
         """
         Return the minimum value
@@ -1517,6 +1741,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[Optional[int]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return smallest value and corresponding node
@@ -1524,6 +1749,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -1531,6 +1757,7 @@ class EarliestTimeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -1545,6 +1772,7 @@ class EarliestTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> EarliestTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -1554,6 +1782,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def shrink_start(self, start: TimeInput) -> EarliestTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -1564,6 +1793,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -1575,6 +1805,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def snapshot_at(self, time: TimeInput) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events that have not been explicitly deleted at `time`.
@@ -1587,6 +1818,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def snapshot_latest(self) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events that have not been explicitly deleted at the latest time.
@@ -1596,6 +1828,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionI64:
         """
         Sort by value
@@ -1606,6 +1839,7 @@ class EarliestTimeView(object):
         Returns:
              NodeStateOptionI64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionI64:
         """
         Sort results by node id
@@ -1613,6 +1847,7 @@ class EarliestTimeView(object):
         Returns:
              NodeStateOptionI64: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -1621,6 +1856,7 @@ class EarliestTimeView(object):
         Returns:
             Optional[int]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -1629,6 +1865,7 @@ class EarliestTimeView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -1639,6 +1876,7 @@ class EarliestTimeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k largest values
@@ -1649,6 +1887,7 @@ class EarliestTimeView(object):
         Returns:
              NodeStateOptionI64: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing all layers `names`
@@ -1660,6 +1899,7 @@ class EarliestTimeView(object):
         Returns:
              EarliestTimeView: The layered view
         """
+
     def values(self) -> Iterator[Optional[int]]:
         """
         Iterate over values
@@ -1667,6 +1907,7 @@ class EarliestTimeView(object):
         Returns:
              Iterator[Optional[int]]: Iterator over values
         """
+
     def window(
         self, start: TimeInput | None, end: TimeInput | None
     ) -> EarliestTimeView:
@@ -1680,6 +1921,7 @@ class EarliestTimeView(object):
         Returns:
             EarliestTimeView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -1694,24 +1936,34 @@ class LatestTimeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events after `start` (exclusive).
@@ -1722,6 +1974,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def at(self, time: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events at `time`.
@@ -1732,6 +1985,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def before(self, end: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events before `end` (exclusive).
@@ -1742,6 +1996,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -1752,6 +2007,7 @@ class LatestTimeView(object):
         Returns:
              NodeStateOptionI64: The k smallest values as a node state
         """
+
     def collect(self) -> list[Optional[int]]:
         """
         Compute all values and return the result as a list
@@ -1759,6 +2015,7 @@ class LatestTimeView(object):
         Returns:
              list[Optional[int]]: all values as a list
         """
+
     def compute(self) -> NodeStateOptionI64:
         """
         Compute all values and return the result as a node view
@@ -1766,12 +2023,14 @@ class LatestTimeView(object):
         Returns:
              NodeStateOptionI64: the computed `NodeState`
         """
+
     def default_layer(self) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing only the default edge layer
         Returns:
              LatestTimeView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -1780,6 +2039,7 @@ class LatestTimeView(object):
         Returns:
            Optional[int]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -1788,6 +2048,7 @@ class LatestTimeView(object):
         Returns:
              Optional[datetime]: The latest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers except the excluded `name`
@@ -1799,6 +2060,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers except the excluded `names`
@@ -1810,6 +2072,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers except the excluded `name`
@@ -1819,6 +2082,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers except the excluded `names`
@@ -1828,6 +2092,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -1840,6 +2105,7 @@ class LatestTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[int]] = None
     ) -> Optional[Optional[int]]:
@@ -1853,6 +2119,7 @@ class LatestTimeView(object):
         Returns:
             Optional[Optional[int]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -1860,6 +2127,7 @@ class LatestTimeView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if LatestTimeView has the layer `"name"`
@@ -1870,6 +2138,7 @@ class LatestTimeView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[int]]]:
         """
         Iterate over items
@@ -1877,6 +2146,7 @@ class LatestTimeView(object):
         Returns:
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
         """
+
     def latest(self) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events at the latest time.
@@ -1884,6 +2154,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def layer(self, name: str) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing the layer `"name"`
@@ -1895,6 +2166,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def layers(self, names: list[str]) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers `names`
@@ -1906,6 +2178,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def max(self) -> Optional[Optional[int]]:
         """
         Return the maximum value
@@ -1913,6 +2186,7 @@ class LatestTimeView(object):
         Returns:
              Optional[Optional[int]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return largest value and corresponding node
@@ -1920,6 +2194,7 @@ class LatestTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[int]]:
         """
         Return the median value
@@ -1927,6 +2202,7 @@ class LatestTimeView(object):
         Returns:
              Optional[Optional[int]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return median value and corresponding node
@@ -1934,6 +2210,7 @@ class LatestTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[int]]:
         """
         Return the minimum value
@@ -1941,6 +2218,7 @@ class LatestTimeView(object):
         Returns:
              Optional[Optional[int]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[int]]]:
         """
         Return smallest value and corresponding node
@@ -1948,6 +2226,7 @@ class LatestTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[int]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -1955,6 +2234,7 @@ class LatestTimeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -1969,6 +2249,7 @@ class LatestTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> LatestTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -1978,6 +2259,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def shrink_start(self, start: TimeInput) -> LatestTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -1988,6 +2270,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -1999,6 +2282,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def snapshot_at(self, time: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events that have not been explicitly deleted at `time`.
@@ -2011,6 +2295,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def snapshot_latest(self) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events that have not been explicitly deleted at the latest time.
@@ -2020,6 +2305,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionI64:
         """
         Sort by value
@@ -2030,6 +2316,7 @@ class LatestTimeView(object):
         Returns:
              NodeStateOptionI64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionI64:
         """
         Sort results by node id
@@ -2037,6 +2324,7 @@ class LatestTimeView(object):
         Returns:
              NodeStateOptionI64: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -2045,6 +2333,7 @@ class LatestTimeView(object):
         Returns:
             Optional[int]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -2053,6 +2342,7 @@ class LatestTimeView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -2063,6 +2353,7 @@ class LatestTimeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k largest values
@@ -2073,6 +2364,7 @@ class LatestTimeView(object):
         Returns:
              NodeStateOptionI64: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers `names`
@@ -2084,6 +2376,7 @@ class LatestTimeView(object):
         Returns:
              LatestTimeView: The layered view
         """
+
     def values(self) -> Iterator[Optional[int]]:
         """
         Iterate over values
@@ -2091,6 +2384,7 @@ class LatestTimeView(object):
         Returns:
              Iterator[Optional[int]]: Iterator over values
         """
+
     def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events between `start` (inclusive) and `end` (exclusive)
@@ -2102,6 +2396,7 @@ class LatestTimeView(object):
         Returns:
             LatestTimeView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -2116,24 +2411,34 @@ class NameView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateString:
         """
         Compute the k smallest values
@@ -2144,6 +2449,7 @@ class NameView(object):
         Returns:
              NodeStateString: The k smallest values as a node state
         """
+
     def collect(self) -> list[str]:
         """
         Compute all values and return the result as a list
@@ -2151,6 +2457,7 @@ class NameView(object):
         Returns:
              list[str]: all values as a list
         """
+
     def compute(self) -> NodeStateString:
         """
         Compute all values and return the result as a node view
@@ -2158,6 +2465,7 @@ class NameView(object):
         Returns:
              NodeStateString: the computed `NodeState`
         """
+
     def get(self, node: NodeInput, default: Optional[str] = None) -> Optional[str]:
         """
         Get value for node
@@ -2169,6 +2477,7 @@ class NameView(object):
         Returns:
             Optional[str]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -2176,6 +2485,7 @@ class NameView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, str]]:
         """
         Iterate over items
@@ -2183,6 +2493,7 @@ class NameView(object):
         Returns:
              Iterator[Tuple[Node, str]]: Iterator over items
         """
+
     def max(self) -> Optional[str]:
         """
         Return the maximum value
@@ -2190,6 +2501,7 @@ class NameView(object):
         Returns:
              Optional[str]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, str]]:
         """
         Return largest value and corresponding node
@@ -2197,6 +2509,7 @@ class NameView(object):
         Returns:
              Optional[Tuple[Node, str]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[str]:
         """
         Return the median value
@@ -2204,6 +2517,7 @@ class NameView(object):
         Returns:
              Optional[str]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, str]]:
         """
         Return median value and corresponding node
@@ -2211,6 +2525,7 @@ class NameView(object):
         Returns:
              Optional[Tuple[Node, str]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[str]:
         """
         Return the minimum value
@@ -2218,6 +2533,7 @@ class NameView(object):
         Returns:
              Optional[str]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, str]]:
         """
         Return smallest value and corresponding node
@@ -2225,6 +2541,7 @@ class NameView(object):
         Returns:
              Optional[Tuple[Node, str]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -2232,6 +2549,7 @@ class NameView(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateString:
         """
         Sort by value
@@ -2242,6 +2560,7 @@ class NameView(object):
         Returns:
              NodeStateString: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateString:
         """
         Sort results by node id
@@ -2249,6 +2568,7 @@ class NameView(object):
         Returns:
              NodeStateString: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -2259,6 +2579,7 @@ class NameView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateString:
         """
         Compute the k largest values
@@ -2269,6 +2590,7 @@ class NameView(object):
         Returns:
              NodeStateString: The k largest values as a node state
         """
+
     def values(self) -> Iterator[str]:
         """
         Iterate over values
@@ -2280,24 +2602,34 @@ class NameView(object):
 class NodeStateString(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateString:
         """
         Compute the k smallest values
@@ -2308,6 +2640,7 @@ class NodeStateString(object):
         Returns:
              NodeStateString: The k smallest values as a node state
         """
+
     def get(self, node: NodeInput, default: Optional[str] = None) -> Optional[str]:
         """
         Get value for node
@@ -2319,6 +2652,7 @@ class NodeStateString(object):
         Returns:
             Optional[str]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -2326,6 +2660,7 @@ class NodeStateString(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, str]]:
         """
         Iterate over items
@@ -2333,6 +2668,7 @@ class NodeStateString(object):
         Returns:
              Iterator[Tuple[Node, str]]: Iterator over items
         """
+
     def max(self) -> Optional[str]:
         """
         Return the maximum value
@@ -2340,6 +2676,7 @@ class NodeStateString(object):
         Returns:
              Optional[str]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, str]]:
         """
         Return largest value and corresponding node
@@ -2347,6 +2684,7 @@ class NodeStateString(object):
         Returns:
              Optional[Tuple[Node, str]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[str]:
         """
         Return the median value
@@ -2354,6 +2692,7 @@ class NodeStateString(object):
         Returns:
              Optional[str]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, str]]:
         """
         Return median value and corresponding node
@@ -2361,6 +2700,7 @@ class NodeStateString(object):
         Returns:
              Optional[Tuple[Node, str]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[str]:
         """
         Return the minimum value
@@ -2368,6 +2708,7 @@ class NodeStateString(object):
         Returns:
              Optional[str]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, str]]:
         """
         Return smallest value and corresponding node
@@ -2375,6 +2716,7 @@ class NodeStateString(object):
         Returns:
              Optional[Tuple[Node, str]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -2382,6 +2724,7 @@ class NodeStateString(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateString:
         """
         Sort by value
@@ -2392,6 +2735,7 @@ class NodeStateString(object):
         Returns:
              NodeStateString: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateString:
         """
         Sort results by node id
@@ -2399,6 +2743,7 @@ class NodeStateString(object):
         Returns:
              NodeStateString: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -2409,6 +2754,7 @@ class NodeStateString(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateString:
         """
         Compute the k largest values
@@ -2419,6 +2765,7 @@ class NodeStateString(object):
         Returns:
              NodeStateString: The k largest values as a node state
         """
+
     def values(self) -> Iterator[str]:
         """
         Iterate over values
@@ -2432,24 +2779,34 @@ class EarliestDateTimeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events after `start` (exclusive).
@@ -2460,6 +2817,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def at(self, time: TimeInput) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events at `time`.
@@ -2470,6 +2828,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def before(self, end: TimeInput) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events before `end` (exclusive).
@@ -2480,6 +2839,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def bottom_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k smallest values
@@ -2490,6 +2850,7 @@ class EarliestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: The k smallest values as a node state
         """
+
     def collect(self) -> list[Optional[datetime]]:
         """
         Compute all values and return the result as a list
@@ -2497,6 +2858,7 @@ class EarliestDateTimeView(object):
         Returns:
              list[Optional[datetime]]: all values as a list
         """
+
     def compute(self) -> NodeStateOptionDateTime:
         """
         Compute all values and return the result as a node view
@@ -2504,12 +2866,14 @@ class EarliestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: the computed `NodeState`
         """
+
     def default_layer(self) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing only the default edge layer
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -2518,6 +2882,7 @@ class EarliestDateTimeView(object):
         Returns:
            Optional[int]: The latest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -2526,6 +2891,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[datetime]: The latest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing all layers except the excluded `name`
@@ -2537,6 +2903,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing all layers except the excluded `names`
@@ -2548,6 +2915,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing all layers except the excluded `name`
@@ -2557,6 +2925,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing all layers except the excluded `names`
@@ -2566,6 +2935,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -2578,6 +2948,7 @@ class EarliestDateTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[datetime]] = None
     ) -> Optional[Optional[datetime]]:
@@ -2591,6 +2962,7 @@ class EarliestDateTimeView(object):
         Returns:
             Optional[Optional[datetime]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -2598,6 +2970,7 @@ class EarliestDateTimeView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if EarliestDateTimeView has the layer `"name"`
@@ -2608,6 +2981,7 @@ class EarliestDateTimeView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
         Iterate over items
@@ -2615,6 +2989,7 @@ class EarliestDateTimeView(object):
         Returns:
              Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
         """
+
     def latest(self) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events at the latest time.
@@ -2622,6 +2997,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def layer(self, name: str) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing the layer `"name"`
@@ -2633,6 +3009,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def layers(self, names: list[str]) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing all layers `names`
@@ -2644,6 +3021,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def max(self) -> Optional[Optional[datetime]]:
         """
         Return the maximum value
@@ -2651,6 +3029,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[Optional[datetime]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return largest value and corresponding node
@@ -2658,6 +3037,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[datetime]]:
         """
         Return the median value
@@ -2665,6 +3045,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[Optional[datetime]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return median value and corresponding node
@@ -2672,6 +3053,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[datetime]]:
         """
         Return the minimum value
@@ -2679,6 +3061,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[Optional[datetime]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return smallest value and corresponding node
@@ -2686,6 +3069,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -2693,6 +3077,7 @@ class EarliestDateTimeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -2707,6 +3092,7 @@ class EarliestDateTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> EarliestDateTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -2716,6 +3102,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def shrink_start(self, start: TimeInput) -> EarliestDateTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -2726,6 +3113,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestDateTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -2737,6 +3125,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def snapshot_at(self, time: TimeInput) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at `time`.
@@ -2749,6 +3138,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def snapshot_latest(self) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at the latest time.
@@ -2758,6 +3148,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
         """
         Sort by value
@@ -2768,6 +3159,7 @@ class EarliestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionDateTime:
         """
         Sort results by node id
@@ -2775,6 +3167,7 @@ class EarliestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -2783,6 +3176,7 @@ class EarliestDateTimeView(object):
         Returns:
             Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -2791,6 +3185,7 @@ class EarliestDateTimeView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -2801,6 +3196,7 @@ class EarliestDateTimeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k largest values
@@ -2811,6 +3207,7 @@ class EarliestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing all layers `names`
@@ -2822,6 +3219,7 @@ class EarliestDateTimeView(object):
         Returns:
              EarliestDateTimeView: The layered view
         """
+
     def values(self) -> Iterator[Optional[datetime]]:
         """
         Iterate over values
@@ -2829,6 +3227,7 @@ class EarliestDateTimeView(object):
         Returns:
              Iterator[Optional[datetime]]: Iterator over values
         """
+
     def window(
         self, start: TimeInput | None, end: TimeInput | None
     ) -> EarliestDateTimeView:
@@ -2842,6 +3241,7 @@ class EarliestDateTimeView(object):
         Returns:
             EarliestDateTimeView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -2856,24 +3256,34 @@ class LatestDateTimeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events after `start` (exclusive).
@@ -2884,6 +3294,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def at(self, time: TimeInput) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events at `time`.
@@ -2894,6 +3305,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def before(self, end: TimeInput) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events before `end` (exclusive).
@@ -2904,6 +3316,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def bottom_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k smallest values
@@ -2914,6 +3327,7 @@ class LatestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: The k smallest values as a node state
         """
+
     def collect(self) -> list[Optional[datetime]]:
         """
         Compute all values and return the result as a list
@@ -2921,6 +3335,7 @@ class LatestDateTimeView(object):
         Returns:
              list[Optional[datetime]]: all values as a list
         """
+
     def compute(self) -> NodeStateOptionDateTime:
         """
         Compute all values and return the result as a node view
@@ -2928,12 +3343,14 @@ class LatestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: the computed `NodeState`
         """
+
     def default_layer(self) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing only the default edge layer
         Returns:
              LatestDateTimeView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -2942,6 +3359,7 @@ class LatestDateTimeView(object):
         Returns:
            Optional[int]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -2950,6 +3368,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[datetime]: The latest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing all layers except the excluded `name`
@@ -2961,6 +3380,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing all layers except the excluded `names`
@@ -2972,6 +3392,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing all layers except the excluded `name`
@@ -2981,6 +3402,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing all layers except the excluded `names`
@@ -2990,6 +3412,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -3002,6 +3425,7 @@ class LatestDateTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[datetime]] = None
     ) -> Optional[Optional[datetime]]:
@@ -3015,6 +3439,7 @@ class LatestDateTimeView(object):
         Returns:
             Optional[Optional[datetime]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -3022,6 +3447,7 @@ class LatestDateTimeView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if LatestDateTimeView has the layer `"name"`
@@ -3032,6 +3458,7 @@ class LatestDateTimeView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
         Iterate over items
@@ -3039,6 +3466,7 @@ class LatestDateTimeView(object):
         Returns:
              Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
         """
+
     def latest(self) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events at the latest time.
@@ -3046,6 +3474,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def layer(self, name: str) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing the layer `"name"`
@@ -3057,6 +3486,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def layers(self, names: list[str]) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing all layers `names`
@@ -3068,6 +3498,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def max(self) -> Optional[Optional[datetime]]:
         """
         Return the maximum value
@@ -3075,6 +3506,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[Optional[datetime]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return largest value and corresponding node
@@ -3082,6 +3514,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[datetime]]:
         """
         Return the median value
@@ -3089,6 +3522,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[Optional[datetime]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return median value and corresponding node
@@ -3096,6 +3530,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[datetime]]:
         """
         Return the minimum value
@@ -3103,6 +3538,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[Optional[datetime]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return smallest value and corresponding node
@@ -3110,6 +3546,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -3117,6 +3554,7 @@ class LatestDateTimeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -3131,6 +3569,7 @@ class LatestDateTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> LatestDateTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -3140,6 +3579,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def shrink_start(self, start: TimeInput) -> LatestDateTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -3150,6 +3590,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestDateTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -3161,6 +3602,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def snapshot_at(self, time: TimeInput) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at `time`.
@@ -3173,6 +3615,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def snapshot_latest(self) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at the latest time.
@@ -3182,6 +3625,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
         """
         Sort by value
@@ -3192,6 +3636,7 @@ class LatestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionDateTime:
         """
         Sort results by node id
@@ -3199,6 +3644,7 @@ class LatestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -3207,6 +3653,7 @@ class LatestDateTimeView(object):
         Returns:
             Optional[int]: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -3215,6 +3662,7 @@ class LatestDateTimeView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -3225,6 +3673,7 @@ class LatestDateTimeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k largest values
@@ -3235,6 +3684,7 @@ class LatestDateTimeView(object):
         Returns:
              NodeStateOptionDateTime: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing all layers `names`
@@ -3246,6 +3696,7 @@ class LatestDateTimeView(object):
         Returns:
              LatestDateTimeView: The layered view
         """
+
     def values(self) -> Iterator[Optional[datetime]]:
         """
         Iterate over values
@@ -3253,6 +3704,7 @@ class LatestDateTimeView(object):
         Returns:
              Iterator[Optional[datetime]]: Iterator over values
         """
+
     def window(
         self, start: TimeInput | None, end: TimeInput | None
     ) -> LatestDateTimeView:
@@ -3266,6 +3718,7 @@ class LatestDateTimeView(object):
         Returns:
             LatestDateTimeView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -3278,24 +3731,34 @@ class LatestDateTimeView(object):
 class NodeStateOptionDateTime(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k smallest values
@@ -3306,6 +3769,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              NodeStateOptionDateTime: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[datetime]] = None
     ) -> Optional[Optional[datetime]]:
@@ -3319,6 +3783,7 @@ class NodeStateOptionDateTime(object):
         Returns:
             Optional[Optional[datetime]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -3326,6 +3791,7 @@ class NodeStateOptionDateTime(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
         Iterate over items
@@ -3333,6 +3799,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
         """
+
     def max(self) -> Optional[Optional[datetime]]:
         """
         Return the maximum value
@@ -3340,6 +3807,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Optional[Optional[datetime]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return largest value and corresponding node
@@ -3347,6 +3815,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[datetime]]:
         """
         Return the median value
@@ -3354,6 +3823,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Optional[Optional[datetime]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return median value and corresponding node
@@ -3361,6 +3831,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[datetime]]:
         """
         Return the minimum value
@@ -3368,6 +3839,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Optional[Optional[datetime]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
         """
         Return smallest value and corresponding node
@@ -3375,6 +3847,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              Optional[Tuple[Node, Optional[datetime]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -3382,6 +3855,7 @@ class NodeStateOptionDateTime(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
         """
         Sort by value
@@ -3392,6 +3866,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              NodeStateOptionDateTime: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionDateTime:
         """
         Sort results by node id
@@ -3399,6 +3874,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              NodeStateOptionDateTime: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -3409,6 +3885,7 @@ class NodeStateOptionDateTime(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k largest values
@@ -3419,6 +3896,7 @@ class NodeStateOptionDateTime(object):
         Returns:
              NodeStateOptionDateTime: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Optional[datetime]]:
         """
         Iterate over values
@@ -3432,24 +3910,34 @@ class HistoryView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events after `start` (exclusive).
@@ -3460,6 +3948,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def at(self, time: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events at `time`.
@@ -3470,6 +3959,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def before(self, end: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events before `end` (exclusive).
@@ -3480,6 +3970,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def bottom_k(self, k: int) -> NodeStateListI64:
         """
         Compute the k smallest values
@@ -3490,6 +3981,7 @@ class HistoryView(object):
         Returns:
              NodeStateListI64: The k smallest values as a node state
         """
+
     def collect(self) -> list[list[int]]:
         """
         Compute all values and return the result as a list
@@ -3497,6 +3989,7 @@ class HistoryView(object):
         Returns:
              list[list[int]]: all values as a list
         """
+
     def compute(self) -> NodeStateListI64:
         """
         Compute all values and return the result as a node view
@@ -3504,12 +3997,14 @@ class HistoryView(object):
         Returns:
              NodeStateListI64: the computed `NodeState`
         """
+
     def default_layer(self) -> HistoryView:
         """
          Return a view of HistoryView containing only the default edge layer
         Returns:
              HistoryView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -3518,6 +4013,7 @@ class HistoryView(object):
         Returns:
            Optional[int]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -3526,6 +4022,7 @@ class HistoryView(object):
         Returns:
              Optional[datetime]: The latest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> HistoryView:
         """
          Return a view of HistoryView containing all layers except the excluded `name`
@@ -3537,6 +4034,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> HistoryView:
         """
          Return a view of HistoryView containing all layers except the excluded `names`
@@ -3548,6 +4046,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> HistoryView:
         """
          Return a view of HistoryView containing all layers except the excluded `name`
@@ -3557,6 +4056,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> HistoryView:
         """
          Return a view of HistoryView containing all layers except the excluded `names`
@@ -3566,6 +4066,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -3578,6 +4079,7 @@ class HistoryView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(
         self, node: NodeInput, default: Optional[list[int]] = None
     ) -> Optional[list[int]]:
@@ -3591,6 +4093,7 @@ class HistoryView(object):
         Returns:
             Optional[list[int]]: the value for the node or the default value
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if HistoryView has the layer `"name"`
@@ -3601,6 +4104,7 @@ class HistoryView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, list[int]]]:
         """
         Iterate over items
@@ -3608,6 +4112,7 @@ class HistoryView(object):
         Returns:
              Iterator[Tuple[Node, list[int]]]: Iterator over items
         """
+
     def latest(self) -> HistoryView:
         """
          Create a view of the HistoryView including all events at the latest time.
@@ -3615,6 +4120,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def layer(self, name: str) -> HistoryView:
         """
          Return a view of HistoryView containing the layer `"name"`
@@ -3626,6 +4132,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def layers(self, names: list[str]) -> HistoryView:
         """
          Return a view of HistoryView containing all layers `names`
@@ -3637,6 +4144,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def max(self) -> Optional[list[int]]:
         """
         Return the maximum value
@@ -3644,6 +4152,7 @@ class HistoryView(object):
         Returns:
              Optional[list[int]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return largest value and corresponding node
@@ -3651,6 +4160,7 @@ class HistoryView(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[list[int]]:
         """
         Return the median value
@@ -3658,6 +4168,7 @@ class HistoryView(object):
         Returns:
              Optional[list[int]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return median value and corresponding node
@@ -3665,6 +4176,7 @@ class HistoryView(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[list[int]]:
         """
         Return the minimum value
@@ -3672,6 +4184,7 @@ class HistoryView(object):
         Returns:
              Optional[list[int]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return smallest value and corresponding node
@@ -3679,6 +4192,7 @@ class HistoryView(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -3686,6 +4200,7 @@ class HistoryView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -3700,6 +4215,7 @@ class HistoryView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> HistoryView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -3709,6 +4225,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def shrink_start(self, start: TimeInput) -> HistoryView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -3719,6 +4236,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> HistoryView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -3730,6 +4248,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def snapshot_at(self, time: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events that have not been explicitly deleted at `time`.
@@ -3742,6 +4261,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def snapshot_latest(self) -> HistoryView:
         """
          Create a view of the HistoryView including all events that have not been explicitly deleted at the latest time.
@@ -3751,6 +4271,7 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateListI64:
         """
         Sort by value
@@ -3761,6 +4282,7 @@ class HistoryView(object):
         Returns:
              NodeStateListI64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateListI64:
         """
         Sort results by node id
@@ -3768,6 +4290,7 @@ class HistoryView(object):
         Returns:
              NodeStateListI64: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -3776,6 +4299,7 @@ class HistoryView(object):
         Returns:
             Optional[int]: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -3784,6 +4308,7 @@ class HistoryView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -3794,6 +4319,7 @@ class HistoryView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateListI64:
         """
         Compute the k largest values
@@ -3804,6 +4330,7 @@ class HistoryView(object):
         Returns:
              NodeStateListI64: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> HistoryView:
         """
          Return a view of HistoryView containing all layers `names`
@@ -3815,6 +4342,7 @@ class HistoryView(object):
         Returns:
              HistoryView: The layered view
         """
+
     def values(self) -> Iterator[list[int]]:
         """
         Iterate over values
@@ -3822,6 +4350,7 @@ class HistoryView(object):
         Returns:
              Iterator[list[int]]: Iterator over values
         """
+
     def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryView:
         """
          Create a view of the HistoryView including all events between `start` (inclusive) and `end` (exclusive)
@@ -3833,6 +4362,7 @@ class HistoryView(object):
         Returns:
             HistoryView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -3845,24 +4375,34 @@ class HistoryView(object):
 class NodeStateListI64(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateListI64:
         """
         Compute the k smallest values
@@ -3873,6 +4413,7 @@ class NodeStateListI64(object):
         Returns:
              NodeStateListI64: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[list[int]] = None
     ) -> Optional[list[int]]:
@@ -3886,6 +4427,7 @@ class NodeStateListI64(object):
         Returns:
             Optional[list[int]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, list[int]]]:
         """
         Iterate over items
@@ -3893,6 +4435,7 @@ class NodeStateListI64(object):
         Returns:
              Iterator[Tuple[Node, list[int]]]: Iterator over items
         """
+
     def max(self) -> Optional[list[int]]:
         """
         Return the maximum value
@@ -3900,6 +4443,7 @@ class NodeStateListI64(object):
         Returns:
              Optional[list[int]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return largest value and corresponding node
@@ -3907,6 +4451,7 @@ class NodeStateListI64(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[list[int]]:
         """
         Return the median value
@@ -3914,6 +4459,7 @@ class NodeStateListI64(object):
         Returns:
              Optional[list[int]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return median value and corresponding node
@@ -3921,6 +4467,7 @@ class NodeStateListI64(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[list[int]]:
         """
         Return the minimum value
@@ -3928,6 +4475,7 @@ class NodeStateListI64(object):
         Returns:
              Optional[list[int]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return smallest value and corresponding node
@@ -3935,6 +4483,7 @@ class NodeStateListI64(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -3942,6 +4491,7 @@ class NodeStateListI64(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateListI64:
         """
         Sort by value
@@ -3952,6 +4502,7 @@ class NodeStateListI64(object):
         Returns:
              NodeStateListI64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateListI64:
         """
         Sort results by node id
@@ -3959,6 +4510,7 @@ class NodeStateListI64(object):
         Returns:
              NodeStateListI64: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -3969,6 +4521,7 @@ class NodeStateListI64(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateListI64:
         """
         Compute the k largest values
@@ -3979,6 +4532,7 @@ class NodeStateListI64(object):
         Returns:
              NodeStateListI64: The k largest values as a node state
         """
+
     def values(self) -> Iterator[list[int]]:
         """
         Iterate over values
@@ -3992,24 +4546,34 @@ class HistoryDateTimeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def after(self, start: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events after `start` (exclusive).
@@ -4020,6 +4584,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def at(self, time: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events at `time`.
@@ -4030,6 +4595,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def before(self, end: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events before `end` (exclusive).
@@ -4040,6 +4606,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def bottom_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k smallest values
@@ -4050,6 +4617,7 @@ class HistoryDateTimeView(object):
         Returns:
              NodeStateOptionListDateTime: The k smallest values as a node state
         """
+
     def collect(self) -> list[Optional[list[datetime]]]:
         """
         Compute all values and return the result as a list
@@ -4057,6 +4625,7 @@ class HistoryDateTimeView(object):
         Returns:
              list[Optional[list[datetime]]]: all values as a list
         """
+
     def compute(self) -> NodeStateOptionListDateTime:
         """
         Compute all values and return the result as a node view
@@ -4064,12 +4633,14 @@ class HistoryDateTimeView(object):
         Returns:
              NodeStateOptionListDateTime: the computed `NodeState`
         """
+
     def default_layer(self) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing only the default edge layer
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     @property
     def end(self) -> Optional[int]:
         """
@@ -4078,6 +4649,7 @@ class HistoryDateTimeView(object):
         Returns:
            Optional[int]: The latest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
+
     @property
     def end_date_time(self) -> Optional[datetime]:
         """
@@ -4086,6 +4658,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[datetime]: The latest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
+
     def exclude_layer(self, name: str) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing all layers except the excluded `name`
@@ -4097,6 +4670,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def exclude_layers(self, names: list[str]) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing all layers except the excluded `names`
@@ -4108,6 +4682,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def exclude_valid_layer(self, name: str) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing all layers except the excluded `name`
@@ -4117,6 +4692,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def exclude_valid_layers(self, names: list[str]) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing all layers except the excluded `names`
@@ -4126,6 +4702,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
@@ -4138,6 +4715,7 @@ class HistoryDateTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
     ) -> Optional[Optional[list[datetime]]]:
@@ -4151,6 +4729,7 @@ class HistoryDateTimeView(object):
         Returns:
             Optional[Optional[list[datetime]]]: the value for the node or the default value
         """
+
     def has_layer(self, name: str) -> bool:
         """
          Check if HistoryDateTimeView has the layer `"name"`
@@ -4161,6 +4740,7 @@ class HistoryDateTimeView(object):
         Returns:
             bool:
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[list[datetime]]]]:
         """
         Iterate over items
@@ -4168,6 +4748,7 @@ class HistoryDateTimeView(object):
         Returns:
              Iterator[Tuple[Node, Optional[list[datetime]]]]: Iterator over items
         """
+
     def latest(self) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events at the latest time.
@@ -4175,6 +4756,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def layer(self, name: str) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing the layer `"name"`
@@ -4186,6 +4768,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def layers(self, names: list[str]) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing all layers `names`
@@ -4197,6 +4780,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def max(self) -> Optional[Optional[list[datetime]]]:
         """
         Return the maximum value
@@ -4204,6 +4788,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[Optional[list[datetime]]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
         """
         Return largest value and corresponding node
@@ -4211,6 +4796,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[list[datetime]]]:
         """
         Return the median value
@@ -4218,6 +4804,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[Optional[list[datetime]]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
         """
         Return median value and corresponding node
@@ -4225,6 +4812,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[list[datetime]]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[list[datetime]]]:
         """
         Return the minimum value
@@ -4232,6 +4820,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[Optional[list[datetime]]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
         """
         Return smallest value and corresponding node
@@ -4239,6 +4828,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -4246,6 +4836,7 @@ class HistoryDateTimeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -4260,6 +4851,7 @@ class HistoryDateTimeView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
     def shrink_end(self, end: TimeInput) -> HistoryDateTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
@@ -4269,6 +4861,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def shrink_start(self, start: TimeInput) -> HistoryDateTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
@@ -4279,6 +4872,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def shrink_window(self, start: TimeInput, end: TimeInput) -> HistoryDateTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -4290,6 +4884,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def snapshot_at(self, time: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at `time`.
@@ -4302,6 +4897,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def snapshot_latest(self) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at the latest time.
@@ -4311,6 +4907,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView:
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionListDateTime:
         """
         Sort by value
@@ -4321,6 +4918,7 @@ class HistoryDateTimeView(object):
         Returns:
              NodeStateOptionListDateTime: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionListDateTime:
         """
         Sort results by node id
@@ -4328,6 +4926,7 @@ class HistoryDateTimeView(object):
         Returns:
              NodeStateOptionListDateTime: The sorted node state
         """
+
     @property
     def start(self) -> Optional[int]:
         """
@@ -4336,6 +4935,7 @@ class HistoryDateTimeView(object):
         Returns:
             Optional[int]: The earliest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
+
     @property
     def start_date_time(self) -> Optional[datetime]:
         """
@@ -4344,6 +4944,7 @@ class HistoryDateTimeView(object):
         Returns:
              Optional[datetime]: The earliest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -4354,6 +4955,7 @@ class HistoryDateTimeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k largest values
@@ -4364,6 +4966,7 @@ class HistoryDateTimeView(object):
         Returns:
              NodeStateOptionListDateTime: The k largest values as a node state
         """
+
     def valid_layers(self, names: list[str]) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing all layers `names`
@@ -4375,6 +4978,7 @@ class HistoryDateTimeView(object):
         Returns:
              HistoryDateTimeView: The layered view
         """
+
     def values(self) -> Iterator[Optional[list[datetime]]]:
         """
         Iterate over values
@@ -4382,6 +4986,7 @@ class HistoryDateTimeView(object):
         Returns:
              Iterator[Optional[list[datetime]]]: Iterator over values
         """
+
     def window(
         self, start: TimeInput | None, end: TimeInput | None
     ) -> HistoryDateTimeView:
@@ -4395,6 +5000,7 @@ class HistoryDateTimeView(object):
         Returns:
             HistoryDateTimeView:
         """
+
     @property
     def window_size(self) -> Optional[int]:
         """
@@ -4407,24 +5013,34 @@ class HistoryDateTimeView(object):
 class NodeStateOptionListDateTime(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k smallest values
@@ -4435,6 +5051,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              NodeStateOptionListDateTime: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
     ) -> Optional[Optional[list[datetime]]]:
@@ -4448,6 +5065,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
             Optional[Optional[list[datetime]]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[list[datetime]]]]:
         """
         Iterate over items
@@ -4455,6 +5073,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Iterator[Tuple[Node, Optional[list[datetime]]]]: Iterator over items
         """
+
     def max(self) -> Optional[Optional[list[datetime]]]:
         """
         Return the maximum value
@@ -4462,6 +5081,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Optional[Optional[list[datetime]]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
         """
         Return largest value and corresponding node
@@ -4469,6 +5089,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[list[datetime]]]:
         """
         Return the median value
@@ -4476,6 +5097,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Optional[Optional[list[datetime]]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
         """
         Return median value and corresponding node
@@ -4483,6 +5105,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Optional[Tuple[Node, Optional[list[datetime]]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[list[datetime]]]:
         """
         Return the minimum value
@@ -4490,6 +5113,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Optional[Optional[list[datetime]]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
         """
         Return smallest value and corresponding node
@@ -4497,6 +5121,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -4504,6 +5129,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionListDateTime:
         """
         Sort by value
@@ -4514,6 +5140,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              NodeStateOptionListDateTime: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionListDateTime:
         """
         Sort results by node id
@@ -4521,6 +5148,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              NodeStateOptionListDateTime: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -4531,6 +5159,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k largest values
@@ -4541,6 +5170,7 @@ class NodeStateOptionListDateTime(object):
         Returns:
              NodeStateOptionListDateTime: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Optional[list[datetime]]]:
         """
         Iterate over values
@@ -4554,24 +5184,34 @@ class NodeTypeView(object):
 
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateOptionStr:
         """
         Compute the k smallest values
@@ -4582,6 +5222,7 @@ class NodeTypeView(object):
         Returns:
              NodeStateOptionStr: The k smallest values as a node state
         """
+
     def collect(self) -> list[Optional[str]]:
         """
         Compute all values and return the result as a list
@@ -4589,6 +5230,7 @@ class NodeTypeView(object):
         Returns:
              list[Optional[str]]: all values as a list
         """
+
     def compute(self) -> NodeStateOptionStr:
         """
         Compute all values and return the result as a node view
@@ -4596,6 +5238,7 @@ class NodeTypeView(object):
         Returns:
              NodeStateOptionStr: the computed `NodeState`
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[str]] = None
     ) -> Optional[Optional[str]]:
@@ -4609,6 +5252,7 @@ class NodeTypeView(object):
         Returns:
             Optional[Optional[str]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -4616,6 +5260,7 @@ class NodeTypeView(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[str]]]:
         """
         Iterate over items
@@ -4623,6 +5268,7 @@ class NodeTypeView(object):
         Returns:
              Iterator[Tuple[Node, Optional[str]]]: Iterator over items
         """
+
     def max(self) -> Optional[Optional[str]]:
         """
         Return the maximum value
@@ -4630,6 +5276,7 @@ class NodeTypeView(object):
         Returns:
              Optional[Optional[str]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[str]]]:
         """
         Return largest value and corresponding node
@@ -4637,6 +5284,7 @@ class NodeTypeView(object):
         Returns:
              Optional[Tuple[Node, Optional[str]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[str]]:
         """
         Return the median value
@@ -4644,6 +5292,7 @@ class NodeTypeView(object):
         Returns:
              Optional[Optional[str]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[str]]]:
         """
         Return median value and corresponding node
@@ -4651,6 +5300,7 @@ class NodeTypeView(object):
         Returns:
              Optional[Tuple[Node, Optional[str]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[str]]:
         """
         Return the minimum value
@@ -4658,6 +5308,7 @@ class NodeTypeView(object):
         Returns:
              Optional[Optional[str]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[str]]]:
         """
         Return smallest value and corresponding node
@@ -4665,6 +5316,7 @@ class NodeTypeView(object):
         Returns:
              Optional[Tuple[Node, Optional[str]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -4672,6 +5324,7 @@ class NodeTypeView(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionStr:
         """
         Sort by value
@@ -4682,6 +5335,7 @@ class NodeTypeView(object):
         Returns:
              NodeStateOptionStr: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionStr:
         """
         Sort results by node id
@@ -4689,6 +5343,7 @@ class NodeTypeView(object):
         Returns:
              NodeStateOptionStr: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -4699,6 +5354,7 @@ class NodeTypeView(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionStr:
         """
         Compute the k largest values
@@ -4709,6 +5365,7 @@ class NodeTypeView(object):
         Returns:
              NodeStateOptionStr: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Optional[str]]:
         """
         Iterate over values
@@ -4720,24 +5377,34 @@ class NodeTypeView(object):
 class NodeStateOptionStr(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateOptionStr:
         """
         Compute the k smallest values
@@ -4748,6 +5415,7 @@ class NodeStateOptionStr(object):
         Returns:
              NodeStateOptionStr: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[Optional[str]] = None
     ) -> Optional[Optional[str]]:
@@ -4761,6 +5429,7 @@ class NodeStateOptionStr(object):
         Returns:
             Optional[Optional[str]]: the value for the node or the default value
         """
+
     def groups(self) -> NodeGroups:
         """
         Group by value
@@ -4768,6 +5437,7 @@ class NodeStateOptionStr(object):
         Returns:
             NodeGroups: The grouped nodes
         """
+
     def items(self) -> Iterator[Tuple[Node, Optional[str]]]:
         """
         Iterate over items
@@ -4775,6 +5445,7 @@ class NodeStateOptionStr(object):
         Returns:
              Iterator[Tuple[Node, Optional[str]]]: Iterator over items
         """
+
     def max(self) -> Optional[Optional[str]]:
         """
         Return the maximum value
@@ -4782,6 +5453,7 @@ class NodeStateOptionStr(object):
         Returns:
              Optional[Optional[str]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Optional[str]]]:
         """
         Return largest value and corresponding node
@@ -4789,6 +5461,7 @@ class NodeStateOptionStr(object):
         Returns:
              Optional[Tuple[Node, Optional[str]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Optional[str]]:
         """
         Return the median value
@@ -4796,6 +5469,7 @@ class NodeStateOptionStr(object):
         Returns:
              Optional[Optional[str]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Optional[str]]]:
         """
         Return median value and corresponding node
@@ -4803,6 +5477,7 @@ class NodeStateOptionStr(object):
         Returns:
              Optional[Tuple[Node, Optional[str]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Optional[str]]:
         """
         Return the minimum value
@@ -4810,6 +5485,7 @@ class NodeStateOptionStr(object):
         Returns:
              Optional[Optional[str]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Optional[str]]]:
         """
         Return smallest value and corresponding node
@@ -4817,6 +5493,7 @@ class NodeStateOptionStr(object):
         Returns:
              Optional[Tuple[Node, Optional[str]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -4824,6 +5501,7 @@ class NodeStateOptionStr(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateOptionStr:
         """
         Sort by value
@@ -4834,6 +5512,7 @@ class NodeStateOptionStr(object):
         Returns:
              NodeStateOptionStr: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateOptionStr:
         """
         Sort results by node id
@@ -4841,6 +5520,7 @@ class NodeStateOptionStr(object):
         Returns:
              NodeStateOptionStr: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -4851,6 +5531,7 @@ class NodeStateOptionStr(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateOptionStr:
         """
         Compute the k largest values
@@ -4861,6 +5542,7 @@ class NodeStateOptionStr(object):
         Returns:
              NodeStateOptionStr: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Optional[str]]:
         """
         Iterate over values
@@ -4872,24 +5554,34 @@ class NodeStateOptionStr(object):
 class NodeStateListDateTime(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateListDateTime:
         """
         Compute the k smallest values
@@ -4900,6 +5592,7 @@ class NodeStateListDateTime(object):
         Returns:
              NodeStateListDateTime: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[list[datetime]] = None
     ) -> Optional[list[datetime]]:
@@ -4913,6 +5606,7 @@ class NodeStateListDateTime(object):
         Returns:
             Optional[list[datetime]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, list[datetime]]]:
         """
         Iterate over items
@@ -4920,6 +5614,7 @@ class NodeStateListDateTime(object):
         Returns:
              Iterator[Tuple[Node, list[datetime]]]: Iterator over items
         """
+
     def max(self) -> Optional[list[datetime]]:
         """
         Return the maximum value
@@ -4927,6 +5622,7 @@ class NodeStateListDateTime(object):
         Returns:
              Optional[list[datetime]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, list[datetime]]]:
         """
         Return largest value and corresponding node
@@ -4934,6 +5630,7 @@ class NodeStateListDateTime(object):
         Returns:
              Optional[Tuple[Node, list[datetime]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[list[datetime]]:
         """
         Return the median value
@@ -4941,6 +5638,7 @@ class NodeStateListDateTime(object):
         Returns:
              Optional[list[datetime]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, list[datetime]]]:
         """
         Return median value and corresponding node
@@ -4948,6 +5646,7 @@ class NodeStateListDateTime(object):
         Returns:
              Optional[Tuple[Node, list[datetime]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[list[datetime]]:
         """
         Return the minimum value
@@ -4955,6 +5654,7 @@ class NodeStateListDateTime(object):
         Returns:
              Optional[list[datetime]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, list[datetime]]]:
         """
         Return smallest value and corresponding node
@@ -4962,6 +5662,7 @@ class NodeStateListDateTime(object):
         Returns:
              Optional[Tuple[Node, list[datetime]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -4969,6 +5670,7 @@ class NodeStateListDateTime(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateListDateTime:
         """
         Sort by value
@@ -4979,6 +5681,7 @@ class NodeStateListDateTime(object):
         Returns:
              NodeStateListDateTime: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateListDateTime:
         """
         Sort results by node id
@@ -4986,6 +5689,7 @@ class NodeStateListDateTime(object):
         Returns:
              NodeStateListDateTime: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -4996,6 +5700,7 @@ class NodeStateListDateTime(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateListDateTime:
         """
         Compute the k largest values
@@ -5006,6 +5711,7 @@ class NodeStateListDateTime(object):
         Returns:
              NodeStateListDateTime: The k largest values as a node state
         """
+
     def values(self) -> Iterator[list[datetime]]:
         """
         Iterate over values
@@ -5017,24 +5723,34 @@ class NodeStateListDateTime(object):
 class NodeStateWeightedSP(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def get(
         self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None
     ) -> Optional[Tuple[float, Nodes]]:
@@ -5048,6 +5764,7 @@ class NodeStateWeightedSP(object):
         Returns:
             Optional[Tuple[float, Nodes]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, Tuple[float, Nodes]]]:
         """
         Iterate over items
@@ -5055,6 +5772,7 @@ class NodeStateWeightedSP(object):
         Returns:
              Iterator[Tuple[Node, Tuple[float, Nodes]]]: Iterator over items
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5062,6 +5780,7 @@ class NodeStateWeightedSP(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted_by_id(self) -> NodeStateWeightedSP:
         """
         Sort results by node id
@@ -5069,6 +5788,7 @@ class NodeStateWeightedSP(object):
         Returns:
              NodeStateWeightedSP: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5079,6 +5799,7 @@ class NodeStateWeightedSP(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def values(self) -> Iterator[Tuple[float, Nodes]]:
         """
         Iterate over values
@@ -5090,24 +5811,34 @@ class NodeStateWeightedSP(object):
 class NodeStateF64(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateF64:
         """
         Compute the k smallest values
@@ -5118,6 +5849,7 @@ class NodeStateF64(object):
         Returns:
              NodeStateF64: The k smallest values as a node state
         """
+
     def get(self, node: NodeInput, default: Optional[float] = None) -> Optional[float]:
         """
         Get value for node
@@ -5129,6 +5861,7 @@ class NodeStateF64(object):
         Returns:
             Optional[float]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, float]]:
         """
         Iterate over items
@@ -5136,6 +5869,7 @@ class NodeStateF64(object):
         Returns:
              Iterator[Tuple[Node, float]]: Iterator over items
         """
+
     def max(self) -> Optional[float]:
         """
         Return the maximum value
@@ -5143,6 +5877,7 @@ class NodeStateF64(object):
         Returns:
              Optional[float]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, float]]:
         """
         Return largest value and corresponding node
@@ -5150,6 +5885,7 @@ class NodeStateF64(object):
         Returns:
              Optional[Tuple[Node, float]]: The Node and maximum value or `None` if empty
         """
+
     def mean(self) -> float:
         """
         mean of values over all nodes
@@ -5157,6 +5893,7 @@ class NodeStateF64(object):
         Returns:
             float: mean value
         """
+
     def median(self) -> Optional[float]:
         """
         Return the median value
@@ -5164,6 +5901,7 @@ class NodeStateF64(object):
         Returns:
              Optional[float]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, float]]:
         """
         Return median value and corresponding node
@@ -5171,6 +5909,7 @@ class NodeStateF64(object):
         Returns:
              Optional[Tuple[Node, float]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[float]:
         """
         Return the minimum value
@@ -5178,6 +5917,7 @@ class NodeStateF64(object):
         Returns:
              Optional[float]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, float]]:
         """
         Return smallest value and corresponding node
@@ -5185,6 +5925,7 @@ class NodeStateF64(object):
         Returns:
              Optional[Tuple[Node, float]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5192,6 +5933,7 @@ class NodeStateF64(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateF64:
         """
         Sort by value
@@ -5202,6 +5944,7 @@ class NodeStateF64(object):
         Returns:
              NodeStateF64: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateF64:
         """
         Sort results by node id
@@ -5209,6 +5952,7 @@ class NodeStateF64(object):
         Returns:
              NodeStateF64: The sorted node state
         """
+
     def sum(self) -> float:
         """
         sum of values over all nodes
@@ -5216,6 +5960,7 @@ class NodeStateF64(object):
         Returns:
                 float: the sum
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5226,6 +5971,7 @@ class NodeStateF64(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateF64:
         """
         Compute the k largest values
@@ -5236,6 +5982,7 @@ class NodeStateF64(object):
         Returns:
              NodeStateF64: The k largest values as a node state
         """
+
     def values(self) -> Iterator[float]:
         """
         Iterate over values
@@ -5247,24 +5994,34 @@ class NodeStateF64(object):
 class NodeStateNodes(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def get(self, node: NodeInput, default: Optional[Nodes] = None) -> Optional[Nodes]:
         """
         Get value for node
@@ -5276,6 +6033,7 @@ class NodeStateNodes(object):
         Returns:
             Optional[Nodes]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, Nodes]]:
         """
         Iterate over items
@@ -5283,6 +6041,7 @@ class NodeStateNodes(object):
         Returns:
              Iterator[Tuple[Node, Nodes]]: Iterator over items
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5290,6 +6049,7 @@ class NodeStateNodes(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted_by_id(self) -> NodeStateNodes:
         """
         Sort results by node id
@@ -5297,6 +6057,7 @@ class NodeStateNodes(object):
         Returns:
              NodeStateNodes: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5307,6 +6068,7 @@ class NodeStateNodes(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def values(self) -> Iterator[Nodes]:
         """
         Iterate over values
@@ -5318,24 +6080,34 @@ class NodeStateNodes(object):
 class NodeStateReachability(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def get(
         self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None
     ) -> Optional[list[Tuple[int, str]]]:
@@ -5349,6 +6121,7 @@ class NodeStateReachability(object):
         Returns:
             Optional[list[Tuple[int, str]]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, list[Tuple[int, str]]]]:
         """
         Iterate over items
@@ -5356,6 +6129,7 @@ class NodeStateReachability(object):
         Returns:
              Iterator[Tuple[Node, list[Tuple[int, str]]]]: Iterator over items
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5363,6 +6137,7 @@ class NodeStateReachability(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted_by_id(self) -> NodeStateReachability:
         """
         Sort results by node id
@@ -5370,6 +6145,7 @@ class NodeStateReachability(object):
         Returns:
              NodeStateReachability: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5380,6 +6156,7 @@ class NodeStateReachability(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def values(self) -> Iterator[list[Tuple[int, str]]]:
         """
         Iterate over values
@@ -5391,24 +6168,34 @@ class NodeStateReachability(object):
 class NodeStateListF64(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def get(
         self, node: NodeInput, default: Optional[list[float]] = None
     ) -> Optional[list[float]]:
@@ -5422,6 +6209,7 @@ class NodeStateListF64(object):
         Returns:
             Optional[list[float]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, list[float]]]:
         """
         Iterate over items
@@ -5429,6 +6217,7 @@ class NodeStateListF64(object):
         Returns:
              Iterator[Tuple[Node, list[float]]]: Iterator over items
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5436,6 +6225,7 @@ class NodeStateListF64(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted_by_id(self) -> NodeStateListF64:
         """
         Sort results by node id
@@ -5443,6 +6233,7 @@ class NodeStateListF64(object):
         Returns:
              NodeStateListF64: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5453,6 +6244,7 @@ class NodeStateListF64(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def values(self) -> Iterator[list[float]]:
         """
         Iterate over values
@@ -5464,24 +6256,34 @@ class NodeStateListF64(object):
 class NodeStateMotifs(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateMotifs:
         """
         Compute the k smallest values
@@ -5492,6 +6294,7 @@ class NodeStateMotifs(object):
         Returns:
              NodeStateMotifs: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[list[int]] = None
     ) -> Optional[list[int]]:
@@ -5505,6 +6308,7 @@ class NodeStateMotifs(object):
         Returns:
             Optional[list[int]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, list[int]]]:
         """
         Iterate over items
@@ -5512,6 +6316,7 @@ class NodeStateMotifs(object):
         Returns:
              Iterator[Tuple[Node, list[int]]]: Iterator over items
         """
+
     def max(self) -> Optional[list[int]]:
         """
         Return the maximum value
@@ -5519,6 +6324,7 @@ class NodeStateMotifs(object):
         Returns:
              Optional[list[int]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return largest value and corresponding node
@@ -5526,6 +6332,7 @@ class NodeStateMotifs(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[list[int]]:
         """
         Return the median value
@@ -5533,6 +6340,7 @@ class NodeStateMotifs(object):
         Returns:
              Optional[list[int]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return median value and corresponding node
@@ -5540,6 +6348,7 @@ class NodeStateMotifs(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[list[int]]:
         """
         Return the minimum value
@@ -5547,6 +6356,7 @@ class NodeStateMotifs(object):
         Returns:
              Optional[list[int]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, list[int]]]:
         """
         Return smallest value and corresponding node
@@ -5554,6 +6364,7 @@ class NodeStateMotifs(object):
         Returns:
              Optional[Tuple[Node, list[int]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5561,6 +6372,7 @@ class NodeStateMotifs(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateMotifs:
         """
         Sort by value
@@ -5571,6 +6383,7 @@ class NodeStateMotifs(object):
         Returns:
              NodeStateMotifs: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateMotifs:
         """
         Sort results by node id
@@ -5578,6 +6391,7 @@ class NodeStateMotifs(object):
         Returns:
              NodeStateMotifs: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5588,6 +6402,7 @@ class NodeStateMotifs(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateMotifs:
         """
         Compute the k largest values
@@ -5598,6 +6413,7 @@ class NodeStateMotifs(object):
         Returns:
              NodeStateMotifs: The k largest values as a node state
         """
+
     def values(self) -> Iterator[list[int]]:
         """
         Iterate over values
@@ -5609,24 +6425,34 @@ class NodeStateMotifs(object):
 class NodeStateHits(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateHits:
         """
         Compute the k smallest values
@@ -5637,6 +6463,7 @@ class NodeStateHits(object):
         Returns:
              NodeStateHits: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[Tuple[float, float]] = None
     ) -> Optional[Tuple[float, float]]:
@@ -5650,6 +6477,7 @@ class NodeStateHits(object):
         Returns:
             Optional[Tuple[float, float]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, Tuple[float, float]]]:
         """
         Iterate over items
@@ -5657,6 +6485,7 @@ class NodeStateHits(object):
         Returns:
              Iterator[Tuple[Node, Tuple[float, float]]]: Iterator over items
         """
+
     def max(self) -> Optional[Tuple[float, float]]:
         """
         Return the maximum value
@@ -5664,6 +6493,7 @@ class NodeStateHits(object):
         Returns:
              Optional[Tuple[float, float]]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Tuple[float, float]]]:
         """
         Return largest value and corresponding node
@@ -5671,6 +6501,7 @@ class NodeStateHits(object):
         Returns:
              Optional[Tuple[Node, Tuple[float, float]]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Tuple[float, float]]:
         """
         Return the median value
@@ -5678,6 +6509,7 @@ class NodeStateHits(object):
         Returns:
              Optional[Tuple[float, float]]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Tuple[float, float]]]:
         """
         Return median value and corresponding node
@@ -5685,6 +6517,7 @@ class NodeStateHits(object):
         Returns:
              Optional[Tuple[Node, Tuple[float, float]]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Tuple[float, float]]:
         """
         Return the minimum value
@@ -5692,6 +6525,7 @@ class NodeStateHits(object):
         Returns:
              Optional[Tuple[float, float]]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Tuple[float, float]]]:
         """
         Return smallest value and corresponding node
@@ -5699,6 +6533,7 @@ class NodeStateHits(object):
         Returns:
              Optional[Tuple[Node, Tuple[float, float]]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5706,6 +6541,7 @@ class NodeStateHits(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateHits:
         """
         Sort by value
@@ -5716,6 +6552,7 @@ class NodeStateHits(object):
         Returns:
              NodeStateHits: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateHits:
         """
         Sort results by node id
@@ -5723,6 +6560,7 @@ class NodeStateHits(object):
         Returns:
              NodeStateHits: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5733,6 +6571,7 @@ class NodeStateHits(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateHits:
         """
         Compute the k largest values
@@ -5743,6 +6582,7 @@ class NodeStateHits(object):
         Returns:
              NodeStateHits: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Tuple[float, float]]:
         """
         Iterate over values
@@ -5754,24 +6594,34 @@ class NodeStateHits(object):
 class NodeStateSEIR(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def bottom_k(self, k: int) -> NodeStateSEIR:
         """
         Compute the k smallest values
@@ -5782,6 +6632,7 @@ class NodeStateSEIR(object):
         Returns:
              NodeStateSEIR: The k smallest values as a node state
         """
+
     def get(
         self, node: NodeInput, default: Optional[Infected] = None
     ) -> Optional[Infected]:
@@ -5795,6 +6646,7 @@ class NodeStateSEIR(object):
         Returns:
             Optional[Infected]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, Infected]]:
         """
         Iterate over items
@@ -5802,6 +6654,7 @@ class NodeStateSEIR(object):
         Returns:
              Iterator[Tuple[Node, Infected]]: Iterator over items
         """
+
     def max(self) -> Optional[Infected]:
         """
         Return the maximum value
@@ -5809,6 +6662,7 @@ class NodeStateSEIR(object):
         Returns:
              Optional[Infected]: The maximum value or `None` if empty
         """
+
     def max_item(self) -> Optional[Tuple[Node, Infected]]:
         """
         Return largest value and corresponding node
@@ -5816,6 +6670,7 @@ class NodeStateSEIR(object):
         Returns:
              Optional[Tuple[Node, Infected]]: The Node and maximum value or `None` if empty
         """
+
     def median(self) -> Optional[Infected]:
         """
         Return the median value
@@ -5823,6 +6678,7 @@ class NodeStateSEIR(object):
         Returns:
              Optional[Infected]:
         """
+
     def median_item(self) -> Optional[Tuple[Node, Infected]]:
         """
         Return median value and corresponding node
@@ -5830,6 +6686,7 @@ class NodeStateSEIR(object):
         Returns:
              Optional[Tuple[Node, Infected]]: The median value or `None` if empty
         """
+
     def min(self) -> Optional[Infected]:
         """
         Return the minimum value
@@ -5837,6 +6694,7 @@ class NodeStateSEIR(object):
         Returns:
              Optional[Infected]: The minimum value or `None` if empty
         """
+
     def min_item(self) -> Optional[Tuple[Node, Infected]]:
         """
         Return smallest value and corresponding node
@@ -5844,6 +6702,7 @@ class NodeStateSEIR(object):
         Returns:
              Optional[Tuple[Node, Infected]]: The Node and minimum value or `None` if empty
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5851,6 +6710,7 @@ class NodeStateSEIR(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted(self, reverse: bool = False) -> NodeStateSEIR:
         """
         Sort by value
@@ -5861,6 +6721,7 @@ class NodeStateSEIR(object):
         Returns:
              NodeStateSEIR: Sorted node state
         """
+
     def sorted_by_id(self) -> NodeStateSEIR:
         """
         Sort results by node id
@@ -5868,6 +6729,7 @@ class NodeStateSEIR(object):
         Returns:
              NodeStateSEIR: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5878,6 +6740,7 @@ class NodeStateSEIR(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def top_k(self, k: int) -> NodeStateSEIR:
         """
         Compute the k largest values
@@ -5888,6 +6751,7 @@ class NodeStateSEIR(object):
         Returns:
              NodeStateSEIR: The k largest values as a node state
         """
+
     def values(self) -> Iterator[Infected]:
         """
         Iterate over values
@@ -5899,24 +6763,34 @@ class NodeStateSEIR(object):
 class NodeLayout(object):
     def __eq__(self, value):
         """Return self==value."""
+
     def __ge__(self, value):
         """Return self>=value."""
+
     def __getitem__(self, key):
         """Return self[key]."""
+
     def __gt__(self, value):
         """Return self>value."""
+
     def __iter__(self):
         """Implement iter(self)."""
+
     def __le__(self, value):
         """Return self<=value."""
+
     def __len__(self):
         """Return len(self)."""
+
     def __lt__(self, value):
         """Return self<value."""
+
     def __ne__(self, value):
         """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
+
     def get(
         self, node: NodeInput, default: Optional[list[float]] = None
     ) -> Optional[list[float]]:
@@ -5930,6 +6804,7 @@ class NodeLayout(object):
         Returns:
             Optional[list[float]]: the value for the node or the default value
         """
+
     def items(self) -> Iterator[Tuple[Node, list[float]]]:
         """
         Iterate over items
@@ -5937,6 +6812,7 @@ class NodeLayout(object):
         Returns:
              Iterator[Tuple[Node, list[float]]]: Iterator over items
         """
+
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -5944,6 +6820,7 @@ class NodeLayout(object):
         Returns:
             Nodes: The nodes
         """
+
     def sorted_by_id(self) -> NodeLayout:
         """
         Sort results by node id
@@ -5951,6 +6828,7 @@ class NodeLayout(object):
         Returns:
              NodeLayout: The sorted node state
         """
+
     def to_df(self) -> DataFrame:
         """
         Convert results to pandas DataFrame
@@ -5961,6 +6839,7 @@ class NodeLayout(object):
         Returns:
             DataFrame: the pandas DataFrame
         """
+
     def values(self) -> Iterator[list[float]]:
         """
         Iterate over values
