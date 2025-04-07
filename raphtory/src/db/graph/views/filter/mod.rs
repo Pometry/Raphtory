@@ -1491,7 +1491,7 @@ mod test_composite_filters {
 }
 
 #[cfg(test)]
-mod test_filters {
+pub(crate) mod test_filters {
     use super::*;
     use crate::{
         core::IntoProp,
@@ -1508,9 +1508,17 @@ mod test_filters {
     #[cfg(feature = "search")]
     pub use crate::db::api::view::SearchableGraphOps;
 
-    fn filter_nodes_with<F, I: InternalNodeFilterOps>(filter: I, init_fn: F) -> Vec<String>
+    pub(crate) fn filter_nodes_with<G, F, I: InternalNodeFilterOps>(
+        filter: I,
+        init_fn: F,
+    ) -> Vec<String>
     where
-        F: FnOnce() -> Graph,
+        F: FnOnce() -> G,
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
     {
         let graph = init_fn();
 
@@ -1520,9 +1528,17 @@ mod test_filters {
         results
     }
 
-    fn filter_edges_with<F, I: InternalEdgeFilterOps>(filter: I, init_fn: F) -> Vec<String>
+    pub(crate) fn filter_edges_with<G, F, I: InternalEdgeFilterOps>(
+        filter: I,
+        init_fn: F,
+    ) -> Vec<String>
     where
-        F: FnOnce() -> Graph,
+        F: FnOnce() -> G,
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
     {
         let graph = init_fn();
 
@@ -1544,9 +1560,14 @@ mod test_filters {
     }
 
     #[cfg(feature = "search")]
-    fn search_nodes_with<F, I: AsNodeFilter>(filter: I, init_fn: F) -> Vec<String>
+    pub(crate) fn search_nodes_with<G, F, I: AsNodeFilter>(filter: I, init_fn: F) -> Vec<String>
     where
-        F: FnOnce() -> Graph,
+        F: FnOnce() -> G,
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
     {
         let graph = init_fn();
         graph.create_index().unwrap();
@@ -1562,9 +1583,14 @@ mod test_filters {
     }
 
     #[cfg(feature = "search")]
-    fn search_edges_with<F, I: AsEdgeFilter>(filter: I, init_fn: F) -> Vec<String>
+    pub(crate) fn search_edges_with<G, F, I: AsEdgeFilter>(filter: I, init_fn: F) -> Vec<String>
     where
-        F: FnOnce() -> Graph,
+        F: FnOnce() -> G,
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
     {
         let graph = init_fn();
         graph.create_index().unwrap();

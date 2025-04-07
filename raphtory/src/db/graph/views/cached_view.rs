@@ -288,243 +288,403 @@ mod test {
         })
     }
 
-    #[cfg(all(test, feature = "search"))]
-    mod search_nodes_cached_view_graph_tests {
-        use crate::{
-            core::Prop,
-            db::{
-                api::view::{SearchableGraphOps, StaticGraphViewOps},
-                graph::views::{
-                    deletion_graph::PersistentGraph,
-                    filter::{AsNodeFilter, PropertyFilterOps},
+    #[cfg(test)]
+    mod test_filters_cached_view {
+
+        macro_rules! assert_filter_results {
+            ($filter_fn:ident, $filter:expr, $expected_results:expr) => {{
+                let filter_results = $filter_fn($filter.clone());
+                assert_eq!($expected_results, filter_results);
+            }};
+        }
+
+        macro_rules! assert_filter_results_w {
+            ($filter_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
+                let filter_results = $filter_fn($filter.clone(), $window);
+                assert_eq!($expected_results, filter_results);
+            }};
+        }
+
+        #[cfg(feature = "search")]
+        macro_rules! assert_search_results {
+            ($search_fn:ident, $filter:expr, $expected_results:expr) => {{
+                let search_results = $search_fn($filter.clone());
+                assert_eq!($expected_results, search_results);
+            }};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_results {
+            ($search_fn:ident, $filter:expr, $expected_results:expr) => {};
+        }
+
+        #[cfg(feature = "search")]
+        macro_rules! assert_search_results_w {
+            ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
+                let search_results = $search_fn($filter.clone(), $window);
+                assert_eq!($expected_results, search_results);
+            }};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_results_w {
+            ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
+        }
+
+        mod test_nodes_filter_cached_view_graph {
+            #[cfg(all(test, feature = "search"))]
+            use crate::db::graph::views::filter::test_filters::search_nodes_with;
+            use crate::{
+                core::Prop,
+                db::{
+                    api::{
+                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                        view::StaticGraphViewOps,
+                    },
+                    graph::views::{
+                        deletion_graph::PersistentGraph,
+                        filter::{
+                            test_filters::filter_nodes_with, AsNodeFilter, PropertyFilterOps,
+                        },
+                    },
                 },
-            },
-            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
-        };
-        use std::ops::Range;
+                prelude::{
+                    AdditionOps, Graph, GraphViewOps, NodePropertyFilterOps, NodeViewOps,
+                    PropertyAdditionOps, PropertyFilter, TimeOps,
+                },
+            };
+            use std::ops::Range;
 
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-            let node_data = vec![
-                (6, "N1", 2u64, "air_nomad"),
-                (7, "N1", 1u64, "air_nomad"),
-                (6, "N2", 1u64, "water_tribe"),
-                (7, "N2", 2u64, "water_tribe"),
-                (8, "N3", 1u64, "air_nomad"),
-                (9, "N4", 1u64, "air_nomad"),
-                (5, "N5", 1u64, "air_nomad"),
-                (6, "N5", 2u64, "air_nomad"),
-                (5, "N6", 1u64, "fire_nation"),
-                (6, "N6", 1u64, "fire_nation"),
-                (3, "N7", 1u64, "air_nomad"),
-                (5, "N7", 1u64, "air_nomad"),
-                (3, "N8", 1u64, "fire_nation"),
-                (4, "N8", 2u64, "fire_nation"),
-            ];
+            #[cfg(feature = "search")]
+            pub use crate::db::api::view::SearchableGraphOps;
+            use crate::db::graph::views::filter::internal::InternalNodeFilterOps;
 
-            for (ts, name, value, kind) in node_data {
-                graph
-                    .add_node(ts, name, [("p1", Prop::U64(value))], Some(kind))
-                    .unwrap();
+            fn filter_nodes_with_w<G, F, I: InternalNodeFilterOps>(
+                filter: I,
+                init_fn: F,
+                w: Range<i64>,
+            ) -> Vec<String>
+            where
+                F: FnOnce() -> G,
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            {
+                let graph = init_fn();
+
+                let fg = graph.window(w.start, w.end).filter_nodes(filter).unwrap();
+                let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
+                results.sort();
+                results
             }
 
-            graph
-        }
+            #[cfg(feature = "search")]
+            pub(crate) fn search_nodes_with_w<G, F, I: AsNodeFilter>(
+                filter: I,
+                init_fn: F,
+                w: Range<i64>,
+            ) -> Vec<String>
+            where
+                F: FnOnce() -> G,
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            {
+                let graph = init_fn();
+                graph.create_index().unwrap();
 
-        fn search_nodes<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            filter: impl AsNodeFilter,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let cv = graph.cache_view();
-            let mut results = cv
-                .search_nodes(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| v.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-
-        fn search_nodes_w<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            w: Range<i64>,
-            filter: impl AsNodeFilter,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let cv = graph.cache_view();
-            let mut results = cv
-                .window(w.start, w.end)
-                .search_nodes(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| v.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-
-        #[test]
-        fn test_search_nodes_cached_view_graph() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes(&graph, filter);
-            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
-        }
-
-        #[test]
-        fn test_search_nodes_cached_view_graph_w() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_w(&graph, 6..9, filter);
-            assert_eq!(results, vec!["N1", "N3", "N6"]);
-        }
-
-        #[test]
-        fn test_search_nodes_persistent_cached_view_graph() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes(&graph, filter);
-            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
-        }
-
-        #[test]
-        fn test_search_nodes_persistent_cached_view_graph_w() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_w(&graph, 6..9, filter);
-            assert_eq!(results, vec!["N1", "N3", "N6", "N7"]);
-        }
-    }
-
-    #[cfg(all(test, feature = "search"))]
-    mod search_edges_cached_view_graph_tests {
-        use crate::{
-            core::Prop,
-            db::{
-                api::view::{SearchableGraphOps, StaticGraphViewOps},
-                graph::views::{
-                    deletion_graph::PersistentGraph,
-                    filter::{AsEdgeFilter, PropertyFilterOps},
-                },
-            },
-            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
-        };
-        use std::ops::Range;
-
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-            let edge_data = vec![
-                (6, "N1", "N2", 2u64),
-                (7, "N1", "N2", 1u64),
-                (6, "N2", "N3", 1u64),
-                (7, "N2", "N3", 2u64),
-                (8, "N3", "N4", 1u64),
-                (9, "N4", "N5", 1u64),
-                (5, "N5", "N6", 1u64),
-                (6, "N5", "N6", 2u64),
-                (5, "N6", "N7", 1u64),
-                (6, "N6", "N7", 1u64),
-                (3, "N7", "N8", 1u64),
-                (5, "N7", "N8", 1u64),
-                (3, "N8", "N1", 1u64),
-                (4, "N8", "N1", 2u64),
-            ];
-
-            for (ts, src, dst, p1_val) in edge_data {
-                graph
-                    .add_edge(ts, src, dst, [("p1", Prop::U64(p1_val))], None)
-                    .unwrap();
+                let mut results = graph
+                    .window(w.start, w.end)
+                    .search_nodes(filter, 20, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|nv| nv.name())
+                    .collect::<Vec<_>>();
+                results.sort();
+                results
             }
 
-            graph
+            fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+                let node_data = vec![
+                    (6, "N1", 2u64, "air_nomad"),
+                    (7, "N1", 1u64, "air_nomad"),
+                    (6, "N2", 1u64, "water_tribe"),
+                    (7, "N2", 2u64, "water_tribe"),
+                    (8, "N3", 1u64, "air_nomad"),
+                    (9, "N4", 1u64, "air_nomad"),
+                    (5, "N5", 1u64, "air_nomad"),
+                    (6, "N5", 2u64, "air_nomad"),
+                    (5, "N6", 1u64, "fire_nation"),
+                    (6, "N6", 1u64, "fire_nation"),
+                    (3, "N7", 1u64, "air_nomad"),
+                    (5, "N7", 1u64, "air_nomad"),
+                    (3, "N8", 1u64, "fire_nation"),
+                    (4, "N8", 2u64, "fire_nation"),
+                ];
+
+                for (ts, name, value, kind) in node_data {
+                    graph
+                        .add_node(ts, name, [("p1", Prop::U64(value))], Some(kind))
+                        .unwrap();
+                }
+
+                graph
+            }
+
+            fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+                filter_nodes_with(filter, || init_graph(Graph::new()))
+            }
+
+            fn filter_nodes_w<I: InternalNodeFilterOps>(filter: I, w: Range<i64>) -> Vec<String> {
+                filter_nodes_with_w(filter, || init_graph(Graph::new()), w)
+            }
+
+            fn filter_nodes_pg<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+                filter_nodes_with(filter, || init_graph(PersistentGraph::new()))
+            }
+
+            fn filter_nodes_pg_w<I: InternalNodeFilterOps>(
+                filter: I,
+                w: Range<i64>,
+            ) -> Vec<String> {
+                filter_nodes_with_w(filter, || init_graph(PersistentGraph::new()), w)
+            }
+
+            #[cfg(feature = "search")]
+            fn search_nodes(filter: PropertyFilter) -> Vec<String> {
+                search_nodes_with(filter, || init_graph(Graph::new()))
+            }
+
+            #[cfg(feature = "search")]
+            fn search_nodes_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
+                search_nodes_with_w(filter, || init_graph(Graph::new()), w)
+            }
+
+            #[cfg(feature = "search")]
+            fn search_nodes_pg(filter: PropertyFilter) -> Vec<String> {
+                search_nodes_with(filter, || init_graph(PersistentGraph::new()))
+            }
+
+            #[cfg(feature = "search")]
+            fn search_nodes_pg_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
+                search_nodes_with_w(filter, || init_graph(PersistentGraph::new()), w)
+            }
+
+            #[test]
+            fn test_search_nodes_cached_view_graph() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
+                assert_filter_results!(filter_nodes, filter, expected_results);
+                assert_search_results!(search_nodes, filter, expected_results);
+            }
+
+            #[test]
+            fn test_search_nodes_cached_view_graph_w() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1", "N3", "N6"];
+                assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
+                assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
+            }
+
+            #[test]
+            fn test_search_nodes_persistent_cached_view_graph() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
+                assert_filter_results!(filter_nodes_pg, filter, expected_results);
+                assert_search_results!(search_nodes_pg, filter, expected_results);
+            }
+
+            #[test]
+            fn test_search_nodes_persistent_cached_view_graph_w() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1", "N3", "N6", "N7"];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
+                assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
+            }
         }
 
-        fn search_edges<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            filter: impl AsEdgeFilter,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let cv = graph.cache_view();
-            let mut results = cv
-                .search_edges(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
+        mod test_edges_filter_cached_view_graph {
+            #[cfg(feature = "search")]
+            pub use crate::db::api::view::SearchableGraphOps;
+            #[cfg(all(test, feature = "search"))]
+            use crate::db::graph::views::filter::test_filters::search_edges_with;
+            use crate::{
+                core::Prop,
+                db::{
+                    api::{
+                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                        view::StaticGraphViewOps,
+                    },
+                    graph::views::{
+                        deletion_graph::PersistentGraph,
+                        filter::{
+                            internal::InternalEdgeFilterOps, test_filters::filter_edges_with,
+                            AsEdgeFilter, PropertyFilterOps,
+                        },
+                    },
+                },
+                prelude::{
+                    AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
+                    NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps,
+                },
+            };
+            use std::ops::Range;
 
-        fn search_edges_w<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            w: Range<i64>,
-            filter: impl AsEdgeFilter,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let cv = graph.cache_view();
-            let mut results = cv
-                .window(w.start, w.end)
-                .search_edges(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
+            pub(crate) fn filter_edges_with_w<G, F, I: InternalEdgeFilterOps>(
+                filter: I,
+                init_fn: F,
+                w: Range<i64>,
+            ) -> Vec<String>
+            where
+                F: FnOnce() -> G,
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            {
+                let graph = init_fn();
 
-        #[test]
-        fn test_search_edges_cached_view_graph() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
+                let fg = graph.window(w.start, w.end).filter_edges(filter).unwrap();
+                let mut results = fg
+                    .edges()
+                    .iter()
+                    .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                results
+            }
 
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges(&graph, filter);
-            assert_eq!(
-                results,
-                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
-            );
-        }
+            #[cfg(feature = "search")]
+            pub(crate) fn search_edges_with_w<G, F, I: AsEdgeFilter>(
+                filter: I,
+                init_fn: F,
+                w: Range<i64>,
+            ) -> Vec<String>
+            where
+                F: FnOnce() -> G,
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            {
+                let graph = init_fn();
+                graph.create_index().unwrap();
 
-        #[test]
-        fn test_search_edges_cached_view_graph_w() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
+                let mut results = graph
+                    .window(w.start, w.end)
+                    .search_edges(filter, 20, 0)
+                    .unwrap()
+                    .into_iter()
+                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                    .collect::<Vec<_>>();
+                results.sort();
+                results
+            }
 
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_w(&graph, 6..9, filter);
-            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7"]);
-        }
+            fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+                let edge_data = vec![
+                    (6, "N1", "N2", 2u64),
+                    (7, "N1", "N2", 1u64),
+                    (6, "N2", "N3", 1u64),
+                    (7, "N2", "N3", 2u64),
+                    (8, "N3", "N4", 1u64),
+                    (9, "N4", "N5", 1u64),
+                    (5, "N5", "N6", 1u64),
+                    (6, "N5", "N6", 2u64),
+                    (5, "N6", "N7", 1u64),
+                    (6, "N6", "N7", 1u64),
+                    (3, "N7", "N8", 1u64),
+                    (5, "N7", "N8", 1u64),
+                    (3, "N8", "N1", 1u64),
+                    (4, "N8", "N1", 2u64),
+                ];
 
-        #[test]
-        fn test_search_edges_persistent_cached_view_graph() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
+                for (ts, src, dst, p1_val) in edge_data {
+                    graph
+                        .add_edge(ts, src, dst, [("p1", Prop::U64(p1_val))], None)
+                        .unwrap();
+                }
 
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges(&graph, filter);
-            assert_eq!(
-                results,
-                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
-            );
-        }
+                graph
+            }
 
-        #[test]
-        fn test_search_edges_persistent_cached_view_graph_w() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
+            fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
+                filter_edges_with(filter, || init_graph(Graph::new()))
+            }
 
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_w(&graph, 6..9, filter);
-            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"]);
+            fn filter_edges_w<I: InternalEdgeFilterOps>(filter: I, w: Range<i64>) -> Vec<String> {
+                filter_edges_with_w(filter, || init_graph(Graph::new()), w)
+            }
+
+            fn filter_edges_pg<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
+                filter_edges_with(filter, || init_graph(PersistentGraph::new()))
+            }
+
+            fn filter_edges_pg_w<I: InternalEdgeFilterOps>(
+                filter: I,
+                w: Range<i64>,
+            ) -> Vec<String> {
+                filter_edges_with_w(filter, || init_graph(PersistentGraph::new()), w)
+            }
+
+            #[cfg(feature = "search")]
+            fn search_edges(filter: PropertyFilter) -> Vec<String> {
+                search_edges_with(filter, || init_graph(Graph::new()))
+            }
+
+            #[cfg(feature = "search")]
+            fn search_edges_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
+                search_edges_with_w(filter, || init_graph(Graph::new()), w)
+            }
+
+            #[cfg(feature = "search")]
+            fn search_edges_pg(filter: PropertyFilter) -> Vec<String> {
+                search_edges_with(filter, || init_graph(PersistentGraph::new()))
+            }
+
+            #[cfg(feature = "search")]
+            fn search_edges_pg_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
+                search_edges_with_w(filter, || init_graph(PersistentGraph::new()), w)
+            }
+            #[test]
+            fn test_search_edges_cached_view_graph() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
+                assert_filter_results!(filter_edges, filter, expected_results);
+                assert_search_results!(search_edges, filter, expected_results);
+            }
+
+            #[test]
+            fn test_search_edges_cached_view_graph_w() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
+            }
+
+            #[test]
+            fn test_search_edges_persistent_cached_view_graph() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
+                // PropertyFilteringNotImplemented
+                // assert_filter_results!(filter_edges_pg, filter, expected_results);
+                assert_search_results!(search_edges_pg, filter, expected_results);
+            }
+
+            #[test]
+            fn test_search_edges_persistent_cached_view_graph_w() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
+                // PropertyFilteringNotImplemented
+                // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
+                assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
+            }
         }
     }
 }
