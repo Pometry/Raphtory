@@ -322,7 +322,7 @@ mod test {
         utils::logging::global_info_logger,
     };
     use std::{fs::File, sync::Arc};
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::TempDir;
 
     #[test]
     fn test_write_failure() {
