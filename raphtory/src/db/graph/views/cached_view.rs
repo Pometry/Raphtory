@@ -331,7 +331,7 @@ mod test {
             ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
         }
 
-        mod test_nodes_filter_cached_view_graph {
+        mod test_nodes_filters_cached_view_graph {
             #[cfg(all(test, feature = "search"))]
             use crate::db::graph::views::filter::test_filters::search_nodes_with;
             use crate::{
@@ -475,7 +475,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_nodes_cached_view_graph() {
+            fn test_nodes_filters() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_results!(filter_nodes, filter, expected_results);
@@ -483,7 +483,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_nodes_cached_view_graph_w() {
+            fn test_nodes_filters_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
@@ -491,7 +491,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_nodes_persistent_cached_view_graph() {
+            fn test_nodes_filters_pg() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_results!(filter_nodes_pg, filter, expected_results);
@@ -499,7 +499,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_nodes_persistent_cached_view_graph_w() {
+            fn test_nodes_filters_pg_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
@@ -652,8 +652,9 @@ mod test {
             fn search_edges_pg_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
                 search_edges_with_w(filter, || init_graph(PersistentGraph::new()), w)
             }
+
             #[test]
-            fn test_search_edges_cached_view_graph() {
+            fn test_edges_filters() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_results!(filter_edges, filter, expected_results);
@@ -661,7 +662,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_edges_cached_view_graph_w() {
+            fn test_edges_filter_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
@@ -669,7 +670,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_edges_persistent_cached_view_graph() {
+            fn test_edges_filters_pg() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 // PropertyFilteringNotImplemented
@@ -678,7 +679,7 @@ mod test {
             }
 
             #[test]
-            fn test_search_edges_persistent_cached_view_graph_w() {
+            fn test_edges_filters_pg_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 // PropertyFilteringNotImplemented
