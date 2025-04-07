@@ -24,6 +24,7 @@ chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 num-integer = { workspace = true }
+num-bigint = { workspace = true }
 parking_lot = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -31,6 +32,7 @@ rand_distr = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
+bigdecimal = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }

@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
           - os: windows-latest
     steps:
       - uses: maxim-lobanov/setup-xcode@v1

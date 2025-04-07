@@ -440,6 +440,7 @@ mod db_tests {
         test_storage,
         test_utils::{build_graph, build_graph_strat, test_graph},
     };
+    use bigdecimal::BigDecimal;
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
@@ -2110,6 +2111,21 @@ mod db_tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_decimal_properties() {
+        let graph = Graph::new();
+        let dec_prop = Prop::Decimal(BigDecimal::new(123456234234123123i64.into(), 9));
+        graph
+            .add_node(0, 1, [("cost".to_string(), dec_prop.clone())], None)
+            .unwrap();
+
+        test_storage!(&graph, |graph| {
+            let node = graph.node(1).unwrap();
+            let prop = node.properties().get("cost").unwrap();
+            assert_eq!(prop, dec_prop);
+        });
     }
 
     #[test]

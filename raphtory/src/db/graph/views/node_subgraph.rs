@@ -537,4 +537,25 @@ mod subgraph_tests {
             assert_eq!(results, vec!["N3->N4"]);
         }
     }
+
+    #[test]
+    fn test_layer_edges() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(1, 0, 1, NO_PROPS, Some("2")).unwrap();
+
+        assert_eq!(
+            graph.subgraph([0, 1]).edges().id().collect_vec(),
+            [(GID::U64(0), GID::U64(1))]
+        );
+        assert_eq!(
+            graph
+                .subgraph([0, 1])
+                .valid_layers("1")
+                .edges()
+                .id()
+                .collect_vec(),
+            [(GID::U64(0), GID::U64(1))]
+        );
+    }
 }

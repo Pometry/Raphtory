@@ -34,7 +34,6 @@ class GraphqlGraphs(object):
         Returns:
             Optional[VectorisedGraph]: the graph if it exists
         """
-
     def search_graph_documents(
         self, query: str, limit: int, window: Optional[Tuple[TimeInput, TimeInput]]
     ) -> list[Document]:
@@ -49,7 +48,6 @@ class GraphqlGraphs(object):
         Returns:
           list[Document]: A list of documents
         """
-
     def search_graph_documents_with_scores(
         self, query: str, limit: int, window: Optional[Tuple[TimeInput, TimeInput]]
     ) -> list[Tuple[Document, float]]:
@@ -94,7 +92,6 @@ class GraphServer(object):
         config_path: Optional[str | PathLike] = None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
-
     def run(self, port: int = 1736, timeout_ms: int = 180000) -> None:
         """
         Run the server until completion.
@@ -106,7 +103,6 @@ class GraphServer(object):
         Returns:
             None:
         """
-
     def set_embeddings(
         self,
         cache: str,
@@ -128,7 +124,6 @@ class GraphServer(object):
         Returns:
            GraphServer: A new server object with embeddings setup.
         """
-
     def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
         """
         Start the server and return a handle to it.
@@ -141,7 +136,6 @@ class GraphServer(object):
         Returns:
           RunningGraphServer: The running server
         """
-
     def turn_off_index(self) -> GraphServer:
         """
         Turn off index for all graphs
@@ -149,7 +143,6 @@ class GraphServer(object):
         Returns:
             GraphServer: The server with indexing disabled
         """
-
     def with_global_search_function(
         self, name: str, input: dict[str, str], function: Callable
     ) -> GraphServer:
@@ -169,7 +162,6 @@ class GraphServer(object):
         Returns:
            GraphServer: A new server object with the function registered
         """
-
     def with_vectorised_graphs(
         self,
         graph_names: list[str],
@@ -202,7 +194,6 @@ class RunningGraphServer(object):
         Returns:
             RaphtoryClient: the client
         """
-
     def stop(self) -> None:
         """
         Stop the server and wait for it to finish
@@ -221,7 +212,6 @@ class RaphtoryClient(object):
 
     def __new__(cls, url: str) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
-
     def copy_graph(self, path: str, new_path: str) -> None:
         """
         Copy graph from a path `path` on the server to a `new_path` on the server
@@ -233,7 +223,6 @@ class RaphtoryClient(object):
         Returns:
            None:
         """
-
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path `path` on the server
@@ -244,7 +233,6 @@ class RaphtoryClient(object):
         Returns:
             None:
         """
-
     def is_server_online(self) -> bool:
         """
         Check if the server is online.
@@ -252,7 +240,6 @@ class RaphtoryClient(object):
         Returns:
            bool: Returns true if server is online otherwise false.
         """
-
     def move_graph(self, path: str, new_path: str) -> None:
         """
         Move graph from a path `path` on the server to a `new_path` on the server
@@ -264,7 +251,6 @@ class RaphtoryClient(object):
         Returns:
            None:
         """
-
     def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
         """
         Create a new empty Graph on the server at `path`
@@ -277,7 +263,6 @@ class RaphtoryClient(object):
            None:
 
         """
-
     def query(
         self, query: str, variables: Optional[dict[str, Any]] = None
     ) -> dict[str, Any]:
@@ -291,7 +276,6 @@ class RaphtoryClient(object):
         Returns:
            dict[str, Any]: The `data` field from the graphQL response.
         """
-
     def receive_graph(self, path: str) -> Union[Graph, PersistentGraph]:
         """
         Receive graph from a path `path` on the server
@@ -305,7 +289,6 @@ class RaphtoryClient(object):
         Returns:
            Union[Graph, PersistentGraph]: A copy of the graph
         """
-
     def remote_graph(self, path: str) -> RemoteGraph:
         """
         Get a RemoteGraph reference to a graph on the server at `path`
@@ -317,7 +300,6 @@ class RaphtoryClient(object):
            RemoteGraph: the remote graph reference
 
         """
-
     def send_graph(
         self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
     ) -> dict[str, Any]:
@@ -332,7 +314,6 @@ class RaphtoryClient(object):
         Returns:
            dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
         """
-
     def upload_graph(
         self, path: str, file_path: str, overwrite: bool = False
     ) -> dict[str, Any]:
@@ -359,7 +340,6 @@ class RemoteGraph(object):
         Returns:
             None:
         """
-
     def add_edge(
         self,
         timestamp: int | str | datetime,
@@ -381,7 +361,6 @@ class RemoteGraph(object):
         Returns:
           RemoteEdge: the remote edge
         """
-
     def add_edges(self, updates: List[RemoteEdgeAddition]) -> None:
         """
         Batch add edge updates to the remote graph
@@ -392,7 +371,6 @@ class RemoteGraph(object):
         Returns:
             None:
         """
-
     def add_node(
         self,
         timestamp: int | str | datetime,
@@ -411,7 +389,6 @@ class RemoteGraph(object):
         Returns:
           RemoteNode: the new remote node
         """
-
     def add_nodes(self, updates: List[RemoteNodeAddition]) -> None:
         """
         Batch add node updates to the remote graph
@@ -422,7 +399,6 @@ class RemoteGraph(object):
         Returns:
             None:
         """
-
     def add_property(self, timestamp: int | str | datetime, properties: dict) -> None:
         """
         Adds properties to the remote graph.
@@ -434,7 +410,6 @@ class RemoteGraph(object):
         Returns:
             None:
         """
-
     def create_node(
         self,
         timestamp: int | str | datetime,
@@ -453,7 +428,6 @@ class RemoteGraph(object):
         Returns:
           RemoteNode: the new remote node
         """
-
     def delete_edge(
         self,
         timestamp: int,
@@ -473,7 +447,6 @@ class RemoteGraph(object):
         Returns:
           RemoteEdge: the remote edge
         """
-
     def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
         """
         Gets a remote edge with the specified source and destination nodes
@@ -485,7 +458,6 @@ class RemoteGraph(object):
         Returns:
             RemoteEdge: the remote edge reference
         """
-
     def node(self, id: str | int) -> RemoteNode:
         """
         Gets a remote node with the specified id
@@ -496,7 +468,6 @@ class RemoteGraph(object):
         Returns:
           RemoteNode: the remote node reference
         """
-
     def update_constant_properties(self, properties: dict) -> None:
         """
         Updates constant properties on the remote graph.
@@ -530,7 +501,6 @@ class RemoteEdge(object):
         Returns:
             None:
         """
-
     def add_updates(
         self,
         t: int | str | datetime,
@@ -551,7 +521,6 @@ class RemoteEdge(object):
         Returns:
             None:
         """
-
     def delete(self, t: int | str | datetime, layer: Optional[str] = None) -> None:
         """
         Mark the edge as deleted at the specified time.
@@ -563,7 +532,6 @@ class RemoteEdge(object):
         Returns:
             None:
         """
-
     def update_constant_properties(
         self, properties: Dict[str, Prop], layer: Optional[str] = None
     ) -> None:
@@ -593,7 +561,6 @@ class RemoteNode(object):
         Returns:
             None:
         """
-
     def add_updates(
         self, t: int | str | datetime, properties: Optional[Dict[str, Prop]] = None
     ) -> None:
@@ -608,7 +575,6 @@ class RemoteNode(object):
         Returns:
             None:
         """
-
     def set_node_type(self, new_type: str) -> None:
         """
         Set the type on the node. This only works if the type has not been previously set, otherwise will
@@ -620,7 +586,6 @@ class RemoteNode(object):
         Returns:
             None:
         """
-
     def update_constant_properties(self, properties: Dict[str, Prop]) -> None:
         """
         Update constant properties of a node in the remote graph overwriting existing values.

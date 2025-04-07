@@ -17,7 +17,12 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     PropType,
 };
-use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
+use std::{
+    fmt::Debug,
+    io,
+    path::{PathBuf, StripPrefixError},
+    time::SystemTimeError,
+};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -44,6 +49,15 @@ pub enum InvalidPathReason {
     PathNotParsable(PathBuf),
     #[error("The path to the graph contains a subpath to an existing graph: {0}")]
     ParentIsGraph(PathBuf),
+    #[error("The path provided does not exists as a namespace: {0}")]
+    NamespaceDoesNotExist(String),
+    #[error("The path provided contains non-UTF8 characters.")]
+    NonUTFCharacters,
+    #[error("Failed to strip prefix")]
+    StripPrefix {
+        #[from]
+        source: StripPrefixError,
+    },
 }
 
 #[cfg(feature = "arrow")]
@@ -304,8 +318,8 @@ pub enum GraphError {
     TqdmError,
     #[error("An error when parsing Jinja query templates: {0}")]
     JinjaError(String),
-    #[error("An error when parsing the data to json")]
-    SerdeError,
+    #[error("An error when parsing the data to json: {0}")]
+    SerdeError(#[from] serde_json::Error),
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
     #[error("Property filtering not implemented on PersistentGraph yet")]
