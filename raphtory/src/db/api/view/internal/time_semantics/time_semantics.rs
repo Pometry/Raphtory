@@ -163,7 +163,7 @@ impl TimeSemantics {
     }
 
     pub fn event() -> Self {
-        TimeSemantics::Base(BaseTimeSemantics::Event(EventSemantics()))
+        TimeSemantics::Base(BaseTimeSemantics::Event(EventSemantics))
     }
 
     pub fn window(self, w: Range<i64>) -> Self {

@@ -23,6 +23,7 @@ use raphtory_api::{
 };
 use std::{iter, ops::Range};
 
+#[derive(Debug, Copy, Clone)]
 pub struct EventSemantics;
 
 impl NodeTimeSemanticsOps for EventSemantics {
@@ -186,21 +187,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<i64>,
     ) -> bool {
-        if view.edge_history_filtered() {
-            let eid = edge.eid();
-            edge.additions_iter(view.layer_ids())
-                .any(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .range_t(w.clone())
-                        .iter()
-                        .filter(|t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .next()
-                        .is_some()
-                })
-        } else {
-            edge.added(view.layer_ids(), w)
-        }
+        edge.filtered_additions_iter(&view)
+            .any(|(_, additions)| additions.active_t(w.clone()))
     }
 
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
@@ -208,25 +196,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        if view.edge_history_filtered() {
-            let eid = edge.eid();
-            edge.additions_iter(view.layer_ids())
-                .map(move |(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    let view = view.clone();
-                    additions
-                        .iter()
-                        .filter(move |t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .map(move |t| (t, layer_id))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        } else {
-            edge.additions_iter(view.layer_ids())
-                .map(|(layer_id, additions)| additions.iter().map(move |t| (t, layer_id)))
-                .kmerge()
-                .into_dyn_boxed()
-        }
+        edge.filtered_additions_iter(view)
+            .map(|(layer_id, additions)| additions.iter().map(move |t| (t, layer_id)))
+            .kmerge()
+            .into_dyn_boxed()
     }
 
     fn edge_history_window<'graph, G: GraphViewOps<'graph>>(
@@ -235,31 +208,15 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        if view.edge_history_filtered() {
-            let eid = edge.eid();
-            edge.additions_iter(view.layer_ids())
-                .map(move |(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    let view = view.clone();
-                    additions
-                        .range_t(w.clone())
-                        .iter()
-                        .filter(move |t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .map(move |t| (t, layer_id))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        } else {
-            edge.additions_iter(view.layer_ids())
-                .map(move |(layer_id, additions)| {
-                    additions
-                        .range_t(w.clone())
-                        .iter()
-                        .map(move |t| (t, layer_id))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        }
+        edge.filtered_additions_iter(view)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range_t(w.clone())
+                    .iter()
+                    .map(move |t| (t, layer_id))
+            })
+            .kmerge()
+            .into_dyn_boxed()
     }
 
     fn edge_exploded_count<'graph, G: GraphViewOps<'graph>>(
@@ -267,22 +224,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         edge: EdgeStorageRef,
         view: G,
     ) -> usize {
-        if view.edge_history_filtered() {
-            let eid = edge.eid();
-            edge.additions_iter(view.layer_ids())
-                .map(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .iter()
-                        .filter(|t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .count()
-                })
-                .sum()
-        } else {
-            edge.additions_iter(view.layer_ids())
-                .map(|(_, additions)| additions.len())
-                .sum()
-        }
+        edge.filtered_additions_iter(&view)
+            .map(|(_, additions)| additions.len())
+            .sum()
     }
 
     fn edge_exploded_count_window<'graph, G: GraphViewOps<'graph>>(
@@ -291,23 +235,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<i64>,
     ) -> usize {
-        if view.edge_history_filtered() {
-            let eid = edge.eid();
-            edge.additions_iter(view.layer_ids())
-                .map(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .range_t(w.clone())
-                        .iter()
-                        .filter(|t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .count()
-                })
-                .sum()
-        } else {
-            edge.additions_iter(view.layer_ids())
-                .map(|(_, additions)| additions.range_t(w.clone()).len())
-                .sum()
-        }
+        edge.filtered_additions_iter(&view)
+            .map(|(_, additions)| additions.range_t(w.clone()).len())
+            .sum()
     }
 
     fn edge_exploded<'graph, G: GraphViewOps<'graph>>(
@@ -328,20 +258,13 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> BoxedLIter<'graph, EdgeRef> {
         let eref = e.out_ref();
         if view.edge_history_filtered() {
-            let eid = e.eid();
-            e.additions_iter(view.layer_ids())
+            e.filtered_additions_iter(view)
                 .filter_map(move |(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    let view = view.clone();
-                    additions
-                        .iter()
-                        .filter(move |t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .next()
-                        .map(move |_| eref.at_layer(layer_id))
+                    additions.iter().next().map(|_| eref.at_layer(layer_id))
                 })
                 .into_dyn_boxed()
         } else {
-            e.layer_ids_iter(view.layer_ids())
+            e.layer_ids_iter(view.layer_ids().clone())
                 .map(move |layer_id| eref.at_layer(layer_id))
                 .into_dyn_boxed()
         }
@@ -366,29 +289,13 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         let eref = e.out_ref();
-        if view.edge_history_filtered() {
-            let eid = e.eid();
-            e.additions_iter(view.layer_ids())
-                .filter_map(move |(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    let view = view.clone();
-                    additions
-                        .range_t(w.clone())
-                        .iter()
-                        .filter(move |t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .next()
-                        .map(move |_| eref.at_layer(layer_id))
-                })
-                .into_dyn_boxed()
-        } else {
-            e.additions_iter(view.layer_ids())
-                .filter_map(move |(layer_id, additions)| {
-                    additions
-                        .active_t(w.clone())
-                        .then(move || eref.at_layer(layer_id))
-                })
-                .into_dyn_boxed()
-        }
+        e.filtered_additions_iter(view)
+            .filter_map(move |(layer_id, additions)| {
+                additions
+                    .active_t(w.clone())
+                    .then(move || eref.at_layer(layer_id))
+            })
+            .into_dyn_boxed()
     }
 
     fn edge_earliest_time<'graph, G: GraphViewOps<'graph>>(
@@ -396,25 +303,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef,
         view: G,
     ) -> Option<i64> {
-        if view.edge_history_filtered() {
-            let eid = e.eid();
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .iter()
-                        .filter_map(|t| {
-                            view.filter_edge_history(elid, t, view.layer_ids())
-                                .then_some(t.t())
-                        })
-                        .next()
-                })
-                .min()
-        } else {
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(_, additions)| additions.first_t())
-                .min()
-        }
+        e.filtered_additions_iter(&view)
+            .filter_map(|(_, additions)| additions.first_t())
+            .min()
     }
 
     fn edge_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -423,26 +314,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        if view.edge_history_filtered() {
-            let eid = e.eid();
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .range_t(w.clone())
-                        .iter()
-                        .filter_map(|t| {
-                            view.filter_edge_history(elid, t, view.layer_ids())
-                                .then_some(t.t())
-                        })
-                        .next()
-                })
-                .min()
-        } else {
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(_, additions)| additions.range_t(w.clone()).first_t())
-                .min()
-        }
+        e.filtered_additions_iter(&view)
+            .filter_map(|(_, additions)| additions.range_t(w.clone()).first_t())
+            .min()
     }
 
     fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
@@ -450,25 +324,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef,
         view: G,
     ) -> Option<i64> {
-        if view.edge_history_filtered() {
-            let eid = e.eid();
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .iter_rev()
-                        .filter_map(|t| {
-                            view.filter_edge_history(elid, t, view.layer_ids())
-                                .then_some(t.t())
-                        })
-                        .next()
-                })
-                .max()
-        } else {
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(_, additions)| additions.last_t())
-                .max()
-        }
+        e.filtered_additions_iter(&view)
+            .filter_map(|(_, additions)| additions.last_t())
+            .max()
     }
 
     fn edge_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -477,26 +335,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        if view.edge_history_filtered() {
-            let eid = e.eid();
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(layer_id, additions)| {
-                    let elid = eid.with_layer(layer_id);
-                    additions
-                        .range_t(w.clone())
-                        .iter_rev()
-                        .filter_map(|t| {
-                            view.filter_edge_history(elid, t, view.layer_ids())
-                                .then_some(t.t())
-                        })
-                        .next()
-                })
-                .max()
-        } else {
-            e.additions_iter(view.layer_ids())
-                .filter_map(|(_, additions)| additions.range_t(w.clone()).last_t())
-                .max()
-        }
+        e.filtered_additions_iter(&view)
+            .filter_map(|(_, additions)| additions.range_t(w.clone()).last_t())
+            .max()
     }
 
     fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(
@@ -554,7 +395,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<Prop> {
         let last = if view.edge_history_filtered() {
             let eid = e.eid();
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .filter_map(|(layer_id, prop)| {
                     prop.iter_window(TimeIndexEntry::MIN..t.next())
                         .rev()
@@ -565,7 +406,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 })
                 .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
         } else {
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .filter_map(|(_, prop)| prop.last_before(t.next()))
                 .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
         };
@@ -583,7 +424,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         if w.contains(&t.t()) {
             let last = if view.edge_history_filtered() {
                 let eid = e.eid();
-                e.temporal_prop_iter(view.layer_ids(), prop_id)
+                e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                     .filter_map(|(layer_id, prop)| {
                         prop.iter_window(TimeIndexEntry::start(w.start)..t.next())
                             .rev()
@@ -598,7 +439,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     })
                     .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
             } else {
-                e.temporal_prop_iter(view.layer_ids(), prop_id)
+                e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                     .filter_map(|(_, prop)| {
                         prop.last_before(t.next())
                             .filter(|(t, _)| w.contains(&t.t()))
@@ -619,7 +460,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         if view.edge_history_filtered() {
             let eid = e.eid();
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(|(layer_id, prop)| {
                     let view = view.clone();
                     prop.iter().filter_map(move |(t, v)| {
@@ -630,7 +471,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
                 .into_dyn_boxed()
         } else {
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(|(layer_id, prop)| prop.iter().map(move |(t, v)| (t, layer_id, v)))
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
                 .into_dyn_boxed()
@@ -645,7 +486,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         if view.edge_history_filtered() {
             let eid = e.eid();
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(|(layer_id, prop)| {
                     let view = view.clone();
                     prop.iter().rev().filter_map(move |(t, v)| {
@@ -656,7 +497,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
                 .into_dyn_boxed()
         } else {
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(|(layer_id, prop)| prop.iter().rev().map(move |(t, v)| (t, layer_id, v)))
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
                 .into_dyn_boxed()
@@ -672,7 +513,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         if view.edge_history_filtered() {
             let eid = e.eid();
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(move |(layer_id, prop)| {
                     let view = view.clone();
                     prop.iter_window(TimeIndexEntry::range(w.clone()))
@@ -684,7 +525,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
                 .into_dyn_boxed()
         } else {
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(move |(layer_id, prop)| {
                     prop.iter_window(TimeIndexEntry::range(w.clone()))
                         .map(move |(t, v)| (t, layer_id, v))
@@ -703,7 +544,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         if view.edge_history_filtered() {
             let eid = e.eid();
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(move |(layer_id, prop)| {
                     let view = view.clone();
                     prop.iter_window(TimeIndexEntry::range(w.clone()))
@@ -716,7 +557,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
                 .into_dyn_boxed()
         } else {
-            e.temporal_prop_iter(view.layer_ids(), prop_id)
+            e.temporal_prop_iter(view.layer_ids().clone(), prop_id)
                 .map(move |(layer_id, prop)| {
                     prop.iter_window(TimeIndexEntry::range(w.clone()))
                         .rev()
@@ -733,19 +574,35 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<Prop> {
+        let layer_filter =
+            |layer| !view.edge_history_filtered() || self.edge_history(e, &view).next().is_some();
+
         let layer_ids = view.layer_ids();
         match layer_ids {
             LayerIds::None => return None,
             LayerIds::All => match view.unfiltered_num_layers() {
                 0 => return None,
-                1 => return e.constant_prop_layer(0, prop_id),
+                1 => {
+                    return if layer_filter(0) {
+                        e.constant_prop_layer(0, prop_id)
+                    } else {
+                        None
+                    }
+                }
                 _ => {}
             },
-            LayerIds::One(layer_id) => return e.constant_prop_layer(*layer_id, prop_id),
+            LayerIds::One(layer_id) => {
+                return if layer_filter(*layer_id) {
+                    e.constant_prop_layer(*layer_id, prop_id)
+                } else {
+                    None
+                }
+            }
             _ => {}
         };
         let mut values = e
-            .constant_prop_iter(layer_ids, prop_id)
+            .constant_prop_iter(layer_ids.clone(), prop_id)
+            .filter(|(layer, _)| layer_filter(*layer))
             .map(|(layer, v)| (view.get_layer_name(layer), v))
             .peekable();
         if values.peek().is_some() {
@@ -762,13 +619,19 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<i64>,
     ) -> Option<Prop> {
+        let layer_filter = |layer| {
+            self.edge_history_window(e, &view, w.clone())
+                .next()
+                .is_some()
+        };
+
         let layer_ids = view.layer_ids();
         match layer_ids {
             LayerIds::None => return None,
             LayerIds::All => match view.unfiltered_num_layers() {
                 0 => return None,
                 1 => {
-                    return if e.additions(0).active_t(w) {
+                    return if layer_filter(0) {
                         e.constant_prop_layer(0, prop_id)
                     } else {
                         None
@@ -777,7 +640,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 _ => {}
             },
             LayerIds::One(layer_id) => {
-                return if e.additions(*layer_id).active_t(w) {
+                return if layer_filter(*layer_id) {
                     e.constant_prop_layer(*layer_id, prop_id)
                 } else {
                     None
@@ -786,12 +649,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             _ => {}
         };
         let mut values = e
-            .constant_prop_iter(layer_ids, prop_id)
-            .filter_map(|(layer, v)| {
-                e.additions(layer)
-                    .active_t(w.clone())
-                    .then(|| (view.get_layer_name(layer), v))
-            })
+            .constant_prop_iter(layer_ids.clone(), prop_id)
+            .filter_map(|(layer, v)| layer_filter(layer).then(|| (view.get_layer_name(layer), v)))
             .peekable();
         if values.peek().is_some() {
             Some(Prop::map(values))

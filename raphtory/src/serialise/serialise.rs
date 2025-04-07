@@ -429,7 +429,7 @@ impl StableDecode for TemporalGraph {
                 let edges = storage.storage.edges.read_lock();
                 for edge in edges.iter() {
                     if let Some(src) = shard.get_mut(edge.src()) {
-                        for layer in edge.layer_ids_iter(&LayerIds::All) {
+                        for layer in edge.layer_ids_iter(LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
                                 src.update_time(t, edge.eid().with_layer(layer));
@@ -440,7 +440,7 @@ impl StableDecode for TemporalGraph {
                         }
                     }
                     if let Some(dst) = shard.get_mut(edge.dst()) {
-                        for layer in edge.layer_ids_iter(&LayerIds::All) {
+                        for layer in edge.layer_ids_iter(LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
                                 dst.update_time(t, edge.eid().with_layer(layer));

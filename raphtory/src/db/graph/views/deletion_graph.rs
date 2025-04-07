@@ -94,13 +94,13 @@ fn has_persisted_event<
 }
 
 fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
-    e.updates_iter(layer_ids)
+    e.updates_iter(layer_ids.clone())
         .any(|(_, additions, deletions)| alive_before(additions, deletions, t))
 }
 
 fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
-    e.updates_iter(layer_ids)
+    e.updates_iter(layer_ids.clone())
         .any(|(_, additions, deletions)| alive_before(additions, deletions, t.saturating_add(1)))
 }
 
@@ -277,7 +277,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .updates_iter(&layer_ids)
+                .updates_iter(layer_ids.into_owned())
                 .map(|(layer, additions, deletions)| {
                     let window = interior_window(w.clone(), &deletions);
                     additions.range(window).iter().map(move |t| (t, layer))
@@ -348,10 +348,10 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             return Box::new(iter::empty());
         }
         let edge = self.0.core_edge(e.pid());
-        let layer_ids = layer_ids.constrain_from_edge(e);
+        let layer_ids = layer_ids.constrain_from_edge(e).into_owned();
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(&layer_ids)
+            .updates_iter(layer_ids.clone())
             .filter_map(|(l, additions, deletions)| {
                 has_persisted_event(additions, deletions, w.start).then_some(l)
             })
@@ -360,7 +360,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             .into_iter()
             .map(move |l| e.at(w.start.into()).at_layer(l))
             .chain(GenLockedIter::from(edge, move |edge| {
-                edge.updates_iter(&layer_ids)
+                edge.updates_iter(layer_ids)
                     .map(move |(l, additions, deletions)| {
                         let window = interior_window(w.clone(), &deletions);
                         additions
@@ -390,11 +390,11 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         e.time().map(|ti| ti.t()).or_else(|| {
             let entry = self.core_edge(e.pid());
             entry
-                .additions_iter(layer_ids)
+                .additions_iter(layer_ids.clone())
                 .filter_map(|(_, a)| a.first_t())
                 .chain(
                     entry
-                        .deletions_iter(layer_ids)
+                        .deletions_iter(layer_ids.clone())
                         .filter_map(|(_, d)| d.first_t()),
                 )
                 .min()
@@ -415,7 +415,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                     Some(w.start)
                 } else {
                     entry
-                        .updates_iter(&layer_ids)
+                        .updates_iter(layer_ids.clone())
                         .flat_map(|(_, additions, deletions)| {
                             let window = interior_window(w.clone(), &deletions);
                             println!("window: {window:?}");
@@ -436,7 +436,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         match e.time() {
             Some(t) => {
                 let t_start = t.next();
-                edge.updates_iter(&layer_ids)
+                edge.updates_iter(layer_ids.clone())
                     .map(|(_, a, d)| {
                         // last time for exploded edge is next addition or deletion
                         min(
@@ -454,7 +454,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                 if edge_alive_at_end(edge.as_ref(), i64::MAX, &layer_ids) {
                     self.latest_time_global()
                 } else {
-                    edge.deletions_iter(&layer_ids)
+                    edge.deletions_iter(layer_ids.clone())
                         .map(|(_, d)| d.last_t())
                         .flatten()
                         .max()
@@ -470,11 +470,11 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         layer_ids: &LayerIds,
     ) -> Option<i64> {
         let edge = self.core_edge(e.pid());
-        let layer_ids = layer_ids.constrain_from_edge(e);
+        let layer_ids = layer_ids.constrain_from_edge(e).into_owned();
         match e.time().map(|ti| ti.t()) {
             Some(t) => {
                 let t_start = t.saturating_add(1);
-                edge.updates_iter(&layer_ids)
+                edge.updates_iter(layer_ids.clone())
                     .map(|(_, a, d)| {
                         // last time for exploded edge is next addition or deletion
                         min(
@@ -491,7 +491,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                 }
                 // window for deletions has start exclusive
                 entry
-                    .deletions_iter(&layer_ids)
+                    .deletions_iter(layer_ids)
                     .filter_map(|(_, d)| {
                         d.range_t(w.start.saturating_add(1)..w.end)
                             .last_t()
@@ -521,7 +521,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .deletions_iter(&layer_ids)
+                .deletions_iter(layer_ids.into_owned())
                 .map(|(l, d)| {
                     d.range_t(w.start.saturating_add(1)..w.end)
                         .iter()
@@ -536,7 +536,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
         let edge = self.0.core_edge(e.pid());
         let res = edge
-            .updates_iter(&layer_ids)
+            .updates_iter(layer_ids.clone())
             .any(|(_, additions, deletions)| additions.last() > deletions.last());
         res
     }
@@ -672,7 +672,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(l, prop)| {
                     let first_prop =
                         persisted_prop_value_at(start, prop.clone(), entry.deletions(l))
@@ -699,7 +699,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(l, prop)| {
                     let first_prop =
                         persisted_prop_value_at(start, prop.clone(), entry.deletions(l))
@@ -746,7 +746,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                 }
                 _ => {
                     let mut values = edge
-                        .layer_ids_iter(layer_ids)
+                        .layer_ids_iter(layer_ids.clone())
                         .filter_map(|layer_id| {
                             if self.include_edge_window(edge, w.clone(), &LayerIds::One(layer_id)) {
                                 edge.constant_prop_layer(layer_id, id)
@@ -772,7 +772,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             }
             LayerIds::Multiple(_) => {
                 let mut values = edge
-                    .layer_ids_iter(layer_ids)
+                    .layer_ids_iter(layer_ids.clone())
                     .filter_map(|layer_id| {
                         if self.include_edge_window(edge, w.clone(), &LayerIds::One(layer_id)) {
                             edge.constant_prop_layer(layer_id, id)
@@ -913,7 +913,7 @@ impl EdgeHistoryFilter for PersistentGraph {
 
             if layer_ids.contains(&layer_id) {
                 // Check if any layer has an active update beyond `time`
-                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                let has_future_update = ese.layer_ids_iter(layer_ids.clone()).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
                         .active(time..TimeIndexEntry::start(w.end))
                 });

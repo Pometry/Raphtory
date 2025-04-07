@@ -16,6 +16,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
+use num_traits::Saturating;
 use raphtory_api::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds},
@@ -54,13 +55,13 @@ fn has_persisted_event<
 }
 
 fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
-    e.updates_iter(layer_ids)
+    e.updates_iter(layer_ids.clone())
         .any(|(_, additions, deletions)| alive_before(additions, deletions, t))
 }
 
 fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
-    e.updates_iter(layer_ids)
+    e.updates_iter(layer_ids.clone())
         .any(|(_, additions, deletions)| alive_before(additions, deletions, t.saturating_add(1)))
 }
 
@@ -306,9 +307,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> bool {
         // If an edge has any event in the interior (both end exclusive) of the window it is always included.
         // Additionally, the edge is included if the last event at or before the start of the window was an addition.
-        edge.added(view.layer_ids(), w.start.saturating_add(1)..w.end)
-            || edge.deleted(view.layer_ids(), w.start.saturating_add(1)..w.end)
-            || edge_alive_at_start(edge, w.start, view.layer_ids())
+        let exclusive_start = w.start.saturating_add(1);
+        edge.filtered_updates_iter(&view)
+            .any(|(_, additions, deletions)| {
+                additions.active_t(exclusive_start..w.end)
+                    || deletions.active_t(exclusive_start..w.end)
+                    || alive_before(additions, deletions, exclusive_start)
+            })
     }
 
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
@@ -325,30 +330,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        if view.edge_history_filtered() {
-            let eid = edge.eid();
-            edge.updates_iter(view.layer_ids())
-                .map(move |(layer_id, additions, deletions)| {
-                    let window = interior_window(w.clone(), &deletions);
-                    let elid = eid.with_layer(layer_id);
-                    let view = view.clone();
-                    additions
-                        .range(window)
-                        .iter()
-                        .filter(move |t| view.filter_edge_history(elid, *t, view.layer_ids()))
-                        .map(move |t| (t, layer_id))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        } else {
-            edge.updates_iter(view.layer_ids())
-                .map(|(layer, additions, deletions)| {
-                    let window = interior_window(w.clone(), &deletions);
-                    additions.range(window).iter().map(move |t| (t, layer))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        }
+        edge.filtered_updates_iter(view)
+            .map(|(layer, additions, deletions)| {
+                let window = interior_window(w.clone(), &deletions);
+                additions.range(window).iter().map(move |t| (t, layer))
+            })
+            .kmerge()
+            .into_dyn_boxed()
     }
 
     fn edge_exploded_count<'graph, G: GraphViewOps<'graph>>(
@@ -365,9 +353,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> usize {
-        let layer_ids = view.layer_ids();
         if view.edge_history_filtered() {
-            edge.updates_iter(view.layer_ids())
+            edge.updates_iter(view.layer_ids().clone())
                 .map(|(layer_id, additions, deletions)| {
                     let actual_window = interior_window(w.clone(), &deletions);
                     let mut len = additions.range(actual_window).len();
@@ -378,7 +365,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 })
                 .sum()
         } else {
-            edge.updates_iter(view.layer_ids())
+            edge.updates_iter(view.layer_ids().clone())
                 .map(|(layer_id, additions, deletions)| {
                     let actual_window = interior_window(w.clone(), &deletions);
                     let mut len = additions.range(actual_window).len();
@@ -388,28 +375,6 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     len
                 })
                 .sum()
-        }
-        match layer_ids {
-            LayerIds::None => 0,
-            LayerIds::All => edge
-                .layer_ids_iter(view.layer_ids())
-                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
-                .sum(),
-            LayerIds::One(id) => {
-                let additions = edge.additions(*id);
-                let deletions = edge.deletions(*id);
-                let actual_window = interior_window(w.clone(), &deletions);
-                let mut len = additions.range(actual_window).len();
-                if has_persisted_event(additions, deletions, w.start) {
-                    len += 1
-                }
-                len
-            }
-            LayerIds::Multiple(layers) => layers
-                .clone()
-                .iter()
-                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
-                .sum(),
         }
     }
 

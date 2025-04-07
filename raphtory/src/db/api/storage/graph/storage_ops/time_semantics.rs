@@ -100,13 +100,13 @@ impl GraphTimeSemanticsOps for GraphStorage {
         GenLockedIter::from(core_edge, |core_edge| match layer_ids.as_ref() {
             LayerIds::None => std::iter::empty().into_dyn_boxed(),
             LayerIds::One(_) => core_edge
-                .additions_iter(&layer_ids)
+                .additions_iter(layer_ids.into_owned())
                 .map(|(l, index)| index.iter().map(move |t| (t, l)))
                 .flatten()
                 .into_dyn_boxed(),
             _ => kmerge(
                 core_edge
-                    .additions_iter(&layer_ids)
+                    .additions_iter(layer_ids.into_owned())
                     .map(|(l, index)| index.iter().map(move |t| (t, l))),
             )
             .into_dyn_boxed(),
@@ -124,7 +124,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         GenLockedIter::from(core_edge, |core_edge| {
             kmerge(
                 core_edge
-                    .additions_iter(&layer_ids)
+                    .additions_iter(layer_ids.into_owned())
                     .map(move |(l, index)| index.range_t(w.clone()).iter().map(move |t| (t, l))),
             )
             .into_dyn_boxed()
@@ -133,7 +133,9 @@ impl GraphTimeSemanticsOps for GraphStorage {
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        edge.additions_iter(layer_ids).map(|(_, a)| a.len()).sum()
+        edge.additions_iter(layer_ids.clone())
+            .map(|(_, a)| a.len())
+            .sum()
     }
 
     fn edge_exploded_count_window(
@@ -155,7 +157,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let edge = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(edge, move |edge| {
-            edge.additions_iter(&layer_ids)
+            edge.additions_iter(layer_ids.into_owned())
                 .map(move |(l, a)| a.iter().map(move |t| e.at(t).at_layer(l)))
                 .kmerge_by(|e1, e2| e1.time() <= e2.time())
                 .into_dyn_boxed()
@@ -171,7 +173,10 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, move |edge| {
-            Box::new(edge.layer_ids_iter(&layer_ids).map(move |l| e.at_layer(l)))
+            Box::new(
+                edge.layer_ids_iter(layer_ids.into_owned())
+                    .map(move |l| e.at_layer(l)),
+            )
         })
         .into_dyn_boxed()
     }
@@ -185,7 +190,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, move |edge| {
-            edge.additions_iter(&layer_ids)
+            edge.additions_iter(layer_ids.into_owned())
                 .map(move |(l, a)| {
                     a.range(TimeIndexEntry::range(w.clone()))
                         .iter()
@@ -273,7 +278,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .deletions_iter(&layer_ids)
+                .deletions_iter(layer_ids.into_owned())
                 .map(|(l, d)| d.iter().map(move |t| (t, l)))
                 .kmerge()
                 .into_dyn_boxed()
@@ -290,7 +295,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .deletions_iter(&layer_ids)
+                .deletions_iter(layer_ids.into_owned())
                 .map(|(l, d)| d.range_t(w.clone()).iter().map(move |t| (t, l)))
                 .kmerge()
                 .into_dyn_boxed()
@@ -392,7 +397,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
     ) -> Option<Prop> {
         let edge_entry = self.core_edge(e);
         edge_entry
-            .temporal_prop_iter(&layer_ids, id)
+            .temporal_prop_iter(layer_ids.into_owned(), id)
             .filter_map(|(_, p)| p.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
             .map(|(_, p)| p)
@@ -410,7 +415,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         if w.contains(&t) {
             let edge_entry = self.core_edge(e);
             edge_entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .filter_map(|(_, p)| p.last_before(t.next()).filter(|(t, _)| w.contains(&t)))
                 .max_by_key(|(t, _)| *t)
                 .map(|(_, p)| p)
@@ -428,7 +433,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(layer, p)| p.iter().map(move |(t, p)| (t, layer, p)))
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
                 .into_dyn_boxed()
@@ -445,7 +450,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(layer, p)| p.iter().map(move |(t, p)| (t, layer, p)).rev())
                 .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
                 .into_dyn_boxed()
@@ -464,7 +469,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(layer, p)| {
                     p.iter_window(TimeIndexEntry::range(start..end))
                         .map(move |(t, p)| (t, layer, p))
@@ -486,7 +491,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let entry = self.core_edge(e);
         GenLockedIter::from(entry, |entry| {
             entry
-                .temporal_prop_iter(&layer_ids, prop_id)
+                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(layer, p)| {
                     p.iter_window(TimeIndexEntry::range(start..end))
                         .map(move |(t, p)| (t, layer, p))
@@ -508,7 +513,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
                 1 => entry.constant_prop_layer(0, id),
                 _ => {
                     let mut values = entry
-                        .layer_ids_iter(layer_ids)
+                        .layer_ids_iter(layer_ids.clone())
                         .filter_map(|layer_id| {
                             entry
                                 .constant_prop_layer(layer_id, id)
@@ -525,7 +530,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
             LayerIds::One(layer_id) => entry.constant_prop_layer(*layer_id, id),
             LayerIds::Multiple(_) => {
                 let mut values = entry
-                    .layer_ids_iter(layer_ids)
+                    .layer_ids_iter(layer_ids.clone())
                     .filter_map(|layer_id| {
                         entry
                             .constant_prop_layer(layer_id, id)
@@ -563,7 +568,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
                 }
                 _ => {
                     let mut values = entry
-                        .layer_ids_iter(layer_ids)
+                        .layer_ids_iter(layer_ids.clone())
                         .filter_map(|layer_id| {
                             if entry.additions(layer_id).active_t(w.clone()) {
                                 entry
@@ -590,7 +595,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
             }
             LayerIds::Multiple(_) => {
                 let mut values = entry
-                    .layer_ids_iter(layer_ids)
+                    .layer_ids_iter(layer_ids.clone())
                     .filter_map(|layer_id| {
                         if entry.additions(layer_id).active_t(w.clone()) {
                             entry
@@ -703,7 +708,7 @@ impl EdgeHistoryFilter for GraphStorage {
 
         if layer_ids.contains(&layer_id) {
             // Check if any layer has an active update beyond `time`
-            let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+            let has_future_update = ese.layer_ids_iter(layer_ids.clone()).any(|layer_id| {
                 ese.temporal_prop_layer(layer_id, prop_id)
                     .active(time..TimeIndexEntry::MAX)
             });
@@ -730,7 +735,7 @@ impl EdgeHistoryFilter for GraphStorage {
 
             if layer_ids.contains(&layer_id) {
                 // Check if any layer has an active update beyond `time`
-                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                let has_future_update = ese.layer_ids_iter(layer_ids.clone()).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
                         .active(time..TimeIndexEntry::start(w.end))
                 });

@@ -49,7 +49,7 @@ impl<'graph, G: GraphViewOps<'graph>> ValidGraph<G> {
             LayerIds::None => LayerIds::None,
             _ => {
                 let valid_layers: Vec<_> = edge
-                    .layer_ids_iter(&layers)
+                    .layer_ids_iter(layers.clone())
                     .filter(|l| self.filter_edge(edge, &LayerIds::One(*l)))
                     .collect();
                 match valid_layers.len() {
@@ -71,7 +71,7 @@ impl<'graph, G: GraphViewOps<'graph>> ValidGraph<G> {
             LayerIds::None => LayerIds::None,
             _ => {
                 let valid_layers: Vec<_> = edge
-                    .layer_ids_iter(&layers)
+                    .layer_ids_iter(layers.clone())
                     .filter(|l| {
                         self.filter_edge(edge, &LayerIds::One(*l))
                             && self.include_edge_window(edge, w.clone(), &LayerIds::One(*l))
