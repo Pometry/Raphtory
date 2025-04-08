@@ -2691,120 +2691,126 @@ mod views_test {
             }
 
             #[test]
-            fn test_search_edges_graph_for_src_eq() {
+            fn test_edges_filters_for_src_eq() {
                 let filter = EdgeFilter::src().eq("N2");
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_src_eq() {
+            fn test_edges_filters_pg_for_src_eq() {
                 let filter = EdgeFilter::src().eq("N2");
                 let expected_results = vec!["N2->N3"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_src_ne() {
+            fn test_edges_filters_for_src_ne() {
                 let filter = EdgeFilter::src().ne("N2");
                 let expected_results = vec!["N1->N2", "N3->N4", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_src_ne() {
+            fn test_edges_filters_pg_for_src_ne() {
                 let filter = EdgeFilter::src().ne("N2");
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_dst_in() {
+            fn test_edges_filters_for_dst_in() {
                 let filter = EdgeFilter::dst().includes(vec!["N2".into()]);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = EdgeFilter::dst().includes(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_dst_in() {
+            fn test_edges_filters_pg_for_dst_in() {
                 let filter = EdgeFilter::dst().includes(vec!["N2".into()]);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = EdgeFilter::dst().includes(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_dst_not_in() {
+            fn test_edges_filters_for_dst_not_in() {
                 let filter = EdgeFilter::dst().excludes(vec!["N5".into()]);
                 let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_dst_not_in() {
+            fn test_edges_filters_pg_for_dst_not_in() {
                 let filter = EdgeFilter::dst().excludes(vec!["N5".into()]);
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                     "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_eq() {
+            fn test_edges_filters_for_property_eq() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").eq(2i64);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").eq(true);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").eq(6.0f64);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_eq() {
+            fn test_edges_filters_pg_for_property_eq() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec![
                     "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N6->N7", "N7->N8",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -2812,11 +2818,13 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -2824,65 +2832,71 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").eq(6.0f64);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_ne() {
+            fn test_edges_filters_for_property_ne() {
                 let filter = PropertyFilter::property("p1").ne(1u64);
                 let expected_results = vec!["N2->N3", "N5->N6"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").ne(2i64);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
                 let expected_results = vec!["N5->N6"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").ne(true);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").ne(6.0f64);
                 let expected_results = vec!["N2->N3", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_ne() {
+            fn test_edges_filters_pg_for_property_ne() {
                 let filter = PropertyFilter::property("p1").ne(1u64);
                 let expected_results = vec![
                     "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                     "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").ne(2i64);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
                 let expected_results = vec!["N12->N13", "N13->N14", "N5->N6", "N8->N9"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").ne(true);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -2890,35 +2904,37 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_lt() {
+            fn test_edges_filters_for_property_lt() {
                 let filter = PropertyFilter::property("p1").lt(3u64);
                 let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").lt(3i64);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").lt(10.0f64);
                 let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_lt() {
+            fn test_edges_filters_pg_for_property_lt() {
                 let filter = PropertyFilter::property("p1").lt(3u64);
                 let expected_results = vec![
                     "N1->N2", "N14->N15", "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7",
                     "N7->N8", "N8->N9", "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -2926,39 +2942,42 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").lt(10.0f64);
                 let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_le() {
+            fn test_edges_filters_for_property_le() {
                 let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").le(2i64);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").le(6.0f64);
                 let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_le() {
+            fn test_edges_filters_pg_for_property_le() {
                 let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec![
                     "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N6->N7", "N7->N8",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -2966,80 +2985,86 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").le(6.0f64);
                 let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_gt() {
+            fn test_edges_filters_for_property_gt() {
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec!["N2->N3", "N5->N6"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").gt(2i64);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").gt(6.0f64);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_gt() {
+            fn test_edges_filters_pg_for_property_gt() {
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec![
                     "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                     "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").gt(2i64);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").gt(6.0f64);
                 let expected_results = vec!["N12->N13", "N13->N14", "N2->N3", "N7->N8", "N8->N9"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_ge() {
+            fn test_edges_filters_for_property_ge() {
                 let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").ge(2i64);
                 let expected_results = vec!["N1->N2", "N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").ge(6.0f64);
                 let expected_results = vec!["N1->N2", "N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_ge() {
+            fn test_edges_filters_pg_for_property_ge() {
                 let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                     "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -3047,6 +3072,7 @@ mod views_test {
                 let expected_results = vec![
                     "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -3054,42 +3080,44 @@ mod views_test {
                 let expected_results = vec![
                     "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_in() {
+            fn test_edges_filters_for_property_in() {
                 let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").includes(vec![2i64.into()]);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1->N2", "N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
                 let expected_results = vec!["N2->N3"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").includes(vec![6.0f64.into()]);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_in() {
+            fn test_edges_filters_pg_for_property_in() {
                 let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N9", "N9->N10"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -3097,11 +3125,13 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -3109,25 +3139,27 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").includes(vec![6.0f64.into()]);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_not_in() {
+            fn test_edges_filters_for_property_not_in() {
                 let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").excludes(vec![2i64.into()]);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
@@ -3137,37 +3169,41 @@ mod views_test {
 
                 let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").excludes(vec![6.0f64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_not_in() {
+            fn test_edges_filters_pg_for_property_not_in() {
                 let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
                 let expected_results = vec![
                     "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                     "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k1").excludes(vec![2i64.into()]);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N12->N13", "N13->N14", "N5->N6", "N8->N9"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
@@ -3175,62 +3211,65 @@ mod views_test {
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_for_property_is_some() {
+            fn test_edges_filters_for_property_is_some() {
                 let filter = PropertyFilter::property("p1").is_some();
                 let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_for_property_is_some() {
+            fn test_edges_filters_pg_for_property_is_some() {
                 let filter = PropertyFilter::property("p1").is_some();
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                     "N9->N10",
                 ];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_by_src_dst() {
+            fn test_edges_filters_for_src_dst() {
                 let filter = EdgeFilter::src().eq("N1").and(EdgeFilter::dst().eq("N2"));
                 let expected_results = vec!["N1->N2"];
-                // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_by_src_dst() {
+            fn test_edges_filters_pg_for_src_dst() {
                 let filter = EdgeFilter::src().eq("N1").and(EdgeFilter::dst().eq("N2"));
                 let expected_results = vec!["N1->N2"];
+                // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_fuzzy_search() {
+            fn test_edges_filters_fuzzy_search() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
                 let expected_results = vec!["N1->N2", "N2->N3"];
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_fuzzy_search() {
+            fn test_edges_filters_pg_fuzzy_search() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
                 let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_search_edges_graph_fuzzy_search_prefix_match() {
+            fn test_edges_filters_fuzzy_search_prefix_match() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
                 let expected_results = vec!["N1->N2", "N2->N3", "N5->N6"];
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -3241,7 +3280,7 @@ mod views_test {
             }
 
             #[test]
-            fn test_search_edges_persistent_graph_fuzzy_search_prefix_match() {
+            fn test_edges_filters_pg_fuzzy_search_prefix_match() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
                 let expected_results = vec![
                     "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
@@ -3249,9 +3288,7 @@ mod views_test {
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
-                let expected_results = vec![
-                    "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = Vec::<String>::new();
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
         }
