@@ -272,12 +272,7 @@ pub fn assert_edges_equal<
     }
 }
 
-fn assert_graph_equal_layer<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
 ) {
@@ -334,12 +329,7 @@ fn assert_graph_equal_layer<
     assert_edges_equal(&g1.edges(), &g2.edges());
 }
 
-pub fn assert_graph_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
 ) {

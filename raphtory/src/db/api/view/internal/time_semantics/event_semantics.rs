@@ -356,17 +356,127 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         iter::empty().into_dyn_boxed()
     }
 
-    fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(&self, _e: EdgeStorageRef, _view: G) -> bool {
-        true
+    /// An edge is valid with event semantics if it has at least one update in the current view (i.e, if it is active)
+    fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        self.edge_is_active(e, view)
     }
 
-    fn edge_is_valid_at_end<'graph, G: GraphViewOps<'graph>>(
+    /// An edge is valid in a window with event semantics if it has at least one update in the current view in the window
+    fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        _e: EdgeStorageRef,
-        _view: G,
-        _t: i64,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        r: Range<i64>,
     ) -> bool {
-        true
+        self.edge_is_active_window(e, view, r)
+    }
+
+    fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        _e: EdgeStorageRef<'graph>,
+        _view: G,
+    ) -> bool {
+        false
+    }
+
+    fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        _e: EdgeStorageRef<'graph>,
+        _view: G,
+        _w: Range<i64>,
+    ) -> bool {
+        false
+    }
+
+    fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        e.filtered_additions_iter(&view)
+            .any(|(_, additions)| !additions.is_empty())
+    }
+
+    fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        e.filtered_additions_iter(&view)
+            .any(|(_, additions)| !additions.range_t(w.clone()).is_empty())
+    }
+
+    fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool {
+        view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+    }
+
+    fn edge_is_active_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&t.t())
+            && view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+    }
+
+    /// An exploded edge is valid with event semantics if it is active
+    /// (i.e., it's corresponding event is part of the view)
+    fn edge_is_valid_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool {
+        self.edge_is_active_exploded(e, view, t, layer)
+    }
+
+    /// An exploded edge is valid with event semantics if it is active
+    /// (i.e., it's corresponding event is part of the view)
+    fn edge_is_valid_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool {
+        self.edge_is_active_exploded_window(e, view, t, layer, w)
+    }
+
+    fn edge_exploded_deletion<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        _e: EdgeStorageRef<'graph>,
+        _view: G,
+        _t: TimeIndexEntry,
+        _layer: usize,
+    ) -> Option<TimeIndexEntry> {
+        None
+    }
+
+    fn edge_exploded_deletion_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        _e: EdgeStorageRef<'graph>,
+        _view: G,
+        _t: TimeIndexEntry,
+        _layer: usize,
+        _w: Range<i64>,
+    ) -> Option<TimeIndexEntry> {
+        None
     }
 
     fn temporal_edge_prop_exploded<'graph, G: GraphViewOps<'graph>>(

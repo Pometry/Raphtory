@@ -167,6 +167,10 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps
         self.graph.node_time_semantics()
     }
 
+    fn edge_time_semantics(&self) -> TimeSemantics {
+        self.graph.edge_time_semantics()
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.graph.view_start()
     }

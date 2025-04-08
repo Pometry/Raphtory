@@ -108,15 +108,13 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 }
 
 #[derive(Clone)]
-pub struct FilteredEdgeTimeIndex<'graph, G: GraphViewOps<'graph>> {
+pub struct FilteredEdgeTimeIndex<'graph, G> {
     eid: ELID,
     time_index: TimeIndexRef<'graph>,
     view: G,
 }
 
-impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
-    for FilteredEdgeTimeIndex<'graph, G>
-{
+impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a> for FilteredEdgeTimeIndex<'a, G> {
     type IndexType = TimeIndexEntry;
     type RangeType = Self;
 
@@ -144,7 +142,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'graph, Self::IndexType> {
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
         if self.view.edge_history_filtered() {
             let view = self.view.clone();
             let eid = self.eid;
@@ -157,7 +155,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'graph, Self::IndexType> {
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
         if self.view.edge_history_filtered() {
             let view = self.view.clone();
             let eid = self.eid;
@@ -235,22 +233,22 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn dst(self) -> VID;
     fn eid(self) -> EID;
 
-    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a;
+    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + Send + Sync + 'a;
 
     fn layer_ids_par_iter(self, layer_ids: &LayerIds) -> impl ParallelIterator<Item = usize> + 'a;
 
     fn additions_iter(
         self,
         layer_ids: LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + Send + Sync + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.additions(id)))
     }
 
-    fn filtered_additions_iter<G: GraphViewOps<'a>>(
+    fn filtered_additions_iter<'graph: 'a, G: GraphViewOps<'graph>>(
         self,
         view: G,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
+    ) -> BoxedLIter<'a, (usize, FilteredEdgeTimeIndex<'a, G>)> {
         let eid = self.eid();
         self.additions_iter(view.layer_ids().clone())
             .map(move |(layer_id, additions)| {
@@ -263,6 +261,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
                     },
                 )
             })
+            .into_dyn_boxed()
     }
 
     fn additions_par_iter(

@@ -520,6 +520,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
+        // window for deletions has exclusive start as deletions at the start are not considered part of the window
+        let w = w.start.saturating_add(1)..w.end;
         e.filtered_deletions_iter(view)
             .map(|(layer, deletions)| deletions.range_t(w.clone()).iter().map(move |t| (t, layer)))
             .kmerge()
@@ -534,13 +536,154 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge_alive_at_end(e, i64::MAX, view)
     }
 
-    fn edge_is_valid_at_end<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: i64,
+        r: Range<i64>,
     ) -> bool {
-        edge_alive_at_end(e, t, view)
+        edge_alive_at_end(e, r.end, view)
+    }
+
+    fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        !edge_alive_at_end(e, i64::MAX, view)
+    }
+
+    fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        !edge_alive_at_end(e, w.end, view)
+    }
+
+    fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        EventSemantics.edge_is_active(e, view)
+    }
+
+    fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        EventSemantics.edge_is_active_window(e, view, w)
+    }
+
+    fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool {
+        EventSemantics.edge_is_active_exploded(e, view, t, layer)
+    }
+
+    fn edge_is_active_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool {
+        EventSemantics.edge_is_active_exploded_window(e, view, t, layer, w)
+    }
+
+    /// An exploded edge is valid if it is the last exploded view and the edge is not deleted (i.e., there are no additions or deletions for the edge after t in the layer)
+    fn edge_is_valid_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool {
+        !e.filtered_deletions(layer, &view)
+            .active(t.next()..TimeIndexEntry::MAX)
+            && !e
+                .filtered_additions(layer, &view)
+                .active(t.next()..TimeIndexEntry::MAX)
+    }
+
+    /// An exploded edge is valid in a window if it is the last exploded
+    /// view in the window and is not deleted before the end of the window
+    /// (i.e., there are no additions or deletions for the edge after t in the layer in the window)
+    fn edge_is_valid_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool {
+        !e.filtered_deletions(layer, &view)
+            .active(t.next()..TimeIndexEntry::start(w.end))
+            && !e
+                .filtered_additions(layer, &view)
+                .active(t.next()..TimeIndexEntry::start(w.end))
+    }
+
+    fn edge_exploded_deletion<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<TimeIndexEntry> {
+        let next_deletion = e
+            .filtered_deletions(layer, &view)
+            .range(t.next()..TimeIndexEntry::MAX)
+            .first()?;
+        if let Some(next_addition) = e
+            .filtered_additions(layer, &view)
+            .range(t.next()..TimeIndexEntry::MAX)
+            .first()
+        {
+            if next_deletion <= next_addition {
+                Some(next_deletion)
+            } else {
+                None
+            }
+        } else {
+            Some(next_deletion)
+        }
+    }
+
+    fn edge_exploded_deletion_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<TimeIndexEntry> {
+        let next_deletion = e
+            .filtered_deletions(layer, &view)
+            .range(t.next()..TimeIndexEntry::start(w.end))
+            .first()?;
+        if let Some(next_addition) = e
+            .filtered_additions(layer, &view)
+            .range(t.next()..TimeIndexEntry::start(w.end))
+            .first()
+        {
+            if next_deletion <= next_addition {
+                Some(next_deletion)
+            } else {
+                None
+            }
+        } else {
+            Some(next_deletion)
+        }
     }
 
     fn temporal_edge_prop_exploded<'graph, G: GraphViewOps<'graph>>(

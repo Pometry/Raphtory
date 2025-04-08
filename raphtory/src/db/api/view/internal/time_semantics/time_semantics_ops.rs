@@ -231,20 +231,120 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
-    /// Check if  edge `e` is currently valid in any layer included in `layer_ids`
+    /// Check if  edge `e` is currently valid in any layer included in the view
     fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
     ) -> bool;
 
-    /// Check if edge `e` is valid at the end of a window with exclusive end time `t` in all layers included in `layer_ids`
-    fn edge_is_valid_at_end<'graph, G: GraphViewOps<'graph>>(
+    /// Check if edge `e` is valid at the end of a window with exclusive end time `t`
+    /// in any layer included in the view
+    fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: i64,
+        r: Range<i64>,
     ) -> bool;
+
+    fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool;
+
+    fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool;
+
+    fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool;
+
+    fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool;
+
+    fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool;
+
+    fn edge_is_active_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool;
+
+    fn edge_is_valid_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool;
+
+    fn edge_is_valid_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool;
+
+    fn edge_exploded_deletion<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<TimeIndexEntry>;
+
+    fn edge_exploded_deletion_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<TimeIndexEntry>;
+
+    fn edge_is_deleted_exploded<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool {
+        self.edge_exploded_deletion(e, view, t, layer).is_some()
+    }
+
+    fn edge_is_deleted_exploded_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> bool {
+        self.edge_exploded_deletion_window(e, view, t, layer, w)
+            .is_some()
+    }
 
     /// Return the value of an edge temporal property at a given point in time and layer if it exists
     fn temporal_edge_prop_exploded<'graph, G: GraphViewOps<'graph>>(

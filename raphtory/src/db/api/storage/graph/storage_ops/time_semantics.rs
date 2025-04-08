@@ -40,6 +40,10 @@ impl GraphTimeSemanticsOps for GraphStorage {
         TimeSemantics::event()
     }
 
+    fn edge_time_semantics(&self) -> TimeSemantics {
+        TimeSemantics::event()
+    }
+
     fn view_start(&self) -> Option<i64> {
         None
     }

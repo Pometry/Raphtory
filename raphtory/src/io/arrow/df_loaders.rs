@@ -363,7 +363,10 @@ pub(crate) fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
-                        src_node.update_time(TimeIndexEntry(time, start_idx + row), eid.with_layer(*layer));
+                        src_node.update_time(
+                            TimeIndexEntry(time, start_idx + row),
+                            eid.with_layer(*layer),
+                        );
                         src_node.add_edge(*dst, Direction::OUT, *layer, eid);
                         eid_col_shared[row].store(eid.0, Ordering::Relaxed);
                     }
@@ -900,7 +903,7 @@ mod tests {
             },
             disk_graph::DiskGraphStorage,
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::{Graph, GraphViewOps, LayerOps},
+            prelude::{Graph, LayerOps},
             test_utils::build_edge_list,
         };
         use polars_arrow::{
