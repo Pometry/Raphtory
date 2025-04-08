@@ -30,6 +30,8 @@ use std::{borrow::Cow, ops::Range};
 pub trait GraphTimeSemanticsOps {
     fn node_time_semantics(&self) -> TimeSemantics;
 
+    fn edge_time_semantics(&self) -> TimeSemantics;
+
     /// Returns the start of the current view or `None` if unbounded
     fn view_start(&self) -> Option<i64>;
 
@@ -340,6 +342,11 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     #[inline]
     fn node_time_semantics(&self) -> TimeSemantics {
         self.graph().node_time_semantics()
+    }
+
+    #[inline]
+    fn edge_time_semantics(&self) -> TimeSemantics {
+        self.graph().edge_time_semantics()
     }
     #[inline]
     fn view_start(&self) -> Option<i64> {

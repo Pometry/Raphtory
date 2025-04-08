@@ -216,6 +216,10 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         TimeSemantics::persistent()
     }
 
+    fn edge_time_semantics(&self) -> TimeSemantics {
+        TimeSemantics::persistent()
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.0.view_start()
     }

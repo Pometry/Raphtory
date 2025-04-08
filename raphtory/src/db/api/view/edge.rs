@@ -7,7 +7,9 @@ use crate::{
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{CoreGraphOps, GraphTimeSemanticsOps, InternalLayerOps},
+            internal::{
+                CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps,
+            },
             IntoDynBoxed,
         },
     },
@@ -145,15 +147,26 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| {
-            g.edge_history(e.pid(), g.layer_ids().constrain_from_edge(e))
-                .map(|(ti, _)| ti.t())
-                .collect()
+        self.map(|g, e| match e.time() {
+            Some(t) => vec![t.t()],
+            None => {
+                let time_semantics = g.edge_time_semantics();
+                let edge = g.core_edge(e.pid());
+                time_semantics
+                    .edge_history(edge.as_ref(), g)
+                    .map(|(ti, _)| ti.t())
+                    .collect()
+            }
         })
     }
 
     fn history_counts(&self) -> Self::ValueType<usize> {
-        self.map(|g, e| g.edge_exploded_count(g.core_edge(e.pid()).as_ref(), g.layer_ids()))
+        self.map(|g, e| match e.time() {
+            Some(_) => 1,
+            None => g
+                .edge_time_semantics()
+                .edge_exploded_count(g.core_edge(e.pid()).as_ref(), g),
+        })
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {

@@ -375,6 +375,11 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             .window(self.start_bound()..self.end_bound())
     }
 
+    fn edge_time_semantics(&self) -> TimeSemantics {
+        self.graph
+            .edge_time_semantics()
+            .window(self.start_bound()..self.end_bound())
+    }
     fn view_start(&self) -> Option<i64> {
         self.start
     }
