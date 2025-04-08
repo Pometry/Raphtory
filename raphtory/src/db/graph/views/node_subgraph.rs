@@ -519,7 +519,7 @@ mod subgraph_tests {
                 let graph = init_graph(PersistentGraph::new());
                 let node_names: Vec<String> =
                     node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_nodes_with(filter, || init_graph(PersistentGraph::new()), node_names)
+                search_nodes_with(filter, || graph, node_names)
             }
 
             #[cfg(feature = "search")]
@@ -531,7 +531,7 @@ mod subgraph_tests {
                 let graph = init_graph(PersistentGraph::new());
                 let node_names: Vec<String> =
                     node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_nodes_with_w(filter, || init_graph(PersistentGraph::new()), w, node_names)
+                search_nodes_with_w(filter, || graph, w, node_names)
             }
 
             #[test]

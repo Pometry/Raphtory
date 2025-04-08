@@ -397,7 +397,7 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(Graph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with(filter, || init_graph(Graph::new()), node_types)
+                search_nodes_with(filter, || graph, node_types)
             }
 
             #[cfg(feature = "search")]
@@ -409,7 +409,7 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(Graph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with_w(filter, || init_graph(Graph::new()), w, node_types)
+                search_nodes_with_w(filter, || graph, w, node_types)
             }
 
             #[cfg(feature = "search")]
@@ -420,7 +420,7 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(PersistentGraph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with(filter, || init_graph(PersistentGraph::new()), node_types)
+                search_nodes_with(filter, || graph, node_types)
             }
 
             #[cfg(feature = "search")]
@@ -432,7 +432,7 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(PersistentGraph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with_w(filter, || init_graph(PersistentGraph::new()), w, node_types)
+                search_nodes_with_w(filter, || graph, w, node_types)
             }
 
             #[test]
