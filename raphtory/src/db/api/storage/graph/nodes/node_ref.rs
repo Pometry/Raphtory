@@ -1,3 +1,4 @@
+use super::row::Row;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -5,10 +6,13 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
-        view::internal::NodeAdditions,
+        storage::graph::{
+            nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
+            variants::storage_variants::StorageVariants,
+        },
+        view::internal::{NodeAdditions, NodeHistory},
     },
-    prelude::Prop,
+    prelude::{GraphViewOps, Prop},
 };
 use raphtory_api::{
     core::{entities::GidRef, storage::timeindex::TimeIndexEntry},
@@ -17,11 +21,7 @@ use raphtory_api::{
 use std::{borrow::Cow, ops::Range};
 
 #[cfg(feature = "storage")]
-use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
-#[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
-
-use super::row::Row;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
@@ -56,6 +56,11 @@ impl<'a> NodeStorageRef<'a> {
             #[cfg(feature = "storage")]
             NodeStorageRef::Disk(disk_node) => disk_node.last_before_row(t),
         }
+    }
+
+    pub fn history<G: GraphViewOps<'a>>(self, view: G) -> NodeHistory<'a, G> {
+        let additions = self.additions();
+        NodeHistory { additions, view }
     }
 }
 
@@ -140,5 +145,17 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
         for_all!(self, node => node.prop(prop_id))
+    }
+
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
+        match self {
+            NodeStorageRef::Mem(node) => {
+                StorageVariants::Mem(node.tprops().map(|(k, v)| (k, StorageVariants::Mem(v))))
+            }
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(node) => {
+                StorageVariants::Disk(node.tprops().map(|(k, v)| (k, StorageVariants::Disk(v))))
+            }
+        }
     }
 }

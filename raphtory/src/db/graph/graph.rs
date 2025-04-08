@@ -66,15 +66,14 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 }
 
 pub fn assert_node_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
 >(
-    n1: NodeView<G1, GH1>,
-    n2: NodeView<G2, GH2>,
+    n1: NodeView<'graph, G1, GH1>,
+    n2: NodeView<'graph, G2, GH2>,
 ) {
     assert_eq!(
         n1.id(),
@@ -166,15 +165,14 @@ pub fn assert_node_equal<
 }
 
 pub fn assert_nodes_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
 >(
-    nodes1: &Nodes<'graph1, G1, GH1>,
-    nodes2: &Nodes<'graph2, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1>,
+    nodes2: &Nodes<'graph, G2, GH2>,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
     nodes1.sort();
@@ -274,12 +272,7 @@ pub fn assert_edges_equal<
     }
 }
 
-fn assert_graph_equal_layer<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
 ) {
@@ -336,12 +329,7 @@ fn assert_graph_equal_layer<
     assert_edges_equal(&g1.edges(), &g2.edges());
 }
 
-pub fn assert_graph_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
 ) {
@@ -461,14 +449,14 @@ mod db_tests {
         },
         db::{
             api::{
-                properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
+                properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -588,10 +576,7 @@ mod db_tests {
 
             assert!(graph.is_empty());
 
-            assert_eq!(
-                graph.nodes().collect(),
-                Vec::<NodeView<Graph, Graph>>::new()
-            );
+            assert!(graph.nodes().collect().is_empty());
             assert_eq!(
                 graph.edges().collect(),
                 Vec::<EdgeView<Graph, Graph>>::new()
@@ -3745,15 +3730,14 @@ mod db_tests {
             .neighbours()
             .is_empty());
 
-        assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .type_filter(&vec!["d"])
-                .iter()
-                .collect_vec(),
-            Vec::<NodeView<Graph, Graph>>::new()
-        );
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .iter()
+            .collect_vec()
+            .is_empty(),);
 
         assert_eq!(
             g.node("2")

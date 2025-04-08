@@ -102,7 +102,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Returns:
     ///
     /// A view with the names of the properties as keys and the property values as values.
-    fn properties(&self) -> Self::ValueType<ops::GetProperties<Self::Graph>>;
+    fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>>;
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
@@ -259,10 +259,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn properties(&self) -> Self::ValueType<ops::GetProperties<Self::Graph>> {
-        let op = ops::GetProperties {
-            graph: self.graph().clone(),
-        };
+    fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>> {
+        let op = ops::GetProperties::new(self.graph().clone());
         self.map(op)
     }
     #[inline]

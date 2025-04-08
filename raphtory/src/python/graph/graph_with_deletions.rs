@@ -133,7 +133,7 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         match secondary_index {
             None => self
                 .graph
@@ -169,7 +169,7 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         match secondary_index {
             None => {
                 self.graph
@@ -324,7 +324,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///   Optional[MutableNode]: The node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<PersistentGraph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, PersistentGraph>> {
         self.graph.node(id)
     }
 
@@ -365,7 +365,7 @@ impl PyPersistentGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -390,7 +390,7 @@ impl PyPersistentGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 

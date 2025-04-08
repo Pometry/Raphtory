@@ -4,7 +4,7 @@ use crate::{
         utils::time::{error::ParseTimeError, Interval, IntoTime},
     },
     db::api::view::{
-        internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
+        internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
         time::internal::InternalTimeOps,
     },
 };

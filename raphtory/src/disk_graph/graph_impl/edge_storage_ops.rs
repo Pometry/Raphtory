@@ -24,7 +24,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
             match layer_ids {
                 LayerIds::None => false,
                 LayerIds::All => self
-                    .additions_iter(layer_ids)
+                    .additions_iter(layer_ids.clone())
                     .any(|(_, t_index)| t_index.active_t(w.clone())),
                 LayerIds::One(l_id) => self.get_additions::<i64>(*l_id).active_t(w),
                 LayerIds::Multiple(layers) => layers
@@ -59,14 +59,14 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         EdgeRef::new_outgoing(self.eid(), self.src_id(), self.dst_id())
     }
 
-    fn layer_ids_iter(self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
                 (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
+                LayerVariants::One(self.has_layer_inner(id).then_some(id).into_iter())
             }
             LayerIds::Multiple(ids) => {
                 LayerVariants::Multiple(ids.into_iter().filter(move |&id| self.has_layer_inner(id)))
@@ -93,7 +93,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
 
     fn deletions_iter(
         self,
-        _layer_ids: &LayerIds,
+        _layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         Box::new(iter::empty())
     }

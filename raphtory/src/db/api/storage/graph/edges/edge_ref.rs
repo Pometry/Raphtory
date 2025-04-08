@@ -79,7 +79,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => edge.eid())
     }
 
-    fn layer_ids_iter(self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::layer_ids_iter(edge, layer_ids))
     }
 
@@ -89,7 +89,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
 
     fn additions_iter(
         self,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::additions_iter(edge, layer_ids))
     }
@@ -103,7 +103,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
 
     fn deletions_iter(
         self,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::deletions_iter(edge, layer_ids))
     }
@@ -117,7 +117,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
 
     fn updates_iter(
         self,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::updates_iter(edge, layer_ids))
     }

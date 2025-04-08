@@ -582,7 +582,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
             .expect("edge not found")];
 
         let mut last_edge_dir = first_edge.direction;
-        let mut last_edge: Option<NodeView<Graph>> = None;
+        let mut last_edge: Option<NodeView<'static, Graph>> = None;
 
         let mut additional_filters = vec![];
 

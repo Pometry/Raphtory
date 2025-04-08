@@ -6,6 +6,7 @@ pub(crate) mod timer;
 #[cfg(test)]
 mod test {
     use crate::{core::PropType, db::api::mutation::internal::InternalAdditionOps, prelude::*};
+    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
     #[test]
     fn test_neighbours_multiple_layers() {
@@ -19,12 +20,30 @@ mod test {
             .resolve_edge_property("tx_sent", PropType::I32, false)
             .unwrap()
             .inner();
-        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(10))], l_btc)
-            .unwrap();
-        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(20))], l_eth)
-            .unwrap();
-        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(70))], l_tether)
-            .unwrap();
+        g.internal_add_edge(
+            TimeIndexEntry(1, 0),
+            v1,
+            v2,
+            &[(tx_sent_id, Prop::I32(10))],
+            l_btc,
+        )
+        .unwrap();
+        g.internal_add_edge(
+            TimeIndexEntry(1, 1),
+            v1,
+            v2,
+            &[(tx_sent_id, Prop::I32(20))],
+            l_eth,
+        )
+        .unwrap();
+        g.internal_add_edge(
+            TimeIndexEntry(1, 2),
+            v1,
+            v2,
+            &[(tx_sent_id, Prop::I32(70))],
+            l_tether,
+        )
+        .unwrap();
 
         let first = g
             .node(v1)
