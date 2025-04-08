@@ -67,14 +67,6 @@ impl<T: AsTime> TimeIndex<T> {
         }
     }
 
-    pub(crate) fn iter(&self) -> BoxedLIter<T> {
-        match self {
-            TimeIndex::Empty => Box::new(iter::empty()),
-            TimeIndex::One(t) => Box::new(iter::once(*t)),
-            TimeIndex::Set(ts) => Box::new(ts.iter().copied()),
-        }
-    }
-
     pub(crate) fn range_iter(
         &self,
         w: Range<T>,
@@ -89,37 +81,6 @@ impl<T: AsTime> TimeIndex<T> {
                 }
             }
             TimeIndex::Set(ts) => Box::new(ts.range(w).copied()),
-        }
-    }
-
-    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T, Self> {
-        match &self {
-            TimeIndex::Empty => TimeIndexWindow::Empty,
-            TimeIndex::One(t) => {
-                if w.contains(t) {
-                    TimeIndexWindow::All(self)
-                } else {
-                    TimeIndexWindow::Empty
-                }
-            }
-            TimeIndex::Set(ts) => {
-                if let Some(min_val) = ts.first() {
-                    if let Some(max_val) = ts.last() {
-                        if min_val >= &w.start && max_val < &w.end {
-                            TimeIndexWindow::All(self)
-                        } else {
-                            TimeIndexWindow::Range {
-                                timeindex: self,
-                                range: w,
-                            }
-                        }
-                    } else {
-                        TimeIndexWindow::Empty
-                    }
-                } else {
-                    TimeIndexWindow::Empty
-                }
-            }
         }
     }
 }

@@ -159,7 +159,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
 
 impl TimeSemantics {
     pub fn persistent() -> Self {
-        TimeSemantics::Base(BaseTimeSemantics::Persistent(PersistentSemantics()))
+        TimeSemantics::Base(BaseTimeSemantics::Persistent(PersistentSemantics))
     }
 
     pub fn event() -> Self {

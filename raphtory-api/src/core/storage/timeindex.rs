@@ -88,6 +88,31 @@ pub trait TimeIndexOps<'a>: Send + Sync + 'a {
     }
 }
 
+impl<'a, T: TimeIndexOps<'a>> TimeIndexOps<'a> for &'a T {
+    type IndexType = T::IndexType;
+    type RangeType = T::RangeType;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        T::active(*self, w)
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        T::range(*self, w)
+    }
+
+    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
+        T::iter(*self)
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+        T::iter_rev(*self)
+    }
+
+    fn len(&self) -> usize {
+        T::len(*self)
+    }
+}
+
 impl From<i64> for TimeIndexEntry {
     fn from(value: i64) -> Self {
         Self::start(value)

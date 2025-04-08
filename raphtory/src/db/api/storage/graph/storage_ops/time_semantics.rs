@@ -319,14 +319,16 @@ impl GraphTimeSemanticsOps for GraphStorage {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
-            .flat_map(move |prop| GenLockedDIter::from(prop, |prop| prop.iter().into_dyn_dboxed()))
+            .flat_map(move |prop| {
+                GenLockedDIter::from(prop, |prop| prop.deref().iter().into_dyn_dboxed())
+            })
             .into_dyn_dboxed()
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.graph_meta()
             .get_temporal_prop(prop_id)
-            .map(|p| p.iter_window_t(w).next().is_some())
+            .map(|p| p.deref().iter_window_t(w).next().is_some())
             .filter(|p| *p)
             .is_some()
     }
@@ -342,7 +344,8 @@ impl GraphTimeSemanticsOps for GraphStorage {
             .into_iter()
             .flat_map(move |prop| {
                 GenLockedDIter::from(prop, |prop| {
-                    prop.iter_window(TimeIndexEntry::range(start..end))
+                    prop.deref()
+                        .iter_window(TimeIndexEntry::range(start..end))
                         .into_dyn_dboxed()
                 })
             })
@@ -384,8 +387,8 @@ impl GraphTimeSemanticsOps for GraphStorage {
         t: TimeIndexEntry,
         layer_id: usize,
     ) -> Option<Prop> {
-        let entry = self.core_edge(e);
-        entry.temporal_prop_layer(layer_id, id).at(&t)
+        let value = self.core_edge(e).temporal_prop_layer(layer_id, id).at(&t);
+        value
     }
 
     fn temporal_edge_prop_last_at(

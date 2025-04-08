@@ -30,7 +30,7 @@ use raphtory_api::core::{
     unify_types, Direction, PropType,
 };
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::{iter, ops::Deref, sync::Arc};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -103,6 +103,7 @@ impl StableEncode for GraphStorage {
             .temporal_props()
             .map(|(key, values)| {
                 values
+                    .deref()
                     .iter()
                     .map(move |(t, v)| (t, (key, v)))
                     .collect::<Vec<_>>()

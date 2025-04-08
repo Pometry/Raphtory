@@ -4,13 +4,10 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID},
-        storage::timeindex::TimeIndexEntry,
-    },
+    core::{entities::edges::edge_ref::EdgeRef, storage::timeindex::TimeIndexEntry},
     iter::{BoxedLDIter, BoxedLIter},
 };
-use std::{borrow::Cow, ops::Range};
+use std::ops::Range;
 
 pub trait NodeTimeSemanticsOps {
     fn node_earliest_time<'graph, G: GraphViewOps<'graph>>(
@@ -235,20 +232,24 @@ pub trait EdgeTimeSemanticsOps {
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// Check if  edge `e` is currently valid in any layer included in `layer_ids`
-    fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(&self, e: EdgeStorageRef, view: G) -> bool;
+    fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool;
 
     /// Check if edge `e` is valid at the end of a window with exclusive end time `t` in all layers included in `layer_ids`
     fn edge_is_valid_at_end<'graph, G: GraphViewOps<'graph>>(
         &self,
-        e: EdgeStorageRef,
+        e: EdgeStorageRef<'graph>,
         view: G,
         t: i64,
     ) -> bool;
 
     /// Return the value of an edge temporal property at a given point in time and layer if it exists
-    fn temporal_edge_prop_at<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_exploded<'graph, G: GraphViewOps<'graph>>(
         &self,
-        e: EdgeStorageRef,
+        e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         t: TimeIndexEntry,
@@ -258,7 +259,7 @@ pub trait EdgeTimeSemanticsOps {
     /// Return the last value of a temporal edge property at or before a given point in time
     fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
-        e: EdgeStorageRef,
+        e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         t: TimeIndexEntry,
@@ -266,7 +267,7 @@ pub trait EdgeTimeSemanticsOps {
 
     fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        e: EdgeStorageRef,
+        e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         t: TimeIndexEntry,
@@ -326,7 +327,7 @@ pub trait EdgeTimeSemanticsOps {
     /// Get constant edge property
     fn constant_edge_prop<'graph, G: GraphViewOps<'graph>>(
         &self,
-        e: EdgeStorageRef,
+        e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
     ) -> Option<Prop>;
@@ -336,7 +337,7 @@ pub trait EdgeTimeSemanticsOps {
     /// Should only return the property for a layer if the edge exists in the window in that layer
     fn constant_edge_prop_window<'graph, G: GraphViewOps<'graph>>(
         &self,
-        e: EdgeStorageRef,
+        e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<i64>,

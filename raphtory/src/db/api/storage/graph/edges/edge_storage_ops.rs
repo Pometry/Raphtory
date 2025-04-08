@@ -17,18 +17,18 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use either::IntoEither;
-#[cfg(feature = "storage")]
-use pometry_storage::timestamps::TimeStamps;
 use raphtory_api::{
     core::{
         entities::{EID, ELID},
         storage::timeindex::TimeIndexEntry,
     },
-    iter::BoxedLIter,
+    iter::{BoxedLDIter, BoxedLIter, IntoDynDBoxed},
 };
 use rayon::prelude::*;
 use std::ops::Range;
+
+#[cfg(feature = "storage")]
+use pometry_storage::timestamps::TimeStamps;
 
 #[derive(Clone)]
 pub enum TimeIndexRef<'a> {
@@ -108,13 +108,15 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 }
 
 #[derive(Clone)]
-pub struct FilteredTimeIndex<'graph, G: GraphViewOps<'graph>> {
+pub struct FilteredEdgeTimeIndex<'graph, G: GraphViewOps<'graph>> {
     eid: ELID,
     time_index: TimeIndexRef<'graph>,
     view: G,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TimeIndexOps<'graph> for FilteredTimeIndex<'graph, G> {
+impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
+    for FilteredEdgeTimeIndex<'graph, G>
+{
     type IndexType = TimeIndexEntry;
     type RangeType = Self;
 
@@ -177,6 +179,45 @@ impl<'graph, G: GraphViewOps<'graph>> TimeIndexOps<'graph> for FilteredTimeIndex
     }
 }
 
+pub struct FilteredEdgeTProp<G, P> {
+    eid: ELID,
+    view: G,
+    props: P,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
+    for FilteredEdgeTProp<G, P>
+{
+    fn iter(&self) -> BoxedLDIter<'graph, (TimeIndexEntry, Prop)> {
+        let view = self.view.clone();
+        let eid = self.eid;
+        self.props
+            .iter()
+            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+            .into_dyn_dboxed()
+    }
+
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'graph, (TimeIndexEntry, Prop)> {
+        let view = self.view.clone();
+        let eid = self.eid;
+        self.props
+            .iter_window(r)
+            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+            .into_dyn_dboxed()
+    }
+
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+        if self
+            .view
+            .filter_edge_history(self.eid, *ti, self.view.layer_ids())
+        {
+            self.props.at(ti)
+        } else {
+            None
+        }
+    }
+}
+
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn out_ref(self) -> EdgeRef;
 
@@ -209,13 +250,13 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn filtered_additions_iter<G: GraphViewOps<'a>>(
         self,
         view: G,
-    ) -> impl Iterator<Item = (usize, FilteredTimeIndex<'a, G>)> {
+    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
         let eid = self.eid();
         self.additions_iter(view.layer_ids().clone())
             .map(move |(layer_id, additions)| {
                 (
                     layer_id,
-                    FilteredTimeIndex {
+                    FilteredEdgeTimeIndex {
                         eid: eid.with_layer(layer_id),
                         time_index: additions,
                         view: view.clone(),
@@ -242,13 +283,13 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn filtered_deletions_iter<G: GraphViewOps<'a>>(
         self,
         view: G,
-    ) -> impl Iterator<Item = (usize, FilteredTimeIndex<'a, G>)> + 'a {
+    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> + 'a {
         let eid = self.eid();
         self.deletions_iter(view.layer_ids().clone())
             .map(move |(layer_id, deletions)| {
                 (
                     layer_id,
-                    FilteredTimeIndex {
+                    FilteredEdgeTimeIndex {
                         eid: eid.with_layer_deletion(layer_id),
                         time_index: deletions,
                         view: view.clone(),
@@ -276,8 +317,13 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn filtered_updates_iter<G: GraphViewOps<'a>>(
         self,
         view: G,
-    ) -> impl Iterator<Item = (usize, FilteredTimeIndex<'a, G>, FilteredTimeIndex<'a, G>)> + 'a
-    {
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            FilteredEdgeTimeIndex<'a, G>,
+            FilteredEdgeTimeIndex<'a, G>,
+        ),
+    > + 'a {
         self.layer_ids_iter(view.layer_ids().clone())
             .map(move |layer_id| {
                 (
@@ -302,8 +348,8 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self,
         layer_id: usize,
         view: G,
-    ) -> FilteredTimeIndex<'a, G> {
-        FilteredTimeIndex {
+    ) -> FilteredEdgeTimeIndex<'a, G> {
+        FilteredEdgeTimeIndex {
             eid: self.eid().with_layer(layer_id),
             time_index: self.additions(layer_id),
             view,
@@ -315,8 +361,8 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self,
         layer_id: usize,
         view: G,
-    ) -> FilteredTimeIndex<'a, G> {
-        FilteredTimeIndex {
+    ) -> FilteredEdgeTimeIndex<'a, G> {
+        FilteredEdgeTimeIndex {
             eid: self.eid().with_layer_deletion(layer_id),
             time_index: self.deletions(layer_id),
             view,
@@ -325,6 +371,19 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a;
 
+    fn filtered_temporal_prop_layer<G: GraphViewOps<'a>>(
+        self,
+        layer_id: usize,
+        prop_id: usize,
+        view: G,
+    ) -> impl TPropOps<'a> + Sync + 'a {
+        FilteredEdgeTProp {
+            eid: self.eid().with_layer(layer_id),
+            view,
+            props: self.temporal_prop_layer(layer_id, prop_id),
+        }
+    }
+
     fn temporal_prop_iter(
         self,
         layer_ids: LayerIds,
@@ -332,6 +391,20 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
+    }
+
+    fn filtered_temporal_prop_iter<G: GraphViewOps<'a>>(
+        self,
+        prop_id: usize,
+        view: G,
+    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
+        self.layer_ids_iter(view.layer_ids().clone())
+            .map(move |layer_id| {
+                (
+                    layer_id,
+                    self.filtered_temporal_prop_layer(layer_id, prop_id, view.clone()),
+                )
+            })
     }
 
     fn temporal_prop_par_iter(

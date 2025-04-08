@@ -1,7 +1,7 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
 use raphtory_api::{
     core::storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-    iter::BoxedLIter,
+    iter::{BoxedLDIter, BoxedLIter},
 };
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
@@ -266,18 +266,15 @@ impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> 
         for_all!(self, props => props.last_before(t))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter())
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        for_all!(self, props => props.iter())
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter_window(r))
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        for_all!(self, props => props.iter_window(r))
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
     }
 }

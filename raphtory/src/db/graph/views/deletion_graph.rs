@@ -36,7 +36,7 @@ use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    ops::Range,
+    ops::{Deref, Range},
     sync::Arc,
 };
 
@@ -125,8 +125,7 @@ fn persisted_prop_value_at<'a>(
     props: impl TPropOps<'a>,
     deletions: impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
 ) -> Option<Prop> {
-    if props.clone().active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1))
-    {
+    if props.active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
         None
     } else {
         last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
@@ -572,7 +571,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             first
                 .into_iter()
                 .chain(GenLockedDIter::from(prop, |prop| {
-                    prop.iter_window(TimeIndexEntry::range(start..end))
+                    prop.deref()
+                        .iter_window(TimeIndexEntry::range(start..end))
                         .into_dyn_dboxed()
                 }))
                 .into_dyn_dboxed()
@@ -674,9 +674,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             entry
                 .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(l, prop)| {
-                    let first_prop =
-                        persisted_prop_value_at(start, prop.clone(), entry.deletions(l))
-                            .map(move |v| (TimeIndexEntry::start(start), l, v));
+                    let first_prop = persisted_prop_value_at(start, &prop, entry.deletions(l))
+                        .map(move |v| (TimeIndexEntry::start(start), l, v));
                     first_prop.into_iter().chain(
                         prop.iter_window(interior_window(start..end, &entry.deletions(l)))
                             .map(move |(t, v)| (t, l, v)),
@@ -701,9 +700,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             entry
                 .temporal_prop_iter(layer_ids.into_owned(), prop_id)
                 .map(|(l, prop)| {
-                    let first_prop =
-                        persisted_prop_value_at(start, prop.clone(), entry.deletions(l))
-                            .map(|v| (TimeIndexEntry::start(start), l, v));
+                    let first_prop = persisted_prop_value_at(start, &prop, entry.deletions(l))
+                        .map(|v| (TimeIndexEntry::start(start), l, v));
                     first_prop
                         .into_iter()
                         .chain(

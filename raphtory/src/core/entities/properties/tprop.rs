@@ -11,7 +11,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{
     core::storage::arc_str::ArcStr,
-    iter::{BoxedLDIter, BoxedLIter},
+    iter::{BoxedLDIter, BoxedLIter, IntoDynDBoxed},
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -70,22 +70,23 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
         self.iter_window_inner(TimeIndexEntry::MIN..t).next_back()
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.t_cell.into_iter().flat_map(move |t_cell| {
-            t_cell
-                .iter()
-                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
-        })
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        let log = self.log;
+        self.t_cell
+            .into_iter()
+            .flat_map(move |t_cell| {
+                t_cell
+                    .iter()
+                    .filter_map(move |(t, &id)| log?.get(id?).map(|prop| (*t, prop)))
+            })
+            .into_dyn_dboxed()
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.iter_window_inner(r)
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        self.iter_window_inner(r).into_dyn_dboxed()
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         self.t_cell?.at(ti).and_then(|&id| self.log?.get(id?))
     }
 }
@@ -351,18 +352,15 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         self.iter_inner()
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         self.iter_window_inner(r)
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         match self {
             TProp::Empty => None,
             TProp::Str(cell) => cell.at(ti).map(|v| Prop::Str(v.clone())),
@@ -525,7 +523,7 @@ mod tprop_tests {
 
     #[test]
     fn updates_to_prop_can_be_window_iterated() {
-        let tprop = TProp::default();
+        let tprop = &TProp::default();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -538,6 +536,7 @@ mod tprop_tests {
             .unwrap();
         tprop.set(2.into(), Prop::Str("Raphtory".into())).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(2..3).collect::<Vec<_>>(),
             vec![(2, Prop::Str("Raphtory".into()))]
@@ -585,6 +584,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::I32(2022));
         tprop.set(2.into(), Prop::I32(2023)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::I32(2022)), (2, Prop::I32(2023))]
@@ -593,6 +593,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::I64(2022));
         tprop.set(2.into(), Prop::I64(2023)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::I64(2022)), (2, Prop::I64(2023))]
@@ -601,6 +602,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::F32(10.0));
         tprop.set(2.into(), Prop::F32(11.0)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::F32(10.0)), (2, Prop::F32(11.0))]
@@ -609,6 +611,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::F64(10.0));
         tprop.set(2.into(), Prop::F64(11.0)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::F64(10.0)), (2, Prop::F64(11.0))]
@@ -617,6 +620,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::U32(1));
         tprop.set(2.into(), Prop::U32(2)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U32(1)), (2, Prop::U32(2))]
@@ -625,6 +629,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::U64(1));
         tprop.set(2.into(), Prop::U64(2)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U64(1)), (2, Prop::U64(2))]
@@ -633,6 +638,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::U8(1));
         tprop.set(2.into(), Prop::U8(2)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U8(1)), (2, Prop::U8(2))]
@@ -641,6 +647,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::U16(1));
         tprop.set(2.into(), Prop::U16(2)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U16(1)), (2, Prop::U16(2))]
@@ -649,6 +656,7 @@ mod tprop_tests {
         let mut tprop = TProp::from(1.into(), Prop::Bool(true));
         tprop.set(2.into(), Prop::Bool(true)).unwrap();
 
+        let tprop = &tprop;
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::Bool(true)), (2, Prop::Bool(true))]
