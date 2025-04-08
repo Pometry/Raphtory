@@ -1,24 +1,20 @@
-use std::{sync::Arc, time::Duration};
-
+use crate::config::auth_config::{AuthConfig, PublicKey};
 use async_graphql::{
     async_trait,
-    extensions::{
-        Extension, ExtensionContext, ExtensionFactory, NextParseQuery, NextPrepareRequest,
-    },
+    extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
-    Context, Executor, Request as GqlRequest, ServerError, ServerResult, Variables,
+    Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, Algorithm, Validation};
 use poem::{
     error::Unauthorized, Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
-use serde::{Deserialize, Serialize};
-
-use crate::config::auth_config::{AuthConfig, PublicKey};
+use serde::Deserialize;
+use std::{sync::Arc, time::Duration};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]

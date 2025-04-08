@@ -191,18 +191,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         g.edge_meta
             .set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
 
-        if let Some(earliest) = self.earliest_time() {
-            g.update_time(TimeIndexEntry::start(earliest));
-        } else {
-            return Ok(self.new_base_graph(g.into()));
-        };
-
-        if let Some(latest) = self.latest_time() {
-            g.update_time(TimeIndexEntry::end(latest));
-        } else {
-            return Ok(self.new_base_graph(g.into()));
-        };
-
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
                 // no layers to map
@@ -237,6 +225,19 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 layer_map
             }
         };
+
+        if let Some(earliest) = self.earliest_time() {
+            g.update_time(TimeIndexEntry::start(earliest));
+        } else {
+            return Ok(self.new_base_graph(g.into()));
+        };
+
+        if let Some(latest) = self.latest_time() {
+            g.update_time(TimeIndexEntry::end(latest));
+        } else {
+            return Ok(self.new_base_graph(g.into()));
+        };
+
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
         g.event_counter
             .fetch_max(storage.read_event_id(), Ordering::Relaxed);

@@ -22,7 +22,8 @@ use crate::{
             mutation::internal::InheritMutationOps,
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
             view::internal::{
-                Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritViewOps, Static,
+                Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritViewOps, Static,
             },
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
@@ -34,10 +35,9 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fmt::{Display, Formatter},
+    ops::Deref,
     sync::Arc,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -272,7 +272,12 @@ pub fn assert_edges_equal<
     }
 }
 
-pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+fn assert_graph_equal_layer<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+>(
     g1: &G1,
     g2: &G2,
 ) {
@@ -327,6 +332,34 @@ pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'gr
     );
     assert_nodes_equal(&g1.nodes(), &g2.nodes());
     assert_edges_equal(&g1.edges(), &g2.edges());
+}
+
+pub fn assert_graph_equal<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+>(
+    g1: &G1,
+    g2: &G2,
+) {
+    assert_graph_equal_layer(g1, g2);
+    let left_layers: HashSet<_> = g1.unique_layers().collect();
+    let right_layers: HashSet<_> = g2.unique_layers().collect();
+    assert_eq!(
+        left_layers, right_layers,
+        "mismatched layers: left {:?}, right {:?}",
+        left_layers, right_layers
+    );
+
+    for layer in left_layers {
+        assert_graph_equal_layer(
+            &g1.layers(layer.deref())
+                .expect(&format!("Left graph missing layer {layer})")),
+            &g2.layers(layer.deref())
+                .expect(&format!("Right graph missing layer {layer}")),
+        );
+    }
 }
 
 impl Display for Graph {
