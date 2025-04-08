@@ -2008,8 +2008,10 @@ mod views_test {
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
+                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
+                // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N12", "N13", "N5", "N8"];
-                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").ne(true);
@@ -2184,8 +2186,10 @@ mod views_test {
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let expected_results = vec!["N1"];
+                assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
+                // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N1", "N2"];
-                assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
@@ -2212,8 +2216,10 @@ mod views_test {
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let expected_results = vec!["N1"];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
+                // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N1", "N2", "N7"];
-                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
@@ -2268,8 +2274,10 @@ mod views_test {
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
+                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
+                // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N12", "N13", "N5", "N8"];
-                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
@@ -2856,8 +2864,10 @@ mod views_test {
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
+                let expected_results = vec!["N2->N3", "N5->N6"];
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N5->N6"];
-                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").ne(true);
@@ -3098,8 +3108,10 @@ mod views_test {
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let expected_results = vec!["N1->N2"];
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
+                // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N1->N2", "N2->N3"];
-                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").includes(vec![true.into()]);

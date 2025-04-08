@@ -1761,7 +1761,7 @@ pub(crate) mod test_filters {
             fn test_constant_semantics() {
                 let filter = PropertyFilter::property("p1").constant().eq(1u64);
                 let expected_results = vec!["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"];
-                assert_filter_results!(filter_nodes, filter, expected_results);
+                assert_filter_results!(filter_nodes, filter, expected_results); // TODO: Fails
                 assert_search_results!(search_nodes, filter, expected_results);
             }
 
