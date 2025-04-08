@@ -35,12 +35,12 @@ use std::{
 #[pyclass(name = "Edge", subclass, module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyEdge {
-    pub(crate) edge: EdgeView<DynamicGraph, DynamicGraph>,
+    pub edge: EdgeView<DynamicGraph, DynamicGraph>,
 }
 
 #[pyclass(name="MutableEdge", extends=PyEdge, module="raphtory", frozen)]
 pub struct PyMutableEdge {
-    edge: EdgeView<MaterializedGraph, MaterializedGraph>,
+    pub edge: EdgeView<MaterializedGraph, MaterializedGraph>,
 }
 
 impl PyMutableEdge {

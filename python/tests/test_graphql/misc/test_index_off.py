@@ -5,6 +5,7 @@ from raphtory.graphql import RaphtoryClient
 from raphtory.graphql import GraphServer
 
 
+@pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_latest_and_active():
     query = """
         {

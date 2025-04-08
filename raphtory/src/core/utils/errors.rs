@@ -1,4 +1,7 @@
-use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+use crate::{
+    core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
+    db::graph::views::property_filter::{FilterExpr, FilterOperator},
+};
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
@@ -14,11 +17,17 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     PropType,
 };
-use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
+use std::{
+    fmt::Debug,
+    io,
+    path::{PathBuf, StripPrefixError},
+    time::SystemTimeError,
+};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
+use tracing::error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -40,6 +49,15 @@ pub enum InvalidPathReason {
     PathNotParsable(PathBuf),
     #[error("The path to the graph contains a subpath to an existing graph: {0}")]
     ParentIsGraph(PathBuf),
+    #[error("The path provided does not exists as a namespace: {0}")]
+    NamespaceDoesNotExist(String),
+    #[error("The path provided contains non-UTF8 characters.")]
+    NonUTFCharacters,
+    #[error("Failed to strip prefix")]
+    StripPrefix {
+        #[from]
+        source: StripPrefixError,
+    },
 }
 
 #[cfg(feature = "arrow")]
@@ -113,6 +131,10 @@ pub enum GraphError {
     DiskGraphNotFound,
     #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
     IndexMissing,
+    #[error("Missing graph index. You need to create an index first.")]
+    IndexNotCreated,
+    #[error("Failed to create index.")]
+    FailedToCreateIndex,
     #[error("Disk Graph is immutable")]
     ImmutableDiskGraph,
     #[error("Event Graph doesn't support deletions")]
@@ -294,8 +316,8 @@ pub enum GraphError {
     TqdmError,
     #[error("An error when parsing Jinja query templates: {0}")]
     JinjaError(String),
-    #[error("An error when parsing the data to json")]
-    SerdeError,
+    #[error("An error when parsing the data to json: {0}")]
+    SerdeError(#[from] serde_json::Error),
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
     #[error("Property filtering not implemented on PersistentGraph yet")]
@@ -307,8 +329,38 @@ pub enum GraphError {
     #[error("Unsupported: Cannot convert {0} to ArrowDataType ")]
     UnsupportedArrowDataType(PropType),
 
+    #[error("Not supported")]
+    NotSupported,
+
+    #[error("Operator {0} requires a property value, but none was provided.")]
+    InvalidFilter(FilterOperator),
+
+    #[error("Property {0} not found in temporal or constant metadata")]
+    PropertyNotFound(String),
+
+    #[error("PropertyIndex not found for property {0}")]
+    PropertyIndexNotFound(String),
+
+    #[error("Tokenization is support only for str field type")]
+    UnsupportedFieldTypeForTokenization,
+
+    #[error("Not tokens found")]
+    NoTokensFound,
+
     #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
     TooManyViewsSet,
+
+    #[error("Invalid Value conversion")]
+    InvalidValueConversion,
+
+    #[error("Unsupported Value: {0}")]
+    UnsupportedValue(String),
+
+    #[error("Illegal FilterExpr: {0}, Reason: {1}.")]
+    IllegalFilterExpr(FilterExpr, String),
+
+    #[error("Value cannot be empty.")]
+    EmptyValue,
 }
 
 impl GraphError {

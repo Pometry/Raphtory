@@ -6,29 +6,26 @@ use crate::{
             storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
-                    InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, Static,
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InheritNodeHistoryFilter, InheritTimeSemantics, Static,
                 },
                 Base,
             },
         },
-        graph::{
-            edge::EdgeView,
-            views::{
-                property_filter,
-                property_filter::{internal::InternalEdgeFilterOps, PropertyValueFilter},
-            },
-        },
+        graph::{edge::EdgeView, views::property_filter::internal::InternalEdgeFilterOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
 };
+
+use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
     graph: G,
     t_prop_id: Option<usize>,
     c_prop_id: Option<usize>,
-    filter: PropertyValueFilter,
+    filter: PropertyFilter,
 }
 
 impl<'graph, G> EdgePropertyFilteredGraph<G> {
@@ -36,7 +33,7 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
         graph: G,
         t_prop_id: Option<usize>,
         c_prop_id: Option<usize>,
-        filter: PropertyValueFilter,
+        filter: PropertyFilter,
     ) -> Self {
         Self {
             graph,
@@ -54,19 +51,10 @@ impl InternalEdgeFilterOps for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        let (t_prop_id, c_prop_id) = match &self.filter {
-            PropertyValueFilter::ByValue(filter) => property_filter::get_ids_and_check_type(
-                graph.edge_meta(),
-                &self.name,
-                filter.dtype(),
-            )?,
-            _ => property_filter::get_ids(graph.edge_meta(), &self.name),
-        };
+        let t_prop_id = self.resolve_temporal_prop_ids(graph.edge_meta())?;
+        let c_prop_id = self.resolve_constant_prop_ids(graph.edge_meta())?;
         Ok(EdgePropertyFilteredGraph::new(
-            graph,
-            t_prop_id,
-            c_prop_id,
-            self.filter,
+            graph, t_prop_id, c_prop_id, self,
         ))
     }
 }
@@ -83,12 +71,17 @@ impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for EdgePropertyFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for EdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGraph<G> {
     fn edges_filtered(&self) -> bool {
@@ -114,7 +107,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
                     self.c_prop_id
                         .and_then(|prop_id| props.constant().get_by_id(prop_id))
                 });
-            self.filter.filter(prop_value.as_ref())
+            self.filter.matches(prop_value.as_ref())
         } else {
             false
         }

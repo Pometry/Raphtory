@@ -27,6 +27,7 @@ use tracing::debug;
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
 pub struct PyRaphtoryClient {
     pub(crate) url: String,
+    pub(crate) token: String,
 }
 
 impl PyRaphtoryClient {
@@ -69,15 +70,14 @@ impl PyRaphtoryClient {
         query: String,
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<(JsonValue, HashMap<String, JsonValue>)> {
-        let client = Client::new();
-
         let request_body = json!({
             "query": query,
             "variables": variables
         });
 
-        let response = client
+        let response = Client::new()
             .post(&self.url)
+            .bearer_auth(&self.token)
             .json(&request_body)
             .send()
             .await
@@ -94,11 +94,17 @@ impl PyRaphtoryClient {
 #[pymethods]
 impl PyRaphtoryClient {
     #[new]
-    pub(crate) fn new(url: String) -> PyResult<Self> {
-        match reqwest::blocking::get(url.clone()) {
+    #[pyo3(signature = (url, token=None))]
+    pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
+        let token = token.unwrap_or("".to_owned());
+        match reqwest::blocking::Client::new()
+            .get(&url)
+            .bearer_auth(&token)
+            .send()
+        {
             Ok(response) => {
                 if response.status() == 200 {
-                    Ok(Self { url })
+                    Ok(Self { url, token })
                 } else {
                     Err(PyValueError::new_err(format!(
                         "Could not connect to the given server - response {}",
@@ -228,6 +234,7 @@ impl PyRaphtoryClient {
 
             let response = client
                 .post(&remote_client.url)
+                .bearer_auth(&remote_client.token)
                 .multipart(form)
                 .send()
                 .await

@@ -2,11 +2,12 @@ use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::plugins::query_plugin::QueryPlugin,
-    paths::{ExistingGraphFolder, ValidGraphFolder},
+    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
+use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphResult},
+    core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
     db::api::view::MaterializedGraph,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
@@ -17,7 +18,7 @@ use raphtory::{
 use std::{
     collections::HashMap,
     fs,
-    path::{Path, PathBuf, StripPrefixError},
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tracing::{error, warn};
@@ -31,11 +32,32 @@ pub struct EmbeddingConf {
     pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
 }
 
+pub(crate) fn get_relative_path(
+    work_dir: PathBuf,
+    path: &Path,
+    namespace: bool,
+) -> Result<String, InvalidPathReason> {
+    let path_buf = path.strip_prefix(work_dir.clone())?.to_path_buf();
+    let components = path_buf
+        .components()
+        .into_iter()
+        .map(|c| {
+            c.as_os_str()
+                .to_str()
+                .ok_or(InvalidPathReason::NonUTFCharacters)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    //a safe unwrap as checking above
+    let path_str = components.into_iter().join("/");
+    valid_path(work_dir, &path_str, namespace)?;
+    Ok(path_str)
+}
+
 #[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
-    pub(crate) index: bool,
+    pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
 
@@ -57,7 +79,7 @@ impl Data {
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
-            index: true,
+            create_index: true,
             embedding_conf: Default::default(),
         }
     }
@@ -79,8 +101,7 @@ impl Data {
     ) -> Result<(), GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
         let vectors = self.vectorise(graph.clone(), &folder).await;
-        let index = self.index.then(|| graph.clone().into());
-        let graph = GraphWithVectors::new(graph, index, vectors);
+        let graph = GraphWithVectors::new(graph, vectors);
         self.insert_graph_with_vectors(path, graph)
     }
 
@@ -198,17 +219,11 @@ impl Data {
             .filter_map(|e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = self.get_relative_path(path).ok()?;
-                let relative_str = relative.to_str()?; // potential UTF8 error here
-                let cleaned = relative_str.replace(r"\", "/");
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned).ok()?;
+                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
                 Some(folder)
             })
             .collect()
-    }
-
-    fn get_relative_path(&self, path: &Path) -> Result<PathBuf, StripPrefixError> {
-        Ok(path.strip_prefix(&self.work_dir)?.to_path_buf())
     }
 
     pub(crate) fn get_global_plugins(&self) -> QueryPlugin {
@@ -242,7 +257,7 @@ impl Data {
             .map(|conf| conf.cache.clone())
             .unwrap_or(Arc::new(None));
 
-        GraphWithVectors::read_from_folder(folder, self.index, embedding, cache)
+        GraphWithVectors::read_from_folder(folder, embedding, cache, self.create_index)
     }
 }
 

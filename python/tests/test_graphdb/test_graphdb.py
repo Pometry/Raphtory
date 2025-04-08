@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from decimal import Decimal
 import math
 import sys
 import random
@@ -885,6 +886,77 @@ def test_node_properties():
         assert "static prop" in g.at(1).node(1).properties.constant
         assert "static prop" in g.at(1).nodes.properties.constant
         assert "static prop" in g.at(1).nodes.out_neighbours.properties.constant
+
+    check(g)
+
+
+def test_decimal_property():
+    g = Graph()
+    decimal_properties = {
+        "d_max": Decimal("9999999999999999999999999999.999999999"),
+        "d_min": Decimal("-9999999999999999999999999999.999999999"),
+        "d_int": Decimal("9999999999999999999999999999"),
+        "d_small_neg": Decimal("-0.1"),
+        "d_small_pos": Decimal("0.1"),
+        "d_medium": Decimal("104447267751554560119.000000000"),
+    }
+    g.add_edge(0, 1, 1, decimal_properties)
+    g.add_node(2, 2, decimal_properties)
+    n = g.node(2)
+    n.add_updates(3, decimal_properties)
+    e = g.edge(1, 1)
+    e.add_updates(3, decimal_properties)
+
+    with pytest.raises(Exception):
+        g.add_edge(
+            0,
+            1,
+            1,
+            {
+                "d_extra_max_super_ultra_x_x": Decimal(
+                    "9999999999999999999999999999999999999999999999999999.999999999"
+                )
+            },
+        )
+
+    @with_disk_graph
+    def check(g):
+        assert g.node(2).properties.temporal.get("d_max").items() == [
+            (2, Decimal("9999999999999999999999999999.999999999")),
+            (3, Decimal("9999999999999999999999999999.999999999")),
+        ]
+
+        assert g.edge(1, 1).properties.temporal.get("d_min").items() == [
+            (0, Decimal("-9999999999999999999999999999.999999999")),
+            (3, Decimal("-9999999999999999999999999999.999999999")),
+        ]
+
+        assert g.node(2).properties.temporal == {
+            "d_max": [
+                (2, Decimal("9999999999999999999999999999.999999999")),
+                (3, Decimal("9999999999999999999999999999.999999999")),
+            ],
+            "d_min": [
+                (2, Decimal("-9999999999999999999999999999.999999999")),
+                (3, Decimal("-9999999999999999999999999999.999999999")),
+            ],
+            "d_int": [
+                (2, Decimal("9999999999999999999999999999")),
+                (3, Decimal("9999999999999999999999999999")),
+            ],
+            "d_small_neg": [(2, Decimal("-0.1")), (3, Decimal("-0.1"))],
+            "d_small_pos": [(2, Decimal("0.1")), (3, Decimal("0.1"))],
+            "d_medium": [
+                (2, Decimal("104447267751554560119.000000000")),
+                (3, Decimal("104447267751554560119.000000000")),
+            ],
+        }
+
+        assert g.node(2).properties.temporal.get("d_small_pos").sum() == Decimal("0.2")
+        assert g.node(2).properties.temporal.get("d_small_neg").sum() == Decimal("-0.2")
+        assert g.node(2).properties.temporal.get("d_medium").sum() == Decimal(
+            "208894535503109120238.000000000"
+        )
 
     check(g)
 
@@ -2930,94 +3002,6 @@ def test_unique_temporal_properties():
             expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
         )
         assert sorted_actual_list == sorted_expected_list
-
-    check(g)
-
-
-def test_fuzzy_search():
-    g = Graph()
-    g.add_node(
-        1, "hamza", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
-    )
-    g.add_node(
-        2, "hamza", properties={"value": 70, "value_f": 21.3, "value_str": "avc125"}
-    )
-    g.add_node(
-        3, "haaroon", properties={"value": 80, "value_f": 11.3, "value_str": "avc125"}
-    )
-    g.add_node(
-        4, "ben", properties={"value": 80, "value_f": 11.3, "value_str": "dsc2312"}
-    )
-
-    g.add_edge(
-        2,
-        "haaroon",
-        "hamza",
-        properties={"value": 60, "value_f": 31.3, "value_str": "abc123"},
-    )
-    g.add_edge(
-        1,
-        "ben",
-        "hamza",
-        properties={"value": 59, "value_f": 11.4, "value_str": "test test test"},
-    )
-    g.add_edge(
-        3,
-        "ben",
-        "haaroon",
-        properties={
-            "value": 199,
-            "value_f": 52.6,
-            "value_str": "I wanna rock right now",
-        },
-    )
-    g.add_edge(4, "hamza", "naomi", properties={"value_str": "I wanna rock right now"})
-
-    # @with_disk_graph # FIXME: Indexing doesn't seem to return layers and doesn't pass the layer id to the storage blowing up in the storage
-    def check(g):
-        index = g.index()
-
-        assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
-        assert (
-            len(
-                index.fuzzy_search_nodes(
-                    "name:haa", levenshtein_distance=1, prefix=True
-                )
-            )
-            == 2
-        )
-        assert (
-            len(
-                index.fuzzy_search_nodes(
-                    "value_str:abc123", levenshtein_distance=2, prefix=True
-                )
-            )
-            == 2
-        )
-        assert (
-            len(
-                index.fuzzy_search_nodes(
-                    "value_str:dsss312", levenshtein_distance=2, prefix=False
-                )
-            )
-            == 1
-        )
-
-        assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
-        assert (
-            len(
-                index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True)
-            )
-            == 2
-        )
-        assert (
-            len(
-                index.fuzzy_search_edges(
-                    "from:eon", levenshtein_distance=2, prefix=True
-                )
-            )
-            == 2
-        )
 
     check(g)
 

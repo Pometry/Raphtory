@@ -23,7 +23,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
             },
         },
     },
@@ -129,6 +129,27 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn properties(&self) -> Properties<Self>;
 }
 
+#[cfg(feature = "search")]
+pub trait SearchableGraphOps: Sized {
+    fn create_index(&self) -> Result<(), GraphError>;
+
+    fn search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+
+    fn search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn is_indexed(&self) -> bool;
+}
+
 impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
@@ -165,18 +186,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         g.edge_meta
             .set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
 
-        if let Some(earliest) = self.earliest_time() {
-            g.update_time(TimeIndexEntry::start(earliest));
-        } else {
-            return Ok(self.new_base_graph(g.into()));
-        };
-
-        if let Some(latest) = self.latest_time() {
-            g.update_time(TimeIndexEntry::end(latest));
-        } else {
-            return Ok(self.new_base_graph(g.into()));
-        };
-
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
                 return Ok(self.new_base_graph(g.into()));
@@ -210,6 +219,19 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 layer_map
             }
         };
+
+        if let Some(earliest) = self.earliest_time() {
+            g.update_time(TimeIndexEntry::start(earliest));
+        } else {
+            return Ok(self.new_base_graph(g.into()));
+        };
+
+        if let Some(latest) = self.latest_time() {
+            g.update_time(TimeIndexEntry::end(latest));
+        } else {
+            return Ok(self.new_base_graph(g.into()));
+        };
+
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
         g.event_counter
             .fetch_max(storage.read_event_id(), Ordering::Relaxed);
@@ -590,6 +612,48 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
+    }
+}
+
+#[cfg(feature = "search")]
+impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+    fn create_index(&self) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
+                storage.get_or_create_index()?;
+                Ok(())
+            })
+    }
+
+    fn search_nodes(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+        let index = self
+            .get_storage()
+            .and_then(|s| s.get_index())
+            .ok_or(GraphError::IndexNotCreated)?;
+        index.searcher().search_nodes(self, filter, limit, offset)
+    }
+
+    fn search_edges(
+        &self,
+        filter: FilterExpr,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        let index = self
+            .get_storage()
+            .and_then(|s| s.get_index())
+            .ok_or(GraphError::IndexNotCreated)?;
+        index.searcher().search_edges(self, filter, limit, offset)
+    }
+
+    fn is_indexed(&self) -> bool {
+        self.get_storage()
+            .map_or(false, |s| s.get_index().is_some())
     }
 }
 

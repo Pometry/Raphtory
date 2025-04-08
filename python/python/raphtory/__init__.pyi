@@ -110,6 +110,9 @@ class GraphView(object):
            int: the number of temporal edges in the graph
         """
 
+    def create_index(self):
+        """Create graph index"""
+
     def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
@@ -330,16 +333,6 @@ class GraphView(object):
           bool: true if the graph contains the specified node, false otherwise
         """
 
-    def index(self) -> GraphIndex:
-        """
-        Indexes all node and edge properties.
-        Returns a GraphIndex which allows the user to search the edges and nodes of the graph via tantivity fuzzy matching queries.
-        Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
-
-        Returns:
-           GraphIndex: Returns a GraphIndex
-        """
-
     def latest(self) -> GraphView:
         """
          Create a view of the GraphView including all events at the latest time.
@@ -441,6 +434,32 @@ class GraphView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
+        """
+
+    def search_edges(self, filter: Any, limit: int = 25, offset: int = 0) -> list[Edge]:
+        """
+        Searches for edges which match the given filter expression. This uses Tantivy's exact search.
+
+        Arguments:
+           filter: The filter expression to search for.
+           limit(int): The maximum number of results to return. Defaults to 25.
+           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
+
+        Returns:
+           list[Edge]: A list of edges which match the filter expression. The list will be empty if no edges match the query.
+        """
+
+    def search_nodes(self, filter: Any, limit: int = 25, offset: int = 0) -> list[Node]:
+        """
+        Searches for nodes which match the given filter expression. This uses Tantivy's exact search.
+
+        Arguments:
+           filter: The filter expression to search for.
+           limit(int): The maximum number of results to return. Defaults to 25.
+           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
+
+        Returns:
+           list[Node]: A list of nodes which match the filter expression. The list will be empty if no nodes match.
         """
 
     def shrink_end(self, end: TimeInput) -> GraphView:
@@ -1300,17 +1319,6 @@ class Graph(GraphView):
           MutableNode: The node object with the specified id, or None if the node does not exist
         """
 
-    def persist_as_disk_graph(self, graph_dir: str | PathLike) -> DiskGraphStorage:
-        """
-        save graph in disk_graph format and memory map the result
-
-        Arguments:
-            graph_dir (str | PathLike): folder where the graph will be saved
-
-        Returns:
-            DiskGraphStorage: the persisted disk graph storage
-        """
-
     def persistent_graph(self) -> PersistentGraph:
         """
         View graph with persistent semantics
@@ -1346,17 +1354,6 @@ class Graph(GraphView):
 
         Returns:
           bytes:
-        """
-
-    def to_disk_graph(self, graph_dir: str | PathLike) -> Graph:
-        """
-        Persist graph on disk
-
-        Arguments:
-            graph_dir (str | PathLike): the folder where the graph will be persisted
-
-        Returns:
-            Graph: a view of the persisted graph
         """
 
     def to_parquet(self, graph_dir: str | PathLike):
@@ -5598,7 +5595,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5667,7 +5664,7 @@ class ConstantProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5748,7 +5745,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5830,7 +5827,7 @@ class TemporalProperties(object):
 
 class PropertiesView(object):
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -6090,116 +6087,3 @@ class WindowSet(object):
         Returns:
             Iterable: the time index"
         """
-
-class GraphIndex(object):
-    """
-    A searchable Index for a `Graph`. This allows for fuzzy and exact searches of nodes and edges.
-    This makes use of Tantivity internally to provide the search functionality.
-    To create a graph index, call `graph.index()` on any `Graph` object in python.
-    """
-
-    def fuzzy_search_edges(
-        self,
-        query: str,
-        limit: int = 25,
-        offset: int = 0,
-        prefix: bool = False,
-        levenshtein_distance: int = 0,
-    ) -> list[Edge]:
-        """
-        Searches for edges which match the given query. This uses Tantivy's fuzzy search.
-
-        Arguments:
-           query(str): The query to search for.
-           limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Returns the first page of results by default.
-           prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to False.
-           levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0.
-                The default value corresponds to exact matching.
-
-        Returns:
-           list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
-        """
-
-    def fuzzy_search_nodes(
-        self,
-        query: str,
-        limit: int = 25,
-        offset: int = 0,
-        prefix: bool = False,
-        levenshtein_distance: int = 0,
-    ) -> list[Node]:
-        """
-        Searches for nodes which match the given query. This uses Tantivy's fuzzy search.
-        If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
-
-        Arguments:
-           query(str): The query to search for.
-           limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination.
-                Returns the first page of results by default.
-           prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to False.
-           levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0.
-                The default corresponds to exact matching.
-
-        Returns:
-           list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
-        """
-
-    def search_edges(self, query: str, limit: int = 25, offset: int = 0) -> list[Edge]:
-        """
-        Searches for edges which match the given query. This uses Tantivy's exact search.
-
-        Arguments:
-           query(str): The query to search for.
-           limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
-
-        Returns:
-           list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
-        """
-
-    def search_nodes(self, query: str, limit: int = 25, offset: int = 0) -> list[Node]:
-        """
-        Searches for nodes which match the given query. This uses Tantivy's exact search.
-
-        Arguments:
-           query(str): The query to search for.
-           limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
-
-        Returns:
-           list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
-        """
-
-class DiskGraphStorage(object):
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def append_node_temporal_properties(self, location, chunk_size=20000000): ...
-    def graph_dir(self): ...
-    @staticmethod
-    def load_from_dir(graph_dir): ...
-    @staticmethod
-    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col): ...
-    @staticmethod
-    def load_from_parquets(
-        graph_dir,
-        layer_parquet_cols,
-        node_properties=None,
-        chunk_size=10000000,
-        t_props_chunk_size=10000000,
-        num_threads=4,
-        node_type_col=None,
-        node_id_col=None,
-    ): ...
-    def load_node_const_properties(self, location, col_names=None, chunk_size=None): ...
-    def load_node_types(self, location, col_name, chunk_size=None): ...
-    def merge_by_sorted_gids(self, other, graph_dir):
-        """
-        Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
-        sorted by their global ids or the resulting graph will be nonsense!
-        """
-
-    def to_events(self): ...
-    def to_persistent(self): ...

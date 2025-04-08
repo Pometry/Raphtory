@@ -1,14 +1,30 @@
 use crate::{
     core::{prop_array::PropArray, utils::errors::GraphError, Prop},
-    db::graph::views::property_filter::internal::{
-        InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
+    db::graph::views::property_filter::{
+        internal::{
+            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
+        },
+        PropertyRef,
     },
     prelude::{GraphViewOps, PropertyFilter},
     python::types::repr::Repr,
 };
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool, IntoPyObjectExt};
+use bigdecimal::BigDecimal;
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    sync::GILOnceCell,
+    types::{PyBool, PyType},
+    IntoPyObjectExt,
+};
 use pyo3_arrow::PyArray;
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, str::FromStr, sync::Arc};
+
+static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
 
 impl<'py> IntoPyObject<'py> for Prop {
     type Target = PyAny;
@@ -40,6 +56,10 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
             Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+            Prop::Decimal(d) => {
+                let decl_cls = get_decimal_cls(py)?;
+                decl_cls.call1((d.to_string(),))?
+            }
         })
     }
 }
@@ -52,6 +72,20 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::I64(v));
+        }
+        if ob.get_type().name()?.contains("Decimal")? {
+            // this sits before f64, otherwise it will be picked up as f64
+            let py_str = &ob.str()?;
+            let rs_str = &py_str.to_cow()?;
+
+            return Ok(BigDecimal::from_str(&rs_str)
+                .map_err(|_| {
+                    PyTypeError::new_err(format!("Could not convert {} to Decimal", rs_str))
+                })
+                .and_then(|bd| {
+                    Prop::try_from_bd(bd)
+                        .map_err(|_| PyTypeError::new_err(format!("Decimal too large {}", rs_str)))
+                })?);
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::F64(v));
@@ -100,6 +134,7 @@ impl Repr for Prop {
             Prop::F32(v) => v.repr(),
             Prop::List(v) => v.repr(),
             Prop::Map(v) => v.repr(),
+            Prop::Decimal(v) => v.repr(),
         }
     }
 }
@@ -179,32 +214,32 @@ impl PyPropertyRef {
     }
 
     fn __eq__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::eq(&self.name, value);
+        let filter = PropertyFilter::eq(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __ne__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::ne(&self.name, value);
+        let filter = PropertyFilter::ne(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __lt__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::lt(&self.name, value);
+        let filter = PropertyFilter::lt(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __le__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::le(&self.name, value);
+        let filter = PropertyFilter::le(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __gt__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::gt(&self.name, value);
+        let filter = PropertyFilter::gt(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
     fn __ge__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::ge(&self.name, value);
+        let filter = PropertyFilter::ge(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 
@@ -213,7 +248,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn is_some(&self) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_some(&self.name);
+        let filter = PropertyFilter::is_some(PropertyRef::Property(self.name.clone()));
         PyPropertyFilter(filter)
     }
 
@@ -222,7 +257,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn is_none(&self) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_none(&self.name);
+        let filter = PropertyFilter::is_none(PropertyRef::Property(self.name.clone()));
         PyPropertyFilter(filter)
     }
 
@@ -234,7 +269,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::any(&self.name, values);
+        let filter = PropertyFilter::includes(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 
@@ -247,7 +282,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::not_any(&self.name, values);
+        let filter = PropertyFilter::excludes(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 }

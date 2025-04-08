@@ -91,6 +91,8 @@ class GraphServer(object):
         otlp_agent_host: Optional[str] = None,
         otlp_agent_port: Optional[str] = None,
         otlp_tracing_service_name: Optional[str] = None,
+        auth_public_key=None,
+        auth_enabled_for_reads=None,
         config_path: Optional[str | PathLike] = None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
@@ -219,7 +221,7 @@ class RaphtoryClient(object):
         url (str): the URL of the Raphtory GraphQL server
     """
 
-    def __new__(cls, url: str) -> RaphtoryClient:
+    def __new__(cls, url: str, token=None) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def copy_graph(self, path: str, new_path: str) -> None:

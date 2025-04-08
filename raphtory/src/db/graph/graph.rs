@@ -15,14 +15,16 @@
 //! graph.count_edges();
 //! ```
 //!
-
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
-            view::internal::{Base, InheritViewOps, Static},
+            view::internal::{
+                Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritViewOps, Static,
+            },
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
@@ -33,6 +35,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fmt::{Display, Formatter},
+    ops::Deref,
     sync::Arc,
 };
 
@@ -271,7 +274,7 @@ pub fn assert_edges_equal<
     }
 }
 
-pub fn assert_graph_equal<
+fn assert_graph_equal_layer<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
@@ -333,6 +336,34 @@ pub fn assert_graph_equal<
     assert_edges_equal(&g1.edges(), &g2.edges());
 }
 
+pub fn assert_graph_equal<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+>(
+    g1: &G1,
+    g2: &G2,
+) {
+    assert_graph_equal_layer(g1, g2);
+    let left_layers: HashSet<_> = g1.unique_layers().collect();
+    let right_layers: HashSet<_> = g2.unique_layers().collect();
+    assert_eq!(
+        left_layers, right_layers,
+        "mismatched layers: left {:?}, right {:?}",
+        left_layers, right_layers
+    );
+
+    for layer in left_layers {
+        assert_graph_equal_layer(
+            &g1.layers(layer.deref())
+                .expect(&format!("Left graph missing layer {layer})")),
+            &g2.layers(layer.deref())
+                .expect(&format!("Right graph missing layer {layer}")),
+        );
+    }
+}
+
 impl Display for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner)
@@ -360,6 +391,12 @@ impl Base for Graph {
 impl InheritMutationOps for Graph {}
 
 impl InheritViewOps for Graph {}
+
+impl InheritStorageOps for Graph {}
+
+impl InheritNodeHistoryFilter for Graph {}
+
+impl InheritEdgeHistoryFilter for Graph {}
 
 impl Graph {
     /// Create a new graph
@@ -438,6 +475,7 @@ mod db_tests {
         test_storage,
         test_utils::{build_graph, build_graph_strat, test_graph},
     };
+    use bigdecimal::BigDecimal;
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
@@ -2111,6 +2149,21 @@ mod db_tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_decimal_properties() {
+        let graph = Graph::new();
+        let dec_prop = Prop::Decimal(BigDecimal::new(123456234234123123i64.into(), 9));
+        graph
+            .add_node(0, 1, [("cost".to_string(), dec_prop.clone())], None)
+            .unwrap();
+
+        test_storage!(&graph, |graph| {
+            let node = graph.node(1).unwrap();
+            let prop = node.properties().get("cost").unwrap();
+            assert_eq!(prop, dec_prop);
+        });
     }
 
     #[test]

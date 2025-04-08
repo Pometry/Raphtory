@@ -3,6 +3,7 @@ use crate::{
     db::api::{properties::internal::PropertiesOps, view::BoxedLIter},
 };
 use arrow_array::ArrayRef;
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rustc_hash::FxHashMap;
@@ -21,6 +22,10 @@ pub struct TemporalPropertyView<P: PropertiesOps> {
 impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub(crate) fn new(props: P, key: usize) -> Self {
         TemporalPropertyView { props, id: key }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
     }
 
     pub fn dtype(&self) -> PropType {
@@ -244,5 +249,9 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn as_f64(&self) -> Option<f64> {
         self.latest().as_f64()
+    }
+
+    fn into_decimal(self) -> Option<BigDecimal> {
+        self.latest().into_decimal()
     }
 }

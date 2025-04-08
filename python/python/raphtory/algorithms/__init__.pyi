@@ -731,7 +731,7 @@ class Matching(object):
         """True if self else False"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -826,5 +826,3 @@ class Infected(object):
         Returns:
             int:
         """
-
-def connected_components(graph): ...

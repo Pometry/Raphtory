@@ -13,7 +13,7 @@ use std::{
 pub mod edges;
 pub mod properties;
 
-// the only reason this is public is because the physical ids of the nodes don't move
+// The only reason this is public is because the physical IDs of the nodes don’t move.
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Pod, Zeroable,
@@ -262,6 +262,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
             GID::U64(v) => GidRef::U64(*v),
             GID::Str(v) => GidRef::Str(v),
         }
+    }
+}
+
+impl<'a> From<&'a str> for GidRef<'a> {
+    fn from(value: &'a str) -> Self {
+        GidRef::Str(value)
     }
 }
 

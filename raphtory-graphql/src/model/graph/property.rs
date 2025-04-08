@@ -1,22 +1,82 @@
 use async_graphql::{Error, Name, Value as GqlValue};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use itertools::Itertools;
 use raphtory::{
-    core::{IntoPropMap, Prop},
+    core::{utils::errors::GraphError, IntoPropMap, Prop},
     db::api::properties::{
         dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
+use rustc_hash::FxHashMap;
 use serde_json::Number;
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+
+#[derive(InputObject, Clone, Debug, Default)]
+pub struct ObjectEntry {
+    pub key: String,
+    pub value: Value,
+}
+
+#[derive(InputObject, Clone, Debug, Default)]
+pub struct Value {
+    pub u64: Option<u64>,
+    pub i64: Option<i64>,
+    pub f64: Option<f64>,
+    pub str: Option<String>,
+    pub bool: Option<bool>,
+    pub list: Option<Vec<Value>>,
+    pub object: Option<Vec<ObjectEntry>>,
+}
+
+impl TryFrom<Value> for Prop {
+    type Error = GraphError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value_to_prop(value)
+    }
+}
+
+fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
+    if let Some(n) = value.u64 {
+        return Ok(Prop::U64(n));
+    }
+    if let Some(n) = value.i64 {
+        return Ok(Prop::I64(n));
+    }
+    if let Some(n) = value.f64 {
+        return Ok(Prop::F64(n));
+    }
+    if let Some(s) = value.str {
+        return Ok(Prop::Str(s.into()));
+    }
+    if let Some(b) = value.bool {
+        return Ok(Prop::Bool(b));
+    }
+    if let Some(list) = value.list {
+        let prop_list: Vec<Prop> = list
+            .into_iter()
+            .map(value_to_prop)
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(Prop::List(prop_list.into()));
+    }
+    if let Some(object) = value.object {
+        let prop_map: FxHashMap<ArcStr, Prop> = object
+            .into_iter()
+            .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
+            .collect::<Result<FxHashMap<_, _>, _>>()?;
+        return Ok(Prop::Map(Arc::new(prop_map)));
+    }
+    Err(GraphError::EmptyValue)
+}
 
 #[derive(Clone, Debug, Scalar)]
-pub struct GqlPropValue(pub Prop);
+pub struct GqlPropOutputVal(pub Prop);
 
-impl ScalarValue for GqlPropValue {
-    fn from_value(value: GqlValue) -> Result<GqlPropValue, Error> {
-        Ok(GqlPropValue(gql_to_prop(value)?))
+impl ScalarValue for GqlPropOutputVal {
+    fn from_value(value: GqlValue) -> Result<GqlPropOutputVal, Error> {
+        Ok(GqlPropOutputVal(gql_to_prop(value)?))
     }
 
     fn to_value(&self) -> GqlValue {
@@ -77,19 +137,22 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::NDTime(t) => GqlValue::Number(t.and_utc().timestamp_millis().into()),
         Prop::Array(a) => GqlValue::List(a.iter_prop().map(|p| prop_to_gql(&p)).collect()),
+        Prop::Decimal(d) => GqlValue::String(d.to_string()),
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(Clone, ResolvedObject)]
 pub(crate) struct GqlProp {
     key: String,
     prop: Prop,
 }
+
 impl GqlProp {
     pub(crate) fn new(key: String, prop: Prop) -> Self {
         Self { key, prop }
     }
 }
+
 impl From<(String, Prop)> for GqlProp {
     fn from(value: (String, Prop)) -> Self {
         GqlProp::new(value.0, value.1)
@@ -106,8 +169,8 @@ impl GqlProp {
         self.prop.to_string()
     }
 
-    async fn value(&self) -> GqlPropValue {
-        GqlPropValue(self.prop.clone())
+    async fn value(&self) -> GqlPropOutputVal {
+        GqlPropOutputVal(self.prop.clone())
     }
 }
 
@@ -116,11 +179,13 @@ pub(crate) struct GqlPropTuple {
     time: i64,
     prop: Prop,
 }
+
 impl GqlPropTuple {
     pub(crate) fn new(time: i64, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
+
 impl From<(i64, Prop)> for GqlPropTuple {
     fn from(value: (i64, Prop)) -> Self {
         GqlPropTuple::new(value.0, value.1)
@@ -137,8 +202,8 @@ impl GqlPropTuple {
         self.prop.to_string()
     }
 
-    async fn value(&self) -> GqlPropValue {
-        GqlPropValue(self.prop.clone())
+    async fn value(&self) -> GqlPropOutputVal {
+        GqlPropOutputVal(self.prop.clone())
     }
 }
 
@@ -286,7 +351,7 @@ impl GqlProperties {
         self.props.temporal().into()
     }
 
-    async fn constant(&self) -> GqlConstantProperties {
+    pub(crate) async fn constant(&self) -> GqlConstantProperties {
         self.props.constant().into()
     }
 }
@@ -305,7 +370,7 @@ impl GqlConstantProperties {
         self.props.keys().map(|k| k.clone().into()).collect()
     }
 
-    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
+    pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
         match keys {
             Some(keys) => self
                 .props

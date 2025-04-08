@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 
 class PyReprTest(TestCase):
-
     # event graph with no layers
     def test_no_layers(self):
         G = Graph()

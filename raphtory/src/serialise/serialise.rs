@@ -12,7 +12,7 @@ use crate::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
             },
-            view::{internal::CoreGraphOps, MaterializedGraph},
+            view::{internal::CoreGraphOps, MaterializedGraph, StaticGraphViewOps},
         },
         graph::views::deletion_graph::PersistentGraph,
     },
@@ -41,17 +41,15 @@ macro_rules! zip_tprop_updates {
     };
 }
 
-pub trait StableEncode {
+pub trait StableEncode: StaticGraphViewOps {
     fn encode_to_proto(&self) -> proto::Graph;
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
     }
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        let bytes = self.encode_to_vec();
-        let result = path.into().write_graph(&bytes);
-        result?;
-        Ok(())
+        let folder = path.into();
+        folder.write_graph(self)
     }
 }
 
@@ -162,12 +160,6 @@ impl StableEncode for GraphStorage {
         for node_id in 0..nodes.len() {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
-
-            for (t, group) in
-                zip_tprop_updates!((0..n_temporal_meta.len()).map(|id| (id, node.tprop(id))))
-            {
-                graph.update_node_tprops(node.vid(), t, group.map(|(_, v)| v));
-            }
 
             for (time, row) in node.temp_prop_rows() {
                 graph.update_node_tprops(
@@ -674,7 +666,7 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
-        serialise::{proto::GraphType, ProtoGraph},
+        serialise::{metadata::assert_metadata_correct, proto::GraphType, ProtoGraph},
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use chrono::{DateTime, NaiveDateTime};
@@ -1313,8 +1305,11 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
         let temp_cache_file = tempfile::tempdir().unwrap();
+        let folder = GraphFolder::from(&temp_cache_file);
 
         g.cache(&temp_cache_file).unwrap();
+
+        assert_metadata_correct(&folder, &g);
 
         for t in 0..props.len() {
             g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
@@ -1335,6 +1330,8 @@ mod proto_test {
         e.update_constant_properties(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
         g.write_updates().unwrap();
+
+        assert_metadata_correct(&folder, &g);
 
         g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
         g.add_node(1, "Charlie", props.clone(), None).unwrap();
@@ -1347,6 +1344,8 @@ mod proto_test {
         g.write_updates().unwrap();
         let g2 = Graph::decode(&temp_cache_file).unwrap();
         assert_graph_equal(&g, &g2);
+
+        assert_metadata_correct(&folder, &g);
     }
 
     #[test]
@@ -1355,6 +1354,7 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
         let temp_cache_file = tempfile::tempdir().unwrap();
+        let folder = GraphFolder::from(&temp_cache_file);
 
         g.cache(&temp_cache_file).unwrap();
 
@@ -1377,6 +1377,8 @@ mod proto_test {
         e.update_constant_properties(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
         g.write_updates().unwrap();
+
+        assert_metadata_correct(&folder, &g);
 
         g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
         g.add_node(1, "Charlie", props.clone(), None).unwrap();
@@ -1391,6 +1393,8 @@ mod proto_test {
         let g2 = PersistentGraph::decode(&temp_cache_file).unwrap();
 
         assert_graph_equal(&g, &g2);
+
+        assert_metadata_correct(&folder, &g);
     }
 
     // we rely on this to make sure writing no updates does not actually write anything to file
