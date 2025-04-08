@@ -13,7 +13,7 @@ use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use std::{
     collections::HashSet,
     fmt,
-    fmt::{Debug, Display, Formatter},
+    fmt::{Debug, Display},
     ops::Deref,
     sync::Arc,
 };
@@ -156,9 +156,10 @@ impl FilterOperator {
     pub fn apply(&self, left: &FilterValue, right: Option<&str>) -> bool {
         match left {
             FilterValue::Single(l) => match self {
-                FilterOperator::Eq | FilterOperator::Ne => {
-                    right.map_or(false, |r| self.operation()(r, l))
-                }
+                FilterOperator::Eq | FilterOperator::Ne => match right {
+                    Some(r) => self.operation()(r, l),
+                    None => matches!(self, FilterOperator::Ne),
+                },
                 FilterOperator::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
@@ -169,9 +170,10 @@ impl FilterOperator {
                 _ => unreachable!(),
             },
             FilterValue::Set(l) => match self {
-                FilterOperator::In | FilterOperator::NotIn => {
-                    right.map_or(false, |r| self.collection_operation()(l, &r.to_string()))
-                }
+                FilterOperator::In | FilterOperator::NotIn => match right {
+                    Some(r) => self.collection_operation()(l, &r.to_string()),
+                    None => matches!(self, FilterOperator::NotIn),
+                },
                 _ => unreachable!(),
             },
         }
