@@ -1850,6 +1850,10 @@ pub(crate) mod test_filters {
                     graph
                 }
 
+                fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+                    filter_nodes_with(filter, || init_graph(Graph::new()))
+                }
+
                 #[cfg(feature = "search")]
                 fn search_nodes(filter: PropertyFilter) -> Vec<String> {
                     search_nodes_with(filter, || init_graph(Graph::new()))
@@ -1897,6 +1901,10 @@ pub(crate) mod test_filters {
                     }
 
                     graph
+                }
+
+                fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+                    filter_nodes_with(filter, || init_graph(Graph::new()))
                 }
 
                 #[cfg(feature = "search")]
@@ -2150,6 +2158,10 @@ pub(crate) mod test_filters {
                     graph
                 }
 
+                fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
+                    filter_edges_with(filter, || init_graph(Graph::new()))
+                }
+
                 #[cfg(feature = "search")]
                 fn search_edges(filter: PropertyFilter) -> Vec<String> {
                     search_edges_with(filter, || init_graph(Graph::new()))
@@ -2197,6 +2209,10 @@ pub(crate) mod test_filters {
                     }
 
                     graph
+                }
+
+                fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
+                    filter_edges_with(filter, || init_graph(Graph::new()))
                 }
 
                 #[cfg(feature = "search")]
