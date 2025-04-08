@@ -19,5 +19,5 @@ pub(crate) async fn health() -> impl IntoResponse {
 
 #[handler]
 pub(crate) async fn ui() -> impl IntoResponse {
-    Html(include_str!("../resources/index.html"))
+    Html(include_str!(env!("RAPHTORY_UI_INDEX_PATH")))
 }
