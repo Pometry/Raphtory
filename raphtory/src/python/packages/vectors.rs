@@ -69,14 +69,6 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
-// impl<'source> FromPyObject<'source> for Document<DynamicGraph> {
-//     fn extract_bound(value: &Bound<'source, PyAny>) -> PyResult<Self> {
-//         let document = value.extract::<PyDocument>()?;
-//         Ok(document.0)
-//     }
-// }
-
-// TODO: move this to types/wrappers/document.rs ?
 impl<'py> IntoPyObject<'py> for Document<DynamicGraph> {
     type Target = PyDocument;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
@@ -86,13 +78,6 @@ impl<'py> IntoPyObject<'py> for Document<DynamicGraph> {
         PyDocument(self).into_pyobject(py)
     }
 }
-
-// TODO: double check if im using this?
-// impl From<Document<DynamicGraph>> for PyDocument {
-//     fn from(value: Document<DynamicGraph>) -> Self {
-//         Self(value)
-//     }
-// }
 
 impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
     pub fn into_dynamic(self) -> Document<DynamicGraph> {
