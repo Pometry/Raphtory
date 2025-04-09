@@ -38,6 +38,7 @@ use std::{
     fmt,
     fmt::Debug,
     hash::{Hash, Hasher},
+    marker::PhantomData,
     sync::Arc,
 };
 
@@ -54,6 +55,16 @@ impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
 {
     fn eq(&self, other: &NodeView<G2, G2H>) -> bool {
         self.base_graph.node_id(self.node) == other.base_graph.node_id(other.node)
+    }
+}
+
+impl<G, GH> NodeView<G, GH> {
+    pub fn as_ref(&self) -> NodeView<&G, &GH> {
+        NodeView {
+            base_graph: &self.base_graph,
+            graph: &self.graph,
+            node: self.node,
+        }
     }
 }
 
