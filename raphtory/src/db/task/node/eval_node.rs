@@ -21,7 +21,11 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use std::{cell::Ref, sync::Arc};
+use std::{
+    borrow::Borrow,
+    cell::{Ref, RefCell, RefMut},
+    sync::Arc,
+};
 
 pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
     pub node: VID,
@@ -117,14 +121,20 @@ impl<
         i
     }
 
+    fn node_state(&self) -> Ref<'_, EVState<'a, CS>> {
+        RefCell::borrow(&self.eval_graph.node_state)
+    }
+
+    fn node_state_mut(&self) -> RefMut<'_, EVState<'a, CS>> {
+        RefCell::borrow_mut(&self.eval_graph.node_state)
+    }
+
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.eval_graph
-            .node_state
-            .borrow_mut()
+        self.node_state_mut()
             .shard_mut()
             .accumulate_into(self.eval_graph.ss, self.pid(), a, id);
     }
@@ -134,9 +144,7 @@ impl<
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.eval_graph
-            .node_state
-            .borrow_mut()
+        self.node_state_mut()
             .global_mut()
             .accumulate_global(self.eval_graph.ss, a, id);
     }
@@ -166,9 +174,7 @@ impl<
         OUT: StateType,
         A: StateType,
     {
-        self.eval_graph
-            .node_state
-            .borrow()
+        self.node_state()
             .global()
             .read_global(self.eval_graph.ss, agg)
     }
@@ -183,9 +189,7 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.eval_graph
-            .node_state
-            .borrow()
+        self.node_state()
             .shard()
             .read_with_pid(self.eval_graph.ss, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
@@ -201,12 +205,7 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        Entry::new(
-            self.eval_graph.node_state.borrow(),
-            *agg_r,
-            &self.node,
-            self.eval_graph.ss,
-        )
+        Entry::new(self.node_state(), *agg_r, &self.node, self.eval_graph.ss)
     }
 
     /// Read the prev value of the node state using the given accumulator.
@@ -219,9 +218,7 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.eval_graph
-            .node_state
-            .borrow()
+        self.node_state()
             .shard()
             .read_with_pid(self.eval_graph.ss + 1, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
@@ -235,9 +232,7 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.eval_graph
-            .node_state
-            .borrow()
+        self.node_state()
             .global()
             .read_global(self.eval_graph.ss + 1, agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
@@ -277,7 +272,7 @@ impl<
             .map(move |v| EvalNodeView::new_filtered(v, base_graph.clone(), graph.clone(), None))
     }
 
-    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Self {
+    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(&self, node_types: I) -> Self {
         let node_types_filter =
             create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 

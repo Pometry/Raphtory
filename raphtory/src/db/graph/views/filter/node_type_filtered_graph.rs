@@ -1,29 +1,30 @@
 use crate::{
-    core::entities::LayerIds,
-    db::api::{
-        properties::internal::InheritPropertiesOps,
-        storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-        view::internal::{
-            Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, NodeFilterOps, Static,
+    core::{entities::LayerIds, utils::errors::GraphError},
+    db::{
+        api::{
+            properties::internal::InheritPropertiesOps,
+            storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            view::internal::{
+                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
+            },
         },
+        graph::views::filter::{internal::InternalNodeFilterOps, NodeTypeFilter},
     },
     prelude::GraphViewOps,
 };
 use std::sync::Arc;
 
-use crate::db::api::view::internal::InheritStorageOps;
-
 #[derive(Clone, Debug)]
-pub struct TypeFilteredSubgraph<G> {
+pub struct NodeTypeFilteredGraph<G> {
     pub(crate) graph: G,
-    pub(crate) node_types: Arc<[usize]>,
+    pub(crate) node_types_filter: Arc<[bool]>,
 }
 
-impl<G> Static for TypeFilteredSubgraph<G> {}
+impl<G> Static for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> Base for TypeFilteredSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for NodeTypeFilteredGraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -31,36 +32,56 @@ impl<'graph, G: GraphViewOps<'graph>> Base for TypeFilteredSubgraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TypeFilteredSubgraph<G> {
-    pub fn new(graph: G, node_types: Vec<usize>) -> Self {
-        let node_types = node_types.into();
-        Self { graph, node_types }
+impl<'graph, G: GraphViewOps<'graph>> NodeTypeFilteredGraph<G> {
+    pub fn new(graph: G, node_types_filter: Arc<[bool]>) -> Self {
+        Self {
+            graph,
+            node_types_filter,
+        }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Immutable for TypeFilteredSubgraph<G> {}
+impl InternalNodeFilterOps for NodeTypeFilter {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodeTypeFilteredGraph<G>;
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for TypeFilteredSubgraph<G> {}
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        let node_types_filter = graph
+            .node_meta()
+            .node_type_meta()
+            .get_keys()
+            .iter()
+            .map(|k| self.0.matches(Some(k))) // TODO: _default check
+            .collect::<Vec<_>>();
+        Ok(NodeTypeFilteredGraph::new(graph, node_types_filter.into()))
+    }
+}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for TypeFilteredSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeTypeFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeTypeFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeTypeFilteredGraph<G> {
     #[inline]
     fn nodes_filtered(&self) -> bool {
         true
@@ -78,7 +99,11 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
 
     #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.node_types.contains(&node.node_type_id()) && self.graph.filter_node(node, layer_ids)
+        self.node_types_filter
+            .get(node.node_type_id())
+            .copied()
+            .unwrap_or(false)
+            && self.graph.filter_node(node, layer_ids)
     }
 }
 

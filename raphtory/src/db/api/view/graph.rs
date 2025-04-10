@@ -17,15 +17,17 @@ use crate::{
             view::{internal::*, *},
         },
         graph::{
+            create_node_type_filter,
             edge::EdgeView,
             edges::Edges,
             node::NodeView,
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{AsEdgeFilter, AsNodeFilter},
+                filter::{
+                    node_type_filtered_graph::NodeTypeFilteredGraph, AsEdgeFilter, AsNodeFilter,
+                },
                 node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
         },
     },
@@ -71,10 +73,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     fn cache_view(&self) -> CachedView<Self>;
 
-    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         nodes_types: I,
-    ) -> TypeFilteredSubgraph<Self>;
+    ) -> NodeTypeFilteredGraph<Self>;
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
         &self,
@@ -382,16 +384,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         CachedView::new(self.clone())
     }
 
-    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
-        nodes_types: I,
-    ) -> TypeFilteredSubgraph<Self> {
-        let meta = self.node_meta().node_type_meta();
-        let r = nodes_types
-            .into_iter()
-            .flat_map(|nt| meta.get_id(nt.borrow()))
-            .collect_vec();
-        TypeFilteredSubgraph::new(self.clone(), r)
+        node_types: I,
+    ) -> NodeTypeFilteredGraph<Self> {
+        let node_types_filter =
+            create_node_type_filter(self.node_meta().node_type_meta(), node_types);
+        NodeTypeFilteredGraph::new(self.clone(), node_types_filter)
     }
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {

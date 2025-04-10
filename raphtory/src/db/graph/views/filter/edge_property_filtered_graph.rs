@@ -95,20 +95,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_edge(edge, layer_ids) {
-            let props = EdgeView::new(&self.graph, edge.out_ref()).properties();
-            let prop_value = self
-                .t_prop_id
-                .and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                })
-                .or_else(|| {
-                    self.c_prop_id
-                        .and_then(|prop_id| props.constant().get_by_id(prop_id))
-                });
-            self.filter.matches(prop_value.as_ref())
+            self.filter
+                .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge)
         } else {
             false
         }

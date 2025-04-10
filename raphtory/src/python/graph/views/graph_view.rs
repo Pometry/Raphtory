@@ -24,10 +24,10 @@ use crate::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, internal::*,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
+                    node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
                 window_graph::WindowedGraph,
             },
         },
@@ -139,7 +139,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for CachedView<
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for TypeFilteredSubgraph<G> {
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeTypeFilteredGraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -415,7 +415,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView: Returns the subgraph
-    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> TypeFilteredSubgraph<DynamicGraph> {
+    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> NodeTypeFilteredGraph<DynamicGraph> {
         self.graph.subgraph_node_types(node_types)
     }
 
