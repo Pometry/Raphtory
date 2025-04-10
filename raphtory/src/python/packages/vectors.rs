@@ -1,6 +1,9 @@
 use crate::{
     core::utils::{errors::GraphError, time::IntoTime},
-    db::api::view::{MaterializedGraph, StaticGraphViewOps},
+    db::{
+        api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -14,7 +17,7 @@ use crate::{
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
-        Document, Embedding, EmbeddingFunction, EmbeddingResult,
+        Document, DocumentEntity, Embedding, EmbeddingFunction, EmbeddingResult,
     },
 };
 use futures_util::future::BoxFuture;
@@ -66,97 +69,55 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
-impl PyDocument {
-    pub fn extract_rust_document(&self, py: Python) -> Result<Document, String> {
-        if let (Some(entity), Some(embedding)) = (&self.entity, &self.embedding) {
-            let node = entity.extract::<PyNode>(py);
-            let edge = entity.extract::<PyEdge>(py);
-            let graph = entity.extract::<PyGraphView>(py);
-            if let Ok(node) = node {
-                Ok(Document::Node {
-                    name: node.name(),
-                    content: self.content.clone(),
-                    embedding: embedding.embedding(),
-                    life: self.life,
-                })
-            } else if let Ok(edge) = edge {
-                Ok(Document::Edge {
-                    src: edge.edge.src().name(),
-                    dst: edge.edge.dst().name(),
-                    content: self.content.clone(),
-                    embedding: embedding.embedding(),
-                    life: self.life,
-                })
-            } else if let Ok(graph) = graph {
-                Ok(Document::Graph {
-                    name: graph
-                        .graph
-                        .properties()
-                        .get("name")
-                        .map(|prop| prop.to_string()),
-                    content: self.content.clone(),
-                    embedding: embedding.embedding(),
-                    life: self.life,
-                })
-            } else {
-                Err("document entity is not a node nor an edge nor a graph".to_owned())
-            }
-        } else {
-            Err("Document entity and embedding have to be defined".to_owned())
+impl<'py> IntoPyObject<'py> for Document<DynamicGraph> {
+    type Target = PyDocument;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyDocument(self).into_pyobject(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
+    pub fn into_dynamic(self) -> Document<DynamicGraph> {
+        let Document {
+            entity,
+            content,
+            embedding,
+            life,
+        } = self;
+        let entity = match entity {
+            DocumentEntity::Graph { name, graph } => DocumentEntity::Graph {
+                name,
+                graph: graph.into_dynamic(),
+            },
+            // TODO: define a common method node/edge.into_dynamic for NodeView, as this code is duplicated in model/graph/node.rs and model/graph/edge.rs
+            DocumentEntity::Node(node) => DocumentEntity::Node(NodeView {
+                base_graph: node.base_graph.into_dynamic(),
+                graph: node.graph.into_dynamic(),
+                node: node.node,
+            }),
+            DocumentEntity::Edge(edge) => DocumentEntity::Edge(EdgeView {
+                // TODO: same as for nodes
+                base_graph: edge.base_graph.into_dynamic(),
+                graph: edge.graph.into_dynamic(),
+                edge: edge.edge,
+            }),
+        };
+        Document {
+            entity,
+            content,
+            embedding,
+            life,
         }
     }
 }
 
-pub fn into_py_document(
-    document: Document,
-    graph: &DynamicVectorisedGraph,
-    py: Python,
-) -> PyResult<PyDocument> {
-    let doc = match document {
-        Document::Graph {
-            content,
-            life,
-            embedding,
-            ..
-        } => PyDocument {
-            content,
-            entity: Some(graph.source_graph.clone().into_py_any(py)?),
-            embedding: Some(PyEmbedding(embedding)),
-            life,
-        },
-        Document::Node {
-            name,
-            content,
-            embedding,
-            life,
-        } => {
-            let node = graph.source_graph.node(name).unwrap();
-
-            PyDocument {
-                content,
-                entity: Some(node.into_py_any(py)?),
-                embedding: Some(PyEmbedding(embedding)),
-                life,
-            }
-        }
-        Document::Edge {
-            src,
-            dst,
-            content,
-            embedding,
-            life,
-        } => {
-            let edge = graph.source_graph.edge(src, dst).unwrap();
-
-            PyDocument {
-                content,
-                entity: Some(edge.into_py_any(py)?),
-                embedding: Some(PyEmbedding(embedding)),
-                life,
-            }
-        }
-    };
-    Ok(doc)
+impl<G: StaticGraphViewOps + IntoDynamic> From<Document<G>> for PyDocument {
+    fn from(value: Document<G>) -> Self {
+        Self(value.into_dynamic())
+    }
 }
 
 #[derive(FromPyObject)]
@@ -291,12 +252,8 @@ impl PyVectorisedGraph {
     ///
     /// Returns:
     ///   list[Document]: list of graph level documents
-    pub fn get_graph_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
-        self.0
-            .get_graph_documents()
-            .into_iter()
-            .map(|doc| into_py_document(doc, &self.0, py))
-            .collect()
+    pub fn get_graph_documents(&self) -> Vec<Document<DynamicGraph>> {
+        self.0.get_graph_documents()
     }
 
     /// Search the top scoring documents according to `query` with no more than `limit` documents
@@ -423,24 +380,17 @@ impl PyVectorSelection {
     ///
     /// Returns:
     ///     list[Document]: list of documents in the current selection
-    fn get_documents(&self, py: Python) -> PyResult<Vec<PyDocument>> {
+    fn get_documents(&self) -> Vec<Document<DynamicGraph>> {
         // TODO: review if I can simplify this
-        Ok(self
-            .get_documents_with_scores(py)?
-            .into_iter()
-            .map(|(doc, _)| doc)
-            .collect_vec())
+        self.0.get_documents()
     }
 
     /// Return the documents alongside their scores present in the current selection
     ///
     /// Returns:
     ///     list[Tuple[Document, float]]: list of documents and scores
-    fn get_documents_with_scores(&self, py: Python) -> PyResult<Vec<(PyDocument, f32)>> {
-        let docs = self.0.get_documents_with_scores();
-        docs.into_iter()
-            .map(|(doc, score)| Ok((into_py_document(doc, &self.0.graph, py)?, score)))
-            .collect()
+    fn get_documents_with_scores(&self) -> Vec<(Document<DynamicGraph>, f32)> {
+        self.0.get_documents_with_scores()
     }
 
     /// Add all the documents associated with the `nodes` to the current selection
