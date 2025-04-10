@@ -14,7 +14,7 @@ use crate::{
 use itertools::Itertools;
 #[cfg(feature = "storage")]
 use polars_arrow::array::StructArray;
-use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
+use polars_arrow::datatypes::{ArrowDataType, ArrowSchema, Field};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
@@ -277,14 +277,7 @@ pub fn read_parquet_file(
         let schema = read::infer_schema(metadata)?;
         let fields = schema
             .fields
-            .iter()
-            .map(|f| {
-                if f.data_type == DataType::Utf8View {
-                    Field::new(f.name.clone(), DataType::LargeUtf8, f.is_nullable)
-                } else {
-                    f.clone()
-                }
-            })
+            .into_iter()
             .filter(|f| {
                 // Filtered fields to avoid loading data that is not needed
                 col_names
@@ -355,7 +348,7 @@ pub fn read_struct_arrays(
                     .zip(field_names.iter())
                     .map(|(arr, field_name)| Field::new(field_name, arr.data_type().clone(), true))
                     .collect::<Vec<_>>();
-                StructArray::new(DataType::Struct(fields), values, None)
+                StructArray::new(ArrowDataType::Struct(fields), values, None)
             })
             .map_err(RAError::Arrow)
         })
@@ -366,7 +359,10 @@ pub fn read_struct_arrays(
 #[cfg(test)]
 mod test {
     use super::*;
-    use polars_arrow::array::{Array, PrimitiveArray, Utf8Array};
+    use polars_arrow::{
+        array::{Array, PrimitiveArray, StaticArray, Utf8ViewArray},
+        datatypes::ArrowDataType,
+    };
     use std::path::PathBuf;
 
     #[test]
@@ -388,8 +384,9 @@ mod test {
             Box::new(PrimitiveArray::<f64>::from_values(vec![
                 1f64, 2f64, 3f64, 4f64, 5f64,
             ])),
-            Box::new(Utf8Array::<i64>::from_iter_values(
-                vec!["red", "blue", "green", "yellow", "purple"].into_iter(),
+            Box::new(Utf8ViewArray::from_vec(
+                vec!["red", "blue", "green", "yellow", "purple"],
+                ArrowDataType::Utf8View,
             )),
         ]];
 
