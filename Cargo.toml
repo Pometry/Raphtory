@@ -89,7 +89,7 @@ dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
 enum_dispatch = "0.3.12"
 glam = "0.29.0"
 quad-rand = "0.2.1"
-zip = "2.1.3"
+zip = "2.6.1"
 neo4rs = "0.8.0"
 bzip2 = "0.4.4"
 tantivy = "0.22.0"
