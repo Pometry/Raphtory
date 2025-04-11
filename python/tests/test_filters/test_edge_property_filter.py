@@ -116,7 +116,7 @@ def test_filter_edges_for_property_is_none():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Property("p2").is_none()
+    filter_expr = filter.Property("p3").is_none()
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted(["1"])
+    expected_ids = sorted([("1","2"),("2","3")])
     assert result_ids == expected_ids

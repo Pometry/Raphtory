@@ -3,17 +3,18 @@ use crate::{
     db::graph::views::filter::{
         AndFilter, AsEdgeFilter, AsNodeFilter, CompositeEdgeFilter, CompositeNodeFilter,
         EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps,
-        InternalPropertyFilterOps, NodeFilter, NodeFilterBuilderOps, OrFilter, PropertyFilterBuilder,
-        PropertyFilterOps, TemporalPropertyFilterBuilder,
+        InternalPropertyFilterOps, NodeFilter, NodeFilterBuilderOps, OrFilter,
+        PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
     },
     python::types::{
         iterable::FromIterable,
-        wrappers::prop::{DynInternalEdgeFilterOps, DynInternalNodeFilterOps},
+        wrappers::prop::{
+            DynInternalEdgeFilterOps, DynInternalNodeFilterOps, DynNodeFilterBuilderOps,
+        },
     },
 };
 use pyo3::prelude::*;
 use std::{ops::Deref, sync::Arc};
-use crate::python::types::wrappers::prop::DynNodeFilterBuilderOps;
 
 pub trait AsPropertyFilter: DynInternalNodeFilterOps + DynInternalEdgeFilterOps {}
 
@@ -334,8 +335,7 @@ impl PyNodeFilterOp {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        self
-            .0
+        self.0
             .fuzzy_search(value, levenshtein_distance, prefix_match)
     }
 }

@@ -241,7 +241,7 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
 
 impl<T> DynNodeFilterBuilderOps for T
 where
-    T: InternalNodeFilterBuilderOps
+    T: InternalNodeFilterBuilderOps,
 {
     fn eq(&self, value: String) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::eq(

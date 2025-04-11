@@ -11,7 +11,7 @@ use crate::{
             },
             view::EdgeViewOps,
         },
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView, node::NodeView, views::filter::internal::InternalNodeFilterOps},
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
@@ -25,8 +25,6 @@ use std::{
     sync::Arc,
 };
 use strsim::levenshtein;
-use crate::db::graph::views::filter::internal::InternalNodeFilterOps;
-use crate::python::types::wrappers::prop::DynInternalNodeFilterOps;
 
 pub mod edge_and_filtered_graph;
 pub mod edge_field_filtered_graph;
@@ -2740,8 +2738,8 @@ pub(crate) mod test_filters {
                 graph::views::filter::{
                     internal::InternalNodeFilterOps,
                     test_filters::{filter_nodes_with, init_nodes_graph},
-                    AndFilter, AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps, OrFilter,
-                    PropertyFilterOps,
+                    AndFilter, AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
+                    OrFilter, PropertyFilterOps,
                 },
             },
             prelude::{Graph, GraphViewOps, PropertyFilter},
