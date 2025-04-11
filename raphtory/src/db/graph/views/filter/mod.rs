@@ -25,6 +25,8 @@ use std::{
     sync::Arc,
 };
 use strsim::levenshtein;
+use crate::db::graph::views::filter::internal::InternalNodeFilterOps;
+use crate::python::types::wrappers::prop::DynInternalNodeFilterOps;
 
 pub mod edge_and_filtered_graph;
 pub mod edge_field_filtered_graph;
@@ -952,13 +954,13 @@ impl PropertyFilter {
     }
 }
 
-pub trait InternalNodeFilterOps: Send + Sync {
-    type NodeFilterType: From<Filter>;
+pub trait InternalNodeFilterBuilderOps: Send + Sync {
+    type NodeFilterType: From<Filter> + InternalNodeFilterOps + AsNodeFilter + Clone + 'static;
 
     fn field_name(&self) -> &'static str;
 }
 
-impl<T: InternalNodeFilterOps> InternalNodeFilterOps for Arc<T> {
+impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Arc<T> {
     type NodeFilterType = T::NodeFilterType;
 
     fn field_name(&self) -> &'static str {
@@ -966,7 +968,7 @@ impl<T: InternalNodeFilterOps> InternalNodeFilterOps for Arc<T> {
     }
 }
 
-pub trait NodeFilterOps: InternalNodeFilterOps {
+pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
     fn eq(&self, value: impl Into<String>) -> Self::NodeFilterType {
         Filter::eq(self.field_name(), value).into()
     }
@@ -982,6 +984,7 @@ pub trait NodeFilterOps: InternalNodeFilterOps {
     fn excludes(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
         Filter::excludes(self.field_name(), values).into()
     }
+
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
@@ -992,11 +995,11 @@ pub trait NodeFilterOps: InternalNodeFilterOps {
     }
 }
 
-impl<T: InternalNodeFilterOps + ?Sized> NodeFilterOps for T {}
+impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
 
 pub struct NodeNameFilterBuilder;
 
-impl InternalNodeFilterOps for NodeNameFilterBuilder {
+impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
     type NodeFilterType = NodeNameFilter;
 
     fn field_name(&self) -> &'static str {
@@ -1006,7 +1009,7 @@ impl InternalNodeFilterOps for NodeNameFilterBuilder {
 
 pub struct NodeTypeFilterBuilder;
 
-impl InternalNodeFilterOps for NodeTypeFilterBuilder {
+impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
     type NodeFilterType = NodeTypeFilter;
 
     fn field_name(&self) -> &'static str {
@@ -1027,11 +1030,11 @@ impl NodeFilter {
     }
 }
 
-pub trait InternalEdgeFilterOps: Send + Sync {
+pub trait InternalEdgeFilterBuilderOps: Send + Sync {
     fn field_name(&self) -> &'static str;
 }
 
-impl<T: InternalEdgeFilterOps> InternalEdgeFilterOps for Arc<T> {
+impl<T: InternalEdgeFilterBuilderOps> InternalEdgeFilterBuilderOps for Arc<T> {
     fn field_name(&self) -> &'static str {
         self.deref().field_name()
     }
@@ -1054,7 +1057,7 @@ pub trait EdgeFilterOps {
     ) -> EdgeFieldFilter;
 }
 
-impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
+impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
     fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::eq(self.field_name(), value))
     }
@@ -1088,7 +1091,7 @@ impl<T: ?Sized + InternalEdgeFilterOps> EdgeFilterOps for T {
 
 pub struct EdgeSourceFilterBuilder;
 
-impl InternalEdgeFilterOps for EdgeSourceFilterBuilder {
+impl InternalEdgeFilterBuilderOps for EdgeSourceFilterBuilder {
     fn field_name(&self) -> &'static str {
         "src"
     }
@@ -1096,7 +1099,7 @@ impl InternalEdgeFilterOps for EdgeSourceFilterBuilder {
 
 pub struct EdgeDestinationFilterBuilder;
 
-impl InternalEdgeFilterOps for EdgeDestinationFilterBuilder {
+impl InternalEdgeFilterBuilderOps for EdgeDestinationFilterBuilder {
     fn field_name(&self) -> &'static str {
         "dst"
     }
@@ -1120,7 +1123,7 @@ mod test_fluent_builder_apis {
     use crate::{
         db::graph::views::filter::{
             AsEdgeFilter, AsNodeFilter, ComposableFilter, CompositeEdgeFilter, CompositeNodeFilter,
-            EdgeFilter, EdgeFilterOps, Filter, NodeFilter, NodeFilterOps, PropertyFilterOps,
+            EdgeFilter, EdgeFilterOps, Filter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
             PropertyRef, Temporal,
         },
         prelude::PropertyFilter,
@@ -2642,7 +2645,7 @@ pub(crate) mod test_filters {
                 api::view::node::NodeViewOps,
                 graph::views::filter::{
                     test_filters::{filter_nodes, init_nodes_graph},
-                    AsNodeFilter, NodeFilter, NodeFilterOps,
+                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps,
                 },
             },
             prelude::{Graph, GraphViewOps, NodePropertyFilterOps},
@@ -2737,7 +2740,7 @@ pub(crate) mod test_filters {
                 graph::views::filter::{
                     internal::InternalNodeFilterOps,
                     test_filters::{filter_nodes_with, init_nodes_graph},
-                    AndFilter, AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterOps, OrFilter,
+                    AndFilter, AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps, OrFilter,
                     PropertyFilterOps,
                 },
             },

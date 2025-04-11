@@ -132,6 +132,12 @@ impl<T> Deref for FromIterable<T> {
     }
 }
 
+impl<T> From<FromIterable<T>> for Vec<T> {
+    fn from(v: FromIterable<T>) -> Self {
+        v.0
+    }
+}
+
 impl<T> DerefMut for FromIterable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0

@@ -2,8 +2,8 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::{
         AndFilter, AsEdgeFilter, AsNodeFilter, CompositeEdgeFilter, CompositeNodeFilter,
-        EdgeFilter, EdgeFilterOps, InternalEdgeFilterOps, InternalNodeFilterOps,
-        InternalPropertyFilterOps, NodeFilter, NodeFilterOps, OrFilter, PropertyFilterBuilder,
+        EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps,
+        InternalPropertyFilterOps, NodeFilter, NodeFilterBuilderOps, OrFilter, PropertyFilterBuilder,
         PropertyFilterOps, TemporalPropertyFilterBuilder,
     },
     python::types::{
@@ -13,6 +13,7 @@ use crate::{
 };
 use pyo3::prelude::*;
 use std::{ops::Deref, sync::Arc};
+use crate::python::types::wrappers::prop::DynNodeFilterBuilderOps;
 
 pub trait AsPropertyFilter: DynInternalNodeFilterOps + DynInternalEdgeFilterOps {}
 
@@ -301,9 +302,9 @@ impl PyPropertyFilterBuilder {
 
 #[pyclass(frozen, name = "NodeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyNodeFilterOp(Arc<dyn InternalNodeFilterOps>);
+pub struct PyNodeFilterOp(Arc<dyn DynNodeFilterBuilderOps>);
 
-impl<T: InternalNodeFilterOps + 'static> From<T> for PyNodeFilterOp {
+impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterOp {
     fn from(value: T) -> Self {
         PyNodeFilterOp(Arc::new(value))
     }
@@ -312,23 +313,19 @@ impl<T: InternalNodeFilterOps + 'static> From<T> for PyNodeFilterOp {
 #[pymethods]
 impl PyNodeFilterOp {
     fn __eq__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.eq(value);
-        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
+        self.0.eq(value)
     }
 
     fn __ne__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.ne(value);
-        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
+        self.0.ne(value)
     }
 
     fn includes(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.includes(values);
-        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
+        self.0.includes(values.into())
     }
 
     fn excludes(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.excludes(values);
-        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
+        self.0.excludes(values.into())
     }
 
     fn fuzzy_search(
@@ -337,10 +334,9 @@ impl PyNodeFilterOp {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        let field = self
+        self
             .0
-            .fuzzy_search(value, levenshtein_distance, prefix_match);
-        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(field)))
+            .fuzzy_search(value, levenshtein_distance, prefix_match)
     }
 }
 
@@ -363,9 +359,9 @@ impl PyNodeFilter {
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilterOp(Arc<dyn InternalEdgeFilterOps>);
+pub struct PyEdgeFilterOp(Arc<dyn InternalEdgeFilterBuilderOps>);
 
-impl<T: InternalEdgeFilterOps + 'static> From<T> for PyEdgeFilterOp {
+impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
     fn from(value: T) -> Self {
         PyEdgeFilterOp(Arc::new(value))
     }

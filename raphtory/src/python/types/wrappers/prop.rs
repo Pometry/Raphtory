@@ -6,7 +6,8 @@ use crate::{
             internal::{
                 InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
             },
-            AndFilter, AsEdgeFilter, AsNodeFilter, PropertyRef,
+            AndFilter, AsEdgeFilter, AsNodeFilter, InternalNodeFilterBuilderOps,
+            NodeFilterBuilderOps, PropertyRef,
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
@@ -221,6 +222,63 @@ impl InternalNodeFilterOps for PyFilterExpr {
     }
 }
 
+pub trait DynNodeFilterBuilderOps: Send + Sync {
+    fn eq(&self, value: String) -> PyFilterExpr;
+
+    fn ne(&self, value: String) -> PyFilterExpr;
+
+    fn includes(&self, values: Vec<String>) -> PyFilterExpr;
+
+    fn excludes(&self, values: Vec<String>) -> PyFilterExpr;
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr;
+}
+
+impl<T> DynNodeFilterBuilderOps for T
+where
+    T: InternalNodeFilterBuilderOps
+{
+    fn eq(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::eq(
+            self, value,
+        ))))
+    }
+
+    fn ne(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::ne(
+            self, value,
+        ))))
+    }
+
+    fn includes(&self, values: Vec<String>) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::includes(self, values),
+        )))
+    }
+
+    fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::excludes(self, values),
+        )))
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::fuzzy_search(self, value, levenshtein_distance, prefix_match),
+        )))
+    }
+}
+
 pub trait DynInternalNodeFilterOps: AsNodeFilter {
     fn create_dyn_node_filter<'graph>(
         &self,
@@ -394,3 +452,6 @@ impl PyPropertyRef {
         PyPropertyFilter(filter)
     }
 }
+
+// DynNodeFilterBuilderOps -> Blanket impl for InternalNodeFilterBuilderOps
+//

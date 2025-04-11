@@ -1484,7 +1484,7 @@ mod views_test {
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::{
-                            AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterOps,
+                            AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
                             PropertyFilterOps,
                         },
                     },

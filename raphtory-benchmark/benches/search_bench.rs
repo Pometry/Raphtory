@@ -18,7 +18,7 @@ use raphtory::{
             node::NodeView,
             views::filter::{
                 ComposableFilter, EdgeFilter, EdgeFilterOps, FilterOperator, FilterOperator::*,
-                NodeFilter, NodeFilterOps, PropertyFilterOps,
+                NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
             },
         },
     },

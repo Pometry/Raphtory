@@ -25,7 +25,7 @@ mod test {
             graph::{
                 graph::assert_edges_equal,
                 views::filter::{
-                    ComposableFilter, CompositeNodeFilter, Filter, NodeFilter, NodeFilterOps,
+                    ComposableFilter, CompositeNodeFilter, Filter, NodeFilter, NodeFilterBuilderOps,
                     PropertyFilter, PropertyFilterOps, PropertyRef,
                 },
             },
