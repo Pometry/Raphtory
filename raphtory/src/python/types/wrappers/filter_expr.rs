@@ -208,13 +208,13 @@ impl PyPropertyFilterOps {
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
-    fn includes(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        let property = self.0.includes(values);
+    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
+        let property = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
-    fn excludes(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        let property = self.0.excludes(values);
+    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
+        let property = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
@@ -321,12 +321,12 @@ impl PyNodeFilterOp {
         self.0.ne(value)
     }
 
-    fn includes(&self, values: FromIterable<String>) -> PyFilterExpr {
-        self.0.includes(values.into())
+    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        self.0.is_in(values.into())
     }
 
-    fn excludes(&self, values: FromIterable<String>) -> PyFilterExpr {
-        self.0.excludes(values.into())
+    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        self.0.is_not_in(values.into())
     }
 
     fn fuzzy_search(
@@ -379,13 +379,13 @@ impl PyEdgeFilterOp {
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    fn includes(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.includes(values);
+    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        let field = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    fn excludes(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.excludes(values);
+    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        let field = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 

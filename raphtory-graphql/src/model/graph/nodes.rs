@@ -215,7 +215,7 @@ impl GqlNodes {
                 if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
                 {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::includes(
+                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::is_in(
                         PropertyRef::Property(property),
                         prop_values,
                     ))?;
@@ -231,7 +231,7 @@ impl GqlNodes {
                 if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
                 {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::excludes(
+                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::is_not_in(
                         PropertyRef::Property(property),
                         prop_values,
                     ))?;

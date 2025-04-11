@@ -68,8 +68,8 @@ def test_property_filter_edges():
         (filter.Property("test_str").is_some(), [(1, 2), (2, 3)]),
         (filter.Property("test_str").is_none(), [(3, 4)]),
         (filter.Property("test_str") == "second", []),
-        (filter.Property("test_str").includes(["first", "fourth"]), [(1, 2)]),
-        (filter.Property("test_str").excludes(["first"]), [(2, 3)]),
+        (filter.Property("test_str").is_in(["first", "fourth"]), [(1, 2)]),
+        (filter.Property("test_str").is_not_in(["first"]), [(2, 3)]),
 
         (filter.Property("test_int") == 2, []),
         (filter.Property("test_int") != 1, [(1, 2), (3, 4)]),

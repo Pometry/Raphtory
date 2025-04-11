@@ -217,9 +217,9 @@ fn convert_to_property_filter(
                         Eq => Some(PropertyFilter::property(prop_name).eq(sub_str)),
                         Ne => Some(PropertyFilter::property(prop_name).ne(sub_str)),
                         In => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
                         NotIn => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 } else {
@@ -227,9 +227,9 @@ fn convert_to_property_filter(
                         Eq => Some(PropertyFilter::property(prop_name).eq(full_str)),
                         Ne => Some(PropertyFilter::property(prop_name).ne(full_str)),
                         In => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
                         NotIn => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 }
@@ -246,8 +246,8 @@ fn convert_to_property_filter(
             Le => Some(PropertyFilter::property(prop_name).le(v)),
             Gt => Some(PropertyFilter::property(prop_name).gt(v)),
             Ge => Some(PropertyFilter::property(prop_name).ge(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::I64 => prop_value.into_i64().and_then(|v| match filter_op {
@@ -257,8 +257,8 @@ fn convert_to_property_filter(
             Le => Some(PropertyFilter::property(prop_name).le(v)),
             Gt => Some(PropertyFilter::property(prop_name).gt(v)),
             Ge => Some(PropertyFilter::property(prop_name).ge(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::F64 => prop_value.into_f64().and_then(|v| match filter_op {
@@ -268,15 +268,15 @@ fn convert_to_property_filter(
             Le => Some(PropertyFilter::property(prop_name).le(v)),
             Gt => Some(PropertyFilter::property(prop_name).gt(v)),
             Ge => Some(PropertyFilter::property(prop_name).ge(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::Bool => prop_value.into_bool().and_then(|v| match filter_op {
             Eq => Some(PropertyFilter::property(prop_name).eq(v)),
             Ne => Some(PropertyFilter::property(prop_name).ne(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
 

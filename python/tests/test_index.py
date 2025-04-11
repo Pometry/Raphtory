@@ -99,20 +99,20 @@ def test_search_nodes_for_node_name_ne():
     ] == results
 
 
-def test_search_nodes_for_node_name_includes():
+def test_search_nodes_for_node_name_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.name().includes(["N1", "N9"])
+    filter_expr = filter.Node.name().is_in(["N1", "N9"])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N9"] == results
 
 
-def test_search_nodes_for_node_name_excludes():
+def test_search_nodes_for_node_name_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.name().excludes(["N10", "N11", "N12", "N13", "N14"])
+    filter_expr = filter.Node.name().is_not_in(["N10", "N11", "N12", "N13", "N14"])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N15", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9"] == results
 
@@ -144,20 +144,20 @@ def test_search_nodes_for_node_type_ne():
     assert ["N1", "N10", "N11", "N12", "N13", "N2", "N6", "N7", "N8", "N9"] == results
 
 
-def test_search_nodes_for_node_type_includes():
+def test_search_nodes_for_node_type_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_type().includes(["air_nomads", "fire_nation"])
+    filter_expr = filter.Node.node_type().is_in(["air_nomads", "fire_nation"])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N6", "N7", "N8"] == results
 
 
-def test_search_nodes_for_node_type_excludes():
+def test_search_nodes_for_node_type_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_type().excludes(
+    filter_expr = filter.Node.node_type().is_not_in(
         ["water_tribe", "air_nomads", "fire_nation"]
     )
     results = search_nodes(g, filter_expr)
@@ -239,20 +239,20 @@ def test_search_nodes_for_property_ge():
     assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
-def test_search_nodes_for_property_includes():
+def test_search_nodes_for_property_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").includes([2])
+    filter_expr = filter.Property("p1").is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N2", "N5", "N8", "N9"] == results
 
 
-def test_search_nodes_for_property_excludes():
+def test_search_nodes_for_property_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").excludes([2])
+    filter_expr = filter.Property("p1").is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -358,20 +358,20 @@ def test_search_nodes_for_property_constant_ge():
     assert ["N4"] == results
 
 
-def test_search_nodes_for_property_constant_includes():
+def test_search_nodes_for_property_constant_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").constant().includes([2])
+    filter_expr = filter.Property("p1").constant().is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
 
-def test_search_nodes_for_property_constant_excludes():
+def test_search_nodes_for_property_constant_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").constant().excludes([2])
+    filter_expr = filter.Property("p1").constant().is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -476,20 +476,20 @@ def test_search_nodes_for_property_temporal_any_ge():
     assert ["N1", "N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
-def test_search_nodes_for_property_temporal_any_includes():
+def test_search_nodes_for_property_temporal_any_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().includes([2])
+    filter_expr = filter.Property("p1").temporal().any().is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N2", "N5", "N8", "N9"] == results
 
 
-def test_search_nodes_for_property_temporal_any_excludes():
+def test_search_nodes_for_property_temporal_any_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().excludes([2])
+    filter_expr = filter.Property("p1").temporal().any().is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -608,20 +608,20 @@ def test_search_nodes_for_property_temporal_latest_ge():
     assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
 
-def test_search_nodes_for_property_temporal_latest_includes():
+def test_search_nodes_for_property_temporal_latest_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().includes([2])
+    filter_expr = filter.Property("p1").temporal().latest().is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N2", "N5", "N8", "N9"] == results
 
 
-def test_search_nodes_for_property_temporal_latest_excludes():
+def test_search_nodes_for_property_temporal_latest_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().excludes([2])
+    filter_expr = filter.Property("p1").temporal().latest().is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N3", "N4", "N6", "N7"] == results
 
@@ -768,20 +768,20 @@ def test_search_edges_for_src_ne():
     ] == results
 
 
-def test_search_edges_for_src_includes():
+def test_search_edges_for_src_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().includes(["N1", "N9"])
+    filter_expr = filter.Edge.src().is_in(["N1", "N9"])
     results = search_edges(g, filter_expr)
     assert [("N1", "N2"), ("N9", "N10")] == results
 
 
-def test_search_edges_for_src_excludes():
+def test_search_edges_for_src_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().excludes(["N10", "N11", "N12", "N13", "N14"])
+    filter_expr = filter.Edge.src().is_not_in(["N10", "N11", "N12", "N13", "N14"])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -839,20 +839,20 @@ def test_search_edges_for_dst_ne():
     ] == results
 
 
-def test_search_edges_for_dst_includes():
+def test_search_edges_for_dst_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().includes(["N1", "N9"])
+    filter_expr = filter.Edge.dst().is_in(["N1", "N9"])
     results = search_edges(g, filter_expr)
     assert [("N15", "N1"), ("N8", "N9")] == results
 
 
-def test_search_edges_for_dst_excludes():
+def test_search_edges_for_dst_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().excludes(["N1", "N9", "N10"])
+    filter_expr = filter.Edge.dst().is_not_in(["N1", "N9", "N10"])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -974,20 +974,20 @@ def test_search_edges_for_property_ge():
     ] == results
 
 
-def test_search_edges_for_property_includes():
+def test_search_edges_for_property_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").includes([2])
+    filter_expr = filter.Property("p1").is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N2", "N3"), ("N5", "N6"), ("N8", "N9"), ("N9", "N10")] == results
 
 
-def test_search_edges_for_property_excludes():
+def test_search_edges_for_property_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").excludes([2])
+    filter_expr = filter.Property("p1").is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1130,20 +1130,20 @@ def test_search_edges_for_property_constant_ge():
     assert [("N4", "N5")] == results
 
 
-def test_search_edges_for_property_constant_includes():
+def test_search_edges_for_property_constant_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").constant().includes([2])
+    filter_expr = filter.Property("p1").constant().is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
 
-def test_search_edges_for_property_constant_excludes():
+def test_search_edges_for_property_constant_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").constant().excludes([2])
+    filter_expr = filter.Property("p1").constant().is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1305,11 +1305,11 @@ def test_search_edges_for_property_temporal_any_ge():
     ] == results
 
 
-def test_search_edges_for_property_temporal_any_includes():
+def test_search_edges_for_property_temporal_any_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().includes([2])
+    filter_expr = filter.Property("p1").temporal().any().is_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1320,11 +1320,11 @@ def test_search_edges_for_property_temporal_any_includes():
     ] == results
 
 
-def test_search_edges_for_property_temporal_any_excludes():
+def test_search_edges_for_property_temporal_any_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().excludes([2])
+    filter_expr = filter.Property("p1").temporal().any().is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1483,20 +1483,20 @@ def test_search_edges_for_property_temporal_latest_ge():
     ] == results
 
 
-def test_search_edges_for_property_temporal_latest_includes():
+def test_search_edges_for_property_temporal_latest_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().includes([2])
+    filter_expr = filter.Property("p1").temporal().latest().is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N2", "N3"), ("N5", "N6"), ("N8", "N9"), ("N9", "N10")] == results
 
 
-def test_search_edges_for_property_temporal_latest_excludes():
+def test_search_edges_for_property_temporal_latest_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().excludes([2])
+    filter_expr = filter.Property("p1").temporal().latest().is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),

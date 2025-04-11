@@ -43,12 +43,12 @@ def test_nodes_for_node_name_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Node.name().includes(["1"])
+    filter_expr = filter.Node.name().is_in(["1"])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["1"])
     assert result_ids == expected_ids
 
-    filter_expr = filter.Node.name().includes(["2", "3"])
+    filter_expr = filter.Node.name().is_in(["2", "3"])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["2", "3"])
     assert result_ids == expected_ids
@@ -58,7 +58,7 @@ def test_nodes_for_node_name_not_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Node.name().excludes(["1"])
+    filter_expr = filter.Node.name().is_not_in(["1"])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["2", "3", "4"])
     assert result_ids == expected_ids
@@ -88,12 +88,12 @@ def test_nodes_for_node_type_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Node.node_type().includes(["fire_nation"])
+    filter_expr = filter.Node.node_type().is_in(["fire_nation"])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["1", "3"])
     assert result_ids == expected_ids
 
-    filter_expr = filter.Node.node_type().includes(["fire_nation", "air_nomads"])
+    filter_expr = filter.Node.node_type().is_in(["fire_nation", "air_nomads"])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["1", "2", "3"])
     assert result_ids == expected_ids
@@ -103,7 +103,7 @@ def test_nodes_for_node_type_not_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Node.node_type().excludes(["fire_nation"])
+    filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["2", "4"])
     assert result_ids == expected_ids

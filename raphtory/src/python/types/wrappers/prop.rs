@@ -227,9 +227,9 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
 
     fn ne(&self, value: String) -> PyFilterExpr;
 
-    fn includes(&self, values: Vec<String>) -> PyFilterExpr;
+    fn is_in(&self, values: Vec<String>) -> PyFilterExpr;
 
-    fn excludes(&self, values: Vec<String>) -> PyFilterExpr;
+    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
 
     fn fuzzy_search(
         &self,
@@ -255,15 +255,15 @@ where
         ))))
     }
 
-    fn includes(&self, values: Vec<String>) -> PyFilterExpr {
+    fn is_in(&self, values: Vec<String>) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
-            NodeFilterBuilderOps::includes(self, values),
+            NodeFilterBuilderOps::is_in(self, values),
         )))
     }
 
-    fn excludes(&self, values: Vec<String>) -> PyFilterExpr {
+    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
-            NodeFilterBuilderOps::excludes(self, values),
+            NodeFilterBuilderOps::is_not_in(self, values),
         )))
     }
 
@@ -435,7 +435,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::includes(PropertyRef::Property(self.name.clone()), values);
+        let filter = PropertyFilter::is_in(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 
@@ -448,7 +448,7 @@ impl PyPropertyRef {
     /// Returns:
     ///     PropertyFilter: the property filter
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::excludes(PropertyRef::Property(self.name.clone()), values);
+        let filter = PropertyFilter::is_not_in(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 }

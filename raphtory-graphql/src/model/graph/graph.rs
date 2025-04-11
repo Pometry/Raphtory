@@ -528,7 +528,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::includes(prop_ref.clone(), prop_values))?;
+                        .filter_nodes(PropertyFilter::is_in(prop_ref.clone(), prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -546,7 +546,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_nodes(PropertyFilter::excludes(prop_ref.clone(), prop_values))?;
+                        .filter_nodes(PropertyFilter::is_not_in(prop_ref.clone(), prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -688,7 +688,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::includes(prop_ref.clone(), prop_values))?;
+                        .filter_edges(PropertyFilter::is_in(prop_ref.clone(), prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),
@@ -706,7 +706,7 @@ impl GqlGraph {
                     let prop_values: Vec<Prop> = list.iter().cloned().collect();
                     let filtered_graph = self
                         .graph
-                        .filter_edges(PropertyFilter::excludes(prop_ref.clone(), prop_values))?;
+                        .filter_edges(PropertyFilter::is_not_in(prop_ref.clone(), prop_values))?;
                     Ok(GqlGraph::new(
                         self.path.clone(),
                         filtered_graph.into_dynamic(),

@@ -41,12 +41,12 @@ def test_filter_edges_for_src_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Edge.src().includes(["1"])
+    filter_expr = filter.Edge.src().is_in(["1"])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = sorted([("1", "2")])
     assert result_ids == expected_ids
 
-    filter_expr = filter.Edge.src().includes(["1", "2"])
+    filter_expr = filter.Edge.src().is_in(["1", "2"])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3")])
     assert result_ids == expected_ids
@@ -56,7 +56,7 @@ def test_filter_edges_for_src_not_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Edge.src().excludes(["1"])
+    filter_expr = filter.Edge.src().is_not_in(["1"])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = sorted([("2", "1"), ("2", "3"), ("3", "1")])
     assert result_ids == expected_ids
@@ -86,12 +86,12 @@ def test_filter_edges_for_dst_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Edge.dst().includes(["2"])
+    filter_expr = filter.Edge.dst().is_in(["2"])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = sorted([("1", "2")])
     assert result_ids == expected_ids
 
-    filter_expr = filter.Edge.dst().includes(["2", "3"])
+    filter_expr = filter.Edge.dst().is_in(["2", "3"])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = sorted([("1", "2"), ("2", "3")])
     assert result_ids == expected_ids
@@ -101,7 +101,7 @@ def test_filter_edges_for_dst_not_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Edge.dst().excludes(["1"])
+    filter_expr = filter.Edge.dst().is_not_in(["1"])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = sorted([("1", "2"), ("2", "3")])
     assert result_ids == expected_ids

@@ -325,7 +325,7 @@ impl PropertyFilter {
         }
     }
 
-    pub fn includes(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
+    pub fn is_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
@@ -333,7 +333,7 @@ impl PropertyFilter {
         }
     }
 
-    pub fn excludes(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
+    pub fn is_not_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
@@ -553,7 +553,7 @@ impl Filter {
         }
     }
 
-    pub fn includes(
+    pub fn is_in(
         field_name: impl Into<String>,
         field_values: impl IntoIterator<Item = String>,
     ) -> Self {
@@ -564,7 +564,7 @@ impl Filter {
         }
     }
 
-    pub fn excludes(
+    pub fn is_not_in(
         field_name: impl Into<String>,
         field_values: impl IntoIterator<Item = String>,
     ) -> Self {
@@ -815,9 +815,9 @@ pub trait PropertyFilterOps {
 
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
+    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
+    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
 
     fn is_none(&self) -> PropertyFilter;
 
@@ -856,12 +856,12 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::gt(self.property_ref(), value.into())
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::includes(self.property_ref(), values.into_iter())
+    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
+        PropertyFilter::is_in(self.property_ref(), values.into_iter())
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::excludes(self.property_ref(), values.into_iter())
+    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
+        PropertyFilter::is_not_in(self.property_ref(), values.into_iter())
     }
 
     fn is_none(&self) -> PropertyFilter {
@@ -975,12 +975,12 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
         Filter::ne(self.field_name(), value).into()
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::includes(self.field_name(), values).into()
+    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
+        Filter::is_in(self.field_name(), values).into()
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::excludes(self.field_name(), values).into()
+    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
+        Filter::is_not_in(self.field_name(), values).into()
     }
 
     fn fuzzy_search(
@@ -1043,9 +1043,9 @@ pub trait EdgeFilterOps {
 
     fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
+    fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
+    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
     fn fuzzy_search(
         &self,
@@ -1064,12 +1064,12 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::ne(self.field_name(), value))
     }
 
-    fn includes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::includes(self.field_name(), values))
+    fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::is_in(self.field_name(), values))
     }
 
-    fn excludes(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::excludes(self.field_name(), values))
+    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
     }
 
     fn fuzzy_search(
@@ -1381,7 +1381,7 @@ mod test_composite_filters {
             CompositeNodeFilter::Or(Box::new(CompositeNodeFilter::And(
                 Box::new(CompositeNodeFilter::And(
                     Box::new(CompositeNodeFilter::And(
-                        Box::new(CompositeNodeFilter::Node(Filter::excludes(
+                        Box::new(CompositeNodeFilter::Node(Filter::is_not_in(
                             "node_type",
                             vec!["fire_nation".into(), "water_tribe".into()],
                         ))),
@@ -1400,7 +1400,7 @@ mod test_composite_filters {
                         PropertyRef::Property("p3".to_string()),
                         5u64,
                     ))),
-                    Box::new(CompositeNodeFilter::Property(PropertyFilter::includes(
+                    Box::new(CompositeNodeFilter::Property(PropertyFilter::is_in(
                         PropertyRef::Property("p4".to_string()),
                         vec![Prop::U64(10), Prop::U64(2)],
                     ))),
@@ -1450,7 +1450,7 @@ mod test_composite_filters {
                 Box::new(CompositeEdgeFilter::And(
                     Box::new(CompositeEdgeFilter::And(
                         Box::new(CompositeEdgeFilter::And(
-                            Box::new(CompositeEdgeFilter::Edge(Filter::excludes(
+                            Box::new(CompositeEdgeFilter::Edge(Filter::is_not_in(
                                 "edge_type",
                                 vec!["fire_nation".into(), "water_tribe".into()],
                             ))),
@@ -1469,7 +1469,7 @@ mod test_composite_filters {
                             PropertyRef::Property("p3".to_string()),
                             5u64,
                         ))),
-                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::includes(
+                        Box::new(CompositeEdgeFilter::Property(PropertyFilter::is_in(
                             PropertyRef::Property("p4".to_string()),
                             vec![Prop::U64(10), Prop::U64(2)],
                         ))),
@@ -2493,12 +2493,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_in() {
-            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(6)]);
+            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(6)]);
             let expected_results = vec!["3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
 
-            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(2), Prop::U64(6)]);
+            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
             let expected_results = vec!["2", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2506,7 +2506,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_not_in() {
-            let filter = PropertyFilter::property("p2").excludes(vec![Prop::U64(6)]);
+            let filter = PropertyFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
             let expected_results = vec!["2"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2598,12 +2598,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_property_in() {
-            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(6)]);
+            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(6)]);
             let expected_results = vec!["2->1", "3->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = PropertyFilter::property("p2").includes(vec![Prop::U64(2), Prop::U64(6)]);
+            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
             let expected_results = vec!["2->1", "2->3", "3->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2611,7 +2611,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_property_not_in() {
-            let filter = PropertyFilter::property("p2").excludes(vec![Prop::U64(6)]);
+            let filter = PropertyFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2672,12 +2672,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_nodes_for_node_name_in() {
-            let filter = NodeFilter::name().includes(vec!["1".into()]);
+            let filter = NodeFilter::name().is_in(vec!["1".into()]);
             let expected_results = vec!["1"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
 
-            let filter = NodeFilter::name().includes(vec!["2".into(), "3".into()]);
+            let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
             let expected_results = vec!["2", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2685,7 +2685,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_nodes_for_node_name_not_in() {
-            let filter = NodeFilter::name().excludes(vec!["1".into()]);
+            let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
             let expected_results = vec!["2", "3", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2709,13 +2709,13 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_nodes_for_node_type_in() {
-            let filter = NodeFilter::node_type().includes(vec!["fire_nation".into()]);
+            let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
             let expected_results = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
 
             let filter =
-                NodeFilter::node_type().includes(vec!["fire_nation".into(), "air_nomads".into()]);
+                NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomads".into()]);
             let expected_results = vec!["1", "2", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2723,7 +2723,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_nodes_for_node_type_not_in() {
-            let filter = NodeFilter::node_type().excludes(vec!["fire_nation".into()]);
+            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
             let expected_results = vec!["2", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2891,12 +2891,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_in() {
-            let filter = EdgeFilter::src().includes(vec!["1".into()]);
+            let filter = EdgeFilter::src().is_in(vec!["1".into()]);
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().includes(vec!["1".into(), "2".into()]);
+            let filter = EdgeFilter::src().is_in(vec!["1".into(), "2".into()]);
             let expected_results = vec!["1->2", "2->1", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2904,7 +2904,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_not_in() {
-            let filter = EdgeFilter::src().excludes(vec!["1".into()]);
+            let filter = EdgeFilter::src().is_not_in(vec!["1".into()]);
             let expected_results = vec!["2->1", "2->3", "3->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2928,12 +2928,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_in() {
-            let filter = EdgeFilter::dst().includes(vec!["2".into()]);
+            let filter = EdgeFilter::dst().is_in(vec!["2".into()]);
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = EdgeFilter::dst().includes(vec!["2".into(), "3".into()]);
+            let filter = EdgeFilter::dst().is_in(vec!["2".into(), "3".into()]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2941,7 +2941,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_not_in() {
-            let filter = EdgeFilter::dst().excludes(vec!["1".into()]);
+            let filter = EdgeFilter::dst().is_not_in(vec!["1".into()]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);

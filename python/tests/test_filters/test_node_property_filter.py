@@ -88,12 +88,12 @@ def test_filter_nodes_for_property_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Property("p2").includes([6])
+    filter_expr = filter.Property("p2").is_in([6])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted([3])
     assert result_ids == expected_ids
 
-    filter_expr = filter.Property("p2").includes([2, 6])
+    filter_expr = filter.Property("p2").is_in([2, 6])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted([2, 3])
     assert result_ids == expected_ids
@@ -103,7 +103,7 @@ def test_filter_nodes_for_property_not_in():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Property("p2").excludes([6])
+    filter_expr = filter.Property("p2").is_not_in([6])
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted([2])
     assert result_ids == expected_ids

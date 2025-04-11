@@ -1788,12 +1788,12 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_name_in() {
-                let filter = NodeFilter::name().includes(vec!["N2".into()]);
+                let filter = NodeFilter::name().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N2"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = NodeFilter::name().includes(vec!["N2".into(), "N5".into()]);
+                let filter = NodeFilter::name().is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N2", "N5"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
@@ -1801,12 +1801,12 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_pg_for_node_name_in() {
-                let filter = NodeFilter::name().includes(vec!["N2".into()]);
+                let filter = NodeFilter::name().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N2"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = NodeFilter::name().includes(vec!["N2".into(), "N5".into()]);
+                let filter = NodeFilter::name().is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N2", "N5"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
@@ -1814,7 +1814,7 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_name_not_in() {
-                let filter = NodeFilter::name().excludes(vec!["N5".into()]);
+                let filter = NodeFilter::name().is_not_in(vec!["N5".into()]);
                 let expected_results = vec!["N1", "N2", "N3", "N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
@@ -1822,7 +1822,7 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_pg_for_node_name_not_in() {
-                let filter = NodeFilter::name().excludes(vec!["N5".into()]);
+                let filter = NodeFilter::name().is_not_in(vec!["N5".into()]);
                 let expected_results = vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N6", "N7", "N8",
                     "N9",
@@ -1867,13 +1867,13 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_type_in() {
-                let filter = NodeFilter::node_type().includes(vec!["fire_nation".into()]);
+                let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
                 let expected_results = vec!["N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = NodeFilter::node_type()
-                    .includes(vec!["fire_nation".into(), "air_nomad".into()]);
+                let filter =
+                    NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomad".into()]);
                 let expected_results = vec!["N1", "N3", "N5", "N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
@@ -1881,13 +1881,13 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_pg_for_node_type_in() {
-                let filter = NodeFilter::node_type().includes(vec!["fire_nation".into()]);
+                let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
                 let expected_results = vec!["N6", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = NodeFilter::node_type()
-                    .includes(vec!["fire_nation".into(), "air_nomad".into()]);
+                let filter =
+                    NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomad".into()]);
                 let expected_results = vec!["N1", "N3", "N5", "N6", "N7", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results); // TODO: Fails
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
@@ -1895,7 +1895,7 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_type_not_in() {
-                let filter = NodeFilter::node_type().excludes(vec!["fire_nation".into()]);
+                let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
                 let expected_results = vec!["N1", "N2", "N3", "N5"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
@@ -1903,7 +1903,7 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_pg_for_node_type_not_in() {
-                let filter = NodeFilter::node_type().excludes(vec!["fire_nation".into()]);
+                let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
                 let expected_results = vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
                 ];
@@ -2175,29 +2175,29 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_in() {
-                let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
+                let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
                 let expected_results = vec!["N2", "N5"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").includes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
                 let expected_results = vec!["N2"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N1", "N2"];
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec!["N2"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").includes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
@@ -2205,29 +2205,29 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_pg_for_property_in() {
-                let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
+                let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
                 let expected_results = vec!["N2", "N5", "N8", "N9"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").includes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
                 let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N1", "N2", "N7"];
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").includes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
@@ -2235,27 +2235,28 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_not_in() {
-                let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
+                let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
                 let expected_results = vec!["N2", "N5"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").excludes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
+                let filter =
+                    PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N5"];
                 // assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);   // TODO: Fails
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").excludes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N2", "N5", "N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
@@ -2263,29 +2264,30 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_pg_for_property_not_in() {
-                let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
+                let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
                 let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").excludes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
+                let filter =
+                    PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N12", "N13", "N5", "N8"];
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
                 let expected_results = vec!["N1"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").excludes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N12", "N13", "N2", "N5", "N6", "N7", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
@@ -2737,12 +2739,12 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_dst_in() {
-                let filter = EdgeFilter::dst().includes(vec!["N2".into()]);
+                let filter = EdgeFilter::dst().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = EdgeFilter::dst().includes(vec!["N2".into(), "N5".into()]);
+                let filter = EdgeFilter::dst().is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -2750,13 +2752,13 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_dst_in() {
-                let filter = EdgeFilter::dst().includes(vec!["N2".into()]);
+                let filter = EdgeFilter::dst().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N1->N2"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = EdgeFilter::dst().includes(vec!["N2".into(), "N5".into()]);
+                let filter = EdgeFilter::dst().is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N1->N2"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
@@ -2765,7 +2767,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_dst_not_in() {
-                let filter = EdgeFilter::dst().excludes(vec!["N5".into()]);
+                let filter = EdgeFilter::dst().is_not_in(vec!["N5".into()]);
                 let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -2773,7 +2775,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_dst_not_in() {
-                let filter = EdgeFilter::dst().excludes(vec!["N5".into()]);
+                let filter = EdgeFilter::dst().is_not_in(vec!["N5".into()]);
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
@@ -3097,29 +3099,29 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_property_in() {
-                let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
+                let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").includes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
                 let expected_results = vec!["N2->N3"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 // The results differ for search api because string searches are token based.
                 let expected_results = vec!["N1->N2", "N2->N3"];
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec!["N2->N3"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").includes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -3127,13 +3129,13 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_in() {
-                let filter = PropertyFilter::property("p1").includes(vec![2u64.into()]);
+                let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N9", "N9->N10"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").includes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
@@ -3141,13 +3143,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").includes(vec!["Paper_Airplane".into()]);
+                let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").includes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
                 ];
@@ -3155,7 +3157,7 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").includes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N1->N2"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
@@ -3164,27 +3166,28 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_property_not_in() {
-                let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
+                let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").excludes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
+                let filter =
+                    PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N5->N6"];
                 // assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").excludes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6", "N6->N7"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -3192,7 +3195,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_not_in() {
-                let filter = PropertyFilter::property("p1").excludes(vec![1u64.into()]);
+                let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
                 let expected_results = vec![
                     "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                     "N9->N10",
@@ -3201,25 +3204,26 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k1").excludes(vec![2i64.into()]);
+                let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
                 let expected_results = vec!["N1->N2"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k2").excludes(vec!["Paper_Airplane".into()]);
+                let filter =
+                    PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N12->N13", "N13->N14", "N5->N6", "N8->N9"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k3").excludes(vec![true.into()]);
+                let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
                 let expected_results = vec!["N1->N2"];
                 // PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("k4").excludes(vec![6.0f64.into()]);
+                let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
                 let expected_results = vec![
                     "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                 ];
