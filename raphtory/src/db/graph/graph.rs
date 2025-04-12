@@ -505,6 +505,17 @@ mod db_tests {
     }
 
     #[test]
+    fn test_overlaping_props(){
+        let graph= Graph::new();
+        graph.add_node(TimeIndexEntry(1, 0), 1, vec![("a", "b")], None).unwrap();
+        graph.add_node(TimeIndexEntry(1, 0), 1, vec![("c", "d")], None).unwrap();
+
+        let node  = graph.node(1).unwrap(); 
+        let actual = node.properties().temporal().as_map();
+        println!("{:?}", actual);
+    }
+
+    #[test]
     fn test_empty_graph() {
         let graph = Graph::new();
         test_storage!(&graph, |graph| {

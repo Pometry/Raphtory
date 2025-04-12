@@ -330,7 +330,11 @@ impl<T: Send + Sync> CheatMap<T> for Option<T> {
     }
 }
 
-fn iter_inner<'a, P: Into<Prop>, A: ArrayOps<'a> + Chunked<Chunk = <A as ArrayOps<'a>>::Chunk>>(
+fn iter_inner<
+    'a,
+    P: Into<Prop>,
+    A: std::fmt::Debug + ArrayOps<'a> + Chunked<Chunk = <A as ArrayOps<'a>>::Chunk>,
+>(
     col: TPropColumn<'a, A, TimeIndexEntry>,
     range: Option<Range<TimeIndexEntry>>,
 ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a

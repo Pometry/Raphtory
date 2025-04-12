@@ -6,6 +6,7 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
+use arrow_array::ArrayAccessor;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use polars_arrow::{
@@ -45,7 +46,7 @@ impl PropCols {
     }
 }
 
-pub(crate) fn combine_properties(
+pub fn combine_properties(
     props: &[impl AsRef<str>],
     indices: &[usize],
     df: &DFChunk,
