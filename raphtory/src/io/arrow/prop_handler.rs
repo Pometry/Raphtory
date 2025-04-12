@@ -16,6 +16,7 @@ use polars_arrow::{
     },
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
+    types::NativeType,
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::prelude::*;
@@ -251,20 +252,22 @@ trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 }
 
-impl<A> PropCol for A
-where
-    A: StaticArray,
-    for<'a> A::ValueT<'a>: Into<Prop>,
-{
+impl<T: NativeType + Into<Prop>> PropCol for PrimitiveArray<T> {
     #[inline]
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(self, i).map(|v| v.into())
     }
 }
 
+impl PropCol for BooleanArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(self, i).map(Prop::Bool)
+    }
+}
+
 struct Wrap<A>(A);
 
-impl PropCol for Wrap<Utf8Array<i32>> {
+impl<I: Offset> PropCol for Wrap<Utf8Array<I>> {
     fn get(&self, i: usize) -> Option<Prop> {
         self.0.get(i).map(Prop::str)
     }
@@ -376,7 +379,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
         }
         DataType::LargeUtf8 => {
             let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
-            Box::new(arr.clone())
+            Box::new(Wrap(arr.clone()))
         }
         DataType::List(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
