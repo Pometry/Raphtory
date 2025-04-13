@@ -1,12 +1,13 @@
 use crate::{
     core::{
-        utils::errors::{GraphError, LoadError},
-        IntoPropList, PropType,
+        prop_type_from_arrow_dtype, utils::errors::{GraphError, LoadError}, IntoPropList, PropType
     },
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
-use arrow_array::ArrayAccessor;
+use arrow_array::{
+    Array as ArrowArray, ArrayAccessor, ArrowPrimitiveType, GenericStringArray, OffsetSizeTrait,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use polars_arrow::{
@@ -60,6 +61,33 @@ pub fn combine_properties(
     let cols = indices
         .iter()
         .map(|idx| lift_property_col(df.chunk[*idx].as_ref()))
+        .collect::<Vec<_>>();
+    let prop_ids = props
+        .iter()
+        .zip(dtypes.into_iter())
+        .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+
+    Ok(PropCols {
+        prop_ids,
+        cols,
+        len: df.len(),
+    })
+}
+
+pub fn combine_properties_arrow<A:arrow_array::Array>(
+    props: &[impl AsRef<str>],
+    indices: &[usize],
+    df: &[A],
+    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
+) -> Result<PropCols, GraphError> {
+    let dtypes = indices
+        .iter()
+        .map(|idx| prop_type_from_arrow_dtype(df[*idx].data_type()))
+        .collect::<Vec<_>>();
+    let cols = indices
+        .iter()
+        .map(|idx| lift_property_col_arrow_rs(&df[*idx]))
         .collect::<Vec<_>>();
     let prop_ids = props
         .iter()
@@ -267,9 +295,15 @@ impl PropCol for BooleanArray {
 
 struct Wrap<A>(A);
 
-impl<I: Offset> PropCol for Wrap<Utf8Array<I>> {
+impl<I: Offset> PropCol for Utf8Array<I> {
     fn get(&self, i: usize) -> Option<Prop> {
-        self.0.get(i).map(Prop::str)
+        Utf8Array::get(self, i).map(Prop::str)
+    }
+}
+
+impl PropCol for Utf8ViewArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(self, i).map(Prop::str)
     }
 }
 
@@ -335,6 +369,134 @@ impl PropCol for DecimalTimeCol {
         StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
     }
 }
+
+impl PropCol for arrow_array::BooleanArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::Bool(self.value(i)))
+        }
+    }
+}
+
+impl<T: ArrowPrimitiveType> PropCol for arrow_array::PrimitiveArray<T>
+where
+    T::Native: Into<Prop>,
+{
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(self.value(i).into())
+        }
+    }
+}
+
+impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::str(self.value(i)))
+        }
+    }
+}
+
+impl PropCol for arrow_array::StringViewArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::str(self.value(i)))
+        }
+    }
+}
+
+fn lift_property_col_arrow_rs(arr: &dyn arrow_array::Array) -> Box<dyn PropCol> {
+    match arr.data_type() {
+        arrow_schema::DataType::Boolean => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::BooleanArray>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Int32 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Int32Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Int64 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Int64Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt8 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt8Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt16 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt16Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt32 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt32Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt64 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt64Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Float32 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Float32Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Float64 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Float64Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Utf8 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::LargeUtf8 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::LargeStringArray>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+
+        unsupported => panic!("Data type not supported: {:?}", unsupported),
+    }
+}
+
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
         DataType::Boolean => {
@@ -375,11 +537,11 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
         }
         DataType::Utf8 => {
             let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
-            Box::new(Wrap(arr.clone()))
+            Box::new(arr.clone())
         }
         DataType::LargeUtf8 => {
             let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
-            Box::new(Wrap(arr.clone()))
+            Box::new(arr.clone())
         }
         DataType::List(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
