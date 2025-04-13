@@ -2484,7 +2484,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_property_ge() {
+        fn test_filter_nodes_for_property_ge() {
             let filter = PropertyFilter::property("p2").ge(2u64);
             let expected_results = vec!["2", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2589,7 +2589,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_edges_for_property_ge() {
+        fn test_filter_edges_for_property_ge() {
             let filter = PropertyFilter::property("p2").ge(2u64);
             let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
@@ -2655,7 +2655,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_name_eq() {
+        fn test_filter_nodes_for_node_name_eq() {
             let filter = NodeFilter::name().eq("3");
             let expected_results = vec!["3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2663,7 +2663,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_name_ne() {
+        fn test_filter_nodes_for_node_name_ne() {
             let filter = NodeFilter::name().ne("2");
             let expected_results = vec!["1", "3", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2671,7 +2671,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_name_in() {
+        fn test_filter_nodes_for_node_name_in() {
             let filter = NodeFilter::name().is_in(vec!["1".into()]);
             let expected_results = vec!["1"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2684,7 +2684,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_name_not_in() {
+        fn test_filter_nodes_for_node_name_not_in() {
             let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
             let expected_results = vec!["2", "3", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2692,7 +2692,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_type_eq() {
+        fn test_filter_nodes_for_node_type_eq() {
             let filter = NodeFilter::node_type().eq("fire_nation");
             let expected_results = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2700,7 +2700,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_type_ne() {
+        fn test_filter_nodes_for_node_type_ne() {
             let filter = NodeFilter::node_type().ne("fire_nation");
             let expected_results = vec!["2", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2708,7 +2708,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_type_in() {
+        fn test_filter_nodes_for_node_type_in() {
             let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
             let expected_results = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2722,7 +2722,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_nodes_for_node_type_not_in() {
+        fn test_filter_nodes_for_node_type_not_in() {
             let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
             let expected_results = vec!["2", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2789,7 +2789,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_node_composite_filter() {
+        fn test_composite_filter_nodes() {
             let filter = PropertyFilter::property("p2")
                 .eq(2u64)
                 .and(PropertyFilter::property("p1").eq("kapoor"));
@@ -2994,7 +2994,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_edge_for_src_dst() {
+        fn test_filter_edge_for_src_dst() {
             let filter: AndFilter<EdgeFieldFilter, EdgeFieldFilter> =
                 EdgeFilter::src().eq("3").and(EdgeFilter::dst().eq("1"));
             let expected_results = vec!["3->1"];
@@ -3003,7 +3003,7 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_edge_composite_filter() {
+        fn test_composite_filter_edges() {
             let filter = PropertyFilter::property("p2")
                 .eq(2u64)
                 .and(PropertyFilter::property("p1").eq("kapoor"));
