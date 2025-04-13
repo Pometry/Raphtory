@@ -2632,6 +2632,17 @@ pub(crate) mod test_filters {
             // assert_filter_results!(filter_edges, filter, expected_results);
             // assert_search_results!(search_edges, filter, expected_results);
         }
+
+        #[test]
+        fn test_filter_edges_by_fuzzy_search() {
+            let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, true);
+            let expected_results: Vec<&str> = vec!["1->2"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, false);
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_results!(filter_edges, filter, expected_results);
+        }
     }
 
     #[cfg(test)]
@@ -2727,6 +2738,21 @@ pub(crate) mod test_filters {
             let expected_results = vec!["2", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_nodes_by_fuzzy_search() {
+            let filter = NodeFilter::node_type().fuzzy_search("fire", 2, true);
+            let expected_results: Vec<&str> = vec!["1", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+
+            let filter = NodeFilter::node_type().fuzzy_search("fire", 2, false);
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+
+            let filter = NodeFilter::node_type().fuzzy_search("air_noma", 2, false);
+            let expected_results: Vec<&str> = vec!["2"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
         }
     }
 
@@ -2853,18 +2879,18 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_edge_filter {
+        #[cfg(feature = "search")]
+        use crate::db::graph::views::filter::test_filters::search_edges_with;
         use crate::{
             db::graph::views::filter::{
+                internal::InternalEdgeFilterOps,
                 test_filters::{filter_edges_with, init_edges_graph},
                 EdgeFieldFilter, EdgeFilter, EdgeFilterOps,
             },
             prelude::{EdgeViewOps, Graph, NodeViewOps},
         };
 
-        #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_edges_with;
-
-        fn filter_edges(filter: EdgeFieldFilter) -> Vec<String> {
+        fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
             filter_edges_with(filter, || init_edges_graph(Graph::new()))
         }
 
