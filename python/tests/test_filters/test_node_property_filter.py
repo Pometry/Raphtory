@@ -4,10 +4,10 @@ from raphtory import filter
 
 def init_graph(graph):
     nodes = [
-         (1, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
-         (2, 2, {"p1": "prop12", "p2": 2}, "air_nomads"),
+         (1, 1, {"p1": "shivam_kapoor", "p9": 5, "p10": "Paper_airplane"}, "fire_nation"),
+         (2, 2, {"p1": "prop12", "p2": 2, "p10": "Paper_ship"}, "air_nomads"),
          (3, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
-         (3, 3, {"p2": 6, "p3": 1}, "fire_nation"),
+         (3, 3, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, "fire_nation"),
          (4, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
          (3, 4, {"p4": "pometry"}, None),
          (4, 4, {"p5": 12}, None),
@@ -137,5 +137,54 @@ def test_filter_nodes_by_props_added_at_different_times():
     filter_expr2 = filter.Property("p5") == 12
     result_ids = sorted(graph.filter_nodes(filter_expr1 & filter_expr2).nodes.id)
     expected_ids = sorted([4])
+    assert result_ids == expected_ids
+
+
+def test_filter_nodes_for_property_contains():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr = filter.Property("p10").contains("Paper")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 2, 3]
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p10").temporal().any().contains("Paper")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 2, 3]
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p10").temporal().latest().contains("Paper")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 2, 3]
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p10").constant().contains("Paper")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = []
+    assert result_ids == expected_ids
+
+def test_filter_nodes_for_property_contains_not():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr = filter.Property("p10").contains_not("ship")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 3, 4]
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p10").temporal().any().contains_not("ship")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 3]
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p10").temporal().latest().contains_not("ship")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 3, 4]
+    assert result_ids == expected_ids
+
+    filter_expr = filter.Property("p10").constant().contains_not("ship")
+    result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+    expected_ids = [1, 2, 3, 4]
     assert result_ids == expected_ids
 

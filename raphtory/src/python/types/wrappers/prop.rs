@@ -6,8 +6,8 @@ use crate::{
             internal::{
                 InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
             },
-            AndFilter, AsEdgeFilter, AsNodeFilter, InternalNodeFilterBuilderOps,
-            NodeFilterBuilderOps, PropertyRef,
+            AsEdgeFilter, AsNodeFilter, InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
+            PropertyRef,
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
@@ -231,6 +231,10 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
 
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
 
+    fn contains(&self, value: String) -> PyFilterExpr;
+
+    fn contains_not(&self, value: String) -> PyFilterExpr;
+
     fn fuzzy_search(
         &self,
         value: String,
@@ -264,6 +268,18 @@ where
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
             NodeFilterBuilderOps::is_not_in(self, values),
+        )))
+    }
+
+    fn contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::contains(self, value),
+        )))
+    }
+
+    fn contains_not(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::contains_not(self, value),
         )))
     }
 
@@ -427,6 +443,24 @@ impl PyPropertyRef {
         PyPropertyFilter(filter)
     }
 
+    /// Create a filter that keeps entities that contains the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
+    fn contains(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::contains(PropertyRef::Property(self.name.clone()), value);
+        PyPropertyFilter(filter)
+    }
+
+    /// Create a filter that keeps entities that do not contain the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
+    fn contains_not(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::contains_not(PropertyRef::Property(self.name.clone()), value);
+        PyPropertyFilter(filter)
+    }
+
     /// Create a filter that keeps entities if their property value is in the set
     ///
     /// Arguments:
@@ -434,7 +468,7 @@ impl PyPropertyRef {
     ///
     /// Returns:
     ///     PropertyFilter: the property filter
-    fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+    fn is_in(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::is_in(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
@@ -447,11 +481,8 @@ impl PyPropertyRef {
     ///
     /// Returns:
     ///     PropertyFilter: the property filter
-    fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+    fn is_not_in(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::is_not_in(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 }
-
-// DynNodeFilterBuilderOps -> Blanket impl for InternalNodeFilterBuilderOps
-//

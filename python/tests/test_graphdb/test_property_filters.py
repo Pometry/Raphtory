@@ -99,8 +99,8 @@ def test_filter_exploded_edges():
        (Prop("test_str").is_some(), [(1, 2), (2, 3)]),
        (Prop("test_str").is_none(), [(2, 3), (3, 4)]),
        (Prop("test_str") == "second", [(2, 3)]),
-       (Prop("test_str").any({"first", "fourth"}), [(1, 2)]),
-       (Prop("test_str").not_any({"first"}), [(2, 3)]),
+       (Prop("test_str").is_in({"first", "fourth"}), [(1, 2)]),
+       (Prop("test_str").is_not_in({"first"}), [(2, 3)]),
 
        (Prop("test_int") == 2, [(3, 4)]),
        (Prop("test_int") != 2, [(1, 2), (2, 3), (3, 4)]),

@@ -50,6 +50,8 @@ pub enum FilterOperator {
     NotIn,
     IsSome,
     IsNone,
+    Contains,
+    ContainsNot,
     FuzzySearch {
         levenshtein_distance: usize,
         prefix_match: bool,
@@ -69,6 +71,8 @@ impl Display for FilterOperator {
             FilterOperator::NotIn => "NOT_IN",
             FilterOperator::IsSome => "IS_SOME",
             FilterOperator::IsNone => "IS_NONE",
+            FilterOperator::Contains => "CONTAINS",
+            FilterOperator::ContainsNot => "CONTAINS_NOT",
             FilterOperator::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
@@ -140,6 +144,14 @@ impl FilterOperator {
                 | FilterOperator::Le
                 | FilterOperator::Gt
                 | FilterOperator::Ge => right.map_or(false, |r| self.operation()(r, l)),
+                FilterOperator::Contains => right.map_or(false, |r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
+                    _ => unreachable!(),
+                }),
+                FilterOperator::ContainsNot => right.map_or(true, |r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => !r.deref().contains(l.deref()),
+                    _ => unreachable!(),
+                }),
                 FilterOperator::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
@@ -167,6 +179,14 @@ impl FilterOperator {
                 FilterOperator::Eq | FilterOperator::Ne => match right {
                     Some(r) => self.operation()(r, l),
                     None => matches!(self, FilterOperator::Ne),
+                },
+                FilterOperator::Contains => match right {
+                    Some(r) => r.contains(l),
+                    None => false,
+                },
+                FilterOperator::ContainsNot => match right {
+                    Some(r) => !r.contains(l),
+                    None => true,
                 },
                 FilterOperator::FuzzySearch {
                     levenshtein_distance,
@@ -354,6 +374,22 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsSome,
+        }
+    }
+
+    pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
+        Self {
+            prop_ref,
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
+            operator: FilterOperator::Contains,
+        }
+    }
+
+    pub fn contains_not(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
+        Self {
+            prop_ref,
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
+            operator: FilterOperator::ContainsNot,
         }
     }
 
@@ -575,6 +611,22 @@ impl Filter {
         }
     }
 
+    pub fn contains(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::Contains,
+        }
+    }
+
+    pub fn contains_not(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::ContainsNot,
+        }
+    }
+
     pub fn fuzzy_search(
         field_name: impl Into<String>,
         field_value: impl Into<String>,
@@ -595,13 +647,10 @@ impl Filter {
         self.operator.apply(&self.field_value, node_value)
     }
 
-    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        node: NodeStorageRef,
-    ) -> bool {
+    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(&self, node: NodeStorageRef) -> bool {
         match self.field_name.as_str() {
             "node_name" => self.matches(Some(&node.id().to_str())),
+            // node_type filtering is being taken care of by NodeTypeFilteredGraph impl
             // "node_type" => self.matches(graph.node_type(node.vid()).as_deref()),
             _ => false,
         }
@@ -823,6 +872,10 @@ pub trait PropertyFilterOps {
 
     fn is_some(&self) -> PropertyFilter;
 
+    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter;
+
+    fn contains_not(&self, value: impl Into<Prop>) -> PropertyFilter;
+
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
@@ -870,6 +923,14 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
 
     fn is_some(&self) -> PropertyFilter {
         PropertyFilter::is_some(self.property_ref())
+    }
+
+    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::contains(self.property_ref(), value.into())
+    }
+
+    fn contains_not(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::contains_not(self.property_ref(), value.into())
     }
 
     fn fuzzy_search(
@@ -983,6 +1044,14 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
         Filter::is_not_in(self.field_name(), values).into()
     }
 
+    fn contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::contains(self.field_name(), value).into()
+    }
+
+    fn contains_not(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::contains_not(self.field_name(), value.into()).into()
+    }
+
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
@@ -1047,6 +1116,10 @@ pub trait EdgeFilterOps {
 
     fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
+    fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
+
+    fn contains_not(&self, value: impl Into<String>) -> EdgeFieldFilter;
+
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
@@ -1070,6 +1143,14 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
 
     fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
+    }
+
+    fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
+    }
+
+    fn contains_not(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::contains_not(self.field_name(), value.into()))
     }
 
     fn fuzzy_search(
@@ -2315,13 +2396,18 @@ pub(crate) mod test_filters {
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
+                    ("p10", "Paper_airplane".into_prop()),
                 ],
                 Some("fire_nation"),
             ),
             (
                 2,
                 2,
-                vec![("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                vec![
+                    ("p1", "prop12".into_prop()),
+                    ("p2", 2u64.into_prop()),
+                    ("p10", "Paper_ship".into_prop()),
+                ],
                 Some("air_nomads"),
             ),
             (
@@ -2336,7 +2422,11 @@ pub(crate) mod test_filters {
             (
                 3,
                 3,
-                vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                vec![
+                    ("p2", 6u64.into_prop()),
+                    ("p3", 1u64.into_prop()),
+                    ("p10", "Paper_airplane".into_prop()),
+                ],
                 Some("fire_nation"),
             ),
             (
@@ -2371,15 +2461,18 @@ pub(crate) mod test_filters {
         let edges = [
             (
                 1,
-                1,
-                2,
-                vec![("p1", "shivam_kapoor".into_prop())],
+                "1",
+                "2",
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p10", "Paper_airplane".into_prop()),
+                ],
                 Some("fire_nation"),
             ),
             (
                 2,
-                1,
-                2,
+                "1",
+                "2",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p2", 4u64.into_prop()),
@@ -2388,22 +2481,44 @@ pub(crate) mod test_filters {
             ),
             (
                 2,
-                2,
-                3,
-                vec![("p1", "prop12".into_prop()), ("p2", 2u64.into_prop())],
+                "2",
+                "3",
+                vec![
+                    ("p1", "prop12".into_prop()),
+                    ("p2", 2u64.into_prop()),
+                    ("p10", "Paper_ship".into_prop()),
+                ],
                 Some("air_nomads"),
             ),
             (
                 3,
-                3,
-                1,
+                "3",
+                "1",
                 vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
                 Some("fire_nation"),
             ),
             (
                 3,
-                2,
-                1,
+                "2",
+                "1",
+                vec![
+                    ("p2", 6u64.into_prop()),
+                    ("p3", 1u64.into_prop()),
+                    ("p10", "Paper_airplane".into_prop()),
+                ],
+                None,
+            ),
+            (
+                4,
+                "David Gilmour",
+                "John Mayer",
+                vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                None,
+            ),
+            (
+                4,
+                "John Mayer",
+                "Jimmy Page",
                 vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
                 None,
             ),
@@ -2441,6 +2556,23 @@ pub(crate) mod test_filters {
         #[cfg(feature = "search")]
         fn search_nodes(filter: PropertyFilter) -> Vec<String> {
             search_nodes_with(filter, || init_nodes_graph(Graph::new()))
+        }
+
+        #[test]
+        fn test_exact_match() {
+            let filter = PropertyFilter::property("p10").eq("Paper_airplane");
+            let expected_results = vec!["1", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+        }
+
+        #[test]
+        fn test_not_exact_match() {
+            let filter = PropertyFilter::property("p10").eq("Paper");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_search_results!(search_nodes, filter, expected_results);
         }
 
         #[test]
@@ -2527,6 +2659,66 @@ pub(crate) mod test_filters {
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
         }
+
+        #[test]
+        fn test_filter_nodes_for_property_contains() {
+            let filter = PropertyFilter::property("p10").contains("Paper");
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .any()
+                .contains("Paper");
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .latest()
+                .contains("Paper");
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10").constant().contains("Paper");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_contains_not() {
+            let filter = PropertyFilter::property("p10").contains_not("ship");
+            let expected_results: Vec<&str> = vec!["1", "3", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .any()
+                .contains_not("ship");
+            let expected_results: Vec<&str> = vec!["1", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .latest()
+                .contains_not("ship");
+            let expected_results: Vec<&str> = vec!["1", "3", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .constant()
+                .contains_not("ship");
+            let expected_results: Vec<&str> = vec!["1", "2", "3", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            // assert_search_results!(search_nodes, filter, expected_results);
+        }
     }
 
     #[cfg(test)]
@@ -2559,7 +2751,13 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_ne() {
             let filter = PropertyFilter::property("p2").ne(2u64);
-            let expected_results = vec!["1->2", "2->1", "3->1"];
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2567,7 +2765,14 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_lt() {
             let filter = PropertyFilter::property("p2").lt(10u64);
-            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2575,7 +2780,14 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_le() {
             let filter = PropertyFilter::property("p2").le(6u64);
-            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2583,7 +2795,13 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_gt() {
             let filter = PropertyFilter::property("p2").gt(2u64);
-            let expected_results = vec!["1->2", "2->1", "3->1"];
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2591,7 +2809,14 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_ge() {
             let filter = PropertyFilter::property("p2").ge(2u64);
-            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2599,12 +2824,23 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_in() {
             let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(6)]);
-            let expected_results = vec!["2->1", "3->1"];
+            let expected_results = vec![
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
             let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
-            let expected_results = vec!["2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2620,7 +2856,14 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_is_some() {
             let filter = PropertyFilter::property("p2").is_some();
-            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2630,6 +2873,85 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p2").is_none();
             let expected_results = vec!["1->2"];
             // assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_contains() {
+            let filter = PropertyFilter::property("p10").contains("Paper");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .any()
+                .contains("Paper");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .latest()
+                .contains("Paper");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10").constant().contains("Paper");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_contains_not() {
+            let filter = PropertyFilter::property("p10").contains_not("ship");
+            let expected_results: Vec<&str> = vec![
+                "1->2",
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .any()
+                .contains_not("ship");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .temporal()
+                .latest()
+                .contains_not("ship");
+            let expected_results: Vec<&str> = vec![
+                "1->2",
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10")
+                .constant()
+                .contains_not("ship");
+            let expected_results: Vec<&str> = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges, filter, expected_results);
             // assert_search_results!(search_edges, filter, expected_results);
         }
 
@@ -2741,7 +3063,23 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_filter_nodes_by_fuzzy_search() {
+        fn test_filter_nodes_for_node_type_contains() {
+            let filter = NodeFilter::node_type().contains("fire");
+            let expected_results = vec!["1", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_contains_not() {
+            let filter = NodeFilter::node_type().contains_not("fire");
+            let expected_results = vec!["2", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_nodes_for_fuzzy_search() {
             let filter = NodeFilter::node_type().fuzzy_search("fire", 2, true);
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2885,9 +3223,9 @@ pub(crate) mod test_filters {
             db::graph::views::filter::{
                 internal::InternalEdgeFilterOps,
                 test_filters::{filter_edges_with, init_edges_graph},
-                EdgeFieldFilter, EdgeFilter, EdgeFilterOps,
+                EdgeFieldFilter, EdgeFilter, EdgeFilterOps, NodeFilter,
             },
-            prelude::{EdgeViewOps, Graph, NodeViewOps},
+            prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
 
         fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
@@ -2910,7 +3248,13 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_src_ne() {
             let filter = EdgeFilter::src().ne("1");
-            let expected_results = vec!["2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2931,7 +3275,13 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_src_not_in() {
             let filter = EdgeFilter::src().is_not_in(vec!["1".into()]);
-            let expected_results = vec!["2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2947,7 +3297,13 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_dst_ne() {
             let filter = EdgeFilter::dst().ne("2");
-            let expected_results = vec!["2->1", "2->3", "3->1"];
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
         }
@@ -2968,9 +3324,46 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_dst_not_in() {
             let filter = EdgeFilter::dst().is_not_in(vec!["1".into()]);
-            let expected_results = vec!["1->2", "2->3"];
+            let expected_results = vec![
+                "1->2",
+                "2->3",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_contains() {
+            let filter = EdgeFilter::src().contains("Mayer");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_contains_not() {
+            let filter = EdgeFilter::src().contains_not("Mayer");
+            let expected_results: Vec<&str> =
+                vec!["1->2", "2->1", "2->3", "3->1", "David Gilmour->John Mayer"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            // assert_search_results!(search_edges, filter, expected_results);
+        }
+
+        #[test]
+        fn test_filter_edges_for_fuzzy_search() {
+            let filter = EdgeFilter::src().fuzzy_search("John", 2, true);
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+
+            let filter = EdgeFilter::src().fuzzy_search("John", 2, false);
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_results!(filter_edges, filter, expected_results);
+
+            let filter = EdgeFilter::src().fuzzy_search("John May", 2, false);
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_results!(filter_edges, filter, expected_results);
         }
     }
 
@@ -3049,7 +3442,12 @@ pub(crate) mod test_filters {
                 .or(PropertyFilter::property("p2")
                     .eq(6u64)
                     .and(PropertyFilter::property("p3").eq(1u64)));
-            let expected_results = vec!["2->1", "3->1"];
+            let expected_results = vec![
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
             assert_filter_results!(filter_edges_or, filter, expected_results);
             assert_search_results!(search_edges_or, filter, expected_results);
 
