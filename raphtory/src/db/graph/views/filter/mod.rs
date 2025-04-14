@@ -1435,7 +1435,6 @@ mod test_fluent_builder_apis {
     }
 }
 
-// TODO: Add tests for const and temporal properties
 #[cfg(test)]
 mod test_composite_filters {
     use crate::{
@@ -2571,7 +2570,6 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10").eq("Paper");
             let expected_results: Vec<&str> = vec![];
             assert_filter_results!(filter_nodes, filter, expected_results);
-            let expected_results: Vec<&str> = vec!["1", "2", "3"];
             assert_search_results!(search_nodes, filter, expected_results);
         }
 

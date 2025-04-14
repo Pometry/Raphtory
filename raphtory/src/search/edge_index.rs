@@ -15,7 +15,7 @@ use crate::{
     prelude::*,
     search::{
         entity_index::EntityIndex,
-        fields::{DESTINATION, EDGE_ID, SOURCE},
+        fields::{DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, SOURCE, SOURCE_TOKENIZED},
         TOKENIZER,
     },
 };
@@ -27,7 +27,7 @@ use tantivy::{
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST,
-        INDEXED, STORED,
+        INDEXED, STORED, STRING,
     },
     Document, IndexWriter, TantivyDocument, TantivyError,
 };
@@ -36,8 +36,10 @@ use tantivy::{
 pub struct EdgeIndex {
     pub(crate) entity_index: EntityIndex,
     pub(crate) edge_id_field: Field,
-    pub(crate) from_field: Field,
-    pub(crate) to_field: Field,
+    pub(crate) src_field: Field,
+    pub(crate) src_tokenized_field: Field,
+    pub(crate) dst_field: Field,
+    pub(crate) dst_tokenized_field: Field,
 }
 
 impl Debug for EdgeIndex {
@@ -52,17 +54,25 @@ impl EdgeIndex {
     pub(crate) fn new() -> Self {
         let schema = Self::schema_builder().build();
         let edge_id_field = schema.get_field(EDGE_ID).ok().expect("Edge ID is absent");
-        let from_field = schema.get_field(SOURCE).expect("Source is absent");
-        let to_field = schema
+        let src_field = schema.get_field(SOURCE).expect("Source is absent");
+        let src_tokenized_field = schema
+            .get_field(SOURCE_TOKENIZED)
+            .expect("Source is absent");
+        let dst_field = schema
             .get_field(DESTINATION)
+            .expect("Destination is absent");
+        let dst_tokenized_field = schema
+            .get_field(DESTINATION_TOKENIZED)
             .expect("Destination is absent");
 
         let entity_index = EntityIndex::new(schema);
         EdgeIndex {
             entity_index,
             edge_id_field,
-            from_field,
-            to_field,
+            src_field,
+            src_tokenized_field,
+            dst_field,
+            dst_tokenized_field,
         }
     }
 
@@ -78,13 +88,11 @@ impl EdgeIndex {
         }
 
         let constant_property_indexes = self.entity_index.const_property_indexes.read();
-
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
         let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
-
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }
@@ -95,16 +103,18 @@ impl EdgeIndex {
     fn schema_builder() -> SchemaBuilder {
         let mut schema_builder = Schema::builder();
         schema_builder.add_u64_field(EDGE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_text_field(SOURCE, STRING);
         schema_builder.add_text_field(
-            SOURCE,
+            SOURCE_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
         );
+        schema_builder.add_text_field(DESTINATION, STRING);
         schema_builder.add_text_field(
-            DESTINATION,
+            DESTINATION_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
@@ -118,11 +128,20 @@ impl EdgeIndex {
         self.entity_index.index.schema().get_field(field_name)
     }
 
+    pub fn get_tokenized_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {
+        self.entity_index
+            .index
+            .schema()
+            .get_field(format!("{field_name}_tokenized").as_ref())
+    }
+
     fn create_document<'a>(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.edge_id_field, edge_id);
-        document.add_text(self.from_field, src);
-        document.add_text(self.to_field, dst);
+        document.add_text(self.src_field, src.clone());
+        document.add_text(self.src_tokenized_field, src);
+        document.add_text(self.dst_field, dst.clone());
+        document.add_text(self.dst_tokenized_field, dst);
         document
     }
 

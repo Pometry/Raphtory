@@ -21,10 +21,14 @@ pub(in crate::search) mod fields {
     pub const SECONDARY_TIME: &str = "secondary_time";
     pub const NODE_ID: &str = "node_id";
     pub const NODE_NAME: &str = "node_name";
+    pub const NODE_NAME_TOKENIZED: &str = "node_name_tokenized";
     pub const NODE_TYPE: &str = "node_type";
+    pub const NODE_TYPE_TOKENIZED: &str = "node_type_tokenized";
     pub const EDGE_ID: &str = "edge_id";
     pub const SOURCE: &str = "src";
+    pub const SOURCE_TOKENIZED: &str = "src_tokenized";
     pub const DESTINATION: &str = "dst";
+    pub const DESTINATION_TOKENIZED: &str = "dst_tokenized";
     pub const LAYER_ID: &str = "layer_id";
 }
 

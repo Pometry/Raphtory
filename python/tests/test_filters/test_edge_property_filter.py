@@ -35,7 +35,7 @@ def test_filter_edges_for_property_ne():
 
     filter_expr = filter.Property("p2") != 2
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("1", "2"), ("2", "1"), ("3", "1")])
+    expected_ids = sorted([("1", "2"), ("2", "1"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 
@@ -45,7 +45,7 @@ def test_filter_edges_for_property_lt():
 
     filter_expr = filter.Property("p2") < 10
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1")])
+    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 
@@ -55,7 +55,7 @@ def test_filter_edges_for_property_le():
 
     filter_expr = filter.Property("p2") <= 6
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1")])
+    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 
@@ -65,7 +65,7 @@ def test_filter_edges_for_property_gt():
 
     filter_expr = filter.Property("p2") > 2
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("1", "2"), ("2", "1"), ("3", "1")])
+    expected_ids = sorted([("1", "2"), ("2", "1"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 
@@ -75,7 +75,7 @@ def test_edges_for_property_ge():
 
     filter_expr = filter.Property("p2") >= 2
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1")])
+    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 
@@ -85,12 +85,12 @@ def test_filter_edges_for_property_in():
 
     filter_expr = filter.Property("p2").is_in([6])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("2", "1"), ("3", "1")])
+    expected_ids = sorted([("2", "1"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
     filter_expr = filter.Property("p2").is_in([2, 6])
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("2", "1"), ("2", "3"), ("3", "1")])
+    expected_ids = sorted([("2", "1"), ("2", "3"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 
@@ -110,7 +110,7 @@ def test_filter_edges_for_property_is_some():
 
     filter_expr = filter.Property("p2").is_some()
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1")])
+    expected_ids = sorted([("1", "2"), ("2", "1"), ("2", "3"), ("3", "1"), ('David Gilmour', 'John Mayer'), ('John Mayer', 'Jimmy Page')])
     assert result_ids == expected_ids
 
 

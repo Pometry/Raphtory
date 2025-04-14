@@ -10,7 +10,7 @@ use tantivy::{
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
-        FAST, INDEXED, TEXT,
+        FAST, INDEXED, STRING, TEXT,
     },
     Document, Index, IndexReader, TantivyDocument,
 };
@@ -87,8 +87,9 @@ impl PropertyIndex {
 
         match prop_type {
             PropType::Str => {
+                schema_builder.add_text_field(prop_name, STRING);
                 schema_builder.add_text_field(
-                    prop_name,
+                    format!("{prop_name}_tokenized").as_ref(),
                     TextOptions::default().set_indexing_options(
                         TextFieldIndexing::default()
                             .set_tokenizer(TOKENIZER)
@@ -135,6 +136,12 @@ impl PropertyIndex {
         self.index.schema().get_field(prop_name)
     }
 
+    pub fn get_tokenized_prop_field(&self, prop_name: &str) -> tantivy::Result<Field> {
+        self.index
+            .schema()
+            .get_field(format!("{prop_name}_tokenized").as_ref())
+    }
+
     pub fn get_prop_field_type(&self, prop_name: &str) -> tantivy::Result<Type> {
         Ok(self
             .index
@@ -144,9 +151,12 @@ impl PropertyIndex {
             .value_type())
     }
 
-    fn add_property_value(document: &mut TantivyDocument, field: Field, prop_value: &Prop) {
+    fn add_property_value_to_doc(document: &mut TantivyDocument, field: Field, prop_value: &Prop) {
         match prop_value.clone() {
-            Prop::Str(v) => document.add_text(field, v),
+            Prop::Str(v) => {
+                document.add_text(field, v.clone());
+                document.add_text(Field::from_field_id(1), v);
+            }
             Prop::NDTime(v) => {
                 if let Some(time) = v.and_utc().timestamp_nanos_opt() {
                     document.add_date(field, tantivy::DateTime::from_timestamp_nanos(time));
@@ -188,7 +198,7 @@ impl PropertyIndex {
             document.add_u64(field_layer_id, layer_id as u64);
         }
 
-        Self::add_property_value(&mut document, field_property, prop_value);
+        Self::add_property_value_to_doc(&mut document, field_property, prop_value);
 
         // println!("Added prop doc: {}", &document.to_json(&schema));
 

@@ -310,13 +310,15 @@ impl<'a> NodeFilterExecutor<'a> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
         let results = match query {
-            Some(query) => self.execute_filter_query(
-                graph,
-                query,
-                &node_index.entity_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                self.execute_filter_query(
+                    graph,
+                    query,
+                    &node_index.entity_index.reader,
+                    limit,
+                    offset,
+                )?
+            }
             None => {
                 vec![]
             }

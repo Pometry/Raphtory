@@ -16,7 +16,7 @@ use crate::{
     prelude::*,
     search::{
         entity_index::EntityIndex,
-        fields::{NODE_ID, NODE_NAME, NODE_TYPE},
+        fields::{NODE_ID, NODE_NAME, NODE_NAME_TOKENIZED, NODE_TYPE, NODE_TYPE_TOKENIZED},
         TOKENIZER,
     },
 };
@@ -28,7 +28,7 @@ use tantivy::{
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST,
-        INDEXED, STORED,
+        INDEXED, STORED, STRING,
     },
     Document, IndexWriter, TantivyDocument,
 };
@@ -38,7 +38,9 @@ pub struct NodeIndex {
     pub(crate) entity_index: EntityIndex,
     pub(crate) node_id_field: Field,
     pub(crate) node_name_field: Field,
+    pub(crate) node_name_tokenized_field: Field,
     pub(crate) node_type_field: Field,
+    pub(crate) node_type_tokenized_field: Field,
 }
 
 impl Debug for NodeIndex {
@@ -54,13 +56,21 @@ impl NodeIndex {
         let schema = Self::schema_builder().build();
         let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
         let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
+        let node_name_tokenized_field = schema
+            .get_field(NODE_NAME_TOKENIZED)
+            .expect("Node name absent");
         let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
+        let node_type_tokenized_field = schema
+            .get_field(NODE_TYPE_TOKENIZED)
+            .expect("Node type absent");
         let entity_index = EntityIndex::new(schema);
         Self {
             entity_index,
             node_id_field,
             node_name_field,
+            node_name_tokenized_field,
             node_type_field,
+            node_type_tokenized_field,
         }
     }
 
@@ -93,16 +103,18 @@ impl NodeIndex {
     fn schema_builder() -> SchemaBuilder {
         let mut schema_builder: SchemaBuilder = Schema::builder();
         schema_builder.add_u64_field(NODE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_text_field(NODE_NAME, STRING);
         schema_builder.add_text_field(
-            NODE_NAME,
+            NODE_NAME_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
         );
+        schema_builder.add_text_field(NODE_TYPE, STRING);
         schema_builder.add_text_field(
-            NODE_TYPE,
+            NODE_TYPE_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
@@ -116,6 +128,13 @@ impl NodeIndex {
         self.entity_index.index.schema().get_field(field_name)
     }
 
+    pub fn get_tokenized_node_field(&self, field_name: &str) -> tantivy::Result<Field> {
+        self.entity_index
+            .index
+            .schema()
+            .get_field(format!("{field_name}_tokenized").as_ref())
+    }
+
     fn create_document<'a>(
         &self,
         node_id: u64,
@@ -124,9 +143,11 @@ impl NodeIndex {
     ) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.node_id_field, node_id);
-        document.add_text(self.node_name_field, node_name);
+        document.add_text(self.node_name_field, node_name.clone());
+        document.add_text(self.node_name_tokenized_field, node_name);
         if let Some(node_type) = node_type {
-            document.add_text(self.node_type_field, node_type);
+            document.add_text(self.node_type_field, node_type.clone());
+            document.add_text(self.node_type_tokenized_field, node_type);
         }
         document
     }
