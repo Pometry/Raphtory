@@ -62,7 +62,7 @@ jobs:
         run: make pull-storage
       - name: Install Python dependencies
         run: |
-          python -m pip install pytest tox nbconvert
+          python -m pip install pytest tox nbmake
           python -m pip install -e examples/netflow
       - name: Run Python tests
         env:
@@ -72,6 +72,6 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Run example notebook
+      - name: Test example notebook
         working-directory: examples/python/socio-patterns
-        run: jupyter nbconvert --to notebook --execute example.ipynb
+        run: pytest --nbmake example.ipynb
