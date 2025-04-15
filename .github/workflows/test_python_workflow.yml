@@ -60,13 +60,6 @@ jobs:
           cache: 'pip'
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
-      - name: Run Maturin develop
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: ./python
-          command: build
-          target: ${{ matrix.target }}
-          args: --release --features storage
       - name: Install Python dependencies
         run: |
           python -m pip install pytest tox nbconvert
