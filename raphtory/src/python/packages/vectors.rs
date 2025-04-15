@@ -6,7 +6,7 @@ use crate::{
     },
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        types::wrappers::document::{PyDocument},
+        types::wrappers::document::PyDocument,
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
@@ -24,7 +24,7 @@ use itertools::Itertools;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
-    types::{PyFunction, PyList}
+    types::{PyFunction, PyList},
 };
 
 pub type PyWindow = Option<(PyTime, PyTime)>;

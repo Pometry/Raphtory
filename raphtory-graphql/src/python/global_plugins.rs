@@ -2,10 +2,8 @@ use crate::model::plugins::query_plugin::QueryPlugin;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 use raphtory::{
     db::api::view::DynamicGraph,
-    python::{
-        packages::vectors::{
-            compute_embedding, translate_window, PyQuery, PyVectorisedGraph, PyWindow,
-        },
+    python::packages::vectors::{
+        compute_embedding, translate_window, PyQuery, PyVectorisedGraph, PyWindow,
     },
     vectors::{vectorised_cluster::VectorisedCluster, Document},
 };
