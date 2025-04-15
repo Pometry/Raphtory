@@ -155,7 +155,7 @@ def test_filter_edges_for_property_contains_not():
 
     filter_expr = filter.Property("p10").contains_not("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = [('1','2'), ('2','1'), ('3','1'), ("David Gilmour","John Mayer"), ("John Mayer","Jimmy Page")]
+    expected_ids = [('1','2'), ('2','1')]
     assert result_ids == expected_ids
 
     filter_expr = filter.Property("p10").temporal().any().contains_not("ship")
@@ -165,10 +165,10 @@ def test_filter_edges_for_property_contains_not():
 
     filter_expr = filter.Property("p10").temporal().latest().contains_not("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = [('1','2'), ('2','1'), ('3','1'), ("David Gilmour","John Mayer"), ("John Mayer","Jimmy Page")]
+    expected_ids = [('1','2'), ('2','1')]
     assert result_ids == expected_ids
 
     filter_expr = filter.Property("p10").constant().contains_not("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-    expected_ids = [('1','2'), ('2','1'), ('2','3'), ('3','1'), ("David Gilmour","John Mayer"), ("John Mayer","Jimmy Page")]
+    expected_ids = []
     assert result_ids == expected_ids

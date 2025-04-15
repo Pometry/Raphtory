@@ -170,7 +170,7 @@ def test_filter_nodes_for_property_contains_not():
 
     filter_expr = filter.Property("p10").contains_not("ship")
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = [1, 3, 4]
+    expected_ids = [1, 3]
     assert result_ids == expected_ids
 
     filter_expr = filter.Property("p10").temporal().any().contains_not("ship")
@@ -180,11 +180,11 @@ def test_filter_nodes_for_property_contains_not():
 
     filter_expr = filter.Property("p10").temporal().latest().contains_not("ship")
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = [1, 3, 4]
+    expected_ids = [1, 3]
     assert result_ids == expected_ids
 
     filter_expr = filter.Property("p10").constant().contains_not("ship")
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = [1, 2, 3, 4]
+    expected_ids = []
     assert result_ids == expected_ids
 

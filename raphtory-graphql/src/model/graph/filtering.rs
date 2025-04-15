@@ -3,14 +3,15 @@ use dynamic_graphql::{Enum, InputObject};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::{
-        CompositeEdgeFilter, CompositeNodeFilter, Filter, FilterOperator, FilterValue, PropertyRef,
-        Temporal,
+        CompositeEdgeFilter, CompositeNodeFilter, Filter, FilterOperator, FilterValue,
+        PropertyFilterValue, PropertyRef, Temporal,
     },
     prelude::PropertyFilter,
 };
 use std::{
     fmt,
     fmt::{Display, Formatter},
+    sync::Arc,
 };
 
 #[derive(InputObject, Clone, Debug)]
@@ -368,9 +369,17 @@ impl TryFrom<PropertyFilterExpr> for PropertyFilter {
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
         let prop = expr.value.map(Prop::try_from).transpose()?;
+        let prop_value = match (&prop, expr.operator) {
+            (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
+                PropertyFilterValue::Set(Arc::new(list.as_ref().iter().cloned().collect()))
+            }
+            (Some(p), _) => PropertyFilterValue::Single(p.clone()),
+            (None, _) => PropertyFilterValue::None,
+        };
+
         Ok(PropertyFilter {
             prop_ref: PropertyRef::Property(expr.name),
-            prop_value: prop.into(),
+            prop_value,
             operator: expr.operator.into(),
         })
     }
@@ -381,9 +390,17 @@ impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
 
     fn try_from(expr: ConstantPropertyFilterExpr) -> Result<Self, Self::Error> {
         let prop = expr.value.map(Prop::try_from).transpose()?;
+        let prop_value = match (&prop, expr.operator) {
+            (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
+                PropertyFilterValue::Set(Arc::new(list.as_ref().iter().cloned().collect()))
+            }
+            (Some(p), _) => PropertyFilterValue::Single(p.clone()),
+            (None, _) => PropertyFilterValue::None,
+        };
+
         Ok(PropertyFilter {
             prop_ref: PropertyRef::ConstantProperty(expr.name),
-            prop_value: prop.into(),
+            prop_value,
             operator: expr.operator.into(),
         })
     }
@@ -391,11 +408,20 @@ impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
 
 impl TryFrom<TemporalPropertyFilterExpr> for PropertyFilter {
     type Error = GraphError;
+
     fn try_from(expr: TemporalPropertyFilterExpr) -> Result<Self, Self::Error> {
         let prop = expr.value.map(Prop::try_from).transpose()?;
+        let prop_value = match (&prop, expr.operator) {
+            (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
+                PropertyFilterValue::Set(Arc::new(list.as_ref().iter().cloned().collect()))
+            }
+            (Some(p), _) => PropertyFilterValue::Single(p.clone()),
+            (None, _) => PropertyFilterValue::None,
+        };
+
         Ok(PropertyFilter {
             prop_ref: PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
-            prop_value: prop.into(),
+            prop_value,
             operator: expr.operator.into(),
         })
     }

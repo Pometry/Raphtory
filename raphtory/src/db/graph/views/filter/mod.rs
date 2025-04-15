@@ -246,14 +246,6 @@ pub enum PropertyFilterValue {
     Set(Arc<HashSet<Prop>>),
 }
 
-impl From<Option<Prop>> for PropertyFilterValue {
-    fn from(prop: Option<Prop>) -> Self {
-        prop.map_or(PropertyFilterValue::None, |v| {
-            PropertyFilterValue::Single(v)
-        })
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PropertyFilter {
     pub prop_ref: PropertyRef,
