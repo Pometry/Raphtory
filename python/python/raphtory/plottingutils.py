@@ -4,57 +4,11 @@ Useful code snippets for making commonly used plots in Raphtory.
 
 from pathlib import Path
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
 
 motif_im_dir = Path(__file__).parents[1].absolute().as_posix() + "/motif-images/"
 
 
-def _get_motif(xory: str, y: int):
-    path = motif_im_dir + xory + str(y) + ".png"
-    return plt.imread(path)
-
-
-def _get_motif_labels(motif_map):
-    return np.vectorize(human_format)(motif_map)
-
-
-def _offset_image(xory, coord, name, ax):
-    img = _get_motif(xory, name)
-    im = OffsetImage(img, zoom=0.04)
-    im.image.axes = ax
-
-    if xory == "x":
-        ab = AnnotationBbox(
-            im,
-            (coord + 0.5, 5.5),
-            xybox=(0.0, -40.0),
-            frameon=False,
-            xycoords="data",
-            boxcoords="offset points",
-            box_alignment=(0.5, 0.5),
-            pad=0,
-        )
-
-    else:
-        ab = AnnotationBbox(
-            im,
-            (0, coord),
-            xybox=(0.0, -40.0),
-            frameon=False,
-            xycoords="data",
-            boxcoords="offset points",
-            box_alignment=(1.0, 0.0),
-            pad=0,
-        )
-
-    ax.add_artist(ab)
-
-
-def _add_motifs_to_ax(ax):
-    for i in range(6):
-        _offset_image("x", i, i, ax)
-        _offset_image("y", i, i, ax)
 
 
 def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
@@ -70,6 +24,54 @@ def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
     """
     # import is here as it's a pretty niche function and not worth having a seaborn dependency for the whole project
     import seaborn as sns
+    import matplotlib.pyplot as plt
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
+    def _get_motif(xory: str, y: int):
+        path = motif_im_dir + xory + str(y) + ".png"
+        return plt.imread(path)
+
+
+    def _get_motif_labels(motif_map):
+        return np.vectorize(human_format)(motif_map)
+
+
+    def _offset_image(xory, coord, name, ax):
+        img = _get_motif(xory, name)
+        im = OffsetImage(img, zoom=0.04)
+        im.image.axes = ax
+
+        if xory == "x":
+            ab = AnnotationBbox(
+                im,
+                (coord + 0.5, 5.5),
+                xybox=(0.0, -40.0),
+                frameon=False,
+                xycoords="data",
+                boxcoords="offset points",
+                box_alignment=(0.5, 0.5),
+                pad=0,
+            )
+
+        else:
+            ab = AnnotationBbox(
+                im,
+                (0, coord),
+                xybox=(0.0, -40.0),
+                frameon=False,
+                xycoords="data",
+                boxcoords="offset points",
+                box_alignment=(1.0, 0.0),
+                pad=0,
+            )
+
+        ax.add_artist(ab)
+
+
+    def _add_motifs_to_ax(ax):
+        for i in range(6):
+            _offset_image("x", i, i, ax)
+            _offset_image("y", i, i, ax)
 
     motif_matrix = to_motif_matrix(motifs)
     labels = _get_motif_labels(motif_matrix)

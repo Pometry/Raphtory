@@ -60,34 +60,18 @@ jobs:
           cache: 'pip'
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
-      - name: Run Maturin develop
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: ./python
-          command: build
-          target: ${{ matrix.target }}
-          args: --release --features storage
-      - name: Install Python dependencies (Unix)
-        if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
+      - name: Install Python dependencies
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets pyjwt cryptography
-          python -m pip install target/wheels/raphtory-*.whl
-          python -m pip install -e examples/netflow
-      - name: Install Python dependencies (Windows)
-        if: "contains(matrix.os, 'Windows')"
-        run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets pyjwt cryptography
-          $folder_path = "target/wheels/"
-          Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
-            python -m pip install "$($_.FullName)"
-          }
+          python -m pip install pytest tox nbmake
           python -m pip install -e examples/netflow
       - name: Run Python tests
+        env:
+          MATURIN_PEP517_ARGS: "--features=storage"
         run: |
-          cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
+          cd python && tox run
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Run example notebook
+      - name: Test example notebook
         working-directory: examples/python/socio-patterns
-        run: jupyter nbconvert --to notebook --execute example.ipynb
+        run: pytest --nbmake example.ipynb
