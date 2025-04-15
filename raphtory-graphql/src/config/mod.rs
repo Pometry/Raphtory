@@ -6,9 +6,7 @@ pub mod otlp_config;
 
 #[cfg(test)]
 mod tests {
-    use config::{Config, FileFormat};
-
-    use crate::config::app_config::{load_config, AppConfig, AppConfigBuilder};
+    use crate::config::app_config::{load_config, AppConfigBuilder};
     use std::{fs, path::PathBuf};
 
     #[test]

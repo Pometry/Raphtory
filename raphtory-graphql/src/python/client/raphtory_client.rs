@@ -14,7 +14,7 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     python::utils::{errors::adapt_err_value, execute_async_task},
 };
-use reqwest::{header, multipart, multipart::Part, Client};
+use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, fs::File, io::Read, path::Path};
 use tracing::debug;
@@ -94,6 +94,7 @@ impl PyRaphtoryClient {
 #[pymethods]
 impl PyRaphtoryClient {
     #[new]
+    #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
         let token = token.unwrap_or("".to_owned());
         match reqwest::blocking::Client::new()

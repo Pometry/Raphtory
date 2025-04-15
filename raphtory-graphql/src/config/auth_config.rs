@@ -1,9 +1,8 @@
-use std::{fmt::Debug, ops::Deref};
-
 use base64::{prelude::BASE64_STANDARD, DecodeError, Engine};
 use jsonwebtoken::DecodingKey;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use spki::SubjectPublicKeyInfoRef;
+use std::fmt::Debug;
 
 pub const DEFAULT_AUTH_ENABLED_FOR_READS: bool = true;
 pub const PUBLIC_KEY_DECODING_ERR_MSG: &str = "Could not successfully decode the public key. Make sure you use the standard alphabet with padding";

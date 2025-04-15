@@ -44,8 +44,8 @@
 
 <br>
 
-Raphtory is an in-memory vectorised graph database written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges 
-on your laptop, and can be dropped into your existing pipelines with a simple `pip install raphtory`.  
+Raphtory is an in-memory vectorised graph database written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges
+on your laptop, and can be dropped into your existing pipelines with a simple `pip install raphtory`.
 
 It can be ran embedded or as a server instance using GraphQL, supports time traveling, full-text search, multilayer modelling, and advanced analytics beyond simple querying like automatic risk detection, dynamic scoring, and temporal motifs. With the subscription model, Raphtory also supports out-of-memory (on-disk) scaling with no performance loss!
 
@@ -53,7 +53,7 @@ If you wish to contribute, check out the open [list of issues](https://github.co
 
 ## Installing Raphtory
 
-Raphtory is available for Python and Rust. 
+Raphtory is available for Python and Rust.
 
 For python you must be using version 3.8 or higher and can install via pip:
 ```bash
@@ -113,12 +113,12 @@ print(
 )
 
 # Run pagerank and ask for the top ranked node
-top_node = algo.pagerank(graph).top_k(1)
+top_node = algo.pagerank(graph).top_k(5).max_item()
 print(
     "The most important node in the graph is",
-    top_node[0][0],
+    top_node[0].name,
     "with a score of",
-    top_node[0][1],
+    top_node[1],
 )
 ```
 ### Output:
@@ -224,11 +224,6 @@ To get you up and running with Raphtory we provide a full set of tutorials on th
 
 If API documentation is more your thing, you can dive straight in [here](https://docs.raphtory.com/)!
 
-### Online notebook sandbox
-Want to give this a go, but can't install? Check out Raphtory in action with our interactive Jupyter Notebooks! Just click the badge below to launch a Raphtory sandbox online, no installation needed.
-
- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb) 
-
 ## Community
 
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis!
@@ -252,7 +247,7 @@ To get started, check out our list of [desired algorithms](https://github.com/Ra
 
 We host a page which triggers and saves the result of two benchmarks upon every push to the master branch.  View this [here](https://pometry.github.io/Raphtory/dev/bench/)
 
-## License  
+## License
 
 Raphtory is licensed under the terms of the GNU General Public License v3.0 (check out our LICENSE file).
 

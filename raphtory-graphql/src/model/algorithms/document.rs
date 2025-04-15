@@ -1,57 +1,62 @@
-use dynamic_graphql::SimpleObject;
-use raphtory::{core::Lifespan, vectors::Document};
+use crate::model::graph::{edge::Edge, node::Node};
+use dynamic_graphql::{SimpleObject, Union};
+use raphtory::{
+    core::Lifespan,
+    db::api::view::{IntoDynamic, StaticGraphViewOps},
+    vectors::{Document as RustDocument, DocumentEntity},
+};
 
 #[derive(SimpleObject)]
-pub struct GqlDocument {
-    /// Return a vector with the name of the node or the names of src and dst of the edge: [src, dst]
-    name: Vec<String>, // size 1 for nodes, size 2 for edges: [src, dst]
-    /// Return the type of entity: "node" or "edge"
-    entity_type: String,
-    content: String,
-    embedding: Vec<f32>,
-    life: Vec<i64>,
+struct Graph {
+    name: String, // TODO: maybe return the graph as well here
 }
 
-impl From<Document> for GqlDocument {
-    fn from(value: Document) -> Self {
+impl From<String> for Graph {
+    fn from(value: String) -> Self {
+        Self { name: value }
+    }
+}
+
+#[derive(Union)]
+enum GqlDocumentEntity {
+    Node(Node),
+    Edge(Edge),
+    Graph(Graph),
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
+    fn from(value: DocumentEntity<G>) -> Self {
         match value {
-            Document::Graph {
-                name,
-                content,
-                embedding,
-                life,
-            } => Self {
-                name: name.map(|name| vec![name]).unwrap_or(vec![]),
-                entity_type: "graph".to_owned(),
-                content,
-                embedding: embedding.to_vec(),
-                life: lifespan_into_vec(life),
-            },
-            Document::Node {
-                name,
-                content,
-                embedding,
-                life,
-            } => Self {
-                name: vec![name],
-                entity_type: "node".to_owned(),
-                content,
-                embedding: embedding.to_vec(),
-                life: lifespan_into_vec(life),
-            },
-            Document::Edge {
-                src,
-                dst,
-                content,
-                embedding,
-                life,
-            } => Self {
-                name: vec![src, dst],
-                entity_type: "edge".to_owned(),
-                content,
-                embedding: embedding.to_vec(),
-                life: lifespan_into_vec(life),
-            },
+            DocumentEntity::Graph { name, .. } => Self::Graph(Graph {
+                name: name.unwrap(),
+            }),
+            DocumentEntity::Node(node) => Self::Node(Node::from(node)),
+            DocumentEntity::Edge(edge) => Self::Edge(Edge::from(edge)),
+        }
+    }
+}
+
+#[derive(SimpleObject)]
+pub struct Document {
+    entity: GqlDocumentEntity,
+    content: String,
+    embedding: Vec<f32>,
+    life: Vec<i64>, // TODO: give this a proper type
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> From<RustDocument<G>> for Document {
+    fn from(value: RustDocument<G>) -> Self {
+        let RustDocument {
+            entity,
+            content,
+            embedding,
+            life,
+        } = value;
+        Self {
+            entity: entity.into(),
+            content,
+            embedding: embedding.to_vec(),
+            life: lifespan_into_vec(life),
         }
     }
 }
