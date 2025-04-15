@@ -61,10 +61,7 @@ def assert_correct_documents(client):
         "plugins": {
             "globalSearch": [
                 {
-                    "entity": {
-                        "__typename": "Graph",
-                        "name": "abb"
-                    },
+                    "entity": {"__typename": "Graph", "name": "abb"},
                     "content": "abb",
                     "embedding": [1.0, 2.0],
                 },
@@ -74,10 +71,7 @@ def assert_correct_documents(client):
             "algorithms": {
                 "similaritySearch": [
                     {
-                        "entity": {
-                            "__typename": "Node",
-                            "name": "aab"
-                        },
+                        "entity": {"__typename": "Node", "name": "aab"},
                         "content": "aab",
                         "embedding": [2.0, 1.0],
                     }
