@@ -75,7 +75,6 @@ use std::{
     fmt::{Debug, Formatter},
     iter,
     ops::Range,
-    sync::Arc,
 };
 
 use crate::db::api::view::internal::InheritStorageOps;
@@ -2672,6 +2671,7 @@ mod views_test {
                 filter_edges_with_w(filter, || graph, w)
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg_w<I: InternalEdgeFilterOps>(
                 filter: I,
                 w: Range<i64>,

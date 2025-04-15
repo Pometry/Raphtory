@@ -3,18 +3,17 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            storage::graph::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
                     InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },
-        graph::{node::NodeView, views::filter::internal::InternalNodeFilterOps},
+        graph::views::filter::internal::InternalNodeFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
@@ -51,8 +50,8 @@ impl InternalNodeFilterOps for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_ids(graph.node_meta())?;
-        let c_prop_id = self.resolve_constant_prop_ids(graph.node_meta())?;
+        let t_prop_id = self.resolve_temporal_prop_id(graph.node_meta())?;
+        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta())?;
         Ok(NodePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))

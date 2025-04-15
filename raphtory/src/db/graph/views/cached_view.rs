@@ -622,10 +622,12 @@ mod test {
                 filter_edges_with_w(filter, || init_graph(Graph::new()), w)
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
                 filter_edges_with(filter, || init_graph(PersistentGraph::new()))
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg_w<I: InternalEdgeFilterOps>(
                 filter: I,
                 w: Range<i64>,

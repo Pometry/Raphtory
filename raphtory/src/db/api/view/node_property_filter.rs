@@ -20,14 +20,11 @@ impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::{
-            api::view::BaseNodeViewOps,
-            graph::{
-                graph::assert_edges_equal,
-                views::filter::{
-                    ComposableFilter, CompositeNodeFilter, Filter, NodeFilter,
-                    NodeFilterBuilderOps, PropertyFilter, PropertyFilterOps, PropertyRef,
-                },
+        db::graph::{
+            graph::assert_edges_equal,
+            views::filter::{
+                ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilter,
+                PropertyFilterOps, PropertyRef,
             },
         },
         prelude::*,
@@ -49,7 +46,7 @@ mod test {
         g.add_node(2, "David", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        let filter_expr = NodeFilter::name().eq("Jimi");
+        // let filter_expr = NodeFilter::name().eq("Jimi");
         let filter_expr = NodeFilter::name()
             .eq("John")
             // .and(PropertyFilter::property("band").eq("Dead & Company"))

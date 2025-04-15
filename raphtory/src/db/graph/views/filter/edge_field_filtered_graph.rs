@@ -3,14 +3,13 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
                     InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },
@@ -18,7 +17,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::LayerIds, storage::arc_str::OptionAsStr};
+use raphtory_api::core::entities::LayerIds;
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilteredGraph<G> {
@@ -79,15 +78,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgeFieldFilteredGraph<G
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_edge(edge, layer_ids) {
-            match self.filter.field_name.as_str() {
-                "src" => self
-                    .filter
-                    .matches(self.graph.node(edge.src()).map(|n| n.name()).as_deref()),
-                "dst" => self
-                    .filter
-                    .matches(self.graph.node(edge.dst()).map(|n| n.name()).as_deref()),
-                _ => false,
-            }
+            self.filter.matches_edge(&self.graph, edge)
         } else {
             false
         }

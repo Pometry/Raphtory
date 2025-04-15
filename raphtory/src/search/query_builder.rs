@@ -18,9 +18,9 @@ use tantivy::{
         Occur::{Must, MustNot, Should},
         PhraseQuery, Query, RangeQuery, TermQuery,
     },
-    schema::{Field, FieldType, IndexRecordOption, Schema, Type},
+    schema::{Field, FieldType, IndexRecordOption, Type},
     tokenizer::TokenizerManager,
-    HasLen, Term,
+    Term,
 };
 
 #[derive(Clone, Copy)]
@@ -339,27 +339,6 @@ fn create_sub_queries(terms: Vec<Term>) -> Vec<(Occur, Box<dyn Query>)> {
             )
         })
         .collect()
-}
-
-fn create_exact_tantivy_term(
-    property_index: &Arc<PropertyIndex>,
-    prop_name: &str,
-    field_value: &str,
-) -> Result<Term, GraphError> {
-    let field = property_index.get_prop_field(prop_name)?;
-    Ok(Term::from_field_text(field, field_value))
-}
-
-fn create_tokenized_tantivy_terms(
-    schema: &Schema,
-    tokenizer_manager: &TokenizerManager,
-    field: Field,
-    field_value: &str,
-) -> Result<Vec<Term>, GraphError> {
-    let field_entry = schema.get_field_entry(field.clone());
-    let field_type = field_entry.field_type();
-    let tokens = get_str_field_tokens(tokenizer_manager, &field_type, field_value)?;
-    create_terms_from_tokens(field, tokens)
 }
 
 fn create_node_exact_tantivy_term(

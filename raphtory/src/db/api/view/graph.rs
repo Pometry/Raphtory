@@ -33,7 +33,6 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -44,10 +43,7 @@ use raphtory_api::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    borrow::Borrow,
-    sync::{atomic::Ordering, Arc},
-};
+use std::sync::{atomic::Ordering, Arc};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

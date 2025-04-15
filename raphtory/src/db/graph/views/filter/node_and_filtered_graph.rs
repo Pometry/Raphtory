@@ -6,12 +6,11 @@ use crate::{
             storage::graph::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
-                    DelegateLayerOps, EdgeList, Immutable, InheritCoreOps, InheritEdgeFilterOps,
+                    EdgeList, Immutable, InheritCoreOps, InheritEdgeFilterOps,
                     InheritEdgeHistoryFilter, InheritMaterialize, InheritStorageOps,
                     InheritTimeSemantics, InternalLayerOps, ListOps, NodeFilterOps,
                     NodeHistoryFilter, NodeList, Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },

@@ -217,7 +217,7 @@ impl InternalNodeFilterOps for PyFilterExpr {
         match self.0 {
             PyInnerFilterExpr::Node(i) => i.create_node_filter(graph),
             PyInnerFilterExpr::Property(i) => i.create_node_filter(graph),
-            PyInnerFilterExpr::Edge(i) => Err(GraphError::ParsingError),
+            PyInnerFilterExpr::Edge(_) => Err(GraphError::ParsingError),
         }
     }
 }
@@ -338,7 +338,7 @@ impl InternalEdgeFilterOps for PyFilterExpr {
         match self.0 {
             PyInnerFilterExpr::Edge(i) => i.create_edge_filter(graph),
             PyInnerFilterExpr::Property(i) => i.create_edge_filter(graph),
-            PyInnerFilterExpr::Node(i) => Err(GraphError::ParsingError),
+            PyInnerFilterExpr::Node(_) => Err(GraphError::ParsingError),
         }
     }
 }

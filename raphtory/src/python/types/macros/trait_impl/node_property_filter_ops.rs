@@ -1,5 +1,3 @@
-use crate::db::api::view::DynamicGraph;
-
 /// Macro for implementing all the NodePropertyFilterOps methods on a python wrapper
 ///
 /// # Arguments

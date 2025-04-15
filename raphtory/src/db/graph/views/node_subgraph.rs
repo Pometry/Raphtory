@@ -315,7 +315,7 @@ mod subgraph_tests {
             pub use crate::db::api::view::SearchableGraphOps;
             use crate::{
                 db::graph::views::filter::internal::InternalNodeFilterOps,
-                prelude::{LayerOps, NodePropertyFilterOps},
+                prelude::NodePropertyFilterOps,
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -592,9 +592,6 @@ mod subgraph_tests {
 
             #[test]
             fn test_search_nodes_persistent_subgraph_w() {
-                let graph = PersistentGraph::new();
-                let graph = init_graph(graph);
-
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, None, 6..9, expected_results);
@@ -637,7 +634,7 @@ mod subgraph_tests {
                     },
                 },
                 prelude::{
-                    AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, LayerOps,
+                    AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
                     NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps,
                 },
             };
@@ -803,6 +800,7 @@ mod subgraph_tests {
                 filter_edges_with_w(filter, || graph, w, node_names)
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg<I: InternalEdgeFilterOps>(
                 filter: I,
                 node_names: Option<Vec<String>>,
@@ -813,6 +811,7 @@ mod subgraph_tests {
                 filter_edges_with(filter, || graph, node_names)
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg_w<I: InternalEdgeFilterOps>(
                 filter: I,
                 w: Range<i64>,
@@ -872,9 +871,6 @@ mod subgraph_tests {
 
             #[test]
             fn test_edges_filters() {
-                let graph = Graph::new();
-                let graph = init_graph(graph);
-
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_results!(filter_edges, filter, None, expected_results);
@@ -890,9 +886,6 @@ mod subgraph_tests {
 
             #[test]
             fn test_edges_filters_w() {
-                let graph = Graph::new();
-                let graph = init_graph(graph);
-
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
                 assert_filter_results_w!(filter_edges_w, filter, None, 6..9, expected_results);
@@ -920,9 +913,6 @@ mod subgraph_tests {
 
             #[test]
             fn test_edges_filters_pg() {
-                let graph = PersistentGraph::new();
-                let graph = init_graph(graph);
-
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 // PropertyFilteringNotImplemented
@@ -940,9 +930,6 @@ mod subgraph_tests {
 
             #[test]
             fn test_edges_filters_pg_w() {
-                let graph = PersistentGraph::new();
-                let graph = init_graph(graph);
-
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 // PropertyFilteringNotImplemented

@@ -20,7 +20,7 @@ use crate::{
             BoxedLIter, IntoDynBoxed,
         },
     },
-    prelude::{Prop, TimeOps},
+    prelude::Prop,
 };
 use itertools::{kmerge, Itertools};
 use raphtory_api::core::{

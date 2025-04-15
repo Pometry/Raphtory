@@ -6,12 +6,11 @@ use crate::{
             storage::graph::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
-                    DelegateLayerOps, Immutable, InheritCoreOps, InheritEdgeFilterOps,
-                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritStorageOps, InheritTimeSemantics, InternalLayerOps, NodeFilterOps,
-                    NodeHistoryFilter, Static,
+                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
+                    InheritTimeSemantics, InternalLayerOps, NodeFilterOps, NodeHistoryFilter,
+                    Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },
@@ -30,7 +29,6 @@ pub struct NodeOrFilteredGraph<G, L, R> {
     graph: G,
     left: L,
     right: R,
-    layer_ids: LayerIds,
 }
 
 impl<L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps for OrFilter<L, R> {
@@ -45,13 +43,8 @@ impl<L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps f
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         let left = self.left.create_node_filter(graph.clone())?;
         let right = self.right.create_node_filter(graph.clone())?;
-        let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(NodeOrFilteredGraph {
-            graph,
-            left,
-            right,
-            layer_ids,
-        })
+        let _layer_ids = left.layer_ids().intersect(right.layer_ids());
+        Ok(NodeOrFilteredGraph { graph, left, right })
     }
 }
 

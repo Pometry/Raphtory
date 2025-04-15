@@ -49,7 +49,7 @@ mod test {
         g.add_edge(2, "David", "Jimi", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        let filter_expr = EdgeFilter::src().eq("David");
+        // let filter_expr = EdgeFilter::src().eq("David");
         let filter_expr = EdgeFilter::dst()
             .eq("David")
             .and(PropertyFilter::property("band").eq("Dead & Company"));

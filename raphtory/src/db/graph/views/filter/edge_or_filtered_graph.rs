@@ -3,29 +3,23 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+            storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
-                    DelegateLayerOps, EdgeFilterOps, EdgeHistoryFilter, Immutable, InheritCoreOps,
-                    InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                    EdgeFilterOps, EdgeHistoryFilter, Immutable, InheritCoreOps, InheritLayerOps,
                     InheritListOps, InheritMaterialize, InheritNodeFilterOps,
                     InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-                    InternalLayerOps, NodeFilterOps, NodeHistoryFilter, Static,
+                    InternalLayerOps, Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },
-        graph::views::filter::{
-            edge_and_filtered_graph::EdgeAndFilteredGraph,
-            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-            OrFilter,
-        },
+        graph::views::filter::{internal::InternalEdgeFilterOps, OrFilter},
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{
-    entities::{LayerIds, EID, VID},
+    entities::{LayerIds, EID},
     storage::timeindex::TimeIndexEntry,
 };
 use std::ops::Range;
@@ -35,7 +29,6 @@ pub struct EdgeOrFilteredGraph<G, L, R> {
     graph: G,
     left: L,
     right: R,
-    layer_ids: LayerIds,
 }
 
 impl<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps for OrFilter<L, R> {
@@ -50,13 +43,8 @@ impl<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps f
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let left = self.left.create_edge_filter(graph.clone())?;
         let right = self.right.create_edge_filter(graph.clone())?;
-        let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(EdgeOrFilteredGraph {
-            graph,
-            left,
-            right,
-            layer_ids,
-        })
+        let _layer_ids = left.layer_ids().intersect(right.layer_ids());
+        Ok(EdgeOrFilteredGraph { graph, left, right })
     }
 }
 

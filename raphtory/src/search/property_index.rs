@@ -90,11 +90,13 @@ impl PropertyIndex {
                 schema_builder.add_text_field(prop_name, STRING);
                 schema_builder.add_text_field(
                     format!("{prop_name}_tokenized").as_ref(),
-                    TextOptions::default().set_indexing_options(
-                        TextFieldIndexing::default()
-                            .set_tokenizer(TOKENIZER)
-                            .set_index_option(IndexRecordOption::WithFreqsAndPositions),
-                    ),
+                    TextOptions::default()
+                        .set_indexing_options(
+                            TextFieldIndexing::default()
+                                .set_tokenizer(TOKENIZER)
+                                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                        )
+                        .set_stored(),
                 );
             }
             PropType::DTime => {

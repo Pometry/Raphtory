@@ -22,7 +22,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use std::{
-    borrow::Borrow,
     cell::{Ref, RefCell, RefMut},
     sync::Arc,
 };

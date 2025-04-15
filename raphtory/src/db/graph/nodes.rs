@@ -24,7 +24,6 @@ use crate::db::{
 use either::Either;
 use rayon::iter::ParallelIterator;
 use std::{
-    borrow::Borrow,
     collections::HashSet,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},

@@ -520,9 +520,6 @@ mod test_layers {
             // In other words, it is as good as applying no layer filters.
             #[test]
             fn test_nodes_filters() {
-                let graph = Graph::new();
-                let graph = init_graph(graph);
-
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
@@ -544,9 +541,6 @@ mod test_layers {
 
             #[test]
             fn test_nodes_filters_w() {
-                let graph = Graph::new();
-                let graph = init_graph(graph);
-
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
@@ -568,9 +562,6 @@ mod test_layers {
 
             #[test]
             fn test_nodes_filters_pg() {
-                let graph = PersistentGraph::new();
-                let graph = init_graph(graph);
-
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
@@ -592,9 +583,6 @@ mod test_layers {
 
             #[test]
             fn test_nodes_filters_pg_w() {
-                let graph = PersistentGraph::new();
-                let graph = init_graph(graph);
-
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
@@ -802,6 +790,7 @@ mod test_layers {
                 filter_edges_with_w(filter, || init_graph(Graph::new()), w, layers)
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg<I: InternalEdgeFilterOps>(
                 filter: I,
                 layers: Vec<String>,
@@ -809,6 +798,7 @@ mod test_layers {
                 filter_edges_with(filter, || init_graph(PersistentGraph::new()), layers)
             }
 
+            #[allow(dead_code)]
             fn filter_edges_pg_w<I: InternalEdgeFilterOps>(
                 filter: I,
                 w: Range<i64>,

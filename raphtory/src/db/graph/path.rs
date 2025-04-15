@@ -20,7 +20,7 @@ use crate::{
     },
     prelude::*,
 };
-use std::{borrow::Borrow, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct PathFromGraph<'graph, G, GH> {

@@ -35,8 +35,8 @@ pub struct GraphViewCollection {
     pub shrink_window: Option<Window>,
     pub shrink_start: Option<i64>,
     pub shrink_end: Option<i64>,
-    pub node_filter: Option<FilterProperty>,
-    pub edge_filter: Option<FilterProperty>,
+    pub node_filter: Option<NodeFilter>,
+    pub edge_filter: Option<EdgeFilter>,
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -57,7 +57,7 @@ pub struct NodesViewCollection {
     pub shrink_start: Option<i64>,
     pub shrink_end: Option<i64>,
     pub type_filter: Option<Vec<String>>,
-    pub node_filter: Option<FilterProperty>,
+    pub node_filter: Option<NodeFilter>,
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -145,8 +145,10 @@ pub enum Operator {
     LessThan,
     IsNone,
     IsSome,
-    Any,
-    NotAny,
+    IsIn,
+    IsNotIn,
+    Contains,
+    ContainsNot,
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -281,6 +283,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
         result
     }
 }
+
 impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     type Error = GraphError;
 
@@ -417,10 +420,12 @@ impl From<Operator> for FilterOperator {
             Operator::LessThanOrEqual => FilterOperator::Le,
             Operator::GreaterThan => FilterOperator::Gt,
             Operator::LessThan => FilterOperator::Lt,
-            Operator::Any => FilterOperator::In,
-            Operator::NotAny => FilterOperator::NotIn,
+            Operator::IsIn => FilterOperator::In,
+            Operator::IsNotIn => FilterOperator::NotIn,
             Operator::IsSome => FilterOperator::IsSome,
             Operator::IsNone => FilterOperator::IsNone,
+            Operator::Contains => FilterOperator::Contains,
+            Operator::ContainsNot => FilterOperator::ContainsNot,
         }
     }
 }

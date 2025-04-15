@@ -1,5 +1,5 @@
 use raphtory_api::core::storage::dict_mapper::DictMapper;
-use std::{borrow::Borrow, sync::Arc};
+use std::sync::Arc;
 
 pub mod edge;
 pub mod edges;

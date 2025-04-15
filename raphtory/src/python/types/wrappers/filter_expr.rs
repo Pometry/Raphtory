@@ -3,8 +3,8 @@ use crate::{
     db::graph::views::filter::{
         AndFilter, AsEdgeFilter, AsNodeFilter, CompositeEdgeFilter, CompositeNodeFilter,
         EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps,
-        InternalPropertyFilterOps, NodeFilter, NodeFilterBuilderOps, OrFilter,
-        PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
+        InternalPropertyFilterOps, NodeFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
+        TemporalPropertyFilterBuilder,
     },
     python::types::{
         iterable::FromIterable,
@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 pub trait AsPropertyFilter: DynInternalNodeFilterOps + DynInternalEdgeFilterOps {}
 

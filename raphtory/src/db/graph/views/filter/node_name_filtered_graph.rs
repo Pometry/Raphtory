@@ -10,7 +10,6 @@ use crate::{
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
                     InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },

@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
@@ -13,9 +13,9 @@ use crate::{
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::filter::internal::InternalEdgeFilterOps},
+        graph::views::filter::internal::InternalEdgeFilterOps,
     },
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::GraphViewOps,
 };
 
 use crate::db::{api::view::internal::InheritStorageOps, graph::views::filter::PropertyFilter};
@@ -51,8 +51,8 @@ impl InternalEdgeFilterOps for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_ids(graph.edge_meta())?;
-        let c_prop_id = self.resolve_constant_prop_ids(graph.edge_meta())?;
+        let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
+        let c_prop_id = self.resolve_constant_prop_id(graph.edge_meta())?;
         Ok(EdgePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))
