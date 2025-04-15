@@ -662,7 +662,7 @@ def test_graph_node_property_filter_is_some(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_is_in5(graph):
+def test_graph_node_property_filter_is_in(graph):
     query = """
     query {
       graph(path: "g") {
@@ -691,7 +691,7 @@ def test_graph_node_property_filter_is_in5(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_node_property_filter_any_empty_list(graph):
+def test_node_property_filter_is_not_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
@@ -718,7 +718,7 @@ def test_node_property_filter_any_empty_list(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_is_in_no_value_error(graph):
+def test_graph_node_property_filter_is_in_no_value(graph):
     query = """
     query {
       graph(path: "g") {
@@ -740,8 +740,8 @@ def test_graph_node_property_filter_is_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
-    run_graphql_error_test(query, expected_error_message, graph())
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": []}}}}
+    run_graphql_test(query, expected_output, graph())
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
@@ -767,7 +767,7 @@ def test_graph_node_property_filter_is_in_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
+    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
@@ -857,7 +857,7 @@ def test_graph_node_property_filter_not_is_not_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
+    expected_error_message = "Expected a value for IsNotIn operator"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
@@ -884,7 +884,7 @@ def test_graph_node_property_filter_not_is_not_in_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
+    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
@@ -2027,12 +2027,38 @@ def test_graph_edge_property_filter_is_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
+    expected_error_message = "Expected a value for IsIn operator"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_property_filter_is_in_type_error(graph):
+def test_graph_edge_property_filter_is_in_type_error():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter(
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_IN
+                  value: { str: "shivam" }
+            }
+          }
+        ) {
+          edges {
+            list {
+              src{name}
+              dst{name}
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
+    run_graphql_error_test(query, expected_error_message, Graph())
+
+
+def test_graph_edge_property_filter_is_in_type_error_persistent_graph():
     query = """
     query {
       graph(path: "g") {
@@ -2055,8 +2081,8 @@ def test_graph_edge_property_filter_is_in_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
-    run_graphql_error_test(query, expected_error_message, graph())
+    expected_error_message = "Property filtering not implemented on PersistentGraph yet"
+    run_graphql_error_test(query, expected_error_message, PersistentGraph())
 
 
 # Edge property filter is not supported yet for PersistentGraph
@@ -2212,12 +2238,11 @@ def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
+    expected_error_message = "Expected a value for IsNotIn operator"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_property_filter_is_not_in_type_error(graph):
+def test_graph_edge_property_filter_is_not_in_type_error():
     query = """
     query {
       graph(path: "g") {
@@ -2240,5 +2265,32 @@ def test_graph_edge_property_filter_is_not_in_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
-    run_graphql_error_test(query, expected_error_message, graph())
+    expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
+    run_graphql_error_test(query, expected_error_message, Graph())
+
+
+def test_graph_edge_property_filter_is_not_in_type_error_persistent_graph():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter(
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { str: "shivam" }
+            }
+          }
+        ) {
+          edges {
+            list {
+              src{name}
+              dst{name}
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_error_message = "Property filtering not implemented on PersistentGraph yet"
+    run_graphql_error_test(query, expected_error_message, PersistentGraph())

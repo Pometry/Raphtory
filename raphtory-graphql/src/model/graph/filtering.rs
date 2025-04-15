@@ -364,24 +364,54 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     }
 }
 
+fn build_property_filter(
+    prop_ref: PropertyRef,
+    operator: Operator,
+    value: Option<Value>,
+) -> Result<PropertyFilter, GraphError> {
+    let prop = value.map(Prop::try_from).transpose()?;
+
+    // Validates required value
+    if matches!(
+        operator,
+        Operator::Equal
+            | Operator::NotEqual
+            | Operator::GreaterThan
+            | Operator::LessThan
+            | Operator::GreaterThanOrEqual
+            | Operator::LessThanOrEqual
+            | Operator::IsIn
+            | Operator::IsNotIn
+            | Operator::Contains
+            | Operator::ContainsNot
+    ) && prop.is_none()
+    {
+        return Err(GraphError::ExpectedValueForOperator(
+            "value".into(),
+            format!("{:?}", operator),
+        ));
+    }
+
+    let prop_value = match (&prop, operator) {
+        (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
+            PropertyFilterValue::Set(Arc::new(list.iter().cloned().collect()))
+        }
+        (Some(p), _) => PropertyFilterValue::Single(p.clone()),
+        (None, _) => PropertyFilterValue::None,
+    };
+
+    Ok(PropertyFilter {
+        prop_ref,
+        prop_value,
+        operator: operator.into(),
+    })
+}
+
 impl TryFrom<PropertyFilterExpr> for PropertyFilter {
     type Error = GraphError;
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
-        let prop = expr.value.map(Prop::try_from).transpose()?;
-        let prop_value = match (&prop, expr.operator) {
-            (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
-                PropertyFilterValue::Set(Arc::new(list.as_ref().iter().cloned().collect()))
-            }
-            (Some(p), _) => PropertyFilterValue::Single(p.clone()),
-            (None, _) => PropertyFilterValue::None,
-        };
-
-        Ok(PropertyFilter {
-            prop_ref: PropertyRef::Property(expr.name),
-            prop_value,
-            operator: expr.operator.into(),
-        })
+        build_property_filter(PropertyRef::Property(expr.name), expr.operator, expr.value)
     }
 }
 
@@ -389,20 +419,11 @@ impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
     type Error = GraphError;
 
     fn try_from(expr: ConstantPropertyFilterExpr) -> Result<Self, Self::Error> {
-        let prop = expr.value.map(Prop::try_from).transpose()?;
-        let prop_value = match (&prop, expr.operator) {
-            (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
-                PropertyFilterValue::Set(Arc::new(list.as_ref().iter().cloned().collect()))
-            }
-            (Some(p), _) => PropertyFilterValue::Single(p.clone()),
-            (None, _) => PropertyFilterValue::None,
-        };
-
-        Ok(PropertyFilter {
-            prop_ref: PropertyRef::ConstantProperty(expr.name),
-            prop_value,
-            operator: expr.operator.into(),
-        })
+        build_property_filter(
+            PropertyRef::ConstantProperty(expr.name),
+            expr.operator,
+            expr.value,
+        )
     }
 }
 
@@ -410,20 +431,11 @@ impl TryFrom<TemporalPropertyFilterExpr> for PropertyFilter {
     type Error = GraphError;
 
     fn try_from(expr: TemporalPropertyFilterExpr) -> Result<Self, Self::Error> {
-        let prop = expr.value.map(Prop::try_from).transpose()?;
-        let prop_value = match (&prop, expr.operator) {
-            (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
-                PropertyFilterValue::Set(Arc::new(list.as_ref().iter().cloned().collect()))
-            }
-            (Some(p), _) => PropertyFilterValue::Single(p.clone()),
-            (None, _) => PropertyFilterValue::None,
-        };
-
-        Ok(PropertyFilter {
-            prop_ref: PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
-            prop_value,
-            operator: expr.operator.into(),
-        })
+        build_property_filter(
+            PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
+            expr.operator,
+            expr.value,
+        )
     }
 }
 
