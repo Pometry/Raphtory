@@ -14,7 +14,7 @@ use crate::{
 use itertools::Itertools;
 #[cfg(feature = "storage")]
 use polars_arrow::array::StructArray;
-use polars_arrow::datatypes::{ArrowDataType, ArrowSchema, Field};
+use polars_arrow::datatypes::{ArrowSchema};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},

@@ -62,7 +62,7 @@ rand = "0.8.5"
 rayon = "1.8.1"
 roaring = "0.10.6"
 sorted_vector_map = "0.2.0"
-tokio = { version = "1.36.0", features = ["full"] }
+tokio = { version = "1.43.1", features = ["full"] }
 once_cell = "1.19.0"
 parking_lot = { version = "0.12.1", features = [
     "serde",
@@ -89,7 +89,7 @@ dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
 enum_dispatch = "0.3.12"
 glam = "0.29.0"
 quad-rand = "0.2.1"
-zip = "2.1.3"
+zip = "2.3.0"
 neo4rs = "0.8.0"
 bzip2 = "0.4.4"
 tantivy = "0.22.0"
@@ -110,7 +110,7 @@ quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
 proptest = "1.4.0"
 criterion = "0.5.1"
-crossbeam-channel = "0.5.11"
+crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
 jsonwebtoken = "9.3.1"
 spki = "0.7.3"

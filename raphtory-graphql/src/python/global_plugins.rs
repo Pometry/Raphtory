@@ -6,7 +6,6 @@ use raphtory::{
         packages::vectors::{
             compute_embedding, translate_window, PyQuery, PyVectorisedGraph, PyWindow,
         },
-        types::wrappers::document::PyDocument,
     },
     vectors::{vectorised_cluster::VectorisedCluster, Document},
 };
@@ -49,7 +48,7 @@ impl PyGlobalPlugins {
     ///   list[Tuple[Document, float]]: A list of documents and their scores
     fn search_graph_documents_with_scores(
         &self,
-        py: Python,
+        _py: Python,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
