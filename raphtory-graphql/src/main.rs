@@ -1,4 +1,4 @@
-use clap::{command, Parser};
+use clap::{command, Parser, Subcommand};
 use raphtory_graphql::{
     config::{
         app_config::AppConfigBuilder,
@@ -54,16 +54,26 @@ struct Args {
     #[arg(long, default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
     auth_enabled_for_reads: bool,
 
-    #[arg(long, default_value = None)]
-    output_schema: Option<String>,
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    #[command(about = "Writes the GraphQL schema into the given path")]
+    Schema {
+        #[arg(value_parser)]
+        path: String,
+    },
 }
 
 #[tokio::main]
 async fn main() -> IoResult<()> {
     let args = Args::parse();
-    if let Some(output_schema) = args.output_schema {
+
+    if let Some(Commands::Schema { path }) = args.command {
         let schema = App::create_schema().finish().unwrap();
-        std::fs::write(output_schema, schema.sdl()).unwrap();
+        std::fs::write(path, schema.sdl()).unwrap();
     } else {
         let app_config = Some(
             AppConfigBuilder::new()
