@@ -364,7 +364,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 None => match e.layer() {
                     None => time_semantics.edge_is_deleted(edge.as_ref(), g),
                     Some(layer) => time_semantics
-                        .edge_is_valid(edge.as_ref(), LayeredGraph::new(g, LayerIds::One(layer))),
+                        .edge_is_deleted(edge.as_ref(), LayeredGraph::new(g, LayerIds::One(layer))),
                 },
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");
