@@ -26,7 +26,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::db::api::view::internal::InheritStorageOps;
+use crate::db::api::view::internal::{GraphTimeSemanticsOps, InheritStorageOps};
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -122,30 +122,31 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for LayeredGraph<G> {
     fn nodes_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All)
+        !matches!(self.layers, LayerIds::All) || self.graph.nodes_filtered()
     }
 
     fn node_list_trusted(&self) -> bool {
-        !matches!(self.layers, LayerIds::All)
+        matches!(self.layers, LayerIds::All) && self.graph.node_list_trusted()
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {
-        true
+        self.graph.edge_filter_includes_node_filter()
     }
 
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_node(node, layer_ids)
-            && self.graph.node_time_semantics().node_valid(node, &self)
+        self.graph
+            .filter_node(node, &self.layers.intersect(layer_ids))
+            && self.node_time_semantics().node_valid(node, &self)
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     fn edges_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All)
+        !matches!(self.layers, LayerIds::All) || self.graph.edges_filtered()
     }
 
     fn edge_history_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All)
+        !matches!(self.layers, LayerIds::All) || self.graph.edge_history_filtered()
     }
 
     fn edge_list_trusted(&self) -> bool {
@@ -153,11 +154,13 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     }
 
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, layer_ids)
+        let layer_ids = self.layers.intersect(layer_ids);
+        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, &layer_ids)
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, layer_ids)
+        let layer_ids = self.layers.intersect(layer_ids);
+        edge.has_layer(&layer_ids) && self.graph.filter_edge(edge, &layer_ids)
     }
 }
 

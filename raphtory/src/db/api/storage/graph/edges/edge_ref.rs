@@ -1,7 +1,7 @@
 use super::edge_storage_ops::MemEdge;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{LayerIds, VID},
         Prop,
     },
     db::api::storage::graph::{
@@ -55,10 +55,6 @@ pub enum EdgeStorageRef<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
-    fn out_ref(self) -> EdgeRef {
-        for_all!(self, edge => EdgeStorageOps::out_ref(edge))
-    }
-
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         for_all!(self, edge => EdgeStorageOps::added(edge, layer_ids, w))
     }

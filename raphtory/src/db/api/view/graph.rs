@@ -23,8 +23,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
-                valid_graph::ValidGraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, valid_graph::ValidGraph,
             },
         },
     },
@@ -47,6 +46,9 @@ use std::{
     borrow::{Borrow, Cow},
     sync::{atomic::Ordering, Arc},
 };
+
+#[cfg(feature = "search")]
+use crate::db::graph::views::property_filter::FilterExpr;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

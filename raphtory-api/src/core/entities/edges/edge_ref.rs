@@ -54,24 +54,14 @@ impl EdgeRef {
     }
 
     #[inline]
-    pub fn new(e_pid: EID, local_pid: VID, remote_pid: VID, dir: Dir) -> Self {
-        match dir {
-            Dir::Out => EdgeRef {
-                e_pid,
-                src_pid: local_pid,
-                dst_pid: remote_pid,
-                e_type: dir,
-                time: None,
-                layer_id: None,
-            },
-            Dir::Into => EdgeRef {
-                e_pid,
-                src_pid: remote_pid,
-                dst_pid: local_pid,
-                e_type: dir,
-                time: None,
-                layer_id: None,
-            },
+    pub fn new(e_pid: EID, src_pid: VID, dst_pid: VID, dir: Dir) -> Self {
+        Self {
+            e_pid,
+            src_pid,
+            dst_pid,
+            e_type: dir,
+            time: None,
+            layer_id: None,
         }
     }
 

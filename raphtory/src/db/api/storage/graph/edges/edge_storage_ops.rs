@@ -29,6 +29,7 @@ use std::ops::Range;
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
+use raphtory_api::core::entities::edges::edge_ref::Dir;
 
 #[derive(Clone)]
 pub enum TimeIndexRef<'a> {
@@ -217,7 +218,12 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
 }
 
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn out_ref(self) -> EdgeRef;
+    fn edge_ref(self, dir: Dir) -> EdgeRef {
+        EdgeRef::new(self.eid(), self.src(), self.dst(), dir)
+    }
+    fn out_ref(self) -> EdgeRef {
+        self.edge_ref(Dir::Out)
+    }
 
     /// Check if the edge was added in any of the layers during the time interval
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
@@ -516,10 +522,6 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
 
     fn eid(self) -> EID {
         self.eid()
-    }
-
-    fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
     }
 
     fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {

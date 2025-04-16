@@ -15,7 +15,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds},
+        entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
     },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
@@ -243,29 +243,21 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let eref = e.out_ref();
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         self.edge_history(e, view)
-            .map(move |(t, layer_id)| eref.at(t).at_layer(layer_id))
-            .into_dyn_boxed()
     }
 
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let eref = e.out_ref();
+    ) -> BoxedLIter<'graph, usize> {
         if view.edge_history_filtered() {
             e.filtered_additions_iter(view)
-                .filter_map(move |(layer_id, additions)| {
-                    additions.iter().next().map(|_| eref.at_layer(layer_id))
-                })
+                .filter_map(move |(layer_id, additions)| additions.iter().next().map(|_| layer_id))
                 .into_dyn_boxed()
         } else {
-            e.layer_ids_iter(view.layer_ids().clone())
-                .map(move |layer_id| eref.at_layer(layer_id))
-                .into_dyn_boxed()
+            e.layer_ids_iter(view.layer_ids().clone()).into_dyn_boxed()
         }
     }
 
@@ -274,11 +266,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let eref = e.out_ref();
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         self.edge_history_window(e, view, w)
-            .map(move |(t, layer_id)| eref.at(t).at_layer(layer_id))
-            .into_dyn_boxed()
     }
 
     fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
@@ -286,13 +275,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let eref = e.out_ref();
+    ) -> BoxedLIter<'graph, usize> {
         e.filtered_additions_iter(view)
             .filter_map(move |(layer_id, additions)| {
-                additions
-                    .active_t(w.clone())
-                    .then(move || eref.at_layer(layer_id))
+                additions.active_t(w.clone()).then_some(layer_id)
             })
             .into_dyn_boxed()
     }

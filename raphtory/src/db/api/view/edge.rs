@@ -2,31 +2,26 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::{errors::GraphError, iter::GenLockedIter},
+        utils::errors::GraphError,
     },
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            storage::graph::edges::{
-                edge_entry::EdgeStorageEntry, edge_storage_ops::EdgeStorageOps,
-            },
+            storage::graph::edges::edge_entry::EdgeStorageEntry,
             view::{
-                internal::{
-                    CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps,
-                    TimeSemantics,
-                },
-                BoxableGraphView, IntoDynBoxed, StaticGraphViewOps,
+                internal::{CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
+                BoxableGraphView, IntoDynBoxed,
             },
         },
         graph::views::layer_graph::LayeredGraph,
     },
-    prelude::{Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+    prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use raphtory_api::{
     core::{
-        entities::{LayerIds, EID, GID},
+        entities::{LayerIds, GID},
         storage::arc_str::ArcStr,
     },
     iter::BoxedLIter,
@@ -59,13 +54,18 @@ impl<'graph, G: GraphViewOps<'graph>> Iterator for ExplodedIter<'graph, G> {
 
 fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
     view: G,
-    eid: EID,
+    edge_ref: EdgeRef,
 ) -> BoxedLIter<'graph, EdgeRef> {
     let time_semantics = view.edge_time_semantics();
     ExplodedIterBuilder {
         graph: view,
-        edge_builder: |view| view.core_edge(eid),
-        iter_builder: move |edge, graph| time_semantics.edge_exploded(edge.as_ref(), graph),
+        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        iter_builder: move |edge, graph| {
+            time_semantics
+                .edge_exploded(edge.as_ref(), graph)
+                .map(move |(t, l)| edge_ref.at(t).at_layer(l))
+                .into_dyn_boxed()
+        },
         marker: Default::default(),
     }
     .build()
@@ -74,13 +74,18 @@ fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
 
 fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
     view: G,
-    eid: EID,
+    edge_ref: EdgeRef,
 ) -> BoxedLIter<'graph, EdgeRef> {
     let time_semantics = view.edge_time_semantics();
     ExplodedIterBuilder {
         graph: view,
-        edge_builder: |view| view.core_edge(eid),
-        iter_builder: move |edge, graph| time_semantics.edge_layers(edge.as_ref(), graph),
+        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        iter_builder: move |edge, graph| {
+            time_semantics
+                .edge_layers(edge.as_ref(), graph)
+                .map(move |l| edge_ref.at_layer(l))
+                .into_dyn_boxed()
+        },
         marker: Default::default(),
     }
     .build()
@@ -425,10 +430,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => iter::once(e).into_dyn_boxed(),
             None => {
                 let view = g.clone();
-                let eid = e.pid();
                 match e.layer() {
-                    None => exploded(view, eid),
-                    Some(layer) => exploded(LayeredGraph::new(view, LayerIds::One(layer)), eid),
+                    None => exploded(view, e),
+                    Some(layer) => exploded(LayeredGraph::new(view, LayerIds::One(layer)), e),
                 }
             }
         })
@@ -439,8 +443,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => Box::new(iter::once(e)),
             None => {
                 let g = g.clone();
-                let eid = e.pid();
-                exploded_layers(g, eid)
+                exploded_layers(g, e)
             }
         })
     }
@@ -450,7 +453,14 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| {
             let time_semantics = g.edge_time_semantics();
             match e.time() {
-                None => time_semantics.edge_earliest_time(g.core_edge(e.pid()).as_ref(), g),
+                None => match e.layer() {
+                    None => time_semantics.edge_earliest_time(g.core_edge(e.pid()).as_ref(), g),
+                    Some(layer) => time_semantics.edge_earliest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer)),
+                    ),
+                },
+
                 Some(t) => time_semantics.edge_exploded_earliest_time(
                     g.core_edge(e.pid()).as_ref(),
                     g,
@@ -504,7 +514,14 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| {
             let time_semantics = g.edge_time_semantics();
             match e.time() {
-                None => time_semantics.edge_latest_time(g.core_edge(e.pid()).as_ref(), g),
+                None => match e.layer() {
+                    None => time_semantics.edge_latest_time(g.core_edge(e.pid()).as_ref(), g),
+
+                    Some(layer) => time_semantics.edge_latest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer)),
+                    ),
+                },
                 Some(t) => time_semantics.edge_exploded_latest_time(
                     g.core_edge(e.pid()).as_ref(),
                     g,
@@ -547,7 +564,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                     let time_semantics = g.edge_time_semantics();
                     time_semantics
                         .edge_layers(g.core_edge(e.pid()).as_ref(), g)
-                        .map(|e| layer_names[e.layer().unwrap()].clone())
+                        .map(|layer| layer_names[layer].clone())
                         .collect()
                 }
                 Some(l) => {

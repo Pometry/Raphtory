@@ -15,7 +15,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{entities::edges::edge_ref::EdgeRef, storage::timeindex::TimeIndexEntry},
+    core::storage::timeindex::TimeIndexEntry,
     iter::{BoxedLDIter, BoxedLIter},
 };
 use std::ops::Range;
@@ -209,7 +209,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         for_all!(self, semantics => semantics.edge_exploded(e, view))
     }
 
@@ -217,7 +217,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, usize> {
         for_all!(self, semantics => semantics.edge_layers(e, view))
     }
 
@@ -226,7 +226,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         for_all!(self, semantics => semantics.edge_window_exploded(e, view, w))
     }
 
@@ -235,7 +235,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, usize> {
         for_all!(self, semantics => semantics.edge_window_layers(e, view, w))
     }
 

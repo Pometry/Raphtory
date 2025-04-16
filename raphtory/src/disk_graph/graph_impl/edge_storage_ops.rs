@@ -11,10 +11,7 @@ use crate::{
     },
 };
 use pometry_storage::{edge::Edge, tprops::DiskTProp};
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, EID},
-    storage::timeindex::TimeIndexEntry,
-};
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 
@@ -53,10 +50,6 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
 
     fn eid(self) -> EID {
         self.pid()
-    }
-
-    fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src_id(), self.dst_id())
     }
 
     fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {

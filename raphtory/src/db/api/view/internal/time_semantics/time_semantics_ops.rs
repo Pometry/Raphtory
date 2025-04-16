@@ -4,7 +4,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{entities::edges::edge_ref::EdgeRef, storage::timeindex::TimeIndexEntry},
+    core::storage::timeindex::TimeIndexEntry,
     iter::{BoxedLDIter, BoxedLIter},
 };
 use std::ops::Range;
@@ -161,14 +161,14 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef>;
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// Explode edge iterator for edge `e` for every layer
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef>;
+    ) -> BoxedLIter<'graph, usize>;
 
     /// Exploded edge iterator for edge`e` over window `w`
     fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
@@ -176,7 +176,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef>;
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
     fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
@@ -184,7 +184,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef>;
+    ) -> BoxedLIter<'graph, usize>;
 
     /// Get the time of the earliest activity of an edge
     fn edge_earliest_time<'graph, G: GraphViewOps<'graph>>(

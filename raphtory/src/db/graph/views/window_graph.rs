@@ -300,11 +300,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
             && self.graph.filter_node(node, layer_ids)
-            && self.graph.node_time_semantics().node_valid_window(
-                node,
-                LayeredGraph::new(&self.graph, layer_ids.clone()),
-                self.start_bound()..self.end_bound(),
-            )
+            && self
+                .node_time_semantics()
+                .node_valid(node, LayeredGraph::new(&self.graph, layer_ids.clone()))
     }
 }
 

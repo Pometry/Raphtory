@@ -1,7 +1,9 @@
 use super::edge_storage_ops::MemEdge;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{LayerIds, VID},
         storage::raw_edges::EdgeRGuard,
         Prop,
     },
@@ -16,9 +18,6 @@ use crate::{
 use raphtory_api::core::entities::EID;
 use rayon::prelude::*;
 use std::ops::Range;
-
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::DiskEdge;
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
@@ -41,10 +40,6 @@ impl<'a> EdgeStorageEntry<'a> {
 }
 
 impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
-    fn out_ref(self) -> EdgeRef {
-        self.as_ref().out_ref()
-    }
-
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.as_ref().added(layer_ids, w)
     }

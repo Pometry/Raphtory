@@ -6,14 +6,11 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
-        view::{
-            internal::{
-                time_semantics::{
-                    event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
-                },
-                EdgeTimeSemanticsOps,
+        view::internal::{
+            time_semantics::{
+                event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
             },
-            time::internal::InternalTimeOps,
+            EdgeTimeSemanticsOps,
         },
     },
     prelude::GraphViewOps,
@@ -21,7 +18,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds},
+        entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
     },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
@@ -379,7 +376,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         EventSemantics.edge_exploded(e, view)
     }
 
@@ -387,7 +384,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, usize> {
         EventSemantics.edge_layers(e, view)
     }
 
@@ -396,24 +393,20 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
+    ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
-        let eref = edge.out_ref();
         edge.filtered_updates_iter(view)
             .map(|(layer, additions, deletions)| {
                 let window = interior_window(w.clone(), &deletions);
                 let first = has_persisted_event(&additions, deletions, w.start)
-                    .then_some(eref.at(TimeIndexEntry::start(w.start)).at_layer(layer));
-                first.into_iter().chain(
-                    additions
-                        .range(window)
-                        .iter()
-                        .map(move |t| eref.at(t).at_layer(layer)),
-                )
+                    .then_some((TimeIndexEntry::start(w.start), layer));
+                first
+                    .into_iter()
+                    .chain(additions.range(window).iter().map(move |t| (t, layer)))
             })
-            .kmerge_by(|e1, e2| e1.time() <= e2.time())
+            .kmerge()
             .into_dyn_boxed()
     }
 
@@ -422,8 +415,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let eref = e.out_ref();
+    ) -> BoxedLIter<'graph, usize> {
         let exclusive_start = w.start.saturating_add(1);
         e.filtered_updates_iter(view)
             .filter_map(move |(layer, additions, deletions)| {
@@ -431,7 +423,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     || deletions.active_t(exclusive_start..w.end)
                     || alive_before(additions, deletions, exclusive_start)
                 {
-                    Some(eref.at_layer(layer))
+                    Some(layer)
                 } else {
                     None
                 }
