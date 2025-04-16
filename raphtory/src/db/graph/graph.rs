@@ -57,7 +57,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.at(e.time().expect("exploded")).is_active())
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_valid())
                     .is_some()
             })
     } else {
