@@ -9,8 +9,6 @@ import numpy as np
 motif_im_dir = Path(__file__).parents[1].absolute().as_posix() + "/motif-images/"
 
 
-
-
 def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
     """
     Out-of-the-box plotting of global motif counts corresponding to the layout in Motifs in Temporal Networks (Paranjape et al)
@@ -31,10 +29,8 @@ def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
         path = motif_im_dir + xory + str(y) + ".png"
         return plt.imread(path)
 
-
     def _get_motif_labels(motif_map):
         return np.vectorize(human_format)(motif_map)
-
 
     def _offset_image(xory, coord, name, ax):
         img = _get_motif(xory, name)
@@ -66,7 +62,6 @@ def global_motif_heatplot(motifs, cmap="YlGnBu", **kwargs):
             )
 
         ax.add_artist(ab)
-
 
     def _add_motifs_to_ax(ax):
         for i in range(6):
