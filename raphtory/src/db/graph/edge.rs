@@ -25,7 +25,8 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
+                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView},
@@ -86,6 +87,18 @@ impl<G, GH> EdgeView<G, GH> {
             base_graph,
             graph,
             edge,
+        }
+    }
+}
+
+impl<G: IntoDynamic, GH: IntoDynamic> EdgeView<G, GH> {
+    pub fn into_dynamic(self) -> EdgeView<DynamicGraph, DynamicGraph> {
+        let base_graph = self.base_graph.into_dynamic();
+        let graph = self.graph.into_dynamic();
+        EdgeView {
+            base_graph,
+            graph,
+            edge: self.edge,
         }
     }
 }

@@ -28,8 +28,9 @@ use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter, PropType},
     db::{
         api::{
-            state::NodeOp, storage::graph::storage_ops::GraphStorage,
-            view::internal::NodeTimeSemanticsOps,
+            state::NodeOp,
+            storage::graph::storage_ops::GraphStorage,
+            view::{internal::NodeTimeSemanticsOps, DynamicGraph, IntoDynamic},
         },
         graph::edges::Edges,
     },
@@ -75,6 +76,19 @@ impl<'a, G: 'a, GH: 'a> NodeView<'a, G, GH> {
         NodeView {
             base_graph: &self.base_graph,
             graph: &self.graph,
+            node: self.node,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, G: IntoDynamic, GH: IntoDynamic> NodeView<'a, G, GH> {
+    pub fn into_dynamic(self) -> NodeView<'a, DynamicGraph, DynamicGraph> {
+        let base_graph = self.base_graph.into_dynamic();
+        let graph = self.graph.into_dynamic();
+        NodeView {
+            base_graph,
+            graph,
             node: self.node,
             _marker: PhantomData,
         }
