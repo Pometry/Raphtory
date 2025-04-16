@@ -3,7 +3,7 @@ use crate::{
     db::api::mutation::internal::InternalAdditionOps,
     io::arrow::dataframe::DFChunk,
 };
-use polars_arrow::array::Utf8Array;
+use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
 use rayon::{
     iter::{
         plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
@@ -17,12 +17,14 @@ pub(crate) enum LayerCol<'a> {
     Name { name: Option<&'a str>, len: usize },
     Utf8 { col: &'a Utf8Array<i32> },
     LargeUtf8 { col: &'a Utf8Array<i64> },
+    Utf8View { col: &'a Utf8ViewArray },
 }
 
-pub enum LayerColVariants<Name, Utf8, LargeUtf8> {
+pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
     Name(Name),
     Utf8(Utf8),
     LargeUtf8(LargeUtf8),
+    Utf8View(Utf8View),
 }
 
 macro_rules! for_all {
@@ -31,6 +33,7 @@ macro_rules! for_all {
             LayerColVariants::Name($pattern) => $result,
             LayerColVariants::Utf8($pattern) => $result,
             LayerColVariants::LargeUtf8($pattern) => $result,
+            LayerColVariants::Utf8View($pattern) => $result,
         }
     };
 }
@@ -40,7 +43,8 @@ impl<
         Name: ParallelIterator<Item = V>,
         Utf8: ParallelIterator<Item = V>,
         LargeUtf8: ParallelIterator<Item = V>,
-    > ParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8>
+        Utf8View: ParallelIterator<Item = V>,
+    > ParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8, Utf8View>
 {
     type Item = V;
 
@@ -61,7 +65,8 @@ impl<
         Name: IndexedParallelIterator<Item = V>,
         Utf8: IndexedParallelIterator<Item = V>,
         LargeUtf8: IndexedParallelIterator<Item = V>,
-    > IndexedParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8>
+        Utf8View: IndexedParallelIterator<Item = V>,
+    > IndexedParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8, Utf8View>
 {
     fn len(&self) -> usize {
         for_all!(self, iter => iter.len())
@@ -87,6 +92,10 @@ impl<'a> LayerCol<'a> {
             }
             LayerCol::LargeUtf8 { col } => {
                 LayerColVariants::LargeUtf8((0..col.len()).into_par_iter().map(|i| col.get(i)))
+            }
+
+            LayerCol::Utf8View { col } => {
+                LayerColVariants::Utf8View((0..col.len()).into_par_iter().map(|i| col.get(i)))
             }
         }
     }
@@ -131,6 +140,8 @@ pub(crate) fn lift_layer_col<'a>(
                 Ok(LayerCol::Utf8 { col })
             } else if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i64>>() {
                 Ok(LayerCol::LargeUtf8 { col })
+            } else if let Some(col) = col.as_any().downcast_ref::<Utf8ViewArray>() {
+                Ok(LayerCol::Utf8View { col })
             } else {
                 Err(LoadError::InvalidLayerType(col.data_type().clone()).into())
             }
@@ -158,6 +169,8 @@ pub(crate) fn lift_node_type_col<'a>(
                 Ok(LayerCol::Utf8 { col })
             } else if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i64>>() {
                 Ok(LayerCol::LargeUtf8 { col })
+            } else if let Some(col) = col.as_any().downcast_ref::<Utf8ViewArray>() {
+                Ok(LayerCol::Utf8View { col })
             } else {
                 Err(LoadError::InvalidNodeType(col.data_type().clone()).into())
             }

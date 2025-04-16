@@ -23,32 +23,47 @@ def assert_correct_documents(client):
     query = """{
     plugins {
         globalSearch(query: "aab", limit: 1) {
-            entityType
-            name
+            entity {
+                __typename
+                ... on Graph {
+                    name
+                }
+            }
             content
             embedding
         }
     }
     vectorisedGraph(path: "abb") {
         algorithms {
-          similaritySearch(query:"ab", limit: 1) {
-            content
-            entityType
-            embedding
-            name
-          }
+            similaritySearch(query:"ab", limit: 1) {
+                entity {
+                    __typename
+                    ... on Node {
+                        name
+                    }
+                    ... on Edge {
+                        src {
+                            name
+                        }
+                        dst {
+                            name
+                        }
+                    }
+                }
+                content
+                embedding
+            }
         }
-      }
+    }
     }"""
     result = client.query(query)
     assert result == {
         "plugins": {
             "globalSearch": [
                 {
+                    "entity": {"__typename": "Graph", "name": "abb"},
                     "content": "abb",
                     "embedding": [1.0, 2.0],
-                    "entityType": "graph",
-                    "name": ["abb"],
                 },
             ],
         },
@@ -56,10 +71,9 @@ def assert_correct_documents(client):
             "algorithms": {
                 "similaritySearch": [
                     {
+                        "entity": {"__typename": "Node", "name": "aab"},
                         "content": "aab",
                         "embedding": [2.0, 1.0],
-                        "entityType": "node",
-                        "name": ["aab"],
                     }
                 ]
             }

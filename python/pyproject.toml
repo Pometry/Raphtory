@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.4.0,<1.7.6"]
+requires = ["maturin>1.7.6"]
 build-backend = "maturin"
 
 [project]
@@ -12,15 +12,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "pyvis >= 0.3.2",
-    "networkx >= 2.6.3",
     "pandas >= 2.0.3",
     "pyarrow >=18",
-    "requests >= 2.31.0",
-    "gql[all] == 3.5.0",
-    "matplotlib >= 3.4.3",
-    "ipywidgets >= 8.1.5",
-    "numpy >= 2.0",
+    "numpy >= 1.26.0",
 ]
 
 
@@ -33,10 +27,19 @@ slack = "https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJ
 youtube = "https://www.youtube.com/@pometry8546/videos"
 
 [project.optional-dependencies]
-plot = ["seaborn >= 0.11.2"]
-dev = ["docstring_parser >= 0.16", "pandas-stubs"]
+plot = ["seaborn >= 0.11.2", "matplotlib >= 3.4.3"]
+pyvis = ["pyvis >= 0.3.2"]
+networkx = ["networkx >= 2.6.3"]
+export = ["raphtory[pyvis,networkx]"]
+all = ["raphtory[export,plot]"]
+dev = ["docstring_parser >= 0.16", "pandas-stubs", "maturin>1.7.6", "tox>=4.25"]
+test = ["raphtory[all]", "requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytest >= 8"]
+tox = ["nbmake"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
 include = ["motif-images/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["test_utils"] # adds the test_utils directory to the python path for tests

@@ -1,4 +1,10 @@
-use crate::core::{DocumentInput, Lifespan};
+use crate::{
+    core::{DocumentInput, Lifespan},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, node::NodeView},
+    },
+};
 use futures_util::future::BoxFuture;
 use std::{error, future::Future, ops::Deref, sync::Arc};
 
@@ -18,50 +24,19 @@ pub mod vectorised_graph;
 
 pub type Embedding = Arc<[f32]>;
 
-#[derive(Debug)]
-pub enum Document {
-    Graph {
-        name: Option<String>,
-        content: String,
-        embedding: Embedding,
-        life: Lifespan,
-    },
-    Node {
-        name: String,
-        content: String,
-        embedding: Embedding,
-        life: Lifespan,
-    },
-    Edge {
-        src: String,
-        dst: String,
-        content: String,
-        embedding: Embedding,
-        life: Lifespan,
-    },
+#[derive(Debug, Clone)]
+pub enum DocumentEntity<G: StaticGraphViewOps> {
+    Graph { name: Option<String>, graph: G },
+    Node(NodeView<G>),
+    Edge(EdgeView<G>),
 }
 
-// TODO: remove this interface, only used by Document (?)
-pub trait DocumentOps {
-    fn content(&self) -> &str;
-    fn into_content(self) -> String;
-}
-
-impl DocumentOps for Document {
-    fn content(&self) -> &str {
-        match self {
-            Document::Graph { content, .. } => content,
-            Document::Node { content, .. } => content,
-            Document::Edge { content, .. } => content,
-        }
-    }
-    fn into_content(self) -> String {
-        match self {
-            Document::Graph { content, .. } => content,
-            Document::Node { content, .. } => content,
-            Document::Edge { content, .. } => content,
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct Document<G: StaticGraphViewOps> {
+    pub entity: DocumentEntity<G>,
+    pub content: String,
+    pub embedding: Embedding,
+    pub life: Lifespan,
 }
 
 impl Lifespan {
@@ -444,7 +419,7 @@ mod vector_tests {
             .nodes_by_similarity(&embedding, 1, None)
             .get_documents();
         // TODO: use the ids instead in all of these cases
-        assert!(docs[0].content().contains("Gandalf is a wizard"));
+        assert!(docs[0].content.contains("Gandalf is a wizard"));
 
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
             .await
@@ -453,7 +428,7 @@ mod vector_tests {
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
             .get_documents();
-        assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
+        assert!(docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
@@ -463,7 +438,7 @@ mod vector_tests {
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
             .get_documents();
-        assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
+        assert!(!docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let embedding = openai_embedding(vec!["Has anyone appeared with anyone else?".to_owned()])
             .await
@@ -473,6 +448,6 @@ mod vector_tests {
         let docs = vectors
             .edges_by_similarity(&embedding, 1, None)
             .get_documents();
-        assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
+        assert!(docs[0].content.contains("Frodo appeared with Gandalf"));
     }
 }

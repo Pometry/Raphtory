@@ -79,7 +79,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the documents present in the current selection
-    pub fn get_documents(&self) -> Vec<Document> {
+    pub fn get_documents(&self) -> Vec<Document<G>> {
         self.get_documents_with_scores()
             .into_iter()
             .map(|(doc, _)| doc)
@@ -87,7 +87,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the documents alongside their scores present in the current selection
-    pub fn get_documents_with_scores(&self) -> Vec<(Document, f32)> {
+    pub fn get_documents_with_scores(&self) -> Vec<(Document<G>, f32)> {
         self.selected_docs
             .iter()
             .map(|(doc, score)| {
