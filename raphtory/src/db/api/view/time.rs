@@ -372,7 +372,10 @@ mod time_tests {
                 mutation::AdditionOps,
                 view::{time::internal::InternalTimeOps, WindowSet},
             },
-            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
+            graph::{
+                graph::{assert_graph_equal, Graph},
+                views::deletion_graph::PersistentGraph,
+            },
         },
         prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
         test_storage,
@@ -407,16 +410,16 @@ mod time_tests {
         graph.delete_edge(5, 0, 1, None).unwrap();
 
         for time in 2..7 {
-            assert_eq!(graph.at(time), graph.snapshot_at(time));
+            assert_graph_equal(&graph.at(time), &graph.snapshot_at(time));
         }
-        assert_eq!(graph.latest(), graph.snapshot_latest());
+        assert_graph_equal(&graph.latest(), &graph.snapshot_latest());
 
         let graph = graph.event_graph();
 
         for time in 2..7 {
-            assert_eq!(graph.before(time + 1), graph.snapshot_at(time));
+            assert_graph_equal(&graph.before(time + 1), &graph.snapshot_at(time));
         }
-        assert_eq!(graph, graph.snapshot_latest());
+        assert_graph_equal(&graph, &graph.snapshot_latest());
     }
 
     #[test]
