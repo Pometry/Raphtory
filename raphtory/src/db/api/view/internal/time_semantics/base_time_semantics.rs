@@ -257,6 +257,27 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         for_all!(self, semantics => semantics.edge_earliest_time_window(e, view, w))
     }
 
+    fn edge_exploded_earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.edge_exploded_earliest_time(e, view, t, layer))
+    }
+
+    fn edge_exploded_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.edge_exploded_earliest_time_window(e, view, t, layer, w))
+    }
+
     fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -272,6 +293,27 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         w: Range<i64>,
     ) -> Option<i64> {
         for_all!(self, semantics => semantics.edge_latest_time_window(e, view, w))
+    }
+
+    fn edge_exploded_latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.edge_exploded_latest_time(e, view, t, layer))
+    }
+
+    fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        for_all!(self, semantics => semantics.edge_exploded_latest_time_window(e, view, t, layer, w))
     }
 
     fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(

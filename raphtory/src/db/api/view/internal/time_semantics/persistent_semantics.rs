@@ -6,11 +6,14 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
-        view::internal::{
-            time_semantics::{
-                event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+        view::{
+            internal::{
+                time_semantics::{
+                    event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+                },
+                EdgeTimeSemanticsOps,
             },
-            EdgeTimeSemanticsOps,
+            time::internal::InternalTimeOps,
         },
     },
     prelude::GraphViewOps,
@@ -472,6 +475,47 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
+    fn edge_exploded_earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64> {
+        EventSemantics.edge_exploded_earliest_time(e, view, t, layer)
+    }
+
+    fn edge_exploded_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        // past the end of the window
+        if t.t() >= w.end {
+            return None;
+        }
+
+        let deletions = e.filtered_deletions(layer, &view);
+        let interior = interior_window(w.clone(), &deletions);
+        // in the window
+        if t >= interior.start {
+            return Some(t.t());
+        }
+
+        let additions = e.filtered_additions(layer, &view);
+        // check if it is the last exploded edge before the window starts and still alive
+        if additions.active(t.next()..interior.start.next())
+            || deletions.active(t.next()..interior.start.next())
+        {
+            None
+        } else {
+            Some(w.start)
+        }
+    }
+
     fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -500,6 +544,56 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     deletions.range_t(w.start.saturating_add(1)..w.end).last_t()
                 })
                 .max()
+        }
+    }
+
+    fn edge_exploded_latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64> {
+        let deletions = e.filtered_deletions(layer, &view);
+        let additions = e.filtered_additions(layer, &view);
+        deletions
+            .range(t.next()..TimeIndexEntry::MAX)
+            .first_t()
+            .into_iter()
+            .chain(additions.range(t.next()..TimeIndexEntry::MAX).first_t())
+            .min()
+            .or_else(|| view.latest_time_global())
+    }
+
+    fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        // past the end of the window
+        if t.t() >= w.end {
+            return None;
+        }
+
+        let additions = e.filtered_additions(layer, &view);
+        let deletions = e.filtered_deletions(layer, &view);
+
+        let w = interior_window(w.clone(), &deletions);
+        let end = additions
+            .range(t.next()..w.end)
+            .first()
+            .into_iter()
+            .chain(deletions.range(t.next()..w.end).first())
+            .min()
+            .unwrap_or(w.end);
+        // in the window
+        if t >= w.start {
+            Some(end.t())
+        } else {
+            None
         }
     }
 

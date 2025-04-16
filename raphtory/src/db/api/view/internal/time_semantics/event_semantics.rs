@@ -318,6 +318,31 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .min()
     }
 
+    fn edge_exploded_earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64> {
+        view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+            .then_some(t.t())
+    }
+
+    fn edge_exploded_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        if !w.contains(&t.t()) {
+            return None;
+        }
+        self.edge_exploded_earliest_time(e, view, t, layer)
+    }
+
     fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -337,6 +362,27 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e.filtered_additions_iter(&view)
             .filter_map(|(_, additions)| additions.range_t(w.clone()).last_t())
             .max()
+    }
+
+    fn edge_exploded_latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64> {
+        self.edge_exploded_earliest_time(e, view, t, layer)
+    }
+
+    fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64> {
+        self.edge_exploded_earliest_time_window(e, view, t, layer, w)
     }
 
     fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(

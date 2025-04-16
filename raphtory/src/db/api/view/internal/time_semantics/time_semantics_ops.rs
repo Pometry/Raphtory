@@ -201,6 +201,23 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<i64>,
     ) -> Option<i64>;
 
+    fn edge_exploded_earliest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64>;
+
+    fn edge_exploded_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+        w: Range<i64>,
+    ) -> Option<i64>;
+
     /// Get the time of the latest activity of an edge
     fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
@@ -213,6 +230,23 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeStorageRef,
         view: G,
+        w: Range<i64>,
+    ) -> Option<i64>;
+
+    fn edge_exploded_latest_time<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> Option<i64>;
+
+    fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef,
+        view: G,
+        t: TimeIndexEntry,
+        layer: usize,
         w: Range<i64>,
     ) -> Option<i64>;
 
