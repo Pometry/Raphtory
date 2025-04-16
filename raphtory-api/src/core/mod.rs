@@ -135,6 +135,7 @@ impl From<&DataType> for PropType {
         match value {
             DataType::Utf8 => PropType::Str,
             DataType::LargeUtf8 => PropType::Str,
+            DataType::Utf8View => PropType::Str,
             DataType::UInt8 => PropType::U8,
             DataType::UInt16 => PropType::U16,
             DataType::Int32 => PropType::I32,
@@ -143,6 +144,7 @@ impl From<&DataType> for PropType {
             DataType::UInt64 => PropType::U64,
             DataType::Float32 => PropType::F32,
             DataType::Float64 => PropType::F64,
+            DataType::Decimal(_, scale) => PropType::Decimal { scale: *scale as i64 },
             DataType::Boolean => PropType::Bool,
 
             _ => PropType::Empty,
