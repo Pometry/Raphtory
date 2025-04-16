@@ -318,9 +318,9 @@ where
         match self {
             TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
             TimeIndexWindow::Range { timeindex, range } => {
-                timeindex.range_iter(range.clone()).into_dyn_boxed()
+                timeindex.range_iter_rev(range.clone()).into_dyn_boxed()
             }
-            TimeIndexWindow::All(timeindex) => timeindex.iter().into_dyn_boxed(),
+            TimeIndexWindow::All(timeindex) => timeindex.iter_rev(),
         }
     }
 
