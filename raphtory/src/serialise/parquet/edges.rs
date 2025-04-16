@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{borrow::Cow, path::Path};
 
 use super::*;
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
     db::{
         api::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::internal::{CoreGraphOps, TimeSemantics},
+            view::internal::{CoreGraphOps, GraphTimeSemanticsOps},
         },
         graph::edge::EdgeView,
     },
@@ -17,7 +17,7 @@ use model::ParquetCEdge;
 use raphtory_api::{
     core::{
         entities::{LayerIds, EID},
-        storage::timeindex::TimeIndexIntoOps,
+        storage::timeindex::TimeIndexOps,
     },
     iter::IntoDynBoxed,
 };
@@ -49,7 +49,7 @@ pub(crate) fn encode_edge_tprop(
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    g.edge_exploded(edge_ref, &all_layers)
+                    g.edge_exploded(edge_ref, Cow::Borrowed(&all_layers))
                 })
                 .map(|edge| ParquetTEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)
@@ -104,7 +104,7 @@ pub(crate) fn encode_edge_deletions(
                         let edge = g_edges.edge(eid);
                         let edge_ref = edge.out_ref();
                         GenLockedIter::from(edge, |edge| {
-                            edge.deletions(layer_id).into_iter().into_dyn_boxed()
+                            edge.deletions(layer_id).iter().into_dyn_boxed()
                         })
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,

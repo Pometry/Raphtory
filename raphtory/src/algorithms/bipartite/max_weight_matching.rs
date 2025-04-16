@@ -1502,7 +1502,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         false
     }
 
-    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<&'a G>>
+    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<'a, &'a G>>
     where
         'graph: 'a,
     {
@@ -1522,7 +1522,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             self.graph.core_edge(*eid).out_ref(),
         ))
     }
-    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<&'a G>>
+    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<'a, &'a G>>
     where
         'graph: 'a,
     {

@@ -1,23 +1,96 @@
-use std::iter;
-
-use chrono::{DateTime, Utc};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::{errors::GraphError, iter::GenLockedIter},
+        utils::errors::GraphError,
     },
-    db::api::{
-        properties::{internal::PropertiesOps, Properties},
-        view::{
-            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            IntoDynBoxed,
+    db::{
+        api::{
+            properties::{internal::PropertiesOps, Properties},
+            storage::graph::edges::edge_entry::EdgeStorageEntry,
+            view::{
+                internal::{CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
+                BoxableGraphView, IntoDynBoxed,
+            },
         },
+        graph::views::layer_graph::LayeredGraph,
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
+use chrono::{DateTime, Utc};
+use ouroboros::self_referencing;
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, GID},
+        storage::arc_str::ArcStr,
+    },
+    iter::BoxedLIter,
+};
+use std::{iter, marker::PhantomData};
+
+#[self_referencing]
+pub struct ExplodedIter<'graph, G: GraphViewOps<'graph>> {
+    graph: G,
+    #[borrows(graph)]
+    #[covariant]
+    edge: EdgeStorageEntry<'this>,
+    #[borrows(edge, graph)]
+    #[covariant]
+    iter: BoxedLIter<'this, EdgeRef>,
+    marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>> Iterator for ExplodedIter<'graph, G> {
+    type Item = EdgeRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.with_iter(|iter| iter.size_hint())
+    }
+}
+
+fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
+    view: G,
+    edge_ref: EdgeRef,
+) -> BoxedLIter<'graph, EdgeRef> {
+    let time_semantics = view.edge_time_semantics();
+    ExplodedIterBuilder {
+        graph: view,
+        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        iter_builder: move |edge, graph| {
+            time_semantics
+                .edge_exploded(edge.as_ref(), graph)
+                .map(move |(t, l)| edge_ref.at(t).at_layer(l))
+                .into_dyn_boxed()
+        },
+        marker: Default::default(),
+    }
+    .build()
+    .into_dyn_boxed()
+}
+
+fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
+    view: G,
+    edge_ref: EdgeRef,
+) -> BoxedLIter<'graph, EdgeRef> {
+    let time_semantics = view.edge_time_semantics();
+    ExplodedIterBuilder {
+        graph: view,
+        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        iter_builder: move |edge, graph| {
+            time_semantics
+                .edge_layers(edge.as_ref(), graph)
+                .map(move |l| edge_ref.at_layer(l))
+                .into_dyn_boxed()
+        },
+        marker: Default::default(),
+    }
+    .build()
+    .into_dyn_boxed()
+}
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -127,7 +200,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
+    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
@@ -147,40 +220,158 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| g.edge_history(e, g.layer_ids()).map(|ti| ti.t()).collect())
+        self.map(|g, e| match e.time() {
+            Some(t) => vec![t.t()],
+            None => {
+                let time_semantics = g.edge_time_semantics();
+                let edge = g.core_edge(e.pid());
+                match e.layer() {
+                    None => time_semantics
+                        .edge_history(edge.as_ref(), g)
+                        .map(|(ti, _)| ti.t())
+                        .collect(),
+                    Some(layer) => time_semantics
+                        .edge_history(edge.as_ref(), LayeredGraph::new(g, LayerIds::One(layer)))
+                        .map(|(ti, _)| ti.t())
+                        .collect(),
+                }
+            }
+        })
     }
 
     fn history_counts(&self) -> Self::ValueType<usize> {
-        self.map(|g, e| g.edge_exploded_count(g.core_edge(e.pid()).as_ref(), g.layer_ids()))
+        self.map(|g, e| match e.time() {
+            Some(_) => 1,
+            None => match e.layer() {
+                None => g
+                    .edge_time_semantics()
+                    .edge_exploded_count(g.core_edge(e.pid()).as_ref(), g),
+                Some(layer) => g.edge_time_semantics().edge_exploded_count(
+                    g.core_edge(e.pid()).as_ref(),
+                    LayeredGraph::new(g, LayerIds::One(layer)),
+                ),
+            },
+        })
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(move |g, e| g.edge_history(e, g.layer_ids()).map(|t| t.dt()).collect())
+        self.map(|g, e| match e.time() {
+            Some(t) => Some(vec![t.dt()?]),
+            None => {
+                let time_semantics = g.edge_time_semantics();
+                let edge = g.core_edge(e.pid());
+                match e.layer() {
+                    None => time_semantics
+                        .edge_history(edge.as_ref(), g)
+                        .map(|(ti, _)| ti.dt())
+                        .collect(),
+                    Some(layer) => time_semantics
+                        .edge_history(edge.as_ref(), LayeredGraph::new(g, LayerIds::One(layer)))
+                        .map(|(ti, _)| ti.dt())
+                        .collect(),
+                }
+            }
+        })
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(move |g, e| {
-            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
-                .map(|t| t.t())
-                .collect()
+        self.map(|g, e| {
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                Some(t) => time_semantics
+                    .edge_exploded_deletion(
+                        edge.as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    )
+                    .into_iter()
+                    .map(|t| t.t())
+                    .collect(),
+                None => match e.layer() {
+                    None => time_semantics
+                        .edge_deletion_history(edge.as_ref(), g)
+                        .map(|(ti, _)| ti.t())
+                        .collect(),
+                    Some(layer) => time_semantics
+                        .edge_deletion_history(
+                            edge.as_ref(),
+                            LayeredGraph::new(g, LayerIds::One(layer)),
+                        )
+                        .map(|(ti, _)| ti.t())
+                        .collect(),
+                },
+            }
         })
     }
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
-            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
-                .into_iter()
-                .map(|t| t.dt())
-                .collect()
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                Some(t) => time_semantics
+                    .edge_exploded_deletion(
+                        edge.as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    )
+                    .into_iter()
+                    .map(|t| t.dt())
+                    .collect(),
+                None => match e.layer() {
+                    None => time_semantics
+                        .edge_deletion_history(edge.as_ref(), g)
+                        .map(|(ti, _)| ti.dt())
+                        .collect(),
+                    Some(layer) => time_semantics
+                        .edge_deletion_history(
+                            edge.as_ref(),
+                            LayeredGraph::new(g, LayerIds::One(layer)),
+                        )
+                        .map(|(ti, _)| ti.dt())
+                        .collect(),
+                },
+            }
         })
     }
 
     fn is_valid(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| g.edge_is_valid(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| {
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                None => match e.layer() {
+                    None => time_semantics.edge_is_valid(edge.as_ref(), g),
+                    Some(layer) => time_semantics
+                        .edge_is_valid(edge.as_ref(), LayeredGraph::new(g, LayerIds::One(layer))),
+                },
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics.edge_is_valid_exploded(edge.as_ref(), g, t, layer)
+                }
+            }
+        })
     }
 
     fn is_deleted(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| !g.edge_is_valid(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| {
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                None => match e.layer() {
+                    None => time_semantics.edge_is_deleted(edge.as_ref(), g),
+                    Some(layer) => time_semantics
+                        .edge_is_valid(edge.as_ref(), LayeredGraph::new(g, LayerIds::One(layer))),
+                },
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics.edge_is_deleted_exploded(edge.as_ref(), g, t, layer)
+                }
+            }
+        })
     }
 
     fn is_self_loop(&self) -> Self::ValueType<bool> {
@@ -209,9 +400,23 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Check if edge is active (i.e. has some update within the current bound)
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
-            g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e))
-                .next()
-                .is_some()
+            let edge = g.core_edge(e.pid());
+            let time_semantics = g.edge_time_semantics();
+            match e.time() {
+                None => match e.layer() {
+                    None => time_semantics.edge_is_active(edge.as_ref(), g),
+                    Some(layer_id) => time_semantics.edge_is_active(
+                        edge.as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer_id)),
+                    ),
+                },
+                Some(t) => time_semantics.edge_is_active_exploded(
+                    edge.as_ref(),
+                    g,
+                    t,
+                    e.layer().expect("exploded edge should have layer"),
+                ),
+            }
         })
     }
 
@@ -222,10 +427,13 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::Exploded {
         self.map_exploded(|g, e| match e.time() {
-            Some(_) => Box::new(iter::once(e)),
+            Some(_) => iter::once(e).into_dyn_boxed(),
             None => {
-                let g = g.clone();
-                GenLockedIter::from(g, move |g| g.edge_exploded(e, g.layer_ids())).into_dyn_boxed()
+                let view = g.clone();
+                match e.layer() {
+                    None => exploded(view, e),
+                    Some(layer) => exploded(LayeredGraph::new(view, LayerIds::One(layer)), e),
+                }
             }
         })
     }
@@ -235,33 +443,93 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => Box::new(iter::once(e)),
             None => {
                 let g = g.clone();
-                GenLockedIter::from(g, move |g| g.edge_layers(e, g.layer_ids())).into_dyn_boxed()
+                exploded_layers(g, e)
             }
         })
     }
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, e| g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| {
+            let time_semantics = g.edge_time_semantics();
+            match e.time() {
+                None => match e.layer() {
+                    None => time_semantics.edge_earliest_time(g.core_edge(e.pid()).as_ref(), g),
+                    Some(layer) => time_semantics.edge_earliest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer)),
+                    ),
+                },
+
+                Some(t) => time_semantics.edge_exploded_earliest_time(
+                    g.core_edge(e.pid()).as_ref(),
+                    g,
+                    t,
+                    e.layer().expect("exploded edge should have layer"),
+                ),
+            }
+        })
     }
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e))?
-                .dt()
+            let time_semantics = g.edge_time_semantics();
+            match e.time() {
+                None => time_semantics
+                    .edge_earliest_time(g.core_edge(e.pid()).as_ref(), g)?
+                    .dt(),
+                Some(t) => time_semantics
+                    .edge_exploded_earliest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    )?
+                    .dt(),
+            }
         })
     }
 
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))?
-                .dt()
+            let time_semantics = g.edge_time_semantics();
+            match e.time() {
+                None => time_semantics
+                    .edge_latest_time(g.core_edge(e.pid()).as_ref(), g)?
+                    .dt(),
+                Some(t) => time_semantics
+                    .edge_exploded_latest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    )?
+                    .dt(),
+            }
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, e| g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| {
+            let time_semantics = g.edge_time_semantics();
+            match e.time() {
+                None => match e.layer() {
+                    None => time_semantics.edge_latest_time(g.core_edge(e.pid()).as_ref(), g),
+
+                    Some(layer) => time_semantics.edge_latest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer)),
+                    ),
+                },
+                Some(t) => time_semantics.edge_exploded_latest_time(
+                    g.core_edge(e.pid()).as_ref(),
+                    g,
+                    t,
+                    e.layer().expect("exploded edge should have layer"),
+                ),
+            }
+        })
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -283,19 +551,26 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>> {
-        self.map(|_, e| e.time())
+    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>> {
+        self.map(|_, e| e.time().ok_or(GraphError::TimeAPIError))
     }
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>> {
         self.map(|g, e| {
             let layer_names = g.edge_meta().layer_meta().get_keys();
-            g.edge_layers(e, &g.layer_ids().constrain_from_edge(e))
-                .map(move |ee| {
-                    layer_names[ee.layer().expect("exploded edge should have layer")].clone()
-                })
-                .collect()
+            match e.layer() {
+                None => {
+                    let time_semantics = g.edge_time_semantics();
+                    time_semantics
+                        .edge_layers(g.core_edge(e.pid()).as_ref(), g)
+                        .map(|layer| layer_names[layer].clone())
+                        .collect()
+                }
+                Some(l) => {
+                    vec![layer_names[l].clone()]
+                }
+            }
         })
     }
 }
@@ -440,7 +715,7 @@ mod test_edge_view {
         //FIXME: DiskGraph does not preserve secondary index (see #1780)
         test_graph(&graph, |graph| {
             let mut exploded_edges: Vec<_> = graph.edges().explode().into_iter().collect();
-            exploded_edges.sort_by_key(|a| a.time_and_index());
+            exploded_edges.sort_by_key(|a| a.time_and_index().unwrap());
 
             let res: Vec<_> = exploded_edges
                 .into_iter()

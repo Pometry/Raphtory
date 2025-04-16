@@ -38,7 +38,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
-        entities::GidType,
+        entities::{GidType, ELID},
         storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
     },
     GraphType,
@@ -49,7 +49,7 @@ use std::ops::Range;
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]
-#[enum_dispatch(TimeSemantics)]
+#[enum_dispatch(GraphTimeSemanticsOps)]
 #[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(NodeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
@@ -58,7 +58,7 @@ use std::ops::Range;
 #[enum_dispatch(ConstPropertiesOps)]
 #[enum_dispatch(InternalAdditionOps)]
 #[enum_dispatch(InternalPropertyAdditionOps)]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
@@ -315,8 +315,8 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, InternalLayerOps, InternalMaterialize, MaterializedGraph,
-            TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps,
+            InternalMaterialize, MaterializedGraph,
         },
         prelude::*,
     };

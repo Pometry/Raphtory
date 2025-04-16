@@ -153,7 +153,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
 }
 
 pub(crate) struct ParquetTNode<'a> {
-    pub node: NodeView<&'a GraphStorage>,
+    pub node: NodeView<'a, &'a GraphStorage>,
     pub cols: &'a [ArcStr],
     pub t: TimeIndexEntry,
     pub props: Vec<(usize, Prop)>,
@@ -179,7 +179,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
 }
 
 pub(crate) struct ParquetCNode<'a> {
-    pub node: NodeView<&'a GraphStorage>,
+    pub node: NodeView<'a, &'a GraphStorage>,
 }
 
 impl<'a> Serialize for ParquetCNode<'a> {

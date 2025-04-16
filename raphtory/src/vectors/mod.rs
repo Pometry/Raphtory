@@ -27,7 +27,7 @@ pub type Embedding = Arc<[f32]>;
 #[derive(Debug, Clone)]
 pub enum DocumentEntity<G: StaticGraphViewOps> {
     Graph { name: Option<String>, graph: G },
-    Node(NodeView<G>),
+    Node(NodeView<'static, G>),
     Edge(EdgeView<G>),
 }
 

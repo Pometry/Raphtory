@@ -17,35 +17,31 @@ use crate::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
         storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{Base, InheritViewOps},
+        view::{
+            internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+            Base, InheritViewOps,
+        },
     },
 };
-
-use crate::db::api::{
-    storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-};
-#[cfg(feature = "search")]
-use crate::search::graph_index::GraphIndex;
-#[cfg(feature = "proto")]
-use crate::serialise::GraphFolder;
-#[cfg(feature = "proto")]
-use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidType, EID, VID},
-    storage::{
-        dict_mapper::{
-            MaybeNew,
-            MaybeNew::{Existing, New},
-        },
-        timeindex::TimeIndexEntry,
-    },
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
     sync::Arc,
 };
+
+#[cfg(feature = "proto")]
+use crate::serialise::GraphFolder;
+#[cfg(feature = "search")]
+use crate::{
+    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+    search::graph_index::GraphIndex,
+};
+#[cfg(feature = "proto")]
+use once_cell::sync::OnceCell;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -302,7 +298,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, New(v), props))?;
+        self.if_index(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
 
         Ok(())
     }
@@ -346,7 +342,15 @@ impl InternalAdditionOps for Storage {
             let ee = self.graph.edge_entry(edge);
             let src = ee.src();
             let dst = ee.dst();
-            index.add_edge_update(&self.graph, Existing(edge), t, src, dst, layer, props)
+            index.add_edge_update(
+                &self.graph,
+                MaybeNew::Existing(edge),
+                t,
+                src,
+                dst,
+                layer,
+                props,
+            )
         })?;
 
         Ok(())

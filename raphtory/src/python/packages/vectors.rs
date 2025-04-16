@@ -1,13 +1,9 @@
 use crate::{
     core::utils::{errors::GraphError, time::IntoTime},
-    db::{
-        api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        types::wrappers::document::{PyDocument, PyEmbedding},
+        types::wrappers::document::PyDocument,
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
@@ -26,7 +22,6 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
-    IntoPyObjectExt,
 };
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
@@ -93,17 +88,8 @@ impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
                 graph: graph.into_dynamic(),
             },
             // TODO: define a common method node/edge.into_dynamic for NodeView, as this code is duplicated in model/graph/node.rs and model/graph/edge.rs
-            DocumentEntity::Node(node) => DocumentEntity::Node(NodeView {
-                base_graph: node.base_graph.into_dynamic(),
-                graph: node.graph.into_dynamic(),
-                node: node.node,
-            }),
-            DocumentEntity::Edge(edge) => DocumentEntity::Edge(EdgeView {
-                // TODO: same as for nodes
-                base_graph: edge.base_graph.into_dynamic(),
-                graph: edge.graph.into_dynamic(),
-                edge: edge.edge,
-            }),
+            DocumentEntity::Node(node) => DocumentEntity::Node(node.into_dynamic()),
+            DocumentEntity::Edge(edge) => DocumentEntity::Edge(edge.into_dynamic()),
         };
         Document {
             entity,

@@ -14,6 +14,7 @@ use crate::{
     },
     prelude::{GraphViewOps, LayerOps},
 };
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
@@ -111,8 +112,25 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
+
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        let layer = eid.layer();
+        if layer_ids.contains(&layer) {
+            self.layered_mask
+                .get(layer)
+                .map_or(false, |(_, edges)| edges.contains(eid.edge.as_u64()))
+                && self.graph.filter_edge_history(eid, t, layer_ids)
+        } else {
+            false
+        }
     }
 
     #[inline]
@@ -286,6 +304,32 @@ mod test {
         proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 0 ))| {
             check(&edge_list);
         })
+    }
+
+    #[test]
+    fn failing() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(2, 0, 0, NO_PROPS, Some("1")).unwrap();
+
+        let earliest = graph.earliest_time().unwrap();
+        let latest = graph.latest_time().unwrap();
+        let middle = earliest + (latest - earliest) / 2;
+
+        let layers = graph
+            .unique_layers()
+            .take(graph.unique_layers().count() / 2)
+            .collect_vec();
+
+        if !layers.is_empty() && earliest < middle && middle < latest {
+            let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
+            let masked = subgraph.cache_view();
+            println!("view nodes: {:?}", subgraph.nodes());
+            println!("view edges: {:?}", subgraph.edges());
+            println!("cached nodes: {:?}", masked.nodes());
+            println!("cached edges: {:?}", masked.edges());
+            assert_graph_equal(&subgraph, &masked);
+        }
     }
 
     #[cfg(all(test, feature = "search"))]

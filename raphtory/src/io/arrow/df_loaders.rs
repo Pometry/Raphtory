@@ -258,7 +258,7 @@ pub(crate) fn load_edges_from_df<
 
     let mut src_col_resolved = vec![];
     let mut dst_col_resolved = vec![];
-    let mut eid_col_resolved = vec![];
+    let mut eid_col_resolved: Vec<EID> = vec![];
 
     let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock()?;
@@ -363,7 +363,10 @@ pub(crate) fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
-                        src_node.update_time(TimeIndexEntry(time, start_idx + row), eid);
+                        src_node.update_time(
+                            TimeIndexEntry(time, start_idx + row),
+                            eid.with_layer(*layer),
+                        );
                         src_node.add_edge(*dst, Direction::OUT, *layer, eid);
                         eid_col_shared[row].store(eid.0, Ordering::Relaxed);
                     }
@@ -385,7 +388,10 @@ pub(crate) fn load_edges_from_df<
                 {
                     if let Some(node) = shard.get_mut(*dst) {
                         node.init(*dst, dst_gid);
-                        node.update_time(TimeIndexEntry(time, row + start_idx), *eid);
+                        node.update_time(
+                            TimeIndexEntry(time, row + start_idx),
+                            eid.with_layer(*layer),
+                        );
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }
                 }
@@ -897,7 +903,7 @@ mod tests {
             },
             disk_graph::DiskGraphStorage,
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::{Graph, GraphViewOps, LayerOps},
+            prelude::{Graph, LayerOps},
             test_utils::build_edge_list,
         };
         use polars_arrow::{

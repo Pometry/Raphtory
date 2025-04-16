@@ -54,7 +54,11 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use serde::{Deserialize, Serialize};
-use std::{iter, sync::Arc};
+use std::{
+    fmt::{Debug, Formatter},
+    iter,
+    sync::Arc,
+};
 
 pub mod additions;
 pub mod const_props;
@@ -68,12 +72,26 @@ pub mod prop_add;
 pub mod time_props;
 pub mod time_semantics;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum GraphStorage {
     Mem(LockedGraph),
     Unlocked(Arc<TemporalGraph>),
     #[cfg(feature = "storage")]
     Disk(Arc<DiskGraphStorage>),
+}
+
+impl Debug for GraphStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GraphStorage::Mem(_) => f.debug_struct("GraphStorage::Mem"),
+            GraphStorage::Unlocked(_) => f.debug_struct("GraphStorage::Unlocked"),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => f.debug_struct("GraphStorage::Disk"),
+        }
+        .field("nodes", &GraphViewOps::nodes(self))
+        .field("edges", &GraphViewOps::edges(self))
+        .finish()
+    }
 }
 
 impl DeletionOps for GraphStorage {}
@@ -449,10 +467,9 @@ impl GraphStorage {
             EdgesStorage::Mem(edges) => {
                 let iter = (0..edges.len()).map(EID);
                 let filtered = match view.filter_state() {
-                    FilterState::Neither => FilterVariants::Neither(iter.filter_map(move |eid| {
-                        let e = EdgeStorageRef::Mem(edges.get_mem(eid));
-                        e.has_layer(view.layer_ids()).then(|| e.out_ref())
-                    })),
+                    FilterState::Neither => {
+                        FilterVariants::Neither(iter.map(move |eid| edges.get_mem(eid).out_ref()))
+                    }
                     FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get_mem(e));
                         (view.filter_edge(e, view.layer_ids())

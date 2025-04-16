@@ -15,9 +15,12 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::storage_variants3::StorageVariants,
         },
-        view::{internal::NodeAdditions, BoxedLIter},
+        view::{
+            internal::{NodeAdditions, NodeHistory},
+            BoxedLIter,
+        },
     },
-    prelude::Prop,
+    prelude::{GraphViewOps, Prop},
 };
 
 pub enum NodeStorageEntry<'a> {
@@ -71,11 +74,7 @@ impl<'b> NodeStorageEntry<'b> {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + use<'b, '_> {
         match self {
-            NodeStorageEntry::Mem(entry) => {
-                StorageVariants::Mem(GenLockedIter::from(entry, |entry| {
-                    Box::new(entry.edges_iter(layers, dir))
-                }))
-            }
+            NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
             NodeStorageEntry::Unlocked(entry) => {
                 StorageVariants::Unlocked(entry.into_edges_iter(layers, dir))
             }
@@ -104,6 +103,11 @@ impl<'b> NodeStorageEntry<'b> {
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
         }
+    }
+
+    pub fn history<'a, G: GraphViewOps<'a>>(&'a self, view: G) -> NodeHistory<'a, G> {
+        let additions = self.additions();
+        NodeHistory { additions, view }
     }
 }
 
@@ -146,5 +150,9 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
         self.as_ref().prop(prop_id)
+    }
+
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
+        self.as_ref().tprops()
     }
 }

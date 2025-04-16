@@ -13,7 +13,10 @@ use pometry_storage::{
     prelude::ArrayOps,
     tprops::{DiskTProp, EmptyTProp, TPropColumn},
 };
-use raphtory_api::{core::storage::timeindex::TimeIndexEntry, iter::IntoDynDBoxed};
+use raphtory_api::{
+    core::storage::timeindex::TimeIndexEntry,
+    iter::{BoxedLDIter, IntoDynDBoxed},
+};
 use std::{iter, ops::Range};
 
 impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
@@ -24,23 +27,22 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
             .zip(props)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
         if t_index < timestamps.len() {
@@ -71,27 +73,27 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedPrimitiveCol<'a, i128>, TimeInd
             .map(move |(t, v)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let scale = scale(self.data_type());
         let (props, timestamps) = self.into_inner();
         timestamps.into_iter().zip(props).filter_map(move |(t, v)| {
             v.zip(scale)
                 .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
-        })
+        }).into_dyn_dboxed()
     }
 
     fn iter_window(
-        self,
+        &self,
         r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let scale = scale(self.data_type());
         self.iter_window_inner(r).filter_map(move |(t, v)| {
             v.zip(scale)
                 .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
-        })
+        }).into_dyn_dboxed()
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         let scale = scale(self.data_type())?;
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
@@ -117,23 +119,22 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
             .zip(props)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
         if t_index < timestamps.len() {
@@ -155,23 +156,22 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
             .zip(props)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
         if t_index < timestamps.len() {
@@ -193,23 +193,22 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, StringViewCol<'a>, TimeIndexEntry> {
             .map(|(t, v)| (t, v.into()))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         timestamps
             .into_iter()
             .zip(props)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         self.iter_window_inner(r)
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+            .into_dyn_dboxed()
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
         if t_index < timestamps.len() {
@@ -228,25 +227,15 @@ impl<'a> TPropOps<'a> for EmptyTProp {
         None
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        iter::empty()
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        iter::empty().into_dyn_dboxed()
     }
 
-    fn iter_window(
-        self,
-        _r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        iter::empty()
+    fn iter_window(&self, _r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        iter::empty().into_dyn_dboxed()
     }
 
-    fn iter_window_te(
-        self,
-        _r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (i64, Prop)> + Send + 'a {
-        iter::empty()
-    }
-
-    fn at(self, _ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, _ti: &TimeIndexEntry) -> Option<Prop> {
         None
     }
 }
@@ -277,18 +266,18 @@ impl<'a> TPropOps<'a> for DiskTProp<'a, TimeIndexEntry> {
         for_all!(self, v => v.last_before(t))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all!(self, v => v.iter().into_dyn_dboxed())
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)>{
+        for_all!(self, v => v.iter())
     }
 
     fn iter_window(
-        self,
+        &self,
         r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all!(self, v => v.iter_window(r).into_dyn_dboxed())
+    ) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        for_all!(self, v => v.iter_window(r))
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, v => v.at(ti))
     }
 }

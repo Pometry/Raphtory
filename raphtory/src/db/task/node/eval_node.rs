@@ -348,7 +348,7 @@ impl<
     type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T: NodeOp + 'graph> = Box<dyn Iterator<Item = T::Output> + 'graph>;
-    type PropType = NodeView<GH, GH>;
+    type PropType = NodeView<'graph, GH, GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
@@ -495,7 +495,7 @@ impl<
         = T::Output
     where
         T: 'graph;
-    type PropType = NodeView<GH>;
+    type PropType = NodeView<'graph, GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
