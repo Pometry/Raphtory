@@ -198,7 +198,13 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
         let start = w.start;
-        let first_row = if node.history(view).active_t(i64::MIN..start) {
+        let first_row = if node
+            .additions()
+            .with_range(TimeIndexEntry::range(i64::MIN..start))
+            .prop_events()
+            .next()
+            .is_some()
+        {
             Some(
                 node.tprops()
                     .filter_map(|(i, tprop)| {

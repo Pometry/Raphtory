@@ -1116,14 +1116,23 @@ mod test_deletions {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
         g.add_edge(10, 0, 0, NO_PROPS, Some("a")).unwrap();
+        println!("all: {g:?}");
         let gw = g.window(1, 10);
+        println!("windowed nodes: {:?}", gw.nodes());
+        let gm = gw.materialize().unwrap();
+
+        println!("materialized: {:?}", gm);
+
+        assert_eq!(gw.valid_layers("a").count_nodes(), 0);
+        assert_eq!(gm.valid_layers("a").count_nodes(), 0);
+
         let expected = PersistentGraph::new();
         expected.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
         expected.resolve_layer(Some("a")).unwrap(); // empty layer exists
-        assert_graph_equal(&gw, &expected);
-        let gm = gw.materialize().unwrap();
+
         println!("expected: {:?}", expected);
-        println!("materialized: {:?}", gm);
+        assert_graph_equal(&gw, &expected);
+
         assert_graph_equal(&gw, &gm);
     }
 

@@ -109,6 +109,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> fmt::Debug
             .field("node", &self.node)
             .field("node_id", &self.id())
             .field("properties", &self.properties())
+            .field("updates", &self.rows().collect::<Vec<_>>())
             .finish()
     }
 }
