@@ -1,6 +1,5 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    prelude::NodeViewOps,
     vectors::{entity_id::EntityId, template::DocumentTemplate, Document, Embedding, Lifespan},
 };
 use serde::{Deserialize, Serialize};

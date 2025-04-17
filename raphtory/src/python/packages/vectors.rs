@@ -4,10 +4,9 @@ use crate::{
         api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        types::wrappers::document::{PyDocument, PyEmbedding},
+        types::wrappers::document::PyDocument,
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
@@ -26,7 +25,6 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
-    IntoPyObjectExt,
 };
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
