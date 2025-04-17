@@ -34,12 +34,10 @@ fn alive_before<
     deletions: D,
     t: i64,
 ) -> bool {
-    let last_addition_before_start = additions.range_t(i64::MIN..t).last();
-    let last_deletion_before_start = deletions.range_t(i64::MIN..t).last();
-    last_addition_before_start > last_deletion_before_start
+    last_before(additions, deletions, t).is_some()
 }
 
-fn has_persisted_event<
+fn last_before<
     'a,
     A: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
     D: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
@@ -47,10 +45,32 @@ fn has_persisted_event<
     additions: A,
     deletions: D,
     t: i64,
-) -> bool {
+) -> Option<TimeIndexEntry> {
+    let last_addition_before_start = additions.range_t(i64::MIN..t).last();
+    let last_deletion_before_start = deletions.range_t(i64::MIN..t).last();
+    if last_addition_before_start > last_deletion_before_start {
+        last_addition_before_start
+    } else {
+        None
+    }
+}
+
+fn persisted_event<
+    'a,
+    A: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+    D: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+>(
+    additions: A,
+    deletions: D,
+    t: i64,
+) -> Option<TimeIndexEntry> {
     let active_at_start =
         deletions.active_t(t..t.saturating_add(1)) || additions.active_t(t..t.saturating_add(1));
-    !active_at_start && alive_before(additions, deletions, t)
+    if active_at_start {
+        return None;
+    }
+
+    last_before(additions, deletions, t)
 }
 
 fn edge_alive_at_end<'graph, G: GraphViewOps<'graph>>(
@@ -370,7 +390,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(_, additions, deletions)| {
                 let actual_window = interior_window(w.clone(), &deletions);
                 let mut len = additions.range(actual_window).len();
-                if has_persisted_event(additions, deletions, w.start) {
+                if persisted_event(additions, deletions, w.start).is_some() {
                     len += 1
                 }
                 len
@@ -406,8 +426,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge.filtered_updates_iter(view)
             .map(|(layer, additions, deletions)| {
                 let window = interior_window(w.clone(), &deletions);
-                let first = has_persisted_event(&additions, deletions, w.start)
-                    .then_some((TimeIndexEntry::start(w.start), layer));
+                let first = persisted_event(&additions, deletions, w.start)
+                    .map(|TimeIndexEntry(t, s)| (TimeIndexEntry(w.start, s), layer));
                 first
                     .into_iter()
                     .chain(additions.range(window).iter().map(move |t| (t, layer)))
