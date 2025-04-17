@@ -1,4 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::format,
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -36,11 +40,24 @@ pub(in crate::search) mod fields {
 pub(crate) const TOKENIZER: &str = "custom_default";
 
 pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, IndexReader) {
-    let index = Index::builder()
+    let index_builder = Index::builder()
         .settings(IndexSettings::default())
-        .schema(schema)
-        .create_in_ram()
-        .expect("Failed to create index");
+        .schema(schema);
+
+    let index = if let Some(path) = path {
+        create_dir_all(path).expect(&format!(
+            "Failed to create index directory {}",
+            path.display()
+        ));
+        println!("Index created at {}", path.display());
+        index_builder
+            .create_in_dir(path)
+            .expect("Failed to create index")
+    } else {
+        index_builder
+            .create_in_ram()
+            .expect("Failed to create index")
+    };
 
     let reader = index
         .reader_builder()

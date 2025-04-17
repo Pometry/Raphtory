@@ -68,7 +68,6 @@ impl EdgeIndex {
         let dst_tokenized_field = schema
             .get_field(DESTINATION_TOKENIZED)
             .expect("Destination is absent");
-
         let entity_index = EntityIndex::new(schema, path);
         EdgeIndex {
             entity_index,
@@ -274,22 +273,37 @@ impl EdgeIndex {
         graph: &GraphStorage,
         path: &Option<PathBuf>,
     ) -> Result<EdgeIndex, GraphError> {
-        let edge_index = EdgeIndex::new(path);
+        let edge_index_path = path.as_deref().map(|p| p.join("edges"));
+        let edge_index = EdgeIndex::new(&edge_index_path);
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();
+        let const_properties_index_path = edge_index_path
+            .as_deref()
+            .map(|p| p.join("const_properties"));
         let mut const_writers = edge_index
             .entity_index
-            .initialize_edge_const_property_indexes(graph, const_property_keys, path)?;
+            .initialize_edge_const_property_indexes(
+                graph,
+                const_property_keys,
+                &const_properties_index_path,
+            )?;
 
         let temporal_property_keys = graph
             .edge_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
+        let temporal_properties_index_path = edge_index_path
+            .as_deref()
+            .map(|p| p.join("temporal_properties"));
         let mut temporal_writers = edge_index
             .entity_index
-            .initialize_edge_temporal_property_indexes(graph, temporal_property_keys, path)?;
+            .initialize_edge_temporal_property_indexes(
+                graph,
+                temporal_property_keys,
+                &temporal_properties_index_path,
+            )?;
 
         let mut writer = edge_index.entity_index.index.writer(100_000_000)?;
         let locked_g = graph.core_graph();

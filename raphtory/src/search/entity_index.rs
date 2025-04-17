@@ -153,7 +153,8 @@ impl EntityIndex {
                 let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
                 add_schema_fields(&mut schema_builder);
                 let schema = schema_builder.build();
-                let property_index = new_property(schema, path);
+                let prop_index_path = path.as_deref().map(|p| p.join(prop_id.to_string()));
+                let property_index = new_property(schema, &prop_index_path);
                 let writer = property_index.index.writer(50_000_000)?;
 
                 writers.push(Some(writer));

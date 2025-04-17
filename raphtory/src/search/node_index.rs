@@ -242,22 +242,37 @@ impl NodeIndex {
         graph: &GraphStorage,
         path: &Option<PathBuf>,
     ) -> Result<NodeIndex, GraphError> {
-        let node_index = NodeIndex::new(path);
+        let node_index_path = path.as_deref().map(|p| p.join("nodes"));
+        let node_index = NodeIndex::new(&node_index_path);
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
+        let const_properties_index_path = node_index_path
+            .as_deref()
+            .map(|p| p.join("const_properties"));
         let mut const_writers = node_index
             .entity_index
-            .initialize_node_const_property_indexes(graph, const_property_keys, path)?;
+            .initialize_node_const_property_indexes(
+                graph,
+                const_property_keys,
+                &const_properties_index_path,
+            )?;
 
         let temporal_property_keys = graph
             .node_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
+        let temporal_properties_index_path = node_index_path
+            .as_deref()
+            .map(|p| p.join("temporal_properties"));
         let mut temporal_writers = node_index
             .entity_index
-            .initialize_node_temporal_property_indexes(graph, temporal_property_keys, path)?;
+            .initialize_node_temporal_property_indexes(
+                graph,
+                temporal_property_keys,
+                &temporal_properties_index_path,
+            )?;
 
         // Index nodes in parallel
         let mut writer = node_index.entity_index.index.writer(100_000_000)?;

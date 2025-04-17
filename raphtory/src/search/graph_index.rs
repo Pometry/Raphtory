@@ -39,7 +39,8 @@ impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
 
     fn try_from(graph: &GraphStorage) -> Result<Self, Self::Error> {
         // TODO: Say by the time we are here, we already know the path
-        let path: Option<PathBuf> = None;
+        // let path: Option<PathBuf> = None;
+        let path = Some(PathBuf::from("/tmp/graphs/index"));
         let node_index = NodeIndex::index_nodes(graph, &path)?;
         // node_index.print()?;
 
