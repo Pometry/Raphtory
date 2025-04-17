@@ -10,8 +10,8 @@ use crate::{
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
                     InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-                    NodeFilterOps, Static,
+                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                    InheritTimeSemantics, NodeFilterOps, Static,
                 },
                 Base,
             },
@@ -98,28 +98,9 @@ impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for ValidGraph<G> {}
 
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for ValidGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for ValidGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for ValidGraph<G> {
-    fn nodes_filtered(&self) -> bool {
-        true
-    }
-
-    fn node_list_trusted(&self) -> bool {
-        false
-    }
-
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
-    }
-
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_node(node, layer_ids)
-            && !node
-                .history(LayeredGraph::new(self, layer_ids.clone()))
-                .is_empty()
-    }
-}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
     fn edges_filtered(&self) -> bool {
@@ -351,6 +332,7 @@ mod tests {
         g.delete_edge(5, 2, 1, None).unwrap();
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
         let gvw = g.valid().unwrap().window(0, 5);
+        assert_eq!(gvw.count_nodes(), 0);
         assert_graph_equal(&gvw, &PersistentGraph::new());
         let gvwm = gvw.materialize().unwrap();
         assert_graph_equal(&gvw, &gvwm);
