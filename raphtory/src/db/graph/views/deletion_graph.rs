@@ -1153,6 +1153,20 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_deletion_at_window_start() {
+        let g = PersistentGraph::new();
+        g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
+        g.delete_edge(0, 0, 1, None).unwrap();
+
+        // deletion at start of window is not part of the view
+        let gw = g.window(0, 1);
+        assert!(gw.is_empty());
+
+        let gw = g.window(0, 3);
+        assert_eq!(gw.node(0).unwrap().earliest_time(), Some(2));
+        assert_eq!(gw.node(1).unwrap().earliest_time(), Some(2));
+    }
+    #[test]
     fn materialize_window_layers_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
             let g = build_graph(graph_f).persistent_graph();

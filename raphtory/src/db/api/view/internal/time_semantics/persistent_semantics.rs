@@ -1,25 +1,30 @@
 use crate::{
     core::Prop,
-    db::api::{
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::TPropOps,
-        },
-        view::internal::{
-            time_semantics::{
-                event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+    db::{
+        api::{
+            storage::graph::{
+                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                tprop_storage_ops::TPropOps,
             },
-            EdgeTimeSemanticsOps,
+            view::internal::{
+                time_semantics::{
+                    event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+                },
+                EdgeTimeSemanticsOps,
+            },
         },
+        graph::views::window_graph::WindowedGraph,
     },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
+use num_traits::SaturatingAdd;
 use raphtory_api::{
     core::{
         entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+        Direction,
     },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
 };
@@ -159,12 +164,29 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        let history = node.history(view);
-        if history.active_t(i64::MIN..w.start) {
-            Some(w.start)
-        } else {
-            history.range_t(w).first_t()
+        let additions = node.additions();
+        let mut earliest = additions.prop_events().next().map(|t| t.t());
+        if let Some(earliest) = earliest {
+            if earliest <= w.start {
+                return Some(w.start);
+            }
         }
+
+        let edge_semantics = view.edge_time_semantics();
+        for e in node.edges_iter(view.layer_ids(), Direction::BOTH) {
+            let edge = view.core_edge(e.pid());
+            if let Some(edge_earliest_time) =
+                edge_semantics.edge_earliest_time_window(edge.as_ref(), &view, w.clone())
+            {
+                if edge_earliest_time <= w.start {
+                    return Some(w.start);
+                }
+                if edge_earliest_time < earliest.unwrap_or(w.end) {
+                    earliest = Some(edge_earliest_time);
+                }
+            }
+        }
+        earliest
     }
 
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -270,7 +292,18 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> bool {
-        node.history(view).active_t(i64::MIN..w.end)
+        node.additions()
+            .with_range(TimeIndexEntry::range(i64::MIN..w.end))
+            .prop_events()
+            .next()
+            .is_some()
+            || node
+                .filtered_edges_iter(
+                    WindowedGraph::new(&view, Some(w.start), Some(w.end)),
+                    Direction::BOTH,
+                )
+                .next()
+                .is_some()
     }
 
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
