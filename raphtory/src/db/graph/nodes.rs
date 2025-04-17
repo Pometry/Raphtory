@@ -248,7 +248,10 @@ where
         })
     }
 
-    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
+    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
+        &self,
+        node_types: I,
+    ) -> Nodes<'graph, G, GH> {
         let node_types_filter = Some(create_node_type_filter(
             self.graph.node_meta().node_type_meta(),
             node_types,

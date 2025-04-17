@@ -187,7 +187,7 @@ impl GraphIndex {
 #[cfg(test)]
 mod graph_index_test {
     use crate::{
-        db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
+        db::{api::view::SearchableGraphOps, graph::views::filter::PropertyFilterOps},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
 

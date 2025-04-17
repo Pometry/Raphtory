@@ -17,19 +17,22 @@ use crate::{
             view::{internal::*, *},
         },
         graph::{
+            create_node_type_filter,
             edge::EdgeView,
             edges::Edges,
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
+                cached_view::CachedView,
+                filter::{
+                    node_type_filtered_graph::NodeTypeFilteredGraph, AsEdgeFilter, AsNodeFilter,
+                },
+                node_subgraph::NodeSubgraph,
             },
         },
     },
 };
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -40,10 +43,7 @@ use raphtory_api::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    borrow::Borrow,
-    sync::{atomic::Ordering, Arc},
-};
+use std::sync::{atomic::Ordering, Arc};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -69,10 +69,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     fn cache_view(&self) -> CachedView<Self>;
 
-    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         nodes_types: I,
-    ) -> TypeFilteredSubgraph<Self>;
+    ) -> NodeTypeFilteredGraph<Self>;
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
         &self,
@@ -133,16 +133,16 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
 
-    fn search_nodes(
+    fn search_nodes<F: AsNodeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
-    fn search_edges(
+    fn search_edges<F: AsEdgeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
@@ -381,16 +381,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         CachedView::new(self.clone())
     }
 
-    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
-        nodes_types: I,
-    ) -> TypeFilteredSubgraph<Self> {
-        let meta = self.node_meta().node_type_meta();
-        let r = nodes_types
-            .into_iter()
-            .flat_map(|nt| meta.get_id(nt.borrow()))
-            .collect_vec();
-        TypeFilteredSubgraph::new(self.clone(), r)
+        node_types: I,
+    ) -> NodeTypeFilteredGraph<Self> {
+        let node_types_filter =
+            create_node_type_filter(self.node_meta().node_type_meta(), node_types);
+        NodeTypeFilteredGraph::new(self.clone(), node_types_filter)
     }
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
@@ -437,7 +434,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter()
                     .filter(move |v| self.filter_node(*v, layer_ids))
                     .count(),
-                NodeList::List { nodes } => nodes
+                NodeList::List { elems } => elems
                     .par_iter()
                     .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
                     .count(),
@@ -625,9 +622,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
             })
     }
 
-    fn search_nodes(
+    fn search_nodes<F: AsNodeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
@@ -638,9 +635,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         index.searcher().search_nodes(self, filter, limit, offset)
     }
 
-    fn search_edges(
+    fn search_edges<F: AsEdgeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {

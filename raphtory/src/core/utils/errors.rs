@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
-    db::graph::views::property_filter::{FilterExpr, FilterOperator},
+    db::graph::views::filter::FilterOperator,
 };
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
@@ -356,11 +356,11 @@ pub enum GraphError {
     #[error("Unsupported Value: {0}")]
     UnsupportedValue(String),
 
-    #[error("Illegal FilterExpr: {0}, Reason: {1}.")]
-    IllegalFilterExpr(FilterExpr, String),
-
     #[error("Value cannot be empty.")]
     EmptyValue,
+
+    #[error("Filter must contain at least one filter condition.")]
+    ParsingError,
 }
 
 impl GraphError {

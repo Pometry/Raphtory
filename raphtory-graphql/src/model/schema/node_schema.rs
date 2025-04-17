@@ -3,7 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::{internal::CoreGraphOps, DynamicGraph},
-        graph::views::node_type_filtered_subgraph::TypeFilteredSubgraph,
+        graph::views::filter::node_type_filtered_graph::NodeTypeFilteredGraph,
     },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
@@ -95,8 +95,11 @@ impl NodeSchema {
             keys.into_par_iter()
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
+                    let mut node_types_filter =
+                        vec![false; self.graph.node_meta().node_type_meta().len()];
+                    node_types_filter[self.type_id] = true;
                     let unique_values: ahash::HashSet<_> =
-                        TypeFilteredSubgraph::new(self.graph.clone(), vec![self.type_id])
+                        NodeTypeFilteredGraph::new(self.graph.clone(), node_types_filter.into())
                             .nodes()
                             .properties()
                             .into_iter_values()

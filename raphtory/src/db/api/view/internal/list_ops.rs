@@ -4,7 +4,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 use rayon::{iter::Either, prelude::*};
-use std::sync::Arc;
+use std::hash::Hash;
 
 #[enum_dispatch]
 pub trait ListOps {
@@ -28,100 +28,81 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum NodeList {
-    All { num_nodes: usize },
-    List { nodes: Index<VID> },
+#[derive(Debug)]
+pub enum List<I> {
+    All { len: usize },
+    List { elems: Index<I> },
 }
 
-impl NodeList {
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = VID> + '_ {
-        match self {
-            NodeList::All { num_nodes } => Either::Left((0..*num_nodes).into_par_iter().map(VID)),
-            NodeList::List { nodes } => Either::Right(nodes.par_iter()),
-        }
-    }
+pub type NodeList = List<VID>;
+pub type EdgeList = List<EID>;
 
-    pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = VID> {
+impl<I> Clone for List<I> {
+    fn clone(&self) -> Self {
         match self {
-            NodeList::All { num_nodes } => Either::Left((0..num_nodes).into_par_iter().map(VID)),
-            NodeList::List { nodes } => Either::Right(nodes.into_par_iter()),
-        }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
-        match self {
-            NodeList::All { num_nodes } => Either::Left((0..*num_nodes).map(VID)),
-            NodeList::List { nodes } => Either::Right(nodes.iter()),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            NodeList::All { num_nodes } => *num_nodes,
-            NodeList::List { nodes } => nodes.len(),
+            List::All { len } => List::All { len: *len },
+            List::List { elems } => List::List {
+                elems: elems.clone(),
+            },
         }
     }
 }
 
-impl IntoIterator for NodeList {
-    type Item = VID;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + Send + Sync>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self {
-            NodeList::All { num_nodes } => Box::new((0..num_nodes).map(VID)),
-            NodeList::List { nodes } => Box::new(nodes.into_iter()),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum EdgeList {
-    All { num_edges: usize },
-    List { edges: Arc<[EID]> },
-}
-
-impl EdgeList {
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = EID> + '_ {
-        match self {
-            EdgeList::All { num_edges } => Either::Left((0..*num_edges).into_par_iter().map(EID)),
-            EdgeList::List { edges } => Either::Right(edges.par_iter().copied()),
-        }
-    }
-
-    pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = EID> {
-        match self {
-            EdgeList::All { num_edges } => Either::Left((0..num_edges).into_par_iter().map(EID)),
-            EdgeList::List { edges } => {
-                Either::Right((0..edges.len()).into_par_iter().map(move |i| edges[i]))
+impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
+    pub fn intersection(&self, other: &List<I>) -> List<I> {
+        match (self, other) {
+            (List::All { len: a }, List::All { len: b }) => {
+                let len = *a.min(b);
+                List::All { len }
+            }
+            (List::List { .. }, List::All { .. }) => self.clone(),
+            (List::All { .. }, List::List { .. }) => other.clone(),
+            (List::List { elems: a }, List::List { elems: b }) => {
+                let elems = a.intersection(b);
+                List::List { elems }
             }
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = EID> + '_ {
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = I> + '_ {
         match self {
-            EdgeList::All { num_edges } => Either::Left((0..*num_edges).map(EID)),
-            EdgeList::List { edges } => Either::Right(edges.iter().copied()),
+            List::All { len } => Either::Left((0..*len).into_par_iter().map(From::from)),
+            List::List { elems } => Either::Right(elems.par_iter()),
+        }
+    }
+
+    pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = I> {
+        match self {
+            List::All { len } => Either::Left((0..len).into_par_iter().map(From::from)),
+            List::List { elems } => Either::Right(elems.into_par_iter()),
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = I> + '_ {
+        match self {
+            List::All { len } => Either::Left((0..*len).map(From::from)),
+            List::List { elems } => Either::Right(elems.iter()),
         }
     }
 
     pub fn len(&self) -> usize {
         match self {
-            EdgeList::All { num_edges } => *num_edges,
-            EdgeList::List { edges } => edges.len(),
+            List::All { len } => *len,
+            List::List { elems } => elems.len(),
         }
     }
 }
 
-impl IntoIterator for EdgeList {
-    type Item = EID;
+impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync + 'static> IntoIterator
+    for List<I>
+{
+    type Item = I;
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + Send + Sync>;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            EdgeList::All { num_edges } => Box::new((0..num_edges).map(EID)),
-            EdgeList::List { edges } => Box::new((0..edges.len()).map(move |i| edges[i])),
+            List::All { len } => Box::new((0..len).map(From::from)),
+            List::List { elems } => Box::new(elems.into_iter()),
         }
     }
 }
