@@ -60,20 +60,17 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Writes the GraphQL schema into the given path")]
-    Schema {
-        #[arg(value_parser)]
-        path: String,
-    },
+    #[command(about = "Print the GraphQL schema to the standard output")]
+    Schema,
 }
 
 #[tokio::main]
 async fn main() -> IoResult<()> {
     let args = Args::parse();
 
-    if let Some(Commands::Schema { path }) = args.command {
+    if let Some(Commands::Schema) = args.command {
         let schema = App::create_schema().finish().unwrap();
-        std::fs::write(path, schema.sdl()).unwrap();
+        println!("{}", schema.sdl());
     } else {
         let app_config = Some(
             AppConfigBuilder::new()
