@@ -231,12 +231,12 @@ mod tests {
         assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
 
         let gvw = gv.window(w.start, w.end);
-        assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(1));
+        assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
 
         assert_eq!(gvw.node(0).unwrap().history(), [10]);
 
         let gvwm = gvw.materialize().unwrap();
-        assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(1));
+        assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod tests {
         let gv = g.valid().unwrap().window(-1, 10);
         let gvm = gv.materialize().unwrap();
         assert_graph_equal(&gv, &gvm);
-        assert_eq!(gv.node(0).unwrap().earliest_time(), Some(-1));
+        assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
     }
 
     #[test]
