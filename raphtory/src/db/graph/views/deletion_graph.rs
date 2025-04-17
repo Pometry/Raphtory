@@ -1137,6 +1137,22 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_multilayer_window2() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        g.add_edge(0, 0, 0, NO_PROPS, Some("a")).unwrap();
+        let gw = g.window(1, i64::MAX);
+        let gm = gw.materialize().unwrap();
+        println!("original: {g:?}");
+        assert_eq!(g.default_layer().count_nodes(), 1);
+        println!("materialized: {gm:?}");
+        assert_eq!(gm.default_layer().count_nodes(), 1);
+
+        assert_graph_equal(&gw, &gm.clone().into_persistent().unwrap());
+        assert_graph_equal(&gw, &gm);
+    }
+
+    #[test]
     fn materialize_window_layers_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
             let g = build_graph(graph_f).persistent_graph();
