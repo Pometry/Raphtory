@@ -349,7 +349,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             src_node.add_edge(
                                 node_map[edge.edge.dst().index()],
                                 Direction::OUT,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
@@ -364,7 +364,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             dst_node.add_edge(
                                 node_map[edge.edge.src().index()],
                                 Direction::IN,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
@@ -379,14 +379,18 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 if let Some(src_node) =
                                     shard.get_mut(node_map[edge.edge.src().index()])
                                 {
-                                    src_node
-                                        .update_time(t, edge.edge.pid().with_layer_deletion(layer));
+                                    src_node.update_time(
+                                        t,
+                                        edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                                    );
                                 }
                                 if let Some(dst_node) =
                                     shard.get_mut(node_map[edge.edge.dst().index()])
                                 {
-                                    dst_node
-                                        .update_time(t, edge.edge.pid().with_layer_deletion(layer));
+                                    dst_node.update_time(
+                                        t,
+                                        edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                                    );
                                 }
                             }
                         }
