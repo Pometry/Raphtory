@@ -4,9 +4,14 @@ use crate::{
     search::{fields, new_index, TOKENIZER},
 };
 use raphtory_api::core::{storage::timeindex::TimeIndexEntry, PropType};
-use std::sync::Arc;
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tantivy::{
     collector::TopDocs,
+    directory::MmapDirectory,
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
@@ -26,7 +31,7 @@ pub struct PropertyIndex {
 }
 
 impl PropertyIndex {
-    fn new_property(schema: Schema, is_edge: bool) -> Self {
+    fn new_property(schema: Schema, is_edge: bool, path: &Option<PathBuf>) -> Self {
         let time_field = schema.get_field(fields::TIME).ok();
         let secondary_time_field = schema.get_field(fields::SECONDARY_TIME).ok();
         let entity_id_field = schema
@@ -48,7 +53,7 @@ impl PropertyIndex {
             None
         };
 
-        let (index, reader) = new_index(schema);
+        let (index, reader) = new_index(schema, path);
 
         Self {
             index: Arc::new(index),
@@ -60,12 +65,12 @@ impl PropertyIndex {
         }
     }
 
-    pub(crate) fn new_node_property(schema: Schema) -> Self {
-        Self::new_property(schema, false)
+    pub(crate) fn new_node_property(schema: Schema, path: &Option<PathBuf>) -> Self {
+        Self::new_property(schema, false, path)
     }
 
-    pub(crate) fn new_edge_property(schema: Schema) -> Self {
-        Self::new_property(schema, true)
+    pub(crate) fn new_edge_property(schema: Schema, path: &Option<PathBuf>) -> Self {
+        Self::new_property(schema, true, path)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {

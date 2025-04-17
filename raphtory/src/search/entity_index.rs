@@ -10,8 +10,14 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     PropType,
 };
-use std::{borrow::Borrow, sync::Arc};
+use std::{
+    borrow::Borrow,
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tantivy::{
+    directory::MmapDirectory,
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index, IndexReader, IndexWriter, Term,
 };
@@ -25,8 +31,8 @@ pub struct EntityIndex {
 }
 
 impl EntityIndex {
-    pub(crate) fn new(schema: Schema) -> Self {
-        let (index, reader) = new_index(schema);
+    pub(crate) fn new(schema: Schema, path: &Option<PathBuf>) -> Self {
+        let (index, reader) = new_index(schema, path);
         Self {
             index: Arc::new(index),
             reader,
@@ -43,7 +49,8 @@ impl EntityIndex {
         is_static: bool,
         add_const_schema_fields: fn(&mut SchemaBuilder),
         add_temporal_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(Schema) -> PropertyIndex,
+        new_property: fn(Schema, path: &Option<PathBuf>) -> PropertyIndex,
+        path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
         prop_id
             .if_new(|prop_id| {
@@ -66,7 +73,7 @@ impl EntityIndex {
                     add_temporal_schema_fields(&mut schema_builder);
                 }
                 let schema = schema_builder.build();
-                let property_index = new_property(schema);
+                let property_index = new_property(schema, path);
                 prop_index_guard[prop_id] = Some(property_index);
                 Ok::<_, GraphError>(())
             })
@@ -118,7 +125,8 @@ impl EntityIndex {
         prop_keys: impl Iterator<Item = ArcStr>,
         get_property_meta: fn(&GraphStorage) -> &PropMapper,
         add_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(Schema) -> PropertyIndex,
+        new_property: fn(Schema, &Option<PathBuf>) -> PropertyIndex,
+        path: &Option<PathBuf>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         let prop_meta = get_property_meta(graph);
         let properties = prop_keys
@@ -145,7 +153,7 @@ impl EntityIndex {
                 let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
                 add_schema_fields(&mut schema_builder);
                 let schema = schema_builder.build();
-                let property_index = new_property(schema);
+                let property_index = new_property(schema, path);
                 let writer = property_index.index.writer(50_000_000)?;
 
                 writers.push(Some(writer));
@@ -160,6 +168,7 @@ impl EntityIndex {
         &self,
         graph: &GraphStorage,
         prop_keys: impl Iterator<Item = ArcStr>,
+        path: &Option<PathBuf>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
             graph,
@@ -170,6 +179,7 @@ impl EntityIndex {
                 schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_node_property,
+            path,
         )
     }
 
@@ -177,6 +187,7 @@ impl EntityIndex {
         &self,
         graph: &GraphStorage,
         prop_keys: impl Iterator<Item = ArcStr>,
+        path: &Option<PathBuf>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
             graph,
@@ -189,6 +200,7 @@ impl EntityIndex {
                 schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_node_property,
+            path,
         )
     }
 
@@ -196,6 +208,7 @@ impl EntityIndex {
         &self,
         graph: &GraphStorage,
         prop_keys: impl Iterator<Item = ArcStr>,
+        path: &Option<PathBuf>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
             graph,
@@ -207,6 +220,7 @@ impl EntityIndex {
                 schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_edge_property,
+            path,
         )
     }
 
@@ -214,6 +228,7 @@ impl EntityIndex {
         &self,
         graph: &GraphStorage,
         prop_keys: impl Iterator<Item = ArcStr>,
+        path: &Option<PathBuf>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
             graph,
@@ -227,6 +242,7 @@ impl EntityIndex {
                 schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_edge_property,
+            path,
         )
     }
 

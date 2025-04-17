@@ -12,13 +12,17 @@ use crate::{
     },
 };
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    path::{Path, PathBuf},
+};
 use tantivy::schema::{FAST, INDEXED, STORED};
 
 #[derive(Clone)]
 pub struct GraphIndex {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
+    pub(crate) path: Option<PathBuf>,
 }
 
 impl Debug for GraphIndex {
@@ -34,24 +38,29 @@ impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
     type Error = GraphError;
 
     fn try_from(graph: &GraphStorage) -> Result<Self, Self::Error> {
-        let node_index = NodeIndex::index_nodes(graph)?;
+        // TODO: Say by the time we are here, we already know the path
+        let path: Option<PathBuf> = None;
+        let node_index = NodeIndex::index_nodes(graph, &path)?;
         // node_index.print()?;
 
-        let edge_index = EdgeIndex::index_edges(graph)?;
+        let edge_index = EdgeIndex::index_edges(graph, &path)?;
         // edge_index.print()?;
 
         Ok(GraphIndex {
             node_index,
             edge_index,
+            path,
         })
     }
 }
 
 impl GraphIndex {
     pub fn new() -> Self {
+        let path: Option<PathBuf> = None;
         GraphIndex {
-            node_index: NodeIndex::new(),
-            edge_index: EdgeIndex::new(),
+            node_index: NodeIndex::new(&path),
+            edge_index: EdgeIndex::new(&path),
+            path,
         }
     }
 
@@ -156,6 +165,7 @@ impl GraphIndex {
                 schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_edge_property,
+            &self.path,
         )
     }
 
@@ -180,6 +190,7 @@ impl GraphIndex {
                 schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_node_property,
+            &self.path,
         )
     }
 }

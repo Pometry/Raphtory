@@ -21,7 +21,11 @@ use crate::{
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::ParallelIterator;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
@@ -51,7 +55,7 @@ impl Debug for EdgeIndex {
 }
 
 impl EdgeIndex {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(path: &Option<PathBuf>) -> Self {
         let schema = Self::schema_builder().build();
         let edge_id_field = schema.get_field(EDGE_ID).ok().expect("Edge ID is absent");
         let src_field = schema.get_field(SOURCE).expect("Source is absent");
@@ -65,7 +69,7 @@ impl EdgeIndex {
             .get_field(DESTINATION_TOKENIZED)
             .expect("Destination is absent");
 
-        let entity_index = EntityIndex::new(schema);
+        let entity_index = EntityIndex::new(schema, path);
         EdgeIndex {
             entity_index,
             edge_id_field,
@@ -266,14 +270,17 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edges(graph: &GraphStorage) -> Result<EdgeIndex, GraphError> {
-        let edge_index = EdgeIndex::new();
+    pub(crate) fn index_edges(
+        graph: &GraphStorage,
+        path: &Option<PathBuf>,
+    ) -> Result<EdgeIndex, GraphError> {
+        let edge_index = EdgeIndex::new(path);
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();
         let mut const_writers = edge_index
             .entity_index
-            .initialize_edge_const_property_indexes(graph, const_property_keys)?;
+            .initialize_edge_const_property_indexes(graph, const_property_keys, path)?;
 
         let temporal_property_keys = graph
             .edge_meta()
@@ -282,7 +289,7 @@ impl EdgeIndex {
             .into_iter();
         let mut temporal_writers = edge_index
             .entity_index
-            .initialize_edge_temporal_property_indexes(graph, temporal_property_keys)?;
+            .initialize_edge_temporal_property_indexes(graph, temporal_property_keys, path)?;
 
         let mut writer = edge_index.entity_index.index.writer(100_000_000)?;
         let locked_g = graph.core_graph();

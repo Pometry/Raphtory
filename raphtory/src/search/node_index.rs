@@ -22,7 +22,11 @@ use crate::{
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
@@ -52,7 +56,7 @@ impl Debug for NodeIndex {
 }
 
 impl NodeIndex {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(path: &Option<PathBuf>) -> Self {
         let schema = Self::schema_builder().build();
         let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
         let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
@@ -63,7 +67,7 @@ impl NodeIndex {
         let node_type_tokenized_field = schema
             .get_field(NODE_TYPE_TOKENIZED)
             .expect("Node type absent");
-        let entity_index = EntityIndex::new(schema);
+        let entity_index = EntityIndex::new(schema, path);
         Self {
             entity_index,
             node_id_field,
@@ -234,14 +238,17 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_nodes(graph: &GraphStorage) -> Result<NodeIndex, GraphError> {
-        let node_index = NodeIndex::new();
+    pub(crate) fn index_nodes(
+        graph: &GraphStorage,
+        path: &Option<PathBuf>,
+    ) -> Result<NodeIndex, GraphError> {
+        let node_index = NodeIndex::new(path);
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
         let mut const_writers = node_index
             .entity_index
-            .initialize_node_const_property_indexes(graph, const_property_keys)?;
+            .initialize_node_const_property_indexes(graph, const_property_keys, path)?;
 
         let temporal_property_keys = graph
             .node_meta()
@@ -250,7 +257,7 @@ impl NodeIndex {
             .into_iter();
         let mut temporal_writers = node_index
             .entity_index
-            .initialize_node_temporal_property_indexes(graph, temporal_property_keys)?;
+            .initialize_node_temporal_property_indexes(graph, temporal_property_keys, path)?;
 
         // Index nodes in parallel
         let mut writer = node_index.entity_index.index.writer(100_000_000)?;

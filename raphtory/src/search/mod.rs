@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -34,7 +35,7 @@ pub(in crate::search) mod fields {
 
 pub(crate) const TOKENIZER: &str = "custom_default";
 
-pub(crate) fn new_index(schema: Schema) -> (Index, IndexReader) {
+pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, IndexReader) {
     let index = Index::builder()
         .settings(IndexSettings::default())
         .schema(schema)
