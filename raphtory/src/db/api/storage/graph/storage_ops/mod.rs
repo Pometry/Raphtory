@@ -51,9 +51,13 @@ use crate::{
     },
 };
 use crate::{
-    db::api::{storage::storage::Storage, view::internal::InternalStorageOps},
+    db::api::{
+        storage::storage::Storage,
+        view::internal::{InternalStorageOps, NodeTimeSemanticsOps},
+    },
     prelude::EdgeViewOps,
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use serde::{Deserialize, Serialize};
@@ -340,59 +344,26 @@ impl GraphStorage {
         }
     }
 
-    pub fn internal_count_nodes<'graph, G: GraphViewOps<'graph>>(&self, view: &G) -> usize {
-        if view.node_list_trusted() {
-            view.node_list().len()
-        } else {
-            let node_list = view.node_list();
-            let layer_ids = view.layer_ids();
-            match node_list {
-                NodeList::All { .. } => self
-                    .nodes()
-                    .par_iter()
-                    .filter(|node| view.filter_node(*node, layer_ids))
-                    .count(),
-                NodeList::List { nodes } => {
-                    let nodes_storage = self.nodes();
-                    nodes
-                        .par_iter()
-                        .filter(|&vid| view.filter_node(nodes_storage.node(vid), layer_ids))
-                        .count()
-                }
-            }
-        }
-    }
-
     pub fn into_nodes_iter<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
         type_filter: Option<Arc<[bool]>>,
     ) -> BoxedLIter<'graph, VID> {
-        let iter = view.node_list().into_iter();
-        match type_filter {
-            None => {
-                if view.node_list_trusted() {
-                    iter
-                } else {
-                    Box::new(iter.filter(move |&vid| {
-                        view.filter_node(self.node_entry(vid).as_ref(), view.layer_ids())
-                    }))
-                }
-            }
-            Some(type_filter) => {
-                if view.node_list_trusted() {
-                    Box::new(
-                        iter.filter(move |&vid| type_filter[self.node_entry(vid).node_type_id()]),
-                    )
-                } else {
-                    Box::new(iter.filter(move |&vid| {
-                        let node = self.node_entry(vid);
-                        type_filter[node.node_type_id()]
-                            && view.filter_node(node.as_ref(), view.layer_ids())
-                    }))
-                }
-            }
-        }
+        view.node_list()
+            .into_iter()
+            .filter(move |&vid| {
+                let node = self.node_entry(vid);
+                type_filter
+                    .as_ref()
+                    .map_or(true, |type_filter| type_filter[node.node_type_id()])
+                    && view.filter_node(node.as_ref(), view.layer_ids())
+                    && if view.edge_history_filtered() {
+                        view.node_time_semantics().node_valid(node.as_ref(), &view)
+                    } else {
+                        true
+                    }
+            })
+            .into_dyn_boxed()
     }
 
     pub fn nodes_par<'a, 'graph: 'a, G: GraphViewOps<'graph>>(
@@ -400,10 +371,16 @@ impl GraphStorage {
         view: &'a G,
         type_filter: Option<&'a Arc<[bool]>>,
     ) -> impl ParallelIterator<Item = VID> + 'a {
+        let nodes = self.nodes();
         view.node_list().into_par_iter().filter(move |&vid| {
-            let node = self.node_entry(vid);
+            let node = nodes.node(vid);
             type_filter.map_or(true, |type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(node.as_ref(), view.layer_ids())
+                && view.filter_node(node, view.layer_ids())
+                && if view.edge_history_filtered() {
+                    view.node_time_semantics().node_valid(node, &view)
+                } else {
+                    true
+                }
         })
     }
 
@@ -414,11 +391,15 @@ impl GraphStorage {
     ) -> impl ParallelIterator<Item = VID> + 'graph {
         view.node_list().into_par_iter().filter(move |&vid| {
             let node = self.node_entry(vid);
-            let r = type_filter
+            type_filter
                 .as_ref()
-                .map_or(true, |type_filter| type_filter[node.node_type_id()]);
-            let s = view.filter_node(self.node_entry(vid).as_ref(), view.layer_ids());
-            r && s
+                .map_or(true, |type_filter| type_filter[node.node_type_id()])
+                && view.filter_node(node.as_ref(), view.layer_ids())
+                && if view.edge_history_filtered() {
+                    view.node_time_semantics().node_valid(node.as_ref(), &view)
+                } else {
+                    true
+                }
         })
     }
 

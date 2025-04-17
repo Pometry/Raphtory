@@ -486,24 +486,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        if !self.node_list_trusted() {
-            let node_list = self.node_list();
-            let core_nodes = self.core_nodes();
-            let layer_ids = self.layer_ids();
-            match node_list {
-                NodeList::All { .. } => core_nodes
-                    .as_ref()
-                    .par_iter()
-                    .filter(move |v| self.filter_node(*v, layer_ids))
-                    .count(),
-                NodeList::List { nodes } => nodes
-                    .par_iter()
-                    .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
-                    .count(),
-            }
-        } else {
-            self.node_list().len()
-        }
+        self.nodes().len()
     }
 
     #[inline]

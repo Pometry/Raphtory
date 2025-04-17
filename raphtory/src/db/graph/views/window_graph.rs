@@ -52,8 +52,8 @@ use crate::{
             view::{
                 internal::{
                     Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList,
-                    GraphTimeSemanticsOps, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, InheritStorageOps, ListOps, NodeFilterOps,
+                    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
+                    InheritLayerOps, InheritMaterialize, InheritStorageOps, ListOps, NodeFilterOps,
                     NodeHistoryFilter, NodeList, NodeTimeSemanticsOps, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
@@ -753,9 +753,11 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
             && self.graph.filter_edge(edge, layer_ids)
-            && self
-                .graph
-                .include_edge_window(edge, self.start_bound()..self.end_bound(), layer_ids)
+            && self.edge_time_semantics().include_edge_window(
+                edge,
+                LayeredGraph::new(&self.graph, layer_ids.clone()),
+                self.window_bound(),
+            )
     }
 }
 

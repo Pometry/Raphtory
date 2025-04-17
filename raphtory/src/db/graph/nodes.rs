@@ -233,7 +233,11 @@ where
 
     /// Returns the number of nodes in the graph.
     pub fn len(&self) -> usize {
-        self.iter().count()
+        if self.is_list_filtered() {
+            self.par_iter_refs().count()
+        } else {
+            self.graph.node_list().len()
+        }
     }
 
     /// Returns true if the graph contains no nodes.
@@ -285,8 +289,16 @@ where
         self.graph.node_meta().get_prop_id(prop_name, false)
     }
 
+    fn is_list_filtered(&self) -> bool {
+        self.node_types_filter.is_some()
+            || self.graph.edge_history_filtered()
+            || !self.graph.node_list_trusted()
+    }
+
     pub fn is_filtered(&self) -> bool {
-        self.node_types_filter.is_some() || self.graph.nodes_filtered()
+        self.node_types_filter.is_some()
+            || self.graph.nodes_filtered()
+            || self.graph.edge_history_filtered()
     }
 
     pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {

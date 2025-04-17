@@ -134,7 +134,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
 mod tests {
     use crate::{
         core::utils::errors::GraphError,
-        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        db::{
+            api::mutation::internal::InternalAdditionOps,
+            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        },
         prelude::*,
         test_utils::{build_graph, build_graph_strat},
     };
@@ -333,7 +336,9 @@ mod tests {
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
         let gvw = g.valid().unwrap().window(0, 5);
         assert_eq!(gvw.count_nodes(), 0);
-        assert_graph_equal(&gvw, &PersistentGraph::new());
+        let expected = PersistentGraph::new();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gvw, &expected);
         let gvwm = gvw.materialize().unwrap();
         assert_graph_equal(&gvw, &gvwm);
     }
