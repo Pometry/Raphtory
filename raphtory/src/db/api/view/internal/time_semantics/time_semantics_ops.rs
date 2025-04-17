@@ -390,6 +390,27 @@ pub trait EdgeTimeSemanticsOps {
         layer_id: usize,
     ) -> Option<Prop>;
 
+    fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+    ) -> Option<Prop>;
+
+    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> Option<Prop>;
+
     /// Return the last value of a temporal edge property at or before a given point in time
     fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,

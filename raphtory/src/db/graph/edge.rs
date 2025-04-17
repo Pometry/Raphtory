@@ -24,12 +24,12 @@ use crate::{
             },
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
-                internal::{OneHopFilter, Static},
+                internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
         },
-        graph::{edges::Edges, node::NodeView},
+        graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
     },
     prelude::*,
 };
@@ -368,8 +368,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
     }
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
-        self.graph
-            .constant_edge_prop(self.edge.pid(), id, self.layer_ids())
+        let time_semantics = self.graph.edge_time_semantics();
+        time_semantics.constant_edge_prop(
+            self.graph.core_edge(self.edge.pid()).as_ref(),
+            &self.graph,
+            id,
+        )
     }
 }
 
@@ -385,82 +389,108 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
+        let time_semantics = self.graph.edge_time_semantics();
+        let edge = self.graph.core_edge(self.edge.pid());
         match self.edge.time() {
-            None => self
-                .graph
-                .temporal_edge_prop_hist_rev(self.edge.pid(), id, self.layer_ids())
-                .next()
-                .map(|(_, _, v)| v),
-            Some(t) => self.graph.temporal_edge_prop_at(
-                self.edge.pid(),
-                id,
-                t,
-                self.edge.layer().expect("Exploded edge should have layer"),
-            ),
+            None => match self.edge.layer() {
+                None => time_semantics
+                    .temporal_edge_prop_hist_rev(edge.as_ref(), &self.graph, id)
+                    .next(),
+                Some(layer) => time_semantics
+                    .temporal_edge_prop_hist_rev(
+                        edge.as_ref(),
+                        LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                        id,
+                    )
+                    .next(),
+            }
+            .map(|(_, _, v)| v),
+            Some(t) => {
+                let layer = self.edge.layer().expect("exploded edge should have layer");
+                time_semantics.temporal_edge_prop_exploded(edge.as_ref(), &self.graph, id, t, layer)
+            }
         }
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        let time_semantics = self.graph.edge_time_semantics();
+        let edge = self.graph.core_edge(self.edge.pid());
         match self.edge.time() {
-            None => self
-                .graph
-                .temporal_edge_prop_hist(self.edge.pid(), id, self.layer_ids())
-                .map(|(t, _, v)| (t, v))
-                .into_dyn_boxed(),
-            Some(t) => self
-                .graph
-                .temporal_edge_prop_at(
-                    self.edge.pid(),
+            None => match self.edge.layer() {
+                None => time_semantics.temporal_edge_prop_hist(edge.as_ref(), &self.graph, id),
+                Some(layer) => time_semantics.temporal_edge_prop_hist(
+                    edge.as_ref(),
+                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                     id,
-                    t,
-                    self.edge.layer().expect("Exploded edge should have layer"),
-                )
-                .into_iter()
-                .map(move |v| (t, v))
-                .into_dyn_boxed(),
+                ),
+            }
+            .map(|(t, _, v)| (t, v))
+            .into_dyn_boxed(),
+            Some(t) => {
+                let layer = self.edge.layer().expect("Exploded edge should have layer");
+                time_semantics
+                    .temporal_edge_prop_exploded(edge.as_ref(), &self.graph, id, t, layer)
+                    .map(|v| (t, v))
+                    .into_iter()
+                    .into_dyn_boxed()
+            }
         }
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        let time_semantics = self.graph.edge_time_semantics();
+        let edge = self.graph.core_edge(self.edge.pid());
         match self.edge.time() {
-            None => self
-                .graph
-                .temporal_edge_prop_hist_rev(self.edge.pid(), id, self.layer_ids())
-                .map(|(t, _, v)| (t, v))
-                .into_dyn_boxed(),
-            Some(t) => self
-                .graph
-                .temporal_edge_prop_at(
-                    self.edge.pid(),
+            None => match self.edge.layer() {
+                None => time_semantics.temporal_edge_prop_hist_rev(edge.as_ref(), &self.graph, id),
+                Some(layer) => time_semantics.temporal_edge_prop_hist_rev(
+                    edge.as_ref(),
+                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                     id,
-                    t,
-                    self.edge.layer().expect("Exploded edge should have layer"),
-                )
-                .into_iter()
-                .map(move |v| (t, v))
-                .into_dyn_boxed(),
+                ),
+            }
+            .map(|(t, _, v)| (t, v))
+            .into_dyn_boxed(),
+            Some(t) => {
+                let layer = self.edge.layer().expect("Exploded edge should have layer");
+                time_semantics
+                    .temporal_edge_prop_exploded(edge.as_ref(), &self.graph, id, t, layer)
+                    .map(|v| (t, v))
+                    .into_iter()
+                    .into_dyn_boxed()
+            }
         }
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+        let time_semantics = self.graph.edge_time_semantics();
+        let edge = self.graph.core_edge(self.edge.pid());
+
         match self.edge.time() {
-            None => self.graph.temporal_edge_prop_last_at(
-                self.edge.pid(),
-                id,
-                TimeIndexEntry::start(t),
-                self.layer_ids(),
-            ),
+            None => match self.edge.layer() {
+                None => time_semantics.temporal_edge_prop_last_at(
+                    edge.as_ref(),
+                    &self.graph,
+                    id,
+                    TimeIndexEntry::start(t),
+                ),
+                Some(layer) => time_semantics.temporal_edge_prop_last_at(
+                    edge.as_ref(),
+                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                    id,
+                    TimeIndexEntry::start(t),
+                ),
+            },
             Some(ti) => {
-                if ti.t() == t {
-                    self.graph.temporal_edge_prop_at(
-                        self.edge.pid(),
-                        id,
-                        ti,
-                        self.edge.layer().expect("Exploded edge should have layer"),
-                    )
-                } else {
-                    None
-                }
+                let layer = self.edge.layer().expect("Exploded edge should have layer");
+                time_semantics.temporal_edge_prop_exploded_last_at(
+                    edge.as_ref(),
+                    &self.graph,
+                    ti,
+                    layer,
+                    id,
+                    TimeIndexEntry::start(t),
+                )
             }
         }
     }
