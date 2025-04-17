@@ -317,19 +317,15 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                         .add_constant_prop(c_prop, prop_value)?;
                                 }
                             }
-                            if self.include_deletions() {
-                                let mut deletion_history = self
-                                    .edge_deletion_history(
-                                        edge.edge.pid(),
-                                        Cow::Borrowed(&old_layer),
-                                    )
-                                    .peekable();
-                                if deletion_history.peek().is_some() {
-                                    let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
-                                    for (t, _) in deletion_history {
-                                        edge_deletions.insert(t);
-                                    }
-                                }
+                        }
+
+                        if self.include_deletions() {
+                            let time_semantics = self.edge_time_semantics();
+                            let edge_entry = self.core_edge(edge.edge.pid());
+                            for (t, layer) in
+                                time_semantics.edge_deletion_history(edge_entry.as_ref(), self)
+                            {
+                                new_edge.deletions_mut(layer_map[layer]).insert(t);
                             }
                         }
                     }
@@ -371,27 +367,24 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     }
 
                     if self.include_deletions() {
-                        for layer in self.layer_ids().iter(self.unfiltered_num_layers()) {
-                            for (t, _) in self.edge_deletion_history(
-                                edge.edge.pid(),
-                                Cow::Owned(LayerIds::One(layer)),
-                            ) {
-                                if let Some(src_node) =
-                                    shard.get_mut(node_map[edge.edge.src().index()])
-                                {
-                                    src_node.update_time(
-                                        t,
-                                        edge.edge.pid().with_layer_deletion(layer_map[layer]),
-                                    );
-                                }
-                                if let Some(dst_node) =
-                                    shard.get_mut(node_map[edge.edge.dst().index()])
-                                {
-                                    dst_node.update_time(
-                                        t,
-                                        edge.edge.pid().with_layer_deletion(layer_map[layer]),
-                                    );
-                                }
+                        let edge_time_semantics = self.edge_time_semantics();
+                        let edge_entry = self.core_edge(edge.edge.pid());
+                        for (t, layer) in
+                            edge_time_semantics.edge_deletion_history(edge_entry.as_ref(), self)
+                        {
+                            if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
+                            {
+                                src_node.update_time(
+                                    t,
+                                    edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                                );
+                            }
+                            if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()])
+                            {
+                                dst_node.update_time(
+                                    t,
+                                    edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                                );
                             }
                         }
                     }
@@ -562,11 +555,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn count_temporal_edges(&self) -> usize {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
+        let edge_time_semantics = self.edge_time_semantics();
         match self.filter_state() {
             FilterState::Neither => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
-                .map(move |edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
             FilterState::Both => {
                 let nodes = self.core_nodes();
@@ -578,7 +572,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| edge_time_semantics.edge_exploded_count(e.as_ref(), self))
                     .sum()
             }
             FilterState::Nodes => {
@@ -590,14 +584,14 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                     .sum()
             }
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
         }
     }
