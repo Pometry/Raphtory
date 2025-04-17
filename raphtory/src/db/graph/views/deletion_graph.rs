@@ -932,7 +932,7 @@ impl EdgeHistoryFilter for PersistentGraph {
 mod test_deletions {
     use crate::{
         db::{
-            api::view::time::internal::InternalTimeOps,
+            api::{mutation::internal::InternalAdditionOps, view::time::internal::InternalTimeOps},
             graph::{
                 edge::EdgeView,
                 graph::assert_graph_equal,
@@ -1109,6 +1109,22 @@ mod test_deletions {
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);
         })
+    }
+
+    #[test]
+    fn test_multilayer_window() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        g.add_edge(10, 0, 0, NO_PROPS, Some("a")).unwrap();
+        let gw = g.window(1, 10);
+        let expected = PersistentGraph::new();
+        expected.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
+        expected.resolve_layer(Some("a")).unwrap(); // empty layer exists
+        assert_graph_equal(&gw, &expected);
+        let gm = gw.materialize().unwrap();
+        println!("expected: {:?}", expected);
+        println!("materialized: {:?}", gm);
+        assert_graph_equal(&gw, &gm);
     }
 
     #[test]

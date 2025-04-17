@@ -58,10 +58,21 @@ use std::ops::Range;
 #[enum_dispatch(ConstPropertiesOps)]
 #[enum_dispatch(InternalAdditionOps)]
 #[enum_dispatch(InternalPropertyAdditionOps)]
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
+}
+
+impl Debug for MaterializedGraph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut builder = f.debug_tuple("MaterializedGraph");
+        match self {
+            MaterializedGraph::EventGraph(g) => builder.field(g),
+            MaterializedGraph::PersistentGraph(g) => builder.field(g),
+        }
+        .finish()
+    }
 }
 
 impl Static for MaterializedGraph {}

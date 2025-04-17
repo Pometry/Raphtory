@@ -505,14 +505,13 @@ impl<'graph, G1: GraphViewOps<'graph>, GH1: GraphViewOps<'graph>> Hash for EdgeV
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "EdgeView(src={:?}, dst={:?}, time={:?}, layer={:?})",
-            self.src().id(),
-            self.dst().id(),
-            self.time().ok(),
-            self.layer_name().ok()
-        )
+        f.debug_struct("EdgeView")
+            .field("src", &self.src().id())
+            .field("dst", &self.dst().id())
+            .field("time", &self.time().ok())
+            .field("layer", &self.layer_name().ok())
+            .field("properties", &self.properties())
+            .finish()
     }
 }
 

@@ -36,7 +36,6 @@ use crate::{
 };
 use rayon::prelude::*;
 
-use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -50,6 +49,10 @@ use crate::{
         },
         DiskGraphStorage,
     },
+};
+use crate::{
+    db::api::{storage::storage::Storage, view::internal::InternalStorageOps},
+    prelude::EdgeViewOps,
 };
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
@@ -89,7 +92,12 @@ impl Debug for GraphStorage {
             GraphStorage::Disk(_) => f.debug_struct("GraphStorage::Disk"),
         }
         .field("nodes", &GraphViewOps::nodes(self))
-        .field("edges", &GraphViewOps::edges(self))
+        .field("edges", &GraphViewOps::edges(self).explode())
+        .field("properties", &GraphViewOps::properties(self))
+        .field(
+            "layers",
+            &GraphViewOps::unique_layers(self).collect::<Vec<_>>(),
+        )
         .finish()
     }
 }
