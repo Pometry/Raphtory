@@ -62,7 +62,7 @@ jobs:
         run: make pull-storage
       - name: Install Python dependencies
         run: |
-          python -m pip install pytest tox nbmake maturin==1.8.3
+          python -m pip install pytest tox nbmake
           python -m pip install -e examples/netflow
       - name: Run Python tests
         env:
