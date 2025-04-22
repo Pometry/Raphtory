@@ -101,12 +101,42 @@ impl<G: IntoDynamic, GH: IntoDynamic> EdgeView<G, GH> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> {
+impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> {
     pub(crate) fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
         Self {
             base_graph,
             graph,
             edge,
+        }
+    }
+
+    pub fn deletions_hist(&self) -> BoxedLIter<(TimeIndexEntry, usize)> {
+        let g = &self.graph;
+        let e = self.edge;
+        let time_semantics = g.edge_time_semantics();
+        let edge = g.core_edge(e.pid());
+        match e.time() {
+            Some(t) => {
+                let layer = e.layer().expect("exploded edge should have layer");
+                time_semantics
+                    .edge_exploded_deletion(edge.as_ref(), g, t, layer)
+                    .map(move |t| (t, layer))
+                    .into_iter()
+                    .into_dyn_boxed()
+            }
+            None => match e.layer() {
+                None => GenLockedIter::from(edge, move |edge| {
+                    time_semantics.edge_deletion_history(edge.as_ref(), g)
+                })
+                .into_dyn_boxed(),
+                Some(layer) => GenLockedIter::from(edge, move |edge| {
+                    time_semantics.edge_deletion_history(
+                        edge.as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer)),
+                    )
+                })
+                .into_dyn_boxed(),
+            },
         }
     }
 }

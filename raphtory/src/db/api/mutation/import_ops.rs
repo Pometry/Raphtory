@@ -1,7 +1,7 @@
 use super::time_from_input;
 use crate::{
     core::{
-        entities::{nodes::node_ref::AsNodeRef, LayerIds},
+        entities::nodes::node_ref::AsNodeRef,
         utils::errors::GraphError::{self, EdgeExistsError, NodeExistsError},
     },
     db::{
@@ -20,10 +20,7 @@ use raphtory_api::core::{
     entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
-use std::{
-    borrow::{Borrow, Cow},
-    fmt::Debug,
-};
+use std::{borrow::Borrow, fmt::Debug};
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -411,7 +408,6 @@ fn import_edge_internal<
     // Add edges first to ensure associated nodes are present
     for ee in edge.explode_layers() {
         let layer_id = ee.edge.layer().expect("exploded layers");
-        let layer_ids = LayerIds::One(layer_id);
         let layer_name = graph.get_layer_name(layer_id);
         let layer_name: Option<&str> = if layer_id == 0 {
             None
@@ -430,10 +426,7 @@ fn import_edge_internal<
         }
 
         if graph.include_deletions() {
-            for (t, _) in edge
-                .graph
-                .edge_deletion_history(edge.edge.pid(), Cow::Borrowed(&layer_ids))
-            {
+            for (t, _) in edge.deletions_hist() {
                 let ti = time_from_input(graph, t.t())?;
                 let src_node = graph.resolve_node(&src_id)?.inner();
                 let dst_node = graph.resolve_node(&dst_id)?.inner();

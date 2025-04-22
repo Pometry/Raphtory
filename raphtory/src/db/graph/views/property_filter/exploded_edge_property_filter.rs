@@ -9,12 +9,12 @@ use crate::{
             },
             view::{
                 internal::{
-                    EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritNodeHistoryFilter, NodeFilterOps, NodeTimeSemanticsOps, Static,
-                    TimeSemantics,
+                    EdgeFilterOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, Immutable,
+                    InheritCoreOps, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+                    InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, NodeFilterOps,
+                    NodeTimeSemanticsOps, Static, TimeSemantics,
                 },
-                Base, BoxedLIter, IntoDynBoxed,
+                Base,
             },
         },
         graph::views::{
@@ -25,14 +25,12 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, EID, ELID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        entities::{EID, ELID},
+        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     },
     iter::BoxedLDIter,
 };
-use std::{borrow::Cow, ops::Range};
-
-use crate::db::api::view::internal::InheritStorageOps;
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -56,7 +54,17 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     fn filter(&self, e: EID, t: TimeIndexEntry, layer: usize) -> bool {
         self.filter.matches(
             self.prop_id
-                .and_then(|prop_id| self.graph.temporal_edge_prop_at(e, prop_id, t, layer))
+                .and_then(|prop_id| {
+                    let time_semantics = self.graph.edge_time_semantics();
+                    let edge = self.graph.core_edge(e);
+                    time_semantics.temporal_edge_prop_exploded(
+                        edge.as_ref(),
+                        &self.graph,
+                        prop_id,
+                        t,
+                        layer,
+                    )
+                })
                 .as_ref(),
         )
     }
@@ -131,10 +139,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
-            && self
-                .edge_exploded(edge.out_ref(), Cow::Borrowed(layer_ids))
-                .next()
-                .is_some()
+            && edge
+                .filtered_additions_iter(LayeredGraph::new(&self, layer_ids.clone()))
+                .any(|(_, additions)| !additions.is_empty())
     }
 }
 
@@ -198,196 +205,6 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps
         self.graph.latest_time_window(start, end)
     }
 
-    fn include_edge_window(
-        &self,
-        edge: EdgeStorageRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.edge_window_exploded(edge.out_ref(), w, Cow::Borrowed(layer_ids))
-            .next()
-            .is_some()
-    }
-
-    fn edge_history<'a>(
-        &'a self,
-        e: EID,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        self.graph
-            .edge_history(e, layer_ids.clone())
-            .filter(move |(t, layer)| self.filter(e, *t, *layer))
-            .into_dyn_boxed()
-    }
-
-    fn edge_history_window<'a>(
-        &'a self,
-        e: EID,
-        layer_ids: Cow<'a, LayerIds>,
-        w: Range<i64>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        self.graph
-            .edge_history_window(e, layer_ids, w)
-            .filter(move |(t, layer)| self.filter(e, *t, *layer))
-            .into_dyn_boxed()
-    }
-
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        self.edge_exploded(edge.out_ref(), Cow::Borrowed(layer_ids))
-            .count()
-    }
-
-    fn edge_exploded_count_window(
-        &self,
-        edge: EdgeStorageRef,
-        layer_ids: &LayerIds,
-        w: Range<i64>,
-    ) -> usize {
-        self.edge_window_exploded(edge.out_ref(), w, Cow::Borrowed(layer_ids))
-            .count()
-    }
-
-    fn edge_exploded<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        self.graph
-            .edge_exploded(e, layer_ids.clone())
-            .filter(move |&e| {
-                self.filter(
-                    e.pid(),
-                    e.time().expect("exploded edge should have timestamp"),
-                    e.layer().expect("exploded edge should have layer"),
-                )
-            })
-            .into_dyn_boxed()
-    }
-
-    fn edge_layers<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        self.graph
-            .edge_layers(e, layer_ids.clone())
-            .filter(move |&e| {
-                self.edge_exploded(e, Cow::Borrowed(&layer_ids))
-                    .next()
-                    .is_some()
-            })
-            .into_dyn_boxed()
-    }
-
-    fn edge_window_exploded<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        self.graph
-            .edge_window_exploded(e, w, layer_ids.clone())
-            .filter(move |&e| {
-                self.filter(
-                    e.pid(),
-                    e.time().expect("exploded edge should have timestamp"),
-                    e.layer().expect("exploded edge should have layer"),
-                )
-            })
-            .into_dyn_boxed()
-    }
-
-    fn edge_window_layers<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        self.graph
-            .edge_window_layers(e, w.clone(), layer_ids)
-            .filter(move |&e| {
-                self.edge_window_exploded(
-                    e,
-                    w.clone(),
-                    Cow::Borrowed(&LayerIds::One(
-                        e.layer().expect("exploded edge should have layer"),
-                    )),
-                )
-                .next()
-                .is_some()
-            })
-            .into_dyn_boxed()
-    }
-
-    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        self.edge_exploded(e, Cow::Borrowed(layer_ids))
-            .next()
-            .map(|e| e.time_t().unwrap())
-    }
-
-    fn edge_earliest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Option<i64> {
-        self.edge_window_exploded(e, w, Cow::Borrowed(layer_ids))
-            .next()
-            .map(|e| e.time_t().unwrap())
-    }
-
-    fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        // FIXME: this is inefficient, need exploded to return something more useful
-        self.edge_exploded(e, Cow::Borrowed(layer_ids))
-            .last()
-            .map(|e| e.time_t().unwrap())
-    }
-
-    fn edge_latest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Option<i64> {
-        // FIXME: this is inefficient, need exploded to return something more useful
-        self.edge_window_exploded(e, w, Cow::Borrowed(layer_ids))
-            .last()
-            .map(|e| e.time_t().unwrap())
-    }
-
-    fn edge_deletion_history<'a>(
-        &'a self,
-        e: EID,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        self.graph
-            .edge_deletion_history(e, layer_ids.clone())
-            .filter(move |(t, l)| self.filter(e, t.previous(), *l))
-            .into_dyn_boxed()
-    }
-
-    fn edge_deletion_history_window<'a>(
-        &'a self,
-        e: EID,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        self.graph
-            .edge_deletion_history_window(e, w, layer_ids.clone())
-            .filter(move |(t, l)| self.filter(e, t.previous(), *l))
-            .into_dyn_boxed()
-    }
-
-    fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
-        // FIXME: this is probably not correct
-        self.graph.edge_is_valid(e, layer_ids)
-    }
-
-    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, t: i64) -> bool {
-        // FIXME: this is probably not correct
-        self.graph.edge_is_valid_at_end(e, layer_ids, t)
-    }
-
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
         self.graph.has_temporal_prop(prop_id)
     }
@@ -424,120 +241,5 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps
         w: Range<i64>,
     ) -> Option<(TimeIndexEntry, Prop)> {
         self.graph.temporal_prop_last_at_window(prop_id, t, w)
-    }
-
-    fn temporal_edge_prop_at(
-        &self,
-        e: EID,
-        prop_id: usize,
-        t: TimeIndexEntry,
-        layer_id: usize,
-    ) -> Option<Prop> {
-        // this is called from exploded edge, filtering should already have been handled
-        self.graph.temporal_edge_prop_at(e, prop_id, t, layer_id)
-    }
-
-    fn temporal_edge_prop_last_at(
-        &self,
-        e: EID,
-        id: usize,
-        t: TimeIndexEntry,
-        layer_ids: Cow<LayerIds>,
-    ) -> Option<Prop> {
-        self.temporal_edge_prop_hist_window_rev(e, id, i64::MIN, t.t().saturating_add(1), layer_ids)
-            .filter(|(ti, _, _)| ti <= &t)
-            .next()
-            .map(|(_, _, p)| p)
-    }
-
-    fn temporal_edge_prop_last_at_window(
-        &self,
-        e: EID,
-        prop_id: usize,
-        t: TimeIndexEntry,
-        layer_ids: Cow<LayerIds>,
-        w: Range<i64>,
-    ) -> Option<Prop> {
-        let wi = TimeIndexEntry::range(w.clone());
-        if wi.contains(&t) {
-            self.temporal_edge_prop_hist_window_rev(
-                e,
-                prop_id,
-                w.start,
-                t.t().saturating_add(1),
-                layer_ids,
-            )
-            .filter(|(ti, _, _)| ti <= &t)
-            .next()
-            .map(|(_, _, p)| p)
-        } else {
-            None
-        }
-    }
-
-    fn temporal_edge_prop_hist<'a>(
-        &'a self,
-        e: EID,
-        id: usize,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        self.graph
-            .temporal_edge_prop_hist(e, id, layer_ids.clone())
-            .filter(move |(ti, layer, _)| self.filter(e, *ti, *layer))
-            .into_dyn_boxed()
-    }
-
-    fn temporal_edge_prop_hist_rev<'a>(
-        &'a self,
-        e: EID,
-        id: usize,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        self.graph
-            .temporal_edge_prop_hist_rev(e, id, layer_ids)
-            .filter(move |(ti, layer, _)| self.filter(e, *ti, *layer))
-            .into_dyn_boxed()
-    }
-
-    fn temporal_edge_prop_hist_window<'a>(
-        &'a self,
-        e: EID,
-        id: usize,
-        start: i64,
-        end: i64,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        self.graph
-            .temporal_edge_prop_hist_window(e, id, start, end, layer_ids)
-            .filter(move |(ti, layer, _)| self.filter(e, *ti, *layer))
-            .into_dyn_boxed()
-    }
-
-    fn temporal_edge_prop_hist_window_rev<'a>(
-        &'a self,
-        e: EID,
-        id: usize,
-        start: i64,
-        end: i64,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        self.graph
-            .temporal_edge_prop_hist_window_rev(e, id, start, end, layer_ids)
-            .filter(move |(ti, layer, _)| self.filter(e, *ti, *layer))
-            .into_dyn_boxed()
-    }
-
-    fn constant_edge_prop(&self, e: EID, id: usize, layer_ids: Cow<LayerIds>) -> Option<Prop> {
-        self.graph.constant_edge_prop(e, id, layer_ids)
-    }
-
-    fn constant_edge_prop_window(
-        &self,
-        e: EID,
-        id: usize,
-        layer_ids: Cow<LayerIds>,
-        w: Range<i64>,
-    ) -> Option<Prop> {
-        self.graph.constant_edge_prop_window(e, id, layer_ids, w)
     }
 }

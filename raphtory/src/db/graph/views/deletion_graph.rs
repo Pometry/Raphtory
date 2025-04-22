@@ -1,8 +1,8 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds},
+        entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
-        utils::iter::{GenLockedDIter, GenLockedIter},
+        utils::iter::GenLockedDIter,
         Prop,
     },
     db::{
@@ -11,20 +11,18 @@ use crate::{
             properties::internal::InheritPropertiesOps,
             storage::{
                 graph::{
-                    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                    nodes::node_storage_ops::NodeStorageOps,
-                    storage_ops::GraphStorage,
+                    edges::edge_storage_ops::EdgeStorageOps,
+                    nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage,
                     tprop_storage_ops::TPropOps,
                 },
                 storage::Storage,
             },
-            view::{internal::*, BoxedLIter, IntoDynBoxed},
+            view::internal::*,
         },
         graph::graph::graph_equal,
     },
     prelude::*,
 };
-use itertools::Itertools;
 use raphtory_api::{
     core::entities::{EID, VID},
     iter::{BoxedLDIter, IntoDynDBoxed},
@@ -32,8 +30,6 @@ use raphtory_api::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Cow,
-    cmp::min,
     fmt::{Display, Formatter},
     iter,
     ops::{Deref, Range},
@@ -65,45 +61,6 @@ impl Display for PersistentGraph {
     }
 }
 
-fn alive_before<
-    'a,
-    A: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
-    D: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
->(
-    additions: A,
-    deletions: D,
-    t: i64,
-) -> bool {
-    let last_addition_before_start = additions.range_t(i64::MIN..t).last();
-    let last_deletion_before_start = deletions.range_t(i64::MIN..t).last();
-    last_addition_before_start > last_deletion_before_start
-}
-
-fn has_persisted_event<
-    'a,
-    A: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
-    D: TimeIndexOps<'a, IndexType = TimeIndexEntry>,
->(
-    additions: A,
-    deletions: D,
-    t: i64,
-) -> bool {
-    let active_at_start =
-        deletions.active_t(t..t.saturating_add(1)) || additions.active_t(t..t.saturating_add(1));
-    !active_at_start && alive_before(additions, deletions, t)
-}
-
-fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
-    e.updates_iter(layer_ids.clone())
-        .any(|(_, additions, deletions)| alive_before(additions, deletions, t))
-}
-
-fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
-    // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
-    e.updates_iter(layer_ids.clone())
-        .any(|(_, additions, deletions)| alive_before(additions, deletions, t.saturating_add(1)))
-}
-
 /// Get the last update of a property before `t` (exclusive), taking deletions into account.
 /// The update is only returned if the edge was not deleted since.
 fn last_prop_value_before<'a>(
@@ -130,19 +87,6 @@ fn persisted_prop_value_at<'a>(
     } else {
         last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
     }
-}
-
-/// Exclude anything from the window that happens before the last deletion at the start of the window
-fn interior_window<'a>(
-    w: Range<i64>,
-    deletions: &impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
-) -> Range<TimeIndexEntry> {
-    let start = deletions
-        .range_t(w.start..w.start.saturating_add(1))
-        .last()
-        .map(|t| t.next())
-        .unwrap_or(TimeIndexEntry::start(w.start));
-    start..TimeIndexEntry::start(w.end)
 }
 
 impl PersistentGraph {
@@ -250,305 +194,6 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             .map(|t| t.min(end.saturating_sub(1)).max(start))
     }
 
-    fn include_edge_window(
-        &self,
-        edge: EdgeStorageRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        // If an edge has any event in the interior (both end exclusive) of the window it is always included.
-        // Additionally, the edge is included if the last event at or before the start of the window was an addition.
-        edge.added(layer_ids, w.start.saturating_add(1)..w.end)
-            || edge.deleted(layer_ids, w.start.saturating_add(1)..w.end)
-            || edge_alive_at_start(edge, w.start, layer_ids)
-    }
-
-    fn edge_history<'a>(
-        &'a self,
-        e: EID,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        self.0.edge_history(e, layer_ids)
-    }
-
-    fn edge_history_window<'a>(
-        &'a self,
-        e: EID,
-        layer_ids: Cow<'a, LayerIds>,
-        w: Range<i64>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        let entry = self.core_edge(e);
-        GenLockedIter::from(entry, |entry| {
-            entry
-                .updates_iter(layer_ids.into_owned())
-                .map(|(layer, additions, deletions)| {
-                    let window = interior_window(w.clone(), &deletions);
-                    additions.range(window).iter().map(move |t| (t, layer))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        })
-        .into_dyn_boxed()
-    }
-
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        self.0.edge_exploded_count(edge, layer_ids)
-    }
-
-    fn edge_exploded_count_window(
-        &self,
-        edge: EdgeStorageRef,
-        layer_ids: &LayerIds,
-        w: Range<i64>,
-    ) -> usize {
-        match layer_ids {
-            LayerIds::None => 0,
-            LayerIds::All => (0..self.unfiltered_num_layers())
-                .into_iter()
-                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
-                .sum(),
-            LayerIds::One(id) => {
-                let additions = edge.additions(*id);
-                let deletions = edge.deletions(*id);
-                let actual_window = interior_window(w.clone(), &deletions);
-                let mut len = additions.range(actual_window).len();
-                if has_persisted_event(additions, deletions, w.start) {
-                    len += 1
-                }
-                len
-            }
-            LayerIds::Multiple(layers) => layers
-                .clone()
-                .iter()
-                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
-                .sum(),
-        }
-    }
-
-    fn edge_exploded<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        self.0.edge_exploded(e, layer_ids)
-    }
-
-    fn edge_layers<'a>(
-        &'a self,
-        e: EdgeRef,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        self.0.edge_layers(e, layer_ids)
-    }
-
-    fn edge_window_exploded<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        if w.end <= w.start {
-            return Box::new(iter::empty());
-        }
-        let edge = self.0.core_edge(e.pid());
-        let layer_ids = layer_ids.constrain_from_edge(e).into_owned();
-
-        let alive_layers: Vec<_> = edge
-            .updates_iter(layer_ids.clone())
-            .filter_map(|(l, additions, deletions)| {
-                has_persisted_event(additions, deletions, w.start).then_some(l)
-            })
-            .collect();
-        alive_layers
-            .into_iter()
-            .map(move |l| e.at(w.start.into()).at_layer(l))
-            .chain(GenLockedIter::from(edge, move |edge| {
-                edge.updates_iter(layer_ids)
-                    .map(move |(l, additions, deletions)| {
-                        let window = interior_window(w.clone(), &deletions);
-                        additions
-                            .range(window)
-                            .iter()
-                            .map(move |t| e.at(t).at_layer(l))
-                    })
-                    .kmerge_by(|e1, e2| e1.time() <= e2.time())
-                    .into_dyn_boxed()
-            }))
-            .into_dyn_boxed()
-    }
-
-    fn edge_window_layers<'a>(
-        &'a self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        let edge = self.core_edge(e.pid());
-        Box::new(self.edge_layers(e, layer_ids).filter(move |&e| {
-            self.include_edge_window(edge.as_ref(), w.clone(), &LayerIds::One(e.layer().unwrap()))
-        }))
-    }
-
-    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        e.time().map(|ti| ti.t()).or_else(|| {
-            let entry = self.core_edge(e.pid());
-            entry
-                .additions_iter(layer_ids.clone())
-                .filter_map(|(_, a)| a.first_t())
-                .chain(
-                    entry
-                        .deletions_iter(layer_ids.clone())
-                        .filter_map(|(_, d)| d.first_t()),
-                )
-                .min()
-        })
-    }
-
-    fn edge_earliest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Option<i64> {
-        match e.time_t() {
-            Some(t) => w.contains(&t).then_some(t),
-            None => {
-                let entry = self.core_edge(e.pid());
-                if edge_alive_at_start(entry.as_ref(), w.start, &layer_ids) {
-                    Some(w.start)
-                } else {
-                    entry
-                        .updates_iter(layer_ids.clone())
-                        .flat_map(|(_, additions, deletions)| {
-                            let window = interior_window(w.clone(), &deletions);
-                            println!("window: {window:?}");
-                            additions
-                                .range(window.clone())
-                                .first_t()
-                                .into_iter()
-                                .chain(deletions.range(window).first_t())
-                        })
-                        .min()
-                }
-            }
-        }
-    }
-
-    fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        let edge = self.core_edge(e.pid());
-        match e.time() {
-            Some(t) => {
-                let t_start = t.next();
-                edge.updates_iter(layer_ids.clone())
-                    .map(|(_, a, d)| {
-                        // last time for exploded edge is next addition or deletion
-                        min(
-                            a.range(t_start..TimeIndexEntry::MAX)
-                                .first_t()
-                                .unwrap_or(i64::MAX),
-                            d.range(t_start..TimeIndexEntry::MAX)
-                                .first_t()
-                                .unwrap_or(i64::MAX),
-                        )
-                    })
-                    .min()
-            }
-            None => {
-                if edge_alive_at_end(edge.as_ref(), i64::MAX, &layer_ids) {
-                    self.latest_time_global()
-                } else {
-                    edge.deletions_iter(layer_ids.clone())
-                        .map(|(_, d)| d.last_t())
-                        .flatten()
-                        .max()
-                }
-            }
-        }
-    }
-
-    fn edge_latest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Option<i64> {
-        let edge = self.core_edge(e.pid());
-        let layer_ids = layer_ids.constrain_from_edge(e).into_owned();
-        match e.time().map(|ti| ti.t()) {
-            Some(t) => {
-                let t_start = t.saturating_add(1);
-                edge.updates_iter(layer_ids.clone())
-                    .map(|(_, a, d)| {
-                        // last time for exploded edge is next addition or deletion
-                        min(
-                            a.range_t(t_start..w.end).first_t().unwrap_or(w.end - 1),
-                            d.range_t(t_start..w.end).first_t().unwrap_or(w.end - 1),
-                        )
-                    })
-                    .min()
-            }
-            None => {
-                let entry = self.core_edge(e.pid());
-                if edge_alive_at_end(entry.as_ref(), w.end, &layer_ids) {
-                    return Some(w.end - 1);
-                }
-                // window for deletions has start exclusive
-                entry
-                    .deletions_iter(layer_ids)
-                    .filter_map(|(_, d)| {
-                        d.range_t(w.start.saturating_add(1)..w.end)
-                            .last_t()
-                            .filter(|t| w.contains(t))
-                    })
-                    .max()
-            }
-        }
-    }
-
-    fn edge_deletion_history<'a>(
-        &'a self,
-        e: EID,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        self.0.edge_deletion_history(e, layer_ids)
-    }
-
-    /// Note that the window for deletions considers the start as exclusive for consistency with
-    /// the other semantics (i.e., the actual window starts after the last deletion at the start)
-    fn edge_deletion_history_window<'a>(
-        &'a self,
-        e: EID,
-        w: Range<i64>,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize)> {
-        let entry = self.core_edge(e);
-        GenLockedIter::from(entry, |entry| {
-            entry
-                .deletions_iter(layer_ids.into_owned())
-                .map(|(l, d)| {
-                    d.range_t(w.start.saturating_add(1)..w.end)
-                        .iter()
-                        .map(move |t| (t, l))
-                })
-                .kmerge()
-                .into_dyn_boxed()
-        })
-        .into_dyn_boxed()
-    }
-
-    fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
-        let edge = self.0.core_edge(e.pid());
-        let res = edge
-            .updates_iter(layer_ids.clone())
-            .any(|(_, additions, deletions)| additions.last() > deletions.last());
-        res
-    }
-
-    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, end: i64) -> bool {
-        let edge = self.0.core_edge(e.pid());
-        edge_alive_at_end(edge.as_ref(), end, &layer_ids)
-    }
-
     #[inline]
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
         self.0.has_temporal_prop(prop_id)
@@ -606,190 +251,6 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                 .map(|(t, v)| (t.max(w.start), v))
         } else {
             None
-        }
-    }
-
-    fn temporal_edge_prop_at(
-        &self,
-        e: EID,
-        prop_id: usize,
-        t: TimeIndexEntry,
-        layer_id: usize,
-    ) -> Option<Prop> {
-        let entry = self.core_edge(e);
-        let prop = entry.temporal_prop_layer(layer_id, prop_id);
-        last_prop_value_before(t.next(), prop, entry.deletions(layer_id)).map(|(_, p)| p)
-    }
-
-    fn temporal_edge_prop_last_at(
-        &self,
-        e: EID,
-        id: usize,
-        t: TimeIndexEntry,
-        layer_ids: Cow<LayerIds>,
-    ) -> Option<Prop> {
-        self.0.temporal_edge_prop_last_at(e, id, t, layer_ids)
-    }
-
-    fn temporal_edge_prop_last_at_window(
-        &self,
-        e: EID,
-        prop_id: usize,
-        t: TimeIndexEntry,
-        layer_ids: Cow<LayerIds>,
-        w: Range<i64>,
-    ) -> Option<Prop> {
-        let w = TimeIndexEntry::range(w);
-        if w.contains(&t) {
-            self.0.temporal_edge_prop_last_at(e, prop_id, t, layer_ids)
-        } else {
-            None
-        }
-    }
-
-    fn temporal_edge_prop_hist<'a>(
-        &'a self,
-        e: EID,
-        prop_id: usize,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        self.0.temporal_edge_prop_hist(e, prop_id, layer_ids)
-    }
-
-    fn temporal_edge_prop_hist_rev<'a>(
-        &'a self,
-        e: EID,
-        id: usize,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        self.0.temporal_edge_prop_hist_rev(e, id, layer_ids)
-    }
-
-    fn temporal_edge_prop_hist_window<'a>(
-        &'a self,
-        e: EID,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        let entry = self.core_edge(e);
-        GenLockedIter::from(entry, |entry| {
-            entry
-                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
-                .map(|(l, prop)| {
-                    let first_prop = persisted_prop_value_at(start, &prop, entry.deletions(l))
-                        .map(move |v| (TimeIndexEntry::start(start), l, v));
-                    first_prop.into_iter().chain(
-                        prop.iter_window(interior_window(start..end, &entry.deletions(l)))
-                            .map(move |(t, v)| (t, l, v)),
-                    )
-                })
-                .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
-                .into_dyn_boxed()
-        })
-        .into_dyn_boxed()
-    }
-
-    fn temporal_edge_prop_hist_window_rev<'a>(
-        &'a self,
-        e: EID,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-        layer_ids: Cow<'a, LayerIds>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, usize, Prop)> {
-        let entry = self.core_edge(e);
-        GenLockedIter::from(entry, |entry| {
-            entry
-                .temporal_prop_iter(layer_ids.into_owned(), prop_id)
-                .map(|(l, prop)| {
-                    let first_prop = persisted_prop_value_at(start, &prop, entry.deletions(l))
-                        .map(|v| (TimeIndexEntry::start(start), l, v));
-                    first_prop
-                        .into_iter()
-                        .chain(
-                            prop.iter_window(interior_window(start..end, &entry.deletions(l)))
-                                .map(move |(t, v)| (t, l, v)),
-                        )
-                        .rev()
-                })
-                .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
-                .into_dyn_boxed()
-        })
-        .into_dyn_boxed()
-    }
-
-    #[inline]
-    fn constant_edge_prop(&self, e: EID, id: usize, layer_ids: Cow<LayerIds>) -> Option<Prop> {
-        self.0.constant_edge_prop(e, id, layer_ids)
-    }
-
-    fn constant_edge_prop_window(
-        &self,
-        e: EID,
-        id: usize,
-        layer_ids: Cow<LayerIds>,
-        w: Range<i64>,
-    ) -> Option<Prop> {
-        let layer_ids: &LayerIds = &layer_ids;
-        let edge = self.core_edge(e);
-        let edge = edge.as_ref();
-        match layer_ids {
-            LayerIds::None => None,
-            LayerIds::All => match self.unfiltered_num_layers() {
-                0 => None,
-                1 => {
-                    if self.include_edge_window(edge, w, &LayerIds::One(0)) {
-                        edge.constant_prop_layer(0, id)
-                    } else {
-                        None
-                    }
-                }
-                _ => {
-                    let mut values = edge
-                        .layer_ids_iter(layer_ids.clone())
-                        .filter_map(|layer_id| {
-                            if self.include_edge_window(edge, w.clone(), &LayerIds::One(layer_id)) {
-                                edge.constant_prop_layer(layer_id, id)
-                                    .map(|v| (self.get_layer_name(layer_id), v))
-                            } else {
-                                None
-                            }
-                        })
-                        .peekable();
-                    if values.peek().is_some() {
-                        Some(Prop::map(values))
-                    } else {
-                        None
-                    }
-                }
-            },
-            LayerIds::One(layer_id) => {
-                if self.include_edge_window(edge, w, &LayerIds::One(*layer_id)) {
-                    edge.constant_prop_layer(*layer_id, id)
-                } else {
-                    None
-                }
-            }
-            LayerIds::Multiple(_) => {
-                let mut values = edge
-                    .layer_ids_iter(layer_ids.clone())
-                    .filter_map(|layer_id| {
-                        if self.include_edge_window(edge, w.clone(), &LayerIds::One(layer_id)) {
-                            edge.constant_prop_layer(layer_id, id)
-                                .map(|v| (self.get_layer_name(layer_id), v))
-                        } else {
-                            None
-                        }
-                    })
-                    .peekable();
-                if values.peek().is_some() {
-                    Some(Prop::map(values))
-                } else {
-                    None
-                }
-            }
         }
     }
 }

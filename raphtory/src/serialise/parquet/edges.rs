@@ -5,8 +5,7 @@ use crate::{
     core::utils::iter::GenLockedIter,
     db::{
         api::{
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::internal::{CoreGraphOps, GraphTimeSemanticsOps},
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::internal::CoreGraphOps,
         },
         graph::edge::EdgeView,
     },
@@ -42,16 +41,15 @@ pub(crate) fn encode_edge_tprop(
         },
         |edges, g, decoder, writer| {
             let row_group_size = 100_000;
-            let all_layers = LayerIds::All;
 
             for edge_rows in edges
                 .into_iter()
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    g.edge_exploded(edge_ref, Cow::Borrowed(&all_layers))
+                    EdgeView::new(g, edge_ref).explode()
                 })
-                .map(|edge| ParquetTEdge(EdgeView::new(g, edge)))
+                .map(ParquetTEdge)
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())

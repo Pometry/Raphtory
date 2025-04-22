@@ -5,7 +5,7 @@ use crate::{
 use arrow_array::ArrayRef;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
@@ -31,6 +31,11 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn dtype(&self) -> PropType {
         self.props.dtype(self.id)
     }
+
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
     pub fn history(&self) -> BoxedLIter<i64> {
         self.props.temporal_history_iter(self.id)
     }
@@ -48,6 +53,10 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
 
     pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.history().zip(self.values())
+    }
+
+    pub fn iter_indexed(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
+        self.props.temporal_iter(self.id)
     }
 
     pub fn histories(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {

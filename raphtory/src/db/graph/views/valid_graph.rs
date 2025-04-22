@@ -5,7 +5,7 @@ use crate::{
             storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps,
+                    CoreGraphOps, EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritCoreOps,
                     InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
                     InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                     InheritTimeSemantics, Static,
@@ -13,7 +13,7 @@ use crate::{
                 Base,
             },
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
     },
     prelude::{EdgeViewOps, GraphViewOps},
 };
@@ -79,8 +79,11 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.edge_is_valid(edge.out_ref(), layer_ids)
-            && self.graph.filter_edge(edge, layer_ids)
+        let time_semantics = self.graph.edge_time_semantics();
+        time_semantics.edge_is_valid(
+            edge,
+            LayeredGraph::new(&self.graph, self.graph.layer_ids().intersect(layer_ids)),
+        ) && self.graph.filter_edge(edge, layer_ids)
     }
 }
 

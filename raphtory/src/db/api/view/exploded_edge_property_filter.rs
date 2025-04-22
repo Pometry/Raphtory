@@ -93,6 +93,7 @@ mod test {
             .unwrap();
         let gf = Graph::new();
         assert_eq!(filtered.count_nodes(), 0);
+        assert_eq!(filtered.count_edges(), 0);
         assert_graph_equal(&filtered, &gf);
     }
 

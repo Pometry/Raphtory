@@ -7,10 +7,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps},
-                Properties,
-            },
+            properties::{internal::ConstPropertiesOps, Properties},
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             },
@@ -43,7 +40,7 @@ use raphtory_api::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     sync::{atomic::Ordering, Arc},
 };
 
@@ -294,20 +291,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         edge_store.dst = node_map[edge.edge.dst().index()];
                         edge_store.eid = EID(eid);
                         for edge in edge.explode_layers() {
-                            let old_layer = LayerIds::All.constrain_from_edge(edge.edge);
                             let layer = layer_map[edge.edge.layer().unwrap()];
                             let additions = new_edge.additions_mut(layer);
                             for edge in edge.explode() {
                                 let t = edge.edge.time().unwrap();
                                 additions.insert(t);
                             }
-                            for t_prop in edge.temporal_prop_ids() {
-                                for (t, _, prop_value) in self.temporal_edge_prop_hist(
-                                    edge.edge.pid(),
-                                    t_prop,
-                                    Cow::Borrowed(&old_layer),
-                                ) {
-                                    new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
+                            for t_prop in edge.properties().temporal().values() {
+                                let prop_id = t_prop.id();
+                                for (t, prop_value) in t_prop.iter_indexed() {
+                                    new_edge.layer_mut(layer).add_prop(t, prop_id, prop_value)?;
                                 }
                             }
                             for c_prop in edge.const_prop_ids() {

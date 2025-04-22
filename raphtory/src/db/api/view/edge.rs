@@ -13,7 +13,7 @@ use crate::{
                 BoxableGraphView, IntoDynBoxed,
             },
         },
-        graph::views::layer_graph::LayeredGraph,
+        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
@@ -276,33 +276,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, e| {
-            let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(e.pid());
-            match e.time() {
-                Some(t) => time_semantics
-                    .edge_exploded_deletion(
-                        edge.as_ref(),
-                        g,
-                        t,
-                        e.layer().expect("exploded edge should have layer"),
-                    )
-                    .into_iter()
-                    .map(|t| t.t())
-                    .collect(),
-                None => match e.layer() {
-                    None => time_semantics
-                        .edge_deletion_history(edge.as_ref(), g)
-                        .map(|(ti, _)| ti.t())
-                        .collect(),
-                    Some(layer) => time_semantics
-                        .edge_deletion_history(
-                            edge.as_ref(),
-                            LayeredGraph::new(g, LayerIds::One(layer)),
-                        )
-                        .map(|(ti, _)| ti.t())
-                        .collect(),
-                },
-            }
+            EdgeView::new(g, e)
+                .deletions_hist()
+                .map(|(t, _)| t.t())
+                .collect()
         })
     }
 
