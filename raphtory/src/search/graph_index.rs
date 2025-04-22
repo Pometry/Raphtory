@@ -91,7 +91,10 @@ impl GraphIndex {
                 .map_err(|e| GraphError::FailedToRemoveExistingGraphIndex(path.clone()))?;
         }
 
-        fs::rename(source_path, path).map_err(|e| GraphError::FailedToMoveGraphIndex)
+        fs::rename(source_path, path).map_err(|e| GraphError::FailedToMoveGraphIndex)?;
+
+        println!("Graph index persisted to disk at: {}", path.display());
+        Ok(())
     }
 
     pub(crate) fn add_node_update(

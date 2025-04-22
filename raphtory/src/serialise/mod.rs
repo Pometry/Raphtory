@@ -97,7 +97,7 @@ impl GraphFolder {
         self.write_metadata(graph)?;
 
         #[cfg(feature = "search")]
-        graph.persist_index_to_disk(&self.root_folder);
+        graph.persist_index_to_disk(&self.root_folder)?;
 
         Ok(())
     }

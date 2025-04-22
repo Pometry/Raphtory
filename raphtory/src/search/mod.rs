@@ -49,7 +49,6 @@ pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, Index
             "Failed to create index directory {}",
             path.display()
         ));
-        println!("Index created at {}", path.display());
         index_builder
             .create_in_dir(path)
             .expect("Failed to create index")

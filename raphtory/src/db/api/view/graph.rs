@@ -629,7 +629,6 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
         let path = path.join("index");
-        println!("Persist index to disk at: {}", path.display());
         self.get_storage()
             .map_or(Err(GraphError::FailedToPersistIndex), |storage| {
                 storage.persist_index_to_disk(&path)?;
