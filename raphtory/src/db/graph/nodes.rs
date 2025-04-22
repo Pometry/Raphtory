@@ -233,10 +233,21 @@ where
 
     /// Returns the number of nodes in the graph.
     pub fn len(&self) -> usize {
-        if self.is_list_filtered() {
-            self.par_iter_refs().count()
-        } else {
-            self.graph.node_list().len()
+        match self.nodes.as_ref() {
+            None => {
+                if self.is_list_filtered() {
+                    self.par_iter_refs().count()
+                } else {
+                    self.graph.node_list().len()
+                }
+            }
+            Some(nodes) => {
+                if self.is_filtered() {
+                    self.par_iter_refs().count()
+                } else {
+                    nodes.len()
+                }
+            }
         }
     }
 
@@ -437,6 +448,7 @@ mod tests {
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         assert_eq!(graph.nodes().id(), [0, 1]);
+        assert_eq!(graph.nodes().id_filter([0]).len(), 1);
         assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
         assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
     }
