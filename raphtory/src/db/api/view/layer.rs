@@ -1,7 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
+        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
 };
@@ -39,7 +39,11 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::FilteredGraph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
+        let layers = match self.current_filter().get_default_layer_id() {
+            None => LayerIds::None,
+            Some(layer) => LayerIds::One(layer),
+        };
+        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), layers))
     }
 
     fn layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {

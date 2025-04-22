@@ -9,6 +9,7 @@ use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
     iter,
+    iter::Copied,
     sync::Arc,
 };
 
@@ -373,6 +374,15 @@ pub enum LayerIds {
 
 #[derive(Clone, Debug, Default)]
 pub struct Multiple(pub Arc<[usize]>);
+
+impl<'a> IntoIterator for &'a Multiple {
+    type Item = usize;
+    type IntoIter = Copied<std::slice::Iter<'a, usize>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter().copied()
+    }
+}
 
 impl Multiple {
     #[inline]
