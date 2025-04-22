@@ -14,6 +14,7 @@ use crate::{
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::{
     fmt::{Debug, Formatter},
+    fs,
     path::{Path, PathBuf},
 };
 use tantivy::schema::{FAST, INDEXED, STORED};
@@ -75,6 +76,22 @@ impl GraphIndex {
         self.node_index.print()?;
         self.edge_index.print()?;
         Ok(())
+    }
+
+    pub fn persist_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
+
+        // Always overwrite the existing graph index when persisting, since the in-memory
+        // working index may have newer updates. The persisted index is decoupled from the
+        // active one, and changes remain in memory unless explicitly saved.
+        // This behavior mirrors how the in-memory graph works — updates are not persisted
+        // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
+        if path.exists() {
+            fs::remove_dir_all(path)
+                .map_err(|e| GraphError::FailedToRemoveExistingGraphIndex(path.clone()))?;
+        }
+
+        fs::rename(source_path, path).map_err(|e| GraphError::FailedToMoveGraphIndex)
     }
 
     pub(crate) fn add_node_update(

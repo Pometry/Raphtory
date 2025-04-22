@@ -43,7 +43,10 @@ use raphtory_api::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::sync::{atomic::Ordering, Arc};
+use std::{
+    path::PathBuf,
+    sync::{atomic::Ordering, Arc},
+};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -132,6 +135,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 #[cfg(feature = "search")]
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
+
+    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
 
     fn search_nodes<F: AsNodeFilter>(
         &self,
@@ -618,6 +623,16 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         self.get_storage()
             .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
                 storage.get_or_create_index()?;
+                Ok(())
+            })
+    }
+
+    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        let path = path.join("index");
+        println!("Persist index to disk at: {}", path.display());
+        self.get_storage()
+            .map_or(Err(GraphError::FailedToPersistIndex), |storage| {
+                storage.persist_index_to_disk(&path)?;
                 Ok(())
             })
     }

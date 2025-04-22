@@ -11,6 +11,8 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
+#[cfg(feature = "search")]
+use crate::prelude::SearchableGraphOps;
 use crate::{
     core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
@@ -92,7 +94,12 @@ impl GraphFolder {
 
     pub fn write_graph(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
         self.write_graph_data(graph)?;
-        self.write_metadata(graph)
+        self.write_metadata(graph)?;
+
+        #[cfg(feature = "search")]
+        graph.persist_index_to_disk(&self.root_folder);
+
+        Ok(())
     }
 
     fn write_graph_data(&self, graph: &impl StableEncode) -> Result<(), io::Error> {

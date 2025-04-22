@@ -135,6 +135,14 @@ pub enum GraphError {
     IndexNotCreated,
     #[error("Failed to create index.")]
     FailedToCreateIndex,
+    #[error("Failed to persist index.")]
+    FailedToPersistIndex,
+    #[error("Graph index is missing")]
+    GraphIndexIsMissing,
+    #[error("Failed to remove existing graph index: {0}")]
+    FailedToRemoveExistingGraphIndex(PathBuf),
+    #[error("Failed to move graph index")]
+    FailedToMoveGraphIndex,
     #[error("Disk Graph is immutable")]
     ImmutableDiskGraph,
     #[error("Event Graph doesn't support deletions")]

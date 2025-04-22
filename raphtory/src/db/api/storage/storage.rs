@@ -44,6 +44,7 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -142,6 +143,13 @@ impl Storage {
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
         self.index.get()
+    }
+
+    pub(crate) fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        if let Some(index) = self.get_index() {
+            index.persist_to_disk(path)?
+        }
+        Ok(())
     }
 }
 
