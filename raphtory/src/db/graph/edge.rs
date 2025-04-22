@@ -8,8 +8,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
-        utils::{errors::GraphError, time::IntoTime},
+        utils::{errors::GraphError, iter::GenLockedIter, time::IntoTime},
         PropType,
     },
     db::{
@@ -25,8 +24,8 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
-                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-                StaticGraphViewOps,
+                BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
+                IntoDynamic, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
@@ -35,7 +34,6 @@ use crate::{
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
-    borrow::Cow,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -110,10 +108,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
             graph,
             edge,
         }
-    }
-
-    fn layer_ids(&self) -> Cow<LayerIds> {
-        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
 }
 
@@ -369,15 +363,22 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
         let time_semantics = self.graph.edge_time_semantics();
-        time_semantics.constant_edge_prop(
-            self.graph.core_edge(self.edge.pid()).as_ref(),
-            &self.graph,
-            id,
-        )
+        match self.edge.layer() {
+            None => time_semantics.constant_edge_prop(
+                self.graph.core_edge(self.edge.pid()).as_ref(),
+                &self.graph,
+                id,
+            ),
+            Some(layer) => time_semantics.constant_edge_prop(
+                self.graph.core_edge(self.edge.pid()).as_ref(),
+                LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                id,
+            ),
+        }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertyViewOps
+impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalPropertyViewOps
     for EdgeView<G, GH>
 {
     fn dtype(&self, id: usize) -> PropType {
@@ -415,14 +416,21 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let time_semantics = self.graph.edge_time_semantics();
         let edge = self.graph.core_edge(self.edge.pid());
+        let graph = self.graph.clone();
         match self.edge.time() {
             None => match self.edge.layer() {
-                None => time_semantics.temporal_edge_prop_hist(edge.as_ref(), &self.graph, id),
-                Some(layer) => time_semantics.temporal_edge_prop_hist(
-                    edge.as_ref(),
-                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
-                    id,
-                ),
+                None => GenLockedIter::from(edge, move |edge| {
+                    time_semantics.temporal_edge_prop_hist(edge.as_ref(), graph, id)
+                })
+                .into_dyn_boxed(),
+                Some(layer) => GenLockedIter::from(edge, move |edge| {
+                    time_semantics.temporal_edge_prop_hist(
+                        edge.as_ref(),
+                        LayeredGraph::new(graph, LayerIds::One(layer)),
+                        id,
+                    )
+                })
+                .into_dyn_boxed(),
             }
             .map(|(t, _, v)| (t, v))
             .into_dyn_boxed(),
@@ -440,14 +448,21 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let time_semantics = self.graph.edge_time_semantics();
         let edge = self.graph.core_edge(self.edge.pid());
+        let graph = self.graph.clone();
         match self.edge.time() {
             None => match self.edge.layer() {
-                None => time_semantics.temporal_edge_prop_hist_rev(edge.as_ref(), &self.graph, id),
-                Some(layer) => time_semantics.temporal_edge_prop_hist_rev(
-                    edge.as_ref(),
-                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
-                    id,
-                ),
+                None => GenLockedIter::from(edge, move |edge| {
+                    time_semantics.temporal_edge_prop_hist_rev(edge.as_ref(), graph, id)
+                })
+                .into_dyn_boxed(),
+                Some(layer) => GenLockedIter::from(edge, move |edge| {
+                    time_semantics.temporal_edge_prop_hist_rev(
+                        edge.as_ref(),
+                        LayeredGraph::new(graph, LayerIds::One(layer)),
+                        id,
+                    )
+                })
+                .into_dyn_boxed(),
             }
             .map(|(t, _, v)| (t, v))
             .into_dyn_boxed(),

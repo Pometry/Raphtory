@@ -457,6 +457,31 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         for_all!(self, semantics => semantics.temporal_edge_prop_exploded(e, view, prop_id, t, layer_id))
     }
 
+    fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_exploded_last_at(e, view, edge_time, layer_id, prop_id, at))
+    }
+
+    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_exploded_last_at_window(e, view, edge_time, layer_id, prop_id, at, w))
+    }
+
     fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,

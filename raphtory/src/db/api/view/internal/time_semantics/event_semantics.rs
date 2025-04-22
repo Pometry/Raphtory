@@ -527,6 +527,39 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         }
     }
 
+    fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+    ) -> Option<Prop> {
+        if at == edge_time {
+            self.temporal_edge_prop_exploded(e, view, prop_id, edge_time, layer_id)
+        } else {
+            None
+        }
+    }
+
+    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        if edge_time == at && w.contains(&edge_time.t()) {
+            self.temporal_edge_prop_exploded(e, view, prop_id, edge_time, layer_id)
+        } else {
+            None
+        }
+    }
+
     fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,

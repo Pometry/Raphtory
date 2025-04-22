@@ -2,18 +2,8 @@ use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
     db::graph::views::property_filter::{FilterExpr, FilterOperator},
 };
-#[cfg(feature = "io")]
-use parquet::errors::ParquetError;
-#[cfg(feature = "arrow")]
-use polars_arrow::{datatypes::ArrowDataType, legacy::error};
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
-#[cfg(feature = "python")]
-use pyo3::PyErr;
-#[cfg(feature = "arrow")]
-use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
-    entities::{properties::PropError, GID, VID},
+    entities::{properties::PropError, GID},
     storage::arc_str::ArcStr,
     PropType,
 };
@@ -23,11 +13,22 @@ use std::{
     path::{PathBuf, StripPrefixError},
     time::SystemTimeError,
 };
+use tracing::error;
+
+#[cfg(feature = "io")]
+use parquet::errors::ParquetError;
+#[cfg(feature = "arrow")]
+use polars_arrow::{datatypes::ArrowDataType, legacy::error};
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+#[cfg(feature = "python")]
+use pyo3::PyErr;
+#[cfg(feature = "arrow")]
+use raphtory_api::core::entities::{GidType, VID};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
-use tracing::error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {

@@ -2,29 +2,25 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::node_ref::NodeStorageRef,
-            },
+            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
+                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps,
                     InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
                     InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                    InheritTimeSemantics, NodeFilterOps, Static,
+                    InheritTimeSemantics, Static,
                 },
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
+        graph::edge::EdgeView,
     },
     prelude::{EdgeViewOps, GraphViewOps},
 };
 use raphtory_api::core::{
     entities::{LayerIds, ELID},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::TimeIndexEntry,
 };
-use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]
 pub struct ValidGraph<G> {
@@ -42,48 +38,6 @@ impl<'graph, G: GraphViewOps<'graph>> Base for ValidGraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> ValidGraph<G> {
     pub fn new(graph: G) -> Self {
         Self { graph }
-    }
-
-    fn valid_layer_ids(&self, edge: EdgeStorageRef, layers: &LayerIds) -> LayerIds {
-        match layers {
-            LayerIds::None => LayerIds::None,
-            _ => {
-                let valid_layers: Vec<_> = edge
-                    .layer_ids_iter(layers.clone())
-                    .filter(|l| self.filter_edge(edge, &LayerIds::One(*l)))
-                    .collect();
-                match valid_layers.len() {
-                    0 => LayerIds::None,
-                    1 => LayerIds::One(valid_layers[0]),
-                    _ => LayerIds::Multiple(valid_layers.into()),
-                }
-            }
-        }
-    }
-
-    fn valid_layer_ids_window(
-        &self,
-        edge: EdgeStorageRef,
-        layers: &LayerIds,
-        w: Range<i64>,
-    ) -> LayerIds {
-        match layers {
-            LayerIds::None => LayerIds::None,
-            _ => {
-                let valid_layers: Vec<_> = edge
-                    .layer_ids_iter(layers.clone())
-                    .filter(|l| {
-                        self.filter_edge(edge, &LayerIds::One(*l))
-                            && self.include_edge_window(edge, w.clone(), &LayerIds::One(*l))
-                    })
-                    .collect();
-                match valid_layers.len() {
-                    0 => LayerIds::None,
-                    1 => LayerIds::One(valid_layers[0]),
-                    _ => LayerIds::Multiple(valid_layers.into()),
-                }
-            }
-        }
     }
 }
 
@@ -283,6 +237,16 @@ mod tests {
                 .get("const_test")
                 .unwrap(),
             Prop::map([("_default", 2)])
+        );
+        assert_eq!(
+            gw.edge(0, 1)
+                .unwrap()
+                .default_layer()
+                .properties()
+                .constant()
+                .get("const_test")
+                .unwrap(),
+            2.into()
         );
         assert_graph_equal(&gw, &gw.materialize().unwrap());
     }

@@ -57,7 +57,6 @@ use crate::{
     },
     prelude::EdgeViewOps,
 };
-use either::Either;
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use serde::{Deserialize, Serialize};

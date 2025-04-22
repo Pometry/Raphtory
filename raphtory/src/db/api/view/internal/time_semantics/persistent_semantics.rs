@@ -19,7 +19,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use num_traits::SaturatingAdd;
 use raphtory_api::{
     core::{
         entities::LayerIds,
@@ -236,7 +235,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, Vec<(usize, Prop)>)> {
         let start = w.start;
@@ -460,7 +459,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(layer, additions, deletions)| {
                 let window = interior_window(w.clone(), &deletions);
                 let first = persisted_event(&additions, deletions, w.start)
-                    .map(|TimeIndexEntry(t, s)| (TimeIndexEntry(w.start, s), layer));
+                    .map(|TimeIndexEntry(_, s)| (TimeIndexEntry(w.start, s), layer));
                 first
                     .into_iter()
                     .chain(additions.range(window).iter().map(move |t| (t, layer)))
@@ -839,7 +838,56 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         t: TimeIndexEntry,
         layer_id: usize,
     ) -> Option<Prop> {
-        EventSemantics.temporal_edge_prop_exploded(e, view, prop_id, t, layer_id)
+        let search_start = e
+            .filtered_deletions(layer_id, &view)
+            .range(TimeIndexEntry::MIN..t)
+            .last()
+            .unwrap_or(TimeIndexEntry::MIN);
+        e.filtered_temporal_prop_layer(layer_id, prop_id, &view)
+            .iter_window(search_start..t.next())
+            .next_back()
+            .map(|(_, v)| v)
+    }
+
+    fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+    ) -> Option<Prop> {
+        if at < edge_time {
+            return None;
+        }
+        let deletion = e
+            .filtered_deletions(layer_id, &view)
+            .range(edge_time.next()..TimeIndexEntry::MAX)
+            .first()
+            .unwrap_or(TimeIndexEntry::MAX);
+        if at < deletion {
+            self.temporal_edge_prop_exploded(e, view, prop_id, at, layer_id)
+        } else {
+            None
+        }
+    }
+
+    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        edge_time: TimeIndexEntry,
+        layer_id: usize,
+        prop_id: usize,
+        at: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> Option<Prop> {
+        if w.contains(&edge_time.t()) {
+            self.temporal_edge_prop_exploded_last_at(e, view, edge_time, layer_id, prop_id, at)
+        } else {
+            None
+        }
     }
 
     fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(

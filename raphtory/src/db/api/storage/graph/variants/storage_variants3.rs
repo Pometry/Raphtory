@@ -39,27 +39,6 @@ macro_rules! for_all {
     };
 }
 
-#[cfg(feature = "storage")]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
-            StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
-        }
-    };
-}
-
-#[cfg(not(feature = "storage"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
-        }
-    };
-}
-
 impl<
         V,
         Mem: Iterator<Item = V>,

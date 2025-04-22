@@ -6,10 +6,7 @@ use crate::{
         storage::ArcNodeEntry,
         Direction,
     },
-    db::api::{
-        storage::graph::tprop_storage_ops::TPropOps,
-        view::{internal::NodeAdditions, BoxableGraphView},
-    },
+    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
     prelude::{GraphViewOps, Prop},
 };
 use itertools::Itertools;
