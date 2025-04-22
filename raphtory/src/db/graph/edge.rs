@@ -287,7 +287,16 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }
                 }
             },
-            None => Ok(self.edge.layer().unwrap_or(0)),
+            None => {
+                let layer = self.edge.layer();
+                match layer {
+                    Some(l_id) => Ok(l_id),
+                    None => self
+                        .graph
+                        .get_default_layer_id()
+                        .ok_or_else(|| GraphError::no_default_layer(&self.graph)),
+                }
+            }
         }
     }
 
@@ -731,6 +740,7 @@ mod test_edge {
     fn test_constant_property_additions() {
         let g = Graph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
+        assert_eq!(e.edge.layer(), Some(0));
         assert!(e
             .add_constant_properties([("test1", "test1")], None)
             .is_ok()); // adds properties to layer `"test"`

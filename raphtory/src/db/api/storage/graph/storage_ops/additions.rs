@@ -53,9 +53,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
-        Ok(layer
-            .map(|name| self.edge_meta.get_or_create_layer_id(name))
-            .unwrap_or(MaybeNew::Existing(0)))
+        Ok(self.edge_meta.get_or_create_layer_id(layer))
     }
 
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {

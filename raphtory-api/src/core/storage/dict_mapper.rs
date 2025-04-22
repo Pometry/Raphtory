@@ -142,7 +142,7 @@ impl DictMapper {
     pub fn get_name(&self, id: usize) -> ArcStr {
         let guard = self.reverse_map.read();
         guard.get(id).cloned().expect(&format!(
-            "internal ids should always be mapped to a name {id}"
+            "internal ids should always be mapped to a name: {id}"
         ))
     }
 

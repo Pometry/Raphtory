@@ -2,6 +2,7 @@ use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
     db::graph::views::property_filter::{FilterExpr, FilterOperator},
 };
+use itertools::Itertools;
 use raphtory_api::core::{
     entities::{properties::PropError, GID},
     storage::arc_str::ArcStr,
@@ -15,6 +16,7 @@ use std::{
 };
 use tracing::error;
 
+use crate::prelude::GraphViewOps;
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
@@ -204,6 +206,8 @@ pub enum GraphError {
         invalid_layer: String,
         valid_layers: String,
     },
+    #[error("Graph does not have a default layer. Valid layers: {valid_layers}")]
+    NoDefaultLayer { valid_layers: String },
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,
@@ -373,6 +377,11 @@ impl GraphError {
             invalid_layer,
             valid_layers,
         }
+    }
+
+    pub fn no_default_layer<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
+        let valid_layers = graph.unique_layers().join(", ");
+        GraphError::NoDefaultLayer { valid_layers }
     }
 }
 

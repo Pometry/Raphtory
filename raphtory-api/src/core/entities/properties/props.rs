@@ -53,13 +53,12 @@ impl Meta {
 
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
-        meta_layer.get_or_create_id("_default");
         let meta_node_type = DictMapper::default();
         meta_node_type.get_or_create_id("_default");
         Self {
             meta_prop_temporal: PropMapper::default(),
             meta_prop_constant: PropMapper::default(),
-            meta_layer,     // layer 0 is the default layer
+            meta_layer,
             meta_node_type, // type 0 is the default type for a node
         }
     }
@@ -90,8 +89,8 @@ impl Meta {
     }
 
     #[inline]
-    pub fn get_or_create_layer_id(&self, name: &str) -> MaybeNew<usize> {
-        self.meta_layer.get_or_create_id(name)
+    pub fn get_or_create_layer_id(&self, name: Option<&str>) -> MaybeNew<usize> {
+        self.meta_layer.get_or_create_id(name.unwrap_or("_default"))
     }
 
     #[inline]
@@ -107,6 +106,11 @@ impl Meta {
     #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.meta_layer.get_id(name)
+    }
+
+    #[inline]
+    pub fn get_default_layer_id(&self) -> Option<usize> {
+        self.meta_layer.get_id("_default")
     }
 
     #[inline]

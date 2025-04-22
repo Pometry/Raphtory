@@ -392,7 +392,7 @@ fn import_edge_internal<
     merge: bool,
 ) -> Result<EdgeView<G, G>, GraphError> {
     // Preserve all layers even if they are empty (except the default layer)
-    for layer in edge.graph.unique_layers().skip(1) {
+    for layer in edge.graph.unique_layers() {
         graph.resolve_layer(Some(&layer))?;
     }
 

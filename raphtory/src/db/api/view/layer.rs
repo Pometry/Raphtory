@@ -14,8 +14,7 @@ pub trait LayerOps<'graph> {
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.layers(Layer::Default)
-            .expect("Default layer not found")
+        self.valid_layers(Layer::Default)
     }
 
     /// Return a graph containing the layers in `names`. Errors if one or more of the layers do not exists.

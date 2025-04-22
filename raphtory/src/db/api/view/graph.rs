@@ -198,7 +198,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             LayerIds::All => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in 1..layers.len() {
+                for id in 0..layers.len() {
                     let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }

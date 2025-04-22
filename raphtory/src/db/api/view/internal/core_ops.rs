@@ -112,6 +112,11 @@ pub trait CoreGraphOps: Send + Sync {
         self.edge_meta().get_layer_id(name)
     }
 
+    #[inline]
+    fn get_default_layer_id(&self) -> Option<usize> {
+        self.edge_meta().get_default_layer_id()
+    }
+
     /// Get the layer name for a given id
     #[inline]
     fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
