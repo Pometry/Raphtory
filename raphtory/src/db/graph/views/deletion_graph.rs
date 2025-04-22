@@ -638,6 +638,19 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_addition_deletion_multilayer_window() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, Some("a")).unwrap();
+        g.delete_edge(0, 0, 0, None).unwrap();
+        let gw = g.window(0, 0).valid_layers("a");
+        let expected_gw = PersistentGraph::new();
+        expected_gw.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gw, &expected_gw);
+        let gwm = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gwm);
+    }
+
+    #[test]
     fn materialize_broken_time() {
         let g = PersistentGraph::new();
         g.add_edge(

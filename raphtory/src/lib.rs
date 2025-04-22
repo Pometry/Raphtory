@@ -148,7 +148,7 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{core::DECIMAL_MAX, prelude::*};
+    use crate::{core::DECIMAL_MAX, db::api::view::internal::CoreGraphOps, prelude::*};
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
@@ -285,10 +285,10 @@ mod test_utils {
     #[derive(Debug, Clone)]
     pub struct GraphFixture {
         pub nodes: NodeFixture,
-        pub no_props_edges: Vec<(u64, u64, i64)>,
+        pub no_props_edges: Vec<(u64, u64, i64, Option<&'static str>)>,
         pub edges: Vec<(u64, u64, i64, Vec<(String, Prop)>, Option<&'static str>)>,
-        pub edge_deletions: Vec<(u64, u64, i64)>,
-        pub edge_const_props: HashMap<(u64, u64), Vec<(String, Prop)>>,
+        pub edge_deletions: Vec<(u64, u64, i64, Option<&'static str>)>,
+        pub edge_const_props: HashMap<(u64, u64, Option<&'static str>), Vec<(String, Prop)>>,
     }
 
     #[derive(Debug, Default, Clone)]
@@ -447,12 +447,22 @@ mod test_utils {
                 let (t_props, c_props) = make_props(schema);
 
                 let no_props = proptest::collection::vec(
-                    (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                    (
+                        0..num_nodes,
+                        0..num_nodes,
+                        i64::MIN..i64::MAX,
+                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                    ),
                     0..=len,
                 );
                 let del_len = if del_edges { len } else { 0 };
                 let del_edges = proptest::collection::vec(
-                    (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
+                    (
+                        0..num_nodes,
+                        0..num_nodes,
+                        i64::MIN..i64::MAX,
+                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                    ),
                     0..=del_len,
                 );
 
@@ -467,8 +477,15 @@ mod test_utils {
                     0..=len,
                 );
 
-                let const_props =
-                    proptest::collection::hash_map((0..num_nodes, 0..num_nodes), c_props, 0..=len);
+                let const_props = proptest::collection::hash_map(
+                    (
+                        0..num_nodes,
+                        0..num_nodes,
+                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                    ),
+                    c_props,
+                    0..=len,
+                );
 
                 (edges, no_props, const_props, del_edges).prop_map(
                     |(edges, no_props, const_props, del_edges)| GraphFixture {
@@ -557,20 +574,20 @@ mod test_utils {
     pub(crate) fn build_graph<'a>(graph_fix: impl Into<GraphFixture>) -> Graph {
         let g = Graph::new();
         let graph_fix = graph_fix.into();
-        for (src, dst, time) in &graph_fix.no_props_edges {
-            g.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
+        for (src, dst, time, layer) in &graph_fix.no_props_edges {
+            g.add_edge(*time, *src, *dst, NO_PROPS, *layer).unwrap();
         }
         for (src, dst, time, props, layer) in &graph_fix.edges {
             g.add_edge(*time, src, dst, props.clone(), *layer).unwrap();
         }
-        for (src, dst, time) in &graph_fix.edge_deletions {
-            if let Some(edge) = g.edge(*src, *dst) {
-                edge.delete(*time, None).unwrap();
-            }
+        for (src, dst, time, layer) in &graph_fix.edge_deletions {
+            g.core_graph()
+                .delete_edge(*time, *src, *dst, *layer)
+                .unwrap();
         }
 
-        for ((src, dst), props) in graph_fix.edge_const_props {
-            let edge = g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+        for ((src, dst, layer), props) in graph_fix.edge_const_props {
+            let edge = g.add_edge(0, src, dst, NO_PROPS, layer).unwrap();
             edge.update_constant_properties(props, None).unwrap();
         }
         for (node, t, t_props) in &graph_fix.nodes.nodes {

@@ -538,15 +538,15 @@ mod test {
     fn edge_const_props_maps() {
         let g_fixture = GraphFixture {
             edges: vec![],
-            no_props_edges: vec![(1, 1, 1)],
+            no_props_edges: vec![(1, 1, 1, None)],
             edge_deletions: vec![],
             edge_const_props: vec![
                 (
-                    (0u64, 0u64),
+                    (0u64, 0u64, None),
                     vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
                 ),
                 (
-                    (0u64, 1u64),
+                    (0u64, 1u64, None),
                     vec![(
                         "a".to_string(),
                         Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
@@ -702,10 +702,10 @@ mod test {
     fn edges_map4() {
         let g_fix = GraphFixture {
             edges: vec![(0, 0, 0, vec![("a".to_string(), Prop::U8(5))], None)],
-            edge_deletions: vec![(0, 0, 1)],
+            edge_deletions: vec![(0, 0, 1, None)],
             no_props_edges: vec![],
             edge_const_props: vec![(
-                (0u64, 0u64),
+                (0u64, 0u64, None),
                 vec![(
                     "x".to_string(),
                     Prop::List(
@@ -787,10 +787,10 @@ mod test {
     #[test]
     fn edge_props_1() {
         let gp_fix = GraphFixture {
-            edge_const_props: vec![((0u64, 0u64), vec![("a".to_string(), Prop::I64(5))])]
+            edge_const_props: vec![((0u64, 0u64, None), vec![("a".to_string(), Prop::I64(5))])]
                 .into_iter()
                 .collect(),
-            edge_deletions: vec![(6, 2, 4444)],
+            edge_deletions: vec![(6, 2, 4444, None)],
             edges: vec![(
                 0,
                 0,
@@ -801,7 +801,7 @@ mod test {
                 ],
                 Some("a"),
             )],
-            no_props_edges: vec![(7, 0, 469)],
+            no_props_edges: vec![(7, 0, 469, None)],
             nodes: NodeFixture::default(),
         };
         check_parquet_encoding(gp_fix);
