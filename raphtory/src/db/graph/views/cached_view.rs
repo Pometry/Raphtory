@@ -27,6 +27,7 @@ use crate::db::api::view::internal::InheritStorageOps;
 #[derive(Clone)]
 pub struct CachedView<G> {
     pub(crate) graph: G,
+    pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
     pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap)]>,
 }
 
@@ -63,6 +64,13 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
         let mut layered_masks = vec![];
+        let global_nodes_mask = Arc::new(
+            graph
+                .nodes()
+                .iter()
+                .map(|node| node.node.as_u64())
+                .collect(),
+        );
         for l_name in graph.unique_layers() {
             let l_id = graph.get_layer_id(&l_name).unwrap();
             let layer_g = graph.layers(l_name).unwrap();
@@ -98,6 +106,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
 
         Self {
             graph,
+            global_nodes_mask,
             layered_mask: layered_masks.into(),
         }
     }
@@ -164,10 +173,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => self
-                .layered_mask
-                .iter()
-                .any(|(nodes, _)| nodes.contains(node.vid().as_u64())),
+            LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
                 .get(*id)
