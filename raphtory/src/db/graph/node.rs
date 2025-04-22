@@ -38,7 +38,6 @@ use std::{
     fmt,
     fmt::Debug,
     hash::{Hash, Hasher},
-    marker::PhantomData,
     sync::Arc,
 };
 

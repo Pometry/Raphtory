@@ -117,11 +117,6 @@ class Document(object):
                                                 window).
     """
 
-    def __new__(
-        cls, content: str, life: Optional[int | Tuple[int, int]] = None
-    ) -> Document:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
     def __repr__(self):
         """Return repr(self)."""
 
