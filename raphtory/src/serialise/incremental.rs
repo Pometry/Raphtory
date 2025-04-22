@@ -98,9 +98,8 @@ impl GraphWriter {
     #[inline]
     pub fn resolve_layer(&self, layer: Option<&str>, layer_id: MaybeNew<usize>) {
         layer_id.if_new(|id| {
-            if let Some(layer) = layer {
-                self.proto_delta.lock().new_layer(layer, id)
-            }
+            let layer = layer.unwrap_or("_default");
+            self.proto_delta.lock().new_layer(layer, id)
         });
     }
 
