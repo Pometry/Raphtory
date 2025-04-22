@@ -31,7 +31,10 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilterOps<'graph> for 
 mod test {
     use crate::{
         db::{
-            api::view::exploded_edge_property_filter::ExplodedEdgePropertyFilterOps,
+            api::{
+                mutation::internal::InternalAdditionOps,
+                view::exploded_edge_property_filter::ExplodedEdgePropertyFilterOps,
+            },
             graph::{
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
@@ -64,6 +67,9 @@ mod test {
                 .unwrap();
             }
         }
+        if !edges.is_empty() {
+            g.resolve_layer(None).unwrap();
+        }
         g
     }
 
@@ -92,6 +98,7 @@ mod test {
             ))
             .unwrap();
         let gf = Graph::new();
+        gf.resolve_layer(None).unwrap();
         assert_eq!(filtered.count_nodes(), 0);
         assert_eq!(filtered.count_edges(), 0);
         assert_graph_equal(&filtered, &gf);

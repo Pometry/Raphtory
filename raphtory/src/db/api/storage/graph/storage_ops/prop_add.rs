@@ -303,13 +303,13 @@ mod test {
             .unwrap();
         assert_eq!(
             edge.properties().constant().get("test"),
-            Some(Prop::map([("1", "test")]))
+            Some("test".into_prop())
         );
         edge.update_constant_properties([("test", "test2")], Some("1"))
             .unwrap();
         assert_eq!(
             edge.properties().constant().get("test"),
-            Some(Prop::map([("1", "test2")]))
+            Some("test2".into_prop())
         );
     }
 }

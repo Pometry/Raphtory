@@ -2811,15 +2811,18 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .filter_map(|e| {
-                    e.edge
-                        .layer()
+                    e.layer_name()
+                        .ok()
                         .map(|layer| (e.src().id(), e.dst().id(), layer))
                 })
                 .collect::<Vec<_>>();
 
             assert_eq!(
                 layer_exploded,
-                vec![(GID::U64(1), GID::U64(2), 1), (GID::U64(1), GID::U64(2), 2)]
+                vec![
+                    (GID::U64(1), GID::U64(2), ArcStr::from("layer1")),
+                    (GID::U64(1), GID::U64(2), ArcStr::from("layer2"))
+                ]
             );
         });
     }
@@ -2840,8 +2843,8 @@ mod db_tests {
                 .iter()
                 .flat_map(|e| {
                     e.explode().into_iter().filter_map(|e| {
-                        e.edge
-                            .layer()
+                        e.layer_name()
+                            .ok()
                             .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
@@ -2850,10 +2853,15 @@ mod db_tests {
 
             assert_eq!(
                 layer_exploded,
-                vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
-                    .into_iter()
-                    .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), d))
-                    .collect::<Vec<_>>()
+                vec![
+                    (0, 1, 2, "layer1"),
+                    (2, 1, 2, "layer1"),
+                    (1, 1, 2, "layer2"),
+                    (3, 1, 2, "_default"),
+                ]
+                .into_iter()
+                .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), ArcStr::from(d)))
+                .collect::<Vec<_>>()
             );
         });
     }
@@ -2875,9 +2883,9 @@ mod db_tests {
                 .iter()
                 .flat_map(|e| {
                     e.explode().into_iter().filter_map(|e| {
-                        e.edge
-                            .layer()
-                            .zip(Some(e.time().unwrap()))
+                        e.layer_name()
+                            .ok()
+                            .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
@@ -2885,10 +2893,14 @@ mod db_tests {
 
             assert_eq!(
                 layer_exploded,
-                vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
-                    .into_iter()
-                    .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), d) })
-                    .collect::<Vec<_>>()
+                vec![
+                    (0, 1, 2, "layer1"),
+                    (2, 1, 2, "layer1"),
+                    (1, 1, 2, "layer2")
+                ]
+                .into_iter()
+                .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), ArcStr::from(d)) })
+                .collect::<Vec<_>>()
             );
         });
     }
