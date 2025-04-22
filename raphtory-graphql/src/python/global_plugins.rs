@@ -2,11 +2,8 @@ use crate::model::plugins::query_plugin::QueryPlugin;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 use raphtory::{
     db::api::view::DynamicGraph,
-    python::{
-        packages::vectors::{
-            compute_embedding, translate_window, PyQuery, PyVectorisedGraph, PyWindow,
-        },
-        types::wrappers::document::PyDocument,
+    python::packages::vectors::{
+        compute_embedding, translate_window, PyQuery, PyVectorisedGraph, PyWindow,
     },
     vectors::{vectorised_cluster::VectorisedCluster, Document},
 };
@@ -49,7 +46,7 @@ impl PyGlobalPlugins {
     ///   list[Tuple[Document, float]]: A list of documents and their scores
     fn search_graph_documents_with_scores(
         &self,
-        py: Python,
+        _py: Python,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
