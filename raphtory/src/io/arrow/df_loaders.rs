@@ -988,8 +988,6 @@ mod tests {
                 .unwrap();
             }
 
-            let expected = expected.exclude_layers("_default").unwrap();
-
             let g = TemporalGraph::from_parquets(
                 num_threads,
                 13,
@@ -1143,5 +1141,47 @@ mod tests {
             }
             assert_graph_equal(&g, &g2);
         })
+    }
+
+    #[test]
+    fn load_single_edge_with_cache() {
+        let edges = [(0, 0, 0, "".to_string(), 0)];
+        let df_view = build_df(1, &edges);
+        let g = Graph::new();
+        let cache_file = TempDir::new().unwrap();
+        g.cache(cache_file.path()).unwrap();
+        let props = ["str_prop", "int_prop"];
+        load_edges_from_df(
+            df_view,
+            "time",
+            "src",
+            "dst",
+            &props,
+            &[],
+            None,
+            None,
+            None,
+            &g,
+        )
+        .unwrap();
+        let g = Graph::load_cached(cache_file.path()).unwrap();
+        let g2 = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            g2.add_edge(
+                time,
+                src,
+                dst,
+                [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+            let edge = g.edge(src, dst).unwrap().at(time);
+            assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+            assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+        }
+        assert_graph_equal(&g, &g2);
     }
 }

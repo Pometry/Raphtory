@@ -285,65 +285,7 @@ fn decode_graph_storage(
         load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[])?;
     }
 
-    let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];
-    let t_edge_path = path.as_ref().join(EDGES_T_PATH);
-
-    if std::fs::exists(&t_edge_path)? {
-        let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
-        let t_prop_columns = t_prop_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-
-        load_edges_from_parquet(
-            &g,
-            &t_edge_path,
-            TIME_COL,
-            SRC_COL,
-            DST_COL,
-            &t_prop_columns,
-            &[],
-            None,
-            None,
-            Some(LAYER_COL),
-        )?;
-    }
-
-    let c_edge_path = path.as_ref().join(EDGES_C_PATH);
-    if std::fs::exists(&c_edge_path)? {
-        let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
-        let constant_properties = c_prop_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-
-        load_edge_props_from_parquet(
-            &g,
-            &c_edge_path,
-            SRC_COL,
-            DST_COL,
-            &constant_properties,
-            None,
-            None,
-            Some(LAYER_COL),
-        )?;
-    }
-
-    let d_edge_path = path.as_ref().join(EDGES_D_PATH);
-    if std::fs::exists(&d_edge_path)? {
-        load_edge_deletions_from_parquet(
-            g.core_graph(),
-            &d_edge_path,
-            TIME_COL,
-            SRC_COL,
-            DST_COL,
-            None,
-            Some(LAYER_COL),
-        )?;
-    }
-
     let t_node_path = path.as_ref().join(NODES_T_PATH);
-
     if std::fs::exists(&t_node_path)? {
         let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
@@ -385,6 +327,62 @@ fn decode_graph_storage(
         )?;
     }
 
+    let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];
+    let t_edge_path = path.as_ref().join(EDGES_T_PATH);
+    if std::fs::exists(&t_edge_path)? {
+        let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
+        let t_prop_columns = t_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+
+        load_edges_from_parquet(
+            &g,
+            &t_edge_path,
+            TIME_COL,
+            SRC_COL,
+            DST_COL,
+            &t_prop_columns,
+            &[],
+            None,
+            None,
+            Some(LAYER_COL),
+        )?;
+    }
+
+    let d_edge_path = path.as_ref().join(EDGES_D_PATH);
+    if std::fs::exists(&d_edge_path)? {
+        load_edge_deletions_from_parquet(
+            g.core_graph(),
+            &d_edge_path,
+            TIME_COL,
+            SRC_COL,
+            DST_COL,
+            None,
+            Some(LAYER_COL),
+        )?;
+    }
+
+    let c_edge_path = path.as_ref().join(EDGES_C_PATH);
+    if std::fs::exists(&c_edge_path)? {
+        let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
+        let constant_properties = c_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+
+        load_edge_props_from_parquet(
+            &g,
+            &c_edge_path,
+            SRC_COL,
+            DST_COL,
+            &constant_properties,
+            None,
+            None,
+            Some(LAYER_COL),
+        )?;
+    }
+
     Ok(g)
 }
 impl ParquetDecoder for Graph {
@@ -411,7 +409,7 @@ impl ParquetDecoder for PersistentGraph {
 mod test {
     use super::*;
     use crate::{
-        db::graph::graph::assert_graph_equal,
+        db::{api::view::MaterializedGraph, graph::graph::assert_graph_equal},
         test_utils::{
             build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, GraphFixture,
             NodeFixture,
@@ -425,7 +423,7 @@ mod test {
     #[test]
     fn node_temp_props() {
         let nodes: NodeFixture = [(0, 0, vec![("a".to_string(), Prop::U8(5))])].into();
-        check_parquet_encoding(nodes.into());
+        build_and_check_parquet_encoding(nodes.into());
     }
 
     #[test]
@@ -536,7 +534,7 @@ mod test {
             .collect(),
         };
 
-        check_parquet_encoding(nodes.into());
+        build_and_check_parquet_encoding(nodes.into());
     }
 
     #[test]
@@ -563,7 +561,7 @@ mod test {
             nodes: Default::default(),
         };
 
-        check_parquet_encoding(g_fixture);
+        build_and_check_parquet_encoding(g_fixture);
     }
 
     #[test]
@@ -571,7 +569,7 @@ mod test {
         let dt = "2012-12-12 12:12:12+00:00"
             .parse::<DateTime<Utc>>()
             .unwrap();
-        check_parquet_encoding(
+        build_and_check_parquet_encoding(
             [
                 (0, 1, 12, vec![("one".to_string(), Prop::DTime(dt))], None),
                 (
@@ -606,7 +604,7 @@ mod test {
 
     #[test]
     fn write_edges_empty_prop_first() {
-        check_parquet_encoding(
+        build_and_check_parquet_encoding(
             [
                 (
                     0,
@@ -632,7 +630,7 @@ mod test {
         let dt = "2012-12-12 12:12:12+00:00"
             .parse::<DateTime<Utc>>()
             .unwrap();
-        check_parquet_encoding(
+        build_and_check_parquet_encoding(
             [(
                 0,
                 0,
@@ -648,7 +646,7 @@ mod test {
         let dt = "2012-12-12 12:12:12+00:00"
             .parse::<DateTime<Utc>>()
             .unwrap();
-        check_parquet_encoding(
+        build_and_check_parquet_encoding(
             [(
                 0,
                 0,
@@ -665,7 +663,7 @@ mod test {
 
     #[test]
     fn edges_maps2() {
-        check_parquet_encoding(
+        build_and_check_parquet_encoding(
             [
                 (
                     0,
@@ -688,7 +686,7 @@ mod test {
 
     #[test]
     fn edges_maps3() {
-        check_parquet_encoding(
+        build_and_check_parquet_encoding(
             [
                 (0, 0, 0, vec![("a".to_string(), Prop::U8(5))], None),
                 (
@@ -727,15 +725,26 @@ mod test {
             nodes: Default::default(),
         };
 
-        check_parquet_encoding(g_fix)
+        build_and_check_parquet_encoding(g_fix)
     }
 
     // proptest
-    fn check_parquet_encoding(edges: GraphFixture) {
+    fn build_and_check_parquet_encoding(edges: GraphFixture) {
         let g = build_graph(edges);
+        check_parquet_encoding(g);
+    }
+
+    fn check_parquet_encoding<'a>(g: Graph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
+        assert_graph_equal(&g, &g2);
+    }
+
+    fn check_parquet_encoding_deletions(g: PersistentGraph) {
+        let temp_dir = tempfile::tempdir().unwrap();
+        g.encode_parquet(&temp_dir).unwrap();
+        let g2 = PersistentGraph::decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);
     }
 
@@ -758,7 +767,7 @@ mod test {
                 .collect(),
         };
 
-        check_parquet_encoding(node_fixtures.into());
+        build_and_check_parquet_encoding(node_fixtures.into());
     }
 
     fn check_graph_props(nf: NodeFixture) {
@@ -809,7 +818,7 @@ mod test {
             no_props_edges: vec![(7, 0, 469, None)],
             nodes: NodeFixture::default(),
         };
-        check_parquet_encoding(gp_fix);
+        build_and_check_parquet_encoding(gp_fix);
     }
 
     #[test]
@@ -818,7 +827,7 @@ mod test {
         nf.node_const_props = vec![(1, vec![("b".to_string(), Prop::str("baa"))])]
             .into_iter()
             .collect();
-        check_parquet_encoding(nf.into())
+        build_and_check_parquet_encoding(nf.into())
     }
 
     #[test]
@@ -838,20 +847,27 @@ mod test {
     #[test]
     fn write_nodes_any_props_to_parquet() {
         proptest!(|(nodes in build_nodes_dyn(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 10))| {
-            check_parquet_encoding(nodes.into());
+            build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
         proptest!(|(edges in build_edge_list_dyn(10, 10, true))| {
-            check_parquet_encoding(edges);
+            build_and_check_parquet_encoding(edges);
         });
     }
 
     #[test]
     fn write_graph_to_parquet() {
         proptest!(|(edges in build_graph_strat(10, 10, true))| {
-            check_parquet_encoding(edges);
+            build_and_check_parquet_encoding(edges);
         })
+    }
+
+    #[test]
+    fn test_deletion() {
+        let graph = PersistentGraph::new();
+        graph.delete_edge(0, 0, 0, Some("a")).unwrap();
+        check_parquet_encoding_deletions(graph);
     }
 }
