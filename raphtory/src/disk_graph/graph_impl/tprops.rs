@@ -76,21 +76,24 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedPrimitiveCol<'a, i128>, TimeInd
     fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let scale = scale(self.data_type());
         let (props, timestamps) = self.into_inner();
-        timestamps.into_iter().zip(props).filter_map(move |(t, v)| {
-            v.zip(scale)
-                .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
-        }).into_dyn_dboxed()
+        timestamps
+            .into_iter()
+            .zip(props)
+            .filter_map(move |(t, v)| {
+                v.zip(scale)
+                    .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
+            })
+            .into_dyn_dboxed()
     }
 
-    fn iter_window(
-        &self,
-        r: Range<TimeIndexEntry>,
-    ) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         let scale = scale(self.data_type());
-        self.iter_window_inner(r).filter_map(move |(t, v)| {
-            v.zip(scale)
-                .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
-        }).into_dyn_dboxed()
+        self.iter_window_inner(r)
+            .filter_map(move |(t, v)| {
+                v.zip(scale)
+                    .map(|(v, scale)| (t, BigDecimal::new(BigInt::from(v), scale.into()).into()))
+            })
+            .into_dyn_dboxed()
     }
 
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
@@ -266,14 +269,11 @@ impl<'a> TPropOps<'a> for DiskTProp<'a, TimeIndexEntry> {
         for_all!(self, v => v.last_before(t))
     }
 
-    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)>{
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         for_all!(self, v => v.iter())
     }
 
-    fn iter_window(
-        &self,
-        r: Range<TimeIndexEntry>,
-    ) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
         for_all!(self, v => v.iter_window(r))
     }
 
