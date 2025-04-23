@@ -1,8 +1,12 @@
 use crate::{
-    core::{arrow_dtype_from_prop_type, utils::errors::GraphError},
+    core::{
+        arrow_dtype_from_prop_type, entities::graph::tgraph::TemporalGraph,
+        utils::errors::GraphError,
+    },
     db::{
         api::{
-            mutation::internal::InternalAdditionOps, storage::graph::storage_ops::GraphStorage,
+            mutation::internal::InternalAdditionOps,
+            storage::{graph::storage_ops::GraphStorage, storage::Storage},
             view::internal::CoreGraphOps,
         },
         graph::views::deletion_graph::PersistentGraph,
@@ -38,6 +42,7 @@ use std::{
     fs::File,
     ops::Range,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 mod edges;
@@ -250,8 +255,8 @@ fn collect_prop_columns(
 fn decode_graph_storage(
     path: impl AsRef<Path>,
     expected_gt: GraphType,
-) -> Result<GraphStorage, GraphError> {
-    let g = Graph::new();
+) -> Result<Arc<Storage>, GraphError> {
+    let g = Arc::new(Storage::default());
 
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
@@ -380,7 +385,7 @@ fn decode_graph_storage(
         )?;
     }
 
-    Ok(g.core_graph().clone())
+    Ok(g)
 }
 impl ParquetDecoder for Graph {
     fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
@@ -388,7 +393,7 @@ impl ParquetDecoder for Graph {
         Self: Sized,
     {
         let gs = decode_graph_storage(path, GraphType::EventGraph)?;
-        Ok(Graph::from_internal_graph(gs))
+        Ok(Graph::from_storage(gs))
     }
 }
 
@@ -398,7 +403,7 @@ impl ParquetDecoder for PersistentGraph {
         Self: Sized,
     {
         let gs = decode_graph_storage(path, GraphType::PersistentGraph)?;
-        Ok(PersistentGraph::from_internal_graph(gs))
+        Ok(PersistentGraph(gs))
     }
 }
 
