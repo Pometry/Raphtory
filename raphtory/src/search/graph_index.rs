@@ -35,13 +35,37 @@ impl Debug for GraphIndex {
     }
 }
 
-impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
-    type Error = GraphError;
+impl GraphIndex {
+    pub fn new() -> Self {
+        let path: Option<PathBuf> = None;
+        GraphIndex {
+            node_index: NodeIndex::new(&path),
+            edge_index: EdgeIndex::new(&path),
+            path,
+        }
+    }
 
-    fn try_from(graph: &GraphStorage) -> Result<Self, Self::Error> {
-        // TODO: Say by the time we are here, we already know the path
-        // let path: Option<PathBuf> = None;
-        let path = Some(PathBuf::from("/tmp/graphs/index"));
+    fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        let node_index = NodeIndex::load_from_path(&path.join("nodes"))?;
+        let edge_index = EdgeIndex::load_from_path(&path.join("edges"))?;
+        let path = Some(path.clone());
+
+        Ok(GraphIndex {
+            node_index,
+            edge_index,
+            path,
+        })
+    }
+
+    pub fn try_from_graph(
+        graph: &GraphStorage,
+        path: &Option<PathBuf>,
+    ) -> Result<Self, GraphError> {
+        if let Some(path) = path {
+            return Self::load_from_path(path);
+        }
+
+        let path = Some(tempfile::TempDir::new()?.path().to_path_buf());
         let node_index = NodeIndex::index_nodes(graph, &path)?;
         // node_index.print()?;
 
@@ -53,17 +77,6 @@ impl<'a> TryFrom<&'a GraphStorage> for GraphIndex {
             edge_index,
             path,
         })
-    }
-}
-
-impl GraphIndex {
-    pub fn new() -> Self {
-        let path: Option<PathBuf> = None;
-        GraphIndex {
-            node_index: NodeIndex::new(&path),
-            edge_index: EdgeIndex::new(&path),
-            path,
-        }
     }
 
     pub fn searcher(&self) -> Searcher {

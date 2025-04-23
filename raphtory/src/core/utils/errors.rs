@@ -253,7 +253,7 @@ pub enum GraphError {
     DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
-    #[error("Index operation failed")]
+    #[error("Index operation failed: {source}")]
     IndexError {
         #[from]
         source: tantivy::TantivyError,

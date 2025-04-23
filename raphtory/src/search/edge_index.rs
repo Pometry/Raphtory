@@ -23,8 +23,7 @@ use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
-    fs::create_dir_all,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use tantivy::{
     collector::TopDocs,
@@ -77,6 +76,31 @@ impl EdgeIndex {
             dst_field,
             dst_tokenized_field,
         }
+    }
+
+    pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        let entity_index = EntityIndex::load_edges_index_from_path(path)?;
+        let schema = entity_index.index.schema();
+        let edge_id_field = schema.get_field(EDGE_ID).ok().expect("Edge ID is absent");
+        let src_field = schema.get_field(SOURCE).expect("Source is absent");
+        let src_tokenized_field = schema
+            .get_field(SOURCE_TOKENIZED)
+            .expect("Source is absent");
+        let dst_field = schema
+            .get_field(DESTINATION)
+            .expect("Destination is absent");
+        let dst_tokenized_field = schema
+            .get_field(DESTINATION_TOKENIZED)
+            .expect("Destination is absent");
+
+        Ok(Self {
+            entity_index,
+            edge_id_field,
+            src_field,
+            src_tokenized_field,
+            dst_field,
+            dst_tokenized_field,
+        })
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {

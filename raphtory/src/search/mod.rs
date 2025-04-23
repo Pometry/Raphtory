@@ -49,13 +49,14 @@ pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, Index
             "Failed to create index directory {}",
             path.display()
         ));
+        println!("Created index directory {}", path.display());
         index_builder
             .create_in_dir(path)
             .expect("Failed to create index")
     } else {
         index_builder
             .create_in_ram()
-            .expect("Failed to create index")
+            .expect("Failed to create index in ram")
     };
 
     let reader = index

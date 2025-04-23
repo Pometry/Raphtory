@@ -24,8 +24,7 @@ use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
     fmt::{Debug, Formatter},
-    fs::create_dir_all,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use tantivy::{
     collector::TopDocs,
@@ -78,25 +77,44 @@ impl NodeIndex {
         }
     }
 
+    pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        let entity_index = EntityIndex::load_nodes_index_from_path(path)?;
+        let schema = entity_index.index.schema();
+        let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
+        let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
+        let node_name_tokenized_field = schema
+            .get_field(NODE_NAME_TOKENIZED)
+            .expect("Node name absent");
+        let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
+        let node_type_tokenized_field = schema
+            .get_field(NODE_TYPE_TOKENIZED)
+            .expect("Node type absent");
+
+        Ok(Self {
+            entity_index,
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        })
+    }
+
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = self.entity_index.reader.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
-
         println!("Total node doc count: {}", top_docs.len());
-
         for (_score, doc_address) in top_docs {
             let doc: TantivyDocument = searcher.doc(doc_address)?;
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
         let constant_property_indexes = self.entity_index.const_property_indexes.read();
-
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
         let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
-
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }

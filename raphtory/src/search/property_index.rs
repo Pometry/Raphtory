@@ -4,14 +4,9 @@ use crate::{
     search::{fields, new_index, TOKENIZER},
 };
 use raphtory_api::core::{storage::timeindex::TimeIndexEntry, PropType};
-use std::{
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fs, path::PathBuf, sync::Arc};
 use tantivy::{
     collector::TopDocs,
-    directory::MmapDirectory,
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
@@ -31,9 +26,17 @@ pub struct PropertyIndex {
 }
 
 impl PropertyIndex {
-    fn new_property(schema: Schema, is_edge: bool, path: &Option<PathBuf>) -> Self {
+    fn fetch_fields(
+        schema: &Schema,
+        is_edge: bool,
+    ) -> (Option<Field>, Option<Field>, Option<Field>, Field) {
         let time_field = schema.get_field(fields::TIME).ok();
         let secondary_time_field = schema.get_field(fields::SECONDARY_TIME).ok();
+        let layer_field = if is_edge {
+            schema.get_field(fields::LAYER_ID).ok()
+        } else {
+            None
+        };
         let entity_id_field = schema
             .get_field(if is_edge {
                 fields::EDGE_ID
@@ -47,11 +50,17 @@ impl PropertyIndex {
                 "Need node id"
             });
 
-        let layer_field = if is_edge {
-            schema.get_field(fields::LAYER_ID).ok()
-        } else {
-            None
-        };
+        (
+            time_field,
+            secondary_time_field,
+            layer_field,
+            entity_id_field,
+        )
+    }
+
+    fn new_property(schema: Schema, is_edge: bool, path: &Option<PathBuf>) -> Self {
+        let (time_field, secondary_time_field, layer_field, entity_id_field) =
+            Self::fetch_fields(&schema, is_edge);
 
         let (index, reader) = new_index(schema, path);
 
@@ -73,12 +82,49 @@ impl PropertyIndex {
         Self::new_property(schema, true, path)
     }
 
+    fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
+        let index = Index::open_in_dir(path).map_err(|e| GraphError::IndexError { source: e })?;
+        let reader = index
+            .reader_builder()
+            .reload_policy(tantivy::ReloadPolicy::Manual)
+            .try_into()
+            .unwrap();
+        let schema = index.schema();
+        let (time_field, secondary_time_field, layer_field, entity_id_field) =
+            Self::fetch_fields(&schema, is_edge);
+
+        Ok(Self {
+            index: Arc::new(index),
+            reader,
+            time_field,
+            secondary_time_field,
+            layer_field,
+            entity_id_field,
+        })
+    }
+
+    pub(crate) fn load_all(path: &PathBuf, is_edge: bool) -> Result<Vec<Option<Self>>, GraphError> {
+        if !path.exists() {
+            return Ok(vec![]);
+        }
+
+        let mut result = vec![];
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let prop_index = Self::load_from_path(&path, is_edge)?;
+                result.push(Some(prop_index));
+            }
+        }
+
+        Ok(result)
+    }
+
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = self.reader.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
-
         println!("Total property doc count: {}", top_docs.len());
-
         for (_score, doc_address) in top_docs {
             let doc: TantivyDocument = searcher.doc(doc_address)?;
             println!("Property doc: {:?}", doc.to_json(searcher.schema()));

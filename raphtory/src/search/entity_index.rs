@@ -32,13 +32,44 @@ pub struct EntityIndex {
 
 impl EntityIndex {
     pub(crate) fn new(schema: Schema, path: &Option<PathBuf>) -> Self {
-        let (index, reader) = new_index(schema, path);
+        let path = path.as_ref().map(|p| p.join("0"));
+        let (index, reader) = new_index(schema, &path);
         Self {
             index: Arc::new(index),
             reader,
             const_property_indexes: Arc::new(RwLock::new(Vec::new())),
             temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
         }
+    }
+
+    fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
+        let index =
+            Index::open_in_dir(path.join("0")).map_err(|e| GraphError::IndexError { source: e })?;
+        let reader = index
+            .reader_builder()
+            .reload_policy(tantivy::ReloadPolicy::Manual)
+            .try_into()
+            .unwrap();
+
+        let const_property_indexes =
+            PropertyIndex::load_all(&path.join("const_properties"), is_edge)?;
+        let temporal_property_indexes =
+            PropertyIndex::load_all(&path.join("temporal_properties"), is_edge)?;
+
+        Ok(Self {
+            index: Arc::new(index),
+            reader,
+            const_property_indexes: Arc::new(RwLock::new(const_property_indexes)),
+            temporal_property_indexes: Arc::new(RwLock::new(temporal_property_indexes)),
+        })
+    }
+
+    pub(crate) fn load_nodes_index_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        EntityIndex::load_from_path(path, false)
+    }
+
+    pub(crate) fn load_edges_index_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        EntityIndex::load_from_path(path, true)
     }
 
     pub(crate) fn create_property_index(

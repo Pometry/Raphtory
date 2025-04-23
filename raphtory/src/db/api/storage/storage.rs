@@ -136,9 +136,13 @@ impl Storage {
 
 #[cfg(feature = "search")]
 impl Storage {
-    pub(crate) fn get_or_create_index(&self) -> Result<&GraphIndex, GraphError> {
-        self.index
-            .get_or_try_init(|| Ok::<_, GraphError>(GraphIndex::try_from(&self.graph)?))
+    pub(crate) fn get_or_create_index(
+        &self,
+        path: Option<PathBuf>,
+    ) -> Result<&GraphIndex, GraphError> {
+        self.index.get_or_try_init(|| {
+            Ok::<_, GraphError>(GraphIndex::try_from_graph(&self.graph, &path)?)
+        })
     }
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
