@@ -1,5 +1,3 @@
-use std::{borrow::Cow, path::Path};
-
 use super::*;
 use crate::{
     core::utils::iter::GenLockedIter,
@@ -14,12 +12,10 @@ use crate::{
 use arrow_schema::{DataType, Field};
 use model::ParquetCEdge;
 use raphtory_api::{
-    core::{
-        entities::{LayerIds, EID},
-        storage::timeindex::TimeIndexOps,
-    },
+    core::{entities::EID, storage::timeindex::TimeIndexOps},
     iter::IntoDynBoxed,
 };
+use std::path::Path;
 
 pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,

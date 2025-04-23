@@ -154,7 +154,9 @@ mod tests {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         g.delete_edge(1, 0, 1, None).unwrap();
         let gv = g.valid().unwrap();
-        assert_graph_equal(&gv, &PersistentGraph::new());
+        let expected = PersistentGraph::new();
+        expected.resolve_layer(None).unwrap();
+        assert_graph_equal(&gv, &expected);
         let gm = gv.materialize().unwrap();
         assert_graph_equal(&gv, &gm);
     }
@@ -304,6 +306,7 @@ mod tests {
         let gvw = g.valid().unwrap().window(0, 5);
         assert_eq!(gvw.count_nodes(), 0);
         let expected = PersistentGraph::new();
+        expected.resolve_layer(None).unwrap();
         expected.resolve_layer(Some("a")).unwrap();
         assert_graph_equal(&gvw, &expected);
         let gvwm = gvw.materialize().unwrap();
