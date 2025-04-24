@@ -60,22 +60,25 @@ impl<'graph, G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<'g
     }
 }
 
-impl<'a, 'b: 'a, G: Clone + 'b, GH: Clone + 'b> NodeView<'a, &'a G, &'a GH> {
-    pub fn cloned(&self) -> NodeView<'b, G, GH> {
+impl<'b, G: 'b, GH: 'b> NodeView<'b, G, GH> {
+    pub fn as_ref<'a>(&'a self) -> NodeView<'a, &'a G, &'a GH>
+    where
+        'b: 'a,
+    {
         NodeView {
-            base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
+            base_graph: &self.base_graph,
+            graph: &self.graph,
             node: self.node,
             _marker: PhantomData,
         }
     }
 }
 
-impl<'a, G: 'a, GH: 'a> NodeView<'a, G, GH> {
-    pub fn as_ref(&self) -> NodeView<&G, &GH> {
+impl<'a, 'b: 'a, G: Clone + 'b, GH: Clone + 'b> NodeView<'a, &'a G, &'a GH> {
+    pub fn cloned(&self) -> NodeView<'b, G, GH> {
         NodeView {
-            base_graph: &self.base_graph,
-            graph: &self.graph,
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
             node: self.node,
             _marker: PhantomData,
         }
