@@ -1,4 +1,5 @@
 name: Run Python test
+permissions: { }
 on:
   workflow_call:
     inputs:
