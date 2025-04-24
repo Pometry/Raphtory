@@ -1,4 +1,4 @@
-name: Run Python test
+name: Run Python storage test
 permissions: { }
 on:
   workflow_call:
