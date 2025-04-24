@@ -15,9 +15,10 @@ use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::{
     fmt::{Debug, Formatter},
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use tantivy::schema::{FAST, INDEXED, STORED};
+use walkdir::WalkDir;
 
 #[derive(Clone)]
 pub struct GraphIndex {
@@ -45,10 +46,53 @@ impl GraphIndex {
         }
     }
 
+    fn copy_dir_recursive(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
+        fs::create_dir_all(destination)
+            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to create dir: {}", e)))?;
+
+        for entry in WalkDir::new(source)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.path().is_file())
+        {
+            let relative_path = entry.path().strip_prefix(source).map_err(|e| {
+                GraphError::IOErrorMsg(format!(
+                    "Failed to determine relative path during copy: {}",
+                    e
+                ))
+            })?;
+            let dest_path = destination.join(relative_path);
+
+            if let Some(parent) = dest_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| {
+                    GraphError::IOErrorMsg(format!(
+                        "Failed to create directory {}: {}",
+                        parent.display(),
+                        e
+                    ))
+                })?;
+            }
+
+            fs::copy(entry.path(), &dest_path).map_err(|e| {
+                GraphError::IOErrorMsg(format!(
+                    "Failed to copy {} to {}: {}",
+                    entry.path().display(),
+                    dest_path.display(),
+                    e
+                ))
+            })?;
+        }
+
+        Ok(())
+    }
+
     fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
-        let node_index = NodeIndex::load_from_path(&path.join("nodes"))?;
-        let edge_index = EdgeIndex::load_from_path(&path.join("edges"))?;
-        let path = Some(path.clone());
+        let tmp_path = tempfile::TempDir::new()?.path().to_path_buf();
+        GraphIndex::copy_dir_recursive(path, &tmp_path)?;
+
+        let node_index = NodeIndex::load_from_path(&tmp_path.join("nodes"))?;
+        let edge_index = EdgeIndex::load_from_path(&tmp_path.join("edges"))?;
+        let path = Some(tmp_path.clone());
 
         Ok(GraphIndex {
             node_index,
@@ -101,10 +145,10 @@ impl GraphIndex {
         // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
         if path.exists() {
             fs::remove_dir_all(path)
-                .map_err(|e| GraphError::FailedToRemoveExistingGraphIndex(path.clone()))?;
+                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.clone()))?;
         }
 
-        fs::rename(source_path, path).map_err(|e| GraphError::FailedToMoveGraphIndex)?;
+        GraphIndex::copy_dir_recursive(source_path, path)?;
 
         println!("Graph index persisted to disk at: {}", path.display());
         Ok(())

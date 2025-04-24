@@ -23,8 +23,8 @@ use raphtory::{
         },
     },
     prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps,
-        NodeViewOps, PropUnwrap, PropertyFilter, StableDecode,
+        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, InternalStableDecode,
+        NodePropertyFilterOps, NodeViewOps, PropUnwrap, PropertyFilter,
     },
 };
 use raphtory_api::core::PropType;

@@ -1867,7 +1867,8 @@ pub(crate) mod test_filters {
             + AdditionOps
             + InternalAdditionOps
             + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
+            + PropertyAdditionOps
+            + StableEncode,
     {
         let graph = init_fn();
         graph.create_index().unwrap();
@@ -1938,8 +1939,11 @@ pub(crate) mod test_filters {
             #[cfg(feature = "search")]
             use crate::db::graph::views::filter::test_filters::search_nodes_with;
 
-            use crate::db::graph::views::filter::{
-                internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
+            use crate::{
+                db::graph::views::filter::{
+                    internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
+                },
+                prelude::NodeViewOps,
             };
 
             fn init_graph<
@@ -2512,7 +2516,10 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps};
+    use crate::{
+        db::graph::views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+        prelude::StableEncode,
+    };
 
     fn init_nodes_graph<
         G: StaticGraphViewOps

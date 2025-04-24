@@ -224,6 +224,9 @@ pub enum GraphError {
         source: io::Error,
     },
 
+    #[error("IO operation failed: {0}")]
+    IOErrorMsg(String),
+
     #[cfg(feature = "proto")]
     #[error("zip operation failed")]
     ZipError {

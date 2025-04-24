@@ -632,7 +632,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
-                storage.get_or_create_index(Some(path.join("index").clone()))?;
+                storage.get_or_create_index(Some(path.clone()))?;
                 Ok(())
             })
     }

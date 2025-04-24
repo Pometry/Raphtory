@@ -1,8 +1,4 @@
-use std::{
-    fmt::format,
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-};
+use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},

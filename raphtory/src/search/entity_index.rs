@@ -10,14 +10,8 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     PropType,
 };
-use std::{
-    borrow::Borrow,
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{borrow::Borrow, path::PathBuf, sync::Arc};
 use tantivy::{
-    directory::MmapDirectory,
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index, IndexReader, IndexWriter, Term,
 };
