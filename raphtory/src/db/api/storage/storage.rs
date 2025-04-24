@@ -155,6 +155,13 @@ impl Storage {
         }
         Ok(())
     }
+
+    pub(crate) fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        if let Some(index) = self.get_index() {
+            index.persist_to_disk_zip(path)?
+        }
+        Ok(())
+    }
 }
 
 impl InternalStorageOps for Storage {

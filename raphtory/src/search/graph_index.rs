@@ -4,7 +4,7 @@ use crate::{
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
-    db::api::storage::graph::storage_ops::GraphStorage,
+    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::InternalStorageOps},
     prelude::*,
     search::{
         edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex,
@@ -15,16 +15,18 @@ use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::{
     fmt::{Debug, Formatter},
     fs,
-    path::PathBuf,
+    fs::File,
+    path::{Path, PathBuf},
 };
 use tantivy::schema::{FAST, INDEXED, STORED};
 use walkdir::WalkDir;
+use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 #[derive(Clone)]
 pub struct GraphIndex {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
-    pub(crate) path: Option<PathBuf>,
+    pub path: Option<PathBuf>,
 }
 
 impl Debug for GraphIndex {
@@ -86,9 +88,40 @@ impl GraphIndex {
         Ok(())
     }
 
+    fn copy_dir_recursive_zip(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
+        let file = File::open(source)?;
+        let mut archive = ZipArchive::new(file)?;
+
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i)?;
+            let name = entry.name().to_string();
+            if !name.starts_with("index/") {
+                continue;
+            }
+
+            let rel_path = Path::new(&name)
+                .strip_prefix("index/")
+                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip 'index/': {}", e)))?;
+
+            let out_path = destination.join(rel_path);
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+
+            let mut outfile = File::create(&out_path)?;
+            std::io::copy(&mut entry, &mut outfile)?;
+        }
+
+        Ok(())
+    }
+
     fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
-        let tmp_path = tempfile::TempDir::new()?.path().to_path_buf();
-        GraphIndex::copy_dir_recursive(path, &tmp_path)?;
+        let tmp_path = &tempfile::TempDir::new()?.path().to_path_buf();
+        if path.is_file() {
+            GraphIndex::copy_dir_recursive_zip(path, tmp_path)?;
+        } else {
+            GraphIndex::copy_dir_recursive(path, tmp_path)?;
+        }
 
         let node_index = NodeIndex::load_from_path(&tmp_path.join("nodes"))?;
         let edge_index = EdgeIndex::load_from_path(&tmp_path.join("edges"))?;
@@ -151,6 +184,53 @@ impl GraphIndex {
         GraphIndex::copy_dir_recursive(source_path, path)?;
 
         println!("Graph index persisted to disk at: {}", path.display());
+        Ok(())
+    }
+
+    pub fn persist_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        let index_path = &path.join("index");
+
+        let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
+
+        if index_path.exists() {
+            fs::remove_dir_all(index_path)
+                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(index_path.clone()))?;
+        }
+
+        let file = File::options().read(true).write(true).open(path)?;
+
+        let mut zip = ZipWriter::new_append(file)?;
+
+        for entry in WalkDir::new(&source_path)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.path().is_file())
+        {
+            let rel_path = entry
+                .path()
+                .strip_prefix(source_path)
+                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
+
+            let zip_entry_name = PathBuf::from("index")
+                .join(rel_path)
+                .to_string_lossy()
+                .into_owned();
+            zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())
+                .map_err(|e| {
+                    GraphError::IOErrorMsg(format!("Failed to start zip file entry: {}", e))
+                })?;
+
+            let mut f = File::open(entry.path())
+                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to open index file: {}", e)))?;
+
+            std::io::copy(&mut f, &mut zip).map_err(|e| {
+                GraphError::IOErrorMsg(format!("Failed to write zip content: {}", e))
+            })?;
+        }
+
+        zip.finish()
+            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to finalize zip: {}", e)))?;
+
         Ok(())
     }
 

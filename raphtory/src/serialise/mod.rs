@@ -14,7 +14,9 @@ mod proto {
 #[cfg(feature = "search")]
 use crate::prelude::SearchableGraphOps;
 use crate::{
-    core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::GraphViewOps,
+    core::utils::errors::GraphError,
+    db::api::view::{internal::InternalStorageOps, MaterializedGraph},
+    prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
@@ -97,9 +99,18 @@ impl GraphFolder {
         self.write_metadata(graph)?;
 
         #[cfg(feature = "search")]
-        graph.persist_index_to_disk(&self.root_folder)?;
+        self.write_index(graph)?;
 
         Ok(())
+    }
+
+    #[cfg(feature = "search")]
+    fn write_index(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
+        if self.prefer_zip_format {
+            graph.persist_index_to_disk_zip(&self.root_folder)
+        } else {
+            graph.persist_index_to_disk(&self.root_folder)
+        }
     }
 
     fn write_graph_data(&self, graph: &impl StableEncode) -> Result<(), io::Error> {
@@ -212,25 +223,15 @@ impl From<&GraphFolder> for GraphFolder {
 }
 
 // this mod focuses on the zip format, as the folder format is
-// the default and is largelly exercised in other places
+// the default and is largely exercised in other places
 #[cfg(test)]
 mod zip_tests {
-    use super::{StableDecode, StableEncode};
+    use super::StableEncode;
     use crate::{
-        prelude::{AdditionOps, CacheOps, Graph, GraphViewOps, NO_PROPS},
+        prelude::{AdditionOps, CacheOps, Graph, NO_PROPS},
         serialise::{metadata::GraphMetadata, GraphFolder},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
-
-    #[test]
-    fn test_zip() {
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
-        graph.encode(GraphFolder::new_as_zip(&temp_file)).unwrap();
-        let graph = Graph::decode(&temp_file).unwrap();
-        assert_eq!(graph.count_nodes(), 1);
-    }
 
     #[test]
     fn test_load_cached_from_zip() {

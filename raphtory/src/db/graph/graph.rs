@@ -450,6 +450,8 @@ impl Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
+    #[cfg(feature = "proto")]
+    use crate::serialise::StableDecode;
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
@@ -472,7 +474,6 @@ mod db_tests {
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
-        serialise::StableDecode,
         test_storage,
         test_utils::{build_graph, build_graph_strat, test_graph},
     };

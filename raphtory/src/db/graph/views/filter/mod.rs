@@ -1867,8 +1867,7 @@ pub(crate) mod test_filters {
             + AdditionOps
             + InternalAdditionOps
             + InternalPropertyAdditionOps
-            + PropertyAdditionOps
-            + StableEncode,
+            + PropertyAdditionOps,
     {
         let graph = init_fn();
         graph.create_index().unwrap();
@@ -2516,10 +2515,7 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::{
-        db::graph::views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-        prelude::StableEncode,
-    };
+    use crate::db::graph::views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps};
 
     fn init_nodes_graph<
         G: StaticGraphViewOps

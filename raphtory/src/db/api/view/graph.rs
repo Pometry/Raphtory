@@ -44,9 +44,11 @@ use raphtory_api::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
+    fs::File,
     path::PathBuf,
     sync::{atomic::Ordering, Arc},
 };
+use zip::{write::FileOptions, ZipWriter};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -139,6 +141,8 @@ pub trait SearchableGraphOps: Sized {
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
 
     fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
+
+    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError>;
 
     fn search_nodes<F: AsNodeFilter>(
         &self,
@@ -632,7 +636,15 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
-                storage.get_or_create_index(Some(path.clone()))?;
+                if path.is_file() {
+                    storage.get_or_create_index(Some(path.clone()))?;
+                } else {
+                    let index_path = path.join("index");
+                    if index_path.exists() && index_path.read_dir()?.next().is_some() {
+                        storage.get_or_create_index(Some(index_path.clone()))?;
+                    }
+                }
+
                 Ok(())
             })
     }
@@ -642,6 +654,14 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         self.get_storage()
             .map_or(Err(GraphError::FailedToPersistIndex), |storage| {
                 storage.persist_index_to_disk(&path)?;
+                Ok(())
+            })
+    }
+
+    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::FailedToPersistIndex), |storage| {
+                storage.persist_index_to_disk_zip(&path)?;
                 Ok(())
             })
     }

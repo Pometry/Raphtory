@@ -1,4 +1,6 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
+#[cfg(feature = "search")]
+use crate::prelude::SearchableGraphOps;
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},
@@ -16,7 +18,7 @@ use crate::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{Graph, SearchableGraphOps},
+    prelude::Graph,
     serialise::{
         proto::{self, graph_update::*, new_meta::*, new_node::Gid},
         proto_ext,
@@ -59,12 +61,7 @@ pub trait StableDecode: InternalStableDecode + StaticGraphViewOps {
         let graph = Self::decode_from_path(&folder)?;
 
         #[cfg(feature = "search")]
-        {
-            let index_path = folder.root_folder.join("index");
-            if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                graph.load_index(&index_path)?;
-            }
-        }
+        graph.load_index(&folder.root_folder)?;
 
         Ok(graph)
     }
@@ -1484,13 +1481,38 @@ mod proto_test {
         use crate::{
             core::{utils::errors::GraphError, Prop},
             db::{
-                api::view::internal::InternalStorageOps,
+                api::{
+                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                    view::{internal::InternalStorageOps, StaticGraphViewOps},
+                },
                 graph::views::filter::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
             prelude::{
-                AdditionOps, Graph, NodeViewOps, SearchableGraphOps, StableDecode, StableEncode,
+                AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+                SearchableGraphOps, StableDecode, StableEncode,
             },
+            serialise::GraphFolder,
         };
+        use raphtory_api::core::storage::arc_str::ArcStr;
+
+        fn init_graph<G>(graph: G) -> G
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            graph
+                .add_node(
+                    1,
+                    "Alice",
+                    vec![("p1", Prop::U64(2u64))],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+        }
 
         fn assert_search_results<T: AsNodeFilter + Clone>(
             graph: &Graph,
@@ -1509,15 +1531,7 @@ mod proto_test {
         #[test]
         fn test_create_no_index_persist_no_index_on_encode_load_no_index_on_decode() {
             // No index persisted since it was never created
-            let graph = Graph::new();
-            graph
-                .add_node(
-                    1,
-                    "Alice",
-                    vec![("p1", Prop::U64(2u64))],
-                    Some("fire_nation"),
-                )
-                .unwrap();
+            let graph = init_graph(Graph::new());
 
             let err = graph
                 .search_nodes(NodeFilter::name().eq("Alice"), 2, 0)
@@ -1534,15 +1548,7 @@ mod proto_test {
 
         #[test]
         fn test_create_index_persist_index_on_encode_load_index_on_decode() {
-            let graph = Graph::new();
-            graph
-                .add_node(
-                    1,
-                    "Alice",
-                    vec![("p1", Prop::U64(2u64))],
-                    Some("fire_nation"),
-                )
-                .unwrap();
+            let graph = init_graph(Graph::new());
 
             // Created index
             graph.create_index().unwrap();
@@ -1564,15 +1570,7 @@ mod proto_test {
 
         #[test]
         fn test_create_index_persist_index_on_encode_update_index_load_persisted_index_on_decode() {
-            let graph = Graph::new();
-            graph
-                .add_node(
-                    1,
-                    "Alice",
-                    vec![("p1", Prop::U64(2u64))],
-                    Some("fire_nation"),
-                )
-                .unwrap();
+            let graph = init_graph(Graph::new());
 
             // Created index
             graph.create_index().unwrap();
@@ -1602,6 +1600,23 @@ mod proto_test {
             assert!(index.is_some());
             assert_search_results(&graph, &filter1, vec!["Alice"]);
             assert_search_results(&graph, &filter2, Vec::<&str>::new());
+        }
+
+        #[test]
+        fn test_zip_encode_decode_index() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            let folder = GraphFolder::new_as_zip(path.clone());
+            graph.encode(folder).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let node = graph.node("Alice").unwrap();
+            let node_type = node.node_type();
+            assert_eq!(node_type, Some(ArcStr::from("fire_nation")));
+
+            let filter = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter, vec!["Alice"]);
         }
     }
 }
