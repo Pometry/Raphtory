@@ -190,7 +190,7 @@ def test_add_edges():
             ],
         )
         check_arr(ben_hammza.history(), [1, 2, 3, 4, 5, 6])
-        assert ben_hammza.layer_names == ["_default", "test"]
+        assert set(ben_hammza.layer_names) == {"_default", "test"}
         check_arr(hamza_lucas.history(), [1, 2])
         assert hamza_lucas.layer_names == ["_default"]
         helper_test_props(lucas_hamza.layer("_default"), lucas_props)

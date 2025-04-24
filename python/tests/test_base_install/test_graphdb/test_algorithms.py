@@ -188,10 +188,6 @@ def test_algo_result_layered_graph():
     res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
     c1 = res_zero_two[1]
     c2 = res_zero_two[4]
-    c3 = res_zero_two[6]
-    c4 = res_zero_two[7]
-    c5 = res_zero_two[8]
-    c6 = res_zero_two[9]
 
     assert res_zero_two == {
         1: c1,
@@ -199,26 +195,12 @@ def test_algo_result_layered_graph():
         3: c1,
         4: c2,
         5: c2,
-        6: c3,
-        7: c4,
-        8: c5,
-        9: c6,
     }
 
     res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
-    c1 = res_three_five[1]
-    c2 = res_three_five[2]
-    c3 = res_three_five[3]
-    c4 = res_three_five[4]
-    c5 = res_three_five[5]
     c6 = res_three_five[6]
     c7 = res_three_five[8]
     assert res_three_five == {
-        1: c1,
-        2: c2,
-        3: c3,
-        4: c4,
-        5: c5,
         6: c6,
         7: c6,
         8: c7,

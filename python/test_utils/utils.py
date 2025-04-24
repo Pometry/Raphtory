@@ -63,3 +63,9 @@ def run_graphql_error_test(query, expected_error_message, graph):
         assert (
             error_message == expected_error_message
         ), f"Expected '{expected_error_message}', but got '{error_message}'"
+
+
+def assert_set_eq(left, right):
+    """Check if two lists are the same set and same length"""
+    assert len(left) == len(right)
+    assert set(left) == set(right)
