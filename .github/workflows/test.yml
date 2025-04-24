@@ -28,7 +28,7 @@ jobs:
       test_python_lower: true
     secrets: inherit
   call-test-python-disk-storage-workflow-in-local-repo:
-    name: Run Python tests
+    name: Run Python storage tests
     uses: ./.github/workflows/test_python_disk_storage_workflow.yml
     with:
       test_python_lower: true
