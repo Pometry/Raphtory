@@ -13,10 +13,10 @@ sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
-tracing = {workspace = true}
+tracing = { workspace = true }
 once_cell = { workspace = true }
-serde =  { workspace = true }
-itertools =  { workspace = true }
+serde = { workspace = true }
+itertools = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
@@ -68,3 +68,4 @@ required-features = ["search"]
 
 [features]
 search = ["raphtory/search"]
+storage = ["raphtory/storage"]

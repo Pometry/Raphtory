@@ -26,7 +26,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::db::api::view::internal::{GraphTimeSemanticsOps, InheritStorageOps};
+use crate::db::api::view::internal::{
+    GraphTimeSemanticsOps, InheritNodeFilterOps, InheritStorageOps,
+};
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -72,6 +74,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
@@ -117,26 +120,6 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
     fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.constrain(self.graph.valid_layer_ids_from_names(key))
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for LayeredGraph<G> {
-    fn nodes_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All) || self.graph.nodes_filtered()
-    }
-
-    fn node_list_trusted(&self) -> bool {
-        matches!(self.layers, LayerIds::All) && self.graph.node_list_trusted()
-    }
-
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
-    }
-
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph
-            .filter_node(node, &self.layers.intersect(layer_ids))
-            && self.node_time_semantics().node_valid(node, &self)
     }
 }
 
