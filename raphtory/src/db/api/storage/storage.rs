@@ -33,8 +33,6 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "proto")]
-use crate::serialise::GraphFolder;
 #[cfg(feature = "search")]
 use crate::{
     db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
@@ -110,22 +108,6 @@ impl Storage {
         } else {
             Ok(())
         }
-    }
-}
-
-#[cfg(feature = "proto")]
-impl Storage {
-    /// Initialise the cache by pointing it at a proto file.
-    /// Future updates will be appended to the cache.
-    pub(crate) fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache
-            .get_or_try_init(|| Ok::<_, GraphError>(GraphWriter::new(path.clone())?))?;
-        Ok(())
-    }
-
-    /// Get the cache writer if it is initialised.
-    pub(crate) fn get_cache(&self) -> Option<&GraphWriter> {
-        self.cache.get()
     }
 }
 

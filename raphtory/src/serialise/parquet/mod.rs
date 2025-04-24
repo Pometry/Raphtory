@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        arrow_dtype_from_prop_type, entities::graph::tgraph::TemporalGraph,
-        utils::errors::GraphError,
-    },
+    core::{arrow_dtype_from_prop_type, utils::errors::GraphError},
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
