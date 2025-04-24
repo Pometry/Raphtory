@@ -130,7 +130,6 @@ mod bipartite_graph_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
         let new_graph = temporal_bipartite_projection(&g, 3, "Right".to_string());
-        println!("{:?}", new_graph);
 
         assert!(new_graph.has_edge("A", "B"));
         assert_eq!(new_graph.edge("A", "B").unwrap().earliest_time(), Some(3));
