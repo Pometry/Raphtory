@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>1.7.6"]
+requires = ["maturin>=1.8.3"]
 build-backend = "maturin"
 
 [project]
@@ -32,7 +32,7 @@ pyvis = ["pyvis >= 0.3.2"]
 networkx = ["networkx >= 2.6.3"]
 export = ["raphtory[pyvis,networkx]"]
 all = ["raphtory[export,plot]"]
-dev = ["docstring_parser >= 0.16", "pandas-stubs", "maturin>1.7.6", "tox>=4.25"]
+dev = ["docstring_parser >= 0.16", "pandas-stubs", "maturin>=1.8.3", "tox>=4.25"]
 test = ["raphtory[all]", "requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytest >= 8"]
 tox = ["nbmake"]
 
