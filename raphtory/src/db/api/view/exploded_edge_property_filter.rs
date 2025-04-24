@@ -1,12 +1,11 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{InternalMaterialize, OneHopFilter},
+        api::view::internal::OneHopFilter,
         graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::GraphType;
 
 pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
@@ -14,12 +13,6 @@ pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
         filter: F,
     ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>
     {
-        if matches!(
-            self.current_filter().graph_type(),
-            GraphType::PersistentGraph
-        ) {
-            return Err(GraphError::PropertyFilteringNotImplemented);
-        }
         let graph = filter.create_exploded_edge_filter(self.current_filter().clone())?;
         Ok(self.one_hop_filtered(graph))
     }
@@ -39,13 +32,17 @@ mod test {
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 },
-                views::property_filter::PropertyRef,
+                views::{deletion_graph::PersistentGraph, property_filter::PropertyRef},
             },
         },
         prelude::*,
-        test_utils::{build_edge_list, build_graph_from_edge_list, build_window},
+        test_utils::{
+            build_edge_list, build_edge_list_with_deletions, build_graph_from_edge_list,
+            build_window, Update,
+        },
     };
     use proptest::{arbitrary::any, proptest};
+    use std::collections::HashMap;
 
     fn build_filtered_graph(
         edges: &[(u64, u64, i64, String, i64)],
@@ -73,6 +70,61 @@ mod test {
         g
     }
 
+    fn build_filtered_persistent_graph(
+        edges: HashMap<(u64, u64), Vec<(i64, Update)>>,
+        filter: impl Fn(i64) -> bool,
+    ) -> (PersistentGraph, PersistentGraph) {
+        let g = PersistentGraph::new();
+        let g_filtered = PersistentGraph::new();
+        if !edges.is_empty() {
+            g_filtered.resolve_layer(None).unwrap();
+        }
+        for ((src, dst), mut updates) in edges {
+            let mut keep = false;
+            updates.sort();
+            for (t, update) in updates {
+                match update {
+                    Update::Deletion => {
+                        g.delete_edge(t, src, dst, None).unwrap();
+                        if keep {
+                            g_filtered.delete_edge(t, src, dst, None).unwrap();
+                        }
+                        keep = false;
+                    }
+                    Update::Addition(str_prop, int_prop) => {
+                        g.add_edge(
+                            t,
+                            src,
+                            dst,
+                            [
+                                ("str_prop", str_prop.clone().into()),
+                                ("int_prop", Prop::I64(int_prop)),
+                            ],
+                            None,
+                        )
+                        .unwrap();
+                        keep = filter(int_prop);
+                        if keep {
+                            g_filtered
+                                .add_edge(
+                                    t,
+                                    src,
+                                    dst,
+                                    [
+                                        ("str_prop", str_prop.into()),
+                                        ("int_prop", Prop::I64(int_prop)),
+                                    ],
+                                    None,
+                                )
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+        }
+        (g, g_filtered)
+    }
+
     #[test]
     fn test_filter_gt() {
         proptest!(|(
@@ -83,6 +135,17 @@ mod test {
                 PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)
             ).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
+            assert_graph_equal(&filtered, &expected_filtered_g);
+        })
+    }
+
+    #[test]
+    fn test_filter_gt_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv > v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::gt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
     }
@@ -117,6 +180,17 @@ mod test {
     }
 
     #[test]
+    fn test_filter_ge_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv >= v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            assert_graph_equal(&filtered, &expected_filtered_g);
+        })
+    }
+
+    #[test]
     fn test_filter_lt() {
         proptest!(|(
             edges in build_edge_list(100, 100), v in any::<i64>()
@@ -124,6 +198,17 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             let filtered = g.filter_exploded_edges( PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv < v);
+            assert_graph_equal(&filtered, &expected_filtered_g);
+        })
+    }
+
+    #[test]
+    fn test_filter_lt_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv < v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::lt(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
     }
@@ -141,6 +226,17 @@ mod test {
     }
 
     #[test]
+    fn test_filter_le_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv <= v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::le(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            assert_graph_equal(&filtered, &expected_filtered_g);
+        })
+    }
+
+    #[test]
     fn test_filter_eq() {
         proptest!(|(
             edges in build_edge_list(100, 100), v in any::<i64>()
@@ -148,6 +244,17 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
+            assert_graph_equal(&filtered, &expected_filtered_g);
+        })
+    }
+
+    #[test]
+    fn test_filter_eq_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv == v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
     }
@@ -165,6 +272,17 @@ mod test {
     }
 
     #[test]
+    fn test_filter_ne_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv != v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::ne(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            assert_graph_equal(&filtered, &expected_filtered_g);
+        })
+    }
+
+    #[test]
     fn test_filter_window() {
         proptest!(|(
             edges in build_edge_list(100, 100), v in any::<i64>(), (start, end) in build_window()
@@ -177,6 +295,17 @@ mod test {
     }
 
     #[test]
+    fn test_filter_window_persistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>(), (start, end) in build_window()
+        )| {
+            let (g, expected_filtered_g) = build_filtered_persistent_graph(edges, |vv| vv >= v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            assert_graph_equal(&filtered.window(start, end), &expected_filtered_g.window(start, end));
+        })
+    }
+
+    #[test]
     fn test_filter_materialise_is_consistent() {
         proptest!(|(
             edges in build_edge_list(100, 100), v in any::<i64>()
@@ -184,8 +313,20 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let mat = filtered.materialize().unwrap();
-            assert_edges_equal(&filtered.edges(), &mat.edges());
-            // FIXME filtered_exploded_edges doesn't propagate timestamps to nodes assert_graph_equal(&filtered, &filtered.materialize().unwrap());
+            assert_graph_equal(&filtered, &mat);
+        })
+    }
+
+    #[test]
+    fn test_filter_persistent_materialise_is_consistent() {
+        proptest!(|(
+            edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()
+        )| {
+            let (g, expected) = build_filtered_persistent_graph(edges, |vv| vv >= v);
+            let filtered = g.filter_exploded_edges(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let mat = filtered.materialize().unwrap();
+            assert_graph_equal(&filtered, &mat);
+            assert_graph_equal(&expected, &mat);
         })
     }
 

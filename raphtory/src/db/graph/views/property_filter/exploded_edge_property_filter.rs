@@ -1,18 +1,15 @@
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError, Prop},
+    core::{entities::LayerIds, utils::errors::GraphError},
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::node_ref::NodeStorageRef,
-            },
+            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    EdgeFilterOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, Immutable,
-                    InheritCoreOps, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
-                    InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, NodeFilterOps,
-                    NodeTimeSemanticsOps, Static, TimeSemantics,
+                    EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritCoreOps,
+                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
+                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                    InheritTimeSemantics, Static,
                 },
                 Base,
             },
@@ -23,14 +20,10 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::{
-    core::{
-        entities::{EID, ELID},
-        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-    },
-    iter::BoxedLDIter,
+use raphtory_api::core::{
+    entities::{EID, ELID},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -113,6 +106,15 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
 }
+
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilteredGraph<G> {
     fn edges_filtered(&self) -> bool {
         true
@@ -142,104 +144,5 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
             && edge
                 .filtered_additions_iter(LayeredGraph::new(&self, layer_ids.clone()))
                 .any(|(_, additions)| !additions.is_empty())
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for ExplodedEdgePropertyFilteredGraph<G> {
-    fn nodes_filtered(&self) -> bool {
-        true
-    }
-
-    fn node_list_trusted(&self) -> bool {
-        false
-    }
-
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
-    }
-
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        let res = self.graph.filter_node(node, layer_ids)
-            && self
-                .node_time_semantics()
-                .node_valid(node, LayeredGraph::new(self, layer_ids.clone()));
-        res
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps
-    for ExplodedEdgePropertyFilteredGraph<G>
-{
-    fn node_time_semantics(&self) -> TimeSemantics {
-        self.graph.node_time_semantics()
-    }
-
-    fn edge_time_semantics(&self) -> TimeSemantics {
-        self.graph.edge_time_semantics()
-    }
-
-    fn view_start(&self) -> Option<i64> {
-        self.graph.view_start()
-    }
-
-    fn view_end(&self) -> Option<i64> {
-        self.graph.view_end()
-    }
-
-    fn earliest_time_global(&self) -> Option<i64> {
-        self.graph.earliest_time_global()
-    }
-
-    fn latest_time_global(&self) -> Option<i64> {
-        self.graph.latest_time_global()
-    }
-
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.earliest_time_window(start, end)
-    }
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
-        // separate timestamps from node property updates and edge additions currently
-        self.graph.latest_time_window(start, end)
-    }
-
-    fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        self.graph.has_temporal_prop(prop_id)
-    }
-
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_prop_iter(prop_id)
-    }
-
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph.has_temporal_prop_window(prop_id, w)
-    }
-
-    fn temporal_prop_iter_window(
-        &self,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_prop_iter_window(prop_id, start, end)
-    }
-
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_prop_last_at(prop_id, t)
-    }
-
-    fn temporal_prop_last_at_window(
-        &self,
-        prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_prop_last_at_window(prop_id, t, w)
     }
 }

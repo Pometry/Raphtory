@@ -99,6 +99,7 @@ tokio = { workspace = true }             # for vector testing
 dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
+proptest-derive = { workspace = true }
 polars-core = { workspace = true, features = ["fmt"] }
 polars-io = { workspace = true, features = ["parquet"] }
 indoc = { workspace = true }

@@ -153,6 +153,7 @@ mod test_utils {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*};
+    use proptest_derive::Arbitrary;
     use raphtory_api::core::PropType;
     use std::collections::HashMap;
     #[cfg(feature = "storage")]
@@ -192,6 +193,23 @@ mod test_utils {
                 any::<String>(),
                 any::<i64>(),
             ),
+            0..=len,
+        )
+    }
+
+    #[derive(Debug, Arbitrary, PartialOrd, PartialEq, Eq, Ord)]
+    pub(crate) enum Update {
+        Addition(String, i64),
+        Deletion,
+    }
+
+    pub(crate) fn build_edge_list_with_deletions(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = HashMap<(u64, u64), Vec<(i64, Update)>>> {
+        proptest::collection::hash_map(
+            (0..num_nodes, 0..num_nodes),
+            proptest::collection::vec(any::<(i64, Update)>(), 0..=len),
             0..=len,
         )
     }
