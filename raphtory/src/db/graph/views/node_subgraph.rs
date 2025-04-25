@@ -295,31 +295,21 @@ mod subgraph_tests {
             use crate::{
                 core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
-                    graph::views::{
-                        deletion_graph::PersistentGraph,
-                        filter::{AsNodeFilter, PropertyFilterOps},
-                    },
+                    api::view::StaticGraphViewOps,
+                    graph::views::{deletion_graph::PersistentGraph, filter::PropertyFilterOps},
                 },
-                prelude::{
-                    AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                    PropertyFilter, TimeOps,
-                },
+                prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
-            use crate::{
-                db::graph::views::{
-                    filter::internal::InternalNodeFilterOps,
-                    test_helpers::{filter_nodes_with, search_nodes_with},
-                },
-                prelude::NodePropertyFilterOps,
+            use crate::db::graph::views::{
+                filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
+
+            #[cfg(feature = "search")]
+            use crate::db::graph::views::test_helpers::search_nodes_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -522,27 +512,25 @@ mod subgraph_tests {
             use crate::{
                 core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{
-                            internal::InternalEdgeFilterOps, AsEdgeFilter, PropertyFilterOps,
-                        },
+                        filter::{internal::InternalEdgeFilterOps, PropertyFilterOps},
                     },
                 },
                 prelude::{
-                    AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
-                    NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps,
+                    AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter,
+                    TimeOps,
                 },
             };
             use std::ops::Range;
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
-            use crate::db::graph::views::test_helpers::{filter_edges_with, search_edges_with};
+            use crate::db::graph::views::test_helpers::filter_edges_with;
+
+            #[cfg(feature = "search")]
+            use crate::db::graph::views::test_helpers::search_edges_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

@@ -287,9 +287,11 @@ mod test_layers {
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::{
-                filter::internal::InternalNodeFilterOps,
-                test_helpers::{filter_nodes_with, search_nodes_with},
+                filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
+
+            #[cfg(feature = "search")]
+            use crate::db::graph::views::test_helpers::search_nodes_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -542,7 +544,10 @@ mod test_layers {
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
-            use crate::db::graph::views::test_helpers::{filter_edges_with, search_edges_with};
+            use crate::db::graph::views::test_helpers::filter_edges_with;
+
+            #[cfg(feature = "search")]
+            use crate::db::graph::views::test_helpers::search_edges_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
