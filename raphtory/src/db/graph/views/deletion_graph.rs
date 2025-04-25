@@ -55,6 +55,12 @@ impl From<GraphStorage> for PersistentGraph {
     }
 }
 
+impl From<Arc<Storage>> for PersistentGraph {
+    fn from(value: Arc<Storage>) -> Self {
+        Self(value)
+    }
+}
+
 impl Display for PersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.0, f)
@@ -556,7 +562,7 @@ mod test_deletions {
     #[test]
     fn materialize_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
-            let g = build_graph(graph_f).persistent_graph();
+            let g = PersistentGraph(build_graph(&graph_f));
             let gm = g.materialize().unwrap();
             assert_graph_equal(&g, &gm);
         })
@@ -565,7 +571,7 @@ mod test_deletions {
     #[test]
     fn materialize_window_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
-            let g = build_graph(graph_f).persistent_graph();
+            let g = PersistentGraph(build_graph(&graph_f));
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);
@@ -630,7 +636,7 @@ mod test_deletions {
     #[test]
     fn materialize_window_layers_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
-            let g = build_graph(graph_f).persistent_graph();
+            let g = PersistentGraph(build_graph(&graph_f));
             let glw = g.valid_layers(l).window(w.start, w.end);
             let gmlw = glw.materialize().unwrap();
             assert_graph_equal(&glw, &gmlw);

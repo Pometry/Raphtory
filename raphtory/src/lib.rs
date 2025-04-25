@@ -148,14 +148,24 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{core::DECIMAL_MAX, db::api::view::internal::CoreGraphOps, prelude::*};
+    use crate::{
+        core::DECIMAL_MAX,
+        db::{
+            api::{
+                mutation::internal::InternalAdditionOps, storage::storage::Storage,
+                view::internal::CoreGraphOps,
+            },
+            graph::views::deletion_graph::PersistentGraph,
+        },
+        prelude::*,
+    };
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*};
     use proptest_derive::Arbitrary;
     use raphtory_api::core::PropType;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
 
@@ -171,6 +181,7 @@ mod test_utils {
             $crate::test_utils::test_disk_graph($graph, $test);
         };
     }
+
     #[cfg(feature = "storage")]
     pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         let test_dir = TempDir::new().unwrap();
@@ -589,9 +600,8 @@ mod test_utils {
         g
     }
 
-    pub(crate) fn build_graph<'a>(graph_fix: impl Into<GraphFixture>) -> Graph {
-        let g = Graph::new();
-        let graph_fix = graph_fix.into();
+    pub(crate) fn build_graph<'a>(graph_fix: &GraphFixture) -> Arc<Storage> {
+        let g = Arc::new(Storage::default());
         for (src, dst, time, layer) in &graph_fix.no_props_edges {
             g.add_edge(*time, *src, *dst, NO_PROPS, *layer).unwrap();
         }
@@ -604,17 +614,73 @@ mod test_utils {
                 .unwrap();
         }
 
-        for ((src, dst, layer), props) in graph_fix.edge_const_props {
-            let edge = g.add_edge(0, src, dst, NO_PROPS, layer).unwrap();
-            edge.update_constant_properties(props, None).unwrap();
+        for ((src, dst, layer), props) in &graph_fix.edge_const_props {
+            let edge = g.add_edge(0, src, dst, NO_PROPS, *layer).unwrap();
+            edge.update_constant_properties(props.clone(), None)
+                .unwrap();
         }
         for (node, t, t_props) in &graph_fix.nodes.nodes {
+            g.add_node(*t, *node, t_props.clone(), None).unwrap();
+        }
+        for (node, c_props) in &graph_fix.nodes.node_const_props {
             if let Some(n) = g.node(*node) {
-                n.add_updates(*t, t_props.clone()).unwrap();
+                n.update_constant_properties(c_props.clone()).unwrap();
             } else {
-                g.add_node(0, *node, t_props.clone(), None).unwrap();
+                let node = g.add_node(0, *node, NO_PROPS, None).unwrap();
+                node.update_constant_properties(c_props.clone()).unwrap();
             }
         }
+
+        g
+    }
+
+    pub(crate) fn build_graph_layer(
+        graph_fix: &GraphFixture,
+        layers: impl Into<Layer>,
+    ) -> Arc<Storage> {
+        let g = Arc::new(Storage::default());
+        let layers = layers.into();
+
+        for (src, dst, time, layer) in &graph_fix.no_props_edges {
+            if layers.contains(layer.unwrap_or("_default")) {
+                g.add_edge(*time, *src, *dst, NO_PROPS, *layer).unwrap();
+            }
+        }
+        for (src, dst, time, props, layer) in &graph_fix.edges {
+            // property keys still exists even if there are no updates
+            for (key, v) in props {
+                g.resolve_edge_property(key, v.dtype(), false).unwrap();
+            }
+            if layers.contains(layer.unwrap_or("_default")) {
+                g.add_edge(*time, src, dst, props.clone(), *layer).unwrap();
+            }
+        }
+        for (src, dst, time, layer) in &graph_fix.edge_deletions {
+            if layers.contains(layer.unwrap_or("_default")) {
+                g.core_graph()
+                    .delete_edge(*time, *src, *dst, *layer)
+                    .unwrap();
+            }
+        }
+
+        for ((src, dst, layer), props) in &graph_fix.edge_const_props {
+            // property keys still exists even if there are no updates
+            for (key, v) in props {
+                g.resolve_edge_property(key, v.dtype(), true).unwrap();
+            }
+            if layers.contains(layer.unwrap_or("_default")) {
+                let edge = g.add_edge(0, src, dst, NO_PROPS, *layer).unwrap();
+                edge.update_constant_properties(
+                    props.into_iter().map(|(key, value)| (key, value.clone())),
+                    None,
+                )
+                .unwrap();
+            }
+        }
+        for (node, t, t_props) in &graph_fix.nodes.nodes {
+            g.add_node(*t, *node, t_props.clone(), None).unwrap();
+        }
+
         for (node, c_props) in &graph_fix.nodes.node_const_props {
             if let Some(n) = g.node(*node) {
                 n.update_constant_properties(c_props.clone()).unwrap();

@@ -45,6 +45,12 @@ pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
+impl From<Arc<Storage>> for Graph {
+    fn from(inner: Arc<Storage>) -> Self {
+        Self { inner }
+    }
+}
+
 impl Static for Graph {}
 
 pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
@@ -3959,7 +3965,7 @@ mod db_tests {
     #[test]
     fn materialize_window_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, false), w in any::<Range<i64>>())| {
-            let g = build_graph(graph_f);
+            let g = Graph::from(build_graph(&graph_f));
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);

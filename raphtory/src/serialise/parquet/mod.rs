@@ -727,7 +727,7 @@ mod test {
 
     // proptest
     fn build_and_check_parquet_encoding(edges: GraphFixture) {
-        let g = build_graph(edges);
+        let g = Graph::from(build_graph(&edges));
         check_parquet_encoding(g);
     }
 

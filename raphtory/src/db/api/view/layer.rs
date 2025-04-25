@@ -102,6 +102,18 @@ pub enum Layer {
     Multiple(Arc<[ArcStr]>),
 }
 
+impl Layer {
+    pub fn contains(&self, name: &str) -> bool {
+        match self {
+            Layer::All => true,
+            Layer::None => false,
+            Layer::Default => name == "_default",
+            Layer::One(layer) => layer == name,
+            Layer::Multiple(layers) => layers.iter().any(|l| l == name),
+        }
+    }
+}
+
 trait SingleLayer {
     fn name(self) -> ArcStr;
 }

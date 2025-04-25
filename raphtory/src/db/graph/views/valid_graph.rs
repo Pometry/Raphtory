@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn materialize_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
-            let g = build_graph(graph_f).persistent_graph().valid().unwrap();
+            let g = PersistentGraph(build_graph(&graph_f)).valid().unwrap();
             let gm = g.materialize().unwrap();
             assert_graph_equal(&g, &gm);
         })
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn materialize_valid_window_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
-            let g = build_graph(graph_f).persistent_graph();
+            let g = PersistentGraph(build_graph(&graph_f));
             let gvw = g.valid().unwrap().window(w.start, w.end);
             let gmw = gvw.materialize().unwrap();
             assert_graph_equal(&gvw, &gmw);
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn materialize_window_valid_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
-            let g = build_graph(graph_f).persistent_graph();
+            let g = PersistentGraph(build_graph(&graph_f));
             let gvw = g.window(w.start, w.end).valid().unwrap();
             let gmw = gvw.materialize().unwrap();
             assert_graph_equal(&gvw, &gmw);
