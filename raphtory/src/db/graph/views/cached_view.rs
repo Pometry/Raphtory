@@ -332,81 +332,22 @@ mod test {
         }
 
         mod test_nodes_filters_cached_view_graph {
-            #[cfg(all(test, feature = "search"))]
-            use crate::db::graph::views::filter::test_filters::search_nodes_with;
             use crate::{
                 core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
-                    graph::views::{
-                        deletion_graph::PersistentGraph,
-                        filter::{
-                            test_filters::filter_nodes_with, AsNodeFilter, PropertyFilterOps,
-                        },
-                    },
+                    api::view::StaticGraphViewOps,
+                    graph::views::{deletion_graph::PersistentGraph, filter::PropertyFilterOps},
                 },
-                prelude::{
-                    AdditionOps, Graph, GraphViewOps, NodePropertyFilterOps, NodeViewOps,
-                    PropertyAdditionOps, PropertyFilter, TimeOps,
-                },
+                prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
-            use crate::db::graph::views::filter::internal::InternalNodeFilterOps;
-
-            fn filter_nodes_with_w<G, F, I: InternalNodeFilterOps>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-
-                let fg = graph.window(w.start, w.end).filter_nodes(filter).unwrap();
-                let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
-            #[cfg(feature = "search")]
-            pub(crate) fn search_nodes_with_w<G, F, I: AsNodeFilter>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                graph.create_index().unwrap();
-
-                let mut results = graph
-                    .window(w.start, w.end)
-                    .search_nodes(filter, 20, 0)
-                    .unwrap()
-                    .into_iter()
-                    .map(|nv| nv.name())
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
-            }
+            use crate::db::graph::views::{
+                filter::internal::InternalNodeFilterOps,
+                test_helpers::{filter_nodes_with, search_nodes_with},
+            };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let node_data = vec![
@@ -436,42 +377,48 @@ mod test {
             }
 
             fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-                filter_nodes_with(filter, || init_graph(Graph::new()))
+                filter_nodes_with(filter, init_graph(Graph::new()))
             }
 
             fn filter_nodes_w<I: InternalNodeFilterOps>(filter: I, w: Range<i64>) -> Vec<String> {
-                filter_nodes_with_w(filter, || init_graph(Graph::new()), w)
+                filter_nodes_with(filter, init_graph(Graph::new()).window(w.start, w.end))
             }
 
             fn filter_nodes_pg<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-                filter_nodes_with(filter, || init_graph(PersistentGraph::new()))
+                filter_nodes_with(filter, init_graph(PersistentGraph::new()))
             }
 
             fn filter_nodes_pg_w<I: InternalNodeFilterOps>(
                 filter: I,
                 w: Range<i64>,
             ) -> Vec<String> {
-                filter_nodes_with_w(filter, || init_graph(PersistentGraph::new()), w)
+                filter_nodes_with(
+                    filter,
+                    init_graph(PersistentGraph::new()).window(w.start, w.end),
+                )
             }
 
             #[cfg(feature = "search")]
             fn search_nodes(filter: PropertyFilter) -> Vec<String> {
-                search_nodes_with(filter, || init_graph(Graph::new()))
+                search_nodes_with(filter, init_graph(Graph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_nodes_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
-                search_nodes_with_w(filter, || init_graph(Graph::new()), w)
+                search_nodes_with(filter, init_graph(Graph::new()).window(w.start, w.end))
             }
 
             #[cfg(feature = "search")]
             fn search_nodes_pg(filter: PropertyFilter) -> Vec<String> {
-                search_nodes_with(filter, || init_graph(PersistentGraph::new()))
+                search_nodes_with(filter, init_graph(PersistentGraph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_nodes_pg_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
-                search_nodes_with_w(filter, || init_graph(PersistentGraph::new()), w)
+                search_nodes_with(
+                    filter,
+                    init_graph(PersistentGraph::new()).window(w.start, w.end),
+                )
             }
 
             #[test]
@@ -510,82 +457,19 @@ mod test {
         mod test_edges_filter_cached_view_graph {
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
-            #[cfg(all(test, feature = "search"))]
-            use crate::db::graph::views::filter::test_filters::search_edges_with;
             use crate::{
                 core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{
-                            internal::InternalEdgeFilterOps, test_filters::filter_edges_with,
-                            AsEdgeFilter, PropertyFilterOps,
-                        },
+                        filter::{internal::InternalEdgeFilterOps, PropertyFilterOps},
+                        test_helpers::{filter_edges_with, search_edges_with},
                     },
                 },
-                prelude::{
-                    AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
-                    NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps,
-                },
+                prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
-
-            pub(crate) fn filter_edges_with_w<G, F, I: InternalEdgeFilterOps>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-
-                let fg = graph.window(w.start, w.end).filter_edges(filter).unwrap();
-                let mut results = fg
-                    .edges()
-                    .iter()
-                    .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
-            #[cfg(feature = "search")]
-            pub(crate) fn search_edges_with_w<G, F, I: AsEdgeFilter>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                graph.create_index().unwrap();
-
-                let mut results = graph
-                    .window(w.start, w.end)
-                    .search_edges(filter, 20, 0)
-                    .unwrap()
-                    .into_iter()
-                    .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
-            }
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edge_data = vec![
@@ -615,16 +499,16 @@ mod test {
             }
 
             fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-                filter_edges_with(filter, || init_graph(Graph::new()))
+                filter_edges_with(filter, init_graph(Graph::new()))
             }
 
             fn filter_edges_w<I: InternalEdgeFilterOps>(filter: I, w: Range<i64>) -> Vec<String> {
-                filter_edges_with_w(filter, || init_graph(Graph::new()), w)
+                filter_edges_with(filter, init_graph(Graph::new()).window(w.start, w.end))
             }
 
             #[allow(dead_code)]
             fn filter_edges_pg<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-                filter_edges_with(filter, || init_graph(PersistentGraph::new()))
+                filter_edges_with(filter, init_graph(PersistentGraph::new()))
             }
 
             #[allow(dead_code)]
@@ -632,27 +516,33 @@ mod test {
                 filter: I,
                 w: Range<i64>,
             ) -> Vec<String> {
-                filter_edges_with_w(filter, || init_graph(PersistentGraph::new()), w)
+                filter_edges_with(
+                    filter,
+                    init_graph(PersistentGraph::new()).window(w.start, w.end),
+                )
             }
 
             #[cfg(feature = "search")]
             fn search_edges(filter: PropertyFilter) -> Vec<String> {
-                search_edges_with(filter, || init_graph(Graph::new()))
+                search_edges_with(filter, init_graph(Graph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_edges_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
-                search_edges_with_w(filter, || init_graph(Graph::new()), w)
+                search_edges_with(filter, init_graph(Graph::new()).window(w.start, w.end))
             }
 
             #[cfg(feature = "search")]
             fn search_edges_pg(filter: PropertyFilter) -> Vec<String> {
-                search_edges_with(filter, || init_graph(PersistentGraph::new()))
+                search_edges_with(filter, init_graph(PersistentGraph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_edges_pg_w(filter: PropertyFilter, w: Range<i64>) -> Vec<String> {
-                search_edges_with_w(filter, || init_graph(PersistentGraph::new()), w)
+                search_edges_with(
+                    filter,
+                    init_graph(PersistentGraph::new()).window(w.start, w.end),
+                )
             }
 
             #[test]
@@ -675,7 +565,7 @@ mod test {
             fn test_edges_filters_pg() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
-                // PropertyFilteringNotImplemented
+                // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results!(filter_edges_pg, filter, expected_results);
                 assert_search_results!(search_edges_pg, filter, expected_results);
             }
@@ -684,7 +574,7 @@ mod test {
             fn test_edges_filters_pg_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
-                // PropertyFilteringNotImplemented
+                // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
             }
