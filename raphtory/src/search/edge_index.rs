@@ -53,7 +53,7 @@ impl Debug for EdgeIndex {
 impl EdgeIndex {
     pub(crate) fn new() -> Self {
         let schema = Self::schema_builder().build();
-        let edge_id_field = schema.get_field(EDGE_ID).ok().expect("Edge ID is absent");
+        let edge_id_field = schema.get_field(EDGE_ID).expect("Edge ID is absent");
         let src_field = schema.get_field(SOURCE).expect("Source is absent");
         let src_tokenized_field = schema
             .get_field(SOURCE_TOKENIZED)

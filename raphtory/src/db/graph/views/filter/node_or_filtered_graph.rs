@@ -43,7 +43,6 @@ impl<L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps f
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         let left = self.left.create_node_filter(graph.clone())?;
         let right = self.right.create_node_filter(graph.clone())?;
-        let _layer_ids = left.layer_ids().intersect(right.layer_ids());
         Ok(NodeOrFilteredGraph { graph, left, right })
     }
 }

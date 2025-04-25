@@ -202,8 +202,6 @@ impl PropertyIndex {
 
         Self::add_property_value_to_doc(&mut document, field_property, prop_value);
 
-        // println!("Added prop doc: {}", &document.to_json(&schema));
-
         Ok(document)
     }
 

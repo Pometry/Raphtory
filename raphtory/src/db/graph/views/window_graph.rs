@@ -1849,7 +1849,7 @@ mod views_test {
                 let filter =
                     NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomad".into()]);
                 let expected_results = vec!["N1", "N3", "N5", "N6", "N7", "N8"];
-                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results); // TODO: Fails
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
             }
 
@@ -1867,7 +1867,7 @@ mod views_test {
                 let expected_results = vec![
                     "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
                 ];
-                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results); // TODO Fails
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
             }
 

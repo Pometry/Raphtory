@@ -2179,16 +2179,6 @@ pub(crate) mod test_filters {
                         graph.add_node(*id, label, props.clone(), None).unwrap();
                     }
 
-                    let constant_properties = [("N1", [("p2", Prop::U64(1u64))])];
-
-                    for (node, props) in constant_properties.iter() {
-                        graph
-                            .node(node)
-                            .unwrap()
-                            .add_constant_properties(props.clone())
-                            .unwrap();
-                    }
-
                     graph
                 }
 
@@ -2480,16 +2470,6 @@ pub(crate) mod test_filters {
 
                     for (time, src, dst, props) in edges {
                         graph.add_edge(time, src, dst, props, None).unwrap();
-                    }
-
-                    let constant_edges = [("N1", "N2", vec![("p2", Prop::U64(1u64))])];
-
-                    for (src, dst, props) in constant_edges {
-                        graph
-                            .edge(src, dst)
-                            .unwrap()
-                            .add_constant_properties(props.clone(), None)
-                            .unwrap();
                     }
 
                     graph

@@ -49,12 +49,10 @@ mod test {
         g.add_edge(2, "David", "Jimi", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        // let filter_expr = EdgeFilter::src().eq("David");
         let filter_expr = EdgeFilter::dst()
             .eq("David")
             .and(PropertyFilter::property("band").eq("Dead & Company"));
         let filtered_edges = g.filter_edges(filter_expr).unwrap();
-        // let filtered_edges = g.nodes().filter_nodes(filter_expr).unwrap();
 
         assert_eq!(
             filtered_edges
@@ -62,7 +60,6 @@ mod test {
                 .iter()
                 .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
                 .collect::<Vec<_>>(),
-            // vec!["Jimi->John"],
             vec!["John->David"]
         );
     }

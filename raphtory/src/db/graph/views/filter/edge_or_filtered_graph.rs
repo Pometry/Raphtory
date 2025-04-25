@@ -43,7 +43,6 @@ impl<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps f
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let left = self.left.create_edge_filter(graph.clone())?;
         let right = self.right.create_edge_filter(graph.clone())?;
-        let _layer_ids = left.layer_ids().intersect(right.layer_ids());
         Ok(EdgeOrFilteredGraph { graph, left, right })
     }
 }
