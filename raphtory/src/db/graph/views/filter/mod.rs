@@ -2985,6 +2985,11 @@ pub(crate) mod test_filters {
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
 
+            let filter = NodeFilter::name().is_in(vec!["".into()]);
+            let expected_results = Vec::<&str>::new();
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
             let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
             let expected_results = vec!["2", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -2995,6 +3000,11 @@ pub(crate) mod test_filters {
         fn test_filter_nodes_for_node_name_not_in() {
             let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
             let expected_results = vec!["2", "3", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = NodeFilter::name().is_not_in(vec!["".into()]);
+            let expected_results = vec!["1", "2", "3", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
         }
