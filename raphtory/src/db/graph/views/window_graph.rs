@@ -50,8 +50,9 @@ use crate::{
                 internal::{
                     Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList,
                     EdgeTimeSemanticsOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritLayerOps, InheritMaterialize, InheritStorageOps, ListOps, NodeFilterOps,
-                    NodeHistoryFilter, NodeList, NodeTimeSemanticsOps, Static, TimeSemantics,
+                    InheritLayerOps, InheritMaterialize, InheritStorageOps, InternalNodeFilterOps,
+                    ListOps, NodeHistoryFilter, NodeList, NodeTimeSemanticsOps, Static,
+                    TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -273,18 +274,18 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         self.window_is_empty()
-            || self.graph.nodes_filtered()
+            || self.graph.internal_nodes_filtered()
             || self.start_bound() > self.core_graph().earliest_time().unwrap_or(i64::MAX)
             || self.end_bound() <= self.core_graph().latest_time().unwrap_or(i64::MIN)
     }
 
     #[inline]
     fn node_list_trusted(&self) -> bool {
-        self.window_is_empty() || self.graph.node_list_trusted() && !self.nodes_filtered()
+        self.window_is_empty() || self.graph.node_list_trusted() && !self.internal_nodes_filtered()
     }
 
     #[inline]
@@ -293,9 +294,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
-            && self.graph.filter_node(node, layer_ids)
+            && self.graph.internal_filter_node(node, layer_ids)
             && self
                 .node_time_semantics()
                 .node_valid(node, LayeredGraph::new(&self.graph, layer_ids.clone()))

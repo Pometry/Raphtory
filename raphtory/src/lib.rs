@@ -150,12 +150,9 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 mod test_utils {
     use crate::{
         core::DECIMAL_MAX,
-        db::{
-            api::{
-                mutation::internal::InternalAdditionOps, storage::storage::Storage,
-                view::internal::CoreGraphOps,
-            },
-            graph::views::deletion_graph::PersistentGraph,
+        db::api::{
+            mutation::internal::InternalAdditionOps, storage::storage::Storage,
+            view::internal::CoreGraphOps,
         },
         prelude::*,
     };

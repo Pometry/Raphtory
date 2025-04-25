@@ -45,7 +45,7 @@ pub trait BoxableGraphView:
     CoreGraphOps
     + ListOps
     + EdgeFilterOps
-    + NodeFilterOps
+    + InternalNodeFilterOps
     + InternalLayerOps
     + GraphTimeSemanticsOps
     + InternalMaterialize
@@ -63,7 +63,7 @@ impl<
         G: CoreGraphOps
             + ListOps
             + EdgeFilterOps
-            + NodeFilterOps
+            + InternalNodeFilterOps
             + InternalLayerOps
             + GraphTimeSemanticsOps
             + InternalMaterialize

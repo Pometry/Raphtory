@@ -1,16 +1,18 @@
 use super::GraphStorage;
 use crate::{
     core::entities::LayerIds,
-    db::api::{storage::graph::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
+    db::api::{
+        storage::graph::nodes::node_ref::NodeStorageRef, view::internal::InternalNodeFilterOps,
+    },
 };
 
-impl NodeFilterOps for GraphStorage {
+impl InternalNodeFilterOps for GraphStorage {
     #[inline]
     fn node_list_trusted(&self) -> bool {
         true
     }
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         false
     }
 
@@ -20,7 +22,7 @@ impl NodeFilterOps for GraphStorage {
     }
 
     #[inline]
-    fn filter_node(&self, _node: NodeStorageRef, _layer_ids: &LayerIds) -> bool {
+    fn internal_filter_node(&self, _node: NodeStorageRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 }

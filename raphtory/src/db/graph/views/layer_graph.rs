@@ -5,15 +5,12 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::node_ref::NodeStorageRef,
-        },
+        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
                 Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritTimeSemantics,
-                InternalLayerOps, NodeFilterOps, NodeTimeSemanticsOps, Static,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
@@ -24,10 +21,6 @@ use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
-};
-
-use crate::db::api::view::internal::{
-    GraphTimeSemanticsOps, InheritNodeFilterOps, InheritStorageOps,
 };
 
 #[derive(Clone)]

@@ -8,9 +8,9 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
-pub trait NodeFilterOps {
+pub trait InternalNodeFilterOps {
     /// Check if GraphView filters nodes (i.e., there exists nodes in the underlying graph for which `filter_node` returns false
-    fn nodes_filtered(&self) -> bool;
+    fn internal_nodes_filtered(&self) -> bool;
 
     /// Check if node list can be trusted. (if false, nodes in `self.node_list` need further filtering,
     /// if true, the result of `self.node_list` can be trusted, in particular, its len is the number
@@ -23,18 +23,18 @@ pub trait NodeFilterOps {
     fn edge_filter_includes_node_filter(&self) -> bool;
 
     /// If `true`, node is included in the graph
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
 }
 
 pub trait InheritNodeFilterOps: Base {}
 
-impl<G: InheritNodeFilterOps> NodeFilterOps for G
+impl<G: InheritNodeFilterOps> InternalNodeFilterOps for G
 where
-    G::Base: NodeFilterOps,
+    G::Base: InternalNodeFilterOps,
 {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
-        self.base().nodes_filtered()
+    fn internal_nodes_filtered(&self) -> bool {
+        self.base().internal_nodes_filtered()
     }
 
     #[inline]
@@ -48,7 +48,7 @@ where
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.base().filter_node(node, layer_ids)
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.base().internal_filter_node(node, layer_ids)
     }
 }

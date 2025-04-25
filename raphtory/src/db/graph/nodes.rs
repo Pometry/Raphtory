@@ -308,7 +308,7 @@ where
 
     pub fn is_filtered(&self) -> bool {
         self.node_types_filter.is_some()
-            || self.graph.nodes_filtered()
+            || self.graph.internal_nodes_filtered()
             || self.graph.edge_history_filtered()
     }
 

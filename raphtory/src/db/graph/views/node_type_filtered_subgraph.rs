@@ -6,7 +6,7 @@ use crate::{
         view::internal::{
             Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
             InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, NodeFilterOps, Static,
+            InheritTimeSemantics, InternalNodeFilterOps, Static,
         },
     },
     prelude::GraphViewOps,
@@ -60,9 +60,9 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for TypeFilteredS
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for TypeFilteredSubgraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for TypeFilteredSubgraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
 
@@ -77,8 +77,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.node_types.contains(&node.node_type_id()) && self.graph.filter_node(node, layer_ids)
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.node_types.contains(&node.node_type_id())
+            && self.graph.internal_filter_node(node, layer_ids)
     }
 }
 

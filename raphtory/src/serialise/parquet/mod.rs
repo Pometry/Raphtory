@@ -406,7 +406,7 @@ impl ParquetDecoder for PersistentGraph {
 mod test {
     use super::*;
     use crate::{
-        db::{api::view::MaterializedGraph, graph::graph::assert_graph_equal},
+        db::graph::graph::assert_graph_equal,
         test_utils::{
             build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, GraphFixture,
             NodeFixture,

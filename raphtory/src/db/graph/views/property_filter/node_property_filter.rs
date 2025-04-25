@@ -8,7 +8,7 @@ use crate::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritTimeSemantics, NodeFilterOps, Static,
+                    InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
                 node::NodeViewOps,
                 Base,
@@ -84,9 +84,9 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilteredGraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
 
@@ -101,8 +101,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGrap
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.filter_node(node, layer_ids) {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        if self.graph.internal_filter_node(node, layer_ids) {
             let props = NodeView::new_internal(&self.graph, node.vid()).properties();
             let prop_value = self
                 .t_prop_id

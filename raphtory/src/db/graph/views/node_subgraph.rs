@@ -10,8 +10,8 @@ use crate::{
         view::internal::{
             Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
             InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
-            InheritNodeHistoryFilter, InheritTimeSemantics, ListOps, NodeFilterOps, NodeList,
-            Static,
+            InheritNodeHistoryFilter, InheritTimeSemantics, InternalNodeFilterOps, ListOps,
+            NodeList, Static,
         },
     },
     prelude::GraphViewOps,
@@ -62,7 +62,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
         let nodes = nodes
             .into_iter()
             .flat_map(|v| graph.internalise_node(v.as_node_ref()));
-        let nodes = if graph.nodes_filtered() {
+        let nodes = if graph.internal_nodes_filtered() {
             Index::from_iter(nodes.filter(|n| graph.has_node(*n)))
         } else {
             Index::from_iter(nodes)
@@ -102,8 +102,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
-    fn nodes_filtered(&self) -> bool {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
     fn node_list_trusted(&self) -> bool {
@@ -115,8 +115,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
         self.graph.edge_filter_includes_node_filter()
     }
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
     }
 }
 

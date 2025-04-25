@@ -9,7 +9,7 @@ use crate::{
         view::internal::{
             Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
             InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, InternalLayerOps, NodeFilterOps, Static,
+            InheritTimeSemantics, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -157,9 +157,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
-    fn nodes_filtered(&self) -> bool {
-        self.graph.nodes_filtered()
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        self.graph.internal_nodes_filtered()
     }
     fn node_list_trusted(&self) -> bool {
         self.graph.node_list_trusted()
@@ -170,7 +170,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),

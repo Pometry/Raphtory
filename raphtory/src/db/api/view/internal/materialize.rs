@@ -51,7 +51,7 @@ use std::ops::Range;
 #[enum_dispatch(ListOps)]
 #[enum_dispatch(GraphTimeSemanticsOps)]
 #[enum_dispatch(EdgeFilterOps)]
-#[enum_dispatch(NodeFilterOps)]
+#[enum_dispatch(InternalNodeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
