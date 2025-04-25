@@ -292,7 +292,8 @@ mod test {
     mod test_filters_cached_view {
         mod test_nodes_filters_cached_view_graph {
             use crate::{
-                assert_filter_results, assert_filter_results_w,
+                assert_filter_results, assert_filter_results_w, assert_search_results,
+                assert_search_results_w,
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
@@ -300,8 +301,6 @@ mod test {
                 },
                 prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
             };
-            #[cfg(feature = "search")]
-            use crate::{assert_search_results, assert_search_results_w};
             use std::ops::Range;
 
             #[cfg(feature = "search")]
@@ -419,9 +418,10 @@ mod test {
         }
 
         mod test_edges_filter_cached_view_graph {
-            use crate::{assert_filter_results, assert_filter_results_w};
-            #[cfg(feature = "search")]
-            use crate::{assert_search_results, assert_search_results_w};
+            use crate::{
+                assert_filter_results, assert_filter_results_w, assert_search_results,
+                assert_search_results_w,
+            };
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;

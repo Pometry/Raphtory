@@ -1474,9 +1474,7 @@ mod views_test {
             use raphtory_api::core::storage::arc_str::ArcStr;
             use std::ops::Range;
 
-            use crate::assert_filter_results_w;
-            #[cfg(feature = "search")]
-            use crate::assert_search_results_w;
+            use crate::{assert_filter_results_w, assert_search_results_w};
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
@@ -2342,9 +2340,7 @@ mod views_test {
             #[cfg(feature = "search")]
             use crate::db::graph::views::test_helpers::search_edges_with;
 
-            use crate::assert_filter_results_w;
-            #[cfg(feature = "search")]
-            use crate::assert_search_results_w;
+            use crate::{assert_filter_results_w, assert_search_results_w};
 
             fn init_graph<
                 G: StaticGraphViewOps

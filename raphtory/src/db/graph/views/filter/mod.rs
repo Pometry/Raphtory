@@ -115,8 +115,10 @@ impl FilterOperator {
         prefix_match: bool,
     ) -> impl Fn(&str, &str) -> bool {
         move |left: &str, right: &str| {
-            let levenshtein_match = levenshtein(left, right) <= levenshtein_distance;
-            let prefix_match = prefix_match && right.starts_with(left);
+            let left = left.to_lowercase();
+            let right = right.to_lowercase();
+            let levenshtein_match = levenshtein(&left, &right) <= levenshtein_distance;
+            let prefix_match = prefix_match && right.starts_with(&left);
             levenshtein_match || prefix_match
         }
     }
@@ -1813,10 +1815,7 @@ pub(crate) mod test_filters {
 
         #[cfg(test)]
         mod test_node_property_filter_semantics {
-            use crate::assert_filter_results;
-
-            #[cfg(feature = "search")]
-            use crate::assert_search_results;
+            use crate::{assert_filter_results, assert_search_results};
 
             use crate::{
                 core::Prop,
@@ -2113,10 +2112,7 @@ pub(crate) mod test_filters {
             #[cfg(feature = "search")]
             use crate::db::graph::views::test_helpers::search_edges_with;
 
-            use crate::assert_filter_results;
-
-            #[cfg(feature = "search")]
-            use crate::assert_search_results;
+            use crate::{assert_filter_results, assert_search_results};
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -2568,10 +2564,7 @@ pub(crate) mod test_filters {
             prelude::{Graph, PropertyFilter},
         };
 
-        use crate::assert_filter_results;
-
-        #[cfg(feature = "search")]
-        use crate::assert_search_results;
+        use crate::{assert_filter_results, assert_search_results};
 
         #[cfg(feature = "search")]
         fn search_nodes(filter: PropertyFilter) -> Vec<String> {
@@ -2739,10 +2732,7 @@ pub(crate) mod test_filters {
             prelude::{Graph, PropertyFilter},
         };
 
-        use crate::assert_filter_results;
-
-        #[cfg(feature = "search")]
-        use crate::assert_search_results;
+        use crate::{assert_filter_results, assert_search_results};
 
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_edges_with;
@@ -2942,6 +2932,10 @@ pub(crate) mod test_filters {
             let expected_results: Vec<&str> = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
 
+            let filter = PropertyFilter::property("p1").fuzzy_search("ShiV", 2, true);
+            let expected_results: Vec<&str> = vec!["1->2"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+
             let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, false);
             let expected_results: Vec<&str> = vec![];
             assert_filter_results!(filter_edges, filter, expected_results);
@@ -2958,10 +2952,7 @@ pub(crate) mod test_filters {
             prelude::Graph,
         };
 
-        use crate::assert_filter_results;
-
-        #[cfg(feature = "search")]
-        use crate::assert_search_results;
+        use crate::{assert_filter_results, assert_search_results};
 
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_nodes_with;
@@ -3088,10 +3079,7 @@ pub(crate) mod test_filters {
             prelude::{Graph, PropertyFilter},
         };
 
-        use crate::assert_filter_results;
-
-        #[cfg(feature = "search")]
-        use crate::assert_search_results;
+        use crate::{assert_filter_results, assert_search_results};
 
         use crate::db::graph::views::test_helpers::filter_nodes_with;
 
@@ -3228,10 +3216,7 @@ pub(crate) mod test_filters {
             prelude::Graph,
         };
 
-        use crate::assert_filter_results;
-
-        #[cfg(feature = "search")]
-        use crate::assert_search_results;
+        use crate::{assert_filter_results, assert_search_results};
 
         fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
             filter_edges_with(filter, init_edges_graph(Graph::new()))
@@ -3386,10 +3371,7 @@ pub(crate) mod test_filters {
             prelude::{Graph, PropertyFilter},
         };
 
-        use crate::assert_filter_results;
-
-        #[cfg(feature = "search")]
-        use crate::assert_search_results;
+        use crate::{assert_filter_results, assert_search_results};
 
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_edges_with;
