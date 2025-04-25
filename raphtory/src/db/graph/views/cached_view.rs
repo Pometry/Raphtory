@@ -290,49 +290,9 @@ mod test {
 
     #[cfg(test)]
     mod test_filters_cached_view {
-
-        macro_rules! assert_filter_results {
-            ($filter_fn:ident, $filter:expr, $expected_results:expr) => {{
-                let filter_results = $filter_fn($filter.clone());
-                assert_eq!($expected_results, filter_results);
-            }};
-        }
-
-        macro_rules! assert_filter_results_w {
-            ($filter_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
-                let filter_results = $filter_fn($filter.clone(), $window);
-                assert_eq!($expected_results, filter_results);
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_results {
-            ($search_fn:ident, $filter:expr, $expected_results:expr) => {{
-                let search_results = $search_fn($filter.clone());
-                assert_eq!($expected_results, search_results);
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_results {
-            ($search_fn:ident, $filter:expr, $expected_results:expr) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_results_w {
-            ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
-                let search_results = $search_fn($filter.clone(), $window);
-                assert_eq!($expected_results, search_results);
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_results_w {
-            ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
-        }
-
         mod test_nodes_filters_cached_view_graph {
             use crate::{
+                assert_filter_results, assert_filter_results_w,
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
@@ -340,6 +300,8 @@ mod test {
                 },
                 prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
             };
+            #[cfg(feature = "search")]
+            use crate::{assert_search_results, assert_search_results_w};
             use std::ops::Range;
 
             #[cfg(feature = "search")]
@@ -457,6 +419,10 @@ mod test {
         }
 
         mod test_edges_filter_cached_view_graph {
+            use crate::{assert_filter_results, assert_filter_results_w};
+            #[cfg(feature = "search")]
+            use crate::{assert_search_results, assert_search_results_w};
+
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
             use crate::{

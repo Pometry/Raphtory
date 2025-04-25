@@ -5,6 +5,55 @@ pub mod layer_graph;
 pub mod node_subgraph;
 pub mod window_graph;
 
+#[macro_export]
+pub mod macros {
+    #[macro_export]
+    macro_rules! assert_filter_results {
+        ($filter_fn:ident, $filter:expr, $expected_results:expr) => {{
+            let filter_results = $filter_fn($filter.clone());
+            assert_eq!($expected_results, filter_results);
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! assert_filter_results_w {
+        ($filter_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
+            let filter_results = $filter_fn($filter.clone(), $window);
+            assert_eq!($expected_results, filter_results);
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_results {
+        ($search_fn:ident, $filter:expr, $expected_results:expr) => {{
+            let search_results = $search_fn($filter.clone());
+            assert_eq!($expected_results, search_results);
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_results {
+        ($search_fn:ident, $filter:expr, $expected_results:expr) => {};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_results_w {
+        ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
+            let search_results = $search_fn($filter.clone(), $window);
+            assert_eq!($expected_results, search_results);
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_results_w {
+        ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
+    }
+}
+
 mod test_helpers {
     #[cfg(feature = "search")]
     pub use crate::db::api::view::SearchableGraphOps;

@@ -1451,27 +1451,6 @@ mod views_test {
     }
 
     mod test_filters_window_graph {
-
-        macro_rules! assert_filter_results_w {
-            ($filter_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
-                let filter_results = $filter_fn($filter.clone(), $window);
-                assert_eq!($expected_results, filter_results);
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_results_w {
-            ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
-                let search_results = $search_fn($filter.clone(), $window);
-                assert_eq!($expected_results, search_results);
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_results_w {
-            ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
-        }
-
         mod test_nodes_filters_window_graph {
             use crate::{
                 core::Prop,
@@ -1494,6 +1473,10 @@ mod views_test {
             };
             use raphtory_api::core::storage::arc_str::ArcStr;
             use std::ops::Range;
+
+            use crate::assert_filter_results_w;
+            #[cfg(feature = "search")]
+            use crate::assert_search_results_w;
 
             #[cfg(feature = "search")]
             pub use crate::db::api::view::SearchableGraphOps;
@@ -2358,6 +2341,10 @@ mod views_test {
 
             #[cfg(feature = "search")]
             use crate::db::graph::views::test_helpers::search_edges_with;
+
+            use crate::assert_filter_results_w;
+            #[cfg(feature = "search")]
+            use crate::assert_search_results_w;
 
             fn init_graph<
                 G: StaticGraphViewOps
