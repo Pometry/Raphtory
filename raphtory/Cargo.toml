@@ -92,6 +92,7 @@ roaring = { workspace = true }
 fake = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }

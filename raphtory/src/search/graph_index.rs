@@ -19,6 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tantivy::schema::{FAST, INDEXED, STORED};
+use uuid::Uuid;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
@@ -171,6 +172,10 @@ impl GraphIndex {
     pub fn persist_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
         let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
 
+        let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
+
+        GraphIndex::copy_dir_recursive(source_path, temp_path)?;
+
         // Always overwrite the existing graph index when persisting, since the in-memory
         // working index may have newer updates. The persisted index is decoupled from the
         // active one, and changes remain in memory unless explicitly saved.
@@ -181,9 +186,10 @@ impl GraphIndex {
                 .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.clone()))?;
         }
 
-        GraphIndex::copy_dir_recursive(source_path, path)?;
+        fs::rename(temp_path, path).map_err(|e| {
+            GraphError::IOErrorMsg(format!("Failed to rename temp index folder: {}", e))
+        })?;
 
-        println!("Graph index persisted to disk at: {}", path.display());
         Ok(())
     }
 
