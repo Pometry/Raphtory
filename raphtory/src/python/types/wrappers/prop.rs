@@ -233,7 +233,7 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
 
     fn contains(&self, value: String) -> PyFilterExpr;
 
-    fn contains_not(&self, value: String) -> PyFilterExpr;
+    fn not_contains(&self, value: String) -> PyFilterExpr;
 
     fn fuzzy_search(
         &self,
@@ -277,9 +277,9 @@ where
         )))
     }
 
-    fn contains_not(&self, value: String) -> PyFilterExpr {
+    fn not_contains(&self, value: String) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
-            NodeFilterBuilderOps::contains_not(self, value),
+            NodeFilterBuilderOps::not_contains(self, value),
         )))
     }
 
@@ -456,8 +456,8 @@ impl PyPropertyRef {
     ///
     /// Returns:
     ///     PropertyFilter: the property filter
-    fn contains_not(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::contains_not(PropertyRef::Property(self.name.clone()), value);
+    fn not_contains(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::not_contains(PropertyRef::Property(self.name.clone()), value);
         PyPropertyFilter(filter)
     }
 

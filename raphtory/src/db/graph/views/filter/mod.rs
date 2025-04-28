@@ -53,7 +53,7 @@ pub enum FilterOperator {
     IsSome,
     IsNone,
     Contains,
-    ContainsNot,
+    NotContains,
     FuzzySearch {
         levenshtein_distance: usize,
         prefix_match: bool,
@@ -74,7 +74,7 @@ impl Display for FilterOperator {
             FilterOperator::IsSome => "IS_SOME",
             FilterOperator::IsNone => "IS_NONE",
             FilterOperator::Contains => "CONTAINS",
-            FilterOperator::ContainsNot => "CONTAINS_NOT",
+            FilterOperator::NotContains => "NOT_CONTAINS",
             FilterOperator::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
@@ -152,7 +152,7 @@ impl FilterOperator {
                     (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
                     _ => unreachable!(),
                 }),
-                FilterOperator::ContainsNot => right.map_or(false, |r| match (l, r) {
+                FilterOperator::NotContains => right.map_or(false, |r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => !r.deref().contains(l.deref()),
                     _ => unreachable!(),
                 }),
@@ -185,7 +185,7 @@ impl FilterOperator {
                     None => matches!(self, FilterOperator::Ne),
                 },
                 FilterOperator::Contains => right.map_or(false, |r| r.contains(l)),
-                FilterOperator::ContainsNot => right.map_or(false, |r| !r.contains(l)),
+                FilterOperator::NotContains => right.map_or(false, |r| !r.contains(l)),
                 FilterOperator::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
@@ -375,11 +375,11 @@ impl PropertyFilter {
         }
     }
 
-    pub fn contains_not(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
+    pub fn not_contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::ContainsNot,
+            operator: FilterOperator::NotContains,
         }
     }
 
@@ -609,11 +609,11 @@ impl Filter {
         }
     }
 
-    pub fn contains_not(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+    pub fn not_contains(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::Single(field_value.into()),
-            operator: FilterOperator::ContainsNot,
+            operator: FilterOperator::NotContains,
         }
     }
 
@@ -973,7 +973,7 @@ pub trait PropertyFilterOps {
 
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter;
 
-    fn contains_not(&self, value: impl Into<Prop>) -> PropertyFilter;
+    fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter;
 
     fn fuzzy_search(
         &self,
@@ -1028,8 +1028,8 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::contains(self.property_ref(), value.into())
     }
 
-    fn contains_not(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::contains_not(self.property_ref(), value.into())
+    fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter {
+        PropertyFilter::not_contains(self.property_ref(), value.into())
     }
 
     fn fuzzy_search(
@@ -1147,8 +1147,8 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
         Filter::contains(self.field_name(), value).into()
     }
 
-    fn contains_not(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::contains_not(self.field_name(), value.into()).into()
+    fn not_contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::not_contains(self.field_name(), value.into()).into()
     }
 
     fn fuzzy_search(
@@ -1217,7 +1217,7 @@ pub trait EdgeFilterOps {
 
     fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
-    fn contains_not(&self, value: impl Into<String>) -> EdgeFieldFilter;
+    fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
     fn fuzzy_search(
         &self,
@@ -1248,8 +1248,8 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
     }
 
-    fn contains_not(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::contains_not(self.field_name(), value.into()))
+    fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::not_contains(self.field_name(), value.into()))
     }
 
     fn fuzzy_search(
@@ -1762,7 +1762,7 @@ mod test_composite_filters {
     #[test]
     fn test_contains_not_match() {
         let filter =
-            PropertyFilter::contains_not(PropertyRef::Property("prop".to_string()), "shivam");
+            PropertyFilter::not_contains(PropertyRef::Property("prop".to_string()), "shivam");
 
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(!res);
@@ -2707,7 +2707,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_contains_not() {
-            let filter = PropertyFilter::property("p10").contains_not("ship");
+            let filter = PropertyFilter::property("p10").not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2715,7 +2715,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .any()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2723,7 +2723,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .latest()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2913,7 +2913,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_property_contains_not() {
-            let filter = PropertyFilter::property("p10").contains_not("ship");
+            let filter = PropertyFilter::property("p10").not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2921,7 +2921,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .any()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2929,7 +2929,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .latest()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3066,7 +3066,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_node_type_contains_not() {
-            let filter = NodeFilter::node_type().contains_not("fire");
+            let filter = NodeFilter::node_type().not_contains("fire");
             let expected_results = vec!["2", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -3353,7 +3353,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_contains_not() {
-            let filter = EdgeFilter::src().contains_not("Mayer");
+            let filter = EdgeFilter::src().not_contains("Mayer");
             let expected_results: Vec<&str> =
                 vec!["1->2", "2->1", "2->3", "3->1", "David Gilmour->John Mayer"];
             assert_filter_results!(filter_edges, filter, expected_results);

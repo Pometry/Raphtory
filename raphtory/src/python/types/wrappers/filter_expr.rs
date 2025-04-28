@@ -233,8 +233,8 @@ impl PyPropertyFilterOps {
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
-    fn contains_not(&self, value: Prop) -> PyFilterExpr {
-        let property = self.0.contains_not(value);
+    fn not_contains(&self, value: Prop) -> PyFilterExpr {
+        let property = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
@@ -343,8 +343,8 @@ impl PyNodeFilterOp {
         self.0.contains(value)
     }
 
-    fn contains_not(&self, value: String) -> PyFilterExpr {
-        self.0.contains_not(value)
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        self.0.not_contains(value)
     }
 
     fn fuzzy_search(
@@ -412,8 +412,8 @@ impl PyEdgeFilterOp {
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    fn contains_not(&self, value: String) -> PyFilterExpr {
-        let field = self.0.contains_not(value);
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        let field = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 

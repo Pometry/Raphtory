@@ -81,7 +81,7 @@ impl<'a> QueryBuilder<'a> {
                     )?;
                     create_contains_query(terms)
                 }
-                FilterOperator::ContainsNot => {
+                FilterOperator::NotContains => {
                     let terms = create_property_tokenized_tantivy_terms(
                         property_index,
                         prop_name,
@@ -144,7 +144,7 @@ impl<'a> QueryBuilder<'a> {
                         create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
                     create_contains_query(terms)
                 }
-                FilterOperator::ContainsNot => {
+                FilterOperator::NotContains => {
                     let terms =
                         create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
                     create_contains_not_query(terms)
@@ -197,7 +197,7 @@ impl<'a> QueryBuilder<'a> {
                         create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
                     create_contains_query(terms)
                 }
-                FilterOperator::ContainsNot => {
+                FilterOperator::NotContains => {
                     let terms =
                         create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
                     create_contains_not_query(terms)

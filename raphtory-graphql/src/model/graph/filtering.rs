@@ -149,7 +149,7 @@ pub enum Operator {
     IsIn,
     IsNotIn,
     Contains,
-    ContainsNot,
+    NotContains,
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -383,7 +383,7 @@ fn build_property_filter(
             | Operator::IsIn
             | Operator::IsNotIn
             | Operator::Contains
-            | Operator::ContainsNot
+            | Operator::NotContains
     ) && prop.is_none()
     {
         return Err(GraphError::ExpectedValueForOperator(
@@ -463,7 +463,7 @@ impl From<Operator> for FilterOperator {
             Operator::IsSome => FilterOperator::IsSome,
             Operator::IsNone => FilterOperator::IsNone,
             Operator::Contains => FilterOperator::Contains,
-            Operator::ContainsNot => FilterOperator::ContainsNot,
+            Operator::NotContains => FilterOperator::NotContains,
         }
     }
 }

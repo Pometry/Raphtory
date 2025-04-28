@@ -159,26 +159,26 @@ def test_filter_edges_for_property_contains():
     assert result_ids == expected_ids
 
 
-def test_filter_edges_for_property_contains_not():
+def test_filter_edges_for_property_not_contains():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Property("p10").contains_not("ship")
+    filter_expr = filter.Property("p10").not_contains("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = [('1','2'), ('2','1')]
     assert result_ids == expected_ids
 
-    filter_expr = filter.Property("p10").temporal().any().contains_not("ship")
+    filter_expr = filter.Property("p10").temporal().any().not_contains("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = [('1','2'), ('2','1')]
     assert result_ids == expected_ids
 
-    filter_expr = filter.Property("p10").temporal().latest().contains_not("ship")
+    filter_expr = filter.Property("p10").temporal().latest().not_contains("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = [('1','2'), ('2','1')]
     assert result_ids == expected_ids
 
-    filter_expr = filter.Property("p10").constant().contains_not("ship")
+    filter_expr = filter.Property("p10").constant().not_contains("ship")
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = []
     assert result_ids == expected_ids

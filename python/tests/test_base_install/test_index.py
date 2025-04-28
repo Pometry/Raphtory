@@ -168,7 +168,7 @@ def test_search_nodes_for_node_type_fuzzy_match():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.node_type().fuzzy_search("air", 1, False)
+    filter_expr = filter.Node.node_type().fuzzy_search("air_nomad", 1, False)
     results = search_nodes(g, filter_expr)
     assert ["N12", "N13", "N7", "N8"] == results
 
