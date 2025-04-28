@@ -2,7 +2,7 @@ pub mod dataframe;
 pub mod df_loaders;
 mod layer_col;
 pub mod node_col;
-mod prop_handler;
+pub mod prop_handler;
 
 #[cfg(test)]
 mod test {

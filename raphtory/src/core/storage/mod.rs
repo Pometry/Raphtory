@@ -69,6 +69,7 @@ pub struct NodeSlot {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct TColumns {
     t_props_log: Vec<TPropColumn>,
+    row_size: usize, // estimated size of a row
     num_rows: usize,
 }
 

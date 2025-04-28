@@ -1,12 +1,14 @@
 use crate::{
     core::{
-        prop_type_from_arrow_dtype, utils::errors::{GraphError, LoadError}, IntoPropList, PropType
+        prop_type_from_arrow_dtype,
+        utils::errors::{GraphError, LoadError},
+        IntoPropList, PropType,
     },
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
 use arrow_array::{
-    Array as ArrowArray, ArrayAccessor, ArrowPrimitiveType, GenericStringArray, OffsetSizeTrait,
+    Array as ArrowArray, ArrowPrimitiveType, GenericStringArray, OffsetSizeTrait,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -48,7 +50,7 @@ impl PropCols {
     }
 }
 
-pub fn combine_properties(
+pub(crate) fn combine_properties(
     props: &[impl AsRef<str>],
     indices: &[usize],
     df: &DFChunk,
@@ -75,7 +77,7 @@ pub fn combine_properties(
     })
 }
 
-pub fn combine_properties_arrow<A:arrow_array::Array>(
+pub fn combine_properties_arrow<A: arrow_array::Array>(
     props: &[impl AsRef<str>],
     indices: &[usize],
     df: &[A],
