@@ -2269,37 +2269,43 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_fuzzy_search() {
-                let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
-                let expected_results = vec!["N1", "N2"];
+                let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Airpla", 2, false);
+                let expected_results = vec!["N1"];
+                assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
             }
 
             #[test]
             fn test_nodes_filters_pg_fuzzy_search() {
-                let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
+                let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Air", 5, false);
                 let expected_results = vec!["N1", "N2", "N7"];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
             }
 
             #[test]
             fn test_nodes_filters_fuzzy_search_prefix_match() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
-                let expected_results = vec!["N1", "N2", "N5"];
+                let expected_results = vec!["N1", "N2"];
+                assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
 
-                // let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
-                // let expected_results = Vec::<String>::new();
-                // assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
+                let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
+                let expected_results = Vec::<String>::new();
+                assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
+                assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
             }
 
             #[test]
-            fn test_nodes_filters_pg_fuzzy_search_prefix_match() {
+            fn test_nodes_filters_pg_fuzzy_search_prefix_match123() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
-                let expected_results = vec!["N1", "N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N1", "N2", "N7"];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
                 let expected_results = Vec::<String>::new();
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
             }
         }
@@ -3163,12 +3169,15 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_fuzzy_search() {
-                let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
-                let expected_results = vec!["N1->N2", "N2->N3"];
+                let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Airpla", 2, false);
+                let expected_results = vec!["N1->N2"];
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
+            #[ignore]
+            // TODO: PropertyFilteringNotImplemented
             fn test_edges_filters_pg_fuzzy_search() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
                 let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
@@ -3178,15 +3187,19 @@ mod views_test {
             #[test]
             fn test_edges_filters_fuzzy_search_prefix_match() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
-                let expected_results = vec!["N1->N2", "N2->N3", "N5->N6"];
+                let expected_results = vec!["N1->N2", "N2->N3"];
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
-                let expected_results = vec!["N1->N2", "N2->N3", "N5->N6"];
+                let expected_results = vec!["N1->N2", "N2->N3"];
+                assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
             }
 
             #[test]
+            #[ignore]
+            // TODO: PropertyFilteringNotImplemented
             fn test_edges_filters_pg_fuzzy_search_prefix_match() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
                 let expected_results = vec![

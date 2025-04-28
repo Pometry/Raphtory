@@ -4,10 +4,13 @@ use crate::{
         api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::filter::{CompositeEdgeFilter, Filter, FilterOperator, PropertyRef, Temporal},
+            views::filter::{
+                internal::InternalEdgeFilterOps, CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter,
+                Filter, PropertyRef, Temporal,
+            },
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
+    prelude::{EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, PropertyFilter},
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,
@@ -297,7 +300,9 @@ impl<'a> EdgeFilterExecutor<'a> {
                 limit,
                 offset,
             )?,
-            None => vec![],
+            None => {
+                Self::raph_filter_edges(graph, &EdgeFieldFilter(filter.clone()), offset, limit)?
+            }
         };
 
         Ok(results)
@@ -398,36 +403,19 @@ impl<'a> EdgeFilterExecutor<'a> {
 
     fn raph_filter_edges<G: StaticGraphViewOps>(
         graph: &G,
-        filter: &PropertyFilter,
-        limit: usize,
+        filter: &(impl InternalEdgeFilterOps + Clone),
         offset: usize,
+        limit: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        match filter.operator {
-            FilterOperator::IsNone => Ok(match &filter.prop_ref {
-                PropertyRef::Property(prop_name) => graph
-                    .edges()
-                    .into_iter()
-                    .filter(|e| e.properties().get(prop_name).is_none())
-                    .skip(offset)
-                    .take(limit)
-                    .collect::<Vec<_>>(),
-                PropertyRef::ConstantProperty(prop_name) => graph
-                    .edges()
-                    .into_iter()
-                    .filter(|e| e.properties().constant().get(prop_name).is_none())
-                    .skip(offset)
-                    .take(limit)
-                    .collect::<Vec<_>>(),
-                PropertyRef::TemporalProperty(prop_name, _) => graph
-                    .edges()
-                    .into_iter()
-                    .filter(|e| e.properties().temporal().get(prop_name).is_none())
-                    .skip(offset)
-                    .take(limit)
-                    .collect::<Vec<_>>(),
-            }),
-            _ => Err(GraphError::NotSupported),
-        }
+        let filtered_edges = graph
+            .filter_edges(filter.clone())?
+            .edges()
+            .iter()
+            .map(|e| EdgeView::new(graph.clone(), e.edge))
+            .skip(offset)
+            .take(limit)
+            .collect();
+        Ok(filtered_edges)
     }
 
     #[allow(dead_code)]

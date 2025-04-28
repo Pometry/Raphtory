@@ -3,11 +3,18 @@ use crate::{
     db::{
         api::view::StaticGraphViewOps,
         graph::{
+            edge::EdgeView,
             node::NodeView,
-            views::filter::{CompositeNodeFilter, Filter, PropertyRef, Temporal},
+            views::filter::{
+                internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+                CompositeNodeFilter, Filter, NodeNameFilter, NodeTypeFilter, PropertyRef, Temporal,
+            },
         },
     },
-    prelude::{NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
+    prelude::{
+        EdgePropertyFilterOps, GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter,
+        ResetFilter,
+    },
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
@@ -129,7 +136,6 @@ impl<'a> NodeFilterExecutor<'a> {
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            // Query is none for "is_none" filters because it's cheaper to just ask raphtory
             None => Self::raph_filter_nodes(graph, filter, limit, offset),
         }
     }
@@ -317,9 +323,15 @@ impl<'a> NodeFilterExecutor<'a> {
                 limit,
                 offset,
             )?,
-            None => {
-                vec![]
-            }
+            None => match filter.field_name.as_str() {
+                "node_name" => {
+                    Self::raph_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?
+                }
+                "node_type" => {
+                    Self::raph_filter_nodes(graph, &NodeTypeFilter(filter.clone()), limit, offset)?
+                }
+                _ => vec![],
+            },
         };
 
         Ok(results)
@@ -415,18 +427,19 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn raph_filter_nodes<G: StaticGraphViewOps>(
         graph: &G,
-        filter: &PropertyFilter,
+        filter: &(impl InternalNodeFilterOps + Clone),
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<G>>, GraphError> {
-        Ok(graph
-            .nodes()
+        let filtered_nodes = graph
             .filter_nodes(filter.clone())?
-            .into_iter()
-            .map(|n| n.reset_filter())
+            .nodes()
+            .iter()
+            .map(|n| NodeView::new_internal(graph.clone(), n.node))
             .skip(offset)
             .take(limit)
-            .collect())
+            .collect();
+        Ok(filtered_nodes)
     }
 
     #[allow(dead_code)]
