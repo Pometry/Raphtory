@@ -1,22 +1,24 @@
+use criterion::{criterion_group, criterion_main};
+
 #[cfg(feature = "storage")]
 pub mod arrow_bench {
-
-    use crate::common::bench;
     use criterion::{
-        black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode,
+        black_box, BenchmarkId, Criterion, SamplingMode,
     };
     use raphtory::{
         algorithms::{
             centrality::pagerank::unweighted_page_rank,
             components::weakly_connected_components,
             metrics::clustering_coefficient::{
-                clustering_coefficient, local_clustering_coefficient::local_clustering_coefficient,
+                global_clustering_coefficient::global_clustering_coefficient,
+                local_clustering_coefficient::local_clustering_coefficient,
             },
             motifs::local_triangle_count::local_triangle_count,
         },
         graphgen::random_attachment::random_attachment,
         prelude::*,
     };
+    use raphtory_benchmark::common::bench;
     use rayon::prelude::*;
     use tempfile::TempDir;
 
@@ -26,7 +28,10 @@ pub mod arrow_bench {
         bench(&mut group, "local_triangle_count", None, |b| {
             let g = raphtory::graph_loader::lotr_graph::lotr_graph();
             let test_dir = TempDir::new().unwrap();
-            let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+            let g = g
+                .persist_as_disk_graph(test_dir.path())
+                .unwrap()
+                .into_graph();
             let windowed_graph = g.window(i64::MIN, i64::MAX);
 
             b.iter(|| {
@@ -78,7 +83,10 @@ pub mod arrow_bench {
             }
 
             let test_dir = TempDir::new().unwrap();
-            let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+            let g = g
+                .persist_as_disk_graph(test_dir.path())
+                .unwrap()
+                .into_graph();
 
             let windowed_graph = g.window(0, 5);
             b.iter(|| local_clustering_coefficient(&windowed_graph, 1))
@@ -95,7 +103,10 @@ pub mod arrow_bench {
         random_attachment(&graph, 500000, 4, Some(seed));
 
         let test_dir = TempDir::new().unwrap();
-        let graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
+        let graph = graph
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
 
         group.sampling_mode(SamplingMode::Flat);
         group.measurement_time(std::time::Duration::from_secs(60));
@@ -105,7 +116,7 @@ pub mod arrow_bench {
             &graph,
             |b, graph| {
                 b.iter(|| {
-                    let result = clustering_coefficient(graph);
+                    let result = global_clustering_coefficient(graph);
                     black_box(result);
                 });
             },
@@ -122,6 +133,7 @@ pub mod arrow_bench {
 
         let test_dir = TempDir::new().unwrap();
         let graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
+        let graph = graph.into_graph();
         group.sampling_mode(SamplingMode::Flat);
         group.measurement_time(std::time::Duration::from_secs(20));
         group.sample_size(10);
@@ -145,7 +157,10 @@ pub mod arrow_bench {
         let seed: [u8; 32] = [1; 32];
         random_attachment(&graph, 500000, 4, Some(seed));
         let test_dir = TempDir::new().unwrap();
-        let graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
+        let graph = graph
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
 
         group.sampling_mode(SamplingMode::Flat);
         group.measurement_time(std::time::Duration::from_secs(60));
@@ -165,13 +180,17 @@ pub mod arrow_bench {
 }
 
 #[cfg(feature = "storage")]
+pub use arrow_bench::*;
+
+#[cfg(feature = "storage")]
 criterion_group!(
     benches,
-    arrow_bench.local_triangle_count_analysis,
-    arrow_bench.local_clustering_coefficient_analysis,
-    arrow_bench.graphgen_large_clustering_coeff,
-    arrow_bench.graphgen_large_pagerank,
-    arrow_bench.graphgen_large_concomp,
+    local_triangle_count_analysis,
+    local_clustering_coefficient_analysis,
+    graphgen_large_clustering_coeff,
+    graphgen_large_pagerank,
+    graphgen_large_concomp,
 );
+
 #[cfg(feature = "storage")]
 criterion_main!(benches);
