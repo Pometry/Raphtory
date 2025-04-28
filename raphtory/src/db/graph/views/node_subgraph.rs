@@ -437,7 +437,7 @@ mod subgraph_tests {
 
                 let node_names: Option<Vec<String>> =
                     Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N3", "N4"];
                 assert_filter_results!(filter_nodes, filter, node_names, expected_results);
                 assert_search_results!(search_nodes, filter, node_names, expected_results);
@@ -451,7 +451,7 @@ mod subgraph_tests {
                 assert_search_results_w!(search_nodes_w, filter, None, 6..9, expected_results);
 
                 let node_names: Option<Vec<String>> = Some(vec!["N3".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").gt(0u64);
                 let expected_results = vec!["N3"];
                 assert_filter_results_w!(
                     filter_nodes_w,
@@ -478,7 +478,7 @@ mod subgraph_tests {
 
                 let node_names: Option<Vec<String>> =
                     Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N3", "N4"];
                 assert_filter_results!(filter_nodes_pg, filter, node_names, expected_results);
                 assert_search_results!(search_nodes_pg, filter, node_names, expected_results);
@@ -493,8 +493,8 @@ mod subgraph_tests {
 
                 let node_names: Option<Vec<String>> =
                     Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N3"];
+                let filter = PropertyFilter::property("p1").ge(1u64);
+                let expected_results = vec!["N2", "N3", "N5"];
                 assert_filter_results_w!(
                     filter_nodes_pg_w,
                     filter,
@@ -664,7 +664,7 @@ mod subgraph_tests {
 
                 let node_names: Option<Vec<String>> =
                     Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N3->N4", "N4->N5"];
                 assert_filter_results!(filter_edges, filter, node_names, expected_results);
                 assert_search_results!(search_edges, filter, node_names, expected_results);
@@ -679,8 +679,8 @@ mod subgraph_tests {
 
                 let node_names: Option<Vec<String>> =
                     Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N3->N4"];
+                let filter = PropertyFilter::property("p1").ge(1u64);
+                let expected_results = vec!["N2->N3", "N3->N4"];
                 assert_filter_results_w!(
                     filter_edges_w,
                     filter,
@@ -707,7 +707,7 @@ mod subgraph_tests {
 
                 let node_names: Option<Vec<String>> =
                     Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N3->N4", "N4->N5"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results!(filter_edges_pg, filter, node_names, expected_results);
@@ -729,7 +729,7 @@ mod subgraph_tests {
                     "N5".into(),
                     "N6".into(),
                 ]);
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N3->N4"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, node_names, 6..9, expected_results);

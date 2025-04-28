@@ -454,13 +454,13 @@ mod test_layers {
                 assert_search_results!(search_nodes, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
+                let filter = PropertyFilter::property("p1").ge(2u64);
+                let expected_results = vec!["N2", "N5", "N8"];
                 assert_filter_results!(filter_nodes, filter, layers, expected_results);
                 assert_search_results!(search_nodes, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_results!(filter_nodes, filter, layers, expected_results);
                 assert_search_results!(search_nodes, filter, layers, expected_results);
@@ -475,13 +475,13 @@ mod test_layers {
                 assert_search_results_w!(search_nodes_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N3", "N6"];
+                let filter = PropertyFilter::property("p1").ge(2u64);
+                let expected_results = vec!["N2", "N5"];
                 assert_filter_results_w!(filter_nodes_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N1", "N3", "N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, layers, 6..9, expected_results);
@@ -496,14 +496,14 @@ mod test_layers {
                 assert_search_results!(search_nodes_pg, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_results!(filter_nodes_pg, filter, layers, expected_results);
                 assert_search_results!(search_nodes_pg, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
+                let filter = PropertyFilter::property("p1").gt(1u64);
+                let expected_results = vec!["N2", "N5", "N8"];
                 assert_filter_results!(filter_nodes_pg, filter, layers, expected_results);
                 assert_search_results!(search_nodes_pg, filter, layers, expected_results);
             }
@@ -517,14 +517,14 @@ mod test_layers {
                 assert_search_results_w!(search_nodes_pg_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N3", "N6", "N7"];
+                let filter = PropertyFilter::property("p1").gt(1u64);
+                let expected_results = vec!["N2", "N5", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, layers, 6..9, expected_results);
             }
@@ -693,7 +693,7 @@ mod test_layers {
                 assert_search_results!(search_edges, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec![
                     "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1",
                 ];
@@ -701,8 +701,8 @@ mod test_layers {
                 assert_search_results!(search_edges, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1->N2", "N6->N7", "N7->N8"];
+                let filter = PropertyFilter::property("p1").ge(2u64);
+                let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
                 assert_filter_results!(filter_edges, filter, layers, expected_results);
                 assert_search_results!(search_edges, filter, layers, expected_results);
             }
@@ -723,14 +723,14 @@ mod test_layers {
                 // When filtering by specific layer, filter criteria (p1==1) and latest semantics is applicable
                 // only to that specific layer.
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N2->N3", "N3->N4"];
                 assert_filter_results_w!(filter_edges_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1->N2", "N6->N7"];
+                let filter = PropertyFilter::property("p1").gt(1u64);
+                let expected_results = vec!["N2->N3", "N5->N6"];
                 assert_filter_results_w!(filter_edges_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, layers, 6..9, expected_results);
             }
@@ -745,7 +745,7 @@ mod test_layers {
                 assert_search_results!(search_edges_pg, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec![
                     "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1",
                 ];
@@ -754,15 +754,15 @@ mod test_layers {
                 assert_search_results!(search_edges_pg, filter, layers, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1->N2", "N6->N7", "N7->N8"];
+                let filter = PropertyFilter::property("p1").gt(1u64);
+                let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results!(filter_edges_pg, filter, layers, expected_results);
                 assert_search_results!(search_edges_pg, filter, layers, expected_results);
             }
 
             #[test]
-            fn test_edges_filters_pg_w() {
+            fn test_edges_filters_pg_w123() {
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
 
@@ -782,7 +782,7 @@ mod test_layers {
                 assert_search_results_w!(search_edges_pg_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer1".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results =
                     vec!["N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"];
                 // TODO: PropertyFilteringNotImplemented
@@ -790,8 +790,8 @@ mod test_layers {
                 assert_search_results_w!(search_edges_pg_w, filter, layers, 6..9, expected_results);
 
                 let layers: Vec<String> = vec!["layer2".into()];
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1->N2", "N6->N7", "N7->N8"];
+                let filter = PropertyFilter::property("p1").ge(2u64);
+                let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, layers, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, layers, 6..9, expected_results);

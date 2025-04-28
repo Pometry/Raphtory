@@ -406,7 +406,7 @@ mod test {
 
             #[test]
             fn test_nodes_filters_pg() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_results!(filter_nodes_pg, filter, expected_results);
                 assert_search_results!(search_nodes_pg, filter, expected_results);
@@ -414,8 +414,8 @@ mod test {
 
             #[test]
             fn test_nodes_filters_pg_w() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N3", "N6", "N7"];
+                let filter = PropertyFilter::property("p1").ge(2u64);
+                let expected_results = vec!["N2", "N5", "N8"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
             }
@@ -542,7 +542,7 @@ mod test {
 
             #[test]
             fn test_edges_filters_pg() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results!(filter_edges_pg, filter, expected_results);
@@ -551,8 +551,8 @@ mod test {
 
             #[test]
             fn test_edges_filters_pg_w() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
+                let filter = PropertyFilter::property("p1").ge(2u64);
+                let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
