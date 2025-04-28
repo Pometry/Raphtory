@@ -76,7 +76,7 @@ mod test {
     ) -> (PersistentGraph, PersistentGraph) {
         let g = PersistentGraph::new();
         let g_filtered = PersistentGraph::new();
-        if !edges.is_empty() {
+        if !edges.iter().all(|(_, v)| v.is_empty()) {
             g_filtered.resolve_layer(None).unwrap();
         }
         for ((src, dst), mut updates) in edges {

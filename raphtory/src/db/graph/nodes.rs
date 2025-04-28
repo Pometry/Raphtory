@@ -5,7 +5,7 @@ use crate::{
             state::LazyNodeState,
             storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{OneHopFilter, Static},
+                internal::{FilterOps, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -307,9 +307,7 @@ where
     }
 
     pub fn is_filtered(&self) -> bool {
-        self.node_types_filter.is_some()
-            || self.graph.internal_nodes_filtered()
-            || self.graph.edge_history_filtered()
+        self.node_types_filter.is_some() || self.graph.nodes_filtered()
     }
 
     pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {

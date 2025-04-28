@@ -15,7 +15,7 @@ pub trait InternalNodeFilterOps {
     /// Check if node list can be trusted. (if false, nodes in `self.node_list` need further filtering,
     /// if true, the result of `self.node_list` can be trusted, in particular, its len is the number
     /// of nodes in the graph).
-    fn node_list_trusted(&self) -> bool;
+    fn internal_node_list_trusted(&self) -> bool;
 
     /// If true, do not need to check src and dst of the edge separately, even if nodes are filtered
     /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
@@ -38,8 +38,8 @@ where
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
-        self.base().node_list_trusted()
+    fn internal_node_list_trusted(&self) -> bool {
+        self.base().internal_node_list_trusted()
     }
 
     #[inline]

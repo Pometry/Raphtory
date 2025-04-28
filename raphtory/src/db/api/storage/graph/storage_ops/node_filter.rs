@@ -8,7 +8,7 @@ use crate::{
 
 impl InternalNodeFilterOps for GraphStorage {
     #[inline]
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         true
     }
     #[inline]

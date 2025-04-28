@@ -15,18 +15,20 @@ pub(crate) mod time_semantics;
 mod wrapped_graph;
 
 use crate::{
-    db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
-    prelude::GraphViewOps,
+    db::{
+        api::{
+            properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
+            storage::storage::Storage,
+        },
+        graph::views::deletion_graph::PersistentGraph,
+    },
+    prelude::{Graph, GraphViewOps},
 };
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
 
-use crate::{
-    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
-    prelude::Graph,
-};
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;

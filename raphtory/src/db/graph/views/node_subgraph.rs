@@ -106,7 +106,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> 
     fn internal_nodes_filtered(&self) -> bool {
         true
     }
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         true
     }
 

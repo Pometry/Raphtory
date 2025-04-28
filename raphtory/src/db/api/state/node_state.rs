@@ -3,7 +3,10 @@ use crate::{
     db::{
         api::{
             state::node_state_ops::NodeStateOps,
-            view::{internal::NodeList, DynamicGraph, IntoDynBoxed, IntoDynamic},
+            view::{
+                internal::{FilterOps, NodeList},
+                DynamicGraph, IntoDynBoxed, IntoDynamic,
+            },
         },
         graph::{node::NodeView, nodes::Nodes},
     },

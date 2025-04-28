@@ -284,8 +284,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
-        self.window_is_empty() || self.graph.node_list_trusted() && !self.internal_nodes_filtered()
+    fn internal_node_list_trusted(&self) -> bool {
+        self.window_is_empty()
+            || self.graph.internal_node_list_trusted() && !self.internal_nodes_filtered()
     }
 
     #[inline]

@@ -91,7 +91,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilt
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         false
     }
 

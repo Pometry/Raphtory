@@ -161,8 +161,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     fn internal_nodes_filtered(&self) -> bool {
         self.graph.internal_nodes_filtered()
     }
-    fn node_list_trusted(&self) -> bool {
-        self.graph.node_list_trusted()
+    fn internal_node_list_trusted(&self) -> bool {
+        self.graph.internal_node_list_trusted()
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {

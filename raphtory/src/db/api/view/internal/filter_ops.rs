@@ -14,8 +14,10 @@ pub enum FilterState {
 pub trait FilterOps {
     fn filter_node(&self, node: NodeStorageRef) -> bool;
     fn filter_state(&self) -> FilterState;
-    
+
     fn nodes_filtered(&self) -> bool;
+
+    fn node_list_trusted(&self) -> bool;
 }
 
 impl<G: BoxableGraphView + Clone> FilterOps for G {
@@ -54,5 +56,9 @@ impl<G: BoxableGraphView + Clone> FilterOps for G {
 
     fn nodes_filtered(&self) -> bool {
         self.internal_nodes_filtered() || self.edge_history_filtered()
+    }
+
+    fn node_list_trusted(&self) -> bool {
+        self.internal_node_list_trusted() && !self.edge_history_filtered()
     }
 }

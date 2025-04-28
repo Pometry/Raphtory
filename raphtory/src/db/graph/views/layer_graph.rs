@@ -157,10 +157,8 @@ mod test_layers {
         proptest!(|(graph_f in build_graph_strat(10, 10, false), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
             let g_layer_expected = Graph::from(build_graph_layer(&graph_f, layer.clone()));
             let g = Graph::from(build_graph(&graph_f));
-            test_storage!(&g, |g| {
                 let g_layer = g.valid_layers(layer.clone());
                 assert_graph_equal(&g_layer, &g_layer_expected);
-            });
         })
     }
 

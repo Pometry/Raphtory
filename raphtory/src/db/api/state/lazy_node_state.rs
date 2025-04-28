@@ -7,7 +7,7 @@ use crate::{
                 Index, NodeState, NodeStateOps,
             },
             view::{
-                internal::{NodeList, OneHopFilter},
+                internal::{FilterOps, NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
             },
         },
