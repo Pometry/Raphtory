@@ -1699,6 +1699,9 @@ mod test_composite_filters {
 
         let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
         assert!(!filter.matches(Some("shivam1_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "khivam sapoor", 2, false);
+        assert!(!filter.matches(Some("shivam1_kapoor2")));
     }
 
     #[test]
@@ -1749,6 +1752,11 @@ mod test_composite_filters {
 
         let res = filter.matches(None);
         assert!(!res);
+
+        let filter = PropertyFilter::contains(PropertyRef::Property("prop".to_string()), "am_ka");
+
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
+        assert!(res);
     }
 
     #[test]
@@ -2042,7 +2050,7 @@ pub(crate) mod test_filters {
                     search_nodes_with(filter, init_graph(Graph::new()))
                 }
 
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec!["N1", "N2"];
                 assert_filter_results!(filter_nodes, filter, expected_results);
                 assert_search_results!(search_nodes, filter, expected_results);
@@ -2085,7 +2093,7 @@ pub(crate) mod test_filters {
                     search_nodes_with(filter, init_graph(Graph::new()))
                 }
 
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3"];
                 assert_filter_results!(filter_nodes, filter, expected_results);
                 assert_search_results!(search_nodes, filter, expected_results);
@@ -2243,7 +2251,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_temporal_any_semantics_for_secondary_indexes() {
-                let filter = PropertyFilter::property("p1").temporal().any().eq(1u64);
+                let filter = PropertyFilter::property("p1").temporal().any().lt(2u64);
                 let expected_results = vec![
                     "N1->N2", "N16->N15", "N17->N16", "N2->N3", "N3->N4", "N4->N5", "N5->N6",
                     "N6->N7", "N7->N8", "N8->N9",
@@ -2271,9 +2279,10 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_property_semantics() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").ge(2u64);
                 let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N4->N5", "N6->N7", "N7->N8",
+                    "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
+                    "N9->N10",
                 ];
                 assert_filter_results!(filter_edges, filter, expected_results);
                 assert_search_results!(search_edges, filter, expected_results);

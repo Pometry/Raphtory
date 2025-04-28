@@ -426,6 +426,7 @@ mod subgraph_tests {
                 }
             }
 
+            #[cfg(feature = "search")]
             use search_nodes::*;
 
             #[test]
@@ -653,6 +654,7 @@ mod subgraph_tests {
                 }
             }
 
+            #[cfg(feature = "search")]
             use search_edges::*;
 
             #[test]

@@ -386,6 +386,7 @@ mod test {
                 }
             }
 
+            #[cfg(feature = "search")]
             use search_nodes::*;
 
             #[test]
@@ -522,6 +523,7 @@ mod test {
                 }
             }
 
+            #[cfg(feature = "search")]
             use search_edges::*;
 
             #[test]

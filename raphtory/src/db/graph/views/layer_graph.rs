@@ -441,6 +441,7 @@ mod test_layers {
                 }
             }
 
+            #[cfg(feature = "search")]
             use search_nodes::*;
 
             // Layers don't have any effect on the number of nodes in a graph.
@@ -682,6 +683,7 @@ mod test_layers {
                 }
             }
 
+            #[cfg(feature = "search")]
             use search_edges::*;
 
             #[test]
