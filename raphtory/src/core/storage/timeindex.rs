@@ -94,16 +94,43 @@ impl<'a, T: AsTime> TimeIndexLike<'a> for &'a TimeIndex<T> {
         (*self).range_iter(w).rev().into_dyn_boxed()
     }
 
+    fn range_count(&self, w: Range<Self::IndexType>) -> usize {
+        match self {
+            TimeIndex::Empty => 0,
+            TimeIndex::One(t) => {
+                if w.contains(t) {
+                    1
+                } else {
+                    0
+                }
+            }
+            TimeIndex::Set(ts) => ts.range(w).count(),
+        }
+    }
+
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         (*self).range_iter(w).next_back()
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum TimeIndexWindow<'a, T: AsTime, TI> {
     Empty,
     Range { timeindex: &'a TI, range: Range<T> },
     All(&'a TI),
+}
+
+impl<'a, T: AsTime + Clone, TI> Clone for TimeIndexWindow<'a, T, TI> {
+    fn clone(&self) -> Self {
+        match self {
+            TimeIndexWindow::Empty => TimeIndexWindow::Empty,
+            TimeIndexWindow::Range { timeindex, range } => TimeIndexWindow::Range {
+                timeindex: *timeindex,
+                range: range.clone(),
+            },
+            TimeIndexWindow::All(timeindex) => TimeIndexWindow::All(*timeindex),
+        }
+    }
 }
 
 impl<'a, T: AsTime, TI> TimeIndexWindow<'a, T, TI>
@@ -113,9 +140,7 @@ where
     pub fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,
-            TimeIndexWindow::Range { timeindex, range } => {
-                timeindex.range_iter(range.clone()).count()
-            }
+            TimeIndexWindow::Range { timeindex, range } => timeindex.range_count(range.clone()),
             TimeIndexWindow::All(ts) => ts.len(),
         }
     }

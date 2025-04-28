@@ -27,6 +27,7 @@ use raphtory_api::{
     },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
 };
+use roaring::RoaringTreemap;
 use std::{iter, ops::Range};
 
 fn alive_before<
@@ -291,18 +292,34 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> bool {
-        node.additions()
-            .with_range(TimeIndexEntry::range(i64::MIN..w.end))
-            .prop_events()
-            .next()
-            .is_some()
-            || node
-                .filtered_edges_iter(
-                    WindowedGraph::new(&view, Some(w.start), Some(w.end)),
-                    Direction::BOTH,
-                )
-                .next()
-                .is_some()
+        if w.end <= w.start {
+            // empty window
+            return false;
+        }
+        let history = node.history(&view);
+        history.prop_history().active_t(w.clone())
+            || history
+                .edge_history()
+                .active_t(w.start.saturating_add(1)..w.end)
+            || {
+                let mut deleted = vec![RoaringTreemap::default(); view.unfiltered_num_layers()];
+                history
+                    .edge_history()
+                    .range_t(i64::MIN..w.start.saturating_add(1))
+                    .history_rev()
+                    .any(|(_, e)| {
+                        // scan backwards in time over filtered history and keep track of deletions
+                        let cache = &mut deleted[e.layer()];
+                        !cache.contains(e.edge.as_u64()) && {
+                            if e.is_deletion() {
+                                cache.insert(e.edge.as_u64());
+                                false
+                            } else {
+                                true
+                            }
+                        }
+                    })
+            }
     }
 
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(

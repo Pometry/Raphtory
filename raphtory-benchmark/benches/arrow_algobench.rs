@@ -2,9 +2,7 @@ use criterion::{criterion_group, criterion_main};
 
 #[cfg(feature = "storage")]
 pub mod arrow_bench {
-    use criterion::{
-        black_box, BenchmarkId, Criterion, SamplingMode,
-    };
+    use criterion::{black_box, BenchmarkId, Criterion, SamplingMode};
     use raphtory::{
         algorithms::{
             centrality::pagerank::unweighted_page_rank,

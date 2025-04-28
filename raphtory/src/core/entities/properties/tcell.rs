@@ -241,6 +241,21 @@ impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
             .into_dyn_boxed()
     }
 
+    fn range_count(&self, w: Range<Self::IndexType>) -> usize {
+        match self {
+            TCell::Empty => 0,
+            TCell::TCell1(t, _) => {
+                if w.contains(t) {
+                    1
+                } else {
+                    0
+                }
+            }
+            TCell::TCellCap(ts) => ts.range(w).count(),
+            TCell::TCellN(ts) => ts.range(w).count(),
+        }
+    }
+
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         self.iter_window(w).next_back().map(|(ti, _)| *ti)
     }

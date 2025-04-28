@@ -28,6 +28,8 @@ pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
 
     fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
 
+    fn range_count(&self, w: Range<Self::IndexType>) -> usize;
+
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
         self.range_iter(w).next()
     }
