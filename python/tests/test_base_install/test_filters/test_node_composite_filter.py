@@ -29,13 +29,13 @@ def test_node_composite_filter():
     expected_ids = sorted([])
     assert result_ids == expected_ids
 
-    filter_expr1 = filter.Property("p2") == 2
+    filter_expr1 = filter.Property("p2") > 2
     filter_expr2 = filter.Property("p1") == "shivam_kapoor"
     result_ids = sorted(graph.filter_nodes(filter_expr1 | filter_expr2).nodes.id)
-    expected_ids = sorted(["1", "2"])
+    expected_ids = sorted(["1", "3"])
     assert result_ids == expected_ids
 
-    filter_expr1 = filter.Property("p9") == 5
+    filter_expr1 = filter.Property("p9") < 9
     filter_expr2 = filter.Property("p1") == "shivam_kapoor"
     result_ids = sorted(graph.filter_nodes(filter_expr1 & filter_expr2).nodes.id)
     expected_ids = sorted(["1"])
@@ -48,14 +48,14 @@ def test_node_composite_filter():
     assert result_ids == expected_ids
 
     filter_expr1 = filter.Node.name() == "2"
-    filter_expr2 = filter.Property("p2") == 2
+    filter_expr2 = filter.Property("p2") >= 2
     result_ids = sorted(graph.filter_nodes(filter_expr1 & filter_expr2).nodes.id)
     expected_ids = sorted(["2"])
     assert result_ids == expected_ids
 
     filter_expr1 = filter.Node.name() == "2"
     filter_expr2 = filter.Property("p2") == 2
-    filter_expr3 = filter.Property("p9") == 5
+    filter_expr3 = filter.Property("p9") <= 5
     result_ids = sorted(graph.filter_nodes((filter_expr1 & filter_expr2) | filter_expr3).nodes.id)
     expected_ids = sorted(["1", "2"])
     assert result_ids == expected_ids

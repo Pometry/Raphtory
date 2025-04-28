@@ -1485,9 +1485,6 @@ mod views_test {
                 prelude::GraphViewOps,
             };
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
-
             fn init_graph<
                 G: StaticGraphViewOps
                     + AdditionOps
@@ -1682,17 +1679,27 @@ mod views_test {
             }
 
             #[cfg(feature = "search")]
-            fn search_nodes_w<I: AsNodeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
-                search_nodes_with(filter, init_graph(Graph::new()).window(w.start, w.end))
+            mod search_nodes {
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::filter::AsNodeFilter;
+                use crate::db::graph::views::test_helpers::search_nodes_with;
+                use crate::db::graph::views::window_graph::views_test::test_filters_window_graph::test_nodes_filters_window_graph::init_graph;
+                use crate::prelude::{Graph, TimeOps};
+
+                pub fn search_nodes_w<I: AsNodeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
+                    search_nodes_with(filter, init_graph(Graph::new()).window(w.start, w.end))
+                }
+
+                pub fn search_nodes_pg_w<I: AsNodeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
+                    search_nodes_with(
+                        filter,
+                        init_graph(PersistentGraph::new()).window(w.start, w.end),
+                    )
+                }
             }
 
-            #[cfg(feature = "search")]
-            fn search_nodes_pg_w<I: AsNodeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
-                search_nodes_with(
-                    filter,
-                    init_graph(PersistentGraph::new()).window(w.start, w.end),
-                )
-            }
+            use search_nodes::*;
 
             #[test]
             fn test_nodes_filters_for_node_name_eq() {
@@ -2343,9 +2350,6 @@ mod views_test {
                 prelude::GraphViewOps,
             };
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
-
             use crate::{assert_filter_results_w, assert_search_results_w};
 
             fn init_graph<
@@ -2586,16 +2590,26 @@ mod views_test {
             }
 
             #[cfg(feature = "search")]
-            fn search_edges_w<I: AsEdgeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                search_edges_with(filter, graph.window(w.start, w.end))
+            mod search_edges {
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::filter::AsEdgeFilter;
+                use crate::db::graph::views::test_helpers::search_edges_with;
+                use crate::db::graph::views::window_graph::views_test::test_filters_window_graph::test_edges_filters_window_graph::init_graph;
+                use crate::prelude::{Graph, TimeOps};
+
+                pub fn search_edges_w<I: AsEdgeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    search_edges_with(filter, graph.window(w.start, w.end))
+                }
+
+                pub fn search_edges_pg_w<I: AsEdgeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    search_edges_with(filter, graph.window(w.start, w.end))
+                }
             }
 
-            #[cfg(feature = "search")]
-            fn search_edges_pg_w<I: AsEdgeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                search_edges_with(filter, graph.window(w.start, w.end))
-            }
+            use search_edges::*;
 
             #[test]
             fn test_edges_filters_for_src_eq() {

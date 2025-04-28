@@ -290,9 +290,6 @@ mod test_layers {
                 filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
-
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
                     (6, "N1", "N2", vec![("p1", Prop::U64(2u64))], Some("layer1")),
@@ -392,52 +389,59 @@ mod test_layers {
             }
 
             #[cfg(feature = "search")]
-            fn search_nodes(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
-                search_nodes_with(
-                    filter,
-                    init_graph(Graph::new()).layers(layers.clone()).unwrap(),
-                )
+            mod search_nodes {
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::layer_graph::test_layers::test_filters_layer_graph::test_nodes_filters_layer_graph::init_graph;
+                use crate::db::graph::views::test_helpers::search_nodes_with;
+                use crate::prelude::{Graph, LayerOps, PropertyFilter, TimeOps};
+
+                pub fn search_nodes(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
+                    search_nodes_with(
+                        filter,
+                        init_graph(Graph::new()).layers(layers.clone()).unwrap(),
+                    )
+                }
+
+                pub fn search_nodes_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    layers: Vec<String>,
+                ) -> Vec<String> {
+                    search_nodes_with(
+                        filter,
+                        init_graph(Graph::new())
+                            .layers(layers.clone())
+                            .unwrap()
+                            .window(w.start, w.end),
+                    )
+                }
+
+                pub fn search_nodes_pg(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
+                    search_nodes_with(
+                        filter,
+                        init_graph(PersistentGraph::new())
+                            .layers(layers.clone())
+                            .unwrap(),
+                    )
+                }
+
+                pub fn search_nodes_pg_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    layers: Vec<String>,
+                ) -> Vec<String> {
+                    search_nodes_with(
+                        filter,
+                        init_graph(PersistentGraph::new())
+                            .layers(layers.clone())
+                            .unwrap()
+                            .window(w.start, w.end),
+                    )
+                }
             }
 
-            #[cfg(feature = "search")]
-            fn search_nodes_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                layers: Vec<String>,
-            ) -> Vec<String> {
-                search_nodes_with(
-                    filter,
-                    init_graph(Graph::new())
-                        .layers(layers.clone())
-                        .unwrap()
-                        .window(w.start, w.end),
-                )
-            }
-
-            #[cfg(feature = "search")]
-            fn search_nodes_pg(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
-                search_nodes_with(
-                    filter,
-                    init_graph(PersistentGraph::new())
-                        .layers(layers.clone())
-                        .unwrap(),
-                )
-            }
-
-            #[cfg(feature = "search")]
-            fn search_nodes_pg_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                layers: Vec<String>,
-            ) -> Vec<String> {
-                search_nodes_with(
-                    filter,
-                    init_graph(PersistentGraph::new())
-                        .layers(layers.clone())
-                        .unwrap()
-                        .window(w.start, w.end),
-                )
-            }
+            use search_nodes::*;
 
             // Layers don't have any effect on the number of nodes in a graph.
             // In other words, it is as good as applying no layer filters.
@@ -546,9 +550,6 @@ mod test_layers {
             pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::test_helpers::filter_edges_with;
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
-
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
                     (6, "N1", "N2", 2u64, "layer1"),
@@ -629,52 +630,59 @@ mod test_layers {
             }
 
             #[cfg(feature = "search")]
-            fn search_edges(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
-                search_edges_with(
-                    filter,
-                    init_graph(Graph::new()).layers(layers.clone()).unwrap(),
-                )
+            mod search_edges {
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::layer_graph::test_layers::test_filters_layer_graph::test_edges_filters_layer_graph::init_graph;
+                use crate::db::graph::views::test_helpers::search_edges_with;
+                use crate::prelude::{Graph, LayerOps, PropertyFilter, TimeOps};
+
+                pub fn search_edges(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
+                    search_edges_with(
+                        filter,
+                        init_graph(Graph::new()).layers(layers.clone()).unwrap(),
+                    )
+                }
+
+                pub fn search_edges_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    layers: Vec<String>,
+                ) -> Vec<String> {
+                    search_edges_with(
+                        filter,
+                        init_graph(Graph::new())
+                            .layers(layers.clone())
+                            .unwrap()
+                            .window(w.start, w.end),
+                    )
+                }
+
+                pub fn search_edges_pg(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
+                    search_edges_with(
+                        filter,
+                        init_graph(PersistentGraph::new())
+                            .layers(layers.clone())
+                            .unwrap(),
+                    )
+                }
+
+                pub fn search_edges_pg_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    layers: Vec<String>,
+                ) -> Vec<String> {
+                    search_edges_with(
+                        filter,
+                        init_graph(PersistentGraph::new())
+                            .layers(layers.clone())
+                            .unwrap()
+                            .window(w.start, w.end),
+                    )
+                }
             }
 
-            #[cfg(feature = "search")]
-            fn search_edges_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                layers: Vec<String>,
-            ) -> Vec<String> {
-                search_edges_with(
-                    filter,
-                    init_graph(Graph::new())
-                        .layers(layers.clone())
-                        .unwrap()
-                        .window(w.start, w.end),
-                )
-            }
-
-            #[cfg(feature = "search")]
-            fn search_edges_pg(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
-                search_edges_with(
-                    filter,
-                    init_graph(PersistentGraph::new())
-                        .layers(layers.clone())
-                        .unwrap(),
-                )
-            }
-
-            #[cfg(feature = "search")]
-            fn search_edges_pg_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                layers: Vec<String>,
-            ) -> Vec<String> {
-                search_edges_with(
-                    filter,
-                    init_graph(PersistentGraph::new())
-                        .layers(layers.clone())
-                        .unwrap()
-                        .window(w.start, w.end),
-                )
-            }
+            use search_edges::*;
 
             #[test]
             fn test_edges_filters() {

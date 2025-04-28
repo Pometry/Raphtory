@@ -308,9 +308,6 @@ mod subgraph_tests {
                 filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
-
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
                     (6, "N1", vec![("p1", Prop::U64(2u64))]),
@@ -379,50 +376,57 @@ mod subgraph_tests {
             }
 
             #[cfg(feature = "search")]
-            fn search_nodes(
-                filter: PropertyFilter,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_nodes_with(filter, graph.subgraph(node_names))
+            mod search_nodes {
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::node_subgraph::subgraph_tests::test_filters_node_subgraph::test_nodes_filters_node_subgraph::init_graph;
+                use crate::db::graph::views::test_helpers::search_nodes_with;
+                use crate::prelude::{Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps};
+
+                pub fn search_nodes(
+                    filter: PropertyFilter,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_nodes_with(filter, graph.subgraph(node_names))
+                }
+
+                pub fn search_nodes_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_nodes_with(filter, graph.subgraph(node_names).window(w.start, w.end))
+                }
+
+                pub fn search_nodes_pg(
+                    filter: PropertyFilter,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_nodes_with(filter, graph.subgraph(node_names))
+                }
+
+                pub fn search_nodes_pg_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_nodes_with(filter, graph.subgraph(node_names).window(w.start, w.end))
+                }
             }
 
-            #[cfg(feature = "search")]
-            fn search_nodes_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_nodes_with(filter, graph.subgraph(node_names).window(w.start, w.end))
-            }
-
-            #[cfg(feature = "search")]
-            fn search_nodes_pg(
-                filter: PropertyFilter,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_nodes_with(filter, graph.subgraph(node_names))
-            }
-
-            #[cfg(feature = "search")]
-            fn search_nodes_pg_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_nodes_with(filter, graph.subgraph(node_names).window(w.start, w.end))
-            }
+            use search_nodes::*;
 
             #[test]
             fn test_search_nodes_subgraph() {
@@ -529,9 +533,6 @@ mod subgraph_tests {
             pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::test_helpers::filter_edges_with;
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
-
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
                     (6, "N1", "N2", vec![("p1", Prop::U64(2u64))]),
@@ -602,50 +603,57 @@ mod subgraph_tests {
             }
 
             #[cfg(feature = "search")]
-            fn search_edges(
-                filter: PropertyFilter,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_edges_with(filter, graph.subgraph(node_names))
+            mod search_edges {
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::node_subgraph::subgraph_tests::test_filters_node_subgraph::test_edges_filters_node_subgraph::init_graph;
+                use crate::db::graph::views::test_helpers::search_edges_with;
+                use crate::prelude::{Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps};
+
+                pub fn search_edges(
+                    filter: PropertyFilter,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_edges_with(filter, graph.subgraph(node_names))
+                }
+
+                pub fn search_edges_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_edges_with(filter, graph.subgraph(node_names).window(w.start, w.end))
+                }
+
+                pub fn search_edges_pg(
+                    filter: PropertyFilter,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_edges_with(filter, graph.subgraph(node_names))
+                }
+
+                pub fn search_edges_pg_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_names: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_names: Vec<String> =
+                        node_names.unwrap_or_else(|| graph.nodes().name().collect());
+                    search_edges_with(filter, graph.subgraph(node_names).window(w.start, w.end))
+                }
             }
 
-            #[cfg(feature = "search")]
-            fn search_edges_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_edges_with(filter, graph.subgraph(node_names).window(w.start, w.end))
-            }
-
-            #[cfg(feature = "search")]
-            fn search_edges_pg(
-                filter: PropertyFilter,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_edges_with(filter, graph.subgraph(node_names))
-            }
-
-            #[cfg(feature = "search")]
-            fn search_edges_pg_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_names: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_names: Vec<String> =
-                    node_names.unwrap_or_else(|| graph.nodes().name().collect());
-                search_edges_with(filter, graph.subgraph(node_names).window(w.start, w.end))
-            }
+            use search_edges::*;
 
             #[test]
             fn test_edges_filters() {
