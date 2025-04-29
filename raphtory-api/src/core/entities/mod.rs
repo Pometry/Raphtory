@@ -579,7 +579,7 @@ impl From<usize> for LayerIds {
 #[cfg(test)]
 mod tests {
     use crate::core::entities::{EID, MAX_LAYER};
-    use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
+    use proptest::{prop_assert, prop_assert_eq, proptest};
 
     #[test]
     fn test_elid_layer() {

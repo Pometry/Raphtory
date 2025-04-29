@@ -45,6 +45,7 @@ pub trait TimeIndexOps<'a>: Send + Sync + 'a {
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
 
+    #[inline]
     fn active_t(&self, w: Range<i64>) -> bool {
         self.active(Self::IndexType::range(w))
     }

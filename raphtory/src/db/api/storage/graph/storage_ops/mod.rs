@@ -356,11 +356,6 @@ impl GraphStorage {
                     .as_ref()
                     .map_or(true, |type_filter| type_filter[node.node_type_id()])
                     && view.filter_node(node.as_ref())
-                    && if view.edge_history_filtered() {
-                        view.node_time_semantics().node_valid(node.as_ref(), &view)
-                    } else {
-                        true
-                    }
             })
             .into_dyn_boxed()
     }
@@ -375,11 +370,6 @@ impl GraphStorage {
             let node = nodes.node(vid);
             type_filter.map_or(true, |type_filter| type_filter[node.node_type_id()])
                 && view.filter_node(node)
-                && if view.edge_history_filtered() {
-                    view.node_time_semantics().node_valid(node, &view)
-                } else {
-                    true
-                }
         })
     }
 
@@ -394,11 +384,6 @@ impl GraphStorage {
                 .as_ref()
                 .map_or(true, |type_filter| type_filter[node.node_type_id()])
                 && view.filter_node(node.as_ref())
-                && if view.edge_history_filtered() {
-                    view.node_time_semantics().node_valid(node.as_ref(), &view)
-                } else {
-                    true
-                }
         })
     }
 

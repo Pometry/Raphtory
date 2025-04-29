@@ -51,10 +51,9 @@ use crate::{
                     Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList,
                     EdgeTimeSemanticsOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
                     InheritLayerOps, InheritMaterialize, InheritStorageOps, InternalNodeFilterOps,
-                    ListOps, NodeHistoryFilter, NodeList, NodeTimeSemanticsOps, Static,
-                    TimeSemantics,
+                    ListOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
                 },
-                BoxedLIter, IntoDynBoxed,
+                BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
         },
         graph::{graph::graph_equal, views::layer_graph::LayeredGraph},
@@ -114,7 +113,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
     }
 }
 
-impl<G> WindowedGraph<G> {
+impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
     #[inline(always)]
     fn window_bound(&self) -> Range<i64> {
         self.start_bound()..self.end_bound()
@@ -132,6 +131,32 @@ impl<G> WindowedGraph<G> {
     #[inline(always)]
     fn window_is_empty(&self) -> bool {
         self.start_bound() >= self.end_bound()
+    }
+
+    #[inline]
+    fn start_is_bounding(&self) -> bool {
+        match self.start {
+            None => false,
+            Some(start) => match self.graph.core_graph().earliest_time() {
+                None => false,
+                Some(graph_earliest) => start >= graph_earliest, // deletions have exclusive window, thus >= here!
+            },
+        }
+    }
+
+    #[inline]
+    fn end_is_bounding(&self) -> bool {
+        match self.end {
+            None => false,
+            Some(end) => match self.core_graph().latest_time() {
+                None => false,
+                Some(graph_latest) => end <= graph_latest,
+            },
+        }
+    }
+    #[inline]
+    fn window_is_bounding(&self) -> bool {
+        self.start_is_bounding() || self.end_is_bounding()
     }
 }
 
@@ -277,16 +302,13 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
-        self.window_is_empty()
-            || self.graph.internal_nodes_filtered()
-            || self.start_bound() > self.core_graph().earliest_time().unwrap_or(i64::MAX)
-            || self.end_bound() <= self.core_graph().latest_time().unwrap_or(i64::MIN)
+        self.window_is_empty() || self.graph.internal_nodes_filtered() || self.window_is_bounding()
     }
 
     #[inline]
     fn internal_node_list_trusted(&self) -> bool {
         self.window_is_empty()
-            || self.graph.internal_node_list_trusted() && !self.internal_nodes_filtered()
+            || (self.graph.internal_node_list_trusted() && !self.window_is_bounding())
     }
 
     #[inline]
@@ -296,11 +318,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        !self.window_is_empty()
-            && self.graph.internal_filter_node(node, layer_ids)
-            && self
-                .node_time_semantics()
-                .node_valid(node, LayeredGraph::new(&self.graph, layer_ids.clone()))
+        !self.window_is_empty() && self.graph.internal_filter_node(node, layer_ids)
     }
 }
 
@@ -482,11 +500,12 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
             && self.graph.filter_edge(edge, layer_ids)
-            && self.edge_time_semantics().include_edge_window(
-                edge,
-                LayeredGraph::new(&self.graph, layer_ids.clone()),
-                self.window_bound(),
-            )
+            && (!self.window_is_bounding()
+                || self.edge_time_semantics().include_edge_window(
+                    edge,
+                    LayeredGraph::new(&self.graph, layer_ids.clone()),
+                    self.window_bound(),
+                ))
     }
 }
 

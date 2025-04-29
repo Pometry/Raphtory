@@ -260,11 +260,21 @@ impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
         }
     }
 
+    #[inline]
     fn len(&self) -> usize {
         match self {
             TimeIndex::Empty => 0,
             TimeIndex::One(_) => 1,
             TimeIndex::Set(ts) => ts.len(),
+        }
+    }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        match self {
+            TimeIndex::Empty => true,
+            TimeIndex::One(_) => false,
+            TimeIndex::Set(ts) => ts.is_empty(),
         }
     }
 }

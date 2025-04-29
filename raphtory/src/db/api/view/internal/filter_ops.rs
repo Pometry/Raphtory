@@ -21,18 +21,15 @@ pub trait FilterOps {
 }
 
 impl<G: BoxableGraphView + Clone> FilterOps for G {
+    #[inline]
     fn filter_node(&self, node: NodeStorageRef) -> bool {
-        let mut res = true;
-        if self.edge_history_filtered() {
-            res = res && {
-                let time_semantics = self.node_time_semantics();
-                time_semantics.node_valid(node, self)
-            }
+        if self.nodes_filtered() {
+            let time_semantics = self.node_time_semantics();
+            time_semantics.node_valid(node, self)
+                && self.internal_filter_node(node, self.layer_ids())
+        } else {
+            true
         }
-        if self.internal_nodes_filtered() {
-            res = res && { self.internal_filter_node(node, self.layer_ids()) }
-        }
-        res
     }
 
     #[inline]
@@ -54,10 +51,12 @@ impl<G: BoxableGraphView + Clone> FilterOps for G {
         }
     }
 
+    #[inline]
     fn nodes_filtered(&self) -> bool {
         self.internal_nodes_filtered() || self.edge_history_filtered()
     }
 
+    #[inline]
     fn node_list_trusted(&self) -> bool {
         self.internal_node_list_trusted() && !self.edge_history_filtered()
     }

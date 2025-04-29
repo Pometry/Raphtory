@@ -34,6 +34,7 @@ impl WindowTimeSemantics {
 }
 
 impl NodeTimeSemanticsOps for WindowTimeSemantics {
+    #[inline]
     fn node_earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -43,6 +44,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_earliest_time_window(node, view, self.window.clone())
     }
 
+    #[inline]
     fn node_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -52,6 +54,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_latest_time_window(node, view, self.window.clone())
     }
 
+    #[inline]
     fn node_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -61,6 +64,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.node_earliest_time_window(node, view, w)
     }
 
+    #[inline]
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -70,6 +74,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.node_latest_time_window(node, view, w)
     }
 
+    #[inline]
     fn node_history<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
@@ -79,6 +84,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_history_window(node, view, self.window.clone())
     }
 
+    #[inline]
     fn node_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
@@ -88,6 +94,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.node_history_window(node, view, w)
     }
 
+    #[inline]
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
@@ -97,6 +104,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_updates_window(node, view, self.window.clone())
     }
 
+    #[inline]
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
@@ -106,6 +114,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.node_updates_window(node, view, w)
     }
 
+    #[inline]
     fn node_valid<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -115,6 +124,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_valid_window(node, view, self.window.clone())
     }
 
+    #[inline]
     fn node_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -124,6 +134,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.node_valid_window(node, view, w)
     }
 
+    #[inline]
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -134,6 +145,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_tprop_iter_window(node, view, prop_id, self.window.clone())
     }
 
+    #[inline]
     fn node_tprop_iter_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -145,6 +157,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_tprop_iter_window(node, view, prop_id, w)
     }
 
+    #[inline]
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -156,6 +169,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_tprop_last_at_window(node, view, prop_id, t, self.window.clone())
     }
 
+    #[inline]
     fn node_tprop_last_at_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -170,6 +184,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
 }
 
 impl EdgeTimeSemanticsOps for WindowTimeSemantics {
+    #[inline]
     fn include_edge_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeStorageRef,
@@ -179,6 +194,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.include_edge_window(edge, view, w)
     }
 
+    #[inline]
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
         self,
         edge: EdgeStorageRef<'graph>,
@@ -187,6 +203,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_history_window(edge, view, self.window)
     }
 
+    #[inline]
     fn edge_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
         edge: EdgeStorageRef<'graph>,
@@ -196,6 +213,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_history_window(edge, view, w)
     }
 
+    #[inline]
     fn edge_exploded_count<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeStorageRef,
@@ -205,6 +223,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_count_window(edge, view, self.window.clone())
     }
 
+    #[inline]
     fn edge_exploded_count_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeStorageRef,
@@ -214,6 +233,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_exploded_count_window(edge, view, w)
     }
 
+    #[inline]
     fn edge_exploded<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -222,6 +242,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_window_exploded(e, view, self.window)
     }
 
+    #[inline]
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -230,6 +251,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_window_layers(e, view, self.window)
     }
 
+    #[inline]
     fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -239,6 +261,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_window_exploded(e, view, w)
     }
 
+    #[inline]
     fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -248,6 +271,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_window_layers(e, view, w)
     }
 
+    #[inline]
     fn edge_earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -257,6 +281,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_earliest_time_window(e, view, self.window.clone())
     }
 
+    #[inline]
     fn edge_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -266,6 +291,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_earliest_time_window(e, view, w)
     }
 
+    #[inline]
     fn edge_exploded_earliest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -277,6 +303,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_earliest_time_window(e, view, t, layer, self.window.clone())
     }
 
+    #[inline]
     fn edge_exploded_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -289,6 +316,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_earliest_time_window(e, view, t, layer, w)
     }
 
+    #[inline]
     fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -298,6 +326,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_latest_time_window(e, view, self.window.clone())
     }
 
+    #[inline]
     fn edge_latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -307,6 +336,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_latest_time_window(e, view, w)
     }
 
+    #[inline]
     fn edge_exploded_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -318,6 +348,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_latest_time_window(e, view, t, layer, self.window.clone())
     }
 
+    #[inline]
     fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
@@ -330,6 +361,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_latest_time_window(e, view, t, layer, w)
     }
 
+    #[inline]
     fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -339,6 +371,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_deletion_history_window(e, view, self.window)
     }
 
+    #[inline]
     fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -348,6 +381,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_deletion_history_window(e, view, w)
     }
 
+    #[inline]
     fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -357,6 +391,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_valid_window(e, view, self.window.clone())
     }
 
+    #[inline]
     fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -366,6 +401,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_is_valid_window(e, view, r)
     }
 
+    #[inline]
     fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -375,6 +411,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_deleted_window(e, view, self.window.clone())
     }
 
+    #[inline]
     fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -384,6 +421,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_is_deleted_window(e, view, w)
     }
 
+    #[inline]
     fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -393,6 +431,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_active_window(e, view, self.window.clone())
     }
 
+    #[inline]
     fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -402,6 +441,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.edge_is_active_window(e, view, w)
     }
 
+    #[inline]
     fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -413,6 +453,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_active_exploded_window(e, view, t, layer, self.window.clone())
     }
 
+    #[inline]
     fn edge_is_active_exploded_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -425,6 +466,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_active_exploded_window(e, view, t, layer, w)
     }
 
+    #[inline]
     fn edge_is_valid_exploded<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -436,6 +478,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_valid_exploded_window(e, view, t, layer, self.window.clone())
     }
 
+    #[inline]
     fn edge_is_valid_exploded_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -448,6 +491,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_is_valid_exploded_window(e, view, t, layer, w)
     }
 
+    #[inline]
     fn edge_exploded_deletion<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -459,6 +503,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_deletion_window(e, view, t, layer, self.window.clone())
     }
 
+    #[inline]
     fn edge_exploded_deletion_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -471,6 +516,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .edge_exploded_deletion_window(e, view, t, layer, w)
     }
 
+    #[inline]
     fn temporal_edge_prop_exploded<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -483,6 +529,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_exploded(e, view, prop_id, t, layer_id)
     }
 
+    #[inline]
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -503,6 +550,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         )
     }
 
+    #[inline]
     fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -518,6 +566,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         )
     }
 
+    #[inline]
     fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -529,6 +578,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_last_at_window(e, view, prop_id, t, self.window.clone())
     }
 
+    #[inline]
     fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -541,6 +591,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_last_at_window(e, view, prop_id, t, w)
     }
 
+    #[inline]
     fn temporal_edge_prop_hist<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -551,6 +602,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_hist_window(e, view, prop_id, self.window)
     }
 
+    #[inline]
     fn temporal_edge_prop_hist_rev<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -561,6 +613,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_hist_window_rev(e, view, prop_id, self.window)
     }
 
+    #[inline]
     fn temporal_edge_prop_hist_window<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -572,6 +625,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_hist_window(e, view, prop_id, w)
     }
 
+    #[inline]
     fn temporal_edge_prop_hist_window_rev<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -583,6 +637,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .temporal_edge_prop_hist_window_rev(e, view, prop_id, w)
     }
 
+    #[inline]
     fn constant_edge_prop<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
@@ -593,6 +648,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .constant_edge_prop_window(e, view, prop_id, self.window.clone())
     }
 
+    #[inline]
     fn constant_edge_prop_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
