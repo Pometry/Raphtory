@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fmt::{Display, Formatter},
+    fmt::{Debug, Display, Formatter},
     iter,
     iter::Copied,
     sync::Arc,
@@ -95,16 +95,24 @@ impl EID {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct ELID {
     pub edge: EID,
     layer_and_deletion: usize,
 }
 
+impl Debug for ELID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ELID")
+            .field("edge", &self.edge)
+            .field("layer", &self.layer())
+            .field("deletion", &self.is_deletion())
+            .finish()
+    }
+}
+
 const LAYER_FLAG: usize = 1usize.reverse_bits();
-const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
+pub const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
 
 impl ELID {
     pub fn new(edge: EID, layer: usize) -> Self {

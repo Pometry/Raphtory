@@ -4,7 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{properties::PropError, GID},
+    entities::{properties::PropError, GID, MAX_LAYER},
     storage::arc_str::ArcStr,
     PropType,
 };
@@ -208,6 +208,8 @@ pub enum GraphError {
     },
     #[error("Graph does not have a default layer. Valid layers: {valid_layers}")]
     NoDefaultLayer { valid_layers: String },
+    #[error("More than {MAX_LAYER} layers are not supported")]
+    TooManyLayers,
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,

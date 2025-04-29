@@ -14,7 +14,7 @@ use crate::{
 };
 use either::Either;
 use raphtory_api::core::{
-    entities::{GidType, EID, VID},
+    entities::{GidType, EID, MAX_LAYER, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use std::sync::atomic::Ordering;
@@ -53,7 +53,13 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
-        Ok(self.edge_meta.get_or_create_layer_id(layer))
+        let id = self.edge_meta.get_or_create_layer_id(layer);
+        if let MaybeNew::New(id) = id {
+            if id > MAX_LAYER {
+                return Err(GraphError::TooManyLayers);
+            }
+        }
+        Ok(id)
     }
 
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
