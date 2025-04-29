@@ -1,10 +1,10 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::graph::views::filter::{
-        AndFilter, AsEdgeFilter, AsNodeFilter, CompositeEdgeFilter, CompositeNodeFilter,
-        EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps,
-        InternalPropertyFilterOps, NodeFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
-        TemporalPropertyFilterBuilder,
+    db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
+        AsEdgeFilter, AsNodeFilter, EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps,
+        InternalNodeFilterBuilderOps, InternalPropertyFilterOps, NodeFilter, OrFilter,
+        PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
     },
     python::types::{
         iterable::FromIterable,

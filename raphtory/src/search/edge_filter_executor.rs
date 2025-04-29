@@ -5,8 +5,12 @@ use crate::{
         graph::{
             edge::EdgeView,
             views::filter::{
-                internal::InternalEdgeFilterOps, CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter,
-                Filter, PropertyRef, Temporal,
+                internal::InternalEdgeFilterOps,
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+                    property_filter::{PropertyRef, Temporal},
+                    Filter,
+                },
             },
         },
     },

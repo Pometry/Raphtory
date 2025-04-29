@@ -22,9 +22,9 @@ mod test {
     use crate::{
         db::graph::{
             graph::assert_edges_equal,
-            views::filter::{
-                ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilter,
-                PropertyFilterOps, PropertyRef,
+            views::filter::model::{
+                property_filter::{PropertyFilter, PropertyRef},
+                ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
             },
         },
         prelude::*,

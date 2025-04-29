@@ -28,8 +28,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::filter::{
-            ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilter, PropertyRef,
+        db::graph::views::filter::model::{
+            property_filter::{PropertyFilter, PropertyRef},
+            ComposableFilter, EdgeFilter, EdgeFilterOps,
         },
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -39,7 +40,7 @@ mod test {
 
     #[test]
     fn test_edge_filter_on_edges() {
-        use crate::db::graph::views::filter::PropertyFilterOps;
+        use crate::db::graph::views::filter::model::PropertyFilterOps;
 
         let g = Graph::new();
         g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)

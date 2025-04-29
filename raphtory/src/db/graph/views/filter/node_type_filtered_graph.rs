@@ -109,7 +109,10 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeTypeFilteredGraph<G>
 
 #[cfg(test)]
 mod tests_node_type_filtered_subgraph {
-    use crate::{db::graph::views::filter::PropertyRef, prelude::*};
+    use crate::{
+        db::graph::views::filter::{model::property_filter::PropertyFilter, PropertyRef},
+        prelude::*,
+    };
 
     #[test]
     fn test_type_filtered_subgraph() {
@@ -271,12 +274,11 @@ mod tests_node_type_filtered_subgraph {
                     },
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{AsNodeFilter, PropertyFilterOps},
+                        filter::model::{AsNodeFilter, PropertyFilterOps},
                     },
                 },
                 prelude::{
-                    AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                    PropertyFilter, TimeOps,
+                    AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps, TimeOps,
                 },
             };
             use std::ops::Range;
@@ -371,9 +373,10 @@ mod tests_node_type_filtered_subgraph {
                 };
                 use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
                 use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::test_nodes_filters_node_type_filtered_subgraph::{get_all_node_types, init_graph};
                 use crate::db::graph::views::test_helpers::search_nodes_with;
-                use crate::prelude::{Graph, GraphViewOps, PropertyFilter};
+                use crate::prelude::{Graph, GraphViewOps};
 
                 pub fn search_nodes(
                     filter: PropertyFilter,
@@ -427,6 +430,7 @@ mod tests_node_type_filtered_subgraph {
             use crate::{db::graph::views::test_helpers::filter_nodes_with, prelude::LayerOps};
             #[cfg(feature = "search")]
             use search_nodes::*;
+            use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::get_all_node_types;
 
             #[test]
@@ -521,13 +525,14 @@ mod tests_node_type_filtered_subgraph {
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::{
-                            internal::InternalEdgeFilterOps, AsEdgeFilter, PropertyFilterOps,
+                            internal::InternalEdgeFilterOps,
+                            model::{AsEdgeFilter, PropertyFilterOps},
                         },
                     },
                 },
                 prelude::{
                     AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
-                    NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps, NO_PROPS,
+                    NodeViewOps, PropertyAdditionOps, TimeOps, NO_PROPS,
                 },
             };
             use std::ops::Range;
@@ -723,9 +728,10 @@ mod tests_node_type_filtered_subgraph {
             mod search_edges {
                 use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
                 use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::test_edges_filters_node_type_filtered_subgraph::{get_all_node_types, init_graph};
                 use crate::db::graph::views::test_helpers::search_edges_with;
-                use crate::prelude::{EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, PropertyFilter, TimeOps};
+                use crate::prelude::{EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps};
 
                 pub fn search_edges(
                     filter: PropertyFilter,
@@ -843,6 +849,7 @@ mod tests_node_type_filtered_subgraph {
             use crate::{db::graph::views::test_helpers::filter_edges_with, prelude::LayerOps};
             #[cfg(feature = "search")]
             use search_edges::*;
+            use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::get_all_node_types;
 
             #[test]

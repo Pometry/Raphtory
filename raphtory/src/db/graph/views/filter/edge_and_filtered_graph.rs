@@ -14,7 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, AndFilter},
+        graph::views::filter::{internal::InternalEdgeFilterOps, model::AndFilter},
     },
     prelude::{GraphViewOps, Layer},
 };

@@ -126,7 +126,7 @@ pub mod prelude {
                     TimeOps,
                 },
             },
-            graph::{graph::Graph, views::filter::PropertyFilter},
+            graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
         },
     };
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};

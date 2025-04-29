@@ -13,7 +13,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalNodeFilterOps, Filter, NodeNameFilter},
+        graph::views::filter::{internal::InternalNodeFilterOps, model::Filter, NodeNameFilter},
     },
     prelude::GraphViewOps,
 };

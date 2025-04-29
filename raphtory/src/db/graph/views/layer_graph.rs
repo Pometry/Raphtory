@@ -278,7 +278,9 @@ mod test_layers {
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
-                    graph::views::{deletion_graph::PersistentGraph, filter::PropertyFilterOps},
+                    graph::views::{
+                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                    },
                 },
                 prelude::{AdditionOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps},
             };
@@ -538,7 +540,7 @@ mod test_layers {
                     api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{internal::InternalEdgeFilterOps, PropertyFilterOps},
+                        filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
                     },
                 },
                 prelude::{

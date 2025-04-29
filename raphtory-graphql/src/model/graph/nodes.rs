@@ -11,7 +11,7 @@ use raphtory::{
     core::utils::errors::GraphError,
     db::{
         api::{state::Index, view::DynamicGraph},
-        graph::{nodes::Nodes, views::filter::CompositeNodeFilter},
+        graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
     },
     prelude::*,
 };

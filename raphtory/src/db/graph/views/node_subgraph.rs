@@ -296,7 +296,9 @@ mod subgraph_tests {
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
-                    graph::views::{deletion_graph::PersistentGraph, filter::PropertyFilterOps},
+                    graph::views::{
+                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                    },
                 },
                 prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
             };
@@ -520,7 +522,7 @@ mod subgraph_tests {
                     api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{internal::InternalEdgeFilterOps, PropertyFilterOps},
+                        filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
                     },
                 },
                 prelude::{

@@ -32,7 +32,9 @@ use raphtory::{
         },
         graph::{
             node::NodeView,
-            views::filter::{CompositeEdgeFilter, CompositeNodeFilter},
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+            },
         },
     },
     prelude::*,

@@ -2,11 +2,13 @@ use crate::model::graph::property::Value;
 use dynamic_graphql::{Enum, InputObject};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::graph::views::filter::{
-        CompositeEdgeFilter, CompositeNodeFilter, Filter, FilterOperator, FilterValue,
-        PropertyFilterValue, PropertyRef, Temporal,
+    db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter,
+        filter_operator::FilterOperator,
+        node_filter::CompositeNodeFilter,
+        property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef, Temporal},
+        Filter, FilterValue,
     },
-    prelude::PropertyFilter,
 };
 use std::{
     fmt,

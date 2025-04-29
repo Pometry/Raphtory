@@ -6,8 +6,10 @@ use crate::{
             internal::{
                 InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
             },
-            AsEdgeFilter, AsNodeFilter, InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
-            PropertyRef,
+            model::{
+                property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
+                InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
+            },
         },
     },
     prelude::{GraphViewOps, PropertyFilter},

@@ -3,18 +3,18 @@ use crate::{
     db::{
         api::view::StaticGraphViewOps,
         graph::{
-            edge::EdgeView,
             node::NodeView,
             views::filter::{
-                internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-                CompositeNodeFilter, Filter, NodeNameFilter, NodeTypeFilter, PropertyRef, Temporal,
+                internal::InternalNodeFilterOps,
+                model::{
+                    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                    property_filter::{PropertyRef, Temporal},
+                    Filter,
+                },
             },
         },
     },
-    prelude::{
-        EdgePropertyFilterOps, GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter,
-        ResetFilter,
-    },
+    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,

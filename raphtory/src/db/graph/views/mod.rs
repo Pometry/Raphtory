@@ -62,7 +62,7 @@ mod test_helpers {
             api::view::StaticGraphViewOps,
             graph::views::filter::{
                 internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-                AsEdgeFilter, AsNodeFilter,
+                model::{AsEdgeFilter, AsNodeFilter},
             },
         },
         prelude::{

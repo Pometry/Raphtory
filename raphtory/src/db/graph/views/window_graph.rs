@@ -1462,7 +1462,7 @@ mod views_test {
                     },
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{
+                        filter::model::{
                             AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
                             PropertyFilterOps,
                         },
@@ -1696,7 +1696,7 @@ mod views_test {
             mod search_nodes {
                 use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
-                use crate::db::graph::views::filter::AsNodeFilter;
+                use crate::db::graph::views::filter::model::AsNodeFilter;
                 use crate::db::graph::views::test_helpers::search_nodes_with;
                 use crate::db::graph::views::window_graph::views_test::test_filters_window_graph::test_nodes_filters_window_graph::init_graph;
                 use crate::prelude::{Graph, TimeOps};
@@ -2483,8 +2483,11 @@ mod views_test {
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::{
-                            internal::InternalEdgeFilterOps, AsEdgeFilter, ComposableFilter,
-                            EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                            internal::InternalEdgeFilterOps,
+                            model::{
+                                AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps,
+                                PropertyFilterOps,
+                            },
                         },
                         test_helpers::filter_edges_with,
                     },
@@ -2756,7 +2759,7 @@ mod views_test {
             mod search_edges {
                 use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
-                use crate::db::graph::views::filter::AsEdgeFilter;
+                use crate::db::graph::views::filter::model::AsEdgeFilter;
                 use crate::db::graph::views::test_helpers::search_edges_with;
                 use crate::db::graph::views::window_graph::views_test::test_filters_window_graph::test_edges_filters_window_graph::init_graph;
                 use crate::prelude::{Graph, TimeOps};
