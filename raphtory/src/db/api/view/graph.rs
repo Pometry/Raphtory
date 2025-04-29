@@ -476,7 +476,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        self.nodes().len()
+        (&self).nodes().len()
     }
 
     #[inline]

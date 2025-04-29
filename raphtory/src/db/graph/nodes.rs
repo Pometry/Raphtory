@@ -232,6 +232,7 @@ where
     }
 
     /// Returns the number of nodes in the graph.
+    #[inline]
     pub fn len(&self) -> usize {
         match self.nodes.as_ref() {
             None => {
