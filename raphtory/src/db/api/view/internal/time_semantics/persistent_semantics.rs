@@ -294,7 +294,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             return false;
         }
         let history = node.history(&view);
-        history.prop_history().active_t(w.clone())
+        history.prop_history().active_t(i64::MIN..w.end)
             || history
                 .edge_history()
                 .active_t(w.start.saturating_add(1)..w.end)
