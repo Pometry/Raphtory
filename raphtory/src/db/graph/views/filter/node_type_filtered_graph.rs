@@ -254,112 +254,6 @@ mod tests_node_type_filtered_subgraph {
                 graph
             }
 
-            fn filter_nodes_with<G, F, I: InternalNodeFilterOps>(
-                filter: I,
-                init_fn: F,
-                node_types: Vec<String>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                let fg = graph
-                    .subgraph_node_types(node_types)
-                    .filter_nodes(filter)
-                    .unwrap();
-                let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
-            fn filter_nodes_with_w<G, F, I: InternalNodeFilterOps>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-                node_types: Vec<String>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                let fg = graph
-                    .subgraph_node_types(node_types)
-                    .window(w.start, w.end)
-                    .filter_nodes(filter)
-                    .unwrap();
-                let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
-            #[cfg(feature = "search")]
-            pub(crate) fn search_nodes_with<G, F, I: AsNodeFilter>(
-                filter: I,
-                init_fn: F,
-                node_types: Vec<String>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                graph.create_index().unwrap();
-
-                let mut results = graph
-                    .subgraph_node_types(node_types)
-                    .search_nodes(filter, 20, 0)
-                    .unwrap()
-                    .into_iter()
-                    .map(|nv| nv.name())
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
-            #[cfg(feature = "search")]
-            pub(crate) fn search_nodes_with_w<G, F, I: AsNodeFilter>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-                node_types: Vec<String>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                graph.create_index().unwrap();
-
-                let mut results = graph
-                    .subgraph_node_types(node_types)
-                    .window(w.start, w.end)
-                    .search_nodes(filter, 20, 0)
-                    .unwrap()
-                    .into_iter()
-                    .map(|nv| nv.name())
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
             fn get_all_node_types<G: StaticGraphViewOps + AdditionOps>(graph: &G) -> Vec<String> {
                 graph
                     .nodes()
@@ -377,7 +271,7 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(Graph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                filter_nodes_with(filter, || graph, node_types)
+                filter_nodes_with(filter, graph.subgraph_node_types(node_types))
             }
 
             fn filter_nodes_w<I: InternalNodeFilterOps>(
@@ -388,7 +282,10 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(Graph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                filter_nodes_with_w(filter, || graph, w, node_types)
+                filter_nodes_with(
+                    filter,
+                    graph.subgraph_node_types(node_types).window(w.start, w.end),
+                )
             }
 
             fn filter_nodes_pg<I: InternalNodeFilterOps>(
@@ -398,7 +295,7 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(PersistentGraph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                filter_nodes_with(filter, || graph, node_types)
+                filter_nodes_with(filter, graph.subgraph_node_types(node_types))
             }
 
             fn filter_nodes_pg_w<I: InternalNodeFilterOps>(
@@ -409,54 +306,77 @@ mod tests_node_type_filtered_subgraph {
                 let graph = init_graph(PersistentGraph::new());
                 let node_types: Vec<String> =
                     node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                filter_nodes_with_w(filter, || graph, w, node_types)
+                filter_nodes_with(
+                    filter,
+                    graph.subgraph_node_types(node_types).window(w.start, w.end),
+                )
             }
 
             #[cfg(feature = "search")]
-            fn search_nodes(
-                filter: PropertyFilter,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with(filter, || graph, node_types)
+            mod search_nodes {
+                use crate::{
+                    prelude::{
+                        NodeViewOps, TimeOps,
+                    },
+                };
+                use std::ops::Range;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::test_nodes_filters_node_type_filtered_subgraph::{get_all_node_types, init_graph};
+                use crate::db::graph::views::test_helpers::search_nodes_with;
+                use crate::prelude::{Graph, GraphViewOps, PropertyFilter};
+
+                pub fn search_nodes(
+                    filter: PropertyFilter,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_nodes_with(filter, graph.subgraph_node_types(node_types))
+                }
+
+                pub fn search_nodes_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_nodes_with(
+                        filter,
+                        graph.subgraph_node_types(node_types).window(w.start, w.end),
+                    )
+                }
+
+                pub fn search_nodes_pg(
+                    filter: PropertyFilter,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_nodes_with(filter, graph.subgraph_node_types(node_types))
+                }
+
+                pub fn search_nodes_pg_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_nodes_with(
+                        filter,
+                        graph.subgraph_node_types(node_types).window(w.start, w.end),
+                    )
+                }
             }
 
+            use crate::db::graph::views::test_helpers::filter_nodes_with;
             #[cfg(feature = "search")]
-            fn search_nodes_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with_w(filter, || graph, w, node_types)
-            }
-
-            #[cfg(feature = "search")]
-            fn search_nodes_pg(
-                filter: PropertyFilter,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with(filter, || graph, node_types)
-            }
-
-            #[cfg(feature = "search")]
-            fn search_nodes_pg_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_nodes_with_w(filter, || graph, w, node_types)
-            }
+            use search_nodes::*;
 
             #[test]
             fn test_nodes_filters() {
@@ -566,20 +486,80 @@ mod tests_node_type_filtered_subgraph {
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
-                    (6, "N1", "N2", vec![("p1", Prop::U64(2u64))], None),
+                    (
+                        6,
+                        "N1",
+                        "N2",
+                        vec![("p1", Prop::U64(2u64))],
+                        Some("fire_nation"),
+                    ),
                     (7, "N1", "N2", vec![("p1", Prop::U64(1u64))], None),
-                    (6, "N2", "N3", vec![("p1", Prop::U64(1u64))], None),
-                    (7, "N2", "N3", vec![("p1", Prop::U64(2u64))], None),
-                    (8, "N3", "N4", vec![("p1", Prop::U64(1u64))], None),
+                    (
+                        6,
+                        "N2",
+                        "N3",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("water_tribe"),
+                    ),
+                    (
+                        7,
+                        "N2",
+                        "N3",
+                        vec![("p1", Prop::U64(2u64))],
+                        Some("water_tribe"),
+                    ),
+                    (
+                        8,
+                        "N3",
+                        "N4",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("fire_nation"),
+                    ),
                     (9, "N4", "N5", vec![("p1", Prop::U64(1u64))], None),
-                    (5, "N5", "N6", vec![("p1", Prop::U64(1u64))], None),
+                    (
+                        5,
+                        "N5",
+                        "N6",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("air_nomads"),
+                    ),
                     (6, "N5", "N6", vec![("p1", Prop::U64(2u64))], None),
-                    (5, "N6", "N7", vec![("p1", Prop::U64(1u64))], None),
-                    (6, "N6", "N7", vec![("p1", Prop::U64(1u64))], None),
-                    (3, "N7", "N8", vec![("p1", Prop::U64(1u64))], None),
+                    (
+                        5,
+                        "N6",
+                        "N7",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("fire_nation"),
+                    ),
+                    (
+                        6,
+                        "N6",
+                        "N7",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("fire_nation"),
+                    ),
+                    (
+                        3,
+                        "N7",
+                        "N8",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("fire_nation"),
+                    ),
                     (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], None),
-                    (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], None),
-                    (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], None),
+                    (
+                        3,
+                        "N8",
+                        "N1",
+                        vec![("p1", Prop::U64(1u64))],
+                        Some("air_nomads"),
+                    ),
+                    (
+                        4,
+                        "N8",
+                        "N1",
+                        vec![("p1", Prop::U64(2u64))],
+                        Some("water_tribe"),
+                    ),
                 ];
 
                 for (id, src, dst, props, layer) in &edges {
@@ -662,62 +642,14 @@ mod tests_node_type_filtered_subgraph {
                 results
             }
 
-            #[cfg(feature = "search")]
-            pub(crate) fn search_edges_with<G, F, I: AsEdgeFilter>(
-                filter: I,
-                init_fn: F,
-                node_types: Vec<String>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                graph.create_index().unwrap();
-
-                let mut results = graph
-                    .subgraph_node_types(node_types)
-                    .search_edges(filter, 20, 0)
-                    .unwrap()
+            fn get_all_node_types<G: StaticGraphViewOps + AdditionOps>(graph: &G) -> Vec<String> {
+                graph
+                    .nodes()
+                    .node_type()
                     .into_iter()
-                    .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
-            }
-
-            #[cfg(feature = "search")]
-            pub(crate) fn search_edges_with_w<G, F, I: AsEdgeFilter>(
-                filter: I,
-                init_fn: F,
-                w: Range<i64>,
-                node_types: Vec<String>,
-            ) -> Vec<String>
-            where
-                F: FnOnce() -> G,
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            {
-                let graph = init_fn();
-                graph.create_index().unwrap();
-
-                let mut results = graph
-                    .subgraph_node_types(node_types)
-                    .window(w.start, w.end)
-                    .search_edges(filter, 20, 0)
-                    .unwrap()
-                    .into_iter()
-                    .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
-                    .collect::<Vec<_>>();
-                results.sort();
-                results
+                    .flat_map(|(_, node_type)| node_type)
+                    .map(|s| s.to_string())
+                    .collect()
             }
 
             fn filter_edges<I: InternalEdgeFilterOps>(
@@ -765,60 +697,116 @@ mod tests_node_type_filtered_subgraph {
             }
 
             #[cfg(feature = "search")]
-            fn search_edges(
-                filter: PropertyFilter,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_edges_with(filter, || graph, node_types)
+            mod search_edges {
+                use std::ops::Range;
+                use crate::db::api::mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps};
+                use crate::db::api::view::StaticGraphViewOps;
+                use crate::db::graph::views::deletion_graph::PersistentGraph;
+                use crate::db::graph::views::filter::AsEdgeFilter;
+                use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::test_edges_filters_node_type_filtered_subgraph::{get_all_node_types, init_graph};
+                use crate::prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps, PropertyFilter, SearchableGraphOps, TimeOps};
+
+                pub fn search_edges_with<G, F, I: AsEdgeFilter>(
+                    filter: I,
+                    init_fn: F,
+                    node_types: Vec<String>,
+                ) -> Vec<String>
+                where
+                    F: FnOnce() -> G,
+                    G: StaticGraphViewOps
+                        + AdditionOps
+                        + InternalAdditionOps
+                        + InternalPropertyAdditionOps
+                        + PropertyAdditionOps,
+                {
+                    let graph = init_fn();
+                    graph.create_index().unwrap();
+
+                    let mut results = graph
+                        .subgraph_node_types(node_types)
+                        .search_edges(filter, 20, 0)
+                        .unwrap()
+                        .into_iter()
+                        .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
+                        .collect::<Vec<_>>();
+                    results.sort();
+                    results
+                }
+
+                pub fn search_edges_with_w<G, F, I: AsEdgeFilter>(
+                    filter: I,
+                    init_fn: F,
+                    w: Range<i64>,
+                    node_types: Vec<String>,
+                ) -> Vec<String>
+                where
+                    F: FnOnce() -> G,
+                    G: StaticGraphViewOps
+                        + AdditionOps
+                        + InternalAdditionOps
+                        + InternalPropertyAdditionOps
+                        + PropertyAdditionOps,
+                {
+                    let graph = init_fn();
+                    graph.create_index().unwrap();
+
+                    let mut results = graph
+                        .subgraph_node_types(node_types)
+                        .window(w.start, w.end)
+                        .search_edges(filter, 20, 0)
+                        .unwrap()
+                        .into_iter()
+                        .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
+                        .collect::<Vec<_>>();
+                    results.sort();
+                    results
+                }
+
+                pub fn search_edges(
+                    filter: PropertyFilter,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_edges_with(filter, || graph, node_types)
+                }
+
+                pub fn search_edges_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(Graph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_edges_with_w(filter, || graph, w, node_types)
+                }
+
+                pub fn search_edges_pg(
+                    filter: PropertyFilter,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_edges_with(filter, || graph, node_types)
+                }
+
+                pub fn search_edges_pg_w(
+                    filter: PropertyFilter,
+                    w: Range<i64>,
+                    node_types: Option<Vec<String>>,
+                ) -> Vec<String> {
+                    let graph = init_graph(PersistentGraph::new());
+                    let node_types: Vec<String> =
+                        node_types.unwrap_or_else(|| get_all_node_types(&graph));
+                    search_edges_with_w(filter, || graph, w, node_types)
+                }
             }
 
             #[cfg(feature = "search")]
-            fn search_edges_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(Graph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_edges_with_w(filter, || graph, w, node_types)
-            }
-
-            #[cfg(feature = "search")]
-            fn search_edges_pg(
-                filter: PropertyFilter,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_edges_with(filter, || graph, node_types)
-            }
-
-            #[cfg(feature = "search")]
-            fn search_edges_pg_w(
-                filter: PropertyFilter,
-                w: Range<i64>,
-                node_types: Option<Vec<String>>,
-            ) -> Vec<String> {
-                let graph = init_graph(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                search_edges_with_w(filter, || graph, w, node_types)
-            }
-
-            fn get_all_node_types<G: StaticGraphViewOps + AdditionOps>(graph: &G) -> Vec<String> {
-                graph
-                    .nodes()
-                    .node_type()
-                    .into_iter()
-                    .flat_map(|(_, node_type)| node_type)
-                    .map(|s| s.to_string())
-                    .collect()
-            }
+            use search_edges::*;
 
             #[test]
             fn test_edges_filters() {
