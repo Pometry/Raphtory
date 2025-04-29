@@ -100,30 +100,33 @@ impl EID {
 )]
 pub struct ELID {
     pub edge: EID,
-    layer_and_deletion: i64,
+    layer_and_deletion: usize,
 }
+
+const LAYER_FLAG: usize = 1usize.reverse_bits();
+const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
 
 impl ELID {
     pub fn new(edge: EID, layer: usize) -> Self {
         ELID {
             edge,
-            layer_and_deletion: layer as i64,
+            layer_and_deletion: layer,
         }
     }
 
     pub fn new_deletion(edge: EID, layer: usize) -> Self {
         ELID {
             edge,
-            layer_and_deletion: -(layer as i64),
+            layer_and_deletion: layer | LAYER_FLAG,
         }
     }
 
     pub fn layer(&self) -> usize {
-        self.layer_and_deletion.unsigned_abs() as usize
+        self.layer_and_deletion & !LAYER_FLAG
     }
 
     pub fn is_deletion(&self) -> bool {
-        self.layer_and_deletion < 0
+        self.layer_and_deletion & LAYER_FLAG != 0
     }
 }
 
@@ -562,5 +565,29 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
 impl From<usize> for LayerIds {
     fn from(id: usize) -> Self {
         LayerIds::One(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::entities::{EID, MAX_LAYER};
+    use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
+
+    #[test]
+    fn test_elid_layer() {
+        proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
+            let elid = EID(eid).with_layer(layer);
+            prop_assert_eq!(elid.layer(), layer);
+            prop_assert!(!elid.is_deletion());
+        })
+    }
+
+    #[test]
+    fn test_elid_deletion() {
+        proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
+            let elid = EID(eid).with_layer_deletion(layer);
+            prop_assert_eq!(elid.layer(), layer);
+            prop_assert!(elid.is_deletion());
+        })
     }
 }
