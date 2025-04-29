@@ -37,10 +37,8 @@ use raphtory_api::{
 };
 use std::{iter, ops::Range};
 
-use crate::core::IntoPropMap;
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::LayerAdditions;
-use raphtory_api::core::storage::timeindex::AsTime;
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -686,6 +684,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
                 }
                 TimeIndexWindow::All(timeindex) => timeindex.props_ts.len(),
             },
+            #[cfg(feature = "storage")]
             NodeAdditions::Col(additions) => additions.clone().prop_events().count(),
         }
     }
@@ -731,6 +730,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
                     }
                     TimeIndexWindow::All(timeindex) => timeindex.edge_ts.len(),
                 },
+                #[cfg(feature = "storage")]
                 NodeAdditions::Col(additions) => additions.clone().edge_events().count(),
             }
         } else {

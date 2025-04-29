@@ -1,20 +1,17 @@
 use crate::{
     core::Prop,
-    db::{
-        api::{
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-                tprop_storage_ops::TPropOps,
-            },
-            view::internal::{
-                time_semantics::{
-                    event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
-                },
-                EdgeTimeSemanticsOps,
-            },
+    db::api::{
+        storage::graph::{
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            tprop_storage_ops::TPropOps,
         },
-        graph::views::window_graph::WindowedGraph,
+        view::internal::{
+            time_semantics::{
+                event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+            },
+            EdgeTimeSemanticsOps,
+        },
     },
     prelude::GraphViewOps,
 };
@@ -310,7 +307,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
                     .any(|(_, e)| {
                         // scan backwards in time over filtered history and keep track of deletions
                         let cache = &mut deleted[e.layer()];
-                        !cache.contains(e.edge.as_u64()) && {
+                        if cache.contains(e.edge.as_u64()) {
+                            false
+                        } else {
                             if e.is_deletion() {
                                 cache.insert(e.edge.as_u64());
                                 false
