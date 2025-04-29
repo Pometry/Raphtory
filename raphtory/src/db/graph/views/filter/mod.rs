@@ -40,7 +40,7 @@ pub mod node_or_filtered_graph;
 pub mod node_property_filtered_graph;
 pub mod node_type_filtered_graph;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterOperator {
     Eq,
     Ne,
@@ -206,13 +206,13 @@ impl FilterOperator {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Temporal {
     Any,
     Latest,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertyRef {
     Property(String),
     ConstantProperty(String),
@@ -241,14 +241,14 @@ impl PropertyRef {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertyFilterValue {
     None,
     Single(Prop),
     Set(Arc<HashSet<Prop>>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PropertyFilter {
     pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
@@ -490,13 +490,13 @@ impl PropertyFilter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilterValue {
     Single(String),
     Set(Arc<HashSet<String>>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Filter {
     pub field_name: String,
     pub field_value: FilterValue,
@@ -670,7 +670,7 @@ impl Filter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter),
@@ -747,7 +747,7 @@ impl CompositeNodeFilter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeEdgeFilter {
     Edge(Filter),
     Property(PropertyFilter),
@@ -857,7 +857,7 @@ impl AsEdgeFilter for EdgeFieldFilter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,
@@ -887,7 +887,7 @@ impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for AndFilter<L, R> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,
@@ -1315,10 +1315,7 @@ mod test_fluent_builder_apis {
             PropertyRef::Property("p".to_string()),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1329,10 +1326,7 @@ mod test_fluent_builder_apis {
             PropertyRef::ConstantProperty("p".to_string()),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1346,10 +1340,7 @@ mod test_fluent_builder_apis {
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1363,10 +1354,7 @@ mod test_fluent_builder_apis {
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1374,10 +1362,7 @@ mod test_fluent_builder_apis {
         let filter_expr = NodeFilter::name().eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1385,10 +1370,7 @@ mod test_fluent_builder_apis {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1405,7 +1387,8 @@ mod test_fluent_builder_apis {
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(NodeFilter::node_type().eq("raphtory"))
-            .or(PropertyFilter::property("p5").eq(9u64));
+            .or(PropertyFilter::property("p5").eq(9u64))
+            .as_node_filter();
 
         let node_composite_filter2 = CompositeNodeFilter::Or(
             Box::new(CompositeNodeFilter::Or(
@@ -1448,10 +1431,7 @@ mod test_fluent_builder_apis {
             ))),
         );
 
-        assert_eq!(
-            node_composite_filter.to_string(),
-            node_composite_filter2.to_string()
-        );
+        assert_eq!(node_composite_filter, node_composite_filter2);
     }
 
     #[test]
@@ -1459,10 +1439,7 @@ mod test_fluent_builder_apis {
         let filter_expr = EdgeFilter::src().eq("raphtory");
         let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
-        assert_eq!(
-            edge_property_filter.to_string(),
-            edge_property_filter2.to_string()
-        );
+        assert_eq!(edge_property_filter, edge_property_filter2);
     }
 
     #[test]
@@ -1470,10 +1447,7 @@ mod test_fluent_builder_apis {
         let filter_expr = EdgeFilter::dst().eq("raphtory");
         let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
-        assert_eq!(
-            edge_property_filter.to_string(),
-            edge_property_filter2.to_string()
-        );
+        assert_eq!(edge_property_filter, edge_property_filter2);
     }
 
     #[test]
@@ -1490,7 +1464,8 @@ mod test_fluent_builder_apis {
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(EdgeFilter::src().eq("raphtory"))
-            .or(PropertyFilter::property("p5").eq(9u64));
+            .or(PropertyFilter::property("p5").eq(9u64))
+            .as_edge_filter();
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(
             Box::new(CompositeEdgeFilter::Or(
@@ -1527,10 +1502,7 @@ mod test_fluent_builder_apis {
             ))),
         );
 
-        assert_eq!(
-            edge_composite_filter.to_string(),
-            edge_composite_filter2.to_string()
-        );
+        assert_eq!(edge_composite_filter, edge_composite_filter2);
     }
 }
 
