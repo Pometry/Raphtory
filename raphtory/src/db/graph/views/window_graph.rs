@@ -2242,6 +2242,13 @@ mod views_test {
                 let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
                 assert_filter_results_w!(filter_nodes_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_w, filter, 6..9, expected_results);
+
+                let expected_results = Vec::<String>::new();
+                assert_filter_results_w!(filter_nodes_w, filter, 1..2, expected_results);
+                assert_search_results_w!(search_nodes_w, filter, 1..2, expected_results);
+
+                assert_filter_results_w!(filter_nodes_w, filter, 10..12, expected_results);
+                assert_search_results_w!(search_nodes_w, filter, 10..12, expected_results);
             }
 
             #[test]
@@ -2253,6 +2260,17 @@ mod views_test {
                 ];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_nodes_pg_w, filter, 6..9, expected_results);
+
+                let expected_results = Vec::<String>::new();
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 1..2, expected_results);
+                assert_search_results_w!(search_nodes_pg_w, filter, 1..2, expected_results);
+
+                let expected_results = vec![
+                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N4", "N5", "N6",
+                    "N7", "N8", "N9",
+                ];
+                assert_filter_results_w!(filter_nodes_pg_w, filter, 10..12, expected_results);
+                assert_search_results_w!(search_nodes_pg_w, filter, 10..12, expected_results);
             }
 
             #[test]
