@@ -920,7 +920,7 @@ mod tests_node_type_filtered_subgraph {
                     layers,
                     6..9,
                     expected_results
-                )
+                );
             }
 
             #[test]
@@ -952,7 +952,7 @@ mod tests_node_type_filtered_subgraph {
                     node_types,
                     layers,
                     expected_results
-                )
+                );
             }
 
             #[test]
@@ -986,7 +986,7 @@ mod tests_node_type_filtered_subgraph {
                     layers,
                     6..9,
                     expected_results
-                )
+                );
             }
         }
     }
