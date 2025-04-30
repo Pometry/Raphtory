@@ -2,24 +2,16 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::LazyNodeState,
+            state::{Index, LazyNodeState, NodeOp},
             storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{FilterOps, OneHopFilter, Static},
+                internal::{is_view_compatible, FilterOps, NodeList, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
-        graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
+        graph::{create_node_type_filter, edges::NestedEdges, node::NodeView, path::PathFromGraph},
     },
     prelude::*,
-};
-
-use crate::db::{
-    api::{
-        state::{Index, NodeOp},
-        view::internal::is_view_compatible,
-    },
-    graph::{create_node_type_filter, views::node_subgraph::NodeSubgraph},
 };
 use either::Either;
 use rayon::iter::ParallelIterator;
@@ -169,14 +161,16 @@ where
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
         match self.nodes.clone() {
-            None => Either::Left(g.into_nodes_par(self.graph.clone(), node_types_filter)),
-            Some(nodes) => {
-                let gs = NodeSubgraph {
-                    graph: self.graph.clone(),
-                    nodes,
-                };
-                Either::Right(g.into_nodes_par(gs, node_types_filter))
-            }
+            None => Either::Left(g.into_nodes_par(
+                self.graph.clone(),
+                self.graph.node_list(),
+                node_types_filter,
+            )),
+            Some(nodes) => Either::Right(g.into_nodes_par(
+                self.graph.clone(),
+                NodeList::List { nodes },
+                node_types_filter,
+            )),
         }
     }
 
@@ -194,14 +188,16 @@ where
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
         match self.nodes.clone() {
-            None => g.into_nodes_iter(self.graph.clone(), node_types_filter),
-            Some(nodes) => {
-                let gs = NodeSubgraph {
-                    graph: self.graph.clone(),
-                    nodes,
-                };
-                g.into_nodes_iter(gs, node_types_filter)
-            }
+            None => g.into_nodes_iter(
+                self.graph.clone(),
+                self.graph.node_list(),
+                node_types_filter,
+            ),
+            Some(nodes) => g.into_nodes_iter(
+                self.graph.clone(),
+                NodeList::List { nodes },
+                node_types_filter,
+            ),
         }
     }
 
@@ -440,7 +436,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
+    use crate::{
+        prelude::*,
+        test_utils::{build_graph, build_graph_strat},
+    };
+    use proptest::{proptest, sample::subsequence};
+
     #[test]
     fn test_id_filter() {
         let graph = Graph::new();
@@ -450,5 +451,15 @@ mod tests {
         assert_eq!(graph.nodes().id_filter([0]).len(), 1);
         assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
         assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
+    }
+
+    #[test]
+    fn test_indexed() {
+        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = Graph::from(build_graph(&graph));
+            let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
+            let nodes = graph.nodes().id_filter(nodes);
+            assert_eq!(nodes.id(), expected_node_ids);
+        })
     }
 }

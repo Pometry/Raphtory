@@ -15,26 +15,37 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::graph::{
-            edges::{
-                edge_ref::EdgeStorageRef,
-                edge_storage_ops::EdgeStorageOps,
-                edges::{EdgesStorage, EdgesStorageRef},
+        storage::{
+            graph::{
+                edges::{
+                    edge_ref::EdgeStorageRef,
+                    edge_storage_ops::EdgeStorageOps,
+                    edges::{EdgesStorage, EdgesStorageRef},
+                },
+                locked::{LockedGraph, WriteLockedGraph},
+                nodes::{
+                    node_owned_entry::NodeOwnedEntry,
+                    node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+                    nodes::NodesStorage,
+                    nodes_ref::NodesStorageEntry,
+                },
+                variants::filter_variants::FilterVariants,
             },
-            locked::{LockedGraph, WriteLockedGraph},
-            nodes::{
-                node_owned_entry::NodeOwnedEntry,
-                node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
-                nodes::NodesStorage,
-                nodes_ref::NodesStorageEntry,
-            },
-            variants::filter_variants::FilterVariants,
+            storage::Storage,
         },
-        view::internal::{CoreGraphOps, FilterOps, FilterState, NodeList},
+        view::internal::{CoreGraphOps, FilterOps, FilterState, InternalStorageOps, NodeList},
     },
-    prelude::{DeletionOps, GraphViewOps},
+    prelude::{DeletionOps, EdgeViewOps, GraphViewOps},
 };
+use itertools::Itertools;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Debug, Formatter},
+    iter,
+    sync::Arc,
+};
 
 #[cfg(feature = "storage")]
 use crate::{
@@ -49,21 +60,6 @@ use crate::{
         },
         DiskGraphStorage,
     },
-};
-use crate::{
-    db::api::{
-        storage::storage::Storage,
-        view::internal::{InternalStorageOps, NodeTimeSemanticsOps},
-    },
-    prelude::EdgeViewOps,
-};
-use itertools::Itertools;
-use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Formatter},
-    iter,
-    sync::Arc,
 };
 
 pub mod additions;
@@ -346,9 +342,10 @@ impl GraphStorage {
     pub fn into_nodes_iter<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
+        node_list: NodeList,
         type_filter: Option<Arc<[bool]>>,
     ) -> BoxedLIter<'graph, VID> {
-        view.node_list()
+        node_list
             .into_iter()
             .filter(move |&vid| {
                 let node = self.node_entry(vid);
@@ -376,9 +373,10 @@ impl GraphStorage {
     pub fn into_nodes_par<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
+        node_list: NodeList,
         type_filter: Option<Arc<[bool]>>,
     ) -> impl ParallelIterator<Item = VID> + 'graph {
-        view.node_list().into_par_iter().filter(move |&vid| {
+        node_list.into_par_iter().filter(move |&vid| {
             let node = self.node_entry(vid);
             type_filter
                 .as_ref()

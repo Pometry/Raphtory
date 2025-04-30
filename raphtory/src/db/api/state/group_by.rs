@@ -9,7 +9,7 @@ use dashmap::DashMap;
 use indexmap::IndexSet;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
-use std::{hash::Hash, sync::Arc};
+use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G> {
@@ -29,6 +29,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
             .into_par_iter()
             .map(|(k, v)| (k, Index::new(v)))
             .collect();
+
         Self { groups, graph }
     }
 
@@ -119,7 +120,7 @@ pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
 
 impl<'graph, S: NodeStateOps<'graph>> NodeStateGroupBy<'graph> for S
 where
-    S::OwnedValue: Hash + Eq,
+    S::OwnedValue: Hash + Eq + Debug,
 {
     fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
         self.group_by(|v| v.clone())

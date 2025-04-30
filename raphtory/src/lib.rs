@@ -384,38 +384,28 @@ mod test_utils {
     fn make_props(
         schema: HashMap<String, PropType>,
     ) -> (
-        BoxedStrategy<Vec<(String, Prop)>>,
-        BoxedStrategy<Vec<(String, Prop)>>,
+        impl Strategy<Value = Vec<(String, Prop)>>,
+        impl Strategy<Value = Vec<(String, Prop)>>,
     ) {
-        let mut iter = schema.iter();
+        let values: Vec<_> = schema.into_iter().collect();
 
-        // split in half, one temporal one constant
-        let t_prop_s = (&mut iter)
-            .take(schema.len() / 2)
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect::<Vec<_>>();
-        let c_prop_s = iter
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect::<Vec<_>>();
-
-        let num_tprops = t_prop_s.len();
-        let num_cprops = c_prop_s.len();
+        let num_props = values.len();
 
         let t_props =
-            proptest::sample::subsequence(t_prop_s, 0..=num_tprops).prop_flat_map(|schema| {
+            proptest::sample::subsequence(values.clone(), 0..=num_props).prop_flat_map(|schema| {
                 schema
                     .into_iter()
                     .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
                     .collect::<Vec<_>>()
             });
         let c_props =
-            proptest::sample::subsequence(c_prop_s, 0..=num_cprops).prop_flat_map(|schema| {
+            proptest::sample::subsequence(values, 0..=num_props).prop_flat_map(|schema| {
                 schema
                     .into_iter()
                     .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
                     .collect::<Vec<_>>()
             });
-        (t_props.boxed(), c_props.boxed())
+        (t_props, c_props)
     }
     pub(crate) fn build_nodes_dyn(
         nodes: Vec<u64>,
@@ -498,7 +488,7 @@ mod test_utils {
                         0..num_nodes,
                         i64::MIN..i64::MAX,
                         t_props,
-                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                        proptest::sample::select(&[Some("a"), Some("b"), None]),
                     ),
                     0..=len,
                 );
@@ -507,14 +497,14 @@ mod test_utils {
                     (
                         0..num_nodes,
                         0..num_nodes,
-                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                        proptest::sample::select(&[Some("a"), Some("b"), None]),
                     ),
                     c_props,
                     0..=len,
                 );
 
-                (edges, no_props, const_props, del_edges).prop_map(
-                    |(edges, no_props, const_props, del_edges)| GraphFixture {
+                (no_props, const_props, edges, del_edges).prop_map(
+                    |(no_props, const_props, edges, del_edges)| GraphFixture {
                         edges,
                         edge_const_props: const_props,
                         edge_deletions: del_edges,

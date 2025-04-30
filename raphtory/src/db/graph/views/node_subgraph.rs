@@ -59,14 +59,18 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeSubgraph<
 
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     pub fn new(graph: G, nodes: impl IntoIterator<Item = impl AsNodeRef>) -> Self {
-        let nodes = nodes
+        let nodes: Index<_> = nodes
             .into_iter()
-            .flat_map(|v| graph.internalise_node(v.as_node_ref()));
-        let nodes = if graph.internal_nodes_filtered() {
-            Index::from_iter(nodes.filter(|n| graph.has_node(*n)))
-        } else {
-            Index::from_iter(nodes)
+            .flat_map(|v| graph.internalise_node(v.as_node_ref()))
+            .collect();
+        let filter = NodeSubgraph {
+            graph: &graph,
+            nodes: nodes.clone(),
         };
+        let nodes: Index<_> = nodes
+            .into_iter()
+            .filter(|vid| filter.has_node(*vid))
+            .collect();
         Self { graph, nodes }
     }
 }
@@ -138,12 +142,17 @@ mod subgraph_tests {
         algorithms::{
             components::weakly_connected_components, motifs::triangle_count::triangle_count,
         },
-        db::graph::graph::assert_graph_equal,
+        db::{
+            api::mutation::internal::InternalAdditionOps,
+            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        },
         prelude::*,
         test_storage,
+        test_utils::{build_graph, build_graph_strat},
     };
     use ahash::HashSet;
     use itertools::Itertools;
+    use proptest::{proptest, sample::subsequence};
     use std::collections::BTreeSet;
 
     #[test]
@@ -557,5 +566,33 @@ mod subgraph_tests {
                 .collect_vec(),
             [(GID::U64(0), GID::U64(1))]
         );
+    }
+
+    #[test]
+    fn nodes_without_updates_are_filtered() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let expected = Graph::new();
+        expected.resolve_layer(None).unwrap();
+        let subgraph = g.subgraph([0]);
+        assert_graph_equal(&subgraph, &expected);
+    }
+
+    #[test]
+    fn materialize_proptest() {
+        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = Graph::from(build_graph(&graph));
+            let subgraph = graph.subgraph(nodes);
+            assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
+        })
+    }
+
+    #[test]
+    fn materialize_persistent_proptest() {
+        proptest!(|(graph in build_graph_strat(10, 10, true), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = PersistentGraph::from(build_graph(&graph));
+            let subgraph = graph.subgraph(nodes);
+            assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
+        })
     }
 }

@@ -9,7 +9,7 @@ use crate::{
 use indexmap::IndexSet;
 use num_traits::AsPrimitive;
 use rayon::prelude::*;
-use std::{borrow::Borrow, hash::Hash, iter::Sum};
+use std::{borrow::Borrow, fmt::Debug, hash::Hash, iter::Sum};
 
 pub trait NodeStateOps<'graph>:
     IntoIterator<
@@ -210,7 +210,10 @@ pub trait NodeStateOps<'graph>:
         values.into_iter().nth(median_index)
     }
 
-    fn group_by<V: Hash + Eq + Send + Sync + Clone, F: Fn(&Self::OwnedValue) -> V + Sync>(
+    fn group_by<
+        V: Hash + Eq + Send + Sync + Clone + Debug,
+        F: Fn(&Self::OwnedValue) -> V + Sync,
+    >(
         &self,
         group_fn: F,
     ) -> NodeGroups<V, Self::Graph> {
