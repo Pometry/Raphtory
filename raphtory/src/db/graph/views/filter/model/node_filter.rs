@@ -1,12 +1,16 @@
 use crate::{
+    core::utils::errors::GraphError,
     db::{
-        api::storage::graph::nodes::node_ref::NodeStorageRef,
-        graph::views::filter::model::{property_filter::PropertyFilter, Filter},
+        api::{storage::graph::nodes::node_ref::NodeStorageRef, view::BoxableGraphView},
+        graph::views::filter::{
+            internal::InternalNodeFilterOps,
+            model::{property_filter::PropertyFilter, AndFilter, Filter, OrFilter},
+        },
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::LayerIds;
-use std::{collections::HashMap, fmt, fmt::Display, sync::Arc};
+use std::{collections::HashMap, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);
@@ -111,6 +115,40 @@ impl CompositeNodeFilter {
                     node,
                 )
             }
+        }
+    }
+}
+
+impl InternalNodeFilterOps for CompositeNodeFilter {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        match self {
+            CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
+                "node_name" => Ok(Arc::new(NodeNameFilter(i).create_node_filter(graph)?)),
+                "node_type" => Ok(Arc::new(NodeTypeFilter(i).create_node_filter(graph)?)),
+                _ => {
+                    unreachable!()
+                }
+            },
+            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
+            CompositeNodeFilter::And(l, r) => Ok(Arc::new(
+                AndFilter {
+                    left: l.deref().clone(),
+                    right: r.deref().clone(),
+                }
+                .create_node_filter(graph)?,
+            )),
+            CompositeNodeFilter::Or(l, r) => Ok(Arc::new(
+                OrFilter {
+                    left: l.deref().clone(),
+                    right: r.deref().clone(),
+                }
+                .create_node_filter(graph)?,
+            )),
         }
     }
 }

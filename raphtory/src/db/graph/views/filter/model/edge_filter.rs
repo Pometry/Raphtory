@@ -1,11 +1,15 @@
 use crate::{
+    core::utils::errors::GraphError,
     db::{
-        api::storage::graph::edges::edge_ref::EdgeStorageRef,
-        graph::views::filter::model::{property_filter::PropertyFilter, Filter},
+        api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::BoxableGraphView},
+        graph::views::filter::{
+            internal::InternalEdgeFilterOps,
+            model::{property_filter::PropertyFilter, AndFilter, Filter, OrFilter},
+        },
     },
     prelude::GraphViewOps,
 };
-use std::{collections::HashMap, fmt, fmt::Display};
+use std::{collections::HashMap, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilter(pub Filter);
@@ -59,6 +63,36 @@ impl CompositeEdgeFilter {
                 left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
                     || right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
             }
+        }
+    }
+}
+
+impl InternalEdgeFilterOps for CompositeEdgeFilter {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        match self {
+            CompositeEdgeFilter::Edge(i) => {
+                Ok(Arc::new(EdgeFieldFilter(i).create_edge_filter(graph)?))
+            }
+            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_edge_filter(graph)?)),
+            CompositeEdgeFilter::And(l, r) => Ok(Arc::new(
+                AndFilter {
+                    left: l.deref().clone(),
+                    right: r.deref().clone(),
+                }
+                .create_edge_filter(graph)?,
+            )),
+            CompositeEdgeFilter::Or(l, r) => Ok(Arc::new(
+                OrFilter {
+                    left: l.deref().clone(),
+                    right: r.deref().clone(),
+                }
+                .create_edge_filter(graph)?,
+            )),
         }
     }
 }
