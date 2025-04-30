@@ -628,7 +628,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.get_or_create_index(None)?;
                 Ok(())
             })
@@ -636,7 +636,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 if path.is_file() {
                     storage.get_or_create_index(Some(path.clone()))?;
                 } else {
@@ -653,7 +653,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
         let path = path.join("index");
         self.get_storage()
-            .map_or(Err(GraphError::FailedToPersistIndex), |storage| {
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.persist_index_to_disk(&path)?;
                 Ok(())
             })
@@ -661,7 +661,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
     fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::FailedToPersistIndex), |storage| {
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.persist_index_to_disk_zip(&path)?;
                 Ok(())
             })

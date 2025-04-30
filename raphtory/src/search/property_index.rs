@@ -83,12 +83,11 @@ impl PropertyIndex {
     }
 
     fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
-        let index = Index::open_in_dir(path).map_err(|e| GraphError::IndexError { source: e })?;
+        let index = Index::open_in_dir(path)?;
         let reader = index
             .reader_builder()
             .reload_policy(tantivy::ReloadPolicy::Manual)
-            .try_into()
-            .unwrap();
+            .try_into()?;
         let schema = index.schema();
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge);

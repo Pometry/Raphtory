@@ -528,11 +528,13 @@ pub(crate) mod test_filters {
                 prelude::{AdditionOps, Graph, PropertyAdditionOps},
             };
 
-            use crate::db::graph::views::filter::{
-                internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
+            use crate::{
+                db::graph::views::{
+                    filter::{internal::InternalNodeFilterOps, test_filters::filter_nodes_with},
+                    test_helpers::search_nodes_with,
+                },
+                prelude::PropertyFilter,
             };
-            use crate::db::graph::views::test_helpers::search_nodes_with;
-            use crate::prelude::PropertyFilter;
 
             fn init_graph<
                 G: StaticGraphViewOps

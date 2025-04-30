@@ -171,7 +171,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub fn persist_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
         let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
 
         let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
@@ -195,7 +195,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub fn persist_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
         let index_path = &path.join("index");
 
         let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;

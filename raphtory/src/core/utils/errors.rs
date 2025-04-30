@@ -372,6 +372,9 @@ pub enum GraphError {
 
     #[error("Filter must contain at least one filter condition.")]
     ParsingError,
+
+    #[error("Indexing not supported")]
+    IndexingNotSupported,
 }
 
 impl GraphError {
