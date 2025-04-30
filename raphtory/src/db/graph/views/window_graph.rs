@@ -1463,25 +1463,17 @@ mod views_test {
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::model::{
-                            AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
-                            PropertyFilterOps,
+                            ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
                         },
                     },
                 },
-                prelude::{
-                    AdditionOps, Graph, NodeViewOps, PropertyAdditionOps, PropertyFilter, TimeOps,
-                },
+                prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter, TimeOps},
             };
             use raphtory_api::core::storage::arc_str::ArcStr;
             use std::{ops::Range, sync::Arc};
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
-            use crate::{
-                db::graph::views::{
-                    filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
-                },
-                prelude::GraphViewOps,
+            use crate::db::graph::views::{
+                filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
 
             fn init_graph<
@@ -2471,8 +2463,6 @@ mod views_test {
         }
 
         mod test_edges_filters_window_graph {
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::{
                 core::Prop,
                 db::{
@@ -2485,17 +2475,13 @@ mod views_test {
                         filter::{
                             internal::InternalEdgeFilterOps,
                             model::{
-                                AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps,
-                                PropertyFilterOps,
+                                ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
                             },
                         },
                         test_helpers::filter_edges_with,
                     },
                 },
-                prelude::{
-                    AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps,
-                    PropertyAdditionOps, PropertyFilter, TimeOps,
-                },
+                prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter, TimeOps},
             };
             use raphtory_api::core::storage::arc_str::ArcStr;
             use std::{ops::Range, sync::Arc};
@@ -2944,13 +2930,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = vec!["N14->N15"];
                 // TODO: PropertyFilteringNotImplemented
+                // let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
+                //     Prop::U64(1),
+                //     Prop::U64(6),
+                //     Prop::U64(9),
+                // ])));
+                // let expected_results = vec!["N14->N15"];
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 1..9, expected_results);
                 // TODO: Search APIs don't support list yet
                 // assert_search_results_w!(search_edges_pg_w, filter, 1..9, expected_results);
@@ -3033,13 +3019,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = Vec::<String>::new();
                 // TODO: PropertyFilteringNotImplemented
+                // let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
+                //     Prop::U64(1),
+                //     Prop::U64(6),
+                //     Prop::U64(9),
+                // ])));
+                // let expected_results = Vec::<String>::new();
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 1..9, expected_results);
                 // TODO: Search APIs don't support list yet
                 // assert_search_results_w!(search_edges_pg_w, filter, 1..9, expected_results);
@@ -3098,13 +3084,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
                 // TODO: PropertyFilteringNotImplemented
+                // let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
+                //     Prop::U64(1),
+                //     Prop::U64(7),
+                //     Prop::U64(0),
+                // ])));
+                // let expected_results = vec!["N14->N15"];
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 1..9, expected_results);
                 // TODO: Search APIs don't support list yet
                 // assert_search_results_w!(search_edges_pg_w, filter, 1..9, expected_results);
@@ -3162,13 +3148,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = Vec::<String>::new();
                 // TODO: PropertyFilteringNotImplemented
+                // let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
+                //     Prop::U64(1),
+                //     Prop::U64(2),
+                //     Prop::U64(3),
+                // ])));
+                // let expected_results = Vec::<String>::new();
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 1..9, expected_results);
                 // TODO: Search APIs don't support list yet
                 // assert_search_results_w!(search_edges_pg_w, filter, 1..9, expected_results);
@@ -3225,13 +3211,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14->N15"];
                 // TODO: PropertyFilteringNotImplemented
+                // let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
+                //     Prop::U64(1),
+                //     Prop::U64(2),
+                //     Prop::U64(3),
+                // ])));
+                // let expected_results = vec!["N14->N15"];
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 1..9, expected_results);
                 // TODO: Search APIs don't support list yet
                 // assert_search_results_w!(search_edges_pg_w, filter, 1..9, expected_results);
@@ -3293,13 +3279,13 @@ mod views_test {
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14->N15"];
                 // TODO: PropertyFilteringNotImplemented
+                // let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
+                //     Prop::U64(1),
+                //     Prop::U64(2),
+                //     Prop::U64(3),
+                // ])));
+                // let expected_results = vec!["N14->N15"];
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 1..9, expected_results);
                 // TODO: Search APIs don't support list yet
                 // assert_search_results_w!(search_edges_pg_w, filter, 1..9, expected_results);

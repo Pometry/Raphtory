@@ -1,27 +1,7 @@
-use crate::{
-    db::{
-        api::{
-            properties::internal::PropertiesOps,
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            },
-            view::EdgeViewOps,
-        },
-        graph::views::filter::{
-            internal::InternalNodeFilterOps,
-            model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-                property_filter::{PropertyFilter, PropertyRef, Temporal},
-            },
-        },
-    },
-    prelude::{GraphViewOps, NodeViewOps},
-};
-use itertools::Itertools;
-use std::{
-    fmt::{Debug, Display},
-    ops::Deref,
+use crate::db::graph::views::filter::model::{
+    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+    property_filter::PropertyFilter,
 };
 
 pub mod edge_and_filtered_graph;
@@ -41,12 +21,12 @@ pub mod node_type_filtered_graph;
 
 #[cfg(test)]
 mod test_fluent_builder_apis {
-    use crate::db::graph::views::filter::{
-        model::{
-            property_filter::PropertyFilter, AsEdgeFilter, AsNodeFilter, ComposableFilter,
-            EdgeFilter, EdgeFilterOps, Filter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
-        },
-        CompositeEdgeFilter, CompositeNodeFilter, PropertyRef, Temporal,
+    use crate::db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter,
+        node_filter::CompositeNodeFilter,
+        property_filter::{PropertyFilter, PropertyRef, Temporal},
+        AsEdgeFilter, AsNodeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps, Filter,
+        NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
     };
 
     #[test]
@@ -253,8 +233,11 @@ mod test_fluent_builder_apis {
 mod test_composite_filters {
     use crate::{
         core::Prop,
-        db::graph::views::filter::{
-            model::Filter, CompositeEdgeFilter, CompositeNodeFilter, PropertyFilter, PropertyRef,
+        db::graph::views::filter::model::{
+            edge_filter::CompositeEdgeFilter,
+            node_filter::CompositeNodeFilter,
+            property_filter::{PropertyFilter, PropertyRef},
+            Filter,
         },
         prelude::IntoProp,
     };
@@ -517,21 +500,14 @@ mod test_composite_filters {
 
 #[cfg(test)]
 pub(crate) mod test_filters {
-    use super::*;
     use crate::{
         core::IntoProp,
         db::api::{
             mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
             view::StaticGraphViewOps,
         },
-        prelude::{
-            AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, NodePropertyFilterOps,
-            PropertyAdditionOps,
-        },
+        prelude::{AdditionOps, Graph, PropertyAdditionOps},
     };
-
-    #[cfg(feature = "search")]
-    pub use crate::db::api::view::SearchableGraphOps;
 
     #[cfg(test)]
     mod test_property_semantics {

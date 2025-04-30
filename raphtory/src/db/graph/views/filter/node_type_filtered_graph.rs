@@ -110,7 +110,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeTypeFilteredGraph<G>
 #[cfg(test)]
 mod tests_node_type_filtered_subgraph {
     use crate::{
-        db::graph::views::filter::{model::property_filter::PropertyFilter, PropertyRef},
+        db::graph::views::filter::model::property_filter::{PropertyFilter, PropertyRef},
         prelude::*,
     };
 
@@ -165,7 +165,7 @@ mod tests_node_type_filtered_subgraph {
     mod test_filters_node_type_filtered_subgraph {
         use crate::{
             db::api::view::StaticGraphViewOps,
-            prelude::{AdditionOps, GraphViewOps, NodeViewOps},
+            prelude::{AdditionOps, NodeViewOps},
         };
 
         macro_rules! assert_filter_results {
@@ -268,27 +268,16 @@ mod tests_node_type_filtered_subgraph {
             use crate::{
                 core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
-                        deletion_graph::PersistentGraph,
-                        filter::model::{AsNodeFilter, PropertyFilterOps},
+                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
                     },
                 },
-                prelude::{
-                    AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps, TimeOps,
-                },
+                prelude::{AdditionOps, Graph, GraphViewOps, TimeOps},
             };
             use std::ops::Range;
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
-            use crate::{
-                db::graph::views::filter::internal::InternalNodeFilterOps,
-                prelude::NodePropertyFilterOps,
-            };
+            use crate::db::graph::views::filter::internal::InternalNodeFilterOps;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -368,7 +357,7 @@ mod tests_node_type_filtered_subgraph {
             mod search_nodes {
                 use crate::{
                     prelude::{
-                        NodeViewOps, TimeOps,
+                        TimeOps,
                     },
                 };
                 use std::ops::Range;
@@ -427,7 +416,7 @@ mod tests_node_type_filtered_subgraph {
                 }
             }
 
-            use crate::{db::graph::views::test_helpers::filter_nodes_with, prelude::LayerOps};
+            use crate::{db::graph::views::test_helpers::filter_nodes_with};
             #[cfg(feature = "search")]
             use search_nodes::*;
             use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
@@ -518,27 +507,15 @@ mod tests_node_type_filtered_subgraph {
             use crate::{
                 core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::{
-                            internal::InternalEdgeFilterOps,
-                            model::{AsEdgeFilter, PropertyFilterOps},
-                        },
+                        filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
                     },
                 },
-                prelude::{
-                    AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps,
-                    NodeViewOps, PropertyAdditionOps, TimeOps, NO_PROPS,
-                },
+                prelude::{AdditionOps, Graph, GraphViewOps, TimeOps, NO_PROPS},
             };
             use std::ops::Range;
-
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -731,7 +708,7 @@ mod tests_node_type_filtered_subgraph {
                 use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
                 use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::test_edges_filters_node_type_filtered_subgraph::{get_all_node_types, init_graph};
                 use crate::db::graph::views::test_helpers::search_edges_with;
-                use crate::prelude::{EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps};
+                use crate::prelude::{Graph, GraphViewOps, LayerOps, TimeOps};
 
                 pub fn search_edges(
                     filter: PropertyFilter,

@@ -1,12 +1,9 @@
 use crate::{
     core::Prop,
     db::{
-        api::{
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            },
-            view::internal::NodeFilterOps,
+        api::storage::graph::{
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         graph::views::filter::{
             internal::InternalNodeFilterOps,

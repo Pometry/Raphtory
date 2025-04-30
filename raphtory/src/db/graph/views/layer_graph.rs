@@ -282,12 +282,10 @@ mod test_layers {
                         deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
                     },
                 },
-                prelude::{AdditionOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps},
+                prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::{
                 filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
@@ -543,14 +541,10 @@ mod test_layers {
                         filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
                     },
                 },
-                prelude::{
-                    AdditionOps, EdgeViewOps, Graph, LayerOps, NodeViewOps, PropertyFilter, TimeOps,
-                },
+                prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::test_helpers::filter_edges_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {

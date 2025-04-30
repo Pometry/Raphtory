@@ -8,8 +8,7 @@ use crate::{
                 internal::{
                     EdgeFilterOps, EdgeHistoryFilter, Immutable, InheritCoreOps, InheritLayerOps,
                     InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-                    InternalLayerOps, Static,
+                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
                 },
                 Base,
             },

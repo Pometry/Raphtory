@@ -301,12 +301,10 @@ mod test {
                         deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
                     },
                 },
-                prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+                prelude::{AdditionOps, Graph, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::{
                 filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
@@ -430,8 +428,6 @@ mod test {
                 assert_search_results_w,
             };
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::{
                 core::Prop,
                 db::{
@@ -442,7 +438,7 @@ mod test {
                         test_helpers::filter_edges_with,
                     },
                 },
-                prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, TimeOps},
+                prelude::{AdditionOps, Graph, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 

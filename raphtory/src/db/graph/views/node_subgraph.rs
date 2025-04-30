@@ -304,8 +304,6 @@ mod subgraph_tests {
             };
             use std::ops::Range;
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::{
                 filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
             };
@@ -525,15 +523,10 @@ mod subgraph_tests {
                         filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
                     },
                 },
-                prelude::{
-                    AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter,
-                    TimeOps,
-                },
+                prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
             };
             use std::ops::Range;
 
-            #[cfg(feature = "search")]
-            pub use crate::db::api::view::SearchableGraphOps;
             use crate::db::graph::views::test_helpers::filter_edges_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
