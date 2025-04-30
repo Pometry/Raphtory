@@ -16,9 +16,10 @@ use raphtory::{
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::filter::{
-                ComposableFilter, EdgeFilter, EdgeFilterOps, FilterOperator, FilterOperator::*,
-                NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+            views::filter::model::{
+                filter_operator::{FilterOperator, FilterOperator::*},
+                ComposableFilter, EdgeFilter, EdgeFilterOps, NodeFilter, NodeFilterBuilderOps,
+                PropertyFilterOps,
             },
         },
     },
@@ -780,8 +781,9 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
                 let random_src_name = random_name.0;
                 let random_dst_name = random_name.1;
                 EdgeFilter::src()
+                    .name()
                     .eq(random_src_name)
-                    .and(EdgeFilter::dst().eq(random_dst_name))
+                    .and(EdgeFilter::dst().name().eq(random_dst_name))
             },
             |random_filter| {
                 graph.search_edges(random_filter, 5, 0).unwrap();
