@@ -2780,7 +2780,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_src_eq() {
-                let filter = EdgeFilter::src().eq("N2");
+                let filter = EdgeFilter::src().name().eq("N2");
                 let expected_results = vec!["N2->N3"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -2788,7 +2788,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_src_eq() {
-                let filter = EdgeFilter::src().eq("N2");
+                let filter = EdgeFilter::src().name().eq("N2");
                 let expected_results = vec!["N2->N3"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
@@ -2797,7 +2797,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_src_ne() {
-                let filter = EdgeFilter::src().ne("N2");
+                let filter = EdgeFilter::src().name().ne("N2");
                 let expected_results = vec!["N1->N2", "N3->N4", "N5->N6", "N6->N7"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -2805,7 +2805,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_src_ne() {
-                let filter = EdgeFilter::src().ne("N2");
+                let filter = EdgeFilter::src().name().ne("N2");
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
@@ -2817,12 +2817,14 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_dst_in() {
-                let filter = EdgeFilter::dst().is_in(vec!["N2".into()]);
+                let filter = EdgeFilter::dst().name().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
 
-                let filter = EdgeFilter::dst().is_in(vec!["N2".into(), "N5".into()]);
+                let filter = EdgeFilter::dst()
+                    .name()
+                    .is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -2830,13 +2832,15 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_dst_in() {
-                let filter = EdgeFilter::dst().is_in(vec!["N2".into()]);
+                let filter = EdgeFilter::dst().name().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N1->N2"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_pg_w, filter, 6..9, expected_results);
 
-                let filter = EdgeFilter::dst().is_in(vec!["N2".into(), "N5".into()]);
+                let filter = EdgeFilter::dst()
+                    .name()
+                    .is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N1->N2"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);
@@ -2845,7 +2849,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_dst_not_in() {
-                let filter = EdgeFilter::dst().is_not_in(vec!["N5".into()]);
+                let filter = EdgeFilter::dst().name().is_not_in(vec!["N5".into()]);
                 let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -2853,7 +2857,7 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_dst_not_in() {
-                let filter = EdgeFilter::dst().is_not_in(vec!["N5".into()]);
+                let filter = EdgeFilter::dst().name().is_not_in(vec!["N5".into()]);
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
@@ -3459,7 +3463,10 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_for_src_dst() {
-                let filter = EdgeFilter::src().eq("N1").and(EdgeFilter::dst().eq("N2"));
+                let filter = EdgeFilter::src()
+                    .name()
+                    .eq("N1")
+                    .and(EdgeFilter::dst().name().eq("N2"));
                 let expected_results = vec!["N1->N2"];
                 assert_filter_results_w!(filter_edges_w, filter, 6..9, expected_results);
                 assert_search_results_w!(search_edges_w, filter, 6..9, expected_results);
@@ -3467,7 +3474,10 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_src_dst() {
-                let filter = EdgeFilter::src().eq("N1").and(EdgeFilter::dst().eq("N2"));
+                let filter = EdgeFilter::src()
+                    .name()
+                    .eq("N1")
+                    .and(EdgeFilter::dst().name().eq("N2"));
                 let expected_results = vec!["N1->N2"];
                 // TODO: PropertyFilteringNotImplemented
                 // assert_filter_results_w!(filter_edges_pg_w, filter, 6..9, expected_results);

@@ -2,9 +2,10 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
-        AsEdgeFilter, AsNodeFilter, EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps,
-        InternalNodeFilterBuilderOps, InternalPropertyFilterOps, NodeFilter, OrFilter,
-        PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
+        AsEdgeFilter, AsNodeFilter, EdgeEndpointFilter, EdgeFilter, EdgeFilterOps,
+        InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps, InternalPropertyFilterOps,
+        NodeFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
+        TemporalPropertyFilterBuilder,
     },
     python::types::{
         iterable::FromIterable,
@@ -430,6 +431,17 @@ impl PyEdgeFilterOp {
     }
 }
 
+#[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyEdgeEndpoint(pub EdgeEndpointFilter);
+
+#[pymethods]
+impl PyEdgeEndpoint {
+    fn name(&self) -> PyEdgeFilterOp {
+        PyEdgeFilterOp(self.0.name())
+    }
+}
+
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
 #[derive(Clone)]
 pub struct PyEdgeFilter;
@@ -437,13 +449,13 @@ pub struct PyEdgeFilter;
 #[pymethods]
 impl PyEdgeFilter {
     #[staticmethod]
-    fn src() -> PyEdgeFilterOp {
-        PyEdgeFilterOp(Arc::new(EdgeFilter::src()))
+    fn src() -> PyEdgeEndpoint {
+        PyEdgeEndpoint(EdgeFilter::src())
     }
 
     #[staticmethod]
-    fn dst() -> PyEdgeFilterOp {
-        PyEdgeFilterOp(Arc::new(EdgeFilter::dst()))
+    fn dst() -> PyEdgeEndpoint {
+        PyEdgeEndpoint(EdgeFilter::dst())
     }
 }
 
@@ -458,6 +470,7 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyNodeFilterOp>()?;
     filter_module.add_class::<PyNodeFilter>()?;
     filter_module.add_class::<PyEdgeFilterOp>()?;
+    filter_module.add_class::<PyEdgeEndpoint>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyTemporalPropertyFilterBuilder>()?;

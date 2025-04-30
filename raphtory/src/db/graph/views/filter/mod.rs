@@ -178,7 +178,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_edge_src_filter_build() {
-        let filter_expr = EdgeFilter::src().eq("raphtory");
+        let filter_expr = EdgeFilter::src().name().eq("raphtory");
         let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
         assert_eq!(edge_property_filter, edge_property_filter2);
@@ -186,7 +186,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_edge_dst_filter_build() {
-        let filter_expr = EdgeFilter::dst().eq("raphtory");
+        let filter_expr = EdgeFilter::dst().name().eq("raphtory");
         let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
         assert_eq!(edge_property_filter, edge_property_filter2);
@@ -195,6 +195,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_filter_composition() {
         let edge_composite_filter = EdgeFilter::src()
+            .name()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
@@ -205,7 +206,7 @@ mod test_fluent_builder_apis {
                     .eq(5u64)
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
-            .or(EdgeFilter::src().eq("raphtory"))
+            .or(EdgeFilter::src().name().eq("raphtory"))
             .or(PropertyFilter::property("p5").eq(9u64))
             .as_edge_filter();
 
@@ -1978,7 +1979,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_eq() {
-            let filter = EdgeFilter::src().eq("3");
+            let filter = EdgeFilter::src().name().eq("3");
             let expected_results = vec!["3->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -1986,7 +1987,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_ne() {
-            let filter = EdgeFilter::src().ne("1");
+            let filter = EdgeFilter::src().name().ne("1");
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -2000,12 +2001,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_in() {
-            let filter = EdgeFilter::src().is_in(vec!["1".into()]);
+            let filter = EdgeFilter::src().name().is_in(vec!["1".into()]);
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().is_in(vec!["1".into(), "2".into()]);
+            let filter = EdgeFilter::src().name().is_in(vec!["1".into(), "2".into()]);
             let expected_results = vec!["1->2", "2->1", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2013,7 +2014,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_not_in() {
-            let filter = EdgeFilter::src().is_not_in(vec!["1".into()]);
+            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]);
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -2027,7 +2028,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_eq() {
-            let filter = EdgeFilter::dst().eq("2");
+            let filter = EdgeFilter::dst().name().eq("2");
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2035,7 +2036,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_ne() {
-            let filter = EdgeFilter::dst().ne("2");
+            let filter = EdgeFilter::dst().name().ne("2");
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -2049,12 +2050,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_in() {
-            let filter = EdgeFilter::dst().is_in(vec!["2".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["2".into()]);
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = EdgeFilter::dst().is_in(vec!["2".into(), "3".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["2".into(), "3".into()]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -2062,7 +2063,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_not_in() {
-            let filter = EdgeFilter::dst().is_not_in(vec!["1".into()]);
+            let filter = EdgeFilter::dst().name().is_not_in(vec!["1".into()]);
             let expected_results = vec![
                 "1->2",
                 "2->3",
@@ -2075,7 +2076,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_contains() {
-            let filter = EdgeFilter::src().contains("Mayer");
+            let filter = EdgeFilter::src().name().contains("Mayer");
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
             // assert_search_results!(search_edges, filter, expected_results);
@@ -2083,7 +2084,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_contains_not() {
-            let filter = EdgeFilter::src().not_contains("Mayer");
+            let filter = EdgeFilter::src().name().not_contains("Mayer");
             let expected_results: Vec<&str> =
                 vec!["1->2", "2->1", "2->3", "3->1", "David Gilmour->John Mayer"];
             assert_filter_results!(filter_edges, filter, expected_results);
@@ -2092,15 +2093,15 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_fuzzy_search() {
-            let filter = EdgeFilter::src().fuzzy_search("John", 2, true);
+            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, true);
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().fuzzy_search("John", 2, false);
+            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, false);
             let expected_results: Vec<&str> = vec![];
             assert_filter_results!(filter_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().fuzzy_search("John May", 2, false);
+            let filter = EdgeFilter::src().name().fuzzy_search("John May", 2, false);
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
         }
@@ -2149,8 +2150,10 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edge_for_src_dst() {
-            let filter: AndFilter<EdgeFieldFilter, EdgeFieldFilter> =
-                EdgeFilter::src().eq("3").and(EdgeFilter::dst().eq("1"));
+            let filter: AndFilter<EdgeFieldFilter, EdgeFieldFilter> = EdgeFilter::src()
+                .name()
+                .eq("3")
+                .and(EdgeFilter::dst().name().eq("1"));
             let expected_results = vec!["3->1"];
             assert_filter_results!(filter_edges_and, filter, expected_results);
             assert_search_results!(search_edges_and, filter, expected_results);
@@ -2196,6 +2199,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::src()
+                .name()
                 .eq("13")
                 .and(PropertyFilter::property("p1").eq("prop1"));
             let expected_results = Vec::<String>::new();
@@ -2216,6 +2220,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::src()
+                .name()
                 .eq("1")
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2"];
@@ -2226,6 +2231,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::dst()
+                .name()
                 .eq("1")
                 .and(PropertyFilter::property("p2").eq(6u64));
             let expected_results = vec!["2->1", "3->1"];
@@ -2236,6 +2242,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::src()
+                .name()
                 .eq("1")
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"))
                 .or(PropertyFilter::property("p3").eq(5u64));

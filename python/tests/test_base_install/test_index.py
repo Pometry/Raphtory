@@ -739,7 +739,7 @@ def test_search_edges_for_src_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src() == "N1"
+    filter_expr = filter.Edge.src().name() == "N1"
     results = search_edges(g, filter_expr)
     assert [("N1", "N2")] == results
 
@@ -748,7 +748,7 @@ def test_search_edges_for_src_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src() != "N1"
+    filter_expr = filter.Edge.src().name() != "N1"
     results = search_edges(g, filter_expr)
     assert [
         ("N10", "N11"),
@@ -772,7 +772,7 @@ def test_search_edges_for_src_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().is_in(["N1", "N9"])
+    filter_expr = filter.Edge.src().name().is_in(["N1", "N9"])
     results = search_edges(g, filter_expr)
     assert [("N1", "N2"), ("N9", "N10")] == results
 
@@ -781,7 +781,7 @@ def test_search_edges_for_src_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().is_not_in(["N10", "N11", "N12", "N13", "N14"])
+    filter_expr = filter.Edge.src().name().is_not_in(["N10", "N11", "N12", "N13", "N14"])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -801,7 +801,7 @@ def test_search_edges_for_src_fuzzy_match():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().fuzzy_search("1", 1, False)
+    filter_expr = filter.Edge.src().name().fuzzy_search("1", 1, False)
     results = search_edges(g, filter_expr)
     assert [("N1", "N2")] == results
 
@@ -810,7 +810,7 @@ def test_search_edges_for_dst_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst() == "N1"
+    filter_expr = filter.Edge.dst().name() == "N1"
     results = search_edges(g, filter_expr)
     assert [("N15", "N1")] == results
 
@@ -819,7 +819,7 @@ def test_search_edges_for_dst_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst() != "N1"
+    filter_expr = filter.Edge.dst().name() != "N1"
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -843,7 +843,7 @@ def test_search_edges_for_dst_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().is_in(["N1", "N9"])
+    filter_expr = filter.Edge.dst().name().is_in(["N1", "N9"])
     results = search_edges(g, filter_expr)
     assert [("N15", "N1"), ("N8", "N9")] == results
 
@@ -852,7 +852,7 @@ def test_search_edges_for_dst_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().is_not_in(["N1", "N9", "N10"])
+    filter_expr = filter.Edge.dst().name().is_not_in(["N1", "N9", "N10"])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -874,7 +874,7 @@ def test_search_edges_for_dst_fuzzy_match():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.dst().fuzzy_search("1", 1, False)
+    filter_expr = filter.Edge.dst().name().fuzzy_search("1", 1, False)
     results = search_edges(g, filter_expr)
     assert [("N15", "N1")] == results
 
@@ -1548,7 +1548,7 @@ def test_search_edges_for_composite_filter():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter1 = filter.Edge.src() == "N13"
+    filter1 = filter.Edge.src().name() == "N13"
     filter2 = filter.Property("p1").temporal().latest() == 3
     results = search_edges(g, filter1 & filter2)
     assert [("N13", "N14")] == results
@@ -1558,7 +1558,7 @@ def test_search_edges_for_composite_filter_pg():
     g = PersistentGraph()
     g = init_edges_graph(g)
 
-    filter1 = filter.Edge.src() == "N13"
+    filter1 = filter.Edge.src().name() == "N13"
     filter2 = filter.Property("p1").temporal().latest() == 3
     results = search_edges(g, filter1 & filter2)
     assert [("N13", "N14")] == results

@@ -661,12 +661,26 @@ impl InternalEdgeFilterBuilderOps for EdgeDestinationFilterBuilder {
 #[derive(Clone)]
 pub struct EdgeFilter;
 
-impl EdgeFilter {
-    pub fn src() -> EdgeSourceFilterBuilder {
-        EdgeSourceFilterBuilder
-    }
+#[derive(Clone)]
+pub enum EdgeEndpointFilter {
+    Src,
+    Dst,
+}
 
-    pub fn dst() -> EdgeDestinationFilterBuilder {
-        EdgeDestinationFilterBuilder
+impl EdgeEndpointFilter {
+    pub fn name(&self) -> Arc<dyn InternalEdgeFilterBuilderOps> {
+        match self {
+            EdgeEndpointFilter::Src => Arc::new(EdgeSourceFilterBuilder),
+            EdgeEndpointFilter::Dst => Arc::new(EdgeDestinationFilterBuilder),
+        }
+    }
+}
+
+impl EdgeFilter {
+    pub fn src() -> EdgeEndpointFilter {
+        EdgeEndpointFilter::Src
+    }
+    pub fn dst() -> EdgeEndpointFilter {
+        EdgeEndpointFilter::Dst
     }
 }

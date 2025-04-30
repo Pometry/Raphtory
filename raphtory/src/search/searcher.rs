@@ -216,22 +216,22 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search() {
-            let filter = EdgeFilter::src().fuzzy_search("shiva", 2, false);
+            let filter = EdgeFilter::src().name().fuzzy_search("shiva", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
 
-            let filter = EdgeFilter::dst().fuzzy_search("pomet", 2, false);
+            let filter = EdgeFilter::dst().name().fuzzy_search("pomet", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
 
         #[test]
         fn test_fuzzy_search_prefix_match() {
-            let filter = EdgeFilter::dst().fuzzy_search("pome", 2, false);
+            let filter = EdgeFilter::dst().name().fuzzy_search("pome", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            let filter = EdgeFilter::dst().fuzzy_search("pome", 2, true);
+            let filter = EdgeFilter::dst().name().fuzzy_search("pome", 2, true);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }

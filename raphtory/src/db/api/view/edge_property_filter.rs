@@ -51,6 +51,7 @@ mod test {
             .unwrap();
 
         let filter_expr = EdgeFilter::dst()
+            .name()
             .eq("David")
             .and(PropertyFilter::property("band").eq("Dead & Company"));
         let filtered_edges = g.filter_edges(filter_expr).unwrap();
