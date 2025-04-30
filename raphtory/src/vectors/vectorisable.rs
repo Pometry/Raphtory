@@ -4,14 +4,17 @@ use crate::{
         api::view::{internal::IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
+    prelude::NodeViewOps,
     vectors::{
         document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
         template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
     },
 };
+use arroy::{distances::Euclidean, Database as ArroyDatabase, Writer};
 use async_trait::async_trait;
 use itertools::Itertools;
 use parking_lot::RwLock;
+use rand::{rngs::StdRng, SeedableRng};
 use std::{collections::HashMap, sync::Arc};
 use tracing::info;
 
@@ -22,7 +25,6 @@ struct IndexedDocumentInput {
     entity_id: EntityId,
     content: String,
     index: usize,
-    life: Lifespan,
 }
 
 #[async_trait]
@@ -48,6 +50,8 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>>;
 }
+
+const TWENTY_HUNDRED_MIB: usize = 2 * 1024 * 1024 * 1024;
 
 #[async_trait]
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
@@ -87,15 +91,66 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             cache.iter().for_each(|cache| cache.dump_to_disk());
         }
 
-        Ok(VectorisedGraph::new(
-            self.clone(),
+        ///////////////////////////////////////////////////////////////
+        // FIXME: remove all unwraps here!!
+
+        let tempdir = tempfile::tempdir()?;
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(TWENTY_HUNDRED_MIB)
+                .open(tempdir.path())
+        }
+        .unwrap(); // FIXME: remove unwrap
+
+        // we will open the default LMDB unnamed database
+        let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
+        let db: ArroyDatabase<Euclidean> = env.create_database(&mut wtxn, None).unwrap();
+
+        // Now we can give it to our arroy writer
+        let index = 0;
+
+        let nodes = self.nodes();
+        let vectors: Vec<_> = nodes
+            .iter()
+            .enumerate()
+            .map(|(index, node)| {
+                let index = index as u32;
+                let first = (index % 3) as f32;
+                let second = (index % 3) as f32;
+                let third = (index % 3) as f32;
+                let vector = [first, second, third];
+                let node_id = node.id().as_str().unwrap().to_owned();
+                (index, node_id, vector)
+            })
+            .collect();
+        let dimensions = vectors.get(0).unwrap().2.len();
+        let writer = Writer::<Euclidean>::new(db, index, dimensions);
+        for (index, _, vector) in vectors.clone() {
+            writer.add_item(&mut wtxn, index, &vector).unwrap();
+        }
+        let node_ids: HashMap<_, _> = vectors
+            .into_iter()
+            .map(|(index, node_id, _)| (index, node_id))
+            .collect();
+
+        // You can specify the number of trees to use or specify None.
+        let mut rng = StdRng::seed_from_u64(42);
+        writer.builder(&mut rng).build(&mut wtxn).unwrap();
+
+        wtxn.commit().unwrap();
+
+        Ok(VectorisedGraph {
+            source_graph: self.clone(),
             template,
-            embedding.into(),
-            cache.into(),
-            RwLock::new(graph_refs).into(),
-            RwLock::new(node_refs).into(),
-            RwLock::new(edge_refs).into(),
-        ))
+            embedding: embedding.into(),
+            cache_storage: cache.into(),
+            vectors: db,
+            env,
+            tempdir: tempdir.into(),
+            node_ids: node_ids.into(),
+            edge_ids: Default::default(),
+            graph_ids: Default::default(),
+        })
     }
 }
 

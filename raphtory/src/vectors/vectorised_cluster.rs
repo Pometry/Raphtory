@@ -38,24 +38,25 @@ impl<'a, G: StaticGraphViewOps> VectorisedCluster<'a, G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Vec<(Document<G>, f32)> {
-        let documents = self
-            .graphs
-            .iter()
-            .flat_map(|(_name, graph)| graph.graph_documents.read().clone())
-            .filter(|doc| doc.exists_on_window::<Graph>(None, &window))
-            .collect_vec();
-        let scored_documents = score_documents(query, documents);
-        let top_k = find_top_k(scored_documents, limit);
+        //     let documents = self
+        //         .graphs
+        //         .iter()
+        //         .flat_map(|(_name, graph)| graph.graph_documents.read().clone())
+        //         .filter(|doc| doc.exists_on_window::<Graph>(None, &window))
+        //         .collect_vec();
+        //     let scored_documents = score_documents(query, documents);
+        //     let top_k = find_top_k(scored_documents, limit);
 
-        top_k
-            .map(|(doc, score)| match &doc.entity_id {
-                EntityId::Graph { name } => {
-                    let name = name.clone().unwrap();
-                    let graph = self.graphs.get(&name).unwrap();
-                    (doc.regenerate(&graph.source_graph, &graph.template), score)
-                }
-                _ => panic!("got document that is not related to any graph"),
-            })
-            .collect_vec()
+        //     top_k
+        //         .map(|(doc, score)| match &doc.entity_id {
+        //             EntityId::Graph { name } => {
+        //                 let name = name.clone().unwrap();
+        //                 let graph = self.graphs.get(&name).unwrap();
+        //                 (doc.regenerate(&graph.source_graph, &graph.template), score)
+        //             }
+        //             _ => panic!("got document that is not related to any graph"),
+        //         })
+        //         .collect_vec()
+        vec![]
     }
 }

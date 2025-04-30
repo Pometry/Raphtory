@@ -23,43 +23,43 @@ struct VectorStorage {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub fn read_from_path(
-        path: &Path,
-        graph: G,
-        embedding: Arc<dyn EmbeddingFunction>,
-        cache_storage: Arc<Option<EmbeddingCache>>,
-    ) -> Option<Self> {
-        // TODO: return Result instead of Option
-        let file = File::open(&path).ok()?;
-        let mut reader = BufReader::new(file);
-        let VectorStorage {
-            template,
-            graph_documents,
-            node_documents,
-            edge_documents,
-        } = bincode::deserialize_from(&mut reader).ok()?;
+    // pub fn read_from_path(
+    //     path: &Path,
+    //     graph: G,
+    //     embedding: Arc<dyn EmbeddingFunction>,
+    //     cache_storage: Arc<Option<EmbeddingCache>>,
+    // ) -> Option<Self> {
+    //     // TODO: return Result instead of Option
+    //     let file = File::open(&path).ok()?;
+    //     let mut reader = BufReader::new(file);
+    //     let VectorStorage {
+    //         template,
+    //         graph_documents,
+    //         node_documents,
+    //         edge_documents,
+    //     } = bincode::deserialize_from(&mut reader).ok()?;
 
-        Some(VectorisedGraph::new(
-            graph,
-            template,
-            embedding,
-            cache_storage,
-            Arc::new(graph_documents.into()),
-            Arc::new(node_documents.into()),
-            Arc::new(edge_documents.into()),
-        ))
-    }
+    //     Some(VectorisedGraph::new(
+    //         graph,
+    //         template,
+    //         embedding,
+    //         cache_storage,
+    //         Arc::new(graph_documents.into()),
+    //         Arc::new(node_documents.into()),
+    //         Arc::new(edge_documents.into()),
+    //     ))
+    // }
 
-    pub fn write_to_path(&self, path: &Path) -> Result<(), GraphError> {
-        let storage = VectorStorage {
-            template: self.template.clone(),
-            graph_documents: self.graph_documents.read().clone(),
-            node_documents: self.node_documents.read().clone(),
-            edge_documents: self.edge_documents.read().clone(),
-        };
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-        bincode::serialize_into(&mut writer, &storage)?;
-        Ok(())
-    }
+    // pub fn write_to_path(&self, path: &Path) -> Result<(), GraphError> {
+    //     let storage = VectorStorage {
+    //         template: self.template.clone(),
+    //         graph_documents: self.graph_documents.read().clone(),
+    //         node_documents: self.node_documents.read().clone(),
+    //         edge_documents: self.edge_documents.read().clone(),
+    //     };
+    //     let file = File::create(path)?;
+    //     let mut writer = BufWriter::new(file);
+    //     bincode::serialize_into(&mut writer, &storage)?;
+    //     Ok(())
+    // }
 }

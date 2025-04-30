@@ -1,6 +1,6 @@
 use super::datetimeformat::datetimeformat;
 use crate::{
-    core::{DocumentInput, Prop},
+    core::Prop,
     db::{
         api::properties::TemporalPropertyView,
         graph::{edge::EdgeView, node::NodeView},
@@ -172,7 +172,7 @@ impl DocumentTemplate {
     pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: G,
-    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
+    ) -> Box<dyn Iterator<Item = String> + Send> {
         match &self.graph_template {
             Some(template) => {
                 // TODO: create the environment only once and store it on the DocumentTemplate struct
@@ -181,7 +181,7 @@ impl DocumentTemplate {
                 match template.render(GraphTemplateContext::from(graph)) {
                     Ok(mut document) => {
                         truncate(&mut document);
-                        Box::new(std::iter::once(document.into()))
+                        Box::new(std::iter::once(document))
                     }
                     Err(error) => {
                         error!("Template render failed for a node, skipping: {error}");
@@ -197,7 +197,7 @@ impl DocumentTemplate {
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeView<G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
+    ) -> Box<dyn Iterator<Item = String> + Send> {
         match &self.node_template {
             Some(template) => {
                 let mut env = Environment::new();
@@ -205,7 +205,7 @@ impl DocumentTemplate {
                 match template.render(NodeTemplateContext::from(node)) {
                     Ok(mut document) => {
                         truncate(&mut document);
-                        Box::new(std::iter::once(document.into()))
+                        Box::new(std::iter::once(document))
                     }
                     Err(error) => {
                         error!("Template render failed for a node, skipping: {error}");
@@ -221,7 +221,7 @@ impl DocumentTemplate {
     pub(crate) fn edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeView<G, G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
+    ) -> Box<dyn Iterator<Item = String> + Send> {
         match &self.edge_template {
             Some(template) => {
                 let mut env = Environment::new();
@@ -229,7 +229,7 @@ impl DocumentTemplate {
                 match template.render(EdgeTemplateContext::from(edge)) {
                     Ok(mut document) => {
                         truncate(&mut document);
-                        Box::new(std::iter::once(document.into()))
+                        Box::new(std::iter::once(document))
                     }
                     Err(error) => {
                         error!("Template render failed for an edge, skipping: {error}");
@@ -356,7 +356,7 @@ mod template_tests {
         };
 
         let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = docs.next().unwrap();
         let expected = indoc! {"
             Node node1 has the following properties:
             key1: value1
@@ -368,7 +368,7 @@ mod template_tests {
         assert_eq!(&rendered, expected);
 
         let mut docs = template.edge(graph.edge("node1", "node2").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = docs.next().unwrap();
         let expected = indoc! {"
             There is an edge from node1 to node2 with events at:
             - Jan 1 1970 00:00
@@ -377,7 +377,7 @@ mod template_tests {
         assert_eq!(&rendered, expected);
 
         let mut docs = template.graph(graph);
-        let rendered = docs.next().unwrap().content;
+        let rendered = docs.next().unwrap();
         let expected = indoc! {"
             Graph with the following properties:
             name: test-name

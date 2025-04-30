@@ -12,10 +12,12 @@ use crate::{
         Embedding, EmbeddingFunction,
     },
 };
+use arroy::{distances::Euclidean, Database as ArroyDatabase, Reader};
 use async_trait::async_trait;
 use itertools::{chain, Itertools};
 use parking_lot::RwLock;
 use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
+use tempfile::TempDir;
 
 use super::{
     similarity_search_utils::score_document_groups_by_highest,
@@ -24,127 +26,103 @@ use super::{
     Document,
 };
 
+struct VectorDb {
+    pub(crate) vectors: ArroyDatabase<Euclidean>, // TODO: review is this safe to clone? does it point to the same thing?
+    pub(crate) env: heed::Env,
+    pub(crate) tempdir: Arc<TempDir>, // do I really need, is the file open not enough
+}
+
+#[derive(Clone)]
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     pub(crate) cache_storage: Arc<Option<EmbeddingCache>>,
     // it is not the end of the world but we are storing the entity id twice
-    pub(crate) graph_documents: Arc<RwLock<Vec<DocumentRef>>>,
-    pub(crate) node_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>, // TODO: replace with FxHashMap
-    pub(crate) edge_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>,
-    pub(crate) empty_vec: Vec<DocumentRef>,
+    pub(crate) vectors: ArroyDatabase<Euclidean>, // TODO: review is this safe to clone? does it point to the same thing?
+    pub(crate) env: heed::Env,
+    pub(crate) tempdir: Arc<TempDir>, // do I really need, is the file open not enough
+    pub(crate) node_ids: Arc<HashMap<u32, String>>,
+    pub(crate) edge_ids: Arc<HashMap<u32, (String, String)>>,
+    pub(crate) graph_ids: Arc<Vec<u32>>,
 }
 
 // This has to be here so it is shared between python and graphql
 pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
-#[async_trait]
-impl<G: StaticGraphViewOps> Clone for VectorisedGraph<G> {
-    fn clone(&self) -> Self {
-        Self::new(
-            self.source_graph.clone(),
-            self.template.clone(),
-            self.embedding.clone(),
-            self.cache_storage.clone(),
-            self.graph_documents.clone(),
-            self.node_documents.clone(),
-            self.edge_documents.clone(),
-        )
-    }
-}
-
 impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
-    pub fn into_dynamic(&self) -> VectorisedGraph<DynamicGraph> {
-        VectorisedGraph::new(
-            self.source_graph.clone().into_dynamic(),
-            self.template.clone(),
-            self.embedding.clone(),
-            self.cache_storage.clone(),
-            self.graph_documents.clone(),
-            self.node_documents.clone(),
-            self.edge_documents.clone(),
-        )
+    pub fn into_dynamic(self) -> VectorisedGraph<DynamicGraph> {
+        VectorisedGraph {
+            source_graph: self.source_graph.clone().into_dynamic(),
+            template: self.template,
+            embedding: self.embedding,
+            cache_storage: self.cache_storage,
+            vectors: self.vectors,
+            env: self.env,
+            tempdir: self.tempdir,
+            node_ids: self.node_ids,
+            edge_ids: self.edge_ids,
+            graph_ids: self.graph_ids,
+        }
     }
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        template: DocumentTemplate,
-        embedding: Arc<dyn EmbeddingFunction>,
-        cache_storage: Arc<Option<EmbeddingCache>>,
-        graph_documents: Arc<RwLock<Vec<DocumentRef>>>,
-        node_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>,
-        edge_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>,
-    ) -> Self {
-        Self {
-            source_graph: graph,
-            template,
-            embedding,
-            cache_storage,
-            graph_documents,
-            node_documents,
-            edge_documents,
-            empty_vec: vec![],
-        }
-    }
-
     pub async fn update_node<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
-        if let Some(node) = self.source_graph.node(node) {
-            let entity_id = EntityId::from_node(node.clone());
-            let refs = vectorise_node(
-                node,
-                &self.template,
-                &self.embedding,
-                self.cache_storage.as_ref(),
-            )
-            .await?;
-            self.node_documents.write().insert(entity_id, refs);
-        }
+        // if let Some(node) = self.source_graph.node(node) {
+        //     let entity_id = EntityId::from_node(node.clone());
+        //     let refs = vectorise_node(
+        //         node,
+        //         &self.template,
+        //         &self.embedding,
+        //         self.cache_storage.as_ref(),
+        //     )
+        //     .await?;
+        //     self.node_documents.write().insert(entity_id, refs);
+        // }
         Ok(())
     }
 
     pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) -> GraphResult<()> {
-        if let Some(edge) = self.source_graph.edge(src, dst) {
-            let entity_id = EntityId::from_edge(edge.clone());
-            let refs = vectorise_edge(
-                edge,
-                &self.template,
-                &self.embedding,
-                self.cache_storage.as_ref(),
-            )
-            .await?;
-            self.edge_documents.write().insert(entity_id, refs);
-        }
+        // if let Some(edge) = self.source_graph.edge(src, dst) {
+        //     let entity_id = EntityId::from_edge(edge.clone());
+        //     let refs = vectorise_edge(
+        //         edge,
+        //         &self.template,
+        //         &self.embedding,
+        //         self.cache_storage.as_ref(),
+        //     )
+        //     .await?;
+        //     self.edge_documents.write().insert(entity_id, refs);
+        // }
         Ok(())
     }
 
     pub async fn update_graph(&self, graph_name: Option<String>) -> GraphResult<()> {
-        let refs = vectorise_graph(
-            &self.source_graph,
-            graph_name,
-            &self.template,
-            &self.embedding,
-            self.cache_storage.as_ref(),
-        )
-        .await?;
-        *self.graph_documents.write() = refs;
+        // let refs = vectorise_graph(
+        //     &self.source_graph,
+        //     graph_name,
+        //     &self.template,
+        //     &self.embedding,
+        //     self.cache_storage.as_ref(),
+        // )
+        // .await?;
+        // *self.graph_documents.write() = refs;
         Ok(())
     }
 
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
     pub fn save_embeddings(&self, file: PathBuf) {
-        let cache = EmbeddingCache::new(file);
-        let node_documents = self.node_documents.read();
-        let edge_documents = self.edge_documents.read();
-        chain!(node_documents.iter(), edge_documents.iter()).for_each(|(_, group)| {
-            group.iter().for_each(|doc| {
-                let original = doc.regenerate(&self.source_graph, &self.template);
-                cache.upsert_embedding(&original.content, doc.embedding.clone());
-            })
-        });
-        cache.dump_to_disk();
+        // let cache = EmbeddingCache::new(file);
+        // let node_documents = self.node_documents.read();
+        // let edge_documents = self.edge_documents.read();
+        // chain!(node_documents.iter(), edge_documents.iter()).for_each(|(_, group)| {
+        //     group.iter().for_each(|doc| {
+        //         let original = doc.regenerate(&self.source_graph, &self.template);
+        //         cache.upsert_embedding(&original.content, doc.embedding.clone());
+        //     })
+        // });
+        // cache.dump_to_disk();
     }
 
     /// Return an empty selection of documents
@@ -153,13 +131,13 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     /// Return all the graph level documents
-    pub fn get_graph_documents(&self) -> Vec<Document<G>> {
-        self.graph_documents
-            .read()
-            .iter()
-            .map(|doc| doc.regenerate(&self.source_graph, &self.template))
-            .collect_vec()
-    }
+    // pub fn get_graph_documents(&self) -> Vec<Document<G>> {
+    //     self.graph_documents
+    //         .read()
+    //         .iter()
+    //         .map(|doc| doc.regenerate(&self.source_graph, &self.template))
+    //         .collect_vec()
+    // }
 
     /// Search the top scoring documents according to `query` with no more than `limit` documents
     ///
@@ -176,11 +154,27 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
-        let node_documents = self.node_documents.read();
-        let edge_documents = self.edge_documents.read();
-        let joined = chain!(node_documents.iter(), edge_documents.iter());
-        let docs = self.search_top_documents(joined, query, limit, window);
-        VectorSelection::new_with_preselection(self.clone(), docs)
+        // let node_documents = self.node_documents.read();
+        // let edge_documents = self.edge_documents.read();
+        // let joined = chain!(node_documents.iter(), edge_documents.iter());
+        // let docs = self.search_top_documents(joined, query, limit, window);
+        // VectorSelection::new_with_preselection(self.clone(), docs)
+        self.empty_selection()
+    }
+
+    pub fn documents_by_arroy(
+        &self,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+    ) -> Vec<String> {
+        let rtxn = self.env.read_txn().unwrap();
+        let reader = Reader::open(&rtxn, 0, self.vectors).unwrap(); // TODO: review index value, hardcoded to 0
+        let result = reader.nns(limit).by_vector(&rtxn, query).unwrap();
+        result
+            .into_iter()
+            .filter_map(|(id, score)| self.node_ids.get(&id).cloned())
+            .collect()
     }
 
     /// Search the top scoring entities according to `query` with no more than `limit` entities
@@ -198,11 +192,12 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
-        let node_documents = self.node_documents.read();
-        let edge_documents = self.edge_documents.read();
-        let joined = chain!(node_documents.iter(), edge_documents.iter());
-        let docs = self.search_top_document_groups(joined, query, limit, window);
-        VectorSelection::new_with_preselection(self.clone(), docs)
+        // let node_documents = self.node_documents.read();
+        // let edge_documents = self.edge_documents.read();
+        // let joined = chain!(node_documents.iter(), edge_documents.iter());
+        // let docs = self.search_top_document_groups(joined, query, limit, window);
+        // VectorSelection::new_with_preselection(self.clone(), docs)
+        self.empty_selection()
     }
 
     /// Search the top scoring nodes according to `query` with no more than `limit` nodes
@@ -220,9 +215,10 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
-        let node_documents = self.node_documents.read();
-        let docs = self.search_top_document_groups(node_documents.deref(), query, limit, window);
-        VectorSelection::new_with_preselection(self.clone(), docs)
+        // let node_documents = self.node_documents.read();
+        // let docs = self.search_top_document_groups(node_documents.deref(), query, limit, window);
+        // VectorSelection::new_with_preselection(self.clone(), docs)
+        self.empty_selection()
     }
 
     /// Search the top scoring edges according to `query` with no more than `limit` edges
@@ -240,9 +236,10 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
-        let edge_documents = self.edge_documents.read();
-        let docs = self.search_top_document_groups(edge_documents.deref(), query, limit, window);
-        VectorSelection::new_with_preselection(self.clone(), docs)
+        // let edge_documents = self.edge_documents.read();
+        // let docs = self.search_top_document_groups(edge_documents.deref(), query, limit, window);
+        // VectorSelection::new_with_preselection(self.clone(), docs)
+        self.empty_selection()
     }
 
     fn search_top_documents<'a, I>(
@@ -290,7 +287,6 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
                 document_groups
                     .into_iter()
                     .map(|(id, docs)| (id.clone(), docs.clone())),
-                // TODO: filter empty vectors here? what happens if the user inputs an empty list as the doc prop
             ),
             Some((start, end)) => {
                 let windowed_graph = self.source_graph.window(start, end);
