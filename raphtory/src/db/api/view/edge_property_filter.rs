@@ -28,8 +28,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::filter::{
-            ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilter, PropertyRef,
+        db::graph::views::filter::model::{
+            property_filter::{PropertyFilter, PropertyRef},
+            ComposableFilter, EdgeFilter, EdgeFilterOps,
         },
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -39,7 +40,7 @@ mod test {
 
     #[test]
     fn test_edge_filter_on_edges() {
-        use crate::db::graph::views::filter::PropertyFilterOps;
+        use crate::db::graph::views::filter::model::PropertyFilterOps;
 
         let g = Graph::new();
         g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)
@@ -49,12 +50,11 @@ mod test {
         g.add_edge(2, "David", "Jimi", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        // let filter_expr = EdgeFilter::src().eq("David");
         let filter_expr = EdgeFilter::dst()
+            .name()
             .eq("David")
             .and(PropertyFilter::property("band").eq("Dead & Company"));
         let filtered_edges = g.filter_edges(filter_expr).unwrap();
-        // let filtered_edges = g.nodes().filter_nodes(filter_expr).unwrap();
 
         assert_eq!(
             filtered_edges
@@ -62,7 +62,6 @@ mod test {
                 .iter()
                 .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
                 .collect::<Vec<_>>(),
-            // vec!["Jimi->John"],
             vec!["John->David"]
         );
     }

@@ -8,13 +8,12 @@ use crate::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
-                    InheritTimeSemantics, InternalLayerOps, NodeFilterOps, NodeHistoryFilter,
-                    Static,
+                    InheritTimeSemantics, NodeFilterOps, NodeHistoryFilter, Static,
                 },
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalNodeFilterOps, OrFilter},
+        graph::views::filter::{internal::InternalNodeFilterOps, model::OrFilter},
     },
     prelude::GraphViewOps,
 };
@@ -43,7 +42,6 @@ impl<L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps f
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         let left = self.left.create_node_filter(graph.clone())?;
         let right = self.right.create_node_filter(graph.clone())?;
-        let _layer_ids = left.layer_ids().intersect(right.layer_ids());
         Ok(NodeOrFilteredGraph { graph, left, right })
     }
 }

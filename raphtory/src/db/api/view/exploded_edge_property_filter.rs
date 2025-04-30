@@ -36,7 +36,7 @@ mod test {
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 },
-                views::filter::{PropertyFilter, PropertyRef},
+                views::filter::model::property_filter::{PropertyFilter, PropertyRef},
             },
         },
         prelude::*,

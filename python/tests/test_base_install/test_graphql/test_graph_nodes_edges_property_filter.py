@@ -691,7 +691,7 @@ def test_graph_node_property_filter_is_in(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_node_property_filter_is_not_in_empty_list(graph):
+def test_node_property_filter_is_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
@@ -836,7 +836,7 @@ def test_node_property_filter_not_is_not_in_empty_list(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_not_is_not_in_no_value_error(graph):
+def test_graph_node_property_filter_is_not_in_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -862,7 +862,7 @@ def test_graph_node_property_filter_not_is_not_in_no_value_error(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_not_is_not_in_type_error(graph):
+def test_graph_node_property_filter_is_not_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {

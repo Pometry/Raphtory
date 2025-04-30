@@ -25,7 +25,8 @@ use crate::{
             views::{
                 cached_view::CachedView,
                 filter::{
-                    node_type_filtered_graph::NodeTypeFilteredGraph, AsEdgeFilter, AsNodeFilter,
+                    model::{AsEdgeFilter, AsNodeFilter},
+                    node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 node_subgraph::NodeSubgraph,
             },

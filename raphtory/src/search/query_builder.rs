@@ -2,7 +2,10 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::StaticGraphViewOps,
-        graph::views::filter::{Filter, FilterOperator, FilterValue, PropertyFilterValue},
+        graph::views::filter::model::{
+            filter_operator::FilterOperator, property_filter::PropertyFilterValue, Filter,
+            FilterValue,
+        },
     },
     prelude::PropertyFilter,
     search::{
@@ -14,9 +17,9 @@ use itertools::Itertools;
 use std::{collections::Bound, ops::Deref, sync::Arc, vec};
 use tantivy::{
     query::{
-        AllQuery, BooleanQuery, EmptyQuery, FuzzyTermQuery, Occur,
+        AllQuery, BooleanQuery, EmptyQuery, Occur,
         Occur::{Must, MustNot, Should},
-        PhraseQuery, Query, RangeQuery, TermQuery,
+        Query, RangeQuery, TermQuery,
     },
     schema::{Field, FieldType, IndexRecordOption, Type},
     tokenizer::TokenizerManager,
@@ -81,7 +84,7 @@ impl<'a> QueryBuilder<'a> {
                     )?;
                     create_contains_query(terms)
                 }
-                FilterOperator::ContainsNot => {
+                FilterOperator::NotContains => {
                     let terms = create_property_tokenized_tantivy_terms(
                         property_index,
                         prop_name,
@@ -90,16 +93,9 @@ impl<'a> QueryBuilder<'a> {
                     create_contains_not_query(terms)
                 }
                 FilterOperator::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => {
-                    let terms = create_property_tokenized_tantivy_terms(
-                        property_index,
-                        prop_name,
-                        prop_value,
-                    )?;
-                    create_fuzzy_search_query(terms, levenshtein_distance, prefix_match)
-                }
+                    levenshtein_distance: _,
+                    prefix_match: _,
+                } => None,
                 _ => unreachable!(),
             },
             PropertyFilterValue::Set(prop_values) => {
@@ -151,19 +147,15 @@ impl<'a> QueryBuilder<'a> {
                         create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
                     create_contains_query(terms)
                 }
-                FilterOperator::ContainsNot => {
+                FilterOperator::NotContains => {
                     let terms =
                         create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
                     create_contains_not_query(terms)
                 }
                 FilterOperator::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => {
-                    let terms =
-                        create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
-                    create_fuzzy_search_query(terms, levenshtein_distance, prefix_match)
-                }
+                    levenshtein_distance: _,
+                    prefix_match: _,
+                } => None,
                 _ => unreachable!(),
             },
             FilterValue::Set(node_values) => {
@@ -208,19 +200,15 @@ impl<'a> QueryBuilder<'a> {
                         create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
                     create_contains_query(terms)
                 }
-                FilterOperator::ContainsNot => {
+                FilterOperator::NotContains => {
                     let terms =
                         create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
                     create_contains_not_query(terms)
                 }
                 FilterOperator::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => {
-                    let terms =
-                        create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
-                    create_fuzzy_search_query(terms, levenshtein_distance, prefix_match)
-                }
+                    levenshtein_distance: _,
+                    prefix_match: _,
+                } => None,
                 _ => unreachable!(),
             },
             FilterValue::Set(edge_values) => {
@@ -491,36 +479,5 @@ fn create_contains_not_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
         ])))
     } else {
         Some(Box::new(EmptyQuery))
-    }
-}
-
-// Creates a Tantivy query from a vector of terms.
-// - For multiple terms (e.g., when tokenizing a string field with multiple tokens),
-//   a `PhraseQuery` is created to match documents containing the terms in sequence.
-// - For a single term (e.g., from a non-string field or a single-token string field),
-//   a `TermQuery` is created to match documents containing the exact term.
-fn create_fuzzy_search_query(
-    terms: Vec<Term>,
-    levenshtein_distance: &usize,
-    prefix_match: &bool,
-) -> Option<Box<dyn Query>> {
-    match terms.len() {
-        0 => Some(Box::new(EmptyQuery)),
-        1 => {
-            if *prefix_match {
-                Some(Box::new(FuzzyTermQuery::new_prefix(
-                    terms[0].clone(),
-                    (*levenshtein_distance) as u8,
-                    true,
-                )))
-            } else {
-                Some(Box::new(FuzzyTermQuery::new(
-                    terms[0].clone(),
-                    (*levenshtein_distance) as u8,
-                    true,
-                )))
-            }
-        }
-        _ => Some(Box::new(PhraseQuery::new(terms))), // TODO: Refer composite filter fuzzy searching based on strsim::levenshtein
     }
 }

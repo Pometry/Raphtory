@@ -1,38 +1,17 @@
-use crate::{
-    core::{
-        entities::properties::props::Meta, sort_comparable_props, utils::errors::GraphError, Prop,
-    },
-    db::{
-        api::{
-            properties::{internal::PropertiesOps, Properties},
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            },
-            view::EdgeViewOps,
-        },
-        graph::{edge::EdgeView, node::NodeView, views::filter::internal::InternalNodeFilterOps},
-    },
-    prelude::{GraphViewOps, NodeViewOps},
+use crate::db::graph::views::filter::model::{
+    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+    property_filter::PropertyFilter,
 };
-use itertools::Itertools;
-use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-    fmt::{Debug, Display},
-    ops::Deref,
-    sync::Arc,
-};
-use strsim::levenshtein;
 
 pub mod edge_and_filtered_graph;
-mod edge_composite_filter_graph;
+pub mod edge_composite_filter_graph;
 pub mod edge_field_filtered_graph;
 pub mod edge_or_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
+pub mod model;
 pub mod node_and_filtered_graph;
 pub mod node_composite_filter_graph;
 pub mod node_name_filtered_graph;
@@ -40,1269 +19,14 @@ pub mod node_or_filtered_graph;
 pub mod node_property_filtered_graph;
 pub mod node_type_filtered_graph;
 
-#[derive(Debug, Clone, Copy)]
-pub enum FilterOperator {
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-    In,
-    NotIn,
-    IsSome,
-    IsNone,
-    Contains,
-    ContainsNot,
-    FuzzySearch {
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    },
-}
-
-impl Display for FilterOperator {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let operator = match self {
-            FilterOperator::Eq => "==",
-            FilterOperator::Ne => "!=",
-            FilterOperator::Lt => "<",
-            FilterOperator::Le => "<=",
-            FilterOperator::Gt => ">",
-            FilterOperator::Ge => ">=",
-            FilterOperator::In => "IN",
-            FilterOperator::NotIn => "NOT_IN",
-            FilterOperator::IsSome => "IS_SOME",
-            FilterOperator::IsNone => "IS_NONE",
-            FilterOperator::Contains => "CONTAINS",
-            FilterOperator::ContainsNot => "CONTAINS_NOT",
-            FilterOperator::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            } => {
-                return write!(f, "FUZZY_SEARCH({},{})", levenshtein_distance, prefix_match);
-            }
-        };
-        write!(f, "{}", operator)
-    }
-}
-
-impl FilterOperator {
-    pub fn is_strictly_numeric_operation(&self) -> bool {
-        matches!(
-            self,
-            FilterOperator::Lt | FilterOperator::Le | FilterOperator::Gt | FilterOperator::Ge
-        )
-    }
-
-    fn operation<T>(&self) -> impl Fn(&T, &T) -> bool
-    where
-        T: ?Sized + PartialEq + PartialOrd,
-    {
-        match self {
-            FilterOperator::Eq => T::eq,
-            FilterOperator::Ne => T::ne,
-            FilterOperator::Lt => T::lt,
-            FilterOperator::Le => T::le,
-            FilterOperator::Gt => T::gt,
-            FilterOperator::Ge => T::ge,
-            _ => panic!("Operation not supported for this operator"),
-        }
-    }
-
-    pub fn fuzzy_search(
-        &self,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> impl Fn(&str, &str) -> bool {
-        move |left: &str, right: &str| {
-            let levenshtein_match = levenshtein(left, right) <= levenshtein_distance;
-            let prefix_match = prefix_match && right.starts_with(left);
-            levenshtein_match || prefix_match
-        }
-    }
-
-    fn collection_operation<T>(&self) -> impl Fn(&HashSet<T>, &T) -> bool
-    where
-        T: Eq + std::hash::Hash,
-    {
-        match self {
-            FilterOperator::In => |set: &HashSet<T>, value: &T| set.contains(value),
-            FilterOperator::NotIn => |set: &HashSet<T>, value: &T| !set.contains(value),
-            _ => panic!("Collection operation not supported for this operator"),
-        }
-    }
-
-    pub fn apply_to_property(&self, left: &PropertyFilterValue, right: Option<&Prop>) -> bool {
-        match left {
-            PropertyFilterValue::None => match self {
-                FilterOperator::IsSome => right.is_some(),
-                FilterOperator::IsNone => right.is_none(),
-                _ => unreachable!(),
-            },
-            PropertyFilterValue::Single(l) => match self {
-                FilterOperator::Eq
-                | FilterOperator::Ne
-                | FilterOperator::Lt
-                | FilterOperator::Le
-                | FilterOperator::Gt
-                | FilterOperator::Ge => right.map_or(false, |r| self.operation()(r, l)),
-                FilterOperator::Contains => right.map_or(false, |r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
-                    _ => unreachable!(),
-                }),
-                FilterOperator::ContainsNot => right.map_or(false, |r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => !r.deref().contains(l.deref()),
-                    _ => unreachable!(),
-                }),
-                FilterOperator::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => right.map_or(false, |r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => {
-                        let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
-                        fuzzy_fn(l, r)
-                    }
-                    _ => unreachable!(),
-                }),
-                _ => unreachable!(),
-            },
-            PropertyFilterValue::Set(l) => match self {
-                FilterOperator::In | FilterOperator::NotIn => {
-                    right.map_or(false, |r| self.collection_operation()(l, r))
-                }
-                _ => unreachable!(),
-            },
-        }
-    }
-
-    pub fn apply(&self, left: &FilterValue, right: Option<&str>) -> bool {
-        match left {
-            FilterValue::Single(l) => match self {
-                FilterOperator::Eq | FilterOperator::Ne => match right {
-                    Some(r) => self.operation()(r, l),
-                    None => matches!(self, FilterOperator::Ne),
-                },
-                FilterOperator::Contains => right.map_or(false, |r| r.contains(l)),
-                FilterOperator::ContainsNot => right.map_or(false, |r| !r.contains(l)),
-                FilterOperator::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => right.map_or(false, |r| {
-                    let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
-                    fuzzy_fn(l, r)
-                }),
-                _ => unreachable!(),
-            },
-            FilterValue::Set(l) => match self {
-                FilterOperator::In | FilterOperator::NotIn => match right {
-                    Some(r) => self.collection_operation()(l, &r.to_string()),
-                    None => matches!(self, FilterOperator::NotIn),
-                },
-                _ => unreachable!(),
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Temporal {
-    Any,
-    Latest,
-}
-
-#[derive(Debug, Clone)]
-pub enum PropertyRef {
-    Property(String),
-    ConstantProperty(String),
-    TemporalProperty(String, Temporal),
-}
-
-impl Display for PropertyRef {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PropertyRef::TemporalProperty(name, temporal) => {
-                write!(f, "TemporalProperty({}, {:?})", name, temporal)
-            }
-            PropertyRef::ConstantProperty(name) => write!(f, "ConstantProperty({})", name),
-            PropertyRef::Property(name) => write!(f, "Property({})", name),
-        }
-    }
-}
-
-impl PropertyRef {
-    pub fn name(&self) -> &str {
-        match self {
-            PropertyRef::Property(name)
-            | PropertyRef::ConstantProperty(name)
-            | PropertyRef::TemporalProperty(name, _) => name,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum PropertyFilterValue {
-    None,
-    Single(Prop),
-    Set(Arc<HashSet<Prop>>),
-}
-
-#[derive(Debug, Clone)]
-pub struct PropertyFilter {
-    pub prop_ref: PropertyRef,
-    pub prop_value: PropertyFilterValue,
-    pub operator: FilterOperator,
-}
-
-impl Display for PropertyFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let prop_ref_str = match &self.prop_ref {
-            PropertyRef::Property(name) => format!("{}", name),
-            PropertyRef::ConstantProperty(name) => format!("const({})", name),
-            PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
-            PropertyRef::TemporalProperty(name, Temporal::Latest) => {
-                format!("temporal_latest({})", name)
-            }
-        };
-
-        match &self.prop_value {
-            PropertyFilterValue::None => {
-                write!(f, "{} {}", prop_ref_str, self.operator)
-            }
-            PropertyFilterValue::Single(value) => {
-                write!(f, "{} {} {}", prop_ref_str, self.operator, value)
-            }
-            PropertyFilterValue::Set(values) => {
-                let sorted_values = sort_comparable_props(values.iter().collect_vec());
-                let values_str = sorted_values
-                    .iter()
-                    .map(|v| format!("{}", v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "{} {} [{}]", prop_ref_str, self.operator, values_str)
-            }
-        }
-    }
-}
-
-impl PropertyFilter {
-    pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Eq,
-        }
-    }
-
-    pub fn ne(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Ne,
-        }
-    }
-
-    pub fn le(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Le,
-        }
-    }
-
-    pub fn ge(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Ge,
-        }
-    }
-
-    pub fn lt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Lt,
-        }
-    }
-
-    pub fn gt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Gt,
-        }
-    }
-
-    pub fn is_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
-            operator: FilterOperator::In,
-        }
-    }
-
-    pub fn is_not_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
-            operator: FilterOperator::NotIn,
-        }
-    }
-
-    pub fn is_none(prop_ref: PropertyRef) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::None,
-            operator: FilterOperator::IsNone,
-        }
-    }
-
-    pub fn is_some(prop_ref: PropertyRef) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::None,
-            operator: FilterOperator::IsSome,
-        }
-    }
-
-    pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Contains,
-        }
-    }
-
-    pub fn contains_not(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::ContainsNot,
-        }
-    }
-
-    pub fn fuzzy_search(
-        prop_ref: PropertyRef,
-        prop_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(Prop::Str(ArcStr::from(prop_value.into()))),
-            operator: FilterOperator::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            },
-        }
-    }
-
-    pub fn resolve_temporal_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        let prop_name = self.prop_ref.name();
-        if let PropertyFilterValue::Single(value) = &self.prop_value {
-            Ok(meta
-                .temporal_prop_meta()
-                .get_and_validate(prop_name, value.dtype())?)
-        } else {
-            Ok(meta.temporal_prop_meta().get_id(prop_name))
-        }
-    }
-
-    pub fn resolve_constant_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        let prop_name = self.prop_ref.name();
-        if let PropertyFilterValue::Single(value) = &self.prop_value {
-            Ok(meta
-                .const_prop_meta()
-                .get_and_validate(prop_name, value.dtype())?)
-        } else {
-            Ok(meta.const_prop_meta().get_id(prop_name))
-        }
-    }
-
-    pub fn matches(&self, other: Option<&Prop>) -> bool {
-        let value = &self.prop_value;
-        self.operator.apply_to_property(value, other)
-    }
-
-    fn is_property_matched<I: PropertiesOps + Clone>(
-        &self,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
-        props: Properties<I>,
-    ) -> bool {
-        match self.prop_ref {
-            PropertyRef::Property(_) => {
-                let prop_value = t_prop_id
-                    .and_then(|prop_id| {
-                        props
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .and_then(|prop_view| prop_view.latest())
-                    })
-                    .or_else(|| c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id)));
-                self.matches(prop_value.as_ref())
-            }
-            PropertyRef::ConstantProperty(_) => {
-                let prop_value = c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id));
-                self.matches(prop_value.as_ref())
-            }
-            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.map_or(false, |prop_id| {
-                props
-                    .temporal()
-                    .get_by_id(prop_id)
-                    .filter(|prop_view| prop_view.values().any(|v| self.matches(Some(&v))))
-                    .is_some()
-            }),
-            PropertyRef::TemporalProperty(_, Temporal::Latest) => {
-                let prop_value = t_prop_id.and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                });
-                self.matches(prop_value.as_ref())
-            }
-        }
-    }
-
-    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
-        node: NodeStorageRef,
-    ) -> bool {
-        let props = NodeView::new_internal(graph, node.vid()).properties();
-        self.is_property_matched(t_prop_id, c_prop_id, props)
-    }
-
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        let props = EdgeView::new(graph, edge.out_ref()).properties();
-        self.is_property_matched(t_prop_id, c_prop_id, props)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum FilterValue {
-    Single(String),
-    Set(Arc<HashSet<String>>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Filter {
-    pub field_name: String,
-    pub field_value: FilterValue,
-    pub operator: FilterOperator,
-}
-
-#[derive(Debug, Clone)]
-pub struct NodeNameFilter(pub Filter);
-
-impl Display for NodeNameFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<Filter> for NodeNameFilter {
-    fn from(filter: Filter) -> Self {
-        NodeNameFilter(filter)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct NodeTypeFilter(pub Filter);
-
-impl Display for NodeTypeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<Filter> for NodeTypeFilter {
-    fn from(filter: Filter) -> Self {
-        NodeTypeFilter(filter)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EdgeFieldFilter(pub Filter);
-
-impl Display for EdgeFieldFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Display for Filter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.field_value {
-            FilterValue::Single(value) => {
-                write!(f, "{} {} {}", self.field_name, self.operator, value)
-            }
-            FilterValue::Set(values) => {
-                let mut sorted_values: Vec<_> = values.iter().collect();
-                sorted_values.sort();
-                let values_str = sorted_values
-                    .iter()
-                    .map(|v| format!("{}", v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
-            }
-        }
-    }
-}
-
-impl Filter {
-    pub fn eq(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
-            operator: FilterOperator::Eq,
-        }
-    }
-
-    pub fn ne(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
-            operator: FilterOperator::Ne,
-        }
-    }
-
-    pub fn is_in(
-        field_name: impl Into<String>,
-        field_values: impl IntoIterator<Item = String>,
-    ) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::In,
-        }
-    }
-
-    pub fn is_not_in(
-        field_name: impl Into<String>,
-        field_values: impl IntoIterator<Item = String>,
-    ) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::NotIn,
-        }
-    }
-
-    pub fn contains(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
-            operator: FilterOperator::Contains,
-        }
-    }
-
-    pub fn contains_not(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
-            operator: FilterOperator::ContainsNot,
-        }
-    }
-
-    pub fn fuzzy_search(
-        field_name: impl Into<String>,
-        field_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> Self {
-        Self {
-            field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
-            operator: FilterOperator::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            },
-        }
-    }
-
-    pub fn matches(&self, node_value: Option<&str>) -> bool {
-        self.operator.apply(&self.field_value, node_value)
-    }
-
-    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        node_types_filter: &Arc<[bool]>,
-        layer_ids: &LayerIds,
-        node: NodeStorageRef,
-    ) -> bool {
-        match self.field_name.as_str() {
-            "node_name" => self.matches(Some(&node.id().to_str())),
-            "node_type" => {
-                node_types_filter
-                    .get(node.node_type_id())
-                    .copied()
-                    .unwrap_or(false)
-                    && graph.filter_node(node, layer_ids)
-            }
-            _ => false,
-        }
-    }
-
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        match self.field_name.as_str() {
-            "src" => self.matches(graph.node(edge.src()).map(|n| n.name()).as_deref()),
-            "dst" => self.matches(graph.node(edge.dst()).map(|n| n.name()).as_deref()),
-            _ => false,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum CompositeNodeFilter {
-    Node(Filter),
-    Property(PropertyFilter),
-    And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
-    Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
-}
-
-impl Display for CompositeNodeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
-            CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-        }
-    }
-}
-
-impl CompositeNodeFilter {
-    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        t_prop_ids: &HashMap<String, usize>,
-        c_prop_ids: &HashMap<String, usize>,
-        node_types_filter: &Arc<[bool]>,
-        layer_ids: &LayerIds,
-        node: NodeStorageRef,
-    ) -> bool {
-        match self {
-            CompositeNodeFilter::Node(node_filter) => {
-                node_filter.matches_node::<G>(graph, node_types_filter, layer_ids, node)
-            }
-            CompositeNodeFilter::Property(property_filter) => {
-                let prop_name = property_filter.prop_ref.name();
-                let t_prop_id = t_prop_ids.get(prop_name).copied();
-                let c_prop_id = c_prop_ids.get(prop_name).copied();
-                property_filter.matches_node(graph, t_prop_id, c_prop_id, node)
-            }
-            CompositeNodeFilter::And(left, right) => {
-                left.matches_node(
-                    graph,
-                    t_prop_ids,
-                    c_prop_ids,
-                    node_types_filter,
-                    layer_ids,
-                    node,
-                ) && right.matches_node(
-                    graph,
-                    t_prop_ids,
-                    c_prop_ids,
-                    node_types_filter,
-                    layer_ids,
-                    node,
-                )
-            }
-            CompositeNodeFilter::Or(left, right) => {
-                left.matches_node(
-                    graph,
-                    t_prop_ids,
-                    c_prop_ids,
-                    node_types_filter,
-                    layer_ids,
-                    node,
-                ) || right.matches_node(
-                    graph,
-                    t_prop_ids,
-                    c_prop_ids,
-                    node_types_filter,
-                    layer_ids,
-                    node,
-                )
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum CompositeEdgeFilter {
-    Edge(Filter),
-    Property(PropertyFilter),
-    And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
-    Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
-}
-
-impl Display for CompositeEdgeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
-            CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-        }
-    }
-}
-
-impl CompositeEdgeFilter {
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        t_prop_ids: &HashMap<String, usize>,
-        c_prop_ids: &HashMap<String, usize>,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        match self {
-            CompositeEdgeFilter::Edge(edge_filter) => edge_filter.matches_edge::<G>(graph, edge),
-            CompositeEdgeFilter::Property(property_filter) => {
-                let prop_name = property_filter.prop_ref.name();
-                let t_prop_id = t_prop_ids.get(prop_name).copied();
-                let c_prop_id = c_prop_ids.get(prop_name).copied();
-                property_filter.matches_edge(graph, t_prop_id, c_prop_id, edge)
-            }
-            CompositeEdgeFilter::And(left, right) => {
-                left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-                    && right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
-            CompositeEdgeFilter::Or(left, right) => {
-                left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-                    || right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
-        }
-    }
-}
-
-// Fluent Composite Filter Builder APIs
-pub trait AsNodeFilter: Send + Sync {
-    fn as_node_filter(&self) -> CompositeNodeFilter;
-}
-
-impl<T: AsNodeFilter + ?Sized> AsNodeFilter for Arc<T> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        self.deref().as_node_filter()
-    }
-}
-
-pub trait AsEdgeFilter: Send + Sync {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter;
-}
-
-impl<T: AsEdgeFilter + ?Sized> AsEdgeFilter for Arc<T> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        self.deref().as_edge_filter()
-    }
-}
-
-impl AsNodeFilter for CompositeNodeFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        self.clone()
-    }
-}
-
-impl AsEdgeFilter for CompositeEdgeFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        self.clone()
-    }
-}
-
-impl AsNodeFilter for PropertyFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Property(self.clone())
-    }
-}
-
-impl AsEdgeFilter for PropertyFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Property(self.clone())
-    }
-}
-
-impl AsNodeFilter for NodeNameFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Node(self.0.clone())
-    }
-}
-
-impl AsNodeFilter for NodeTypeFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Node(self.0.clone())
-    }
-}
-
-impl AsEdgeFilter for EdgeFieldFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Edge(self.0.clone())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct AndFilter<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-impl<L: Display, R: Display> Display for AndFilter<L, R> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} AND {})", self.left, self.right)
-    }
-}
-
-impl<L: AsNodeFilter, R: AsNodeFilter> AsNodeFilter for AndFilter<L, R> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::And(
-            Box::new(self.left.as_node_filter()),
-            Box::new(self.right.as_node_filter()),
-        )
-    }
-}
-
-impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for AndFilter<L, R> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::And(
-            Box::new(self.left.as_edge_filter()),
-            Box::new(self.right.as_edge_filter()),
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct OrFilter<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-impl<L: Display, R: Display> Display for OrFilter<L, R> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} OR {})", self.left, self.right)
-    }
-}
-
-impl<L: AsNodeFilter, R: AsNodeFilter> AsNodeFilter for OrFilter<L, R> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Or(
-            Box::new(self.left.as_node_filter()),
-            Box::new(self.right.as_node_filter()),
-        )
-    }
-}
-
-impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for OrFilter<L, R> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Or(
-            Box::new(self.left.as_edge_filter()),
-            Box::new(self.right.as_edge_filter()),
-        )
-    }
-}
-
-pub trait ComposableFilter: Sized {
-    fn and<F>(self, other: F) -> AndFilter<Self, F> {
-        AndFilter {
-            left: self,
-            right: other,
-        }
-    }
-
-    fn or<F>(self, other: F) -> OrFilter<Self, F> {
-        OrFilter {
-            left: self,
-            right: other,
-        }
-    }
-}
-
-impl ComposableFilter for PropertyFilter {}
-impl ComposableFilter for NodeNameFilter {}
-impl ComposableFilter for NodeTypeFilter {}
-impl ComposableFilter for EdgeFieldFilter {}
-impl<L, R> ComposableFilter for AndFilter<L, R> {}
-impl<L, R> ComposableFilter for OrFilter<L, R> {}
-
-pub trait InternalPropertyFilterOps: Send + Sync {
-    fn property_ref(&self) -> PropertyRef;
-}
-
-impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().property_ref()
-    }
-}
-
-pub trait PropertyFilterOps {
-    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn le(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
-
-    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
-
-    fn is_none(&self) -> PropertyFilter;
-
-    fn is_some(&self) -> PropertyFilter;
-
-    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn contains_not(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    fn fuzzy_search(
-        &self,
-        prop_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PropertyFilter;
-}
-
-impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
-    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::eq(self.property_ref(), value.into())
-    }
-
-    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::ne(self.property_ref(), value.into())
-    }
-
-    fn le(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::le(self.property_ref(), value.into())
-    }
-
-    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::ge(self.property_ref(), value.into())
-    }
-
-    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::lt(self.property_ref(), value.into())
-    }
-
-    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::gt(self.property_ref(), value.into())
-    }
-
-    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::is_in(self.property_ref(), values.into_iter())
-    }
-
-    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::is_not_in(self.property_ref(), values.into_iter())
-    }
-
-    fn is_none(&self) -> PropertyFilter {
-        PropertyFilter::is_none(self.property_ref())
-    }
-
-    fn is_some(&self) -> PropertyFilter {
-        PropertyFilter::is_some(self.property_ref())
-    }
-
-    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::contains(self.property_ref(), value.into())
-    }
-
-    fn contains_not(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::contains_not(self.property_ref(), value.into())
-    }
-
-    fn fuzzy_search(
-        &self,
-        prop_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PropertyFilter {
-        PropertyFilter::fuzzy_search(
-            self.property_ref(),
-            prop_value.into(),
-            levenshtein_distance,
-            prefix_match,
-        )
-    }
-}
-
-#[derive(Clone)]
-pub struct PropertyFilterBuilder(pub String);
-
-impl PropertyFilterBuilder {
-    pub fn constant(self) -> ConstPropertyFilterBuilder {
-        ConstPropertyFilterBuilder(self.0)
-    }
-
-    pub fn temporal(self) -> TemporalPropertyFilterBuilder {
-        TemporalPropertyFilterBuilder(self.0)
-    }
-}
-
-impl InternalPropertyFilterOps for PropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
-    }
-}
-
-#[derive(Clone)]
-pub struct ConstPropertyFilterBuilder(pub String);
-
-impl InternalPropertyFilterOps for ConstPropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::ConstantProperty(self.0.clone())
-    }
-}
-
-#[derive(Clone)]
-pub struct AnyTemporalPropertyFilterBuilder(pub String);
-
-impl InternalPropertyFilterOps for AnyTemporalPropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
-    }
-}
-
-#[derive(Clone)]
-pub struct LatestTemporalPropertyFilterBuilder(pub String);
-
-impl InternalPropertyFilterOps for LatestTemporalPropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
-    }
-}
-
-#[derive(Clone)]
-pub struct TemporalPropertyFilterBuilder(pub String);
-
-impl TemporalPropertyFilterBuilder {
-    pub fn any(self) -> AnyTemporalPropertyFilterBuilder {
-        AnyTemporalPropertyFilterBuilder(self.0)
-    }
-
-    pub fn latest(self) -> LatestTemporalPropertyFilterBuilder {
-        LatestTemporalPropertyFilterBuilder(self.0)
-    }
-}
-
-impl PropertyFilter {
-    pub fn property(name: impl AsRef<str>) -> PropertyFilterBuilder {
-        PropertyFilterBuilder(name.as_ref().to_string())
-    }
-}
-
-pub trait InternalNodeFilterBuilderOps: Send + Sync {
-    type NodeFilterType: From<Filter> + InternalNodeFilterOps + AsNodeFilter + Clone + 'static;
-
-    fn field_name(&self) -> &'static str;
-}
-
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Arc<T> {
-    type NodeFilterType = T::NodeFilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.deref().field_name()
-    }
-}
-
-pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
-    fn eq(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::eq(self.field_name(), value).into()
-    }
-
-    fn ne(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::ne(self.field_name(), value).into()
-    }
-
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::is_in(self.field_name(), values).into()
-    }
-
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::is_not_in(self.field_name(), values).into()
-    }
-
-    fn contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::contains(self.field_name(), value).into()
-    }
-
-    fn contains_not(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::contains_not(self.field_name(), value.into()).into()
-    }
-
-    fn fuzzy_search(
-        &self,
-        value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> Self::NodeFilterType {
-        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match).into()
-    }
-}
-
-impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
-
-pub struct NodeNameFilterBuilder;
-
-impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
-    type NodeFilterType = NodeNameFilter;
-
-    fn field_name(&self) -> &'static str {
-        "node_name"
-    }
-}
-
-pub struct NodeTypeFilterBuilder;
-
-impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
-    type NodeFilterType = NodeTypeFilter;
-
-    fn field_name(&self) -> &'static str {
-        "node_type"
-    }
-}
-
-#[derive(Clone)]
-pub struct NodeFilter;
-
-impl NodeFilter {
-    pub fn name() -> NodeNameFilterBuilder {
-        NodeNameFilterBuilder
-    }
-
-    pub fn node_type() -> NodeTypeFilterBuilder {
-        NodeTypeFilterBuilder
-    }
-}
-
-pub trait InternalEdgeFilterBuilderOps: Send + Sync {
-    fn field_name(&self) -> &'static str;
-}
-
-impl<T: InternalEdgeFilterBuilderOps> InternalEdgeFilterBuilderOps for Arc<T> {
-    fn field_name(&self) -> &'static str {
-        self.deref().field_name()
-    }
-}
-
-pub trait EdgeFilterOps {
-    fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
-
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
-
-    fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    fn contains_not(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    fn fuzzy_search(
-        &self,
-        value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> EdgeFieldFilter;
-}
-
-impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
-    fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::eq(self.field_name(), value))
-    }
-
-    fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::ne(self.field_name(), value))
-    }
-
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::is_in(self.field_name(), values))
-    }
-
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
-    }
-
-    fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
-    }
-
-    fn contains_not(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::contains_not(self.field_name(), value.into()))
-    }
-
-    fn fuzzy_search(
-        &self,
-        value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::fuzzy_search(
-            self.field_name(),
-            value,
-            levenshtein_distance,
-            prefix_match,
-        ))
-    }
-}
-
-pub struct EdgeSourceFilterBuilder;
-
-impl InternalEdgeFilterBuilderOps for EdgeSourceFilterBuilder {
-    fn field_name(&self) -> &'static str {
-        "src"
-    }
-}
-
-pub struct EdgeDestinationFilterBuilder;
-
-impl InternalEdgeFilterBuilderOps for EdgeDestinationFilterBuilder {
-    fn field_name(&self) -> &'static str {
-        "dst"
-    }
-}
-
-#[derive(Clone)]
-pub struct EdgeFilter;
-
-impl EdgeFilter {
-    pub fn src() -> EdgeSourceFilterBuilder {
-        EdgeSourceFilterBuilder
-    }
-
-    pub fn dst() -> EdgeDestinationFilterBuilder {
-        EdgeDestinationFilterBuilder
-    }
-}
-
 #[cfg(test)]
 mod test_fluent_builder_apis {
-    use crate::{
-        db::graph::views::filter::{
-            AsEdgeFilter, AsNodeFilter, ComposableFilter, CompositeEdgeFilter, CompositeNodeFilter,
-            EdgeFilter, EdgeFilterOps, Filter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
-            PropertyRef, Temporal,
-        },
-        prelude::PropertyFilter,
+    use crate::db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter,
+        node_filter::CompositeNodeFilter,
+        property_filter::{PropertyFilter, PropertyRef, Temporal},
+        AsEdgeFilter, AsNodeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps, Filter,
+        NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
     };
 
     #[test]
@@ -1313,10 +37,7 @@ mod test_fluent_builder_apis {
             PropertyRef::Property("p".to_string()),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1327,10 +48,7 @@ mod test_fluent_builder_apis {
             PropertyRef::ConstantProperty("p".to_string()),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1344,10 +62,7 @@ mod test_fluent_builder_apis {
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1361,10 +76,7 @@ mod test_fluent_builder_apis {
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
         ));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1372,10 +84,7 @@ mod test_fluent_builder_apis {
         let filter_expr = NodeFilter::name().eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1383,10 +92,7 @@ mod test_fluent_builder_apis {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
-        assert_eq!(
-            node_property_filter.to_string(),
-            node_property_filter2.to_string()
-        );
+        assert_eq!(node_property_filter, node_property_filter2);
     }
 
     #[test]
@@ -1403,7 +109,8 @@ mod test_fluent_builder_apis {
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(NodeFilter::node_type().eq("raphtory"))
-            .or(PropertyFilter::property("p5").eq(9u64));
+            .or(PropertyFilter::property("p5").eq(9u64))
+            .as_node_filter();
 
         let node_composite_filter2 = CompositeNodeFilter::Or(
             Box::new(CompositeNodeFilter::Or(
@@ -1446,37 +153,29 @@ mod test_fluent_builder_apis {
             ))),
         );
 
-        assert_eq!(
-            node_composite_filter.to_string(),
-            node_composite_filter2.to_string()
-        );
+        assert_eq!(node_composite_filter, node_composite_filter2);
     }
 
     #[test]
     fn test_edge_src_filter_build() {
-        let filter_expr = EdgeFilter::src().eq("raphtory");
+        let filter_expr = EdgeFilter::src().name().eq("raphtory");
         let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
-        assert_eq!(
-            edge_property_filter.to_string(),
-            edge_property_filter2.to_string()
-        );
+        assert_eq!(edge_property_filter, edge_property_filter2);
     }
 
     #[test]
     fn test_edge_dst_filter_build() {
-        let filter_expr = EdgeFilter::dst().eq("raphtory");
+        let filter_expr = EdgeFilter::dst().name().eq("raphtory");
         let edge_property_filter = filter_expr.as_edge_filter();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
-        assert_eq!(
-            edge_property_filter.to_string(),
-            edge_property_filter2.to_string()
-        );
+        assert_eq!(edge_property_filter, edge_property_filter2);
     }
 
     #[test]
     fn test_edge_filter_composition() {
         let edge_composite_filter = EdgeFilter::src()
+            .name()
             .eq("fire_nation")
             .and(PropertyFilter::property("p2").constant().eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
@@ -1487,8 +186,9 @@ mod test_fluent_builder_apis {
                     .eq(5u64)
                     .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
             )
-            .or(EdgeFilter::src().eq("raphtory"))
-            .or(PropertyFilter::property("p5").eq(9u64));
+            .or(EdgeFilter::src().name().eq("raphtory"))
+            .or(PropertyFilter::property("p5").eq(9u64))
+            .as_edge_filter();
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(
             Box::new(CompositeEdgeFilter::Or(
@@ -1525,10 +225,7 @@ mod test_fluent_builder_apis {
             ))),
         );
 
-        assert_eq!(
-            edge_composite_filter.to_string(),
-            edge_composite_filter2.to_string()
-        );
+        assert_eq!(edge_composite_filter, edge_composite_filter2);
     }
 }
 
@@ -1536,8 +233,11 @@ mod test_fluent_builder_apis {
 mod test_composite_filters {
     use crate::{
         core::Prop,
-        db::graph::views::filter::{
-            CompositeEdgeFilter, CompositeNodeFilter, Filter, PropertyFilter, PropertyRef,
+        db::graph::views::filter::model::{
+            edge_filter::CompositeEdgeFilter,
+            node_filter::CompositeNodeFilter,
+            property_filter::{PropertyFilter, PropertyRef},
+            Filter,
         },
         prelude::IntoProp,
     };
@@ -1697,6 +397,9 @@ mod test_composite_filters {
 
         let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
         assert!(!filter.matches(Some("shivam1_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "khivam sapoor", 2, false);
+        assert!(!filter.matches(Some("shivam1_kapoor2")));
     }
 
     #[test]
@@ -1747,12 +450,17 @@ mod test_composite_filters {
 
         let res = filter.matches(None);
         assert!(!res);
+
+        let filter = PropertyFilter::contains(PropertyRef::Property("prop".to_string()), "am_ka");
+
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
+        assert!(res);
     }
 
     #[test]
     fn test_contains_not_match() {
         let filter =
-            PropertyFilter::contains_not(PropertyRef::Property("prop".to_string()), "shivam");
+            PropertyFilter::not_contains(PropertyRef::Property("prop".to_string()), "shivam");
 
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(!res);
@@ -1792,137 +500,22 @@ mod test_composite_filters {
 
 #[cfg(test)]
 pub(crate) mod test_filters {
-    use super::*;
     use crate::{
         core::IntoProp,
         db::api::{
             mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
             view::StaticGraphViewOps,
         },
-        prelude::{
-            AdditionOps, EdgePropertyFilterOps, EdgeViewOps, Graph, NodePropertyFilterOps,
-            PropertyAdditionOps,
-        },
+        prelude::{AdditionOps, Graph, PropertyAdditionOps},
     };
-
-    #[cfg(feature = "search")]
-    pub use crate::db::api::view::SearchableGraphOps;
-
-    pub(crate) fn filter_nodes_with<G, F, I: InternalNodeFilterOps>(
-        filter: I,
-        init_fn: F,
-    ) -> Vec<String>
-    where
-        F: FnOnce() -> G,
-        G: StaticGraphViewOps
-            + AdditionOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
-    {
-        let graph = init_fn();
-
-        let fg = graph.filter_nodes(filter).unwrap();
-        let mut results = fg.nodes().iter().map(|n| n.name()).collect::<Vec<_>>();
-        results.sort();
-        results
-    }
-
-    pub(crate) fn filter_edges_with<G, F, I: InternalEdgeFilterOps>(
-        filter: I,
-        init_fn: F,
-    ) -> Vec<String>
-    where
-        F: FnOnce() -> G,
-        G: StaticGraphViewOps
-            + AdditionOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
-    {
-        let graph = init_fn();
-
-        let fg = graph.filter_edges(filter).unwrap();
-        let mut results = fg
-            .edges()
-            .iter()
-            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
-        results.sort();
-        results
-    }
-
-    macro_rules! assert_filter_results {
-        ($filter_fn:ident, $filter:expr, $expected_results:expr) => {{
-            let filter_results = $filter_fn($filter.clone());
-            assert_eq!($expected_results, filter_results);
-        }};
-    }
-
-    #[cfg(feature = "search")]
-    pub(crate) fn search_nodes_with<G, F, I: AsNodeFilter>(filter: I, init_fn: F) -> Vec<String>
-    where
-        F: FnOnce() -> G,
-        G: StaticGraphViewOps
-            + AdditionOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
-    {
-        let graph = init_fn();
-        graph.create_index().unwrap();
-
-        let mut results = graph
-            .search_nodes(filter, 20, 0)
-            .unwrap()
-            .into_iter()
-            .map(|nv| nv.name())
-            .collect::<Vec<_>>();
-        results.sort();
-        results
-    }
-
-    #[cfg(feature = "search")]
-    pub(crate) fn search_edges_with<G, F, I: AsEdgeFilter>(filter: I, init_fn: F) -> Vec<String>
-    where
-        F: FnOnce() -> G,
-        G: StaticGraphViewOps
-            + AdditionOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + PropertyAdditionOps,
-    {
-        let graph = init_fn();
-        graph.create_index().unwrap();
-
-        let mut results = graph
-            .search_edges(filter, 20, 0)
-            .unwrap()
-            .into_iter()
-            .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-            .collect::<Vec<_>>();
-        results.sort();
-        results
-    }
-
-    #[cfg(feature = "search")]
-    macro_rules! assert_search_results {
-        ($search_fn:ident, $filter:expr, $expected_results:expr) => {{
-            let search_results = $search_fn($filter.clone());
-            assert_eq!($expected_results, search_results);
-        }};
-    }
-
-    #[cfg(not(feature = "search"))]
-    macro_rules! assert_search_results {
-        ($search_fn:ident, $filter:expr, $expected_results:expr) => {};
-    }
 
     #[cfg(test)]
     mod test_property_semantics {
 
         #[cfg(test)]
         mod test_node_property_filter_semantics {
+            use crate::{assert_filter_results, assert_search_results};
+
             use crate::{
                 core::Prop,
                 db::{
@@ -1930,20 +523,16 @@ pub(crate) mod test_filters {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::StaticGraphViewOps,
                     },
-                    graph::views::filter::PropertyFilterOps,
+                    graph::views::filter::model::PropertyFilterOps,
                 },
-                prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter},
+                prelude::{AdditionOps, Graph, PropertyAdditionOps},
             };
 
-            #[cfg(feature = "search")]
-            use crate::db::graph::views::filter::test_filters::search_nodes_with;
-
-            use crate::{
-                db::graph::views::filter::{
-                    internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
-                },
-                prelude::NodeViewOps,
+            use crate::db::graph::views::filter::{
+                internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
             };
+            use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::prelude::PropertyFilter;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -2034,21 +623,21 @@ pub(crate) mod test_filters {
             }
 
             fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-                filter_nodes_with(filter, || init_graph(Graph::new()))
+                filter_nodes_with(filter, init_graph(Graph::new()))
             }
 
             fn filter_nodes_secondary_index<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-                filter_nodes_with(filter, || init_graph_for_secondary_indexes(Graph::new()))
+                filter_nodes_with(filter, init_graph_for_secondary_indexes(Graph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_nodes(filter: PropertyFilter) -> Vec<String> {
-                search_nodes_with(filter, || init_graph(Graph::new()))
+                search_nodes_with(filter, init_graph(Graph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_nodes_secondary_index(filter: PropertyFilter) -> Vec<String> {
-                search_nodes_with(filter, || init_graph_for_secondary_indexes(Graph::new()))
+                search_nodes_with(filter, init_graph_for_secondary_indexes(Graph::new()))
             }
 
             #[test]
@@ -2143,15 +732,15 @@ pub(crate) mod test_filters {
                 }
 
                 fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-                    filter_nodes_with(filter, || init_graph(Graph::new()))
+                    filter_nodes_with(filter, init_graph(Graph::new()))
                 }
 
                 #[cfg(feature = "search")]
                 fn search_nodes(filter: PropertyFilter) -> Vec<String> {
-                    search_nodes_with(filter, || init_graph(Graph::new()))
+                    search_nodes_with(filter, init_graph(Graph::new()))
                 }
 
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec!["N1", "N2"];
                 assert_filter_results!(filter_nodes, filter, expected_results);
                 assert_search_results!(search_nodes, filter, expected_results);
@@ -2182,29 +771,19 @@ pub(crate) mod test_filters {
                         graph.add_node(*id, label, props.clone(), None).unwrap();
                     }
 
-                    let constant_properties = [("N1", [("p2", Prop::U64(1u64))])];
-
-                    for (node, props) in constant_properties.iter() {
-                        graph
-                            .node(node)
-                            .unwrap()
-                            .add_constant_properties(props.clone())
-                            .unwrap();
-                    }
-
                     graph
                 }
 
                 fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-                    filter_nodes_with(filter, || init_graph(Graph::new()))
+                    filter_nodes_with(filter, init_graph(Graph::new()))
                 }
 
                 #[cfg(feature = "search")]
                 fn search_nodes(filter: PropertyFilter) -> Vec<String> {
-                    search_nodes_with(filter, || init_graph(Graph::new()))
+                    search_nodes_with(filter, init_graph(Graph::new()))
                 }
 
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3"];
                 assert_filter_results!(filter_nodes, filter, expected_results);
                 assert_search_results!(search_nodes, filter, expected_results);
@@ -2220,16 +799,20 @@ pub(crate) mod test_filters {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::StaticGraphViewOps,
                     },
-                    graph::views::filter::PropertyFilterOps,
+                    graph::views::{
+                        filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
+                        test_helpers::filter_edges_with,
+                    },
                 },
-                prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter},
+                prelude::{AdditionOps, Graph, PropertyAdditionOps},
             };
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::filter::test_filters::search_edges_with;
+            use crate::db::graph::views::test_helpers::search_edges_with;
 
-            use crate::db::graph::views::filter::{
-                internal::InternalEdgeFilterOps, test_filters::filter_edges_with,
+            use crate::{
+                assert_filter_results, assert_search_results,
+                db::graph::views::filter::model::property_filter::PropertyFilter,
             };
 
             fn init_graph<
@@ -2321,21 +904,21 @@ pub(crate) mod test_filters {
             }
 
             fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-                filter_edges_with(filter, || init_graph(Graph::new()))
+                filter_edges_with(filter, init_graph(Graph::new()))
             }
 
             fn filter_edges_secondary_index<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-                filter_edges_with(filter, || init_graph_for_secondary_indexes(Graph::new()))
+                filter_edges_with(filter, init_graph_for_secondary_indexes(Graph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_edges(filter: PropertyFilter) -> Vec<String> {
-                search_edges_with(filter, || init_graph(Graph::new()))
+                search_edges_with(filter, init_graph(Graph::new()))
             }
 
             #[cfg(feature = "search")]
             fn search_edges_secondary_index(filter: PropertyFilter) -> Vec<String> {
-                search_edges_with(filter, || init_graph_for_secondary_indexes(Graph::new()))
+                search_edges_with(filter, init_graph_for_secondary_indexes(Graph::new()))
             }
 
             #[test]
@@ -2361,7 +944,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_temporal_any_semantics_for_secondary_indexes() {
-                let filter = PropertyFilter::property("p1").temporal().any().eq(1u64);
+                let filter = PropertyFilter::property("p1").temporal().any().lt(2u64);
                 let expected_results = vec![
                     "N1->N2", "N16->N15", "N17->N16", "N2->N3", "N3->N4", "N4->N5", "N5->N6",
                     "N6->N7", "N7->N8", "N8->N9",
@@ -2389,9 +972,10 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_property_semantics() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = PropertyFilter::property("p1").ge(2u64);
                 let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N4->N5", "N6->N7", "N7->N8",
+                    "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
+                    "N9->N10",
                 ];
                 assert_filter_results!(filter_edges, filter, expected_results);
                 assert_search_results!(search_edges, filter, expected_results);
@@ -2446,12 +1030,12 @@ pub(crate) mod test_filters {
                 }
 
                 fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-                    filter_edges_with(filter, || init_graph(Graph::new()))
+                    filter_edges_with(filter, init_graph(Graph::new()))
                 }
 
                 #[cfg(feature = "search")]
                 fn search_edges(filter: PropertyFilter) -> Vec<String> {
-                    search_edges_with(filter, || init_graph(Graph::new()))
+                    search_edges_with(filter, init_graph(Graph::new()))
                 }
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
@@ -2485,26 +1069,16 @@ pub(crate) mod test_filters {
                         graph.add_edge(time, src, dst, props, None).unwrap();
                     }
 
-                    let constant_edges = [("N1", "N2", vec![("p2", Prop::U64(1u64))])];
-
-                    for (src, dst, props) in constant_edges {
-                        graph
-                            .edge(src, dst)
-                            .unwrap()
-                            .add_constant_properties(props.clone(), None)
-                            .unwrap();
-                    }
-
                     graph
                 }
 
                 fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-                    filter_edges_with(filter, || init_graph(Graph::new()))
+                    filter_edges_with(filter, init_graph(Graph::new()))
                 }
 
                 #[cfg(feature = "search")]
                 fn search_edges(filter: PropertyFilter) -> Vec<String> {
-                    search_edges_with(filter, || init_graph(Graph::new()))
+                    search_edges_with(filter, init_graph(Graph::new()))
                 }
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
@@ -2515,7 +1089,10 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps};
+    use crate::db::graph::views::{
+        filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+        test_helpers::{filter_edges_with, filter_nodes_with},
+    };
 
     fn init_nodes_graph<
         G: StaticGraphViewOps
@@ -2669,35 +1246,45 @@ pub(crate) mod test_filters {
     }
 
     fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-        filter_nodes_with(filter, || init_nodes_graph(Graph::new()))
+        filter_nodes_with(filter, init_nodes_graph(Graph::new()))
     }
 
     fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-        filter_edges_with(filter, || init_edges_graph(Graph::new()))
+        filter_edges_with(filter, init_edges_graph(Graph::new()))
     }
 
     #[cfg(test)]
     mod test_node_property_filter {
         #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_nodes_with;
+        use crate::db::graph::views::test_helpers::search_nodes_with;
         use crate::{
             core::Prop,
             db::graph::views::filter::{
+                model::PropertyFilterOps,
                 test_filters::{filter_nodes, init_nodes_graph},
-                PropertyFilterOps,
             },
-            prelude::{Graph, PropertyFilter},
+            prelude::Graph,
+        };
+
+        use crate::{
+            assert_filter_results, assert_search_results,
+            db::graph::views::filter::model::property_filter::PropertyFilter,
         };
 
         #[cfg(feature = "search")]
         fn search_nodes(filter: PropertyFilter) -> Vec<String> {
-            search_nodes_with(filter, || init_nodes_graph(Graph::new()))
+            search_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         #[test]
         fn test_exact_match() {
             let filter = PropertyFilter::property("p10").eq("Paper_airplane");
             let expected_results = vec!["1", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10").eq("");
+            let expected_results = Vec::<String>::new();
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
         }
@@ -2821,7 +1408,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_contains_not() {
-            let filter = PropertyFilter::property("p10").contains_not("ship");
+            let filter = PropertyFilter::property("p10").not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2829,7 +1416,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .any()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2837,7 +1424,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .latest()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -2849,18 +1436,22 @@ pub(crate) mod test_filters {
         use crate::{
             core::Prop,
             db::graph::views::filter::{
+                model::PropertyFilterOps,
                 test_filters::{filter_edges, init_edges_graph},
-                PropertyFilterOps,
             },
-            prelude::{Graph, PropertyFilter},
+            prelude::Graph,
         };
 
         #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_edges_with;
+        use crate::db::graph::views::test_helpers::search_edges_with;
+        use crate::{
+            assert_filter_results, assert_search_results,
+            db::graph::views::filter::model::property_filter::PropertyFilter,
+        };
 
         #[cfg(feature = "search")]
         fn search_edges(filter: PropertyFilter) -> Vec<String> {
-            search_edges_with(filter, || init_edges_graph(Graph::new()))
+            search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[test]
@@ -3025,7 +1616,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_property_contains_not() {
-            let filter = PropertyFilter::property("p10").contains_not("ship");
+            let filter = PropertyFilter::property("p10").not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3033,7 +1624,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .any()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3041,7 +1632,7 @@ pub(crate) mod test_filters {
             let filter = PropertyFilter::property("p10")
                 .temporal()
                 .latest()
-                .contains_not("ship");
+                .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3053,6 +1644,10 @@ pub(crate) mod test_filters {
             let expected_results: Vec<&str> = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
 
+            let filter = PropertyFilter::property("p1").fuzzy_search("ShiV", 2, true);
+            let expected_results: Vec<&str> = vec!["1->2"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+
             let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, false);
             let expected_results: Vec<&str> = vec![];
             assert_filter_results!(filter_edges, filter, expected_results);
@@ -3061,19 +1656,21 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_filter {
-        #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_nodes_with;
         use crate::{
-            db::graph::views::filter::{
-                test_filters::{filter_nodes, init_nodes_graph},
-                AsNodeFilter, NodeFilter, NodeFilterBuilderOps,
-            },
+            db::graph::views::filter::test_filters::{filter_nodes, init_nodes_graph},
             prelude::Graph,
         };
 
         #[cfg(feature = "search")]
+        use crate::db::graph::views::test_helpers::search_nodes_with;
+        use crate::{
+            assert_filter_results, assert_search_results,
+            db::graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+        };
+
+        #[cfg(feature = "search")]
         fn search_nodes<I: AsNodeFilter>(filter: I) -> Vec<String> {
-            search_nodes_with(filter, || init_nodes_graph(Graph::new()))
+            search_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         #[test]
@@ -3099,6 +1696,11 @@ pub(crate) mod test_filters {
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
 
+            let filter = NodeFilter::name().is_in(vec!["".into()]);
+            let expected_results = Vec::<&str>::new();
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
             let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
             let expected_results = vec!["2", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
@@ -3109,6 +1711,11 @@ pub(crate) mod test_filters {
         fn test_filter_nodes_for_node_name_not_in() {
             let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
             let expected_results = vec!["2", "3", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = NodeFilter::name().is_not_in(vec!["".into()]);
+            let expected_results = vec!["1", "2", "3", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
         }
@@ -3161,7 +1768,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_node_type_contains_not() {
-            let filter = NodeFilter::node_type().contains_not("fire");
+            let filter = NodeFilter::node_type().not_contains("fire");
             let expected_results = vec!["2", "4"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
@@ -3187,33 +1794,41 @@ pub(crate) mod test_filters {
     mod test_node_composite_filter {
         use crate::{
             db::graph::views::filter::{
-                internal::InternalNodeFilterOps,
-                test_filters::{filter_nodes_with, init_nodes_graph},
-                AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
-                PropertyFilterOps,
+                internal::InternalNodeFilterOps, test_filters::init_nodes_graph,
             },
-            prelude::{Graph, PropertyFilter},
+            prelude::Graph,
+        };
+
+        use crate::{
+            assert_filter_results, assert_search_results,
+            db::graph::views::{
+                filter::model::{
+                    property_filter::PropertyFilter, AsNodeFilter, ComposableFilter, NodeFilter,
+                    NodeFilterBuilderOps, PropertyFilterOps,
+                },
+                test_helpers::filter_nodes_with,
+            },
         };
 
         #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_nodes_with;
+        use crate::db::graph::views::test_helpers::search_nodes_with;
 
         fn filter_nodes_and<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-            filter_nodes_with(filter, || init_nodes_graph(Graph::new()))
+            filter_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         fn filter_nodes_or<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-            filter_nodes_with(filter, || init_nodes_graph(Graph::new()))
+            filter_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
         fn search_nodes_and<I: AsNodeFilter>(filter: I) -> Vec<String> {
-            search_nodes_with(filter, || init_nodes_graph(Graph::new()))
+            search_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
         fn search_nodes_or<I: AsNodeFilter>(filter: I) -> Vec<String> {
-            search_nodes_with(filter, || init_nodes_graph(Graph::new()))
+            search_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         #[test]
@@ -3316,28 +1931,35 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_edge_filter {
         #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_edges_with;
+        use crate::db::graph::views::test_helpers::search_edges_with;
         use crate::{
-            db::graph::views::filter::{
-                internal::InternalEdgeFilterOps,
-                test_filters::{filter_edges_with, init_edges_graph},
-                EdgeFieldFilter, EdgeFilter, EdgeFilterOps,
+            db::graph::views::{
+                filter::{
+                    internal::InternalEdgeFilterOps, test_filters::init_edges_graph,
+                    EdgeFieldFilter,
+                },
+                test_helpers::filter_edges_with,
             },
             prelude::Graph,
         };
 
+        use crate::{
+            assert_filter_results, assert_search_results,
+            db::graph::views::filter::model::{EdgeFilter, EdgeFilterOps},
+        };
+
         fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-            filter_edges_with(filter, || init_edges_graph(Graph::new()))
+            filter_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
         fn search_edges(filter: EdgeFieldFilter) -> Vec<String> {
-            search_edges_with(filter, || init_edges_graph(Graph::new()))
+            search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[test]
         fn test_filter_edges_for_src_eq() {
-            let filter = EdgeFilter::src().eq("3");
+            let filter = EdgeFilter::src().name().eq("3");
             let expected_results = vec!["3->1"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3345,7 +1967,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_ne() {
-            let filter = EdgeFilter::src().ne("1");
+            let filter = EdgeFilter::src().name().ne("1");
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -3359,12 +1981,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_in() {
-            let filter = EdgeFilter::src().is_in(vec!["1".into()]);
+            let filter = EdgeFilter::src().name().is_in(vec!["1".into()]);
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().is_in(vec!["1".into(), "2".into()]);
+            let filter = EdgeFilter::src().name().is_in(vec!["1".into(), "2".into()]);
             let expected_results = vec!["1->2", "2->1", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3372,7 +1994,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_not_in() {
-            let filter = EdgeFilter::src().is_not_in(vec!["1".into()]);
+            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]);
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -3386,7 +2008,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_eq() {
-            let filter = EdgeFilter::dst().eq("2");
+            let filter = EdgeFilter::dst().name().eq("2");
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3394,7 +2016,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_ne() {
-            let filter = EdgeFilter::dst().ne("2");
+            let filter = EdgeFilter::dst().name().ne("2");
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -3408,12 +2030,12 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_in() {
-            let filter = EdgeFilter::dst().is_in(vec!["2".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["2".into()]);
             let expected_results = vec!["1->2"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
 
-            let filter = EdgeFilter::dst().is_in(vec!["2".into(), "3".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["2".into(), "3".into()]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_results!(filter_edges, filter, expected_results);
             assert_search_results!(search_edges, filter, expected_results);
@@ -3421,7 +2043,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_dst_not_in() {
-            let filter = EdgeFilter::dst().is_not_in(vec!["1".into()]);
+            let filter = EdgeFilter::dst().name().is_not_in(vec!["1".into()]);
             let expected_results = vec![
                 "1->2",
                 "2->3",
@@ -3434,7 +2056,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_contains() {
-            let filter = EdgeFilter::src().contains("Mayer");
+            let filter = EdgeFilter::src().name().contains("Mayer");
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
             // assert_search_results!(search_edges, filter, expected_results);
@@ -3442,7 +2064,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_src_contains_not() {
-            let filter = EdgeFilter::src().contains_not("Mayer");
+            let filter = EdgeFilter::src().name().not_contains("Mayer");
             let expected_results: Vec<&str> =
                 vec!["1->2", "2->1", "2->3", "3->1", "David Gilmour->John Mayer"];
             assert_filter_results!(filter_edges, filter, expected_results);
@@ -3451,15 +2073,15 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_edges_for_fuzzy_search() {
-            let filter = EdgeFilter::src().fuzzy_search("John", 2, true);
+            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, true);
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().fuzzy_search("John", 2, false);
+            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, false);
             let expected_results: Vec<&str> = vec![];
             assert_filter_results!(filter_edges, filter, expected_results);
 
-            let filter = EdgeFilter::src().fuzzy_search("John May", 2, false);
+            let filter = EdgeFilter::src().name().fuzzy_search("John May", 2, false);
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
         }
@@ -3468,40 +2090,50 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_edge_composite_filter {
         use crate::{
-            db::graph::views::filter::{
-                internal::InternalEdgeFilterOps,
-                test_filters::{filter_edges_with, init_edges_graph},
-                AndFilter, AsEdgeFilter, ComposableFilter, EdgeFieldFilter, EdgeFilter,
-                EdgeFilterOps, PropertyFilterOps,
+            db::graph::views::{
+                filter::{
+                    internal::InternalEdgeFilterOps, test_filters::init_edges_graph,
+                    EdgeFieldFilter,
+                },
+                test_helpers::filter_edges_with,
             },
-            prelude::{Graph, PropertyFilter},
+            prelude::Graph,
         };
 
         #[cfg(feature = "search")]
-        use crate::db::graph::views::filter::test_filters::search_edges_with;
+        use crate::db::graph::views::test_helpers::search_edges_with;
+        use crate::{
+            assert_filter_results, assert_search_results,
+            db::graph::views::filter::model::{
+                property_filter::PropertyFilter, AndFilter, AsEdgeFilter, ComposableFilter,
+                EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+            },
+        };
 
         fn filter_edges_and<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-            filter_edges_with(filter, || init_edges_graph(Graph::new()))
+            filter_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         fn filter_edges_or<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-            filter_edges_with(filter, || init_edges_graph(Graph::new()))
+            filter_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
         fn search_edges_and<I: AsEdgeFilter>(filter: I) -> Vec<String> {
-            search_edges_with(filter, || init_edges_graph(Graph::new()))
+            search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
         fn search_edges_or<I: AsEdgeFilter>(filter: I) -> Vec<String> {
-            search_edges_with(filter, || init_edges_graph(Graph::new()))
+            search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[test]
         fn test_filter_edge_for_src_dst() {
-            let filter: AndFilter<EdgeFieldFilter, EdgeFieldFilter> =
-                EdgeFilter::src().eq("3").and(EdgeFilter::dst().eq("1"));
+            let filter: AndFilter<EdgeFieldFilter, EdgeFieldFilter> = EdgeFilter::src()
+                .name()
+                .eq("3")
+                .and(EdgeFilter::dst().name().eq("1"));
             let expected_results = vec!["3->1"];
             assert_filter_results!(filter_edges_and, filter, expected_results);
             assert_search_results!(search_edges_and, filter, expected_results);
@@ -3547,6 +2179,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::src()
+                .name()
                 .eq("13")
                 .and(PropertyFilter::property("p1").eq("prop1"));
             let expected_results = Vec::<String>::new();
@@ -3567,6 +2200,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::src()
+                .name()
                 .eq("1")
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2"];
@@ -3577,6 +2211,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::dst()
+                .name()
                 .eq("1")
                 .and(PropertyFilter::property("p2").eq(6u64));
             let expected_results = vec!["2->1", "3->1"];
@@ -3587,6 +2222,7 @@ pub(crate) mod test_filters {
             assert_search_results!(search_edges_and, filter, expected_results);
 
             let filter = EdgeFilter::src()
+                .name()
                 .eq("1")
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"))
                 .or(PropertyFilter::property("p3").eq(5u64));

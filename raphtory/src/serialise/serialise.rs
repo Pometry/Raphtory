@@ -1485,7 +1485,7 @@ mod proto_test {
                     mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                     view::{internal::InternalStorageOps, StaticGraphViewOps},
                 },
-                graph::views::filter::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
             prelude::{
                 AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,

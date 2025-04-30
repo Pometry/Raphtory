@@ -13,7 +13,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, EdgeFieldFilter, Filter},
+        graph::views::filter::{internal::InternalEdgeFilterOps, model::Filter, EdgeFieldFilter},
     },
     prelude::GraphViewOps,
 };

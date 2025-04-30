@@ -2,11 +2,13 @@ use crate::model::graph::property::Value;
 use dynamic_graphql::{Enum, InputObject};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::graph::views::filter::{
-        CompositeEdgeFilter, CompositeNodeFilter, Filter, FilterOperator, FilterValue,
-        PropertyFilterValue, PropertyRef, Temporal,
+    db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter,
+        filter_operator::FilterOperator,
+        node_filter::CompositeNodeFilter,
+        property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef, Temporal},
+        Filter, FilterValue,
     },
-    prelude::PropertyFilter,
 };
 use std::{
     fmt,
@@ -149,7 +151,7 @@ pub enum Operator {
     IsIn,
     IsNotIn,
     Contains,
-    ContainsNot,
+    NotContains,
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -383,7 +385,7 @@ fn build_property_filter(
             | Operator::IsIn
             | Operator::IsNotIn
             | Operator::Contains
-            | Operator::ContainsNot
+            | Operator::NotContains
     ) && prop.is_none()
     {
         return Err(GraphError::ExpectedValueForOperator(
@@ -463,7 +465,7 @@ impl From<Operator> for FilterOperator {
             Operator::IsSome => FilterOperator::IsSome,
             Operator::IsNone => FilterOperator::IsNone,
             Operator::Contains => FilterOperator::Contains,
-            Operator::ContainsNot => FilterOperator::ContainsNot,
+            Operator::NotContains => FilterOperator::NotContains,
         }
     }
 }

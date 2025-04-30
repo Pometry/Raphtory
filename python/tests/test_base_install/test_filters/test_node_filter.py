@@ -119,11 +119,11 @@ def test_filter_nodes_for_node_type_contains():
     assert result_ids == expected_ids
 
 
-def test_filter_nodes_for_node_type_contains_not():
+def test_filter_nodes_for_node_type_not_contains():
     graph = Graph()
     graph = init_graph(graph)
 
-    filter_expr = filter.Node.node_type().contains_not("fire")
+    filter_expr = filter.Node.node_type().not_contains("fire")
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["2", "4"])
     assert result_ids == expected_ids

@@ -92,14 +92,20 @@ impl EntityIndex {
 
                 let mut schema_builder =
                     PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
-                if is_static {
+
+                let path = if is_static {
                     add_const_schema_fields(&mut schema_builder);
+                    path.as_deref().map(|p| p.join("const_properties"))
                 } else {
                     add_temporal_schema_fields(&mut schema_builder);
-                }
+                    path.as_deref().map(|p| p.join("temporal_properties"))
+                };
+
                 let schema = schema_builder.build();
-                let property_index = new_property(schema, path);
+                let prop_index_path = path.map(|p| p.join(prop_id.to_string()));
+                let property_index = new_property(schema, &prop_index_path);
                 prop_index_guard[prop_id] = Some(property_index);
+
                 Ok::<_, GraphError>(())
             })
             .transpose()?;

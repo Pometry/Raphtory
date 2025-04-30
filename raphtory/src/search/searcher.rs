@@ -5,7 +5,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::filter::{AsEdgeFilter, AsNodeFilter},
+            views::filter::model::{AsEdgeFilter, AsNodeFilter},
         },
     },
     search::{
@@ -68,7 +68,7 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{db::graph::views::filter::NodeFilter, prelude::*};
+    use crate::{db::graph::views::filter::model::NodeFilter, prelude::*};
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tracing::info;
@@ -79,7 +79,7 @@ mod search_tests {
             core::IntoProp,
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::filter::{
+                graph::views::filter::model::{
                     AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
                 },
             },
@@ -164,7 +164,7 @@ mod search_tests {
             core::IntoProp,
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::filter::{
+                graph::views::filter::model::{
                     AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
                 },
             },
@@ -216,22 +216,22 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search() {
-            let filter = EdgeFilter::src().fuzzy_search("shiva", 2, false);
+            let filter = EdgeFilter::src().name().fuzzy_search("shiva", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
 
-            let filter = EdgeFilter::dst().fuzzy_search("pomet", 2, false);
+            let filter = EdgeFilter::dst().name().fuzzy_search("pomet", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
 
         #[test]
         fn test_fuzzy_search_prefix_match() {
-            let filter = EdgeFilter::dst().fuzzy_search("pome", 2, false);
+            let filter = EdgeFilter::dst().name().fuzzy_search("pome", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            let filter = EdgeFilter::dst().fuzzy_search("pome", 2, true);
+            let filter = EdgeFilter::dst().name().fuzzy_search("pome", 2, true);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
@@ -259,7 +259,7 @@ mod search_tests {
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        use crate::db::graph::views::filter::NodeFilterBuilderOps;
+        use crate::db::graph::views::filter::model::NodeFilterBuilderOps;
         global_info_logger();
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);

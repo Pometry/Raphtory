@@ -18,7 +18,7 @@ use crate::{
         },
         graph::views::filter::internal::InternalExplodedEdgeFilterOps,
     },
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::GraphViewOps,
 };
 use raphtory_api::{
     core::{
@@ -29,7 +29,10 @@ use raphtory_api::{
 };
 use std::ops::Range;
 
-use crate::db::api::view::internal::InheritStorageOps;
+use crate::db::{
+    api::view::internal::InheritStorageOps,
+    graph::views::filter::model::property_filter::PropertyFilter,
+};
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {

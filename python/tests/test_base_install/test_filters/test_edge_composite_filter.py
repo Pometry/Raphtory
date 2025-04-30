@@ -27,33 +27,33 @@ def test_edge_composite_filter():
     expected_ids = sorted([])
     assert result_ids == expected_ids
 
-    filter_expr1 = filter.Property("p2") == 2
+    filter_expr1 = filter.Property("p2") > 2
     filter_expr2 = filter.Property("p1") == "shivam_kapoor"
     result_ids = sorted(graph.filter_edges(filter_expr1 | filter_expr2).edges.id)
-    expected_ids = sorted([('1', '2'), ('2', '3')])
+    expected_ids = sorted([('1', '2'), ('2', '1'), ('3', '1')])
     assert result_ids == expected_ids
 
-    filter_expr1 = filter.Property("p2") == 4
+    filter_expr1 = filter.Property("p2") < 9
     filter_expr2 = filter.Property("p1") == "shivam_kapoor"
     result_ids = sorted(graph.filter_edges(filter_expr1 & filter_expr2).edges.id)
     expected_ids = sorted([("1", "2")])
     assert result_ids == expected_ids
 
-    filter_expr1 = filter.Edge.src() == "1"
+    filter_expr1 = filter.Edge.src().name() == "1"
     filter_expr2 = filter.Property("p1") == "shivam_kapoor"
     result_ids = sorted(graph.filter_edges(filter_expr1 & filter_expr2).edges.id)
     expected_ids = sorted([("1", "2")])
     assert result_ids == expected_ids
 
 
-    filter_expr1 = filter.Edge.dst() == "1"
-    filter_expr2 = filter.Property("p2") == 6
+    filter_expr1 = filter.Edge.dst().name() == "1"
+    filter_expr2 = filter.Property("p2") <= 6
     result_ids = sorted(graph.filter_edges(filter_expr1 & filter_expr2).edges.id)
     expected_ids = sorted([('2', '1'), ('3', '1')])
     assert result_ids == expected_ids
 
 
-    filter_expr1 = filter.Edge.src() == "1"
+    filter_expr1 = filter.Edge.src().name() == "1"
     filter_expr2 = filter.Property("p1") == "shivam_kapoor"
     filter_expr3 = filter.Property("p3") == 5
     result_ids = sorted(graph.filter_edges((filter_expr1 & filter_expr2) | filter_expr3).edges.id)

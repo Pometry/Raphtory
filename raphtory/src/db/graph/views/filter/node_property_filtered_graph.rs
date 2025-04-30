@@ -13,9 +13,11 @@ use crate::{
                 Base,
             },
         },
-        graph::views::filter::internal::InternalNodeFilterOps,
+        graph::views::filter::{
+            internal::InternalNodeFilterOps, model::property_filter::PropertyFilter,
+        },
     },
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::LayerIds;
 

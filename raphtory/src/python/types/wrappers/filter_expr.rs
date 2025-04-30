@@ -1,9 +1,10 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::graph::views::filter::{
-        AndFilter, AsEdgeFilter, AsNodeFilter, CompositeEdgeFilter, CompositeNodeFilter,
-        EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps,
-        InternalPropertyFilterOps, NodeFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
+    db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
+        AsEdgeFilter, AsNodeFilter, EdgeEndpointFilter, EdgeFilter, EdgeFilterOps,
+        InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps, InternalPropertyFilterOps,
+        NodeFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
         TemporalPropertyFilterBuilder,
     },
     python::types::{
@@ -233,8 +234,8 @@ impl PyPropertyFilterOps {
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
-    fn contains_not(&self, value: Prop) -> PyFilterExpr {
-        let property = self.0.contains_not(value);
+    fn not_contains(&self, value: Prop) -> PyFilterExpr {
+        let property = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
@@ -343,8 +344,8 @@ impl PyNodeFilterOp {
         self.0.contains(value)
     }
 
-    fn contains_not(&self, value: String) -> PyFilterExpr {
-        self.0.contains_not(value)
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        self.0.not_contains(value)
     }
 
     fn fuzzy_search(
@@ -412,8 +413,8 @@ impl PyEdgeFilterOp {
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    fn contains_not(&self, value: String) -> PyFilterExpr {
-        let field = self.0.contains_not(value);
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        let field = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
@@ -430,6 +431,17 @@ impl PyEdgeFilterOp {
     }
 }
 
+#[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyEdgeEndpoint(pub EdgeEndpointFilter);
+
+#[pymethods]
+impl PyEdgeEndpoint {
+    fn name(&self) -> PyEdgeFilterOp {
+        PyEdgeFilterOp(self.0.name())
+    }
+}
+
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
 #[derive(Clone)]
 pub struct PyEdgeFilter;
@@ -437,13 +449,13 @@ pub struct PyEdgeFilter;
 #[pymethods]
 impl PyEdgeFilter {
     #[staticmethod]
-    fn src() -> PyEdgeFilterOp {
-        PyEdgeFilterOp(Arc::new(EdgeFilter::src()))
+    fn src() -> PyEdgeEndpoint {
+        PyEdgeEndpoint(EdgeFilter::src())
     }
 
     #[staticmethod]
-    fn dst() -> PyEdgeFilterOp {
-        PyEdgeFilterOp(Arc::new(EdgeFilter::dst()))
+    fn dst() -> PyEdgeEndpoint {
+        PyEdgeEndpoint(EdgeFilter::dst())
     }
 }
 
@@ -458,6 +470,7 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyNodeFilterOp>()?;
     filter_module.add_class::<PyNodeFilter>()?;
     filter_module.add_class::<PyEdgeFilterOp>()?;
+    filter_module.add_class::<PyEdgeEndpoint>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyTemporalPropertyFilterBuilder>()?;

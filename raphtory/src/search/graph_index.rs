@@ -19,6 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tantivy::schema::{FAST, INDEXED, STORED};
+use tempfile::TempDir;
 use uuid::Uuid;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
@@ -117,7 +118,7 @@ impl GraphIndex {
     }
 
     fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
-        let tmp_path = &tempfile::TempDir::new()?.path().to_path_buf();
+        let tmp_path = &TempDir::new()?.path().to_path_buf();
         if path.is_file() {
             GraphIndex::copy_dir_recursive_zip(path, tmp_path)?;
         } else {
@@ -143,7 +144,8 @@ impl GraphIndex {
             return Self::load_from_path(path);
         }
 
-        let path = Some(tempfile::TempDir::new()?.path().to_path_buf());
+        let path = Some(TempDir::new()?.path().to_path_buf());
+        let path = Some(PathBuf::from("/tmp/graphs/radiohead"));
         let node_index = NodeIndex::index_nodes(graph, &path)?;
         // node_index.print()?;
 
@@ -313,6 +315,7 @@ impl GraphIndex {
         prop_type: &PropType,
         is_static: bool, // Const or Temporal Property
     ) -> Result<(), GraphError> {
+        let edge_index_path = &self.path.as_deref().map(|p| p.join("edges"));
         self.edge_index.entity_index.create_property_index(
             prop_id,
             prop_name,
@@ -329,7 +332,7 @@ impl GraphIndex {
                 schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_edge_property,
-            &self.path,
+            edge_index_path,
         )
     }
 
@@ -340,6 +343,7 @@ impl GraphIndex {
         prop_type: &PropType,
         is_static: bool, // Const or Temporal Property
     ) -> Result<(), GraphError> {
+        let node_index_path = self.path.as_deref().map(|p| p.join("nodes"));
         self.node_index.entity_index.create_property_index(
             prop_id,
             prop_name,
@@ -354,7 +358,7 @@ impl GraphIndex {
                 schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_node_property,
-            &self.path,
+            &node_index_path,
         )
     }
 }
@@ -362,7 +366,7 @@ impl GraphIndex {
 #[cfg(test)]
 mod graph_index_test {
     use crate::{
-        db::{api::view::SearchableGraphOps, graph::views::filter::PropertyFilterOps},
+        db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
 
