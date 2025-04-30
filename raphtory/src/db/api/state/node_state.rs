@@ -129,6 +129,14 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
     }
 }
 
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
+    PartialEq<&[RHS]> for NodeState<'graph, V, G, GH>
+{
+    fn eq(&self, other: &&[RHS]) -> bool {
+        self.values.par_iter().eq(*other)
+    }
+}
+
 impl<
         'graph,
         V: Clone + Send + Sync + PartialEq + 'graph,

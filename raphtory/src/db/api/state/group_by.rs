@@ -130,7 +130,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{prelude::*, test_storage};
-    use std::{collections::HashMap, sync::Arc};
+    use std::{collections::HashMap, ops::Deref, sync::Arc};
 
     #[test]
     fn test() {
@@ -141,11 +141,17 @@ mod tests {
 
         test_storage!(&g, |g| {
             let groups_from_lazy = g.nodes().out_degree().groups();
+
             let groups_from_eager = g.nodes().out_degree().compute().groups();
 
-            let expected: HashMap<usize, Arc<[GID]>> = HashMap::from([
+            let expected_groups: HashMap<usize, Arc<[GID]>> = HashMap::from([
                 (0, Arc::from_iter([GID::U64(3), GID::U64(5)])),
                 (1, Arc::from_iter([GID::U64(1), GID::U64(2), GID::U64(4)])),
+            ]);
+
+            let expected_subgraphs: HashMap<usize, Arc<[GID]>> = HashMap::from([
+                (0, Arc::from_iter([])),
+                (1, Arc::from_iter([GID::U64(1), GID::U64(2)])),
             ]);
 
             assert_eq!(
@@ -153,7 +159,7 @@ mod tests {
                     .iter()
                     .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
                     .collect::<HashMap<_, _>>(),
-                expected
+                expected_groups
             );
 
             assert_eq!(
@@ -162,7 +168,7 @@ mod tests {
                     .into_iter_groups()
                     .map(|(v, nodes)| (v, nodes.id().sort_by_values(false).values().clone()))
                     .collect::<HashMap<_, _>>(),
-                expected
+                expected_groups
             );
 
             assert_eq!(
@@ -173,7 +179,7 @@ mod tests {
                         graph.nodes().id().sort_by_values(false).values().clone()
                     ))
                     .collect::<HashMap<_, _>>(),
-                expected
+                expected_subgraphs
             );
 
             assert_eq!(
@@ -185,7 +191,7 @@ mod tests {
                         graph.nodes().id().sort_by_values(false).values().clone()
                     ))
                     .collect::<HashMap<_, _>>(),
-                expected
+                expected_subgraphs
             );
 
             assert_eq!(
@@ -193,10 +199,10 @@ mod tests {
                     .iter()
                     .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
                     .collect::<HashMap<_, _>>(),
-                expected
+                expected_groups
             );
 
-            assert_eq!(groups_from_lazy.len(), expected.len());
+            assert_eq!(groups_from_lazy.len(), expected_groups.len());
 
             for (i, (v, nodes)) in groups_from_eager.iter().enumerate() {
                 let (v2, nodes2) = groups_from_eager.group(i).unwrap();
@@ -204,7 +210,10 @@ mod tests {
                 assert!(nodes.iter().eq(nodes2.iter()));
                 let (v3, graph) = groups_from_eager.group_subgraph(i).unwrap();
                 assert_eq!(v, v3);
-                assert!(nodes.iter().eq(graph.nodes().iter()));
+                assert_eq!(
+                    graph.nodes().id().sort_by_values(false),
+                    expected_subgraphs[&v].deref()
+                );
             }
         });
     }
