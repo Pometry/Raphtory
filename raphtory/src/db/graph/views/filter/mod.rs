@@ -1283,6 +1283,11 @@ pub(crate) mod test_filters {
             let expected_results = vec!["1", "3"];
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10").eq("");
+            let expected_results = Vec::<String>::new();
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
         }
 
         #[test]
