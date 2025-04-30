@@ -14,7 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::hash::Hash;
 
 #[derive(Debug, Deserialize, Serialize)]
-enum Map {
+pub enum Map {
     U64(FxDashMap<u64, VID>),
     Str(FxDashMap<String, VID>),
 }
@@ -42,7 +42,7 @@ impl Default for Map {
 }
 
 #[derive(Debug)]
-pub(crate) struct Mapping {
+pub struct Mapping {
     map: OnceCell<Map>,
 }
 
@@ -57,6 +57,13 @@ impl Mapping {
         Mapping {
             map: OnceCell::new(),
         }
+    }
+    
+    pub fn len(&self) -> usize {
+        self.map.get().map_or(0, |map| match map {
+            Map::U64(m) => m.len(),
+            Map::Str(m) => m.len(),
+        })
     }
 
     pub fn set(&self, gid: GidRef, vid: VID) -> Result<(), GraphError> {
