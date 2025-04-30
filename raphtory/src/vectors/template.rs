@@ -11,7 +11,7 @@ use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
@@ -164,32 +164,21 @@ pub struct DocumentTemplate {
     pub edge_template: Option<String>,
 }
 
-fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput> + Send> {
-    Box::new(std::iter::empty())
-}
-
 impl DocumentTemplate {
-    pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: G,
-    ) -> Box<dyn Iterator<Item = String> + Send> {
-        match &self.graph_template {
-            Some(template) => {
-                // TODO: create the environment only once and store it on the DocumentTemplate struct
-                let mut env = Environment::new();
-                let template = build_template(&mut env, template);
-                match template.render(GraphTemplateContext::from(graph)) {
-                    Ok(mut document) => {
-                        truncate(&mut document);
-                        Box::new(std::iter::once(document))
-                    }
-                    Err(error) => {
-                        error!("Template render failed for a node, skipping: {error}");
-                        empty_iter()
-                    }
-                }
+    pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(&self, graph: G) -> Option<String> {
+        let template = self.graph_template.as_str()?;
+        // TODO: create the environment only once and store it on the DocumentTemplate struct
+        let mut env = Environment::new();
+        let template = build_template(&mut env, template);
+        match template.render(GraphTemplateContext::from(graph)) {
+            Ok(mut document) => {
+                truncate(&mut document);
+                Some(document)
             }
-            None => empty_iter(),
+            Err(error) => {
+                error!("Template render failed for a node, skipping: {error}");
+                None
+            }
         }
     }
 
@@ -197,23 +186,19 @@ impl DocumentTemplate {
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeView<G>,
-    ) -> Box<dyn Iterator<Item = String> + Send> {
-        match &self.node_template {
-            Some(template) => {
-                let mut env = Environment::new();
-                let template = build_template(&mut env, template);
-                match template.render(NodeTemplateContext::from(node)) {
-                    Ok(mut document) => {
-                        truncate(&mut document);
-                        Box::new(std::iter::once(document))
-                    }
-                    Err(error) => {
-                        error!("Template render failed for a node, skipping: {error}");
-                        empty_iter()
-                    }
-                }
+    ) -> Option<String> {
+        let template = self.node_template.as_str()?;
+        let mut env = Environment::new();
+        let template = build_template(&mut env, template);
+        match template.render(NodeTemplateContext::from(node)) {
+            Ok(mut document) => {
+                truncate(&mut document);
+                Some(document)
             }
-            None => empty_iter(),
+            Err(error) => {
+                error!("Template render failed for a node, skipping: {error}");
+                None
+            }
         }
     }
 
@@ -221,23 +206,19 @@ impl DocumentTemplate {
     pub(crate) fn edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeView<G, G>,
-    ) -> Box<dyn Iterator<Item = String> + Send> {
-        match &self.edge_template {
-            Some(template) => {
-                let mut env = Environment::new();
-                let template = build_template(&mut env, template);
-                match template.render(EdgeTemplateContext::from(edge)) {
-                    Ok(mut document) => {
-                        truncate(&mut document);
-                        Box::new(std::iter::once(document))
-                    }
-                    Err(error) => {
-                        error!("Template render failed for an edge, skipping: {error}");
-                        empty_iter()
-                    }
-                }
+    ) -> Option<String> {
+        let template = self.edge_template.as_str()?;
+        let mut env = Environment::new();
+        let template = build_template(&mut env, template);
+        match template.render(EdgeTemplateContext::from(edge)) {
+            Ok(mut document) => {
+                truncate(&mut document);
+                Some(document)
             }
-            None => empty_iter(),
+            Err(error) => {
+                error!("Template render failed for an edge, skipping: {error}");
+                None
+            }
         }
     }
 }
@@ -429,7 +410,7 @@ mod template_tests {
         };
 
         let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = docs.next().unwrap();
         let expected = indoc! {"
             node node1 is an unknown entity with the following properties:
             temp_test:
@@ -443,7 +424,7 @@ mod template_tests {
         assert_eq!(&rendered, expected);
 
         let mut docs = template.node(graph.node("node2").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = docs.next().unwrap();
         let expected = indoc! {"
             node node2 is a person with the following properties:
             const_test: const_test_value "};
@@ -467,7 +448,7 @@ mod template_tests {
         };
 
         let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = docs.next().unwrap();
         let expected = "September 9 2024 09:08:01";
         assert_eq!(&rendered, expected);
     }

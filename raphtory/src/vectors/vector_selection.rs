@@ -7,7 +7,10 @@ use std::{
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::{DynamicGraph, StaticGraphViewOps},
+        api::{
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+            view::{DynamicGraph, StaticGraphViewOps},
+        },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{EdgeViewOps, NodeViewOps, *},
@@ -17,7 +20,7 @@ use super::{
     document_ref::DocumentRef,
     entity_id::EntityId,
     similarity_search_utils::{find_top_k, score_document_groups_by_highest, score_documents},
-    vectorised_graph::VectorisedGraph,
+    vectorised_graph::{EntityRef, VectorisedGraph},
     Document, Embedding,
 };
 
@@ -33,49 +36,43 @@ pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
 #[derive(Clone)]
 pub struct VectorSelection<G: StaticGraphViewOps> {
     pub(crate) graph: VectorisedGraph<G>,
-    selected_docs: Vec<(DocumentRef, f32)>,
+    selected: Vec<(EntityRef, f32)>,
 }
 
 impl<G: StaticGraphViewOps> VectorSelection<G> {
-    pub(crate) fn new(graph: VectorisedGraph<G>) -> Self {
+    pub(crate) fn empty(graph: VectorisedGraph<G>) -> Self {
         Self {
             graph,
-            selected_docs: vec![],
+            selected: vec![],
         }
     }
 
-    pub(crate) fn new_with_preselection(
-        graph: VectorisedGraph<G>,
-        docs: Vec<(DocumentRef, f32)>,
-    ) -> Self {
+    pub(crate) fn new(graph: VectorisedGraph<G>, docs: Vec<(EntityRef, f32)>) -> Self {
         Self {
             graph,
-            selected_docs: docs,
+            selected: docs,
         }
     }
 
     /// Return the nodes present in the current selection
     pub fn nodes(&self) -> Vec<NodeView<G>> {
-        self.selected_docs
+        let g = &self.graph.source_graph;
+        self.selected
             .iter()
-            .unique_by(|(doc, _)| &doc.entity_id)
-            .filter_map(|(doc, _)| match &doc.entity_id {
-                EntityId::Node { id } => self.graph.source_graph.node(id),
-                _ => None,
-            })
-            .collect_vec()
+            .filter_map(|(id, _)| id.as_node())
+            .map(|id| g.node(g.node_id(id.into())).unwrap())
+            .collect()
     }
 
     /// Return the edges present in the current selection
     pub fn edges(&self) -> Vec<EdgeView<G>> {
-        self.selected_docs
+        let g = &self.graph.source_graph;
+        self.selected
             .iter()
-            .unique_by(|(doc, _)| &doc.entity_id)
-            .filter_map(|(doc, _)| match &doc.entity_id {
-                EntityId::Edge { src, dst } => self.graph.source_graph.edge(src, dst),
-                _ => None,
-            })
-            .collect_vec()
+            .filter_map(|(id, _)| id.as_edge())
+            .map(|id| g.core_edge(id.into()))
+            .map(|edge| g.edge(edge.src(), edge.dst()).unwrap())
+            .collect()
     }
 
     /// Return the documents present in the current selection
@@ -88,7 +85,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
     /// Return the documents alongside their scores present in the current selection
     pub fn get_documents_with_scores(&self) -> Vec<(Document<G>, f32)> {
-        self.selected_docs
+        self.selected
             .iter()
             .map(|(doc, score)| {
                 (
@@ -145,9 +142,9 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// # Returns
     ///   The selection with the new documents
     pub fn append(&mut self, selection: &Self) -> &Self {
-        self.selected_docs = extend_selection(
-            self.selected_docs.clone(),
-            selection.selected_docs.clone().into_iter(),
+        self.selected = extend_selection(
+            self.selected.clone(),
+            selection.selected.clone().into_iter(),
             usize::MAX,
         );
 
@@ -414,23 +411,23 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
             let candidates: Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)>> = match path {
                 ExpansionPath::Both => {
-                    let node_doc_groups = self.selected_docs.iter().flat_map(|(doc, _)| {
+                    let node_doc_groups = self.selected.iter().flat_map(|(doc, _)| {
                         self.get_nodes_in_context(doc, windowed_graph, window.clone())
                     });
-                    let edge_doc_groups = self.selected_docs.iter().flat_map(|(doc, _)| {
+                    let edge_doc_groups = self.selected.iter().flat_map(|(doc, _)| {
                         self.get_edges_in_context(doc, windowed_graph, window)
                     });
 
                     Box::new(chain!(node_doc_groups, edge_doc_groups))
                 }
                 ExpansionPath::Nodes => {
-                    let groups = self.selected_docs.iter().flat_map(|(doc, _)| {
+                    let groups = self.selected.iter().flat_map(|(doc, _)| {
                         self.get_nodes_in_context(doc, windowed_graph, window)
                     });
                     Box::new(groups)
                 }
                 ExpansionPath::Edges => {
-                    let groups = self.selected_docs.iter().flat_map(|(doc, _)| {
+                    let groups = self.selected.iter().flat_map(|(doc, _)| {
                         self.get_edges_in_context(doc, windowed_graph, window)
                     });
                     Box::new(groups)
@@ -440,7 +437,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             let scored_candidates = score_document_groups_by_highest(query, candidates);
 
             let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX);
-            self.selected_docs =
+            self.selected =
                 self.extend_selection_with_groups(top_sorted_candidates, total_entity_limit);
 
             let new_remaining = total_entity_limit - self.get_selected_entity_len();
@@ -451,7 +448,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     fn get_selected_entity_id_set(&self) -> HashSet<EntityId> {
-        HashSet::from_iter(self.selected_docs.iter().map(|doc| doc.0.entity_id.clone()))
+        HashSet::from_iter(self.selected.iter().map(|doc| doc.0.entity_id.clone()))
     }
 
     fn get_selected_entity_len(&self) -> usize {
@@ -640,7 +637,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .take(entity_extension_size);
         let documents_to_add = new_unique_entities
             .flat_map(|((_, docs), score)| docs.into_iter().map(move |doc| (doc.clone(), score)));
-        extend_selection(self.selected_docs.clone(), documents_to_add, usize::MAX)
+        extend_selection(self.selected.clone(), documents_to_add, usize::MAX)
     }
 }
 

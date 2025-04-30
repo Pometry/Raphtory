@@ -36,7 +36,6 @@ pub struct Document<G: StaticGraphViewOps> {
     pub entity: DocumentEntity<G>,
     pub content: String,
     pub embedding: Embedding,
-    pub life: Lifespan,
 }
 
 impl Lifespan {
