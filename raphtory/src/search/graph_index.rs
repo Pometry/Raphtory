@@ -51,14 +51,11 @@ impl GraphIndex {
     }
 
     fn copy_dir_recursive(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
-        fs::create_dir_all(destination)
-            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to create dir: {}", e)))?;
+        for entry in WalkDir::new(source) {
+            let entry = entry.map_err(|e| {
+                GraphError::IOErrorMsg(format!("Failed to read directory entry: {}", e))
+            })?;
 
-        for entry in WalkDir::new(source)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| e.path().is_file())
-        {
             let relative_path = entry.path().strip_prefix(source).map_err(|e| {
                 GraphError::IOErrorMsg(format!(
                     "Failed to determine relative path during copy: {}",
@@ -67,24 +64,34 @@ impl GraphIndex {
             })?;
             let dest_path = destination.join(relative_path);
 
-            if let Some(parent) = dest_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| {
+            if entry.path().is_dir() {
+                fs::create_dir_all(&dest_path).map_err(|e| {
                     GraphError::IOErrorMsg(format!(
                         "Failed to create directory {}: {}",
-                        parent.display(),
+                        dest_path.display(),
+                        e
+                    ))
+                })?;
+            } else if entry.path().is_file() {
+                if let Some(parent) = dest_path.parent() {
+                    fs::create_dir_all(parent).map_err(|e| {
+                        GraphError::IOErrorMsg(format!(
+                            "Failed to create parent directory {}: {}",
+                            parent.display(),
+                            e
+                        ))
+                    })?;
+                }
+
+                fs::copy(entry.path(), &dest_path).map_err(|e| {
+                    GraphError::IOErrorMsg(format!(
+                        "Failed to copy file {} to {}: {}",
+                        entry.path().display(),
+                        dest_path.display(),
                         e
                     ))
                 })?;
             }
-
-            fs::copy(entry.path(), &dest_path).map_err(|e| {
-                GraphError::IOErrorMsg(format!(
-                    "Failed to copy {} to {}: {}",
-                    entry.path().display(),
-                    dest_path.display(),
-                    e
-                ))
-            })?;
         }
 
         Ok(())
