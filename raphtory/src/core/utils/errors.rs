@@ -375,6 +375,12 @@ pub enum GraphError {
 
     #[error("Indexing not supported")]
     IndexingNotSupported,
+
+    #[error("Failed to create index in ram")]
+    FailedToCreateIndexInRam,
+
+    #[error("Persisting in-memory index is not supported")]
+    PersistingInMemoryIndexNotSupported,
 }
 
 impl GraphError {

@@ -1642,5 +1642,28 @@ mod proto_test {
             let filter = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter, vec!["Alice"]);
         }
+
+        #[test]
+        fn test_create_index_in_ram() {
+            let graph = init_graph(Graph::new());
+            graph.create_index_in_ram().unwrap();
+
+            let filter = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter, vec!["Alice"]);
+
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            let results = graph.encode(path.clone());
+            assert!(matches!(
+                results,
+                Err(GraphError::PersistingInMemoryIndexNotSupported)
+            ));
+
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_none());
+
+            let results = graph.search_nodes(filter.clone(), 2, 0);
+            assert!(matches!(results, Err(GraphError::IndexNotCreated)));
+        }
     }
 }

@@ -28,7 +28,7 @@ use zip::{write::FileOptions, ZipArchive, ZipWriter};
 pub struct GraphIndex {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
-    pub path: Option<PathBuf>,
+    pub path: Option<PathBuf>, // If path is None, index is created in-memory
 }
 
 impl Debug for GraphIndex {
@@ -143,8 +143,15 @@ impl GraphIndex {
         })
     }
 
-    pub fn create_from_graph(graph: &GraphStorage) -> Result<Self, GraphError> {
-        let path = Some(TempDir::new()?.path().to_path_buf());
+    pub fn create_from_graph(
+        graph: &GraphStorage,
+        create_in_ram: bool,
+    ) -> Result<Self, GraphError> {
+        let path = if !create_in_ram {
+            Some(TempDir::new()?.path().to_path_buf())
+        } else {
+            None
+        };
         let node_index = NodeIndex::index_nodes(graph, &path)?;
         // node_index.print()?;
 
@@ -408,13 +415,13 @@ mod graph_index_test {
 
         assert_eq!(graph.count_nodes(), 3);
 
-        let _ = graph.create_index().unwrap();
+        let _ = graph.create_index_in_ram().unwrap();
     }
 
     #[test]
     fn test_if_adding_nodes_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
-        let _ = graph.create_index().unwrap();
+        let _ = graph.create_index_in_ram().unwrap();
 
         let graph = init_nodes_graph(graph);
 
@@ -425,7 +432,7 @@ mod graph_index_test {
     fn test_if_adding_edges_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
         // Creates graph index
-        let _ = graph.create_index().unwrap();
+        let _ = graph.create_index_in_ram().unwrap();
 
         let graph = init_edges_graph(graph);
 
@@ -436,7 +443,7 @@ mod graph_index_test {
     fn test_node_const_property_graph_index_is_ok() {
         let graph = Graph::new();
         let graph = init_nodes_graph(graph);
-        graph.create_index().unwrap();
+        graph.create_index_in_ram().unwrap();
         graph
             .node(1)
             .unwrap()
@@ -473,7 +480,7 @@ mod graph_index_test {
     fn test_edge_const_property_graph_index_is_ok() {
         let graph = Graph::new();
         let graph = init_edges_graph(graph);
-        graph.create_index().unwrap();
+        graph.create_index_in_ram().unwrap();
         graph
             .edge(1, 2)
             .unwrap()

@@ -139,6 +139,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
 
+    fn create_index_in_ram(&self) -> Result<(), GraphError>;
+
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
 
     fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
@@ -630,6 +632,14 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.get_or_create_index(None)?;
+                Ok(())
+            })
+    }
+
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index_in_ram()?;
                 Ok(())
             })
     }

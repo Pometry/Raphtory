@@ -41,7 +41,7 @@ static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
     println!("Edges count = {}", graph.count_edges());
 
     let start = Instant::now();
-    let _ = graph.create_index().unwrap();
+    let _ = graph.create_index_in_ram().unwrap();
     let duration = start.elapsed();
     println!("Time taken to initialize graph and indexes: {:?}", duration);
 
