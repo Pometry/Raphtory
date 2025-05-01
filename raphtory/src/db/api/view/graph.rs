@@ -49,7 +49,8 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
-use zip::{write::FileOptions, ZipArchive, ZipWriter};
+
+use zip::ZipArchive;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

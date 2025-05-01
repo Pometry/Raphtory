@@ -15,7 +15,10 @@ use crate::{
     prelude::*,
     search::{
         entity_index::EntityIndex,
-        fields::{DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, SOURCE, SOURCE_TOKENIZED},
+        fields::{
+            DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, NODE_ID, NODE_NAME, NODE_NAME_TOKENIZED,
+            NODE_TYPE, NODE_TYPE_TOKENIZED, SOURCE, SOURCE_TOKENIZED,
+        },
         TOKENIZER,
     },
 };
@@ -54,21 +57,44 @@ impl Debug for EdgeIndex {
 }
 
 impl EdgeIndex {
+    fn fetch_fields(schema: &Schema) -> Result<(Field, Field, Field, Field, Field), GraphError> {
+        let edge_id_field = schema
+            .get_field(EDGE_ID)
+            .map_err(|_| GraphError::IndexErrorMsg("Edge ID field missing in schema.".into()))?;
+
+        let src_field = schema
+            .get_field(SOURCE)
+            .map_err(|_| GraphError::IndexErrorMsg("Source field missing in schema.".into()))?;
+
+        let src_tokenized_field = schema.get_field(SOURCE_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized source field missing in schema.".into())
+        })?;
+
+        let dst_field = schema.get_field(DESTINATION).map_err(|_| {
+            GraphError::IndexErrorMsg("Destination field missing in schema.".into())
+        })?;
+
+        let dst_tokenized_field = schema.get_field(DESTINATION_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized destination field missing in schema.".into())
+        })?;
+
+        Ok((
+            edge_id_field,
+            src_field,
+            src_tokenized_field,
+            dst_field,
+            dst_tokenized_field,
+        ))
+    }
+
     pub(crate) fn new(path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let schema = Self::schema_builder().build();
-        let edge_id_field = schema.get_field(EDGE_ID).expect("Edge ID is absent");
-        let src_field = schema.get_field(SOURCE).expect("Source is absent");
-        let src_tokenized_field = schema
-            .get_field(SOURCE_TOKENIZED)
-            .expect("Source is absent");
-        let dst_field = schema
-            .get_field(DESTINATION)
-            .expect("Destination is absent");
-        let dst_tokenized_field = schema
-            .get_field(DESTINATION_TOKENIZED)
-            .expect("Destination is absent");
+        let (edge_id_field, src_field, src_tokenized_field, dst_field, dst_tokenized_field) =
+            Self::fetch_fields(&schema)?;
+
         let entity_index = EntityIndex::new(schema, path)?;
-        Ok(EdgeIndex {
+
+        Ok(Self {
             entity_index,
             edge_id_field,
             src_field,
@@ -81,17 +107,8 @@ impl EdgeIndex {
     pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         let entity_index = EntityIndex::load_edges_index_from_path(path)?;
         let schema = entity_index.index.schema();
-        let edge_id_field = schema.get_field(EDGE_ID).ok().expect("Edge ID is absent");
-        let src_field = schema.get_field(SOURCE).expect("Source is absent");
-        let src_tokenized_field = schema
-            .get_field(SOURCE_TOKENIZED)
-            .expect("Source is absent");
-        let dst_field = schema
-            .get_field(DESTINATION)
-            .expect("Destination is absent");
-        let dst_tokenized_field = schema
-            .get_field(DESTINATION_TOKENIZED)
-            .expect("Destination is absent");
+        let (edge_id_field, src_field, src_tokenized_field, dst_field, dst_tokenized_field) =
+            Self::fetch_fields(&schema)?;
 
         Ok(Self {
             entity_index,

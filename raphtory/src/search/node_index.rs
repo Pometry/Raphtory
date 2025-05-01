@@ -55,18 +55,48 @@ impl Debug for NodeIndex {
 }
 
 impl NodeIndex {
+    fn fetch_fields(schema: &Schema) -> Result<(Field, Field, Field, Field, Field), GraphError> {
+        let node_id_field = schema
+            .get_field(NODE_ID)
+            .map_err(|_| GraphError::IndexErrorMsg("Node ID field missing in schema.".into()))?;
+
+        let node_name_field = schema
+            .get_field(NODE_NAME)
+            .map_err(|_| GraphError::IndexErrorMsg("Node name field missing in schema.".into()))?;
+
+        let node_name_tokenized_field = schema.get_field(NODE_NAME_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized node name field missing in schema.".into())
+        })?;
+
+        let node_type_field = schema
+            .get_field(NODE_TYPE)
+            .map_err(|_| GraphError::IndexErrorMsg("Node type field missing in schema.".into()))?;
+
+        let node_type_tokenized_field = schema.get_field(NODE_TYPE_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized node type field missing in schema.".into())
+        })?;
+
+        Ok((
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        ))
+    }
+
     pub(crate) fn new(path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let schema = Self::schema_builder().build();
-        let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
-        let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
-        let node_name_tokenized_field = schema
-            .get_field(NODE_NAME_TOKENIZED)
-            .expect("Node name absent");
-        let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
-        let node_type_tokenized_field = schema
-            .get_field(NODE_TYPE_TOKENIZED)
-            .expect("Node type absent");
+        let (
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        ) = Self::fetch_fields(&schema)?;
+
         let entity_index = EntityIndex::new(schema, path)?;
+
         Ok(Self {
             entity_index,
             node_id_field,
@@ -80,15 +110,13 @@ impl NodeIndex {
     pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         let entity_index = EntityIndex::load_nodes_index_from_path(path)?;
         let schema = entity_index.index.schema();
-        let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
-        let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
-        let node_name_tokenized_field = schema
-            .get_field(NODE_NAME_TOKENIZED)
-            .expect("Node name absent");
-        let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
-        let node_type_tokenized_field = schema
-            .get_field(NODE_TYPE_TOKENIZED)
-            .expect("Node type absent");
+        let (
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        ) = Self::fetch_fields(&schema)?;
 
         Ok(Self {
             entity_index,

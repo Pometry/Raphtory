@@ -527,12 +527,14 @@ pub(crate) mod test_filters {
             };
 
             use crate::{
-                db::graph::views::{
-                    filter::{internal::InternalNodeFilterOps, test_filters::filter_nodes_with},
-                    test_helpers::search_nodes_with,
+                db::graph::views::filter::{
+                    internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
                 },
                 prelude::PropertyFilter,
             };
+
+            #[cfg(feature = "search")]
+            use crate::db::graph::views::test_helpers::search_nodes_with;
 
             fn init_graph<
                 G: StaticGraphViewOps

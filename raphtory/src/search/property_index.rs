@@ -29,33 +29,48 @@ impl PropertyIndex {
     fn fetch_fields(
         schema: &Schema,
         is_edge: bool,
-    ) -> (Option<Field>, Option<Field>, Option<Field>, Field) {
-        let time_field = schema.get_field(fields::TIME).ok();
-        let secondary_time_field = schema.get_field(fields::SECONDARY_TIME).ok();
+    ) -> Result<(Option<Field>, Option<Field>, Option<Field>, Field), GraphError> {
+        let time_field = schema
+            .get_field(fields::TIME)
+            .map_err(|_| GraphError::IndexErrorMsg("Missing required field: TIME".into()))
+            .ok();
+
+        let secondary_time_field = schema
+            .get_field(fields::SECONDARY_TIME)
+            .map_err(|_| GraphError::IndexErrorMsg("Missing required field: SECONDARY_TIME".into()))
+            .ok();
+
         let layer_field = if is_edge {
-            schema.get_field(fields::LAYER_ID).ok()
+            Some(schema.get_field(fields::LAYER_ID).map_err(|_| {
+                GraphError::IndexErrorMsg("Missing required field: LAYER_ID".into())
+            })?)
         } else {
             None
         };
+
         let entity_id_field = schema
             .get_field(if is_edge {
                 fields::EDGE_ID
             } else {
                 fields::NODE_ID
             })
-            .ok()
-            .expect(if is_edge {
-                "Need edge id"
-            } else {
-                "Need node id"
-            });
+            .map_err(|_| {
+                GraphError::IndexErrorMsg(format!(
+                    "Missing required field: {}",
+                    if is_edge {
+                        fields::EDGE_ID
+                    } else {
+                        fields::NODE_ID
+                    }
+                ))
+            })?;
 
-        (
+        Ok((
             time_field,
             secondary_time_field,
             layer_field,
             entity_id_field,
-        )
+        ))
     }
 
     fn new_property(
@@ -64,7 +79,7 @@ impl PropertyIndex {
         path: &Option<PathBuf>,
     ) -> Result<Self, GraphError> {
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
-            Self::fetch_fields(&schema, is_edge);
+            Self::fetch_fields(&schema, is_edge)?;
 
         let (index, reader) = new_index(schema, path)?;
 
@@ -100,7 +115,7 @@ impl PropertyIndex {
             .try_into()?;
         let schema = index.schema();
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
-            Self::fetch_fields(&schema, is_edge);
+            Self::fetch_fields(&schema, is_edge)?;
 
         Ok(Self {
             index: Arc::new(index),
