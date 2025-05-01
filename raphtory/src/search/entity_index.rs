@@ -15,6 +15,7 @@ use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index, IndexReader, IndexWriter, Term,
 };
+use crate::search::register_default_tokenizers;
 
 #[derive(Clone)]
 pub struct EntityIndex {
@@ -38,6 +39,9 @@ impl EntityIndex {
 
     fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
         let index = Index::open_in_dir(path.join("fields"))?;
+
+        register_default_tokenizers(&index);
+
         let reader = index
             .reader_builder()
             .reload_policy(tantivy::ReloadPolicy::Manual)

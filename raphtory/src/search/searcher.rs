@@ -61,8 +61,6 @@ impl<'a> Searcher<'a> {
     }
 }
 
-// TODO: Fuzzy search tests are non exhaustive because the fuzzy search
-//  semantics are still undecided. See Query Builder.
 // TODO: All search tests in graph views (db/graph/views) should include
 //  comparisons to filter apis results.
 #[cfg(test)]

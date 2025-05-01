@@ -35,6 +35,13 @@ pub(in crate::search) mod fields {
 
 pub(crate) const TOKENIZER: &str = "custom_default";
 
+pub fn register_default_tokenizers(index: &Index) {
+    let tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
+        .filter(LowerCaser)
+        .build();
+    index.tokenizers().register(TOKENIZER, tokenizer);
+}
+
 pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, IndexReader) {
     let index_builder = Index::builder()
         .settings(IndexSettings::default())
@@ -60,10 +67,7 @@ pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, Index
         .try_into()
         .unwrap();
 
-    let tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
-        .filter(LowerCaser)
-        .build();
-    index.tokenizers().register(TOKENIZER, tokenizer);
+    register_default_tokenizers(&index);
 
     (index, reader)
 }
