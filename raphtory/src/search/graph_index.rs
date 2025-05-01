@@ -124,7 +124,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+    pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = &TempDir::new()?.path().to_path_buf();
         if path.is_file() {
             GraphIndex::copy_dir_recursive_zip(path, tmp_path)?;
@@ -143,16 +143,8 @@ impl GraphIndex {
         })
     }
 
-    pub fn try_from_graph(
-        graph: &GraphStorage,
-        path: &Option<PathBuf>,
-    ) -> Result<Self, GraphError> {
-        if let Some(path) = path {
-            return Self::load_from_path(path);
-        }
-
+    pub fn create_from_graph(graph: &GraphStorage) -> Result<Self, GraphError> {
         let path = Some(TempDir::new()?.path().to_path_buf());
-        let path = Some(PathBuf::from("/tmp/graphs/radiohead"));
         let node_index = NodeIndex::index_nodes(graph, &path)?;
         // node_index.print()?;
 

@@ -141,7 +141,11 @@ impl Storage {
         path: Option<PathBuf>,
     ) -> Result<&GraphIndex, GraphError> {
         self.index.get_or_try_init(|| {
-            Ok::<_, GraphError>(GraphIndex::try_from_graph(&self.graph, &path)?)
+            if let Some(path) = path {
+                Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
+            } else {
+                Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph)?)
+            }
         })
     }
 
