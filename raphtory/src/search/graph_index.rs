@@ -97,7 +97,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    fn copy_dir_recursive_zip(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
+    fn unzip_index(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
         let file = File::open(source)?;
         let mut archive = ZipArchive::new(file)?;
 
@@ -127,7 +127,7 @@ impl GraphIndex {
     pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = &TempDir::new()?.path().to_path_buf();
         if path.is_file() {
-            GraphIndex::copy_dir_recursive_zip(path, tmp_path)?;
+            GraphIndex::unzip_index(path, tmp_path)?;
         } else {
             GraphIndex::copy_dir_recursive(path, tmp_path)?;
         }

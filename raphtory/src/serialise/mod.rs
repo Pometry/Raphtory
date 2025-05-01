@@ -246,13 +246,17 @@ mod zip_tests {
     #[test]
     fn test_read_metadata_from_noninitialized_zip() {
         global_info_logger();
+
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
+
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         let folder = GraphFolder::new_as_zip(&temp_file);
         folder.write_graph_data(&graph).unwrap();
+
         let err = folder.try_read_metadata();
         assert!(err.is_err());
+
         let result = folder.read_metadata().unwrap();
         assert_eq!(
             result,

@@ -46,10 +46,10 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     fs::File,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
-use zip::{write::FileOptions, ZipWriter};
+use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -645,10 +645,28 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     }
 
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
+        fn has_index<P: AsRef<Path>>(zip_path: P) -> Result<bool, GraphError> {
+            let file = File::open(&zip_path)?;
+            let mut archive = ZipArchive::new(file)?;
+
+            for i in 0..archive.len() {
+                let entry = archive.by_index(i)?;
+                if entry.name().starts_with("index/") {
+                    return Ok(true);
+                }
+            }
+
+            Ok(false)
+        }
+
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 if path.is_file() {
-                    storage.get_or_create_index(Some(path.clone()))?;
+                    if has_index(path)? {
+                        storage.get_or_create_index(Some(path.clone()))?;
+                    } else {
+                        return Ok(()); // Skip if no index in zip
+                    }
                 } else {
                     let index_path = path.join("index");
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
