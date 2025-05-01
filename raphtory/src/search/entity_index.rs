@@ -25,15 +25,15 @@ pub struct EntityIndex {
 }
 
 impl EntityIndex {
-    pub(crate) fn new(schema: Schema, path: &Option<PathBuf>) -> Self {
+    pub(crate) fn new(schema: Schema, path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let path = path.as_ref().map(|p| p.join("fields"));
-        let (index, reader) = new_index(schema, &path);
-        Self {
+        let (index, reader) = new_index(schema, &path)?;
+        Ok(Self {
             index: Arc::new(index),
             reader,
             const_property_indexes: Arc::new(RwLock::new(Vec::new())),
             temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
-        }
+        })
     }
 
     fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
@@ -75,7 +75,7 @@ impl EntityIndex {
         is_static: bool,
         add_const_schema_fields: fn(&mut SchemaBuilder),
         add_temporal_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(Schema, path: &Option<PathBuf>) -> PropertyIndex,
+        new_property: fn(Schema, path: &Option<PathBuf>) -> Result<PropertyIndex, GraphError>,
         path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
         prop_id
@@ -104,7 +104,7 @@ impl EntityIndex {
 
                 let schema = schema_builder.build();
                 let prop_index_path = path.map(|p| p.join(prop_id.to_string()));
-                let property_index = new_property(schema, &prop_index_path);
+                let property_index = new_property(schema, &prop_index_path)?;
                 prop_index_guard[prop_id] = Some(property_index);
 
                 Ok::<_, GraphError>(())
@@ -157,7 +157,7 @@ impl EntityIndex {
         prop_keys: impl Iterator<Item = ArcStr>,
         get_property_meta: fn(&GraphStorage) -> &PropMapper,
         add_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(Schema, &Option<PathBuf>) -> PropertyIndex,
+        new_property: fn(Schema, &Option<PathBuf>) -> Result<PropertyIndex, GraphError>,
         path: &Option<PathBuf>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         let prop_meta = get_property_meta(graph);
@@ -186,7 +186,7 @@ impl EntityIndex {
                 add_schema_fields(&mut schema_builder);
                 let schema = schema_builder.build();
                 let prop_index_path = path.as_deref().map(|p| p.join(prop_id.to_string()));
-                let property_index = new_property(schema, &prop_index_path);
+                let property_index = new_property(schema, &prop_index_path)?;
                 let writer = property_index.index.writer(50_000_000)?;
 
                 writers.push(Some(writer));

@@ -262,6 +262,10 @@ pub enum GraphError {
         source: tantivy::TantivyError,
     },
 
+    #[cfg(feature = "search")]
+    #[error("Index operation failed: {0}")]
+    IndexErrorMsg(String),
+
     #[cfg(feature = "vectors")]
     #[error("Embedding operation failed")]
     EmbeddingError {

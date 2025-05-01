@@ -41,15 +41,6 @@ impl Debug for GraphIndex {
 }
 
 impl GraphIndex {
-    pub fn new() -> Self {
-        let path: Option<PathBuf> = None;
-        GraphIndex {
-            node_index: NodeIndex::new(&path),
-            edge_index: EdgeIndex::new(&path),
-            path,
-        }
-    }
-
     fn copy_dir_recursive(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
         for entry in WalkDir::new(source) {
             let entry = entry.map_err(|e| {

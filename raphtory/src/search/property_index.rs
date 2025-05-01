@@ -58,27 +58,37 @@ impl PropertyIndex {
         )
     }
 
-    fn new_property(schema: Schema, is_edge: bool, path: &Option<PathBuf>) -> Self {
+    fn new_property(
+        schema: Schema,
+        is_edge: bool,
+        path: &Option<PathBuf>,
+    ) -> Result<Self, GraphError> {
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge);
 
-        let (index, reader) = new_index(schema, path);
+        let (index, reader) = new_index(schema, path)?;
 
-        Self {
+        Ok(Self {
             index: Arc::new(index),
             reader,
             time_field,
             secondary_time_field,
             layer_field,
             entity_id_field,
-        }
+        })
     }
 
-    pub(crate) fn new_node_property(schema: Schema, path: &Option<PathBuf>) -> Self {
+    pub(crate) fn new_node_property(
+        schema: Schema,
+        path: &Option<PathBuf>,
+    ) -> Result<Self, GraphError> {
         Self::new_property(schema, false, path)
     }
 
-    pub(crate) fn new_edge_property(schema: Schema, path: &Option<PathBuf>) -> Self {
+    pub(crate) fn new_edge_property(
+        schema: Schema,
+        path: &Option<PathBuf>,
+    ) -> Result<Self, GraphError> {
         Self::new_property(schema, true, path)
     }
 

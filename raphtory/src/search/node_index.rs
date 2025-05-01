@@ -55,7 +55,7 @@ impl Debug for NodeIndex {
 }
 
 impl NodeIndex {
-    pub(crate) fn new(path: &Option<PathBuf>) -> Self {
+    pub(crate) fn new(path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let schema = Self::schema_builder().build();
         let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
         let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
@@ -66,15 +66,15 @@ impl NodeIndex {
         let node_type_tokenized_field = schema
             .get_field(NODE_TYPE_TOKENIZED)
             .expect("Node type absent");
-        let entity_index = EntityIndex::new(schema, path);
-        Self {
+        let entity_index = EntityIndex::new(schema, path)?;
+        Ok(Self {
             entity_index,
             node_id_field,
             node_name_field,
             node_name_tokenized_field,
             node_type_field,
             node_type_tokenized_field,
-        }
+        })
     }
 
     pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
@@ -261,7 +261,7 @@ impl NodeIndex {
         path: &Option<PathBuf>,
     ) -> Result<NodeIndex, GraphError> {
         let node_index_path = path.as_deref().map(|p| p.join("nodes"));
-        let node_index = NodeIndex::new(&node_index_path);
+        let node_index = NodeIndex::new(&node_index_path)?;
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();

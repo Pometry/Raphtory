@@ -54,7 +54,7 @@ impl Debug for EdgeIndex {
 }
 
 impl EdgeIndex {
-    pub(crate) fn new(path: &Option<PathBuf>) -> Self {
+    pub(crate) fn new(path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let schema = Self::schema_builder().build();
         let edge_id_field = schema.get_field(EDGE_ID).expect("Edge ID is absent");
         let src_field = schema.get_field(SOURCE).expect("Source is absent");
@@ -67,15 +67,15 @@ impl EdgeIndex {
         let dst_tokenized_field = schema
             .get_field(DESTINATION_TOKENIZED)
             .expect("Destination is absent");
-        let entity_index = EntityIndex::new(schema, path);
-        EdgeIndex {
+        let entity_index = EntityIndex::new(schema, path)?;
+        Ok(EdgeIndex {
             entity_index,
             edge_id_field,
             src_field,
             src_tokenized_field,
             dst_field,
             dst_tokenized_field,
-        }
+        })
     }
 
     pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
@@ -298,7 +298,7 @@ impl EdgeIndex {
         path: &Option<PathBuf>,
     ) -> Result<EdgeIndex, GraphError> {
         let edge_index_path = path.as_deref().map(|p| p.join("edges"));
-        let edge_index = EdgeIndex::new(&edge_index_path);
+        let edge_index = EdgeIndex::new(&edge_index_path)?;
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();

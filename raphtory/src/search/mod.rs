@@ -1,3 +1,4 @@
+use crate::core::utils::errors::GraphError;
 use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,
@@ -42,32 +43,38 @@ pub fn register_default_tokenizers(index: &Index) {
     index.tokenizers().register(TOKENIZER, tokenizer);
 }
 
-pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> (Index, IndexReader) {
+pub(crate) fn new_index(
+    schema: Schema,
+    path: &Option<PathBuf>,
+) -> Result<(Index, IndexReader), GraphError> {
     let index_builder = Index::builder()
         .settings(IndexSettings::default())
         .schema(schema);
 
     let index = if let Some(path) = path {
-        create_dir_all(path).expect(&format!(
-            "Failed to create index directory {}",
-            path.display()
-        ));
-        index_builder
-            .create_in_dir(path)
-            .expect("Failed to create index")
+        create_dir_all(path).map_err(|e| {
+            GraphError::IOErrorMsg(format!(
+                "Failed to create index directory {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+
+        index_builder.create_in_dir(path).map_err(|e| {
+            GraphError::IndexErrorMsg(format!("Failed to create index in directory: {}", e))
+        })?
     } else {
-        index_builder
-            .create_in_ram()
-            .expect("Failed to create index in ram")
+        index_builder.create_in_ram().map_err(|e| {
+            GraphError::IndexErrorMsg(format!("Failed to create in-memory index: {}", e))
+        })?
     };
 
     let reader = index
         .reader_builder()
         .reload_policy(tantivy::ReloadPolicy::Manual)
-        .try_into()
-        .unwrap();
+        .try_into()?;
 
     register_default_tokenizers(&index);
 
-    (index, reader)
+    Ok((index, reader))
 }
