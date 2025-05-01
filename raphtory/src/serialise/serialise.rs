@@ -1600,6 +1600,30 @@ mod proto_test {
             assert!(index.is_some());
             assert_search_results(&graph, &filter1, vec!["Alice"]);
             assert_search_results(&graph, &filter2, Vec::<&str>::new());
+
+            // Updating and encode the graph and index should decode the updated the graph as well as index
+            // So far we have the index that was created and persisted for the first time
+            graph
+                .add_node(
+                    2,
+                    "Tommy",
+                    vec![("p1", Prop::U64(5u64))],
+                    Some("water_tribe"),
+                )
+                .unwrap();
+            let filter2 = NodeFilter::name().eq("Tommy");
+            assert_search_results(&graph, &filter2, vec!["Tommy"]);
+
+            // Should persist the updated graph and index
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+
+            // Should load the updated graph and index
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_some());
+            assert_search_results(&graph, &filter1, vec!["Alice"]);
+            assert_search_results(&graph, &filter2, vec!["Tommy"]);
         }
 
         #[test]

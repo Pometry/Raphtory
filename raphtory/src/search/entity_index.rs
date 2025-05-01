@@ -1,7 +1,7 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
     db::api::storage::graph::storage_ops::GraphStorage,
-    search::{fields, new_index, property_index::PropertyIndex},
+    search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
 use itertools::Itertools;
 use parking_lot::RwLock;
@@ -15,7 +15,6 @@ use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index, IndexReader, IndexWriter, Term,
 };
-use crate::search::register_default_tokenizers;
 
 #[derive(Clone)]
 pub struct EntityIndex {
