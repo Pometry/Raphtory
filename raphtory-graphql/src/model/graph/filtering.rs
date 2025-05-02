@@ -164,6 +164,27 @@ pub struct NodeFilter {
     pub or: Option<Vec<NodeFilter>>,
 }
 
+impl NodeFilter {
+    pub fn validate(&self) -> Result<(), String> {
+        let fields_set = [
+            self.node.is_some(),
+            self.property.is_some(),
+            self.constant_property.is_some(),
+            self.temporal_property.is_some(),
+            self.and.is_some(),
+            self.or.is_some(),
+        ];
+
+        let count = fields_set.iter().filter(|x| **x).count();
+
+        match count {
+            0 => Err("At least one field in NodeFilter must be provided.".to_string()),
+            1 => Ok(()),
+            _ => Err("Only one of node, property, constant_property, temporal_property, and/or must be provided.".to_string()),
+        }
+    }
+}
+
 #[derive(InputObject, Clone, Debug)]
 pub struct NodeFieldFilter {
     pub field: NodeField,
@@ -186,6 +207,28 @@ pub struct EdgeFilter {
     pub temporal_property: Option<TemporalPropertyFilterExpr>,
     pub and: Option<Vec<EdgeFilter>>,
     pub or: Option<Vec<EdgeFilter>>,
+}
+
+impl EdgeFilter {
+    pub fn validate(&self) -> Result<(), String> {
+        let fields_set = [
+            self.src.is_some(),
+            self.dst.is_some(),
+            self.property.is_some(),
+            self.constant_property.is_some(),
+            self.temporal_property.is_some(),
+            self.and.is_some(),
+            self.or.is_some(),
+        ];
+
+        let count = fields_set.iter().filter(|x| **x).count();
+
+        match count {
+            0 => Err("At least one field in EdgeFilter must be provided.".to_string()),
+            1 => Ok(()),
+            _ => Err("Only one of src, dst, property, constant_property, temporal_property, and/or must be provided.".to_string()),
+        }
+    }
 }
 
 #[derive(InputObject, Clone, Debug)]

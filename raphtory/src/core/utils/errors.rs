@@ -350,6 +350,9 @@ pub enum GraphError {
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilter(FilterOperator),
 
+    #[error("Invalid filter: {0}")]
+    InvalidGqlFilter(String),
+
     #[error("Property {0} not found in temporal or constant metadata")]
     PropertyNotFound(String),
 
