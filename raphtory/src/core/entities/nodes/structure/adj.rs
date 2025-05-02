@@ -2,6 +2,7 @@ use crate::core::{
     entities::{edges::edge_ref::Dir, nodes::structure::adjset::AdjSet, EID, VID},
     Direction,
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,7 @@ pub enum Adj {
 }
 
 impl Adj {
-    pub(crate) fn get_edge(&self, v: VID, dir: Direction) -> Option<EID> {
+    pub fn get_edge(&self, v: VID, dir: Direction) -> Option<EID> {
         match self {
             Adj::Solo => None,
             Adj::List { out, into } => match dir {
@@ -45,14 +46,14 @@ impl Adj {
         }
     }
 
-    pub(crate) fn add_edge_into(&mut self, v: VID, e: EID) {
+    pub fn add_edge_into(&mut self, v: VID, e: EID) {
         match self {
             Adj::Solo => *self = Self::new_into(v, e),
             Adj::List { into, .. } => into.push(v, e),
         }
     }
 
-    pub(crate) fn add_edge_out(&mut self, v: VID, e: EID) {
+    pub fn add_edge_out(&mut self, v: VID, e: EID) {
         match self {
             Adj::Solo => *self = Self::new_out(v, e),
             Adj::List { out, .. } => out.push(v, e),
@@ -70,11 +71,25 @@ impl Adj {
         }
     }
 
+    pub fn out_iter(&self) -> impl Iterator<Item = (VID, EID)> + Send + Sync + '_ {
+        match self {
+            Adj::Solo => Either::Left(std::iter::empty()),
+            Adj::List { out, .. } => Either::Right(out.iter()),
+        }
+    }
+
+    pub fn inb_iter(&self) -> impl Iterator<Item = (VID, EID)> + Send + Sync + '_ {
+        match self {
+            Adj::Solo => Either::Left(std::iter::empty()),
+            Adj::List { into, .. } => Either::Right(into.iter()),
+        }
+    }
+
     pub(crate) fn node_iter(&self, dir: Direction) -> impl Iterator<Item = VID> + Send + '_ {
         self.iter(dir).map(|(v, _)| v)
     }
 
-    pub(crate) fn degree(&self, dir: Direction) -> usize {
+    pub fn degree(&self, dir: Direction) -> usize {
         match self {
             Adj::Solo => 0,
             Adj::List { out, into } => match dir {

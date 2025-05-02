@@ -7,7 +7,7 @@ use dashmap::mapref::entry::Entry;
 use either::Either;
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
-    entities::{GidRef, GidType, VID},
+    entities::{GidRef, GidType, GID, VID},
     storage::{dict_mapper::MaybeNew, FxDashMap},
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -58,7 +58,27 @@ impl Mapping {
             map: OnceCell::new(),
         }
     }
-    
+
+    pub fn iter(&self) -> impl Iterator<Item = (GID, VID)> + '_ {
+        self.map
+            .get()
+            .map(|map| {
+                let iter: Box<dyn Iterator<Item = (GID, VID)>> = match map {
+                    Map::U64(m) => Box::new(
+                        m.iter()
+                            .map(|entry| (GID::U64(*entry.key()), *entry.value())),
+                    ),
+                    Map::Str(m) => Box::new(
+                        m.iter()
+                            .map(|entry| (GID::Str(entry.key().to_owned()), *entry.value())),
+                    ),
+                };
+                iter
+            })
+            .into_iter()
+            .flatten()
+    }
+
     pub fn len(&self) -> usize {
         self.map.get().map_or(0, |map| match map {
             Map::U64(m) => m.len(),
@@ -147,6 +167,13 @@ impl Mapping {
     pub fn get_u64(&self, gid: u64) -> Option<VID> {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
+    }
+
+    pub fn get(&self, gid: GidRef) -> Option<VID> {
+        match gid {
+            GidRef::U64(id) => self.get_u64(id),
+            GidRef::Str(id) => self.get_str(id),
+        }
     }
 }
 
