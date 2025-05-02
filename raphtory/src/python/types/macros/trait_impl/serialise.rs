@@ -55,7 +55,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn load_from_file(path: PathBuf) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::InternalStableDecode>::decode(path)
+                <$base_type as $crate::serialise::StableDecode>::decode(path)
             }
 
             #[doc = concat!(" Saves the ", $name, " to the given path.")]

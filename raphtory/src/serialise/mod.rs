@@ -20,7 +20,7 @@ use crate::{
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
-pub use serialise::{CacheOps, StableDecode, StableEncode};
+pub use serialise::{CacheOps, StableDecode, StableEncode, InternalStableDecode};
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, BufReader, ErrorKind, Read, Write},
