@@ -1844,6 +1844,21 @@ pub(crate) mod test_filters {
         }
 
         #[test]
+        fn test_unique_results_from_composite_filters() {
+            let filter = PropertyFilter::property("p2")
+                .ge(2u64)
+                .and(PropertyFilter::property("p2").ge(1u64));
+            let expected_results = vec!["2", "3"];
+            assert_filter_results!(filter_nodes_and, filter, expected_results);
+
+            let filter = PropertyFilter::property("p2")
+                .ge(2u64)
+                .or(PropertyFilter::property("p2").ge(5u64));
+            let expected_results = vec!["2", "3"];
+            assert_filter_results!(filter_nodes_or, filter, expected_results);
+        }
+
+        #[test]
         fn test_composite_filter_nodes() {
             let filter = PropertyFilter::property("p2")
                 .eq(2u64)
@@ -2139,6 +2154,35 @@ pub(crate) mod test_filters {
             let expected_results = vec!["3->1"];
             assert_filter_results!(filter_edges_and, filter, expected_results);
             assert_search_results!(search_edges_and, filter, expected_results);
+        }
+
+        #[test]
+        fn test_unique_results_from_composite_filters() {
+            let filter = PropertyFilter::property("p2")
+                .ge(2u64)
+                .and(PropertyFilter::property("p2").ge(1u64));
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges_and, filter, expected_results);
+
+            let filter = PropertyFilter::property("p2")
+                .ge(2u64)
+                .or(PropertyFilter::property("p2").ge(5u64));
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges_or, filter, expected_results);
         }
 
         #[test]
