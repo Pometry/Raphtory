@@ -23,7 +23,7 @@ use raphtory::{
     core::utils::errors::{GraphError, InvalidPathReason},
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
-    serialise::InternalStableDecode
+    serialise::InternalStableDecode,
 };
 use std::{
     error::Error,
