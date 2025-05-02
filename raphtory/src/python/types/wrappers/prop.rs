@@ -200,12 +200,6 @@ impl InternalNodeFilterOps for PyPropertyFilter {
     }
 }
 
-impl IntoDynamic for Arc<dyn BoxableGraphView> {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(self)
-    }
-}
-
 impl InternalNodeFilterOps for PyFilterExpr {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>>
         = Arc<dyn BoxableGraphView + 'graph>

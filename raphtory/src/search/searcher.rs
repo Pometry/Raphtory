@@ -61,8 +61,6 @@ impl<'a> Searcher<'a> {
     }
 }
 
-// TODO: Fuzzy search tests are non exhaustive because the fuzzy search
-//  semantics are still undecided. See Query Builder.
 // TODO: All search tests in graph views (db/graph/views) should include
 //  comparisons to filter apis results.
 #[cfg(test)]
@@ -105,7 +103,7 @@ mod search_tests {
                 )
                 .unwrap();
 
-            graph.create_index().unwrap();
+            graph.create_index_in_ram().unwrap();
 
             let mut results = graph
                 .search_nodes(filter, 10, 0)
@@ -201,7 +199,7 @@ mod search_tests {
                 )
                 .unwrap();
 
-            graph.create_index().unwrap();
+            graph.create_index_in_ram().unwrap();
 
             let mut results = graph
                 .search_edges(filter, 5, 0)
@@ -268,7 +266,7 @@ mod search_tests {
 
         let elapsed = now.elapsed().unwrap().as_secs();
         info!("indexing took: {:?}", elapsed);
-        graph.create_index().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let filter = NodeFilter::name().eq("DEV-1690");
         let issues = graph.search_nodes(filter, 5, 0)?;

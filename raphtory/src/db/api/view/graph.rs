@@ -44,7 +44,13 @@ use raphtory_api::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::sync::{atomic::Ordering, Arc};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    sync::{atomic::Ordering, Arc},
+};
+
+use zip::ZipArchive;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -133,6 +139,14 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 #[cfg(feature = "search")]
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
+
+    fn create_index_in_ram(&self) -> Result<(), GraphError>;
+
+    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
+
+    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
+
+    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError>;
 
     fn search_nodes<F: AsNodeFilter>(
         &self,
@@ -617,8 +631,67 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
-                storage.get_or_create_index()?;
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index(None)?;
+                Ok(())
+            })
+    }
+
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index_in_ram()?;
+                Ok(())
+            })
+    }
+
+    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
+        fn has_index<P: AsRef<Path>>(zip_path: P) -> Result<bool, GraphError> {
+            let file = File::open(&zip_path)?;
+            let mut archive = ZipArchive::new(file)?;
+
+            for i in 0..archive.len() {
+                let entry = archive.by_index(i)?;
+                if entry.name().starts_with("index/") {
+                    return Ok(true);
+                }
+            }
+
+            Ok(false)
+        }
+
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                if path.is_file() {
+                    if has_index(path)? {
+                        storage.get_or_create_index(Some(path.clone()))?;
+                    } else {
+                        return Ok(()); // Skip if no index in zip
+                    }
+                } else {
+                    let index_path = path.join("index");
+                    if index_path.exists() && index_path.read_dir()?.next().is_some() {
+                        storage.get_or_create_index(Some(index_path.clone()))?;
+                    }
+                }
+
+                Ok(())
+            })
+    }
+
+    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        let path = path.join("index");
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.persist_index_to_disk(&path)?;
+                Ok(())
+            })
+    }
+
+    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.persist_index_to_disk_zip(&path)?;
                 Ok(())
             })
     }

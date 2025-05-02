@@ -404,6 +404,7 @@ impl GqlGraph {
     }
 
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        filter.validate().map_err(GraphError::InvalidGqlFilter)?;
         let filter: CompositeNodeFilter = filter.try_into()?;
         let filtered_graph = self.graph.filter_nodes(filter)?;
         Ok(GqlGraph::new(
@@ -413,6 +414,7 @@ impl GqlGraph {
     }
 
     async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+        filter.validate().map_err(GraphError::InvalidGqlFilter)?;
         let filter: CompositeEdgeFilter = filter.try_into()?;
         let filtered_graph = self.graph.filter_edges(filter)?;
         Ok(GqlGraph::new(
@@ -430,6 +432,7 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Node>, GraphError> {
+        filter.validate().map_err(GraphError::InvalidGqlFilter)?;
         let f: CompositeNodeFilter = filter.try_into()?;
         self.execute_search(|| {
             Ok(self
@@ -449,6 +452,7 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Edge>, GraphError> {
+        filter.validate().map_err(GraphError::InvalidGqlFilter)?;
         let f: CompositeEdgeFilter = filter.try_into()?;
         self.execute_search(|| {
             Ok(self

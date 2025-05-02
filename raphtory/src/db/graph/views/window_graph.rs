@@ -2449,7 +2449,7 @@ mod views_test {
             }
 
             #[test]
-            fn test_nodes_filters_pg_fuzzy_search_prefix_match123() {
+            fn test_nodes_filters_pg_fuzzy_search_prefix_match() {
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
                 let expected_results = vec!["N1", "N2", "N7"];
                 assert_filter_results_w!(filter_nodes_pg_w, filter, 6..9, expected_results);

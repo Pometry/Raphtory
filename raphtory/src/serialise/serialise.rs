@@ -1,4 +1,6 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
+#[cfg(feature = "search")]
+use crate::prelude::SearchableGraphOps;
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},
@@ -53,15 +55,32 @@ pub trait StableEncode: StaticGraphViewOps {
     }
 }
 
-pub trait StableDecode: Sized {
+pub trait StableDecode: InternalStableDecode + StaticGraphViewOps {
+    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
+        let folder = path.into();
+        let graph = Self::decode_from_path(&folder)?;
+
+        #[cfg(feature = "search")]
+        graph.load_index(&folder.root_folder)?;
+
+        Ok(graph)
+    }
+}
+
+impl<T: InternalStableDecode + StaticGraphViewOps> StableDecode for T {}
+
+pub trait InternalStableDecode: Sized {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError>;
+
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
         let graph = proto::Graph::decode(bytes)?;
         Self::decode_from_proto(&graph)
     }
-    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
-        let bytes = path.into().read_graph()?;
-        Self::decode_from_bytes(bytes.as_ref())
+
+    fn decode_from_path(path: &GraphFolder) -> Result<Self, GraphError> {
+        let bytes = path.read_graph()?;
+        let graph = Self::decode_from_bytes(bytes.as_ref())?;
+        Ok(graph)
     }
 }
 
@@ -253,7 +272,7 @@ impl StableEncode for MaterializedGraph {
     }
 }
 
-impl StableDecode for TemporalGraph {
+impl InternalStableDecode for TemporalGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         let storage = Self::default();
         graph.metas.par_iter().for_each(|meta| {
@@ -607,7 +626,7 @@ fn unify_property_types(
     Ok((const_pt, temp_pt))
 }
 
-impl StableDecode for GraphStorage {
+impl InternalStableDecode for GraphStorage {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         Ok(GraphStorage::Unlocked(Arc::new(
             TemporalGraph::decode_from_proto(graph)?,
@@ -615,7 +634,7 @@ impl StableDecode for GraphStorage {
     }
 }
 
-impl StableDecode for MaterializedGraph {
+impl InternalStableDecode for MaterializedGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         let storage = GraphStorage::decode_from_proto(graph)?;
         let graph = match graph.graph_type() {
@@ -628,7 +647,7 @@ impl StableDecode for MaterializedGraph {
     }
 }
 
-impl StableDecode for Graph {
+impl InternalStableDecode for Graph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         match graph.graph_type() {
             proto::GraphType::Event => {
@@ -640,7 +659,7 @@ impl StableDecode for Graph {
     }
 }
 
-impl StableDecode for PersistentGraph {
+impl InternalStableDecode for PersistentGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         match graph.graph_type() {
             proto::GraphType::Event => Err(GraphError::GraphLoadError),
@@ -1455,5 +1474,196 @@ mod proto_test {
             "array",
             Prop::from_arr::<UInt8Type>(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
         ));
+    }
+
+    #[cfg(feature = "search")]
+    mod test_index_io {
+        use crate::{
+            core::{utils::errors::GraphError, Prop},
+            db::{
+                api::{
+                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                    view::{internal::InternalStorageOps, StaticGraphViewOps},
+                },
+                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+            },
+            prelude::{
+                AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+                SearchableGraphOps, StableDecode, StableEncode,
+            },
+            serialise::GraphFolder,
+        };
+        use raphtory_api::core::storage::arc_str::ArcStr;
+
+        fn init_graph<G>(graph: G) -> G
+        where
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        {
+            graph
+                .add_node(
+                    1,
+                    "Alice",
+                    vec![("p1", Prop::U64(2u64))],
+                    Some("fire_nation"),
+                )
+                .unwrap();
+            graph
+        }
+
+        fn assert_search_results<T: AsNodeFilter + Clone>(
+            graph: &Graph,
+            filter: &T,
+            expected: Vec<&str>,
+        ) {
+            let res = graph
+                .search_nodes(filter.clone(), 2, 0)
+                .unwrap()
+                .into_iter()
+                .map(|n| n.name())
+                .collect::<Vec<_>>();
+            assert_eq!(res, expected);
+        }
+
+        #[test]
+        fn test_create_no_index_persist_no_index_on_encode_load_no_index_on_decode() {
+            // No index persisted since it was never created
+            let graph = init_graph(Graph::new());
+
+            let err = graph
+                .search_nodes(NodeFilter::name().eq("Alice"), 2, 0)
+                .expect_err("Expected error since index was not created");
+            assert!(matches!(err, GraphError::IndexNotCreated));
+
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_none());
+        }
+
+        #[test]
+        fn test_create_index_persist_index_on_encode_load_index_on_decode() {
+            let graph = init_graph(Graph::new());
+
+            // Created index
+            graph.create_index().unwrap();
+
+            let filter = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter, vec!["Alice"]);
+
+            // Persisted both graph and index
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+
+            // Loaded index that was persisted
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_some());
+
+            assert_search_results(&graph, &filter, vec!["Alice"]);
+        }
+
+        #[test]
+        fn test_create_index_persist_index_on_encode_update_index_load_persisted_index_on_decode() {
+            let graph = init_graph(Graph::new());
+
+            // Created index
+            graph.create_index().unwrap();
+
+            let filter1 = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter1, vec!["Alice"]);
+
+            // Persisted both graph and index
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+
+            // Updated both graph and index
+            graph
+                .add_node(
+                    2,
+                    "Tommy",
+                    vec![("p1", Prop::U64(5u64))],
+                    Some("water_tribe"),
+                )
+                .unwrap();
+            let filter2 = NodeFilter::name().eq("Tommy");
+            assert_search_results(&graph, &filter2, vec!["Tommy"]);
+
+            // Loaded index that was persisted
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_some());
+            assert_search_results(&graph, &filter1, vec!["Alice"]);
+            assert_search_results(&graph, &filter2, Vec::<&str>::new());
+
+            // Updating and encode the graph and index should decode the updated the graph as well as index
+            // So far we have the index that was created and persisted for the first time
+            graph
+                .add_node(
+                    2,
+                    "Tommy",
+                    vec![("p1", Prop::U64(5u64))],
+                    Some("water_tribe"),
+                )
+                .unwrap();
+            let filter2 = NodeFilter::name().eq("Tommy");
+            assert_search_results(&graph, &filter2, vec!["Tommy"]);
+
+            // Should persist the updated graph and index
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+
+            // Should load the updated graph and index
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_some());
+            assert_search_results(&graph, &filter1, vec!["Alice"]);
+            assert_search_results(&graph, &filter2, vec!["Tommy"]);
+        }
+
+        #[test]
+        fn test_zip_encode_decode_index() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            let folder = GraphFolder::new_as_zip(path.clone());
+            graph.encode(folder).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let node = graph.node("Alice").unwrap();
+            let node_type = node.node_type();
+            assert_eq!(node_type, Some(ArcStr::from("fire_nation")));
+
+            let filter = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter, vec!["Alice"]);
+        }
+
+        #[test]
+        fn test_create_index_in_ram() {
+            let graph = init_graph(Graph::new());
+            graph.create_index_in_ram().unwrap();
+
+            let filter = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter, vec!["Alice"]);
+
+            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
+            let results = graph.encode(path.clone());
+            assert!(matches!(
+                results,
+                Err(GraphError::PersistingInMemoryIndexNotSupported)
+            ));
+
+            let graph = Graph::decode(path).unwrap();
+            let index = graph.get_storage().unwrap().index.get();
+            assert!(index.is_none());
+
+            let results = graph.search_nodes(filter.clone(), 2, 0);
+            assert!(matches!(results, Err(GraphError::IndexNotCreated)));
+        }
     }
 }

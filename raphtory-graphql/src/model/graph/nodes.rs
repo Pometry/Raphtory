@@ -110,9 +110,10 @@ impl GqlNodes {
     }
 
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        filter.validate().map_err(GraphError::InvalidGqlFilter)?;
         let filter: CompositeNodeFilter = filter.try_into()?;
         let filtered_nodes = self.nn.filter_nodes(filter)?;
-        Ok(self.update(filtered_nodes))
+        Ok(self.update(filtered_nodes.into_dyn()))
     }
 
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {

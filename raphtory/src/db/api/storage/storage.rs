@@ -44,6 +44,7 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -135,13 +136,52 @@ impl Storage {
 
 #[cfg(feature = "search")]
 impl Storage {
-    pub(crate) fn get_or_create_index(&self) -> Result<&GraphIndex, GraphError> {
-        self.index
-            .get_or_try_init(|| Ok::<_, GraphError>(GraphIndex::try_from(&self.graph)?))
+    pub(crate) fn get_or_create_index(
+        &self,
+        path: Option<PathBuf>,
+    ) -> Result<&GraphIndex, GraphError> {
+        self.index.get_or_try_init(|| {
+            if let Some(path) = path {
+                Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
+            } else {
+                Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, false)?)
+            }
+        })
+    }
+
+    pub(crate) fn get_or_create_index_in_ram(&self) -> Result<&GraphIndex, GraphError> {
+        let index = self.index.get_or_try_init(|| {
+            Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, true)?)
+        })?;
+        if index.path.is_some() {
+            Err(GraphError::FailedToCreateIndexInRam)
+        } else {
+            Ok(index)
+        }
     }
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
         self.index.get()
+    }
+
+    pub(crate) fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        if let Some(index) = self.get_index() {
+            if index.path.is_none() {
+                return Err(GraphError::PersistingInMemoryIndexNotSupported);
+            }
+            index.persist_to_disk(path)?
+        }
+        Ok(())
+    }
+
+    pub(crate) fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        if let Some(index) = self.get_index() {
+            if index.path.is_none() {
+                return Err(GraphError::PersistingInMemoryIndexNotSupported);
+            }
+            index.persist_to_disk_zip(path)?
+        }
+        Ok(())
     }
 }
 

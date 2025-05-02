@@ -90,7 +90,7 @@ mod test_helpers {
     where
         G: StaticGraphViewOps,
     {
-        graph.create_index().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let mut results = graph
             .search_nodes(filter, 20, 0)
@@ -122,7 +122,7 @@ mod test_helpers {
     where
         G: StaticGraphViewOps,
     {
-        graph.create_index().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let mut results = graph
             .search_edges(filter, 20, 0)
