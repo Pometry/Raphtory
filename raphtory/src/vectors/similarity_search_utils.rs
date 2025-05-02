@@ -1,4 +1,7 @@
-use crate::vectors::{document_ref::DocumentRef, Embedding};
+use crate::{
+    db::{api::view::StaticGraphViewOps, graph::views::window_graph::WindowedGraph},
+    vectors::{document_ref::DocumentRef, Embedding},
+};
 use itertools::Itertools;
 
 use super::entity_id::EntityId;
@@ -55,3 +58,10 @@ where
 //     assert!(normalized >= -1.001);
 //     normalized
 // }
+
+pub(super) fn apply_window<G: StaticGraphViewOps>(
+    graph: &G,
+    window: Option<(i64, i64)>,
+) -> Option<WindowedGraph<G>> {
+    window.map(|(start, end)| graph.window(start, end))
+}
