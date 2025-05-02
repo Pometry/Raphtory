@@ -16,6 +16,11 @@ impl PyGraphView {
         self.graph.create_index()
     }
 
+    /// Create graph index in RAM
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.graph.create_index_in_ram()
+    }
+
     /// Searches for nodes which match the given filter expression. This uses Tantivy's exact search.
     ///
     /// Arguments:
