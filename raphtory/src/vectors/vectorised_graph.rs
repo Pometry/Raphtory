@@ -194,6 +194,13 @@ pub(super) trait VectorSearch {
             .count();
 
         // can do some of the things below in parallel ?!?!?
+        // TODO: add some explanations here
+        // having g.window().count_nodes() would be very useful, but is potentially expensive
+        // but we don't really need the exact number of nodes/edges in the window
+        // an approximation is enough
+        // so we could get a sample of random node ids and do g.subgraph(nodes).window().count_nodes()
+        // which for a small number of nodes, should be very quick in comparison
+        // but the result would be still useful enough!!
         if count > k {
             Box::new(docs.into_iter().take(k))
         } else if count == 0 {

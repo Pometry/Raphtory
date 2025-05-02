@@ -19,9 +19,7 @@ use crate::{
 use super::{
     document_ref::DocumentRef,
     entity_id::EntityId,
-    similarity_search_utils::{
-        apply_window, find_top_k, score_document_groups_by_highest, score_documents,
-    },
+    similarity_search_utils::{apply_window, find_top_k},
     vectorised_graph::{EntityRef, VectorSearch, VectorisedGraph},
     Document, DocumentEntity, Embedding,
 };
@@ -208,7 +206,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let filter = self.get_nodes_in_context(window);
         let docs = self.graph.node_db.top_k(query, limit, view, Some(filter));
         self.extend_selection(docs, limit);
-        // TODO: call this recursively until new projected length is reached
+        // TODO: call this recursively until new projected length is reached !!!!!!!!!!!!!!!! same for expand_edges_by_similarity and expand_entities_by_similarity
     }
 
     /// Add the top `limit` adjacent edges with higher score for `query` to the selection

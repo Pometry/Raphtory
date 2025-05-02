@@ -1,15 +1,11 @@
-use crate::{
-    core::{DocumentInput, Lifespan},
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, node::NodeView},
-    },
+use crate::db::{
+    api::view::StaticGraphViewOps,
+    graph::{edge::EdgeView, node::NodeView},
 };
 use futures_util::future::BoxFuture;
 use std::{error, future::Future, ops::Deref, sync::Arc};
 
 pub mod datetimeformat;
-mod document_ref;
 pub mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
@@ -19,7 +15,6 @@ pub mod template;
 pub mod vector_selection;
 mod vector_storage;
 pub mod vectorisable;
-pub mod vectorised_cluster;
 pub mod vectorised_graph;
 
 pub type Embedding = Arc<[f32]>;
@@ -36,31 +31,6 @@ pub struct Document<G: StaticGraphViewOps> {
     pub entity: DocumentEntity<G>,
     pub content: String,
     pub embedding: Embedding,
-}
-
-impl Lifespan {
-    #![allow(dead_code)]
-    pub(crate) fn event(time: i64) -> Self {
-        Self::Event { time }
-    }
-}
-
-impl From<String> for DocumentInput {
-    fn from(value: String) -> Self {
-        Self {
-            content: value,
-            life: Lifespan::Inherited,
-        }
-    }
-}
-
-impl From<&str> for DocumentInput {
-    fn from(value: &str) -> Self {
-        Self {
-            content: value.to_owned(),
-            life: Lifespan::Inherited,
-        }
-    }
 }
 
 pub(crate) type EmbeddingError = Box<dyn error::Error + Send + Sync>;
