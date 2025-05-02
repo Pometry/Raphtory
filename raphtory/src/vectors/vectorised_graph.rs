@@ -1,7 +1,7 @@
 use crate::{
     // core::entities::nodes::node_ref::AsNodeRef,
     core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
-    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
+    db::api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic, StaticGraphViewOps},
     prelude::*,
     vectors::{
         document_ref::DocumentRef,
@@ -16,7 +16,12 @@ use arroy::{distances::Euclidean, Database as ArroyDatabase, Reader};
 use async_trait::async_trait;
 use itertools::{chain, Itertools};
 use parking_lot::RwLock;
-use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Deref,
+    path::PathBuf,
+    sync::Arc,
+};
 use tempfile::TempDir;
 
 use super::{
@@ -26,7 +31,7 @@ use super::{
     Document,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) enum EntityRef {
     Node(usize),
     Edge(usize),
@@ -52,22 +57,108 @@ impl EntityRef {
 
 #[derive(Clone)]
 pub(crate) struct VectorDb {
+    // FIXME: save index value in here !!!!!!!!!!!!!!!!!!!
     pub(crate) vectors: ArroyDatabase<Euclidean>, // TODO: review is this safe to clone? does it point to the same thing?
     pub(crate) env: heed::Env,
     pub(crate) tempdir: Arc<TempDir>, // do I really need, is the file open not enough
 }
 
+// trait VectorSearch {
+//     fn top_k<G: StaticGraphViewOps>(
+//         &self,
+//         query: &Embedding,
+//         k: usize,
+//         view: Option<G>,
+//         filter: HashSet<u32>,
+//     ) -> Box<dyn Iterator<Item = (EntityRef, f32)>> {
+//         // let count = g.count_nodes();
+//         let docs: Vec<_> = self.node_db.top_k(query, k).collect();
+//         let count = docs
+//             .iter()
+//             .filter(|(id, _)| self.entity_valid(id, view, filter))
+//             .count();
+//         if count > k {
+//             boxed_nodes(docs.into_iter().take(k))
+//         } else if count == 0 {
+//             let filter = w.nodes().iter().map(|node| node.node.index());
+//             let docs = self.node_db.top_k_with_filter(query, k, filter);
+//             boxed_nodes(docs)
+//         } else {
+//             let docs = self.top_k(query, k * 10, view, filter).take(k); // FIXME: avoid hardcoding * 10, do it dinamically
+//             Box::new(docs)
+//         }
+//     }
+
+//     fn entity_valid<G: StaticGraphViewOps>(
+//         &self,
+//         entity: usize,
+//         view: Option<G>,
+//         filter: HashSet<u32>,
+//     ) -> bool;
+// }
+
+pub struct Key {
+    pub index: u16,
+    pub node: u32,
+    _padding: u8,
+}
+
+impl From<usize> for Key {
+    fn from(value: usize) -> Self {
+        Self {
+            index: 0, // TODO: bear in mind hardcoded index
+            node: value as u32,
+            _padding: 0,
+        }
+    }
+}
+
 impl VectorDb {
     // FIXME: remove unwraps here
-    fn top_k(&self, query: &Embedding, k: usize) -> impl Iterator<Item = (usize, f32)> {
+    pub(super) fn top_k(&self, query: &Embedding, k: usize) -> impl Iterator<Item = (usize, f32)> {
+        self.inner_top_k(query, k, None::<std::iter::Empty<usize>>)
+    }
+
+    pub(super) fn top_k_with_filter(
+        &self,
+        query: &Embedding,
+        k: usize,
+        filter: impl Iterator<Item = usize>,
+    ) -> impl Iterator<Item = (usize, f32)> {
+        self.inner_top_k(query, k, Some(filter))
+    }
+
+    fn inner_top_k(
+        &self,
+        query: &Embedding,
+        k: usize,
+        filter: Option<impl Iterator<Item = usize>>,
+    ) -> impl Iterator<Item = (usize, f32)> {
         let rtxn = self.env.read_txn().unwrap();
         let reader = Reader::open(&rtxn, 0, self.vectors).unwrap(); // TODO: review index value, hardcoded to 0
-        reader
-            .nns(k)
+        let mut query_builder = reader.nns(k);
+        let filter =
+            filter.map(|filter| roaring::RoaringBitmap::from_iter(filter.map(|id| id as u32)));
+        let query_builder = if let Some(filter) = &filter {
+            query_builder.candidates(filter)
+        } else {
+            &query_builder
+        };
+        query_builder
             .by_vector(&rtxn, query.as_ref())
             .unwrap()
             .into_iter()
             .map(|(id, score)| (id as usize, score))
+    }
+
+    pub(super) fn get_id(&self, id: usize) -> Embedding {
+        // FIXME: remove unsafe code, ask arroy mantainers to make the type public
+        let rtxn = self.env.read_txn().unwrap();
+        let key: Key = id.into();
+        let arroy_key = unsafe { std::mem::transmute(&key) };
+        let node = self.vectors.get(&rtxn, arroy_key).unwrap().unwrap();
+        let vector = node.leaf().unwrap().vector.to_vec().into();
+        vector
     }
 }
 
@@ -163,7 +254,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
-        let nodes = self.top_k_nodes(query, limit);
+        let nodes = self.top_k_nodes_with_window(query, limit, window);
         let edges = self.top_k_edges(query, limit);
         let docs = find_top_k(nodes.chain(edges), limit).collect();
         VectorSelection::new(self.clone(), docs)
@@ -184,7 +275,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
-        let docs = self.top_k_nodes(query, limit);
+        let docs = self.top_k_nodes_with_window(query, limit, window);
         VectorSelection::new(self.clone(), docs.collect())
     }
 
@@ -207,13 +298,52 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         VectorSelection::new(self.clone(), docs.collect())
     }
 
-    pub(crate) fn top_k_nodes(
+    // pub(crate) fn top_k_nodes(
+    //     &self,
+    //     query: &Embedding,
+    //     k: usize,
+    // ) -> impl Iterator<Item = (EntityRef, f32)> {
+    //     let docs = self.node_db.top_k(query, k);
+    //     docs.map(|(id, score)| (EntityRef::Node(id), score))
+    // }
+
+    // make this generic for edges
+    // need to have a function that, given an entity and a graph view, decides if it exists
+    // also need a function that given a u32, returns an EntityRef
+    // what happens though with expansions ??????????????????????
+    // maybe I can have always two things, both optional: a graph view and a set of ids
+
+    pub(crate) fn top_k_nodes_with_window(
         &self,
         query: &Embedding,
         k: usize,
-    ) -> impl Iterator<Item = (EntityRef, f32)> {
-        let docs = self.node_db.top_k(query, k);
-        docs.map(|(id, score)| (EntityRef::Node(id), score))
+        window: Option<(i64, i64)>,
+    ) -> Box<dyn Iterator<Item = (EntityRef, f32)>> {
+        match window {
+            Some((start, end)) => {
+                let w = &self.source_graph.window(start, end);
+                // let count = g.count_nodes();
+                let docs: Vec<_> = self.node_db.top_k(query, k).collect();
+                let count = docs
+                    .iter()
+                    .filter(|(id, _)| w.has_node(w.node_id((*id).into())))
+                    .count();
+                if count > k {
+                    boxed_nodes(docs.into_iter().take(k))
+                } else if count == 0 {
+                    let filter = w.nodes().iter().map(|node| node.node.index());
+                    let docs = self.node_db.top_k_with_filter(query, k, filter);
+                    boxed_nodes(docs)
+                } else {
+                    let docs = self.top_k_nodes_with_window(query, k * 10, window).take(k); // FIXME: avoid hardcoding * 10, do it dinamically
+                    Box::new(docs)
+                }
+            }
+            None => {
+                let docs = self.node_db.top_k(query, k);
+                boxed_nodes(docs) // TODO: do this in other places !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            }
+        }
     }
 
     pub(crate) fn top_k_edges(
@@ -304,4 +434,10 @@ pub(crate) fn merge_docs<A: DocIter, B: DocIter>(a: A, b: B) -> Vec<(EntityRef, 
     let mut docs = a.chain(b).collect::<Vec<_>>();
     docs.sort_by_key(|(entity, score)| -score);
     docs
+}
+
+fn boxed_nodes(
+    nodes: impl Iterator<Item = (usize, f32)>,
+) -> Box<dyn Iterator<Item = (EntityRef, f32)>> {
+    Box::new(nodes.map(|(id, score)| (EntityRef::Node(id), score)))
 }

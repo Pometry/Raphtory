@@ -21,7 +21,7 @@ use super::{
     entity_id::EntityId,
     similarity_search_utils::{find_top_k, score_document_groups_by_highest, score_documents},
     vectorised_graph::{EntityRef, VectorisedGraph},
-    Document, Embedding,
+    Document, DocumentEntity, Embedding,
 };
 
 #[derive(Clone, Copy)]
@@ -87,51 +87,39 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     pub fn get_documents_with_scores(&self) -> Vec<(Document<G>, f32)> {
         self.selected
             .iter()
-            .map(|(doc, score)| {
-                (
-                    doc.regenerate(&self.graph.source_graph, &self.graph.template),
-                    *score,
-                )
-            })
-            .collect_vec()
+            .map(|(entity, score)| (self.regenerate_doc(*entity), *score))
+            .collect()
     }
 
-    /// Add all the documents associated with the `nodes` to the current selection
+    /// Add all `nodes` to the current selection
     ///
     /// Documents added by this call are assumed to have a score of 0.
+    /// If any node id doesn't exist it will be ignored
     ///
     /// # Arguments
     ///   * nodes - a list of the node ids or nodes to add
     pub fn add_nodes<V: AsNodeRef>(&mut self, nodes: Vec<V>) {
-        // let node_documents = self.graph.node_documents.read();
-        // let node_docs = nodes
-        //     .into_iter()
-        //     .flat_map(|id| {
-        //         let node = self.graph.source_graph.node(id);
-        //         let opt = node.map(|node| node_documents.get(&EntityId::from_node(node)));
-        //         opt.flatten().unwrap_or(&self.graph.empty_vec)
-        //     })
-        //     .map(|doc| (doc.clone(), 0.0));
-        // self.selected_docs = extend_selection(self.selected_docs.clone(), node_docs, usize::MAX);
+        let new_docs = nodes
+            .into_iter()
+            .filter_map(|id| self.graph.source_graph.node(id))
+            .map(|node| EntityRef::Node(node.node.index()));
+        self.selected.extend(new_docs.map(|doc| (doc, 0.0)));
     }
 
-    /// Add all the documents associated with the `edges` to the current selection
+    /// Add all `edges` to the current selection
     ///
     /// Documents added by this call are assumed to have a score of 0.
+    /// If any edge doesn't exist it will be ignored
     ///
     /// # Arguments
     ///   * edges - a list of the edge ids or edges to add
     pub fn add_edges<V: AsNodeRef>(&mut self, edges: Vec<(V, V)>) {
-        // let edge_documents = self.graph.edge_documents.read();
-        // let edge_docs = edges
-        //     .into_iter()
-        //     .flat_map(|(src, dst)| {
-        //         let edge = self.graph.source_graph.edge(src, dst);
-        //         let opt = edge.map(|edge| edge_documents.get(&EntityId::from_edge(edge)));
-        //         opt.flatten().unwrap_or(&self.graph.empty_vec)
-        //     })
-        //     .map(|doc| (doc.clone(), 0.0));
-        // self.selected_docs = extend_selection(self.selected_docs.clone(), edge_docs, usize::MAX);
+        let new_docs = edges
+            .into_iter()
+            .filter_map(|(src, dst)| self.graph.source_graph.edge(src, dst))
+            .map(|edge| EntityRef::Edge(edge.edge.pid().0));
+        // self.extend_selection_with_refs(new_docs);
+        self.selected.extend(new_docs.map(|doc| (doc, 0.0)));
     }
 
     /// Append all the documents in `selection` to the current selection
@@ -142,12 +130,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// # Returns
     ///   The selection with the new documents
     pub fn append(&mut self, selection: &Self) -> &Self {
-        self.selected = extend_selection(
-            self.selected.clone(),
-            selection.selected.clone().into_iter(),
-            usize::MAX,
-        );
-
+        self.selected.extend(self.selected);
         self
     }
 
@@ -639,6 +622,36 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .flat_map(|((_, docs), score)| docs.into_iter().map(move |doc| (doc.clone(), score)));
         extend_selection(self.selected.clone(), documents_to_add, usize::MAX)
     }
+
+    fn regenerate_doc(&self, entity: EntityRef) -> Document<G> {
+        let graph = &self.graph.source_graph;
+        match entity {
+            EntityRef::Node(id) => {
+                let node = graph.node(graph.node_id(id.into())).unwrap();
+                let embedding = self.graph.node_db.get_id(id);
+                Document {
+                    entity: DocumentEntity::Node(node),
+                    content: self.graph.template.node(node).unwrap(),
+                    embedding,
+                }
+            }
+            EntityRef::Edge(id) => {
+                let edge_ref = graph.core_edge(id.into());
+                let edge = graph.edge(edge_ref.src(), edge_ref.dst()).unwrap();
+                let embedding = self.graph.edge_db.get_id(id);
+                Document {
+                    entity: DocumentEntity::Edge(edge),
+                    content: self.graph.template.edge(edge).unwrap(),
+                    embedding,
+                }
+            }
+        }
+    }
+
+    // fn extend_selection_with_refs(&mut self, selection: impl IntoIterator<Item = EntityRef>) {
+    //     self.selected
+    //         .extend(selection.into_iter().map(|id| (id, 0.0)));
+    // }
 }
 
 /// this function assumes that extension might contain duplicates and might contain elements
