@@ -24,9 +24,10 @@ use raphtory::{
         },
     },
     prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, InternalStableDecode,
-        NodePropertyFilterOps, NodeViewOps, PropUnwrap, PropertyFilter,
+        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps,
+        NodeViewOps, PropUnwrap, PropertyFilter,
     },
+    serialise::StableDecode,
 };
 use raphtory_api::core::PropType;
 use rayon::prelude::*;
