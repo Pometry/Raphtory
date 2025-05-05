@@ -1971,6 +1971,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_utils"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccfae181bab5ab6c5478b2ccb69e4c68a02f8c3ec72f6616bfec9dbc599d2ee0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
 name = "deunicode"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2962,6 +2973,15 @@ name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
+
+[[package]]
+name = "iter-enum"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c52f2d5e063459674b4735f21870dd911e0d96dbfebb984650068195c2df838"
+dependencies = [
+ "derive_utils",
+]
 
 [[package]]
 name = "itertools"
@@ -4864,6 +4884,7 @@ dependencies = [
  "hashbrown 0.15.2",
  "indexmap 2.9.0",
  "indoc",
+ "iter-enum",
  "itertools 0.13.0",
  "kdam",
  "lock_api",

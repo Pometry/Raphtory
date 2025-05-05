@@ -1,4 +1,6 @@
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
+use either::Either;
+use iter_enum::{DoubleEndedIterator, ExactSizeIterator, Extend, FusedIterator, Iterator};
 use raphtory_api::{
     core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike},
     iter::{BoxedLIter, IntoDynBoxed},
@@ -14,6 +16,14 @@ pub enum TCell<A> {
     TCell1(TimeIndexEntry, A),
     TCellCap(SVM<TimeIndexEntry, A>),
     TCellN(BTreeMap<TimeIndexEntry, A>),
+}
+
+#[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Extend)]
+enum TCellVariants<Empty, TCell1, TCellCap, TCellN> {
+    Empty(Empty),
+    TCell1(TCell1),
+    TCellCap(TCellCap),
+    TCellN(TCellN),
 }
 
 const BTREE_CUTOFF: usize = 128;
@@ -70,14 +80,12 @@ impl<A: PartialEq> TCell<A> {
     }
 }
 impl<A: Sync + Send> TCell<A> {
-    pub fn iter(
-        &self,
-    ) -> Box<dyn DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync + '_> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
-            TCell::TCellCap(svm) => Box::new(svm.iter()),
-            TCell::TCellN(btm) => Box::new(btm.iter()),
+            TCell::Empty => TCellVariants::Empty(std::iter::empty()),
+            TCell::TCell1(t, value) => TCellVariants::TCell1(std::iter::once((t, value))),
+            TCell::TCellCap(svm) => TCellVariants::TCellCap(svm.iter()),
+            TCell::TCellN(btm) => TCellVariants::TCellN(btm.iter()),
         }
     }
 
@@ -88,18 +96,16 @@ impl<A: Sync + Send> TCell<A> {
     pub fn iter_window(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync + '_> {
+    ) -> impl DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, value) => {
-                if r.contains(t) {
-                    Box::new(std::iter::once((t, value)))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TCell::TCellCap(svm) => Box::new(svm.range(r)),
-            TCell::TCellN(btm) => Box::new(btm.range(r)),
+            TCell::Empty => TCellVariants::Empty(std::iter::empty()),
+            TCell::TCell1(t, value) => TCellVariants::TCell1(if r.contains(t) {
+                Either::Left(std::iter::once((t, value)))
+            } else {
+                Either::Right(std::iter::empty())
+            }),
+            TCell::TCellCap(svm) => TCellVariants::TCellCap(svm.range(r)),
+            TCell::TCellN(btm) => TCellVariants::TCellN(btm.range(r)),
         }
     }
 
