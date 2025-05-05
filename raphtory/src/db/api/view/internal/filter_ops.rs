@@ -29,8 +29,13 @@ pub trait FilterOps {
 impl<G: BoxableGraphView + Clone> FilterOps for G {
     #[inline]
     fn filter_node(&self, node: NodeStorageRef) -> bool {
-        let time_semantics = self.node_time_semantics();
-        self.internal_filter_node(node, self.layer_ids()) && time_semantics.node_valid(node, self)
+        if self.nodes_filtered() {
+            let time_semantics = self.node_time_semantics();
+            self.internal_filter_node(node, self.layer_ids())
+                && time_semantics.node_valid(node, self)
+        } else {
+            true
+        }
     }
 
     #[inline]

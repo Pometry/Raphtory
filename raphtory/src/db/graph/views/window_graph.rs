@@ -58,7 +58,7 @@ use crate::{
         },
         graph::{graph::graph_equal, views::layer_graph::LayeredGraph},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::{
     core::{
@@ -481,7 +481,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     #[inline]
     fn edges_filtered(&self) -> bool {
-        true
+        self.window_is_empty() || self.graph.edges_filtered() || self.window_is_bounding()
     }
 
     fn edge_history_filtered(&self) -> bool {
@@ -489,7 +489,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
     #[inline]
     fn edge_list_trusted(&self) -> bool {
-        self.window_is_empty()
+        self.window_is_empty() || (!self.window_is_bounding() && self.graph.edge_list_trusted())
     }
 
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
@@ -558,6 +558,18 @@ mod views_test {
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
     use tracing::{error, info};
+
+    #[test]
+    fn test_non_restricted_window() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        for n in g.window(0, 1).nodes() {
+            assert!(g.has_node(n));
+        }
+
+        assert_graph_equal(&g.window(0, 1), &g)
+    }
 
     #[test]
     fn windowed_graph_nodes_degree() {
