@@ -37,16 +37,6 @@ use crate::{
     },
     prelude::{DeletionOps, EdgeViewOps, GraphViewOps},
 };
-use itertools::Itertools;
-use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Formatter},
-    iter,
-    sync::Arc,
-};
-
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -60,6 +50,16 @@ use crate::{
         },
         DiskGraphStorage,
     },
+};
+use either::Either;
+use itertools::Itertools;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Debug, Formatter},
+    iter,
+    sync::Arc,
 };
 
 pub mod additions;

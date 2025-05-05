@@ -390,6 +390,7 @@ pub enum NodeAdditions<'a> {
 }
 
 impl<'a> NodeAdditions<'a> {
+    #[inline]
     pub fn prop_events(&self) -> impl Iterator<Item = TimeIndexEntry> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => index.props_ts.iter().map(|(t, _)| *t).into_dyn_boxed(),
@@ -414,6 +415,7 @@ impl<'a> NodeAdditions<'a> {
         }
     }
 
+    #[inline]
     pub fn prop_events_rev(&self) -> impl Iterator<Item = TimeIndexEntry> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => index
@@ -447,6 +449,7 @@ impl<'a> NodeAdditions<'a> {
         }
     }
 
+    #[inline]
     pub fn edge_events(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => {
@@ -468,6 +471,7 @@ impl<'a> NodeAdditions<'a> {
         }
     }
 
+    #[inline]
     pub fn edge_events_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => index
@@ -618,20 +622,18 @@ impl<'a, G: Clone> NodeHistory<'a, G> {
 }
 
 impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
-    pub fn history(&self) -> BoxedLIter<'a, (TimeIndexEntry, ELID)> {
+    pub fn history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a, G> {
         let view = self.view.clone();
         self.additions
             .edge_events()
             .filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids()))
-            .into_dyn_boxed()
     }
 
-    pub fn history_rev(&self) -> BoxedLIter<'a, (TimeIndexEntry, ELID)> {
+    pub fn history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a, G> {
         let view = self.view.clone();
         self.additions
             .edge_events_rev()
             .filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids()))
-            .into_dyn_boxed()
     }
 }
 

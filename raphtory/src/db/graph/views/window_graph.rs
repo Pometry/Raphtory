@@ -484,6 +484,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
         self.window_is_empty() || self.graph.edges_filtered() || self.window_is_bounding()
     }
 
+    #[inline]
     fn edge_history_filtered(&self) -> bool {
         self.graph.edge_history_filtered()
     }
@@ -492,6 +493,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
         self.window_is_empty() || (!self.window_is_bounding() && self.graph.edge_list_trusted())
     }
 
+    #[inline]
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge_history(eid, t, layer_ids)
     }
@@ -501,7 +503,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
         !self.window_is_empty()
             && self.graph.filter_edge(edge, layer_ids)
             && (!self.window_is_bounding()
-                || self.edge_time_semantics().include_edge_window(
+                || self.graph.edge_time_semantics().include_edge_window(
                     edge,
                     LayeredGraph::new(&self.graph, layer_ids.clone()),
                     self.window_bound(),

@@ -119,6 +119,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a> for FilteredEdgeT
     type IndexType = TimeIndexEntry;
     type RangeType = Self;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         if self.view.edge_history_filtered() {
             self.time_index
@@ -254,7 +255,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn filtered_additions_iter<'graph: 'a, G: GraphViewOps<'graph>>(
         self,
         view: G,
-    ) -> BoxedLIter<'a, (usize, FilteredEdgeTimeIndex<'a, G>)> {
+    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
         let eid = self.eid();
         self.additions_iter(view.layer_ids().clone())
             .map(move |(layer_id, additions)| {
@@ -267,7 +268,6 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
                     },
                 )
             })
-            .into_dyn_boxed()
     }
 
     fn additions_par_iter(
@@ -288,7 +288,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn filtered_deletions_iter<G: GraphViewOps<'a>>(
         self,
         view: G,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> + 'a {
+    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
         let eid = self.eid();
         self.deletions_iter(view.layer_ids().clone())
             .map(move |(layer_id, deletions)| {
