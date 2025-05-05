@@ -260,6 +260,12 @@ impl<S: Repr, T: Repr> Repr for (S, T) {
     }
 }
 
+impl<S: Repr, T: Repr, U: Repr> Repr for (S, T, U) {
+    fn repr(&self) -> String {
+        format!("({}, {}, {})", self.0.repr(), self.1.repr(), self.2.repr())
+    }
+}
+
 impl<'a, T: Repr> Repr for LockedView<'a, T> {
     fn repr(&self) -> String {
         self.deref().repr()
