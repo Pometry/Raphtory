@@ -312,8 +312,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.window_is_empty() || self.graph.edge_filter_includes_node_filter()
+    fn edge_and_node_filter_independent(&self) -> bool {
+        self.window_is_empty() || self.graph.edge_and_node_filter_independent()
     }
 
     #[inline]
@@ -638,7 +638,6 @@ mod views_test {
 
     #[test]
     fn graph_has_node_check_fail() {
-        global_info_logger();
         let vs: Vec<(i64, u64)> = vec![
             (1, 0),
             (-100, 262),
@@ -650,10 +649,7 @@ mod views_test {
         let graph = Graph::new();
 
         for (t, v) in &vs {
-            graph
-                .add_node(*t, *v, NO_PROPS, None)
-                .map_err(|err| error!("{:?}", err))
-                .ok();
+            graph.add_node(*t, *v, NO_PROPS, None).unwrap();
         }
 
         // FIXME: Issue #46: arrow_test(&graph, test)

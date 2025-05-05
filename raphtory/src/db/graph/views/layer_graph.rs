@@ -130,13 +130,11 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     }
 
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        let layer_ids = self.layers.intersect(layer_ids);
-        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, &layer_ids)
+        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, layer_ids)
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        let layer_ids = self.layers.intersect(layer_ids);
-        edge.has_layer(&layer_ids) && self.graph.filter_edge(edge, &layer_ids)
+        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, &layer_ids)
     }
 }
 
@@ -259,8 +257,11 @@ mod test_layers {
         let e1 = graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
         graph.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
 
+        println!("edge: {e1:?}");
         // FIXME: this is weird, see issue #1458
         assert!(e1.has_layer("2"));
+        let history = e1.layers("2").unwrap().history();
+        println!("history: {:?}", history);
         assert!(e1.layers("2").unwrap().history().is_empty());
 
         test_storage!(&graph, |graph| {

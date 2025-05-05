@@ -41,7 +41,13 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     fn default_layer(&self) -> Self::LayeredViewType {
         let layers = match self.current_filter().get_default_layer_id() {
             None => LayerIds::None,
-            Some(layer) => LayerIds::One(layer),
+            Some(layer) => {
+                if self.current_filter().layer_ids().contains(&layer) {
+                    LayerIds::One(layer)
+                } else {
+                    LayerIds::None
+                }
+            }
         };
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), layers))
     }

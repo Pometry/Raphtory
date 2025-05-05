@@ -20,7 +20,7 @@ pub trait InternalNodeFilterOps {
     /// If true, do not need to check src and dst of the edge separately, even if nodes are filtered
     /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
     /// This should be `false` when implementing `NodeFilterOps` without overriding the edge filter.
-    fn edge_filter_includes_node_filter(&self) -> bool;
+    fn edge_and_node_filter_independent(&self) -> bool;
 
     /// If `true`, node is included in the graph
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
@@ -43,8 +43,8 @@ where
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.base().edge_filter_includes_node_filter()
+    fn edge_and_node_filter_independent(&self) -> bool {
+        self.base().edge_and_node_filter_independent()
     }
 
     #[inline]

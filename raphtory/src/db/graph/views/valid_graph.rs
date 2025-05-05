@@ -80,10 +80,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
-        time_semantics.edge_is_valid(
-            edge,
-            LayeredGraph::new(&self.graph, self.graph.layer_ids().intersect(layer_ids)),
-        ) && self.graph.filter_edge(edge, layer_ids)
+        time_semantics.edge_is_valid(edge, LayeredGraph::new(&self.graph, layer_ids.clone()))
+            && self.graph.filter_edge(edge, layer_ids)
     }
 }
 

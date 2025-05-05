@@ -96,7 +96,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilt
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         false
     }
 

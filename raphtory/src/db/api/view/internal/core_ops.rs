@@ -381,17 +381,6 @@ impl<'a> TimeIndexLike<'a> for &'a NodeTimestamps {
     }
 }
 
-fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
-    is: impl Iterator<Item = I>,
-) -> Box<dyn DoubleEndedIterator<Item = A> + Send + 'a> {
-    is.map(|i| {
-        let i: Box<dyn DoubleEndedIterator<Item = A> + Send + 'a> = Box::new(i);
-        i
-    })
-    .reduce(|a, b| Box::new(a.chain(b)) as Box<dyn DoubleEndedIterator<Item = A> + Send + 'a>)
-    .unwrap_or_else(|| Box::new(iter::empty()))
-}
-
 #[derive(Clone, Debug)]
 pub enum NodeAdditions<'a> {
     Mem(&'a NodeTimestamps),
@@ -688,6 +677,21 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
             NodeAdditions::Col(additions) => additions.clone().prop_events().count(),
         }
     }
+
+    fn is_empty(&self) -> bool {
+        match &self.additions {
+            NodeAdditions::Mem(additions) => additions.props_ts.is_empty(),
+            NodeAdditions::Range(additions) => match additions {
+                TimeIndexWindow::Empty => true,
+                TimeIndexWindow::Range { timeindex, range } => {
+                    (&timeindex.props_ts).range(range.clone()).is_empty()
+                }
+                TimeIndexWindow::All(timeindex) => timeindex.props_ts.is_empty(),
+            },
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(additions) => additions.clone().prop_events().next().is_none(),
+        }
+    }
 }
 
 impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
@@ -720,7 +724,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn len(&self) -> usize {
-        if self.view.edge_history_filtered() {
+        if !self.view.edges_filtered() {
             match &self.additions {
                 NodeAdditions::Mem(additions) => additions.edge_ts.len(),
                 NodeAdditions::Range(additions) => match additions {
@@ -735,6 +739,25 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
             }
         } else {
             self.history().count()
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        if !self.view.edges_filtered() {
+            match &self.additions {
+                NodeAdditions::Mem(additions) => additions.edge_ts.is_empty(),
+                NodeAdditions::Range(additions) => match additions {
+                    TimeIndexWindow::Empty => true,
+                    TimeIndexWindow::Range { timeindex, range } => {
+                        (&timeindex.edge_ts).range(range.clone()).is_empty()
+                    }
+                    TimeIndexWindow::All(timeindex) => timeindex.edge_ts.is_empty(),
+                },
+                #[cfg(feature = "storage")]
+                NodeAdditions::Col(additions) => additions.clone().edge_events().next().is_none(),
+            }
+        } else {
+            self.history().next().is_none()
         }
     }
 }
@@ -769,5 +792,9 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 
     fn len(&self) -> usize {
         self.prop_history().len() + self.edge_history().len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.prop_history().is_empty() && self.edge_history().is_empty()
     }
 }

@@ -115,8 +115,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> 
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
+    fn edge_and_node_filter_independent(&self) -> bool {
+        self.graph.edge_and_node_filter_independent()
     }
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {

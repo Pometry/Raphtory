@@ -1,6 +1,12 @@
 use crate::db::api::{
     storage::graph::nodes::node_ref::NodeStorageRef,
-    view::{internal::NodeTimeSemanticsOps, BoxableGraphView},
+    view::{
+        internal::{
+            EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, InternalNodeFilterOps,
+            NodeTimeSemanticsOps,
+        },
+        BoxableGraphView,
+    },
 };
 
 pub enum FilterState {
@@ -23,26 +29,24 @@ pub trait FilterOps {
 impl<G: BoxableGraphView + Clone> FilterOps for G {
     #[inline]
     fn filter_node(&self, node: NodeStorageRef) -> bool {
-        if self.nodes_filtered() {
-            let time_semantics = self.node_time_semantics();
-            time_semantics.node_valid(node, self)
-                && self.internal_filter_node(node, self.layer_ids())
-        } else {
-            true
-        }
+        let time_semantics = self.node_time_semantics();
+        self.internal_filter_node(node, self.layer_ids()) && time_semantics.node_valid(node, self)
     }
 
     #[inline]
     fn filter_state(&self) -> FilterState {
-        match (
-            self.internal_nodes_filtered() || self.edge_history_filtered(),
-            self.edges_filtered(),
-        ) {
+        match (self.internal_nodes_filtered(), self.edges_filtered()) {
             (false, false) => FilterState::Neither,
             (true, false) => FilterState::Nodes,
-            (false, true) => FilterState::Edges,
+            (false, true) => {
+                if self.edge_history_filtered() {
+                    FilterState::BothIndependent
+                } else {
+                    FilterState::Edges
+                }
+            }
             (true, true) => {
-                if self.edge_filter_includes_node_filter() {
+                if self.edge_and_node_filter_independent() {
                     FilterState::BothIndependent
                 } else {
                     FilterState::Both
