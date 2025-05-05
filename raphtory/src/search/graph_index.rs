@@ -13,6 +13,7 @@ use crate::{
 };
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::{
+    ffi::OsStr,
     fmt::{Debug, Formatter},
     fs,
     fs::File,
@@ -94,16 +95,20 @@ impl GraphIndex {
 
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i)?;
-            let name = entry.name().to_string();
-            if !name.starts_with("index/") {
+            let entry_path = Path::new(entry.name());
+
+            // Check if the first component is "index"
+            if entry_path.components().next().map(|c| c.as_os_str()) != Some(OsStr::new("index")) {
                 continue;
             }
 
-            let rel_path = Path::new(&name)
-                .strip_prefix("index/")
-                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip 'index/': {}", e)))?;
+            // Strip "index" from the path
+            let rel_path = entry_path.strip_prefix("index").map_err(|e| {
+                GraphError::IOErrorMsg(format!("Failed to strip 'index' prefix: {}", e))
+            })?;
 
             let out_path = destination.join(rel_path);
+
             if let Some(parent) = out_path.parent() {
                 fs::create_dir_all(parent)?;
             }

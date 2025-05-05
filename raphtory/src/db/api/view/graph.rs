@@ -652,8 +652,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
 
             for i in 0..archive.len() {
                 let entry = archive.by_index(i)?;
-                if entry.name().starts_with("index/") {
-                    return Ok(true);
+                let entry_path = Path::new(entry.name());
+
+                if let Some(first_component) = entry_path.components().next() {
+                    if first_component.as_os_str() == "index" {
+                        return Ok(true);
+                    }
                 }
             }
 
