@@ -642,11 +642,21 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.additions
-            .with_range(w.clone())
-            .prop_events()
-            .next()
-            .is_some()
+        let history = &self.additions;
+        match history {
+            NodeAdditions::Mem(h) => h.props_ts().active(w),
+            NodeAdditions::Range(h) => match h {
+                TimeIndexWindow::Empty => false,
+                TimeIndexWindow::Range { timeindex, range } => {
+                    let start = range.start.max(w.start);
+                    let end = range.end.min(w.end).max(start);
+                    timeindex.props_ts().active(start..end)
+                }
+                TimeIndexWindow::All(h) => h.props_ts().active(w),
+            },
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(h) => h.with_range(w).prop_events().any(|t| !t.is_empty()),
+        }
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
@@ -676,7 +686,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
                 TimeIndexWindow::All(timeindex) => timeindex.props_ts.len(),
             },
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(additions) => additions.clone().prop_events().count(),
+            NodeAdditions::Col(additions) => additions.clone().prop_events().map(|t| t.len()).sum(),
         }
     }
 
@@ -691,7 +701,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
                 TimeIndexWindow::All(timeindex) => timeindex.props_ts.is_empty(),
             },
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(additions) => additions.clone().prop_events().next().is_none(),
+            NodeAdditions::Col(additions) => additions.clone().prop_events().all(|t| t.is_empty()),
         }
     }
 }
@@ -701,12 +711,29 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.additions
-            .with_range(w)
-            .edge_events()
-            .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
-            .next()
-            .is_some()
+        if self.view.edge_history_filtered() {
+            self.additions
+                .with_range(w)
+                .edge_events()
+                .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
+                .next()
+                .is_some()
+        } else {
+            match &self.additions {
+                NodeAdditions::Mem(h) => h.edge_ts().active(w),
+                NodeAdditions::Range(h) => match h {
+                    TimeIndexWindow::Empty => false,
+                    TimeIndexWindow::Range { timeindex, range } => {
+                        let start = range.start.max(w.start);
+                        let end = range.end.min(w.end).max(start);
+                        timeindex.edge_ts().active(start..end)
+                    }
+                    TimeIndexWindow::All(h) => h.edge_ts().active(w),
+                },
+                #[cfg(feature = "storage")]
+                NodeAdditions::Col(h) => h.with_range(w).edge_events().any(|t| !t.is_empty()),
+            }
+        }
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
@@ -737,7 +764,9 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
                     TimeIndexWindow::All(timeindex) => timeindex.edge_ts.len(),
                 },
                 #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => additions.clone().edge_events().count(),
+                NodeAdditions::Col(additions) => {
+                    additions.clone().edge_events().map(|t| t.len()).sum()
+                }
             }
         } else {
             self.history().count()
@@ -756,7 +785,9 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
                     TimeIndexWindow::All(timeindex) => timeindex.edge_ts.is_empty(),
                 },
                 #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => additions.clone().edge_events().next().is_none(),
+                NodeAdditions::Col(additions) => {
+                    additions.clone().edge_events().all(|t| t.is_empty())
+                }
             }
         } else {
             self.history().next().is_none()
