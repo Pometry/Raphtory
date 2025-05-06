@@ -15,6 +15,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use ahash::AHashSet;
 use itertools::Itertools;
 use raphtory_api::{
     core::{
@@ -299,23 +300,20 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
                 .edge_history()
                 .active_t(w.start.saturating_add(1)..w.end)
             || {
-                let mut deleted = vec![RoaringTreemap::default(); view.unfiltered_num_layers()];
+                let mut deleted = AHashSet::new();
                 history
                     .edge_history()
                     .range_t(i64::MIN..w.start.saturating_add(1))
                     .history_rev()
                     .any(|(_, e)| {
                         // scan backwards in time over filtered history and keep track of deletions
-                        let cache = &mut deleted[e.layer()];
-                        if cache.contains(e.edge.as_u64()) {
+                        let eid = e.edge;
+                        let layer = e.layer();
+                        if e.is_deletion() {
+                            deleted.insert((eid, layer));
                             false
                         } else {
-                            if e.is_deletion() {
-                                cache.insert(e.edge.as_u64());
-                                false
-                            } else {
-                                true
-                            }
+                            !deleted.contains(&(eid, layer))
                         }
                     })
             }
