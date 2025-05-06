@@ -165,7 +165,7 @@ pub struct NodeFilter {
 }
 
 impl NodeFilter {
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), GraphError> {
         let fields_set = [
             self.node.is_some(),
             self.property.is_some(),
@@ -178,9 +178,9 @@ impl NodeFilter {
         let count = fields_set.iter().filter(|x| **x).count();
 
         match count {
-            0 => Err("At least one field in NodeFilter must be provided.".to_string()),
+            0 => Err(GraphError::InvalidGqlFilter("At least one field in NodeFilter must be provided.".to_string())),
             1 => Ok(()),
-            _ => Err("Only one of node, property, constant_property, temporal_property, and/or must be provided.".to_string()),
+            _ => Err(GraphError::InvalidGqlFilter("Only one of node, property, constant_property, temporal_property, and/or must be provided.".to_string())),
         }
     }
 }
@@ -210,7 +210,7 @@ pub struct EdgeFilter {
 }
 
 impl EdgeFilter {
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), GraphError> {
         let fields_set = [
             self.src.is_some(),
             self.dst.is_some(),
@@ -224,9 +224,9 @@ impl EdgeFilter {
         let count = fields_set.iter().filter(|x| **x).count();
 
         match count {
-            0 => Err("At least one field in EdgeFilter must be provided.".to_string()),
+            0 => Err(GraphError::InvalidGqlFilter("At least one field in EdgeFilter must be provided.".to_string())),
             1 => Ok(()),
-            _ => Err("Only one of src, dst, property, constant_property, temporal_property, and/or must be provided.".to_string()),
+            _ => Err(GraphError::InvalidGqlFilter("Only one of src, dst, property, constant_property, temporal_property, and/or must be provided.".to_string())),
         }
     }
 }
