@@ -83,13 +83,8 @@ impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
             entity,
             content,
             embedding,
-            life,
         } = self;
         let entity = match entity {
-            DocumentEntity::Graph { name, graph } => DocumentEntity::Graph {
-                name,
-                graph: graph.into_dynamic(),
-            },
             // TODO: define a common method node/edge.into_dynamic for NodeView, as this code is duplicated in model/graph/node.rs and model/graph/edge.rs
             DocumentEntity::Node(node) => DocumentEntity::Node(NodeView {
                 base_graph: node.base_graph.into_dynamic(),
@@ -107,7 +102,6 @@ impl<G: StaticGraphViewOps + IntoDynamic> Document<G> {
             entity,
             content,
             embedding,
-            life,
         }
     }
 }
@@ -244,36 +238,6 @@ impl PyVectorisedGraph {
     /// Return an empty selection of documents
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()
-    }
-
-    /// Return all the graph level documents
-    ///
-    /// Returns:
-    ///   list[Document]: list of graph level documents
-    pub fn get_graph_documents(&self) -> Vec<Document<DynamicGraph>> {
-        self.0.get_graph_documents()
-    }
-
-    /// Search the top scoring documents according to `query` with no more than `limit` documents
-    ///
-    /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the maximum number of documents to search
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   VectorSelection: The vector selection resulting from the search
-    #[pyo3(signature = (query, limit, window=None))]
-    pub fn documents_by_similarity(
-        &self,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> PyResult<DynamicVectorSelection> {
-        let embedding = compute_embedding(&self.0, query)?;
-        Ok(self
-            .0
-            .documents_by_similarity(&embedding, limit, translate_window(window)))
     }
 
     /// Search the top scoring entities according to `query` with no more than `limit` entities
@@ -444,38 +408,6 @@ impl PyVectorSelection {
     #[pyo3(signature = (hops, window=None))]
     fn expand(mut self_: PyRefMut<'_, Self>, hops: usize, window: PyWindow) {
         self_.0.expand(hops, translate_window(window))
-    }
-
-    /// Add the top `limit` adjacent documents with higher score for `query` to the selection
-    ///
-    /// The expansion algorithm is a loop with two steps on each iteration:
-    ///   1. All the documents 1 hop away of some of the documents included on the selection (and
-    ///      not already selected) are marked as candidates.
-    ///   2. Those candidates are added to the selection in descending order according to the
-    ///      similarity score obtained against the `query`.
-    ///
-    /// This loops goes on until the current selection reaches a total of `limit`  documents or
-    /// until no more documents are available
-    ///
-    /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the number of documents to add
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///     None:
-    #[pyo3(signature = (query, limit, window=None))]
-    fn expand_documents_by_similarity(
-        mut self_: PyRefMut<'_, Self>,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> PyResult<()> {
-        let embedding = compute_embedding(&self_.0.graph, query)?;
-        self_
-            .0
-            .expand_documents_by_similarity(&embedding, limit, translate_window(window));
-        Ok(())
     }
 
     /// Add the top `limit` adjacent entities with higher score for `query` to the selection

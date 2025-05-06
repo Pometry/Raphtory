@@ -21,7 +21,6 @@ pub type Embedding = Arc<[f32]>;
 
 #[derive(Debug, Clone)]
 pub enum DocumentEntity<G: StaticGraphViewOps> {
-    // Graph { name: Option<String>, graph: G },
     Node(NodeView<G>),
     Edge(EdgeView<G>),
 }
@@ -423,35 +422,4 @@ mod vector_tests {
     //         .get_documents();
     //     assert!(docs[0].content.contains("Frodo appeared with Gandalf"));
     // }
-
-    #[tokio::test]
-    async fn test_arroy() {
-        let g = Graph::new();
-
-        g.add_node(0, "a", NO_PROPS, None).unwrap();
-        g.add_node(0, "b", NO_PROPS, None).unwrap();
-        g.add_node(0, "c", NO_PROPS, None).unwrap();
-
-        let template = DocumentTemplate {
-            node_template: Some(DEFAULT_NODE_TEMPLATE.to_owned()),
-            edge_template: Some(DEFAULT_EDGE_TEMPLATE.to_owned()),
-            graph_template: Some(DEFAULT_GRAPH_TEMPLATE.to_owned()),
-        };
-
-        let v = g
-            .vectorise(
-                Box::new(fake_embedding),
-                None.into(),
-                false,
-                template,
-                None,
-                false,
-            )
-            .await
-            .unwrap();
-
-        let nodes = v.documents_by_arroy(&[1.0, 0.0, 0.0].into(), 1, None);
-        assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes.get(0), Some(&"a".to_owned()))
-    }
 }

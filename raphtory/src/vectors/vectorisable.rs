@@ -4,13 +4,12 @@ use crate::{
         api::view::{internal::IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::NodeViewOps,
     vectors::{
-        document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
-        template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
+        embedding_cache::EmbeddingCache, entity_id::EntityId, template::DocumentTemplate,
+        vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
-use arroy::{distances::Euclidean, Database as ArroyDatabase, Writer};
+use arroy::{distances::Cosine, Database as ArroyDatabase, Writer};
 use async_trait::async_trait;
 use itertools::Itertools;
 use parking_lot::RwLock;
@@ -18,7 +17,10 @@ use rand::{rngs::StdRng, SeedableRng};
 use std::{collections::HashMap, sync::Arc};
 use tracing::info;
 
-use super::{vectorised_graph::VectorDb, Embedding};
+use super::{
+    vectorised_graph::{EdgeDb, NodeDb, VectorDb},
+    Embedding,
+};
 
 const CHUNK_SIZE: usize = 1000;
 
@@ -97,41 +99,10 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             template,
             embedding: embedding.into(),
             cache_storage: cache.into(),
-            node_db,
-            edge_db,
+            node_db: NodeDb(node_db),
+            edge_db: EdgeDb(edge_db),
         })
     }
-}
-
-pub(crate) async fn vectorise_graph<G: StaticGraphViewOps>(
-    graph: &G,
-    graph_name: Option<String>,
-    template: &DocumentTemplate,
-    embedding: &Arc<dyn EmbeddingFunction>,
-    cache_storage: &Option<EmbeddingCache>,
-) -> GraphResult<Vec<DocumentRef>> {
-    let docs = indexed_docs_for_graph(graph, graph_name, template);
-    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
-}
-
-pub(crate) async fn vectorise_node<G: StaticGraphViewOps>(
-    node: NodeView<G>,
-    template: &DocumentTemplate,
-    embedding: &Arc<dyn EmbeddingFunction>,
-    cache_storage: &Option<EmbeddingCache>,
-) -> GraphResult<Vec<DocumentRef>> {
-    let docs = indexed_docs_for_node(node, template);
-    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
-}
-
-pub(crate) async fn vectorise_edge<G: StaticGraphViewOps>(
-    edge: EdgeView<G>,
-    template: &DocumentTemplate,
-    embedding: &Arc<dyn EmbeddingFunction>,
-    cache_storage: &Option<EmbeddingCache>,
-) -> GraphResult<Vec<DocumentRef>> {
-    let docs = indexed_docs_for_edge(edge, template);
-    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
 }
 
 async fn db_from_docs(
@@ -151,15 +122,12 @@ async fn db_from_docs(
 
     // we will open the default LMDB unnamed database
     let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
-    let db: ArroyDatabase<Euclidean> = env.create_database(&mut wtxn, None).unwrap();
-
-    // Now we can give it to our arroy writer
-    let index = 0;
+    let db: ArroyDatabase<Cosine> = env.create_database(&mut wtxn, None).unwrap();
 
     let dimensions = vectors.get(0).unwrap().1.len();
-    let writer = Writer::<Euclidean>::new(db, index, dimensions);
-    for (node_id, vector) in vectors {
-        writer.add_item(&mut wtxn, node_id, &vector).unwrap();
+    let writer = Writer::<Cosine>::new(db, 0, dimensions);
+    for (id, vector) in vectors {
+        writer.add_item(&mut wtxn, id, &vector).unwrap();
     }
 
     // TODO: review this -> You can specify the number of trees to use or specify None.
@@ -171,11 +139,13 @@ async fn db_from_docs(
     Ok(VectorDb {
         vectors: db,
         env,
-        tempdir: tempdir.into(),
+        _tempdir: tempdir.into(),
+        dimensions,
     })
 }
 
-async fn compute_embeddings<I>(
+// TODO: mvoe this to common place, utils maybe?
+pub(super) async fn compute_embeddings<I>(
     documents: I,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,

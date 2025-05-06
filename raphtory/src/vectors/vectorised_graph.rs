@@ -3,43 +3,29 @@ use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
     db::{
         api::{
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            },
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::CoreGraphOps, BaseNodeViewOps, DynamicGraph, IntoDynamic,
                 StaticGraphViewOps,
             },
         },
-        graph::{edge::EdgeView, node::NodeView, views::window_graph::WindowedGraph},
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
     vectors::{
-        document_ref::DocumentRef,
-        embedding_cache::EmbeddingCache,
-        entity_id::EntityId,
-        similarity_search_utils::{find_top_k, score_documents},
-        template::DocumentTemplate,
-        Embedding, EmbeddingFunction,
+        embedding_cache::EmbeddingCache, similarity_search_utils::find_top_k,
+        template::DocumentTemplate, Embedding, EmbeddingFunction,
     },
 };
-use arroy::{distances::Euclidean, Database as ArroyDatabase, Reader};
-use async_trait::async_trait;
-use itertools::{chain, Itertools};
-use parking_lot::RwLock;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Deref,
-    path::PathBuf,
-    sync::Arc,
-};
+use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
+use itertools::Itertools;
+use rand::{rngs::StdRng, SeedableRng};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 use tempfile::TempDir;
 
 use super::{
-    similarity_search_utils::{apply_window, score_document_groups_by_highest},
-    vector_selection::VectorSelection,
-    vectorisable::{vectorise_edge, vectorise_graph, vectorise_node},
-    Document,
+    similarity_search_utils::apply_window, vector_selection::VectorSelection,
+    vectorisable::compute_embeddings,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -63,7 +49,7 @@ impl EntityRef {
 
     pub(crate) fn as_node<G: StaticGraphViewOps>(&self, view: &G) -> Option<GID> {
         if let EntityRef::Node(id) = self {
-            Some(view.node_id(id.into()))
+            Some(view.node_id(raphtory_api::core::entities::VID(*id)))
         } else {
             None
         }
@@ -87,45 +73,20 @@ impl EntityRef {
         }
     }
 
-    fn as_u32(&self) -> usize {
+    fn as_u32(&self) -> u32 {
         match self {
             EntityRef::Node(id) => *id as u32,
             EntityRef::Edge(id) => *id as u32,
         }
     }
-
-    // pub(crate) fn as_node(&self) -> Option<usize> {
-    //     if let EntityRef::Node(id) = self {
-    //         Some(id)
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    // pub(crate) fn as_edge(&self) -> Option<usize> {
-    //     if let EntityRef::Edge(id) = self {
-    //         Some(id)
-    //     } else {
-    //         None
-    //     }
-    // }
 }
 
 #[derive(Clone)]
-pub(crate) struct VectorDb {
-    // FIXME: save index value in here !!!!!!!!!!!!!!!!!!!
-    pub(crate) vectors: ArroyDatabase<Euclidean>, // TODO: review is this safe to clone? does it point to the same thing?
-    pub(crate) env: heed::Env,
-    pub(crate) tempdir: Arc<TempDir>, // do I really need, is the file open not enough
-}
-
-struct NodeDb {
-    db: VectorDb,
-}
+pub(super) struct NodeDb(pub(super) VectorDb);
 
 impl VectorSearch for NodeDb {
     fn get_db(&self) -> &VectorDb {
-        &self.db
+        &self.0
     }
 
     fn into_entity_ref(id: u32) -> EntityRef {
@@ -133,23 +94,20 @@ impl VectorSearch for NodeDb {
     }
 
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool {
-        view.has_node(entity.as_node(view))
+        view.has_node(entity.as_node(view).unwrap())
     }
 
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = EntityRef> {
-        view.nodes()
-            .iter()
-            .map(|node| view.core_nodes().node_entry(node.id()).vid())
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = usize> {
+        view.nodes().into_iter().map(|node| node.node.index())
     }
 }
 
-struct EdgeDb {
-    db: VectorDb,
-}
+#[derive(Clone)]
+pub(super) struct EdgeDb(pub(super) VectorDb);
 
 impl VectorSearch for EdgeDb {
     fn get_db(&self) -> &VectorDb {
-        &self.db
+        &self.0
     }
 
     fn into_entity_ref(id: u32) -> EntityRef {
@@ -158,22 +116,21 @@ impl VectorSearch for EdgeDb {
 
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool {
         let (src, dst) = entity.as_edge(view).unwrap(); // TODO: remove this?
-        view.has_edge(src, dst)
+        view.has_edge(src, dst) // FIXME: there should be a quicker way!!!!!!!!!!!!!!!!!!!
     }
 
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = EntityRef> {
-        view.edges()
-            .iter()
-            .map(|node| view.core_nodes().node_entry(node.id()).vid())
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = usize> {
+        view.edges().into_iter().map(|edge| edge.edge.pid().0)
     }
 }
 
 // TODO: rename this to GraphVectorSearch
+// TODO: merge this and VectorDb !!!!!!!!!!!!!!!!!???????
 pub(super) trait VectorSearch {
     fn get_db(&self) -> &VectorDb;
     fn into_entity_ref(id: u32) -> EntityRef;
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool;
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u32>;
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = usize> + 'static;
 
     fn top_k<G: StaticGraphViewOps>(
         &self,
@@ -181,41 +138,23 @@ pub(super) trait VectorSearch {
         k: usize,
         view: Option<G>,
         filter: Option<HashSet<EntityRef>>,
-    ) -> Box<dyn Iterator<Item = (EntityRef, f32)>> {
-        let docs: Vec<_> = self
-            .top_k_with_candidates(query, k, None::<std::iter::Empty<u32>>)
-            .collect();
-        let count = docs
-            .iter()
-            .filter(|(id, _)| {
-                let valid_for_view = view.is_none_or(|view| Self::view_has_entity(id, &view));
-                filter.is_none_or(|filter| filter.contains(&id))
-            })
-            .count();
-
-        // can do some of the things below in parallel ?!?!?
-        // TODO: add some explanations here
-        // having g.window().count_nodes() would be very useful, but is potentially expensive
-        // but we don't really need the exact number of nodes/edges in the window
-        // an approximation is enough
-        // so we could get a sample of random node ids and do g.subgraph(nodes).window().count_nodes()
-        // which for a small number of nodes, should be very quick in comparison
-        // but the result would be still useful enough!!
-        if count > k {
-            Box::new(docs.into_iter().take(k))
-        } else if count == 0 {
-            let candidates = match filter {
-                Some(filter) => filter
-                    .iter()
-                    .filter(|entity| Self::view_has_entity(entity, &view)),
-                None => Self::all_valid_entities(view.unwrap()), // TODO: remove this unwrap
-            };
-            let docs = self.top_k_with_candidates(query, k, Some(candidates));
-            Box::new(docs)
-        } else {
-            let docs = self.top_k(query, k * 10, view, filter).take(k); // FIXME: avoid hardcoding * 10, do it dinamically
-            Box::new(docs)
-        }
+    ) -> impl Iterator<Item = (EntityRef, f32)> {
+        let candidates: Option<Box<dyn Iterator<Item = u32>>> = match (view, filter) {
+            (None, None) => None,
+            (view, Some(filter)) => Some(Box::new(
+                filter
+                    .into_iter()
+                    .filter(move |entity| {
+                        view.as_ref()
+                            .map_or(true, |view| Self::view_has_entity(entity, view))
+                    })
+                    .map(|entity| entity.as_u32()),
+            )),
+            (view, None) => Some(Box::new(
+                Self::all_valid_entities(view.unwrap()).map(|id| id as u32), // FIXME: unwrap here doesnt make sense
+            )),
+        };
+        self.top_k_with_candidates(query, k, candidates)
     }
 
     fn top_k_with_candidates(
@@ -241,17 +180,6 @@ pub(super) trait VectorSearch {
             .into_iter()
             .map(|(id, score)| (Self::into_entity_ref(id), score))
     }
-
-    fn get_id(&self, id: usize) -> Embedding {
-        // FIXME: remove unsafe code, ask arroy mantainers to make the type public
-        let db = self.get_db();
-        let rtxn = db.env.read_txn().unwrap();
-        let key: Key = id.into();
-        let arroy_key = unsafe { std::mem::transmute(&key) };
-        let node = db.vectors.get(&rtxn, arroy_key).unwrap().unwrap();
-        let vector = node.leaf().unwrap().vector.to_vec().into();
-        vector
-    }
 }
 
 pub struct Key {
@@ -268,6 +196,15 @@ impl From<usize> for Key {
             _padding: 0,
         }
     }
+}
+
+#[derive(Clone)]
+pub(crate) struct VectorDb {
+    // FIXME: save index value in here !!!!!!!!!!!!!!!!!!!
+    pub(crate) vectors: ArroyDatabase<Cosine>, // TODO: review is this safe to clone? does it point to the same thing?
+    pub(crate) env: heed::Env,
+    pub(crate) _tempdir: Arc<TempDir>, // do I really need, is the file open not enough
+    pub(crate) dimensions: usize,
 }
 
 impl VectorDb {
@@ -306,6 +243,21 @@ impl VectorDb {
             .unwrap()
             .into_iter()
             .map(|(id, score)| (id as usize, score))
+    }
+
+    pub(super) fn insert_vector(&self, id: usize, embedding: &Embedding) {
+        // FIXME: remove unwraps
+        let mut wtxn = self.env.write_txn().unwrap();
+
+        let writer = Writer::<Cosine>::new(self.vectors, 0, self.dimensions);
+        writer
+            .add_item(&mut wtxn, id as u32, embedding.as_ref())
+            .unwrap();
+
+        let mut rng = StdRng::from_entropy();
+        writer.builder(&mut rng).build(&mut wtxn).unwrap();
+
+        wtxn.commit().unwrap();
     }
 
     pub(super) fn get_id(&self, id: usize) -> Embedding {
@@ -348,33 +300,35 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub async fn update_node<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
-        // if let Some(node) = self.source_graph.node(node) {
-        //     let entity_id = EntityId::from_node(node.clone());
-        //     let refs = vectorise_node(
-        //         node,
-        //         &self.template,
-        //         &self.embedding,
-        //         self.cache_storage.as_ref(),
-        //     )
-        //     .await?;
-        //     self.node_documents.write().insert(entity_id, refs);
-        // }
+        if let Some(node) = self.source_graph.node(node) {
+            let id = node.node.index();
+            if let Some(doc) = self.template.node(node) {
+                let vector = self.compute_embedding(doc).await?;
+                self.node_db.0.insert_vector(id, &vector);
+            }
+        }
         Ok(())
     }
 
     pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) -> GraphResult<()> {
-        // if let Some(edge) = self.source_graph.edge(src, dst) {
-        //     let entity_id = EntityId::from_edge(edge.clone());
-        //     let refs = vectorise_edge(
-        //         edge,
-        //         &self.template,
-        //         &self.embedding,
-        //         self.cache_storage.as_ref(),
-        //     )
-        //     .await?;
-        //     self.edge_documents.write().insert(entity_id, refs);
-        // }
+        if let Some(edge) = self.source_graph.edge(src, dst) {
+            let id = edge.edge.pid().0;
+            if let Some(doc) = self.template.edge(edge) {
+                let vector = self.compute_embedding(doc).await?;
+                self.edge_db.0.insert_vector(id, &vector);
+            }
+        }
         Ok(())
+    }
+
+    async fn compute_embedding(&self, doc: String) -> GraphResult<Embedding> {
+        let mut vectors = compute_embeddings(
+            std::iter::once((0, doc)),
+            &self.embedding,
+            &self.cache_storage,
+        )
+        .await?;
+        Ok(vectors.remove(0).1) // FIXME: unwrap
     }
 
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
@@ -457,44 +411,4 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let docs = self.edge_db.top_k(query, limit, view, None);
         VectorSelection::new(self.clone(), docs.collect())
     }
-
-    // pub(crate) fn top_k_nodes_with_window(
-    //     &self,
-    //     query: &Embedding,
-    //     k: usize,
-    //     window: Option<(i64, i64)>,
-    // ) -> Box<dyn Iterator<Item = (EntityRef, f32)>> {
-    //     match window {
-    //         Some((start, end)) => {
-    //             let w = &self.source_graph.window(start, end);
-    //             // let count = g.count_nodes();
-    //             let docs: Vec<_> = self.node_db.top_k(query, k).collect();
-    //             let count = docs
-    //                 .iter()
-    //                 .filter(|(id, _)| w.has_node(w.node_id((*id).into())))
-    //                 .count();
-    //             if count > k {
-    //                 boxed_nodes(docs.into_iter().take(k))
-    //             } else if count == 0 {
-    //                 let filter = w.nodes().iter().map(|node| node.node.index());
-    //                 let docs = self.node_db.top_k_with_filter(query, k, filter);
-    //                 boxed_nodes(docs)
-    //             } else {
-    //                 let docs = self.top_k_nodes_with_window(query, k * 10, window).take(k); // FIXME: avoid hardcoding * 10, do it dinamically
-    //                 Box::new(docs)
-    //             }
-    //         }
-    //         None => {
-    //             let docs = self.node_db.top_k(query, k);
-    //             boxed_nodes(docs) // TODO: do this in other places !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //         }
-    //     }
-    // }
-}
-
-trait DocIter: Iterator<Item = (EntityRef, f32)> {}
-pub(crate) fn merge_docs<A: DocIter, B: DocIter>(a: A, b: B) -> Vec<(EntityRef, f32)> {
-    let mut docs = a.chain(b).collect::<Vec<_>>();
-    docs.sort_by_key(|(entity, score)| -score);
-    docs
 }

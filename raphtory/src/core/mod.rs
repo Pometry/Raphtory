@@ -867,16 +867,6 @@ impl From<Prop> for Value {
     }
 }
 
-impl From<Lifespan> for Value {
-    fn from(lifespan: Lifespan) -> Self {
-        match lifespan {
-            Lifespan::Interval { start, end } => json!({ "start": start, "end": end }),
-            Lifespan::Event { time } => json!({ "time": time }),
-            Lifespan::Inherited => Value::String("inherited".to_string()),
-        }
-    }
-}
-
 pub fn sort_comparable_props(props: Vec<&Prop>) -> Vec<&Prop> {
     // Filter out non-comparable props
     let mut comparable_props: Vec<_> = props

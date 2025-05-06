@@ -336,8 +336,7 @@ mod template_tests {
             edge_template: Some(DEFAULT_EDGE_TEMPLATE.to_owned()),
         };
 
-        let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap();
+        let rendered = template.node(graph.node("node1").unwrap()).unwrap();
         let expected = indoc! {"
             Node node1 has the following properties:
             key1: value1
@@ -348,8 +347,9 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.edge(graph.edge("node1", "node2").unwrap());
-        let rendered = docs.next().unwrap();
+        let rendered = template
+            .edge(graph.edge("node1", "node2").unwrap())
+            .unwrap();
         let expected = indoc! {"
             There is an edge from node1 to node2 with events at:
             - Jan 1 1970 00:00
@@ -357,8 +357,7 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.graph(graph);
-        let rendered = docs.next().unwrap();
+        let rendered = template.graph(graph).unwrap();
         let expected = indoc! {"
             Graph with the following properties:
             name: test-name
@@ -409,8 +408,7 @@ mod template_tests {
             edge_template: None,
         };
 
-        let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap();
+        let rendered = template.node(graph.node("node1").unwrap()).unwrap();
         let expected = indoc! {"
             node node1 is an unknown entity with the following properties:
             temp_test:
@@ -423,8 +421,7 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.node(graph.node("node2").unwrap());
-        let rendered = docs.next().unwrap();
+        let rendered = template.node(graph.node("node2").unwrap()).unwrap();
         let expected = indoc! {"
             node node2 is a person with the following properties:
             const_test: const_test_value "};
@@ -447,8 +444,7 @@ mod template_tests {
             edge_template: None,
         };
 
-        let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap();
+        let rendered = template.node(graph.node("node1").unwrap()).unwrap();
         let expected = "September 9 2024 09:08:01";
         assert_eq!(&rendered, expected);
     }
