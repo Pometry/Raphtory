@@ -1,6 +1,5 @@
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 pub use raphtory_api::core::storage::timeindex::*;
-use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::{max, min},
@@ -16,6 +15,13 @@ pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
     Empty,
     One(T),
     Set(BTreeSet<T>),
+}
+
+#[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Debug, Clone)]
+pub enum TimeIndexVariants<Empty, One, Set> {
+    Empty(Empty),
+    One(One),
+    Set(Set),
 }
 
 impl<T: Ord + Eq + Copy + Debug> Default for &TimeIndex<T> {
@@ -70,28 +76,25 @@ impl<T: AsTime> TimeIndex<T> {
     pub(crate) fn range_iter(
         &self,
         w: Range<T>,
-    ) -> Box<dyn DoubleEndedIterator<Item = T> + Send + Sync + '_> {
+    ) -> impl DoubleEndedIterator<Item = T> + Send + Sync + '_ {
         match self {
-            TimeIndex::Empty => Box::new(iter::empty()),
-            TimeIndex::One(t) => {
-                if w.contains(t) {
-                    Box::new(iter::once(*t))
-                } else {
-                    Box::new(iter::empty())
-                }
-            }
-            TimeIndex::Set(ts) => Box::new(ts.range(w).copied()),
+            TimeIndex::Empty => TimeIndexVariants::Empty(iter::empty()),
+            TimeIndex::One(t) => TimeIndexVariants::One(w.contains(t).then_some(*t).into_iter()),
+            TimeIndex::Set(ts) => TimeIndexVariants::Set(ts.range(w).copied()),
         }
     }
 }
 
 impl<'a, T: AsTime> TimeIndexLike<'a> for &'a TimeIndex<T> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
-        Box::new((*self).range_iter(w))
+    fn range_iter(self, w: Range<Self::IndexType>) -> impl Iterator<Item = T> + Send + Sync + 'a {
+        self.range_iter(w)
     }
 
-    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
-        (*self).range_iter(w).rev().into_dyn_boxed()
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = T> + Send + Sync + 'a {
+        self.range_iter(w).rev()
     }
 
     fn range_count(&self, w: Range<Self::IndexType>) -> usize {
@@ -251,20 +254,17 @@ impl<'a, T: AsTime> TimeIndexOps<'a> for &'a TimeIndex<T> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
+    #[allow(refining_impl_trait)]
+    fn iter(self) -> impl DoubleEndedIterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
-            TimeIndex::Empty => iter::empty().into_dyn_boxed(),
-            TimeIndex::One(t) => iter::once(*t).into_dyn_boxed(),
-            TimeIndex::Set(ts) => ts.iter().copied().into_dyn_boxed(),
+            TimeIndex::Empty => TimeIndexVariants::Empty(iter::empty()),
+            TimeIndex::One(t) => TimeIndexVariants::One(iter::once(*t)),
+            TimeIndex::Set(ts) => TimeIndexVariants::Set(ts.iter().copied()),
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
-        match self {
-            TimeIndex::Empty => iter::empty().into_dyn_boxed(),
-            TimeIndex::One(t) => iter::once(*t).into_dyn_boxed(),
-            TimeIndex::Set(ts) => ts.iter().rev().copied().into_dyn_boxed(),
-        }
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.iter().rev()
     }
 
     #[inline]
@@ -346,23 +346,23 @@ where
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'b, Self::IndexType> {
+    fn iter(self) -> impl Iterator<Item = T> + Send + Sync + 'b {
         match self {
-            TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
+            TimeIndexWindow::Empty => TimeIndexWindowVariants::Empty(iter::empty()),
             TimeIndexWindow::Range { timeindex, range } => {
-                timeindex.range_iter(range.clone()).into_dyn_boxed()
+                TimeIndexWindowVariants::Range(timeindex.range_iter(range))
             }
-            TimeIndexWindow::All(timeindex) => timeindex.iter().into_dyn_boxed(),
+            TimeIndexWindow::All(timeindex) => TimeIndexWindowVariants::All(timeindex.iter()),
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'b, Self::IndexType> {
+    fn iter_rev(self) -> impl Iterator<Item = T> + Send + Sync + 'b {
         match self {
-            TimeIndexWindow::Empty => iter::empty().into_dyn_boxed(),
+            TimeIndexWindow::Empty => TimeIndexWindowVariants::Empty(iter::empty()),
             TimeIndexWindow::Range { timeindex, range } => {
-                timeindex.range_iter_rev(range.clone()).into_dyn_boxed()
+                TimeIndexWindowVariants::Range(timeindex.range_iter_rev(range))
             }
-            TimeIndexWindow::All(timeindex) => timeindex.iter_rev(),
+            TimeIndexWindow::All(timeindex) => TimeIndexWindowVariants::All(timeindex.iter_rev()),
         }
     }
 

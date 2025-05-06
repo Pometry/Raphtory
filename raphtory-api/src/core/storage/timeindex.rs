@@ -1,4 +1,3 @@
-use crate::iter::{BoxedLIter, IntoDynBoxed};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
@@ -24,22 +23,28 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
 }
 
 pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
+    fn range_iter(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
 
-    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType>;
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
 
     fn range_count(&self, w: Range<Self::IndexType>) -> usize;
 
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.range_iter(w).next()
+        self.clone().range_iter(w).next()
     }
 
     fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.range_iter_rev(w).next()
+        self.clone().range_iter_rev(w).next()
     }
 }
 
-pub trait TimeIndexOps<'a>: Send + Sync + 'a {
+pub trait TimeIndexOps<'a>: Sized + Clone + Send + Sync + 'a {
     type IndexType: AsTime;
     type RangeType: TimeIndexOps<'a, IndexType = Self::IndexType> + 'a;
 
@@ -61,7 +66,7 @@ pub trait TimeIndexOps<'a>: Send + Sync + 'a {
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        self.iter().next()
+        self.clone().iter().next()
     }
 
     fn last_t(&self) -> Option<i64> {
@@ -69,29 +74,29 @@ pub trait TimeIndexOps<'a>: Send + Sync + 'a {
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        self.iter_rev().next()
+        self.clone().iter_rev().next()
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType>;
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType>;
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
 
-    fn iter_t(&self) -> BoxedLIter<'a, i64> {
-        self.iter().map(|time| time.t()).into_dyn_boxed()
+    fn iter_t(self) -> impl Iterator<Item = i64> + Send + Sync + 'a {
+        self.iter().map(|time| time.t())
     }
 
-    fn iter_rev_t(&self) -> BoxedLIter<'a, i64> {
-        self.iter_rev().map(|time| time.t()).into_dyn_boxed()
+    fn iter_rev_t(self) -> impl Iterator<Item = i64> + Send + Sync + 'a {
+        self.iter_rev().map(|time| time.t())
     }
 
     fn len(&self) -> usize;
 
     fn is_empty(&self) -> bool {
-        self.iter().next().is_none()
+        self.clone().iter().next().is_none()
     }
 }
 
-impl<'a, T: TimeIndexOps<'a>> TimeIndexOps<'a> for &'a T {
+impl<'a, T: TimeIndexOps<'a> + Clone> TimeIndexOps<'a> for &'a T {
     type IndexType = T::IndexType;
     type RangeType = T::RangeType;
 
@@ -103,12 +108,12 @@ impl<'a, T: TimeIndexOps<'a>> TimeIndexOps<'a> for &'a T {
         T::range(*self, w)
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
-        T::iter(*self)
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        T::iter(self.clone())
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
-        T::iter_rev(*self)
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        T::iter_rev(self.clone())
     }
 
     fn len(&self) -> usize {

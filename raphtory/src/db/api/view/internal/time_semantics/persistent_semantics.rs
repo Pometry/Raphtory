@@ -25,7 +25,6 @@ use raphtory_api::{
     },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
 };
-use roaring::RoaringTreemap;
 use std::{iter, ops::Range};
 
 fn alive_before<

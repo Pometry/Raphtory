@@ -11,25 +11,24 @@ use crate::{
         },
         Prop,
     },
-    db::api::{
-        storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
-        view::IntoDynBoxed,
+    db::api::storage::graph::{
+        tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants,
     },
     prelude::GraphViewOps,
 };
+use either::Either;
+use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
+#[cfg(feature = "storage")]
+use pometry_storage::timestamps::TimeStamps;
 use raphtory_api::{
     core::{
-        entities::{EID, ELID},
+        entities::{edges::edge_ref::Dir, EID, ELID},
         storage::timeindex::TimeIndexEntry,
     },
-    iter::{BoxedLDIter, BoxedLIter, IntoDynDBoxed},
+    iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use rayon::prelude::*;
 use std::ops::Range;
-
-#[cfg(feature = "storage")]
-use pometry_storage::timestamps::TimeStamps;
-use raphtory_api::core::entities::edges::edge_ref::Dir;
 
 #[derive(Clone)]
 pub enum TimeIndexRef<'a> {
@@ -37,6 +36,14 @@ pub enum TimeIndexRef<'a> {
     Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),
     #[cfg(feature = "storage")]
     External(TimeStamps<'a, TimeIndexEntry>),
+}
+
+#[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Debug, Clone)]
+pub enum TimeIndexRefVariants<Ref, Range, #[cfg(feature = "storage")] External> {
+    Ref(Ref),
+    Range(Range),
+    #[cfg(feature = "storage")]
+    External(External),
 }
 
 impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
@@ -80,21 +87,21 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
-            TimeIndexRef::Ref(t) => t.iter(),
-            TimeIndexRef::Range(t) => t.iter(),
+            TimeIndexRef::Ref(t) => TimeIndexRefVariants::Ref(t.iter()),
+            TimeIndexRef::Range(t) => TimeIndexRefVariants::Range(t.iter()),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.iter(),
+            TimeIndexRef::External(t) => TimeIndexRefVariants::External(t.iter()),
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
-            TimeIndexRef::Ref(t) => t.iter_rev(),
-            TimeIndexRef::Range(t) => t.iter_rev(),
+            TimeIndexRef::Ref(t) => TimeIndexRefVariants::Ref(t.iter_rev()),
+            TimeIndexRef::Range(t) => TimeIndexRefVariants::Range(t.iter_rev()),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.iter_rev(),
+            TimeIndexRef::External(t) => TimeIndexRefVariants::External(t.iter_rev()),
         }
     }
 
@@ -115,7 +122,9 @@ pub struct FilteredEdgeTimeIndex<'graph, G> {
     view: G,
 }
 
-impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a> for FilteredEdgeTimeIndex<'a, G> {
+impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
+    for FilteredEdgeTimeIndex<'graph, G>
+{
     type IndexType = TimeIndexEntry;
     type RangeType = Self;
 
@@ -144,29 +153,31 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a> for FilteredEdgeT
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         if self.view.edge_history_filtered() {
             let view = self.view.clone();
             let eid = self.eid;
-            self.time_index
-                .iter()
-                .filter(move |t| view.filter_edge_history(eid, *t, view.layer_ids()))
-                .into_dyn_boxed()
+            Either::Left(
+                self.time_index
+                    .iter()
+                    .filter(move |t| view.filter_edge_history(eid, *t, view.layer_ids())),
+            )
         } else {
-            self.time_index.iter()
+            Either::Right(self.time_index.iter())
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         if self.view.edge_history_filtered() {
             let view = self.view.clone();
             let eid = self.eid;
-            self.time_index
-                .iter_rev()
-                .filter(move |t| view.filter_edge_history(eid, *t, view.layer_ids()))
-                .into_dyn_boxed()
+            Either::Left(
+                self.time_index
+                    .iter_rev()
+                    .filter(move |t| view.filter_edge_history(eid, *t, view.layer_ids())),
+            )
         } else {
-            self.time_index.iter_rev()
+            Either::Right(self.time_index.iter_rev())
         }
     }
 

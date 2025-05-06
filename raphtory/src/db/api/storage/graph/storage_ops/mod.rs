@@ -51,7 +51,6 @@ use crate::{
         DiskGraphStorage,
     },
 };
-use either::Either;
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use rayon::prelude::*;

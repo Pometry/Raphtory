@@ -58,7 +58,7 @@ use crate::{
         },
         graph::{graph::graph_equal, views::layer_graph::LayeredGraph},
     },
-    prelude::{GraphViewOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::{
     core::{

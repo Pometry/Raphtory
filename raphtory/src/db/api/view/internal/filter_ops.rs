@@ -1,12 +1,6 @@
 use crate::db::api::{
     storage::graph::nodes::node_ref::NodeStorageRef,
-    view::{
-        internal::{
-            EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, InternalNodeFilterOps,
-            NodeTimeSemanticsOps,
-        },
-        BoxableGraphView,
-    },
+    view::{internal::NodeTimeSemanticsOps, BoxableGraphView},
 };
 
 pub enum FilterState {

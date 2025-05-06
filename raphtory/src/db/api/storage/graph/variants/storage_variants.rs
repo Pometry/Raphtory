@@ -1,7 +1,7 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
 use raphtory_api::{
     core::storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-    iter::{BoxedLDIter, BoxedLIter},
+    iter::BoxedLDIter,
 };
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
@@ -309,12 +309,12 @@ impl<
         for_all!(self, props => props.last())
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
-        for_all!(self, props => props.iter())
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        for_all_iter!(self, props => props.iter())
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
-        for_all!(self, props => props.iter_rev())
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        for_all_iter!(self, props => props.iter_rev())
     }
 
     fn len(&self) -> usize {

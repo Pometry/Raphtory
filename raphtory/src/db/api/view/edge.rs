@@ -9,9 +9,7 @@ use crate::{
             properties::{internal::PropertiesOps, Properties},
             storage::graph::edges::edge_entry::EdgeStorageEntry,
             view::{
-                internal::{
-                    CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps,
-                },
+                internal::{CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
                 BoxableGraphView, IntoDynBoxed,
             },
         },

@@ -309,15 +309,14 @@ impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
             .or_else(|| last.or(other))
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.edge_ts
             .iter()
             .map(|(t, _)| *t)
             .merge(self.props_ts.iter().map(|(t, _)| *t))
-            .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.edge_ts
             .iter()
             .rev()
@@ -325,7 +324,6 @@ impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
             .merge_by(self.props_ts.iter().rev().map(|(t, _)| *t), |lt, rt| {
                 lt >= rt
             })
-            .into_dyn_boxed()
     }
 
     fn len(&self) -> usize {
@@ -334,19 +332,22 @@ impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
 }
 
 impl<'a> TimeIndexLike<'a> for &'a NodeTimestamps {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
-        Box::new(
-            self.edge_ts()
-                .range_iter(w.clone())
-                .merge(self.props_ts().range_iter(w)),
-        )
+    fn range_iter(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.edge_ts()
+            .range_iter(w.clone())
+            .merge(self.props_ts().range_iter(w))
     }
 
-    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.edge_ts()
             .range_iter_rev(w.clone())
             .merge_by(self.props_ts().range_iter_rev(w), |lt, rt| lt >= rt)
-            .into_dyn_boxed()
     }
 
     fn range_count(&self, w: Range<Self::IndexType>) -> usize {
@@ -549,29 +550,28 @@ impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'b, TimeIndexEntry> {
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
         match self {
-            NodeAdditions::Mem(index) => index.iter(),
-            NodeAdditions::Range(index) => index.iter(),
+            NodeAdditions::Mem(index) => AdditionVariants::Mem(index.iter()),
+            NodeAdditions::Range(index) => AdditionVariants::Range(index.iter()),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index
-                .iter()
-                .map(|index| index.into_iter())
-                .kmerge()
-                .into_dyn_boxed(),
+            NodeAdditions::Col(index) => {
+                AdditionVariants::Col(index.iter().map(|index| index.into_iter()).kmerge())
+            }
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'b, TimeIndexEntry> {
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
         match self {
-            NodeAdditions::Mem(index) => index.iter_rev(),
-            NodeAdditions::Range(index) => index.iter_rev(),
+            NodeAdditions::Mem(index) => AdditionVariants::Mem(index.iter_rev()),
+            NodeAdditions::Range(index) => AdditionVariants::Range(index.iter_rev()),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index
-                .iter()
-                .map(|index| index.into_iter().rev())
-                .kmerge_by(|lt, rt| lt >= rt)
-                .into_dyn_boxed(),
+            NodeAdditions::Col(index) => AdditionVariants::Col(
+                index
+                    .iter()
+                    .map(|index| index.into_iter().rev())
+                    .kmerge_by(|lt, rt| lt >= rt),
+            ),
         }
     }
 
@@ -585,16 +585,19 @@ impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
     pub(crate) additions: NodeAdditions<'a>,
     pub(crate) view: G,
 }
 
+#[derive(Debug, Clone)]
 pub struct NodeEdgeHistory<'a, G> {
     pub(crate) additions: NodeAdditions<'a>,
     pub(crate) view: G,
 }
 
+#[derive(Debug, Clone)]
 pub struct NodePropHistory<'a, G> {
     pub(crate) additions: NodeAdditions<'a>,
     pub(crate) view: G,
@@ -662,12 +665,12 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
-        self.additions.prop_events().into_dyn_boxed()
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.additions.prop_events()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
-        self.additions.prop_events_rev().into_dyn_boxed()
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.additions.prop_events_rev()
     }
 
     fn len(&self) -> usize {
@@ -739,12 +742,12 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
-        self.history().map(|(t, _)| t).into_dyn_boxed()
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.history().map(|(t, _)| t)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
-        self.history_rev().map(|(t, _)| t).into_dyn_boxed()
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.history_rev().map(|(t, _)| t)
     }
 
     fn len(&self) -> usize {
@@ -804,18 +807,14 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
         NodeHistory { additions, view }
     }
 
-    fn iter(&self) -> BoxedLIter<'b, TimeIndexEntry> {
-        self.prop_history()
-            .iter()
-            .merge(self.edge_history().iter())
-            .into_dyn_boxed()
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
+        self.prop_history().iter().merge(self.edge_history().iter())
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'b, TimeIndexEntry> {
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
         self.prop_history()
             .iter_rev()
             .merge_by(self.edge_history().iter_rev(), |t1, t2| t1 >= t2)
-            .into_dyn_boxed()
     }
 
     fn len(&self) -> usize {

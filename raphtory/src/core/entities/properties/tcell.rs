@@ -1,10 +1,7 @@
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
 use either::Either;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, Extend, FusedIterator, Iterator};
-use raphtory_api::{
-    core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike},
-    iter::{BoxedLIter, IntoDynBoxed},
-};
+use raphtory_api::core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
@@ -207,22 +204,18 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<'a, Self::IndexType> {
+    #[allow(refining_impl_trait)]
+    fn iter(self) -> impl DoubleEndedIterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
-            TCell::Empty => std::iter::empty().into_dyn_boxed(),
-            TCell::TCell1(t, _) => std::iter::once(*t).into_dyn_boxed(),
-            TCell::TCellCap(svm) => svm.iter().map(|(ti, _)| *ti).into_dyn_boxed(),
-            TCell::TCellN(btm) => btm.keys().copied().into_dyn_boxed(),
+            TCell::Empty => TCellVariants::Empty(std::iter::empty()),
+            TCell::TCell1(t, _) => TCellVariants::TCell1(std::iter::once(*t)),
+            TCell::TCellCap(svm) => TCellVariants::TCellCap(svm.iter().map(|(ti, _)| *ti)),
+            TCell::TCellN(btm) => TCellVariants::TCellN(btm.keys().copied()),
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<'a, Self::IndexType> {
-        match self {
-            TCell::Empty => std::iter::empty().into_dyn_boxed(),
-            TCell::TCell1(t, _) => std::iter::once(*t).into_dyn_boxed(),
-            TCell::TCellCap(svm) => svm.iter().rev().map(|(ti, _)| *ti).into_dyn_boxed(),
-            TCell::TCellN(btm) => btm.keys().rev().copied().into_dyn_boxed(),
-        }
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        TimeIndexOps::iter(self).rev()
     }
 
     fn len(&self) -> usize {
@@ -236,15 +229,19 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
 }
 
 impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
-        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
+    #[allow(refining_impl_trait)]
+    fn range_iter(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl DoubleEndedIterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.iter_window(w).map(|(ti, _)| *ti)
     }
 
-    fn range_iter_rev(&self, w: Range<Self::IndexType>) -> BoxedLIter<'a, Self::IndexType> {
-        self.iter_window(w)
-            .map(|(ti, _)| *ti)
-            .rev()
-            .into_dyn_boxed()
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.range_iter(w).rev()
     }
 
     fn range_count(&self, w: Range<Self::IndexType>) -> usize {
