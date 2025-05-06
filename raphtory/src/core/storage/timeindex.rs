@@ -1,3 +1,6 @@
+use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
+pub use raphtory_api::core::storage::timeindex::*;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::{max, min},
@@ -6,9 +9,6 @@ use std::{
     iter,
     ops::Range,
 };
-
-pub use raphtory_api::core::storage::timeindex::*;
-use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
@@ -118,6 +118,13 @@ pub enum TimeIndexWindow<'a, T: AsTime, TI> {
     Empty,
     Range { timeindex: &'a TI, range: Range<T> },
     All(&'a TI),
+}
+
+#[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Debug, Clone)]
+pub enum TimeIndexWindowVariants<Empty, Range, All> {
+    Empty(Empty),
+    Range(Range),
+    All(All),
 }
 
 impl<'a, T: AsTime + Clone, TI> Clone for TimeIndexWindow<'a, T, TI> {
