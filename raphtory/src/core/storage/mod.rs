@@ -171,7 +171,7 @@ impl TPropColumn {
         }
     }
 
-    pub(crate) fn set(&mut self, index: usize, prop: Prop) -> Result<(), GraphError> {
+    pub fn set(&mut self, index: usize, prop: Prop) -> Result<(), GraphError> {
         self.init_empty_col(&prop)?;
         match (self, prop) {
             (TPropColumn::Bool(col), Prop::Bool(v)) => col.set(index, v)?,

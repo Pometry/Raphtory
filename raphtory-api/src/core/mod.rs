@@ -123,7 +123,7 @@ impl PropType {
     pub fn has_cmp(&self) -> bool {
         self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
     }
-    
+
     // This is the best guess for the size of one row of properties
     pub fn est_size(&self) -> usize {
         const CONTAINER_SIZE: usize = 8;
@@ -131,17 +131,16 @@ impl PropType {
             PropType::Str => CONTAINER_SIZE,
             PropType::U8 | PropType::Bool => 1,
             PropType::U16 => 2,
-            PropType::I32  | PropType::F32 | PropType::U32=> 4,
-            PropType::I64  | PropType::F64 | PropType::U64 => 8,
+            PropType::I32 | PropType::F32 | PropType::U32 => 4,
+            PropType::I64 | PropType::F64 | PropType::U64 => 8,
             PropType::NDTime | PropType::DTime => 8,
             PropType::List(p_type) => p_type.est_size() * CONTAINER_SIZE,
-            PropType::Map(p_map) => p_map
-                .iter()
-                .map(|(_, v)| v.est_size())
-                .sum::<usize>() * CONTAINER_SIZE,
+            PropType::Map(p_map) => {
+                p_map.iter().map(|(_, v)| v.est_size()).sum::<usize>() * CONTAINER_SIZE
+            }
             PropType::Array(p_type) => p_type.est_size() * CONTAINER_SIZE,
-            PropType::Decimal { .. } => 16, 
-            PropType::Empty => 0
+            PropType::Decimal { .. } => 16,
+            PropType::Empty => 0,
         }
     }
 }

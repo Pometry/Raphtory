@@ -7,9 +7,7 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
-use arrow_array::{
-    Array as ArrowArray, ArrowPrimitiveType, GenericStringArray, OffsetSizeTrait,
-};
+use arrow_array::{Array as ArrowArray, ArrowPrimitiveType, GenericStringArray, OffsetSizeTrait};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use polars_arrow::{

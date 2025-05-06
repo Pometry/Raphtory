@@ -1,13 +1,11 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
-use std::sync::atomic;
-use std::sync::atomic::AtomicUsize;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use polars_arrow::Either;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{atomic, atomic::AtomicUsize, Arc},
+};
 
 use crate::core::{
     check_for_unification,
@@ -190,7 +188,6 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
-
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read().clone();
         Self {
@@ -277,7 +274,8 @@ impl PropMapper {
             None => {
                 // vector not resized yet, resize it and set the dtype and return id
                 dtype_write.resize(id + 1, PropType::Empty);
-                self.row_size.fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+                self.row_size
+                    .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
                 dtype_write[id] = dtype;
                 Ok(wrapped_id)
             }
@@ -290,7 +288,8 @@ impl PropMapper {
         if dtypes.len() <= id {
             dtypes.resize(id + 1, PropType::Empty);
         }
-        self.row_size.fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+        self.row_size
+            .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
         dtypes[id] = dtype;
     }
 
