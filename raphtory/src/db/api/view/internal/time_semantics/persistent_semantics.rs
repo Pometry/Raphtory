@@ -240,7 +240,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         let start = w.start;
         let first_row = if node
             .additions()
-            .with_range(TimeIndexEntry::range(i64::MIN..start))
+            .range(TimeIndexEntry::range(i64::MIN..start))
             .prop_events()
             .next()
             .is_some()

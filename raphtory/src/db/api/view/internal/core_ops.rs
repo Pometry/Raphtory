@@ -506,18 +506,6 @@ impl<'a> NodeAdditions<'a> {
             NodeAdditions::Col(index) => AdditionVariants::Col(index.edge_history_rev()),
         }
     }
-
-    pub fn with_range(&self, w: Range<TimeIndexEntry>) -> Self {
-        match self {
-            NodeAdditions::Mem(index) => NodeAdditions::Range(TimeIndexWindow::Range {
-                timeindex: index,
-                range: w,
-            }),
-            NodeAdditions::Range(index) => NodeAdditions::Range(index.with_range(w)),
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
-        }
-    }
 }
 
 impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
@@ -667,7 +655,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
-        let additions = self.additions.with_range(w);
+        let additions = self.additions.range(w);
         NodePropHistory {
             additions,
             view: self.view.clone(),
@@ -720,7 +708,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         if self.view.edge_history_filtered() {
             self.additions
-                .with_range(w)
+                .range(w)
                 .edge_events()
                 .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
                 .next()
@@ -744,7 +732,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
-        let additions = self.additions.with_range(w);
+        let additions = self.additions.range(w);
         NodeEdgeHistory {
             additions,
             view: self.view.clone(),
@@ -811,7 +799,7 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self {
-        let additions = self.additions.with_range(w);
+        let additions = self.additions.range(w);
         let view = self.view.clone();
         NodeHistory { additions, view }
     }
