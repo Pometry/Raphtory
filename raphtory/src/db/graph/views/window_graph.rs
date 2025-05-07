@@ -56,7 +56,7 @@ use crate::{
                 BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::{graph::graph_equal, views::layer_graph::LayeredGraph},
+        graph::graph::graph_equal,
     },
     prelude::GraphViewOps,
 };
@@ -505,7 +505,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
             && (!self.window_is_bounding()
                 || self.graph.edge_time_semantics().include_edge_window(
                     edge,
-                    LayeredGraph::new(&self.graph, layer_ids.clone()),
+                    &self.graph,
+                    layer_ids,
                     self.window_bound(),
                 ))
     }

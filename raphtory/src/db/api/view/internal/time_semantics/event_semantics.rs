@@ -184,9 +184,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> bool {
-        edge.filtered_additions_iter(&view, view.layer_ids())
+        edge.filtered_additions_iter(&view, layer_ids)
             .any(|(_, additions)| additions.active_t(w.clone()))
     }
 

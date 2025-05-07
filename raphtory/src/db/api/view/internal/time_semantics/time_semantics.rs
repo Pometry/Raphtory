@@ -166,9 +166,10 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> bool {
-        for_all!(self, semantics => semantics.include_edge_window(edge, view, w))
+        for_all!(self, semantics => semantics.include_edge_window(edge, view, layer_ids, w))
     }
 
     fn edge_history<'graph, G: GraphViewOps<'graph>>(

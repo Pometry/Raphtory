@@ -381,12 +381,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> bool {
         // If an edge has any event in the interior (both end exclusive) of the window it is always included.
         // Additionally, the edge is included if the last event at or before the start of the window was an addition.
         let exclusive_start = w.start.saturating_add(1);
-        edge.filtered_updates_iter(&view, view.layer_ids())
+        edge.filtered_updates_iter(&view, layer_ids)
             .any(|(_, additions, deletions)| {
                 additions.active_t(exclusive_start..w.end)
                     || deletions.active_t(exclusive_start..w.end)

@@ -115,6 +115,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         edge: EdgeStorageRef,
         view: G,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> bool;
 
