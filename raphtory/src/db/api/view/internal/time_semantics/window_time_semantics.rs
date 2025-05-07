@@ -12,7 +12,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::storage::timeindex::TimeIndexEntry,
+    core::{entities::LayerIds, storage::timeindex::TimeIndexEntry},
     iter::{BoxedLDIter, BoxedLIter},
 };
 use std::ops::Range;
@@ -199,8 +199,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         edge: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        self.semantics.edge_history_window(edge, view, self.window)
+        self.semantics
+            .edge_history_window(edge, view, layer_ids, self.window)
     }
 
     #[inline]
@@ -208,9 +210,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         edge: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        self.semantics.edge_history_window(edge, view, w)
+        self.semantics.edge_history_window(edge, view, layer_ids, w)
     }
 
     #[inline]
@@ -238,8 +241,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        self.semantics.edge_window_exploded(e, view, self.window)
+        self.semantics
+            .edge_window_exploded(e, view, layer_ids, self.window)
     }
 
     #[inline]
@@ -247,8 +252,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, usize> {
-        self.semantics.edge_window_layers(e, view, self.window)
+        self.semantics
+            .edge_window_layers(e, view, layer_ids, self.window)
     }
 
     #[inline]
@@ -256,9 +263,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        self.semantics.edge_window_exploded(e, view, w)
+        self.semantics.edge_window_exploded(e, view, layer_ids, w)
     }
 
     #[inline]
@@ -266,9 +274,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, usize> {
-        self.semantics.edge_window_layers(e, view, w)
+        self.semantics.edge_window_layers(e, view, layer_ids, w)
     }
 
     #[inline]
@@ -366,9 +375,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
         self.semantics
-            .edge_deletion_history_window(e, view, self.window)
+            .edge_deletion_history_window(e, view, layer_ids, self.window)
     }
 
     #[inline]
@@ -376,9 +386,11 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        self.semantics.edge_deletion_history_window(e, view, w)
+        self.semantics
+            .edge_deletion_history_window(e, view, layer_ids, w)
     }
 
     #[inline]
@@ -596,10 +608,11 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         self.semantics
-            .temporal_edge_prop_hist_window(e, view, prop_id, self.window)
+            .temporal_edge_prop_hist_window(e, view, layer_ids, prop_id, self.window)
     }
 
     #[inline]
@@ -607,10 +620,11 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         self.semantics
-            .temporal_edge_prop_hist_window_rev(e, view, prop_id, self.window)
+            .temporal_edge_prop_hist_window_rev(e, view, layer_ids, prop_id, self.window)
     }
 
     #[inline]
@@ -618,11 +632,12 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         self.semantics
-            .temporal_edge_prop_hist_window(e, view, prop_id, w)
+            .temporal_edge_prop_hist_window(e, view, layer_ids, prop_id, w)
     }
 
     #[inline]
@@ -630,11 +645,12 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
         self.semantics
-            .temporal_edge_prop_hist_window_rev(e, view, prop_id, w)
+            .temporal_edge_prop_hist_window_rev(e, view, layer_ids, prop_id, w)
     }
 
     #[inline]

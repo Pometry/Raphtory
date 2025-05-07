@@ -4,7 +4,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::storage::timeindex::TimeIndexEntry,
+    core::{entities::LayerIds, storage::timeindex::TimeIndexEntry},
     iter::{BoxedLDIter, BoxedLIter},
 };
 use std::ops::Range;
@@ -127,6 +127,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         edge: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// returns the update history of an edge in a window
@@ -138,6 +139,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         edge: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
@@ -161,6 +163,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// Explode edge iterator for edge `e` for every layer
@@ -168,6 +171,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, usize>;
 
     /// Exploded edge iterator for edge`e` over window `w`
@@ -175,6 +179,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
@@ -183,6 +188,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, usize>;
 
@@ -255,6 +261,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
     /// Get the edge deletions for use with materialize restricted to window `w`
@@ -262,6 +269,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)>;
 
@@ -436,6 +444,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)>;
 
@@ -446,6 +455,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)>;
 
@@ -464,6 +474,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)>;
@@ -475,6 +486,7 @@ pub trait EdgeTimeSemanticsOps {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)>;

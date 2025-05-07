@@ -15,7 +15,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::storage::timeindex::TimeIndexEntry,
+    core::{entities::LayerIds, storage::timeindex::TimeIndexEntry},
     iter::{BoxedLDIter, BoxedLIter},
 };
 use std::ops::Range;
@@ -175,17 +175,19 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         self,
         edge: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        for_all!(self, semantics => semantics.edge_history(edge, view))
+        for_all!(self, semantics => semantics.edge_history(edge, view, layer_ids))
     }
 
     fn edge_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
         edge: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        for_all!(self, semantics => semantics.edge_history_window(edge, view, w))
+        for_all!(self, semantics => semantics.edge_history_window(edge, view, layer_ids, w))
     }
 
     fn edge_exploded_count<'graph, G: GraphViewOps<'graph>>(
@@ -209,34 +211,38 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        for_all!(self, semantics => semantics.edge_exploded(e, view))
+        for_all!(self, semantics => semantics.edge_exploded(e, view, layer_ids))
     }
 
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, usize> {
-        for_all!(self, semantics => semantics.edge_layers(e, view))
+        for_all!(self, semantics => semantics.edge_layers(e, view, layer_ids))
     }
 
     fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        for_all!(self, semantics => semantics.edge_window_exploded(e, view, w))
+        for_all!(self, semantics => semantics.edge_window_exploded(e, view, layer_ids, w))
     }
 
     fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, usize> {
-        for_all!(self, semantics => semantics.edge_window_layers(e, view, w))
+        for_all!(self, semantics => semantics.edge_window_layers(e, view, layer_ids, w))
     }
 
     fn edge_earliest_time<'graph, G: GraphViewOps<'graph>>(
@@ -319,17 +325,19 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        for_all!(self, semantics => semantics.edge_deletion_history(e, view))
+        for_all!(self, semantics => semantics.edge_deletion_history(e, view, layer_ids))
     }
 
     fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        for_all!(self, semantics => semantics.edge_deletion_history_window(e, view, w))
+        for_all!(self, semantics => semantics.edge_deletion_history_window(e, view, layer_ids, w))
     }
 
     fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
@@ -507,38 +515,42 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
-        for_all!(self, semantics => semantics.temporal_edge_prop_hist(e, view, prop_id))
+        for_all!(self, semantics => semantics.temporal_edge_prop_hist(e, view, layer_ids, prop_id))
     }
 
     fn temporal_edge_prop_hist_rev<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
-        for_all!(self, semantics => semantics.temporal_edge_prop_hist_rev(e, view, prop_id))
+        for_all!(self, semantics => semantics.temporal_edge_prop_hist_rev(e, view, layer_ids, prop_id))
     }
 
     fn temporal_edge_prop_hist_window<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
-        for_all!(self, semantics => semantics.temporal_edge_prop_hist_window(e, view, prop_id, w))
+        for_all!(self, semantics => semantics.temporal_edge_prop_hist_window(e, view, layer_ids, prop_id, w))
     }
 
     fn temporal_edge_prop_hist_window_rev<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize, Prop)> {
-        for_all!(self, semantics => semantics.temporal_edge_prop_hist_window_rev(e, view, prop_id, w))
+        for_all!(self, semantics => semantics.temporal_edge_prop_hist_window_rev(e, view, layer_ids, prop_id, w))
     }
 
     fn constant_edge_prop<'graph, G: GraphViewOps<'graph>>(

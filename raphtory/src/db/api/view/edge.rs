@@ -9,7 +9,9 @@ use crate::{
             properties::{internal::PropertiesOps, Properties},
             storage::graph::edges::edge_entry::EdgeStorageEntry,
             view::{
-                internal::{CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
+                internal::{
+                    CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps,
+                },
                 BoxableGraphView, IntoDynBoxed,
             },
         },
@@ -65,7 +67,7 @@ fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
         edge_builder: |view| view.core_edge(edge_ref.pid()),
         iter_builder: move |edge, graph| {
             time_semantics
-                .edge_exploded(edge.as_ref(), graph)
+                .edge_exploded(edge.as_ref(), graph, graph.layer_ids())
                 .map(move |(t, l)| edge_ref.at(t).at_layer(l))
                 .into_dyn_boxed()
         },
@@ -85,7 +87,7 @@ fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
         edge_builder: |view| view.core_edge(edge_ref.pid()),
         iter_builder: move |edge, graph| {
             time_semantics
-                .edge_layers(edge.as_ref(), graph)
+                .edge_layers(edge.as_ref(), graph, graph.layer_ids())
                 .map(move |l| edge_ref.at_layer(l))
                 .into_dyn_boxed()
         },
@@ -232,14 +234,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         let edge = g.core_edge(e.pid());
                         match e.layer() {
                             None => time_semantics
-                                .edge_history(edge.as_ref(), g)
+                                .edge_history(edge.as_ref(), g, g.layer_ids())
                                 .map(|(ti, _)| ti.t())
                                 .collect(),
                             Some(layer) => time_semantics
-                                .edge_history(
-                                    edge.as_ref(),
-                                    LayeredGraph::new(g, LayerIds::One(layer)),
-                                )
+                                .edge_history(edge.as_ref(), g, &LayerIds::One(layer))
                                 .map(|(ti, _)| ti.t())
                                 .collect(),
                         }
@@ -282,14 +281,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         let edge = g.core_edge(e.pid());
                         match e.layer() {
                             None => time_semantics
-                                .edge_history(edge.as_ref(), g)
+                                .edge_history(edge.as_ref(), g, g.layer_ids())
                                 .map(|(ti, _)| ti.dt())
                                 .collect(),
                             Some(layer) => time_semantics
-                                .edge_history(
-                                    edge.as_ref(),
-                                    LayeredGraph::new(g, LayerIds::One(layer)),
-                                )
+                                .edge_history(edge.as_ref(), g, &LayerIds::One(layer))
                                 .map(|(ti, _)| ti.dt())
                                 .collect(),
                         }
@@ -591,7 +587,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                     None => {
                         let time_semantics = g.edge_time_semantics();
                         time_semantics
-                            .edge_layers(g.core_edge(e.pid()).as_ref(), g)
+                            .edge_layers(g.core_edge(e.pid()).as_ref(), g, g.layer_ids())
                             .map(|layer| layer_names[layer].clone())
                             .collect()
                     }

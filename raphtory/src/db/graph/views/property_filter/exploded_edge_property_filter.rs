@@ -14,9 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::{
-            layer_graph::LayeredGraph, property_filter::internal::InternalExplodedEdgeFilterOps,
-        },
+        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
@@ -142,7 +140,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && edge
-                .filtered_additions_iter(LayeredGraph::new(&self, layer_ids.clone()))
+                .filtered_additions_iter(self, layer_ids)
                 .any(|(_, additions)| !additions.is_empty())
     }
 }

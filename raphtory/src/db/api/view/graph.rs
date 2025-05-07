@@ -312,9 +312,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         if self.include_deletions() {
                             let time_semantics = self.edge_time_semantics();
                             let edge_entry = self.core_edge(edge.edge.pid());
-                            for (t, layer) in
-                                time_semantics.edge_deletion_history(edge_entry.as_ref(), self)
-                            {
+                            for (t, layer) in time_semantics.edge_deletion_history(
+                                edge_entry.as_ref(),
+                                self,
+                                self.layer_ids(),
+                            ) {
                                 new_edge.deletions_mut(layer_map[layer]).insert(t);
                             }
                         }
@@ -359,9 +361,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     if self.include_deletions() {
                         let edge_time_semantics = self.edge_time_semantics();
                         let edge_entry = self.core_edge(edge.edge.pid());
-                        for (t, layer) in
-                            edge_time_semantics.edge_deletion_history(edge_entry.as_ref(), self)
-                        {
+                        for (t, layer) in edge_time_semantics.edge_deletion_history(
+                            edge_entry.as_ref(),
+                            self,
+                            self.layer_ids(),
+                        ) {
                             if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
                             {
                                 src_node.update_time(

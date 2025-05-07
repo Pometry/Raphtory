@@ -382,7 +382,7 @@ impl EdgeHistoryFilter for PersistentGraph {
 
             if layer_ids.contains(&layer_id) {
                 // Check if any layer has an active update beyond `time`
-                let has_future_update = ese.layer_ids_iter(layer_ids.clone()).any(|layer_id| {
+                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
                         .active(time..TimeIndexEntry::start(w.end))
                 });

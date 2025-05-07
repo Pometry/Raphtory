@@ -60,7 +60,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().eid()
     }
 
-    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
@@ -70,7 +70,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn additions_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.as_ref().additions_iter(layer_ids)
     }
@@ -84,7 +84,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn deletions_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.as_ref().deletions_iter(layer_ids)
     }
@@ -98,7 +98,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn updates_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         self.as_ref().updates_iter(layer_ids)
     }
@@ -124,7 +124,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn temporal_prop_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_iter(layer_ids, prop_id)
