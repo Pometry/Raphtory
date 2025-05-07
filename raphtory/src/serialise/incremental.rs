@@ -1,4 +1,6 @@
 use super::GraphFolder;
+#[cfg(feature = "search")]
+use crate::prelude::SearchableGraphOps;
 use crate::{
     core::{
         utils::errors::{GraphError, WriteError},
@@ -8,7 +10,7 @@ use crate::{
         api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{Graph, SearchableGraphOps, StableDecode},
+    prelude::{Graph, StableDecode},
     serialise::{
         serialise::{CacheOps, InternalStableDecode, StableEncode},
         ProtoGraph,
