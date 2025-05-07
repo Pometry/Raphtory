@@ -307,7 +307,8 @@ impl<G: InternalCache + InternalStableDecode + StableEncode> CacheOps for G {
         cache.write()?;
         cache.folder.write_metadata(self)?;
         #[cfg(feature = "search")]
-        self.persist_index_to_disk(&cache.folder.root_folder)
+        self.persist_index_to_disk(&cache.folder.root_folder)?;
+        Ok(())
     }
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
