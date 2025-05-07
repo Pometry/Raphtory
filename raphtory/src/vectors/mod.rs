@@ -11,9 +11,9 @@ pub mod embeddings;
 mod entity_id;
 mod similarity_search_utils;
 pub mod splitting;
+mod storage;
 pub mod template;
 pub mod vector_selection;
-mod vector_storage;
 pub mod vectorisable;
 pub mod vectorised_graph;
 
@@ -88,7 +88,6 @@ mod vector_tests {
 
     fn custom_template() -> DocumentTemplate {
         DocumentTemplate {
-            graph_template: None,
             node_template: Some(
                 "{{ name}} is a {{ node_type }} aged {{ properties.age }}".to_owned(),
             ),

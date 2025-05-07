@@ -213,7 +213,6 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
         self.graph.add_properties(t, as_properties(properties)?)?;
-        self.update_graph_embeddings().await;
         self.graph.write_updates()?;
         Ok(true)
     }
@@ -225,7 +224,6 @@ impl GqlMutableGraph {
     ) -> Result<bool, GraphError> {
         self.graph
             .add_constant_properties(as_properties(properties)?)?;
-        self.update_graph_embeddings().await;
         self.graph.write_updates()?;
         Ok(true)
     }
@@ -237,20 +235,12 @@ impl GqlMutableGraph {
     ) -> Result<bool, GraphError> {
         self.graph
             .update_constant_properties(as_properties(properties)?)?;
-        self.update_graph_embeddings().await;
         self.graph.write_updates()?;
         Ok(true)
     }
 }
 
 impl GqlMutableGraph {
-    async fn update_graph_embeddings(&self) {
-        let _ = self
-            .graph
-            .update_graph_embeddings(Some(self.path.get_original_path_str().to_owned()))
-            .await;
-    }
-
     fn get_node_view(&self, name: &str) -> Result<NodeView<GraphWithVectors>, GraphError> {
         self.graph
             .node(name)

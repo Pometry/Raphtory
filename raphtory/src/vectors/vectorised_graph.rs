@@ -4,10 +4,7 @@ use crate::{
     db::{
         api::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{
-                internal::CoreGraphOps, BaseNodeViewOps, DynamicGraph, IntoDynamic,
-                StaticGraphViewOps,
-            },
+            view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -18,7 +15,6 @@ use crate::{
     },
 };
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
-use itertools::Itertools;
 use rand::{rngs::StdRng, SeedableRng};
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
 use tempfile::TempDir;
@@ -124,6 +120,7 @@ impl VectorSearch for EdgeDb {
     }
 }
 
+// FIXME: remove unwraps in here
 // TODO: rename this to GraphVectorSearch
 // TODO: merge this and VectorDb !!!!!!!!!!!!!!!!!???????
 pub(super) trait VectorSearch {
@@ -178,7 +175,8 @@ pub(super) trait VectorSearch {
             .by_vector(&rtxn, query.as_ref())
             .unwrap()
             .into_iter()
-            .map(|(id, score)| (Self::into_entity_ref(id), score))
+            // for arroy, distance = (1.0 - score) / 2.0
+            .map(|(id, distance)| (Self::into_entity_ref(id), 1.0 - 2.0 * distance))
     }
 }
 
@@ -203,48 +201,12 @@ pub(crate) struct VectorDb {
     // FIXME: save index value in here !!!!!!!!!!!!!!!!!!!
     pub(crate) vectors: ArroyDatabase<Cosine>, // TODO: review is this safe to clone? does it point to the same thing?
     pub(crate) env: heed::Env,
-    pub(crate) _tempdir: Arc<TempDir>, // do I really need, is the file open not enough
+    pub(crate) _tempdir: Option<Arc<TempDir>>, // do I really need, is the file open not enough
     pub(crate) dimensions: usize,
 }
 
+// TODO: merge this with the above
 impl VectorDb {
-    // FIXME: remove unwraps here
-    pub(super) fn top_k(&self, query: &Embedding, k: usize) -> impl Iterator<Item = (usize, f32)> {
-        self.inner_top_k(query, k, None::<std::iter::Empty<usize>>)
-    }
-
-    pub(super) fn top_k_with_filter(
-        &self,
-        query: &Embedding,
-        k: usize,
-        filter: impl Iterator<Item = usize>,
-    ) -> impl Iterator<Item = (usize, f32)> {
-        self.inner_top_k(query, k, Some(filter))
-    }
-
-    fn inner_top_k(
-        &self,
-        query: &Embedding,
-        k: usize,
-        filter: Option<impl Iterator<Item = usize>>,
-    ) -> impl Iterator<Item = (usize, f32)> {
-        let rtxn = self.env.read_txn().unwrap();
-        let reader = Reader::open(&rtxn, 0, self.vectors).unwrap(); // TODO: review index value, hardcoded to 0
-        let mut query_builder = reader.nns(k);
-        let filter =
-            filter.map(|filter| roaring::RoaringBitmap::from_iter(filter.map(|id| id as u32)));
-        let query_builder = if let Some(filter) = &filter {
-            query_builder.candidates(filter)
-        } else {
-            &query_builder
-        };
-        query_builder
-            .by_vector(&rtxn, query.as_ref())
-            .unwrap()
-            .into_iter()
-            .map(|(id, score)| (id as usize, score))
-    }
-
     pub(super) fn insert_vector(&self, id: usize, embedding: &Embedding) {
         // FIXME: remove unwraps
         let mut wtxn = self.env.write_txn().unwrap();
@@ -262,12 +224,13 @@ impl VectorDb {
 
     pub(super) fn get_id(&self, id: usize) -> Embedding {
         // FIXME: remove unsafe code, ask arroy mantainers to make the type public
-        let rtxn = self.env.read_txn().unwrap();
-        let key: Key = id.into();
-        let arroy_key = unsafe { std::mem::transmute(&key) };
-        let node = self.vectors.get(&rtxn, arroy_key).unwrap().unwrap();
-        let vector = node.leaf().unwrap().vector.to_vec().into();
-        vector
+        // let rtxn = self.env.read_txn().unwrap();
+        // let key: Key = id.into();
+        // let arroy_key = unsafe { std::mem::transmute(&key) };
+        // let node = self.vectors.get(&rtxn, arroy_key).unwrap().unwrap();
+        // let vector = node.leaf().unwrap().vector.to_vec().into();
+        // vector
+        [1.0].into()
     }
 }
 

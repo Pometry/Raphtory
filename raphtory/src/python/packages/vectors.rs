@@ -10,9 +10,7 @@ use crate::{
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
-        template::{
-            DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
-        },
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
@@ -148,28 +146,23 @@ impl PyGraphView {
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
     ///   cache (str, optional): the file to be used as a cache to avoid calling the embedding function
     ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings. Defaults to False.
-    ///   graph (bool | str): if the graph has to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///   graph_name (str, optional): the name of the graph
     ///   verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
     ///
     /// Returns:
     ///   VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), graph_name = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), verbose = false))]
     fn vectorise(
         &self,
         embedding: Bound<PyFunction>,
         cache: Option<String>,
         overwrite_cache: bool,
-        graph: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
-        graph_name: Option<String>,
         verbose: bool,
     ) -> PyResult<DynamicVectorisedGraph> {
         let template = DocumentTemplate {
-            graph_template: graph.get_template_or(DEFAULT_GRAPH_TEMPLATE),
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         };
@@ -183,7 +176,7 @@ impl PyGraphView {
                     cache,
                     overwrite_cache,
                     template,
-                    graph_name,
+                    None,
                     verbose,
                 )
                 .await?)

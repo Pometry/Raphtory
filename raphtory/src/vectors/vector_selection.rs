@@ -6,7 +6,7 @@ use crate::{
     db::{
         api::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{BaseNodeViewOps, DynamicGraph, StaticGraphViewOps},
+            view::{DynamicGraph, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -14,7 +14,6 @@ use crate::{
 };
 
 use super::{
-    entity_id::EntityId,
     similarity_search_utils::{apply_window, find_top_k},
     vectorised_graph::{EntityRef, VectorSearch, VectorisedGraph},
     Document, DocumentEntity, Embedding,
@@ -25,6 +24,16 @@ enum ExpansionPath {
     Nodes,
     Edges,
     Both,
+}
+
+impl ExpansionPath {
+    fn includes_nodes(&self) -> bool {
+        matches!(self, ExpansionPath::Nodes | ExpansionPath::Both)
+    }
+
+    fn includes_edges(&self) -> bool {
+        matches!(self, ExpansionPath::Edges | ExpansionPath::Both)
+    }
 }
 
 pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
@@ -169,20 +178,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) {
-        let g = &self.graph.source_graph;
-        let view = apply_window(g, window);
-
-        let filter = self.get_nodes_in_context(window);
-        let nodes = self
-            .graph
-            .node_db
-            .top_k(query, limit, view.clone(), Some(filter));
-
-        let filter = self.get_edges_in_context(window);
-        let edges = self.graph.edge_db.top_k(query, limit, view, Some(filter));
-
-        let docs = find_top_k(nodes.chain(edges), limit).collect::<Vec<_>>(); // collect to remove lifetime
-        self.extend_selection(docs, limit);
+        self.expand_by_similarity(query, limit, window, ExpansionPath::Both);
     }
 
     /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
@@ -199,12 +195,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) {
-        let g = &self.graph.source_graph;
-        let view = apply_window(g, window);
-        let filter = self.get_nodes_in_context(window);
-        let docs = self.graph.node_db.top_k(query, limit, view, Some(filter));
-        self.extend_selection(docs.collect::<Vec<_>>(), limit);
-        // TODO: call this recursively until new projected length is reached !!!!!!!!!!!!!!!! same for expand_edges_by_similarity and expand_entities_by_similarity
+        self.expand_by_similarity(query, limit, window, ExpansionPath::Nodes);
     }
 
     /// Add the top `limit` adjacent edges with higher score for `query` to the selection
@@ -221,11 +212,46 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) {
+        self.expand_by_similarity(query, limit, window, ExpansionPath::Edges);
+    }
+
+    fn expand_by_similarity(
+        &mut self,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+        path: ExpansionPath,
+    ) {
         let g = &self.graph.source_graph;
         let view = apply_window(g, window);
-        let filter = self.get_edges_in_context(window);
-        let docs = self.graph.edge_db.top_k(query, limit, view, Some(filter));
-        self.extend_selection(docs.collect::<Vec<_>>(), limit);
+        let initial_size = self.selected.len();
+
+        let nodes: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_nodes() {
+            let filter = self.get_nodes_in_context(window);
+            let nodes = self
+                .graph
+                .node_db
+                .top_k(query, limit, view.clone(), Some(filter));
+            Box::new(nodes)
+        } else {
+            Box::new(std::iter::empty())
+        };
+
+        let edges: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_edges() {
+            let filter = self.get_edges_in_context(window);
+            let edges = self.graph.edge_db.top_k(query, limit, view, Some(filter));
+            Box::new(edges)
+        } else {
+            Box::new(std::iter::empty())
+        };
+
+        let docs = find_top_k(nodes.chain(edges), limit).collect::<Vec<_>>(); // collect to remove lifetime
+        self.extend_selection(docs, limit);
+
+        let increment = self.selected.len() - initial_size;
+        if increment == 0 && increment < limit {
+            self.expand_by_similarity(query, limit, window, path)
+        }
     }
 
     fn get_nodes_in_context(&self, window: Option<(i64, i64)>) -> HashSet<EntityRef> {

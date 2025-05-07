@@ -98,38 +98,6 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext 
     }
 }
 
-#[derive(Serialize)]
-struct GraphTemplateContext {
-    properties: Value,
-    constant_properties: Value,
-    temporal_properties: Value,
-}
-
-// FIXME: boilerplate for the properties
-impl<'graph, G: GraphViewOps<'graph>> From<G> for GraphTemplateContext {
-    fn from(value: G) -> Self {
-        Self {
-            properties: value
-                .properties()
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
-                .collect(),
-            constant_properties: value
-                .properties()
-                .constant()
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
-                .collect(),
-            temporal_properties: value
-                .properties()
-                .temporal()
-                .iter()
-                .map(|(key, prop)| (key.to_string(), Into::<Value>::into(prop)))
-                .collect(),
-        }
-    }
-}
-
 // FIXME: this is eagerly allocating a lot of stuff, we should implement Object instead for Prop
 impl From<Prop> for Value {
     fn from(value: Prop) -> Self {
@@ -159,29 +127,11 @@ impl From<Prop> for Value {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DocumentTemplate {
-    pub graph_template: Option<String>,
     pub node_template: Option<String>,
     pub edge_template: Option<String>,
 }
 
 impl DocumentTemplate {
-    pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(&self, graph: G) -> Option<String> {
-        let template = self.graph_template.as_str()?;
-        // TODO: create the environment only once and store it on the DocumentTemplate struct
-        let mut env = Environment::new();
-        let template = build_template(&mut env, template);
-        match template.render(GraphTemplateContext::from(graph)) {
-            Ok(mut document) => {
-                truncate(&mut document);
-                Some(document)
-            }
-            Err(error) => {
-                error!("Template render failed for a node, skipping: {error}");
-                None
-            }
-        }
-    }
-
     /// A function that translate a node into an iterator of documents
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
@@ -288,17 +238,6 @@ pub const DEFAULT_EDGE_TEMPLATE: &str =
 - {{ time|datetimeformat }}
 {% endfor %}";
 
-pub const DEFAULT_GRAPH_TEMPLATE: &str = "Graph with the following properties:
-{% for (key, value) in constant_properties|items %}
-{{ key }}: {{ value }}
-{% endfor %}
-{% for (key, values) in temporal_properties|items %}
-{{ key }}:
-{% for (time, value) in values %}
- - changed to {{ value }} at {{ time|datetimeformat }}
-{% endfor %}
-{% endfor %}";
-
 #[cfg(test)]
 mod template_tests {
     use indoc::indoc;
@@ -332,7 +271,6 @@ mod template_tests {
 
         let template = DocumentTemplate {
             node_template: Some(DEFAULT_NODE_TEMPLATE.to_owned()),
-            graph_template: Some(DEFAULT_GRAPH_TEMPLATE.to_owned()),
             edge_template: Some(DEFAULT_EDGE_TEMPLATE.to_owned()),
         };
 
@@ -354,13 +292,6 @@ mod template_tests {
             There is an edge from node1 to node2 with events at:
             - Jan 1 1970 00:00
             - Jan 1 1970 00:01
-        "};
-        assert_eq!(&rendered, expected);
-
-        let rendered = template.graph(graph).unwrap();
-        let expected = indoc! {"
-            Graph with the following properties:
-            name: test-name
         "};
         assert_eq!(&rendered, expected);
     }
@@ -404,7 +335,6 @@ mod template_tests {
         "};
         let template = DocumentTemplate {
             node_template: Some(node_template.to_owned()),
-            graph_template: None,
             edge_template: None,
         };
 
@@ -440,7 +370,6 @@ mod template_tests {
             "{{ (temporal_properties.temp|first).time|datetimeformat(format=\"long\") }}";
         let template = DocumentTemplate {
             node_template: Some(node_template.to_owned()),
-            graph_template: None,
             edge_template: None,
         };
 

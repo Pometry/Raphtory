@@ -1,9 +1,6 @@
 use crate::{
     core::utils::errors::GraphResult,
-    db::{
-        api::view::{internal::IntoDynamic, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
+    db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     vectors::{
         embedding_cache::EmbeddingCache, entity_id::EntityId, template::DocumentTemplate,
         vectorised_graph::VectorisedGraph, EmbeddingFunction,
@@ -12,24 +9,20 @@ use crate::{
 use arroy::{distances::Cosine, Database as ArroyDatabase, Writer};
 use async_trait::async_trait;
 use itertools::Itertools;
-use parking_lot::RwLock;
 use rand::{rngs::StdRng, SeedableRng};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tracing::info;
 
 use super::{
+    storage::{edge_vectors_path, node_vectors_path, VectorMeta},
     vectorised_graph::{EdgeDb, NodeDb, VectorDb},
     Embedding,
 };
 
 const CHUNK_SIZE: usize = 1000;
-
-#[derive(Clone, Debug)]
-struct IndexedDocumentInput {
-    entity_id: EntityId,
-    content: String,
-    index: usize,
-}
 
 #[async_trait]
 pub trait Vectorisable<G: StaticGraphViewOps> {
@@ -50,7 +43,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         cache: Arc<Option<EmbeddingCache>>,
         overwrite_cache: bool,
         template: DocumentTemplate,
-        graph_name: Option<String>,
+        path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>>;
 }
@@ -65,11 +58,9 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         cache: Arc<Option<EmbeddingCache>>,
         overwrite_cache: bool,
         template: DocumentTemplate,
-        graph_name: Option<String>,
+        path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
-        // let graph_docs = indexed_docs_for_graph(self, graph_name, &template);
-
         if verbose {
             info!("computing embeddings for nodes");
         }
@@ -77,7 +68,8 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let node_docs = nodes
             .iter()
             .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u32, doc)));
-        let node_db = db_from_docs(node_docs, embedding.as_ref(), &cache).await?;
+        let node_path = path.map(node_vectors_path);
+        let node_db = db_from_docs(node_docs, embedding.as_ref(), &cache, node_path).await?;
 
         if verbose {
             info!("computing embeddings for edges");
@@ -88,10 +80,18 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
                 .edge(edge)
                 .map(|doc| (edge.edge.pid().0 as u32, doc))
         });
-        let edge_db = db_from_docs(edge_docs, embedding.as_ref(), &cache).await?;
+        let edge_path = path.map(edge_vectors_path);
+        let edge_db = db_from_docs(edge_docs, embedding.as_ref(), &cache, edge_path).await?;
 
         if overwrite_cache {
             cache.iter().for_each(|cache| cache.dump_to_disk());
+        }
+
+        if let Some(path) = path {
+            let meta = VectorMeta {
+                template: template.clone(),
+            };
+            meta.write_to_path(path)?;
         }
 
         Ok(VectorisedGraph {
@@ -105,20 +105,30 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     }
 }
 
+pub(super) fn open_env(path: &Path) -> heed::Env {
+    unsafe {
+        heed::EnvOpenOptions::new()
+            .map_size(TWENTY_HUNDRED_MIB)
+            .open(path)
+    }
+    .unwrap() // FIXME: remove unwrap
+}
+
 async fn db_from_docs(
     docs: impl Iterator<Item = (u32, String)>,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
+    path: Option<PathBuf>,
 ) -> GraphResult<VectorDb> {
     let vectors = compute_embeddings(docs, embedding, &cache).await?;
 
-    let tempdir = tempfile::tempdir()?;
-    let env = unsafe {
-        heed::EnvOpenOptions::new()
-            .map_size(TWENTY_HUNDRED_MIB)
-            .open(tempdir.path())
-    }
-    .unwrap(); // FIXME: remove unwrap
+    let (env, tempdir) = match path {
+        Some(path) => (open_env(&path), None),
+        None => {
+            let tempdir = tempfile::tempdir()?;
+            (open_env(tempdir.path()), Some(tempdir.into()))
+        }
+    };
 
     // we will open the default LMDB unnamed database
     let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
