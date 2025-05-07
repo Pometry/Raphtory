@@ -148,14 +148,19 @@ impl Storage {
             if let Some(path) = path {
                 Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
             } else {
-                Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, false)?)
+                let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+                Ok::<_, GraphError>(GraphIndex::create_from_graph(
+                    &self.graph,
+                    false,
+                    cache_path,
+                )?)
             }
         })
     }
 
     pub(crate) fn get_or_create_index_in_ram(&self) -> Result<&GraphIndex, GraphError> {
         let index = self.index.get_or_try_init(|| {
-            Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, true)?)
+            Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, true, None)?)
         })?;
         if index.path.is_some() {
             Err(GraphError::FailedToCreateIndexInRam)

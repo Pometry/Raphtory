@@ -1493,7 +1493,9 @@ mod proto_test {
             },
             serialise::{incremental::InternalCache, GraphFolder},
         };
+        use neo4rs::Path;
         use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
+        use std::path::PathBuf;
 
         fn init_graph<G>(graph: G) -> G
         where
@@ -1679,6 +1681,32 @@ mod proto_test {
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             graph.cache(path).unwrap();
+
+            graph
+                .add_node(
+                    2,
+                    "Tommy",
+                    vec![("p1", Prop::U64(5u64))],
+                    Some("water_tribe"),
+                )
+                .unwrap();
+            graph.write_updates().unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let filter = NodeFilter::name().eq("Tommy");
+            assert_search_results(&graph, &filter, vec!["Tommy"]);
+        }
+
+        #[test]
+        fn test_cached_graph_view_create_index_after_graph_is_cached() {
+            global_info_logger();
+            let graph = init_graph(Graph::new());
+
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.cache(path).unwrap();
+            // Creates index in a temp dir within graph dir
+            graph.create_index().unwrap();
 
             graph
                 .add_node(

@@ -150,9 +150,16 @@ impl GraphIndex {
     pub fn create_from_graph(
         graph: &GraphStorage,
         create_in_ram: bool,
+        cache_path: Option<&Path>,
     ) -> Result<Self, GraphError> {
         let dir = if !create_in_ram {
-            Some(Arc::new(TempDir::new()?))
+            let temp_dir = match cache_path {
+                // Creates index in a temp dir within cache graph dir.
+                // The intention is to avoid creating index in a tmp dir that could be on another file system.
+                Some(path) => TempDir::new_in(path)?,
+                None => TempDir::new()?,
+            };
+            Some(Arc::new(temp_dir))
         } else {
             None
         };

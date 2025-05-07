@@ -34,7 +34,7 @@ use tracing::instrument;
 pub struct GraphWriter {
     writer: Arc<Mutex<File>>,
     proto_delta: Mutex<ProtoGraph>,
-    folder: GraphFolder,
+    pub(crate) folder: GraphFolder,
 }
 
 fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
