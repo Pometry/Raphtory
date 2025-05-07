@@ -18,6 +18,7 @@ use std::{
     fs,
     fs::File,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use tantivy::schema::{FAST, INDEXED, STORED};
 use tempfile::TempDir;
@@ -29,7 +30,7 @@ use zip::{write::FileOptions, ZipArchive, ZipWriter};
 pub struct GraphIndex {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
-    pub path: Option<PathBuf>, // If path is None, index is created in-memory
+    pub path: Option<Arc<TempDir>>, // If path is None, index is created in-memory
 }
 
 impl Debug for GraphIndex {
@@ -42,7 +43,7 @@ impl Debug for GraphIndex {
 }
 
 impl GraphIndex {
-    fn copy_dir_recursive(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
+    fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), GraphError> {
         for entry in WalkDir::new(source) {
             let entry = entry.map_err(|e| {
                 GraphError::IOErrorMsg(format!("Failed to read directory entry: {}", e))
@@ -89,7 +90,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    fn unzip_index(source: &PathBuf, destination: &PathBuf) -> Result<(), GraphError> {
+    fn unzip_index(source: &Path, destination: &Path) -> Result<(), GraphError> {
         let file = File::open(source)?;
         let mut archive = ZipArchive::new(file)?;
 
@@ -121,16 +122,16 @@ impl GraphIndex {
     }
 
     pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
-        let tmp_path = &TempDir::new()?.path().to_path_buf();
+        let tmp_path = TempDir::new()?;
         if path.is_file() {
-            GraphIndex::unzip_index(path, tmp_path)?;
+            GraphIndex::unzip_index(path, tmp_path.path())?;
         } else {
-            GraphIndex::copy_dir_recursive(path, tmp_path)?;
+            GraphIndex::copy_dir_recursive(path, tmp_path.path())?;
         }
 
-        let node_index = NodeIndex::load_from_path(&tmp_path.join("nodes"))?;
-        let edge_index = EdgeIndex::load_from_path(&tmp_path.join("edges"))?;
-        let path = Some(tmp_path.clone());
+        let node_index = NodeIndex::load_from_path(&tmp_path.path().join("nodes"))?;
+        let edge_index = EdgeIndex::load_from_path(&tmp_path.path().join("edges"))?;
+        let path = Some(Arc::new(tmp_path));
 
         Ok(GraphIndex {
             node_index,
@@ -143,21 +144,23 @@ impl GraphIndex {
         graph: &GraphStorage,
         create_in_ram: bool,
     ) -> Result<Self, GraphError> {
-        let path = if !create_in_ram {
-            Some(TempDir::new()?.path().to_path_buf())
+        let dir = if !create_in_ram {
+            Some(Arc::new(TempDir::new()?))
         } else {
             None
         };
-        let node_index = NodeIndex::index_nodes(graph, &path)?;
+
+        let path = dir.as_ref().map(|p| p.path());
+        let node_index = NodeIndex::index_nodes(graph, path)?;
         // node_index.print()?;
 
-        let edge_index = EdgeIndex::index_edges(graph, &path)?;
+        let edge_index = EdgeIndex::index_edges(graph, path)?;
         // edge_index.print()?;
 
         Ok(GraphIndex {
             node_index,
             edge_index,
-            path,
+            path: dir,
         })
     }
 
@@ -173,12 +176,12 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk(&self, path: &Path) -> Result<(), GraphError> {
         let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
 
         let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
 
-        GraphIndex::copy_dir_recursive(source_path, temp_path)?;
+        GraphIndex::copy_dir_recursive(source_path.path(), temp_path)?;
 
         // Always overwrite the existing graph index when persisting, since the in-memory
         // working index may have newer updates. The persisted index is decoupled from the
@@ -187,7 +190,7 @@ impl GraphIndex {
         // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
         if path.exists() {
             fs::remove_dir_all(path)
-                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.clone()))?;
+                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
         }
 
         fs::rename(temp_path, path).map_err(|e| {
@@ -197,7 +200,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk_zip(&self, path: &Path) -> Result<(), GraphError> {
         let index_path = &path.join("index");
 
         let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
@@ -211,14 +214,14 @@ impl GraphIndex {
 
         let mut zip = ZipWriter::new_append(file)?;
 
-        for entry in WalkDir::new(&source_path)
+        for entry in WalkDir::new(&source_path.path())
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
         {
             let rel_path = entry
                 .path()
-                .strip_prefix(source_path)
+                .strip_prefix(source_path.path())
                 .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
 
             let zip_entry_name = PathBuf::from("index")
@@ -317,7 +320,7 @@ impl GraphIndex {
         prop_type: &PropType,
         is_static: bool, // Const or Temporal Property
     ) -> Result<(), GraphError> {
-        let edge_index_path = &self.path.as_deref().map(|p| p.join("edges"));
+        let edge_index_path = self.path.as_deref().map(|p| p.path().join("edges"));
         self.edge_index.entity_index.create_property_index(
             prop_id,
             prop_name,
@@ -334,7 +337,7 @@ impl GraphIndex {
                 schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_edge_property,
-            edge_index_path,
+            &edge_index_path,
         )
     }
 
@@ -345,7 +348,7 @@ impl GraphIndex {
         prop_type: &PropType,
         is_static: bool, // Const or Temporal Property
     ) -> Result<(), GraphError> {
-        let node_index_path = self.path.as_deref().map(|p| p.join("nodes"));
+        let node_index_path = self.path.as_deref().map(|p| p.path().join("nodes"));
         self.node_index.entity_index.create_property_index(
             prop_id,
             prop_name,

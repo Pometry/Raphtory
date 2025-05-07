@@ -54,7 +54,7 @@ ahash = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
-zip = { workspace = true }
+zip = { workspace = true, optional = true }
 neo4rs = { workspace = true, optional = true }
 bzip2 = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
@@ -127,7 +127,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "proto"]
+search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
 # vectors
 vectors = [
     "dep:futures-util",
@@ -173,6 +173,7 @@ arrow = [
 proto = [
     "dep:prost",
     "dep:prost-types",
+    "dep:zip",
     "dep:prost-build",
     "dep:memmap2",
     "arrow",

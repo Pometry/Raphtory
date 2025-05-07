@@ -26,7 +26,7 @@ use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use tantivy::{
     collector::TopDocs,
@@ -312,7 +312,7 @@ impl EdgeIndex {
 
     pub(crate) fn index_edges(
         graph: &GraphStorage,
-        path: &Option<PathBuf>,
+        path: Option<&Path>,
     ) -> Result<EdgeIndex, GraphError> {
         let edge_index_path = path.as_deref().map(|p| p.join("edges"));
         let edge_index = EdgeIndex::new(&edge_index_path)?;

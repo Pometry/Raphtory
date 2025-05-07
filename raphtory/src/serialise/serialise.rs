@@ -1488,12 +1488,12 @@ mod proto_test {
                 graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
             prelude::{
-                AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+                AdditionOps, CacheOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
                 SearchableGraphOps, StableDecode, StableEncode,
             },
-            serialise::GraphFolder,
+            serialise::{incremental::InternalCache, GraphFolder},
         };
-        use raphtory_api::core::storage::arc_str::ArcStr;
+        use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
 
         fn init_graph<G>(graph: G) -> G
         where
@@ -1538,8 +1538,9 @@ mod proto_test {
                 .expect_err("Expected error since index was not created");
             assert!(matches!(err, GraphError::IndexNotCreated));
 
-            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
-            graph.encode(path.clone()).unwrap();
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
 
             let graph = Graph::decode(path).unwrap();
             let index = graph.get_storage().unwrap().index.get();
@@ -1557,8 +1558,9 @@ mod proto_test {
             assert_search_results(&graph, &filter, vec!["Alice"]);
 
             // Persisted both graph and index
-            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
-            graph.encode(path.clone()).unwrap();
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
 
             // Loaded index that was persisted
             let graph = Graph::decode(path).unwrap();
@@ -1579,8 +1581,9 @@ mod proto_test {
             assert_search_results(&graph, &filter1, vec!["Alice"]);
 
             // Persisted both graph and index
-            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
-            graph.encode(path.clone()).unwrap();
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
 
             // Updated both graph and index
             graph
@@ -1615,8 +1618,9 @@ mod proto_test {
             assert_search_results(&graph, &filter2, vec!["Tommy"]);
 
             // Should persist the updated graph and index
-            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
-            graph.encode(path.clone()).unwrap();
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
 
             // Should load the updated graph and index
             let graph = Graph::decode(path).unwrap();
@@ -1630,8 +1634,9 @@ mod proto_test {
         fn test_zip_encode_decode_index() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
-            let folder = GraphFolder::new_as_zip(path.clone());
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            let folder = GraphFolder::new_as_zip(path);
             graph.encode(folder).unwrap();
 
             let graph = Graph::decode(path).unwrap();
@@ -1645,18 +1650,17 @@ mod proto_test {
 
         #[test]
         fn test_create_index_in_ram() {
+            global_info_logger();
+
             let graph = init_graph(Graph::new());
             graph.create_index_in_ram().unwrap();
 
             let filter = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter, vec!["Alice"]);
 
-            let path = tempfile::TempDir::new().unwrap().path().to_path_buf();
-            let results = graph.encode(path.clone());
-            assert!(matches!(
-                results,
-                Err(GraphError::PersistingInMemoryIndexNotSupported)
-            ));
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
 
             let graph = Graph::decode(path).unwrap();
             let index = graph.get_storage().unwrap().index.get();
@@ -1664,6 +1668,31 @@ mod proto_test {
 
             let results = graph.search_nodes(filter.clone(), 2, 0);
             assert!(matches!(results, Err(GraphError::IndexNotCreated)));
+        }
+
+        #[test]
+        fn test_cached_graph_view() {
+            global_info_logger();
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.cache(path).unwrap();
+
+            graph
+                .add_node(
+                    2,
+                    "Tommy",
+                    vec![("p1", Prop::U64(5u64))],
+                    Some("water_tribe"),
+                )
+                .unwrap();
+            graph.write_updates().unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let filter = NodeFilter::name().eq("Tommy");
+            assert_search_results(&graph, &filter, vec![]);
         }
     }
 }

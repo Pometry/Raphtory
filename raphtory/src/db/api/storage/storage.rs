@@ -47,6 +47,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+use tracing::info;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -74,6 +75,9 @@ impl Base for Storage {
         &self.graph
     }
 }
+
+#[cfg(feature = "search")]
+const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
     pub(crate) fn new(num_locks: usize) -> Self {
@@ -167,7 +171,8 @@ impl Storage {
     pub(crate) fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
         if let Some(index) = self.get_index() {
             if index.path.is_none() {
-                return Err(GraphError::PersistingInMemoryIndexNotSupported);
+                info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
+                return Ok(());
             }
             index.persist_to_disk(path)?
         }
@@ -177,7 +182,8 @@ impl Storage {
     pub(crate) fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
         if let Some(index) = self.get_index() {
             if index.path.is_none() {
-                return Err(GraphError::PersistingInMemoryIndexNotSupported);
+                info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
+                return Ok(());
             }
             index.persist_to_disk_zip(path)?
         }
@@ -247,7 +253,7 @@ impl InternalAdditionOps for Storage {
 
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError> {
         match id.as_node_ref() {
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+            NodeRef::Internal(id) => Ok(Existing(id)),
             NodeRef::External(gid) => {
                 let id = self.graph.resolve_node(gid)?;
 

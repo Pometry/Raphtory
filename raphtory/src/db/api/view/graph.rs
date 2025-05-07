@@ -49,7 +49,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
-
+#[cfg(feature = "search")]
 use zip::ZipArchive;
 
 /// This trait GraphViewOps defines operations for accessing

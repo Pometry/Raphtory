@@ -728,7 +728,7 @@ def test_node_property_filter_is_in_no_value(graph):
                   property: {
                       name: "prop1"
                       operator: IS_IN
-                      value: { list: []}
+                      value: { list: [{i64: 100}]}
                 }
               }
             ) {

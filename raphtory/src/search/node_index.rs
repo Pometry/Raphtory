@@ -24,7 +24,7 @@ use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
     fmt::{Debug, Formatter},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use tantivy::{
     collector::TopDocs,
@@ -286,7 +286,7 @@ impl NodeIndex {
 
     pub(crate) fn index_nodes(
         graph: &GraphStorage,
-        path: &Option<PathBuf>,
+        path: Option<&Path>,
     ) -> Result<NodeIndex, GraphError> {
         let node_index_path = path.as_deref().map(|p| p.join("nodes"));
         let node_index = NodeIndex::new(&node_index_path)?;

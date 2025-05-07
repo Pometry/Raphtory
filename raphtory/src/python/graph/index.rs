@@ -16,7 +16,10 @@ impl PyGraphView {
         self.graph.create_index()
     }
 
-    /// Create graph index in RAM
+    /// Creates a graph index in memory (RAM).
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
