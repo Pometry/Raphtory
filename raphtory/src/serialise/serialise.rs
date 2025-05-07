@@ -1637,7 +1637,7 @@ mod proto_test {
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             let folder = GraphFolder::new_as_zip(path);
-            graph.encode(folder).unwrap();
+            graph.encode(folder.root_folder).unwrap();
 
             let graph = Graph::decode(path).unwrap();
             let node = graph.node("Alice").unwrap();
@@ -1692,7 +1692,7 @@ mod proto_test {
 
             let graph = Graph::decode(path).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
-            assert_search_results(&graph, &filter, vec![]);
+            assert_search_results(&graph, &filter, vec!["Tommy"]);
         }
     }
 }

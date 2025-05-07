@@ -49,15 +49,22 @@ impl GraphIndex {
                 GraphError::IOErrorMsg(format!("Failed to read directory entry: {}", e))
             })?;
 
-            let relative_path = entry.path().strip_prefix(source).map_err(|e| {
+            let entry_path = entry.path();
+
+            if entry_path.starts_with(destination) {
+                continue;
+            }
+
+            let relative_path = entry_path.strip_prefix(source).map_err(|e| {
                 GraphError::IOErrorMsg(format!(
                     "Failed to determine relative path during copy: {}",
                     e
                 ))
             })?;
+
             let dest_path = destination.join(relative_path);
 
-            if entry.path().is_dir() {
+            if entry_path.is_dir() {
                 fs::create_dir_all(&dest_path).map_err(|e| {
                     GraphError::IOErrorMsg(format!(
                         "Failed to create directory {}: {}",
@@ -65,7 +72,7 @@ impl GraphIndex {
                         e
                     ))
                 })?;
-            } else if entry.path().is_file() {
+            } else if entry_path.is_file() {
                 if let Some(parent) = dest_path.parent() {
                     fs::create_dir_all(parent).map_err(|e| {
                         GraphError::IOErrorMsg(format!(
@@ -76,10 +83,10 @@ impl GraphIndex {
                     })?;
                 }
 
-                fs::copy(entry.path(), &dest_path).map_err(|e| {
+                fs::copy(entry_path, &dest_path).map_err(|e| {
                     GraphError::IOErrorMsg(format!(
                         "Failed to copy file {} to {}: {}",
-                        entry.path().display(),
+                        entry_path.display(),
                         dest_path.display(),
                         e
                     ))
@@ -122,7 +129,7 @@ impl GraphIndex {
     }
 
     pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
-        let tmp_path = TempDir::new()?;
+        let tmp_path = TempDir::new_in(path)?;
         if path.is_file() {
             GraphIndex::unzip_index(path, tmp_path.path())?;
         } else {

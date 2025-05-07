@@ -8,7 +8,7 @@ use crate::{
         api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{Graph, StableDecode},
+    prelude::{Graph, SearchableGraphOps, StableDecode},
     serialise::{
         serialise::{CacheOps, InternalStableDecode, StableEncode},
         ProtoGraph,
@@ -303,7 +303,9 @@ impl<G: InternalCache + InternalStableDecode + StableEncode> CacheOps for G {
     fn write_updates(&self) -> Result<(), GraphError> {
         let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
         cache.write()?;
-        cache.folder.write_metadata(self)
+        cache.folder.write_metadata(self)?;
+        #[cfg(feature = "search")]
+        self.persist_index_to_disk(&cache.folder.root_folder)
     }
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
