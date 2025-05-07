@@ -279,7 +279,7 @@ where
     }
 
     #[cfg(test)]
-    fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
+    pub fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(_, tuples) => Box::new(tuples.iter()),
