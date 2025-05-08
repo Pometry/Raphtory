@@ -132,13 +132,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for Nodes<'graph, G, GH>
 {
 }
-impl<
-        'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph> + ExplodedEdgePropertyFilterOps<'graph>,
-    > ExplodedEdgePropertyFilterOps<'graph> for Nodes<'graph, G, GH>
-{
-}
+// impl<
+//         'graph,
+//         G: GraphViewOps<'graph>,
+//         GH: GraphViewOps<'graph> + ExplodedEdgePropertyFilterOps<'graph>,
+//     > ExplodedEdgePropertyFilterOps<'graph> for Nodes<'graph, G, GH>
+// {
+// }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for Nodes<'graph, G, GH>

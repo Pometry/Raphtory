@@ -4,7 +4,8 @@ use crate::{
         api::view::{BoxableGraphView, DynamicGraph, IntoDynamic},
         graph::views::filter::{
             internal::{
-                InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+                InternalEdgeFilterOps,
+                InternalNodeFilterOps, // InternalExplodedEdgeFilterOps, ,
             },
             model::{
                 property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
@@ -170,20 +171,20 @@ impl InternalEdgeFilterOps for PyPropertyFilter {
     }
 }
 
-impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
-    type ExplodedEdgeFiltered<'graph, G>
-        = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
-    where
-        G: GraphViewOps<'graph>,
-        Self: 'graph;
-
-    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        self.0.create_exploded_edge_filter(graph)
-    }
-}
+// impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
+//     type ExplodedEdgeFiltered<'graph, G>
+//         = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
+//     where
+//         G: GraphViewOps<'graph>,
+//         Self: 'graph;
+//
+//     fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+//         self,
+//         graph: G,
+//     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+//         self.0.create_exploded_edge_filter(graph)
+//     }
+// }
 
 impl InternalNodeFilterOps for PyPropertyFilter {
     type NodeFiltered<'graph, G>
