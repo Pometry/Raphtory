@@ -4,7 +4,7 @@ use crate::{
         edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
         AsEdgeFilter, AsNodeFilter, EdgeEndpointFilter, EdgeFilter, EdgeFilterOps,
         InternalEdgeFilterBuilderOps, InternalNodeFilterBuilderOps, InternalPropertyFilterOps,
-        NodeFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
+        NodeFilter, NotFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
         TemporalPropertyFilterBuilder,
     },
     python::types::{
@@ -159,6 +159,20 @@ impl PyFilterExpr {
                     }))))
                 }
             },
+        }
+    }
+
+    fn __invert__(&self) -> Result<Self, GraphError> {
+        match &self.0 {
+            PyInnerFilterExpr::Node(i) => Ok(PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+                NotFilter(i.clone()),
+            )))),
+            PyInnerFilterExpr::Edge(i) => Ok(PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(
+                NotFilter(i.clone()),
+            )))),
+            PyInnerFilterExpr::Property(i) => Ok(PyFilterExpr(PyInnerFilterExpr::Property(
+                Arc::new(NotFilter(i.clone())),
+            ))),
         }
     }
 }

@@ -188,3 +188,13 @@ def test_filter_nodes_for_property_not_contains():
     expected_ids = []
     assert result_ids == expected_ids
 
+
+def test_filter_nodes_for_not_property():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr = filter.Property("p2") > 2
+    result_ids = sorted(graph.filter_nodes(~filter_expr).nodes.id)
+    expected_ids = sorted([1, 2, 4])
+    assert result_ids == expected_ids
+
