@@ -1,5 +1,7 @@
 use crate::model::graph::property::Value;
 use dynamic_graphql::{Enum, InputObject};
+use futures_util::TryFutureExt;
+use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
@@ -162,6 +164,7 @@ pub struct NodeFilter {
     pub temporal_property: Option<TemporalPropertyFilterExpr>,
     pub and: Option<Vec<NodeFilter>>,
     pub or: Option<Vec<NodeFilter>>,
+    pub not: Option<Vec<NodeFilter>>,
 }
 
 impl NodeFilter {
@@ -173,6 +176,7 @@ impl NodeFilter {
             self.temporal_property.is_some(),
             self.and.is_some(),
             self.or.is_some(),
+            self.not.is_some(),
         ];
 
         let count = fields_set.iter().filter(|x| **x).count();
@@ -207,6 +211,7 @@ pub struct EdgeFilter {
     pub temporal_property: Option<TemporalPropertyFilterExpr>,
     pub and: Option<Vec<EdgeFilter>>,
     pub or: Option<Vec<EdgeFilter>>,
+    pub not: Option<Vec<EdgeFilter>>,
 }
 
 impl EdgeFilter {
@@ -219,6 +224,7 @@ impl EdgeFilter {
             self.temporal_property.is_some(),
             self.and.is_some(),
             self.or.is_some(),
+            self.not.is_some(),
         ];
 
         let count = fields_set.iter().filter(|x| **x).count();
@@ -313,6 +319,22 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
             }
         }
 
+        if let Some(not_filters) = filter.not {
+            let inner = not_filters
+                .into_iter()
+                .exactly_one()
+                .map_err(|_| {
+                    GraphError::InvalidGqlFilter("Only one filter allowed inside 'not'".to_string())
+                })
+                .and_then(|f| {
+                    CompositeNodeFilter::try_from(f).map_err(|_| {
+                        GraphError::InvalidGqlFilter("Failed to parse filter".to_string())
+                    })
+                })?;
+
+            exprs.push(CompositeNodeFilter::Not(Box::new(inner)));
+        }
+
         let result = match exprs.len() {
             0 => Err(GraphError::ParsingError),
             1 => Ok(exprs.remove(0)),
@@ -392,6 +414,22 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 });
                 exprs.push(or_chain);
             }
+        }
+
+        if let Some(not_filters) = filter.not {
+            let inner = not_filters
+                .into_iter()
+                .exactly_one()
+                .map_err(|_| {
+                    GraphError::InvalidGqlFilter("Only one filter allowed inside 'not'".to_string())
+                })
+                .and_then(|f| {
+                    CompositeEdgeFilter::try_from(f).map_err(|_| {
+                        GraphError::InvalidGqlFilter("Failed to parse filter".to_string())
+                    })
+                })?;
+
+            exprs.push(CompositeEdgeFilter::Not(Box::new(inner)));
         }
 
         match exprs.len() {
