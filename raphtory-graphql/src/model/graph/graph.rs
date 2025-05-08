@@ -20,7 +20,11 @@ use itertools::Itertools;
 use raphtory::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::{GraphError, InvalidPathReason::PathNotParsable},
+        utils::errors::{
+            GraphError,
+            GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
+            InvalidPathReason::PathNotParsable,
+        },
     },
     db::{
         api::{
@@ -126,8 +130,67 @@ impl GqlGraph {
         self.apply(|g| g.exclude_nodes(nodes.clone()))
     }
 
-    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+    fn rolling(
+        &self,
+        window_str: Option<String>,
+        window_int: Option<i64>,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<Vec<GqlGraph>, GraphError> {
+        match (window_str, window_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "window_str".to_string(),
+                "window_int".to_string(),
+            )),
+            (None, Some(window_int)) => {
+                if step_str.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(self
+                    .graph
+                    .rolling(window_int, step_int)?
+                    .map(|g| GqlGraph::new(self.path.clone(), g))
+                    .collect())
+            }
+            (Some(window_str), None) => {
+                if step_int.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(self
+                    .graph
+                    .rolling(window_str, step_str)?
+                    .map(|g| GqlGraph::new(self.path.clone(), g))
+                    .collect())
+            }
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
 
+    fn expanding(
+        &self,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<Vec<GqlGraph>, GraphError> {
+        match (step_str, step_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "step_str".to_string(),
+                "step_int".to_string(),
+            )),
+            (None, Some(step_int)) => Ok(self
+                .graph
+                .expanding(step_int)?
+                .map(|g| GqlGraph::new(self.path.clone(), g))
+                .collect()),
+            (Some(step_str), None) => Ok(self
+                .graph
+                .expanding(step_str)?
+                .map(|g| GqlGraph::new(self.path.clone(), g))
+                .collect()),
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
+
+    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         self.apply(|g| g.window(start, end))
     }

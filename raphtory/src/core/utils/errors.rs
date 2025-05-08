@@ -361,6 +361,12 @@ pub enum GraphError {
 
     #[error("Value cannot be empty.")]
     EmptyValue,
+
+    #[error("Your window and step must be of the same type (int or String)")]
+    MismatchedIntervalTypes,
+
+    #[error("You must provide either a window_str or window_int")]
+    NoIntervalProvided,
 }
 
 impl GraphError {

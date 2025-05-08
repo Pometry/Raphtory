@@ -1,11 +1,14 @@
 use crate::model::graph::{
     edges::GqlEdges, filtering::NodeViewCollection, nodes::GqlNodes,
-    path_from_node::GqlPathFromNode, property::GqlProperties,
+    path_from_node::GqlPathFromNode, property::GqlProperties, windowset::GqlNodeWindowSet,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
-    core::utils::errors::GraphError,
+    core::utils::errors::{
+        GraphError,
+        GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
+    },
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::node::NodeView,
@@ -62,6 +65,54 @@ impl Node {
 
     async fn exclude_layer(&self, name: String) -> Node {
         self.vv.exclude_valid_layers(name).into()
+    }
+
+    fn rolling(
+        &self,
+        window_str: Option<String>,
+        window_int: Option<i64>,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlNodeWindowSet, GraphError> {
+        match (window_str, window_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "window_str".to_string(),
+                "window_int".to_string(),
+            )),
+            (None, Some(window_int)) => {
+                if step_str.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlNodeWindowSet::new(
+                    self.vv.rolling(window_int, step_int)?,
+                ))
+            }
+            (Some(window_str), None) => {
+                if step_int.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlNodeWindowSet::new(
+                    self.vv.rolling(window_str, step_str)?,
+                ))
+            }
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
+
+    fn expanding(
+        &self,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlNodeWindowSet, GraphError> {
+        match (step_str, step_int) {
+            (Some(step_str), Some(step_int)) => Err(WrongNumOfArgs(
+                "step_str".to_string(),
+                "step_int".to_string(),
+            )),
+            (None, Some(step_int)) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step_int)?)),
+            (Some(step_str), None) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step_str)?)),
+            (None, None) => return Err(NoIntervalProvided),
+        }
     }
 
     async fn window(&self, start: i64, end: i64) -> Node {
