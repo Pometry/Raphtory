@@ -28,11 +28,11 @@ enum ExpansionPath {
 
 impl ExpansionPath {
     fn includes_nodes(&self) -> bool {
-        matches!(self, ExpansionPath::Nodes | ExpansionPath::Both)
+        matches!(self, Self::Nodes | Self::Both)
     }
 
     fn includes_edges(&self) -> bool {
-        matches!(self, ExpansionPath::Edges | ExpansionPath::Both)
+        matches!(self, Self::Edges | Self::Both)
     }
 }
 
@@ -149,8 +149,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     ///   * hops - the number of hops to carry out the expansion
     ///   * window - the window where documents need to belong to in order to be considered
     pub fn expand(&mut self, hops: usize, window: Option<(i64, i64)>) {
-        let nodes = self.get_nodes_in_context(window);
-        let edges = self.get_edges_in_context(window);
+        let nodes = self.get_nodes_in_context(window, false);
+        let edges = self.get_edges_in_context(window, false);
         let docs = nodes.into_iter().chain(edges).map(|entity| (entity, 0.0));
         self.extend_selection(docs, usize::MAX);
         if hops > 1 {
@@ -227,7 +227,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let initial_size = self.selected.len();
 
         let nodes: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_nodes() {
-            let filter = self.get_nodes_in_context(window);
+            let jump = matches!(path, ExpansionPath::Nodes);
+            let filter = self.get_nodes_in_context(window, jump);
             let nodes = self
                 .graph
                 .node_db
@@ -238,7 +239,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         };
 
         let edges: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_edges() {
-            let filter = self.get_edges_in_context(window);
+            let jump = matches!(path, ExpansionPath::Edges);
+            let filter = self.get_edges_in_context(window, jump);
             let edges = self.graph.edge_db.top_k(query, limit, view, Some(filter));
             Box::new(edges)
         } else {
@@ -249,37 +251,45 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         self.extend_selection(docs, limit);
 
         let increment = self.selected.len() - initial_size;
-        if increment == 0 && increment < limit {
+        if increment > 0 && increment < limit {
             self.expand_by_similarity(query, limit, window, path)
         }
     }
 
-    fn get_nodes_in_context(&self, window: Option<(i64, i64)>) -> HashSet<EntityRef> {
+    fn get_nodes_in_context(&self, window: Option<(i64, i64)>, jump: bool) -> HashSet<EntityRef> {
         match window {
-            Some((start, end)) => {
-                self.get_nodes_in_context_for_view(&self.graph.source_graph.window(start, end))
-            }
-            None => self.get_nodes_in_context_for_view(&self.graph.source_graph),
+            Some((start, end)) => self
+                .get_nodes_in_context_for_view(&self.graph.source_graph.window(start, end), jump),
+            None => self.get_nodes_in_context_for_view(&self.graph.source_graph, jump),
         }
     }
 
-    fn get_edges_in_context(&self, window: Option<(i64, i64)>) -> HashSet<EntityRef> {
+    fn get_edges_in_context(&self, window: Option<(i64, i64)>, jump: bool) -> HashSet<EntityRef> {
         match window {
-            Some((start, end)) => {
-                self.get_edges_in_context_for_view(&self.graph.source_graph.window(start, end))
-            }
-            None => self.get_edges_in_context_for_view(&self.graph.source_graph),
+            Some((start, end)) => self
+                .get_edges_in_context_for_view(&self.graph.source_graph.window(start, end), jump),
+            None => self.get_edges_in_context_for_view(&self.graph.source_graph, jump),
         }
     }
 
-    fn get_nodes_in_context_for_view<W: StaticGraphViewOps>(&self, v: &W) -> HashSet<EntityRef> {
+    fn get_nodes_in_context_for_view<W: StaticGraphViewOps>(
+        &self,
+        v: &W,
+        jump: bool,
+    ) -> HashSet<EntityRef> {
         let iter = self.selected.iter();
-        iter.flat_map(|(e, _)| e.get_neighbour_nodes(v)).collect()
+        iter.flat_map(|(e, _)| e.get_neighbour_nodes(v, jump))
+            .collect()
     }
 
-    fn get_edges_in_context_for_view<W: StaticGraphViewOps>(&self, v: &W) -> HashSet<EntityRef> {
+    fn get_edges_in_context_for_view<W: StaticGraphViewOps>(
+        &self,
+        v: &W,
+        jump: bool,
+    ) -> HashSet<EntityRef> {
         let iter = self.selected.iter();
-        iter.flat_map(|(e, _)| e.get_neighbour_edges(v)).collect()
+        iter.flat_map(|(e, _)| e.get_neighbour_edges(v, jump))
+            .collect()
     }
 
     fn regenerate_doc(&self, entity: EntityRef) -> Document<G> {
@@ -325,15 +335,21 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 }
 
+// TODO: I could make get_neighbour_nodes rely on get_neighbour_edges and viceversa, reusing some code
 impl EntityRef {
     fn get_neighbour_nodes<G: StaticGraphViewOps>(
         &self,
         view: &G,
+        jump: bool,
     ) -> impl Iterator<Item = EntityRef> {
         let nodes: Box<dyn Iterator<Item = NodeView<_>>> =
             if let Some(node) = self.as_node_view(view) {
-                let docs = node.neighbours().into_iter();
-                Box::new(docs)
+                if jump {
+                    let docs = node.neighbours().into_iter();
+                    Box::new(docs)
+                } else {
+                    Box::new(std::iter::empty())
+                }
             } else if let Some(edge) = self.as_edge_view(view) {
                 Box::new([edge.src(), edge.dst()].into_iter())
             } else {
@@ -345,13 +361,20 @@ impl EntityRef {
     fn get_neighbour_edges<G: StaticGraphViewOps>(
         &self,
         view: &G,
+        jump: bool,
     ) -> impl Iterator<Item = EntityRef> {
         let edges: Box<dyn Iterator<Item = EdgeView<_>>> =
             if let Some(node) = self.as_node_view(view) {
                 let docs = node.edges().into_iter();
                 Box::new(docs)
-            } else if let Some(_) = self.as_edge_view(view) {
-                Box::new(std::iter::empty()) // FIXME: probably jump to edges of src and dst, I can call get_neighbour_nodes
+            } else if let Some(edge) = self.as_edge_view(view) {
+                if jump {
+                    let src_edges = edge.src().edges().into_iter();
+                    let dst_edges = edge.dst().edges().into_iter();
+                    Box::new(src_edges.chain(dst_edges))
+                } else {
+                    Box::new(std::iter::empty())
+                }
             } else {
                 Box::new(std::iter::empty())
             };

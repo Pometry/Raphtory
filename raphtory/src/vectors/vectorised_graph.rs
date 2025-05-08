@@ -24,7 +24,7 @@ use super::{
     vectorisable::compute_embeddings,
 };
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum EntityRef {
     Node(usize), // TODO: store this as a u32
     Edge(usize),
