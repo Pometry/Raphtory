@@ -350,8 +350,10 @@ impl<'a> EdgeFilterExecutor<'a> {
 
                 Ok(combined.into_iter().collect())
             }
+            CompositeEdgeFilter::Not(_) => Self::raph_filter_edges(graph, filter, offset, limit),
         }
     }
+
     pub fn filter_edges<G: StaticGraphViewOps>(
         &self,
         graph: &G,

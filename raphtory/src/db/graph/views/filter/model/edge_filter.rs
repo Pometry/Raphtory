@@ -4,7 +4,7 @@ use crate::{
         api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::BoxableGraphView},
         graph::views::filter::{
             internal::InternalEdgeFilterOps,
-            model::{property_filter::PropertyFilter, AndFilter, Filter, OrFilter},
+            model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
         },
     },
     prelude::GraphViewOps,
@@ -26,6 +26,7 @@ pub enum CompositeEdgeFilter {
     Property(PropertyFilter),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
+    Not(Box<CompositeEdgeFilter>),
 }
 
 impl Display for CompositeEdgeFilter {
@@ -35,6 +36,7 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
+            CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
         }
     }
 }
@@ -62,6 +64,9 @@ impl CompositeEdgeFilter {
             CompositeEdgeFilter::Or(left, right) => {
                 left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
                     || right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
+            }
+            CompositeEdgeFilter::Not(filter) => {
+                !filter.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
             }
         }
     }
@@ -93,6 +98,10 @@ impl InternalEdgeFilterOps for CompositeEdgeFilter {
                 }
                 .create_edge_filter(graph)?,
             )),
+            CompositeEdgeFilter::Not(filter) => {
+                let base = filter.deref().clone();
+                Ok(Arc::new(NotFilter(base).create_edge_filter(graph)?))
+            }
         }
     }
 }

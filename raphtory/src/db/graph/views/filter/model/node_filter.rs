@@ -3,8 +3,8 @@ use crate::{
     db::{
         api::{storage::graph::nodes::node_ref::NodeStorageRef, view::BoxableGraphView},
         graph::views::filter::{
-            internal::InternalNodeFilterOps,
-            model::{property_filter::PropertyFilter, AndFilter, Filter, OrFilter},
+            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+            model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
         },
     },
     prelude::GraphViewOps,
@@ -48,6 +48,7 @@ pub enum CompositeNodeFilter {
     Property(PropertyFilter),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
+    Not(Box<CompositeNodeFilter>),
 }
 
 impl Display for CompositeNodeFilter {
@@ -57,6 +58,7 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
+            CompositeNodeFilter::Not(filter) => write!(f, "NOT({})", filter),
         }
     }
 }
@@ -115,6 +117,14 @@ impl CompositeNodeFilter {
                     node,
                 )
             }
+            CompositeNodeFilter::Not(filter) => !filter.matches_node(
+                graph,
+                t_prop_ids,
+                c_prop_ids,
+                node_types_filter,
+                layer_ids,
+                node,
+            ),
         }
     }
 }
@@ -149,6 +159,10 @@ impl InternalNodeFilterOps for CompositeNodeFilter {
                 }
                 .create_node_filter(graph)?,
             )),
+            CompositeNodeFilter::Not(filter) => {
+                let base = filter.deref().clone();
+                Ok(Arc::new(NotFilter(base).create_node_filter(graph)?))
+            }
         }
     }
 }
