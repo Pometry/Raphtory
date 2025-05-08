@@ -31,6 +31,3 @@ name = "crypto"
 
 [[bin]]
 name = "pokec"
-
-[[bin]]
-name = "node_history"

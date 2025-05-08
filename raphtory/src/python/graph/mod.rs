@@ -12,3 +12,4 @@ pub mod node;
 pub mod node_state;
 pub mod properties;
 pub mod views;
+pub mod history;
