@@ -49,16 +49,6 @@ impl GraphWithVectors {
         }
     }
 
-    pub(crate) async fn update_graph_embeddings(
-        &self,
-        graph_name: Option<String>,
-    ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
-            vectors.update_graph(graph_name).await?;
-        }
-        Ok(())
-    }
-
     pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
             vectors.update_node(node).await?;
@@ -81,32 +71,15 @@ impl GraphWithVectors {
         let folder = path.into();
         self.folder
             .get_or_try_init(|| Ok::<_, GraphError>(folder.clone()))?;
-        self.graph.cache(folder)?;
-        self.dump_vectors_to_disk()
+        self.graph.cache(folder)
     }
 
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
         match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => {
-                self.graph.write_updates()?;
-            }
+            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(_) => {}
         }
-        self.dump_vectors_to_disk()
-    }
-
-    fn dump_vectors_to_disk(&self) -> Result<(), GraphError> {
-        if let Some(vectors) = &self.vectors {
-            vectors.write_to_path(
-                &self
-                    .folder
-                    .get()
-                    .ok_or(GraphError::CacheNotInnitialised)?
-                    .get_vectors_path(),
-            )?;
-        }
-        Ok(())
     }
 
     pub(crate) fn read_from_folder(

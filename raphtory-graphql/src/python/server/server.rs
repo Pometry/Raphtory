@@ -27,9 +27,7 @@ use raphtory::{
     python::{packages::vectors::TemplateConfig, types::wrappers::document::PyDocument},
     vectors::{
         embeddings::openai_embedding,
-        template::{
-            DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
-        },
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         Document, EmbeddingFunction,
     },
 };
@@ -60,16 +58,11 @@ impl<'py> IntoPyObject<'py> for GraphServer {
     }
 }
 
-fn template_from_python(
-    graphs: TemplateConfig,
-    nodes: TemplateConfig,
-    edges: TemplateConfig,
-) -> Option<DocumentTemplate> {
-    if graphs.is_disabled() && nodes.is_disabled() && edges.is_disabled() {
+fn template_from_python(nodes: TemplateConfig, edges: TemplateConfig) -> Option<DocumentTemplate> {
+    if nodes.is_disabled() && edges.is_disabled() {
         None
     } else {
         Some(DocumentTemplate {
-            graph_template: graphs.get_template_or(DEFAULT_GRAPH_TEMPLATE),
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         })
@@ -85,11 +78,10 @@ impl PyGraphServer {
         slf: PyRefMut<Self>,
         cache: String,
         embedding: F,
-        graphs: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
-        let global_template = template_from_python(graphs, nodes, edges);
+        let global_template = template_from_python(nodes, edges);
         let server = take_server_ownership(slf)?;
         let cache = PathBuf::from(cache);
         Ok(server.set_embeddings(embedding, &cache, global_template))
@@ -236,31 +228,27 @@ impl PyGraphServer {
     /// Arguments:
     ///   cache (str):  the directory to use as cache for the embeddings.
     ///   embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///    GraphServer: A new server object with embeddings setup.
     #[pyo3(
-        signature = (cache, embedding = None, graphs = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+        signature = (cache, embedding = None, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
     fn set_embeddings(
         slf: PyRefMut<Self>,
         cache: String,
         embedding: Option<Py<PyFunction>>,
-        graphs: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
         match embedding {
             Some(embedding) => {
                 let embedding: Arc<dyn EmbeddingFunction> = Arc::new(embedding);
-                Self::set_generic_embeddings(slf, cache, embedding, graphs, nodes, edges)
+                Self::set_generic_embeddings(slf, cache, embedding, nodes, edges)
             }
-            None => {
-                Self::set_generic_embeddings(slf, cache, openai_embedding, graphs, nodes, edges)
-            }
+            None => Self::set_generic_embeddings(slf, cache, openai_embedding, nodes, edges),
         }
     }
 
@@ -268,27 +256,24 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///   graph_names (list[str]): the names of the graphs to vectorise. All by default.
-    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
-        signature = (graph_names, graphs = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+        signature = (graph_names, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
     fn with_vectorised_graphs(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
-        graphs: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
-        let template =
-            template_from_python(graphs, nodes, edges).ok_or(PyAttributeError::new_err(
-                "some of graph_template, node_template, edge_template has to be set",
-            ))?;
+        let template = template_from_python(nodes, edges).ok_or(PyAttributeError::new_err(
+            "node_template and/or edge_template has to be set",
+        ))?;
         let server = take_server_ownership(slf)?;
         Ok(server.with_vectorised_graphs(graph_names, template))
     }
