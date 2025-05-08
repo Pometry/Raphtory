@@ -34,10 +34,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for PathFromGraph<'graph, G, GH>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
-{
-}
+// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+//     ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
+// {
+// }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for PathFromGraph<'graph, G, GH>
@@ -307,10 +307,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for PathFromNode<'graph, G, GH>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
-{
-}
+// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+//     ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
+// {
+// }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for PathFromNode<'graph, G, GH>
