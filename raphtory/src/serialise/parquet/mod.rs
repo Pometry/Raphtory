@@ -408,14 +408,15 @@ mod test {
     use crate::{
         db::graph::graph::assert_graph_equal,
         test_utils::{
-            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, GraphFixture,
-            NodeFixture,
+            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
+            EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
+            PropUpdatesFixture,
         },
     };
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, Utc};
     use proptest::prelude::*;
-    use std::{collections::HashMap, str::FromStr};
+    use std::str::FromStr;
 
     #[test]
     fn node_temp_props() {
@@ -426,139 +427,177 @@ mod test {
     #[test]
     #[ignore = "This is broken because of polars-parquet"]
     fn node_temp_props_decimal() {
-        let nodes = NodeFixture {
-            nodes: vec![(
+        let nodes = NodeFixture(
+            [(
                 0,
-                0,
-                vec![(
-                    "Y".to_string(),
-                    Prop::List(
-                        vec![
-                            Prop::List(
-                                vec![
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                ]
-                                .into(),
-                            ),
-                            Prop::List(
-                                vec![
-                                    Prop::Decimal(BigDecimal::from_str("13e-13").unwrap()),
-                                    Prop::Decimal(
-                                        BigDecimal::from_str("191558628130262966499e-13").unwrap(),
-                                    ),
-                                ]
-                                .into(),
-                            ),
-                            Prop::List(
-                                vec![
+                NodeUpdatesFixture {
+                    props: PropUpdatesFixture {
+                        t_props: vec![(
+                            0,
+                            vec![(
+                                "Y".to_string(),
+                                Prop::List(
+                                    vec![
+                                        Prop::List(
+                                            vec![
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                            ]
+                                            .into(),
+                                        ),
+                                        Prop::List(
+                                            vec![
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str("13e-13").unwrap(),
+                                                ),
+                                                Prop::Decimal(
+                                                    BigDecimal::from_str(
+                                                        "191558628130262966499e-13",
+                                                    )
+                                                    .unwrap(),
+                                                ),
+                                            ]
+                                            .into(),
+                                        ),
+                                        Prop::List(
+                                            vec![
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "87897464368906578673545214461637064026e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "94016349560001117444902279806303521844e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "84910690243002010022611521070762324633e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "31555839249842363263204026650232450040e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "86230621933535017744166139882102600331e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "8814065867434113836260276824023976656e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "5911907249021330427648764706320440531e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "86835517758183724431483793853154818250e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                     Prop::Decimal(
                                         BigDecimal::from_str(
                                             "89347387369804528029924787786630755616e-13",
                                         )
-                                        .unwrap(),
+                                            .unwrap(),
                                     ),
                                 ]
-                                .into(),
+                                            .into(),
+                                        ),
+                                    ]
+                                    .into(),
+                                ),
+                            )],
+                        )],
+                        c_props: vec![(
+                            "x".to_string(),
+                            Prop::Decimal(
+                                BigDecimal::from_str("47852687012008324212654110188753175619e-22")
+                                    .unwrap(),
                             ),
-                        ]
-                        .into(),
-                    ),
-                )],
-            )],
-            node_const_props: [(
-                0u64,
-                vec![(
-                    "x".to_string(),
-                    Prop::Decimal(
-                        BigDecimal::from_str("47852687012008324212654110188753175619e-22").unwrap(),
-                    ),
-                )],
+                        )],
+                    },
+                    node_type: None,
+                },
             )]
-            .into_iter()
-            .collect(),
-        };
+            .into(),
+        );
 
         build_and_check_parquet_encoding(nodes.into());
     }
 
     #[test]
     fn edge_const_props_maps() {
-        let g_fixture = GraphFixture {
-            edges: vec![],
-            no_props_edges: vec![(1, 1, 1, None)],
-            edge_deletions: vec![],
-            edge_const_props: vec![
+        let edges = EdgeFixture(
+            [
                 (
-                    (0u64, 0u64, None),
-                    vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
+                    (1, 1, None),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![(1, vec![])],
+                            c_props: vec![],
+                        },
+                        deletions: vec![],
+                    },
                 ),
                 (
-                    (0u64, 1u64, None),
-                    vec![(
-                        "a".to_string(),
-                        Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
-                    )],
+                    (0, 0, None),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![(0, vec![])],
+                            c_props: vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
+                        },
+                        deletions: vec![],
+                    },
+                ),
+                (
+                    (0, 1, None),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![(0, vec![])],
+                            c_props: vec![(
+                                "a".to_string(),
+                                Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
+                            )],
+                        },
+                        deletions: vec![],
+                    },
                 ),
             ]
-            .into_iter()
-            .collect(),
-            nodes: Default::default(),
-        };
+            .into(),
+        );
 
-        build_and_check_parquet_encoding(g_fixture);
+        build_and_check_parquet_encoding(edges.into());
     }
 
     #[test]
@@ -700,29 +739,30 @@ mod test {
 
     #[test]
     fn edges_map4() {
-        let g_fix = GraphFixture {
-            edges: vec![(0, 0, 0, vec![("a".to_string(), Prop::U8(5))], None)],
-            edge_deletions: vec![(0, 0, 1, None)],
-            no_props_edges: vec![],
-            edge_const_props: vec![(
-                (0u64, 0u64, None),
-                vec![(
-                    "x".to_string(),
-                    Prop::List(
-                        vec![
-                            Prop::map([("n", Prop::I64(23))]),
-                            Prop::map([("b", Prop::F64(0.2))]),
-                        ]
-                        .into(),
-                    ),
-                )],
+        let edges = EdgeFixture(
+            [(
+                (0, 0, None),
+                EdgeUpdatesFixture {
+                    props: PropUpdatesFixture {
+                        t_props: vec![(0, vec![("a".to_string(), Prop::U8(5))])],
+                        c_props: vec![(
+                            "x".to_string(),
+                            Prop::List(
+                                vec![
+                                    Prop::map([("n", Prop::I64(23))]),
+                                    Prop::map([("b", Prop::F64(0.2))]),
+                                ]
+                                .into(),
+                            ),
+                        )],
+                    },
+                    deletions: vec![1],
+                },
             )]
-            .into_iter()
-            .collect(),
-            nodes: Default::default(),
-        };
+            .into(),
+        );
 
-        build_and_check_parquet_encoding(g_fix)
+        build_and_check_parquet_encoding(edges.into())
     }
 
     // proptest
@@ -750,37 +790,37 @@ mod test {
         let dt = "2012-12-12 12:12:12+00:00"
             .parse::<DateTime<Utc>>()
             .unwrap();
-        let node_fixtures = NodeFixture {
-            nodes: vec![(
+        let nodes = NodeFixture(
+            [(
                 0,
-                0,
-                vec![
-                    ("a".to_string(), Prop::U8(5)),
-                    ("a".to_string(), Prop::U8(5)),
-                ],
-            )],
-            node_const_props: vec![(0, vec![("b".to_string(), Prop::DTime(dt))])]
-                .into_iter()
-                .collect(),
-        };
+                NodeUpdatesFixture {
+                    props: PropUpdatesFixture {
+                        t_props: vec![(
+                            0,
+                            vec![
+                                ("a".to_string(), Prop::U8(5)),
+                                ("a".to_string(), Prop::U8(5)),
+                            ],
+                        )],
+                        c_props: vec![("b".to_string(), Prop::DTime(dt))],
+                    },
+                    node_type: None,
+                },
+            )]
+            .into(),
+        );
 
-        build_and_check_parquet_encoding(node_fixtures.into());
+        build_and_check_parquet_encoding(nodes.into());
     }
 
-    fn check_graph_props(nf: NodeFixture) {
+    fn check_graph_props(nf: PropUpdatesFixture) {
         let g = Graph::new();
         let temp_dir = tempfile::tempdir().unwrap();
-        for (_, t, props) in nf.nodes {
-            g.add_properties(t, props).unwrap();
+        for (t, props) in nf.t_props {
+            g.add_properties(t, props).unwrap()
         }
 
-        let const_props = nf
-            .node_const_props
-            .into_iter()
-            .flat_map(|(_, props)| props)
-            .collect::<HashMap<_, _>>();
-        g.add_constant_properties(const_props).unwrap();
-
+        g.add_constant_properties(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);
@@ -788,69 +828,57 @@ mod test {
 
     #[test]
     fn graph_props() {
-        let mut nf: NodeFixture = [(0, 1, vec![("a".to_string(), Prop::U8(5))])].into();
-        nf.node_const_props = vec![(1, vec![("b".to_string(), Prop::str("baa"))])]
-            .into_iter()
-            .collect();
-        check_graph_props(nf)
-    }
-
-    #[test]
-    fn edge_props_1() {
-        let gp_fix = GraphFixture {
-            edge_const_props: vec![((0u64, 0u64, None), vec![("a".to_string(), Prop::I64(5))])]
-                .into_iter()
-                .collect(),
-            edge_deletions: vec![(6, 2, 4444, None)],
-            edges: vec![(
-                0,
-                0,
-                -67,
-                vec![
-                    ("x".to_string(), Prop::I64(5)),
-                    ("b".to_string(), Prop::Bool(false)),
-                ],
-                Some("a"),
-            )],
-            no_props_edges: vec![(7, 0, 469, None)],
-            nodes: NodeFixture::default(),
+        let props = PropUpdatesFixture {
+            t_props: vec![(0, vec![("a".to_string(), Prop::U8(5))])],
+            c_props: vec![("b".to_string(), Prop::str("baa"))],
         };
-        build_and_check_parquet_encoding(gp_fix);
+        check_graph_props(props)
     }
 
     #[test]
-    fn graph_const_props() {
-        let mut nf: NodeFixture = NodeFixture::default();
-        nf.node_const_props = vec![(1, vec![("b".to_string(), Prop::str("baa"))])]
-            .into_iter()
-            .collect();
+    fn node_const_props() {
+        let nf = NodeFixture(
+            [(
+                1,
+                NodeUpdatesFixture {
+                    props: PropUpdatesFixture {
+                        t_props: vec![],
+                        c_props: vec![("b".to_string(), Prop::str("baa"))],
+                    },
+                    node_type: None,
+                },
+            )]
+            .into(),
+        );
         build_and_check_parquet_encoding(nf.into())
     }
 
     #[test]
     fn write_graph_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 10))| {
-            check_graph_props(nodes);
+        proptest!(|(props in build_props_dyn(10))| {
+            check_graph_props(props);
         });
     }
 
     #[test]
     fn write_nodes_no_props_to_parquet() {
-        let mut nf = NodeFixture::default();
-        nf.nodes = vec![(0, 1, vec![])];
+        let nf = PropUpdatesFixture {
+            t_props: vec![(1, vec![])],
+            c_props: vec![],
+        };
         check_graph_props(nf);
     }
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 10))| {
+        proptest!(|(nodes in build_nodes_dyn(10, 10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
         proptest!(|(edges in build_edge_list_dyn(10, 10, true))| {
-            build_and_check_parquet_encoding(edges);
+            build_and_check_parquet_encoding(edges.into());
         });
     }
 
