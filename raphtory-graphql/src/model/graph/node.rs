@@ -105,7 +105,7 @@ impl Node {
         step_int: Option<i64>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
         match (step_str, step_int) {
-            (Some(step_str), Some(step_int)) => Err(WrongNumOfArgs(
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "step_str".to_string(),
                 "step_int".to_string(),
             )),

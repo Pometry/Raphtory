@@ -1,11 +1,14 @@
 use crate::model::{
-    graph::{edge::Edge, filtering::EdgesViewCollection},
+    graph::{edge::Edge, filtering::EdgesViewCollection, windowset::GqlEdgesWindowSet},
     sorting::{EdgeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{
+        GraphError,
+        GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
+    },
     db::{
         api::view::{internal::OneHopFilter, DynamicGraph},
         graph::edges::Edges,
@@ -60,6 +63,54 @@ impl GqlEdges {
 
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.ee.exclude_valid_layers(name))
+    }
+
+    fn rolling(
+        &self,
+        window_str: Option<String>,
+        window_int: Option<i64>,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlEdgesWindowSet, GraphError> {
+        match (window_str, window_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "window_str".to_string(),
+                "window_int".to_string(),
+            )),
+            (None, Some(window_int)) => {
+                if step_str.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlEdgesWindowSet::new(
+                    self.ee.rolling(window_int, step_int)?,
+                ))
+            }
+            (Some(window_str), None) => {
+                if step_int.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlEdgesWindowSet::new(
+                    self.ee.rolling(window_str, step_str)?,
+                ))
+            }
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
+
+    fn expanding(
+        &self,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlEdgesWindowSet, GraphError> {
+        match (step_str, step_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "step_str".to_string(),
+                "step_int".to_string(),
+            )),
+            (None, Some(step_int)) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step_int)?)),
+            (Some(step_str), None) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step_str)?)),
+            (None, None) => return Err(NoIntervalProvided),
+        }
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {

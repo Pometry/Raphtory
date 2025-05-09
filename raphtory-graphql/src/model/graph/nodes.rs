@@ -2,7 +2,7 @@ use crate::model::{
     graph::{
         filtering::{FilterCondition, NodesViewCollection, Operator},
         node::Node,
-        windowset::GqlNodeWindowSet,
+        windowset::GqlNodesWindowSet,
     },
     sorting::{NodeSortBy, SortByTime},
 };
@@ -69,53 +69,53 @@ impl GqlNodes {
         self.update(self.nn.exclude_valid_layers(name))
     }
 
-    // fn rolling(
-    //     &self,
-    //     window_str: Option<String>,
-    //     window_int: Option<i64>,
-    //     step_str: Option<String>,
-    //     step_int: Option<i64>,
-    // ) -> Result<GqlNodeWindowSet, GraphError> {
-    //     match (window_str, window_int) {
-    //         (Some(_), Some(_)) => Err(WrongNumOfArgs(
-    //             "window_str".to_string(),
-    //             "window_int".to_string(),
-    //         )),
-    //         (None, Some(window_int)) => {
-    //             if step_str.is_some() {
-    //                 return Err(MismatchedIntervalTypes);
-    //             }
-    //             Ok(GqlNodeWindowSet::new_nodes(
-    //                 self.nn.rolling(window_int, step_int)?
-    //             ))
-    //         }
-    //         (Some(window_str), None) => {
-    //             if step_int.is_some() {
-    //                 return Err(MismatchedIntervalTypes);
-    //             }
-    //             Ok(GqlNodeWindowSet::new_nodes(
-    //                 self.nn.rolling(window_str, step_str)?
-    //             ))
-    //         }
-    //         (None, None) => return Err(NoIntervalProvided),
-    //     }
-    // }
-    //
-    // fn expanding(
-    //     &self,
-    //     step_str: Option<String>,
-    //     step_int: Option<i64>,
-    // ) -> Result<GqlNodeWindowSet, GraphError> {
-    //     match (step_str, step_int) {
-    //         (Some(step_str), Some(step_int)) => Err(WrongNumOfArgs(
-    //             "step_str".to_string(),
-    //             "step_int".to_string(),
-    //         )),
-    //         (None, Some(step_int)) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step_int)?)),
-    //         (Some(step_str), None) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step_str)?)),
-    //         (None, None) => return Err(NoIntervalProvided),
-    //     }
-    // }
+    fn rolling(
+        &self,
+        window_str: Option<String>,
+        window_int: Option<i64>,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlNodesWindowSet, GraphError> {
+        match (window_str, window_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "window_str".to_string(),
+                "window_int".to_string(),
+            )),
+            (None, Some(window_int)) => {
+                if step_str.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlNodesWindowSet::new(
+                    self.nn.rolling(window_int, step_int)?,
+                ))
+            }
+            (Some(window_str), None) => {
+                if step_int.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlNodesWindowSet::new(
+                    self.nn.rolling(window_str, step_str)?,
+                ))
+            }
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
+
+    fn expanding(
+        &self,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlNodesWindowSet, GraphError> {
+        match (step_str, step_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "step_str".to_string(),
+                "step_int".to_string(),
+            )),
+            (None, Some(step_int)) => Ok(GqlNodesWindowSet::new(self.nn.expanding(step_int)?)),
+            (Some(step_str), None) => Ok(GqlNodesWindowSet::new(self.nn.expanding(step_str)?)),
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
 
     async fn window(&self, start: i64, end: i64) -> Self {
         self.update(self.nn.window(start, end))
