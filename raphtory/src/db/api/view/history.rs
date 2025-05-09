@@ -11,13 +11,14 @@ use crate::db::graph::edge::EdgeView;
 use crate::db::graph::node::NodeView;
 use crate::prelude::*;
 
-#[derive(Clone)]
+// TODO: Wanna define ordered/orderable and anything else necessary so we can use them in python for __eq__, __ne__
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 pub struct RaphtoryTime {
     time_index: TimeIndexEntry
 }
 
 impl RaphtoryTime {
-    pub fn apply(time_index: TimeIndexEntry) -> Self { Self{time_index} }
+    pub fn new(time_index: TimeIndexEntry) -> Self { Self{time_index} }
     pub fn dt(&self) -> Option<DateTime<Utc>> {
         self.time_index.dt()
     }
@@ -26,7 +27,12 @@ impl RaphtoryTime {
     }
 }
 
-// FIXME: I had to add multiple send + sync traits which are unsafe. I doubt this code is actually thread-safe
+impl From<TimeIndexEntry> for RaphtoryTime {
+    fn from(time_index: TimeIndexEntry) -> Self {
+        Self { time_index }
+    }
+}
+
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
@@ -36,9 +42,11 @@ pub trait InternalHistoryOps: Send + Sync {
 }
 
 // FIXME: Doesn't support deletions of edges yet
-pub struct HistoryImplemented<T>(T);
+// TODO: Wanna define ordered/orderable and anything else necessary so we can use them in python for __eq__, __ne__, ideally on T using InternalHistoryOps
+// TODO: Implement hashable so they can be used in maps in python
+pub struct History<T>(T);
 
-impl<T: InternalHistoryOps> HistoryImplemented<T> {
+impl<T: InternalHistoryOps> History<T> {
     pub fn new(item: T) -> Self {
         Self(item)
     }
@@ -70,7 +78,7 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     }
 }
 
-impl<T: InternalHistoryOps> HistoryImplemented<T> {
+impl<T: InternalHistoryOps> History<T> {
     pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter()
     }
@@ -79,22 +87,16 @@ impl<T: InternalHistoryOps> HistoryImplemented<T> {
         self.0.iter_rev()
     }
 
-    pub fn merge<R: InternalHistoryOps>(self, right: HistoryImplemented<R>) -> HistoryImplemented<MergedHistory<T, R>> {
-        HistoryImplemented::new(MergedHistory::new(self.0, right.0))
+    pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {
+        History::new(MergedHistory::new(self.0, right.0))
     }
 
     pub fn earliest_time(&self) -> Option<RaphtoryTime> {
-        match self.0.earliest_time() {
-            None => { None }
-            Some(t) => {Some(RaphtoryTime::apply(t.clone()))}
-        }
+        self.0.earliest_time().map(|t| t.clone().into())
     }
 
     pub fn latest_time(&self) -> Option<RaphtoryTime> {
-        match self.0.latest_time() {
-            None => { None }
-            Some(t) => {Some(RaphtoryTime::apply(t.clone()))}
-        }
+        self.0.latest_time().map(|t| t.clone().into())
     }
 
     pub fn print(&self, prelude: &str) {
@@ -147,13 +149,13 @@ impl CompositeHistory {
 }
 
 // Note: All the items held by their respective HistoryImplemented objects must already be of type Box<T>
-pub fn compose_multiple_histories(objects: impl IntoIterator<Item = HistoryImplemented<Box<dyn InternalHistoryOps>>>) -> HistoryImplemented<CompositeHistory> {
-    HistoryImplemented::new(CompositeHistory::new(objects.into_iter().map(|h| h.0).collect()))
+pub fn compose_multiple_histories(objects: impl IntoIterator<Item = History<Box<dyn InternalHistoryOps>>>) -> History<CompositeHistory> {
+    History::new(CompositeHistory::new(objects.into_iter().map(|h| h.0).collect()))
 }
 
 // Note: Items supplied by the iterator must already be of type Box<T>
-pub fn compose_history_from_items(objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps>>) -> HistoryImplemented<CompositeHistory> {
-    HistoryImplemented::new(CompositeHistory::new(objects.into_iter().collect()))
+pub fn compose_history_from_items(objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps>>) -> History<CompositeHistory> {
+    History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
 
 impl InternalHistoryOps for CompositeHistory {
@@ -253,19 +255,19 @@ mod tests {
         ).unwrap();
 
         // create gandalf node history object
-        let gandalf_node_history_object = HistoryImplemented::new(gandalf_node.clone());
+        let gandalf_node_history_object = History::new(gandalf_node.clone());
         assert_eq!(gandalf_node_history_object.iter().collect_vec(),
                     vec![TimeIndexEntry::new(1, 0),
                          TimeIndexEntry::new(3, 2)]);
 
         // create Harry node history object
-        let harry_node_history_object = HistoryImplemented::new(harry_node.clone());
+        let harry_node_history_object = History::new(harry_node.clone());
         assert_eq!(harry_node_history_object.iter().collect_vec(),
                    vec![TimeIndexEntry::new(2, 1),
                         TimeIndexEntry::new(3, 2)]);
 
         // create edge history object
-        let edge_history_object = HistoryImplemented::new(character_edge.clone());
+        let edge_history_object = History::new(character_edge.clone());
         assert_eq!(edge_history_object.iter().collect_vec(),
                    vec![TimeIndexEntry::new(3, 2)]);
 
@@ -374,21 +376,21 @@ mod tests {
         let layer_id = graph.get_layer_id("Magical Object Uses").unwrap();
 
         // node history objects
-        let gandalf_history = HistoryImplemented::new(gandalf_node);
+        let gandalf_history = History::new(gandalf_node);
         assert_eq!(gandalf_history.iter().collect_vec(),
                    vec![TimeIndexEntry::new(1, 0),
                         TimeIndexEntry::new(3, 2),
                         TimeIndexEntry::new(4, 5),
                         TimeIndexEntry::new(5, 7)]);
 
-        let harry_history = HistoryImplemented::new(harry_node);
+        let harry_history = History::new(harry_node);
         assert_eq!(harry_history.iter().collect_vec(),
                    vec![TimeIndexEntry::new(2, 1),
                         TimeIndexEntry::new(3, 2),
                         TimeIndexEntry::new(4, 4),
                         TimeIndexEntry::new(5, 6)]);
 
-        let broom_history = HistoryImplemented::new(broom_node);
+        let broom_history = History::new(broom_node);
         assert_eq!(broom_history.iter().collect_vec(),
                    vec![TimeIndexEntry::new(4, 3),
                         TimeIndexEntry::new(4, 4),
@@ -407,14 +409,13 @@ mod tests {
         // broom_gandalf_history.print("Broom-Gandalf History: ");
 
         // make graphview using layer
-        // FIXME: Is it intended that using a node id to get a node consumes the node id variable?
         let magical_graph_view = graph.layers("Magical Object Uses").unwrap();
         let gandalf_node_magical_view = magical_graph_view.node(gandalf_node_id.clone()).unwrap();
         let harry_node_magical_view = magical_graph_view.node(harry_node_id.clone()).unwrap();
         let broom_node_magical_view = magical_graph_view.node(broom_node_id.clone()).unwrap();
 
-        // FIXME: After applying the layer, the node still returns the same history information
-        let harry_magical_history = HistoryImplemented::new(harry_node_magical_view);
+        // FIXME: After applying the layer, the node still returns the same history information. Wait for new update
+        let harry_magical_history = History::new(harry_node_magical_view);
         harry_magical_history.print("Harry Magical History: ");
 
         let x = magical_graph_view.edge(broom_node_id, gandalf_node_id).unwrap();
