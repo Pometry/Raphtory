@@ -6,7 +6,7 @@ use crate::{
             storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeFilterOps,
+                    EdgeFilterOps, Immutable, InheritCoreOps,
                     InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
                     InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                     InheritTimeSemantics, Static,
@@ -15,7 +15,7 @@ use crate::{
             },
         },
         graph::views::filter::{
-            edge_field_filtered_graph::EdgeFieldFilteredGraph, internal::InternalEdgeFilterOps,
+            internal::InternalEdgeFilterOps,
             model::NotFilter,
         },
     },
@@ -81,6 +81,6 @@ impl<'graph, G: GraphViewOps<'graph>, T: EdgeFilterOps> EdgeFilterOps
 
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        !self.filter.filter_edge(edge.clone(), layer_ids)
+        self.graph.filter_edge(edge, layer_ids) && !self.filter.filter_edge(edge.clone(), layer_ids)
     }
 }

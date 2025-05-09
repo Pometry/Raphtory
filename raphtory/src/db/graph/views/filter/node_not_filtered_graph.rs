@@ -80,6 +80,6 @@ impl<G, T: NodeFilterOps> NodeFilterOps for NodeNotFilteredGraph<G, T> {
 
     #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        !self.filter.filter_node(node.clone(), layer_ids)
+        self.graph.filter_node(node, layer_ids) && !self.filter.filter_node(node.clone(), layer_ids)
     }
 }
