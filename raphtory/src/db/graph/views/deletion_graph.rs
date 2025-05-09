@@ -211,7 +211,9 @@ impl GraphTimeSemanticsOps for PersistentGraph {
 
     #[inline]
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.0.has_temporal_prop_window(prop_id, w)
+        self.temporal_prop_iter_window(prop_id, w.start, w.end)
+            .next()
+            .is_some()
     }
 
     fn temporal_prop_iter_window(

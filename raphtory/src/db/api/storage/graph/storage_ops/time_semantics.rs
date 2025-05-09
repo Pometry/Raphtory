@@ -91,8 +91,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.graph_meta()
             .get_temporal_prop(prop_id)
-            .map(|p| p.deref().iter_window_t(w).next().is_some())
-            .filter(|p| *p)
+            .filter(|p| p.deref().iter_window_t(w).next().is_some())
             .is_some()
     }
 
