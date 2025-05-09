@@ -895,7 +895,7 @@ def test_graph_node_not_property_filter(graph):
       graph(path: "g") {
         nodeFilter (
           filter: {
-            not: [
+            not: 
               {
                 property: {
                   name: "prop5"
@@ -903,8 +903,6 @@ def test_graph_node_not_property_filter(graph):
                   value: { list: [ {i64: 1}, {i64: 2} ] }
               	}
               }
-            ]
-
           }
         ) {
           nodes {
@@ -916,47 +914,16 @@ def test_graph_node_not_property_filter(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]}}}}
-    run_graphql_test(query, expected_output, graph())
-
-
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_not_property_filter_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodeFilter (
-          filter: {
-            not: [
-              {
-                property: {
-                  name: "prop5"
-                  operator: EQUAL
-                  value: { list: [ {i64: 1}, {i64: 2} ] }
-              	}
-              },
-              {
-                  property: {
-                    name: "prop5"
-                    operator: EQUAL
-                    value: { list: [ {i64: 1}, {i64: 2} ] }
-                    }
+    expected_output = {
+        "graph": {
+            "nodeFilter": {
+                "nodes": {
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
                 }
-            ]
-
-          }
-        ) {
-          nodes {
-            list {
-              name
             }
-          }
         }
-      }
     }
-    """
-    expected_error_message = "Invalid filter: Only one filter allowed inside 'not'"
-    run_graphql_error_test(query, expected_error_message, graph())
+    run_graphql_test(query, expected_output, graph())
 
 
 # Edge property filter is not supported yet for PersistentGraph
@@ -2373,7 +2340,7 @@ def test_graph_edge_not_property_filter():
       graph(path: "g") {
         edgeFilter (
           filter: {
-            not: [
+            not: 
               {
                 property: {
                   name: "eprop5"
@@ -2381,7 +2348,6 @@ def test_graph_edge_not_property_filter():
                   value: { list: [{i64: 1},{i64: 2}]}
               	}
               }
-            ]
           }
         ) {
           edges {
@@ -2394,50 +2360,17 @@ def test_graph_edge_not_property_filter():
       }
     }
     """
-    expected_output = {'graph': {
-        'edgeFilter': {'edges': {'list': [
-            {'dst': {'name': 'd'}, 'src': {'name': 'a'}},
-            {'dst': {'name': 'd'}, 'src': {'name': 'b'}},
-            {'dst': {'name': 'd'}, 'src': {'name': 'c'}}
-        ]}
-    }}}
-    run_graphql_test(query, expected_output, Graph())
-
-
-def test_graph_edge_not_property_filter_error():
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter (
-          filter: {
-            not: [
-              {
-                property: {
-                  name: "eprop5"
-                  operator: EQUAL
-                  value: { list: [{i64: 1},{i64: 2}]}
-              	}
-              },
-              {
-                  property: {
-                    name: "eprop5"
-                    operator: EQUAL
-                    value: { list: [{i64: 1},{i64: 2}]}
-                    }
+    expected_output = {
+        "graph": {
+            "edgeFilter": {
+                "edges": {
+                    "list": [
+                        {"dst": {"name": "d"}, "src": {"name": "a"}},
+                        {"dst": {"name": "d"}, "src": {"name": "b"}},
+                        {"dst": {"name": "d"}, "src": {"name": "c"}},
+                    ]
                 }
-            ]
-          }
-        ) {
-          edges {
-              list {
-                src{name}
-                dst{name}
-              }
             }
         }
-      }
     }
-    """
-    expected_error_message = "Invalid filter: Only one filter allowed inside 'not'"
-    run_graphql_error_test(query, expected_error_message, Graph())
-
+    run_graphql_test(query, expected_output, Graph())
