@@ -158,3 +158,14 @@ def test_filter_edges_for_fuzzy_search():
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = [('David Gilmour', 'John Mayer')]
     assert result_ids == expected_ids
+
+
+def test_filter_edges_for_not_src():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr = filter.Edge.src().name().not_contains("Mayer")
+    result_ids = sorted(graph.filter_edges(~filter_expr).edges.id)
+    expected_ids = sorted([('John Mayer', 'Jimmy Page')])
+    assert result_ids == expected_ids
+

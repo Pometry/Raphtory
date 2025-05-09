@@ -289,6 +289,27 @@ impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for OrFilter<L, R> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotFilter<T>(pub(crate) T);
+
+impl<T: Display> Display for NotFilter<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NOT({})", self.0)
+    }
+}
+
+impl<T: AsNodeFilter> AsNodeFilter for NotFilter<T> {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Not(Box::new(self.0.as_node_filter()))
+    }
+}
+
+impl<T: AsEdgeFilter> AsEdgeFilter for NotFilter<T> {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Not(Box::new(self.0.as_edge_filter()))
+    }
+}
+
 pub trait ComposableFilter: Sized {
     fn and<F>(self, other: F) -> AndFilter<Self, F> {
         AndFilter {
@@ -303,6 +324,10 @@ pub trait ComposableFilter: Sized {
             right: other,
         }
     }
+
+    fn not(self) -> NotFilter<Self> {
+        NotFilter(self)
+    }
 }
 
 impl ComposableFilter for PropertyFilter {}
@@ -311,6 +336,7 @@ impl ComposableFilter for NodeTypeFilter {}
 impl ComposableFilter for EdgeFieldFilter {}
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
+impl<T> ComposableFilter for NotFilter<T> {}
 
 pub trait InternalPropertyFilterOps: Send + Sync {
     fn property_ref(&self) -> PropertyRef;

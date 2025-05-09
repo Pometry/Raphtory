@@ -1,11 +1,12 @@
 use crate::db::graph::views::filter::model::{
-    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+    edge_filter::EdgeFieldFilter,
+    node_filter::{NodeNameFilter, NodeTypeFilter},
     property_filter::PropertyFilter,
 };
 
 pub mod edge_and_filtered_graph;
 pub mod edge_field_filtered_graph;
+pub mod edge_not_filtered_graph;
 pub mod edge_or_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
@@ -13,6 +14,7 @@ pub(crate) mod internal;
 pub mod model;
 pub mod node_and_filtered_graph;
 pub mod node_name_filtered_graph;
+pub mod node_not_filtered_graph;
 pub mod node_or_filtered_graph;
 pub mod node_property_filtered_graph;
 pub mod node_type_filtered_graph;
@@ -1270,11 +1272,13 @@ pub(crate) mod test_filters {
 
         use crate::{
             assert_filter_results, assert_search_results,
-            db::graph::views::filter::model::property_filter::PropertyFilter,
+            db::graph::views::filter::model::{
+                property_filter::PropertyFilter, AsNodeFilter, ComposableFilter, NotFilter,
+            },
         };
 
         #[cfg(feature = "search")]
-        fn search_nodes(filter: PropertyFilter) -> Vec<String> {
+        fn search_nodes<I: AsNodeFilter>(filter: I) -> Vec<String> {
             search_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
@@ -1431,6 +1435,18 @@ pub(crate) mod test_filters {
             assert_filter_results!(filter_nodes, filter, expected_results);
             assert_search_results!(search_nodes, filter, expected_results);
         }
+
+        #[test]
+        fn test_filter_nodes_for_not_property() {
+            let filter = NotFilter(PropertyFilter::property("p10").contains("Paper"));
+            let expected_results: Vec<&str> = vec!["4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = PropertyFilter::property("p10").contains("Paper").not();
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+        }
     }
 
     #[cfg(test)]
@@ -1448,11 +1464,13 @@ pub(crate) mod test_filters {
         use crate::db::graph::views::test_helpers::search_edges_with;
         use crate::{
             assert_filter_results, assert_search_results,
-            db::graph::views::filter::model::property_filter::PropertyFilter,
+            db::graph::views::filter::model::{
+                property_filter::PropertyFilter, AsEdgeFilter, ComposableFilter,
+            },
         };
 
         #[cfg(feature = "search")]
-        fn search_edges(filter: PropertyFilter) -> Vec<String> {
+        fn search_edges<I: AsEdgeFilter>(filter: I) -> Vec<String> {
             search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
@@ -1654,6 +1672,14 @@ pub(crate) mod test_filters {
             let expected_results: Vec<&str> = vec![];
             assert_filter_results!(filter_edges, filter, expected_results);
         }
+
+        #[test]
+        fn test_filter_edges_for_not_property() {
+            let filter = PropertyFilter::property("p2").ne(2u64).not();
+            let expected_results = vec!["2->3"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
+        }
     }
 
     #[cfg(test)]
@@ -1667,7 +1693,9 @@ pub(crate) mod test_filters {
         use crate::db::graph::views::test_helpers::search_nodes_with;
         use crate::{
             assert_filter_results, assert_search_results,
-            db::graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+            db::graph::views::filter::model::{
+                AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
+            },
         };
 
         #[cfg(feature = "search")]
@@ -1790,6 +1818,16 @@ pub(crate) mod test_filters {
             let expected_results: Vec<&str> = vec!["2"];
             assert_filter_results!(filter_nodes, filter, expected_results);
         }
+
+        #[test]
+        fn test_filter_nodes_for_not_node_type() {
+            let filter = NodeFilter::node_type()
+                .is_not_in(vec!["fire_nation".into()])
+                .not();
+            let expected_results = vec!["1", "3"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+        }
     }
 
     #[cfg(test)]
@@ -1815,21 +1853,12 @@ pub(crate) mod test_filters {
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_nodes_with;
 
-        fn filter_nodes_and<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
-            filter_nodes_with(filter, init_nodes_graph(Graph::new()))
-        }
-
-        fn filter_nodes_or<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+        fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
             filter_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
-        fn search_nodes_and<I: AsNodeFilter>(filter: I) -> Vec<String> {
-            search_nodes_with(filter, init_nodes_graph(Graph::new()))
-        }
-
-        #[cfg(feature = "search")]
-        fn search_nodes_or<I: AsNodeFilter>(filter: I) -> Vec<String> {
+        fn search_nodes<I: AsNodeFilter>(filter: I) -> Vec<String> {
             search_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 
@@ -1839,8 +1868,8 @@ pub(crate) mod test_filters {
                 .eq("pometry")
                 .and(PropertyFilter::property("p5").eq(12u64));
             let expected_results = vec!["4"];
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
         }
 
         #[test]
@@ -1849,13 +1878,13 @@ pub(crate) mod test_filters {
                 .ge(2u64)
                 .and(PropertyFilter::property("p2").ge(1u64));
             let expected_results = vec!["2", "3"];
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
 
             let filter = PropertyFilter::property("p2")
                 .ge(2u64)
                 .or(PropertyFilter::property("p2").ge(5u64));
             let expected_results = vec!["2", "3"];
-            assert_filter_results!(filter_nodes_or, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
         }
 
         #[test]
@@ -1864,21 +1893,21 @@ pub(crate) mod test_filters {
                 .eq(2u64)
                 .and(PropertyFilter::property("p1").eq("kapoor"));
             let expected_results = Vec::<String>::new();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = PropertyFilter::property("p2")
                 .eq(2u64)
                 .or(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1", "2"];
-            assert_filter_results!(filter_nodes_or, filter, expected_results);
-            assert_search_results!(search_nodes_or, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = PropertyFilter::property("p1")
                 .eq("pometry")
@@ -1886,62 +1915,83 @@ pub(crate) mod test_filters {
                     .eq(6u64)
                     .and(PropertyFilter::property("p3").eq(1u64)));
             let expected_results = vec!["3"];
-            assert_filter_results!(filter_nodes_or, filter, expected_results);
-            assert_search_results!(search_nodes_or, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = NodeFilter::node_type()
                 .eq("fire_nation")
                 .and(PropertyFilter::property("p1").eq("prop1"));
             let expected_results = Vec::<String>::new();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = PropertyFilter::property("p9")
                 .eq(5u64)
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1"];
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = NodeFilter::node_type()
                 .eq("fire_nation")
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1"];
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = NodeFilter::name()
                 .eq("2")
                 .and(PropertyFilter::property("p2").eq(2u64));
             let expected_results = vec!["2"];
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
 
             let filter = NodeFilter::name()
                 .eq("2")
                 .and(PropertyFilter::property("p2").eq(2u64))
                 .or(PropertyFilter::property("p9").eq(5u64));
             let expected_results = vec!["1", "2"];
-            assert_filter_results!(filter_nodes_or, filter, expected_results);
-            assert_search_results!(search_nodes_or, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
             let filter = filter.as_node_filter();
-            assert_filter_results!(filter_nodes_and, filter, expected_results);
-            assert_search_results!(search_nodes_and, filter, expected_results);
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+        }
+
+        #[test]
+        fn test_not_composite_filter_nodes() {
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(PropertyFilter::property("p2").eq(2u64))
+                .or(PropertyFilter::property("p9").eq(5u64))
+                .not();
+            let expected_results = vec!["3", "4"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
+
+            let filter = NodeFilter::name()
+                .eq("2")
+                .not()
+                .and(PropertyFilter::property("p2").eq(2u64))
+                .or(PropertyFilter::property("p9").eq(5u64));
+            let expected_results = vec!["1"];
+            assert_filter_results!(filter_nodes, filter, expected_results);
+            assert_search_results!(search_nodes, filter, expected_results);
         }
     }
 
@@ -1962,7 +2012,9 @@ pub(crate) mod test_filters {
 
         use crate::{
             assert_filter_results, assert_search_results,
-            db::graph::views::filter::model::{EdgeFilter, EdgeFilterOps},
+            db::graph::views::filter::model::{
+                AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps,
+            },
         };
 
         fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
@@ -1970,7 +2022,7 @@ pub(crate) mod test_filters {
         }
 
         #[cfg(feature = "search")]
-        fn search_edges(filter: EdgeFieldFilter) -> Vec<String> {
+        fn search_edges<I: AsEdgeFilter>(filter: I) -> Vec<String> {
             search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
@@ -2102,6 +2154,14 @@ pub(crate) mod test_filters {
             let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
             assert_filter_results!(filter_edges, filter, expected_results);
         }
+
+        #[test]
+        fn test_filter_edges_for_not_src() {
+            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]).not();
+            let expected_results = vec!["1->2"];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
+        }
     }
 
     #[cfg(test)]
@@ -2127,21 +2187,12 @@ pub(crate) mod test_filters {
             },
         };
 
-        fn filter_edges_and<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
-            filter_edges_with(filter, init_edges_graph(Graph::new()))
-        }
-
-        fn filter_edges_or<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
+        fn filter_edges<I: InternalEdgeFilterOps>(filter: I) -> Vec<String> {
             filter_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
         #[cfg(feature = "search")]
-        fn search_edges_and<I: AsEdgeFilter>(filter: I) -> Vec<String> {
-            search_edges_with(filter, init_edges_graph(Graph::new()))
-        }
-
-        #[cfg(feature = "search")]
-        fn search_edges_or<I: AsEdgeFilter>(filter: I) -> Vec<String> {
+        fn search_edges<I: AsEdgeFilter>(filter: I) -> Vec<String> {
             search_edges_with(filter, init_edges_graph(Graph::new()))
         }
 
@@ -2152,8 +2203,8 @@ pub(crate) mod test_filters {
                 .eq("3")
                 .and(EdgeFilter::dst().name().eq("1"));
             let expected_results = vec!["3->1"];
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
         }
 
         #[test]
@@ -2169,7 +2220,7 @@ pub(crate) mod test_filters {
                 "David Gilmour->John Mayer",
                 "John Mayer->Jimmy Page",
             ];
-            assert_filter_results!(filter_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
 
             let filter = PropertyFilter::property("p2")
                 .ge(2u64)
@@ -2182,7 +2233,7 @@ pub(crate) mod test_filters {
                 "David Gilmour->John Mayer",
                 "John Mayer->Jimmy Page",
             ];
-            assert_filter_results!(filter_edges_or, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
         }
 
         #[test]
@@ -2191,21 +2242,21 @@ pub(crate) mod test_filters {
                 .eq(2u64)
                 .and(PropertyFilter::property("p1").eq("kapoor"));
             let expected_results = Vec::<String>::new();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = PropertyFilter::property("p2")
                 .eq(2u64)
                 .or(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2", "2->3"];
-            assert_filter_results!(filter_edges_or, filter, expected_results);
-            assert_search_results!(search_edges_or, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = PropertyFilter::property("p1")
                 .eq("pometry")
@@ -2218,54 +2269,54 @@ pub(crate) mod test_filters {
                 "David Gilmour->John Mayer",
                 "John Mayer->Jimmy Page",
             ];
-            assert_filter_results!(filter_edges_or, filter, expected_results);
-            assert_search_results!(search_edges_or, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = EdgeFilter::src()
                 .name()
                 .eq("13")
                 .and(PropertyFilter::property("p1").eq("prop1"));
             let expected_results = Vec::<String>::new();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = PropertyFilter::property("p2")
                 .eq(4u64)
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2"];
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = EdgeFilter::src()
                 .name()
                 .eq("1")
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2"];
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = EdgeFilter::dst()
                 .name()
                 .eq("1")
                 .and(PropertyFilter::property("p2").eq(6u64));
             let expected_results = vec!["2->1", "3->1"];
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
 
             let filter = EdgeFilter::src()
                 .name()
@@ -2273,11 +2324,46 @@ pub(crate) mod test_filters {
                 .and(PropertyFilter::property("p1").eq("shivam_kapoor"))
                 .or(PropertyFilter::property("p3").eq(5u64));
             let expected_results = vec!["1->2"];
-            assert_filter_results!(filter_edges_or, filter, expected_results);
-            assert_search_results!(search_edges_or, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
             let filter = filter.as_edge_filter();
-            assert_filter_results!(filter_edges_and, filter, expected_results);
-            assert_search_results!(search_edges_and, filter, expected_results);
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
+        }
+
+        #[test]
+        fn test_not_composite_filter_edges() {
+            let filter = EdgeFilter::src()
+                .name()
+                .eq("13")
+                .and(PropertyFilter::property("p1").eq("prop1"))
+                .not();
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
+
+            let filter = EdgeFilter::src()
+                .name()
+                .eq("13")
+                .and(PropertyFilter::property("p1").eq("prop1").not())
+                .not();
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_results!(filter_edges, filter, expected_results);
+            assert_search_results!(search_edges, filter, expected_results);
         }
     }
 }
