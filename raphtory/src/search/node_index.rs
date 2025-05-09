@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
+            properties::internal::{ConstantPropertiesOps, TemporalPropertiesOps},
             storage::graph::storage_ops::GraphStorage,
         },
         graph::node::NodeView,

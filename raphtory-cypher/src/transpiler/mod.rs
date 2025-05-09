@@ -13,7 +13,7 @@ use raphtory::{
         entities::{edges::edge_ref::Dir, VID},
         Direction,
     },
-    db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
+    db::{api::properties::internal::ConstantPropertiesOps, graph::node::NodeView},
     disk_graph::DiskGraphStorage,
     prelude::*,
 };

@@ -9,7 +9,7 @@ use raphtory::{
     db::{
         api::{
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
                 internal::{CoreGraphOps, InternalStorageOps},

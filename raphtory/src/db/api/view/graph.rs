@@ -7,7 +7,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
-            properties::{internal::ConstPropertiesOps, Properties},
+            properties::{internal::ConstantPropertiesOps, Properties},
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             },

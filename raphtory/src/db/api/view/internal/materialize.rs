@@ -18,7 +18,7 @@ use crate::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             storage::graph::{
                 edges::{
@@ -55,7 +55,7 @@ use std::ops::Range;
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
-#[enum_dispatch(ConstPropertiesOps)]
+#[enum_dispatch(ConstantPropertiesOps)]
 #[enum_dispatch(InternalAdditionOps)]
 #[enum_dispatch(InternalPropertyAdditionOps)]
 #[derive(Serialize, Deserialize, Clone)]

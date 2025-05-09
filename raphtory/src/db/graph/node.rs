@@ -12,7 +12,7 @@ use crate::{
                 time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
                 internal::{CoreGraphOps, GraphTimeSemanticsOps, OneHopFilter, Static},
@@ -312,7 +312,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: Send + Sync, GH: CoreGraphOps> ConstPropertiesOps for NodeView<'graph, G, GH> {
+impl<'graph, G: Send + Sync, GH: CoreGraphOps> ConstantPropertiesOps for NodeView<'graph, G, GH> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().const_prop_meta().get_id(name)
     }

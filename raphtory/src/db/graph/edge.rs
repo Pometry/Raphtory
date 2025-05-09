@@ -18,7 +18,7 @@ use crate::{
                 time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
@@ -392,7 +392,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstantPropertiesOps
     for EdgeView<G, GH>
 {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

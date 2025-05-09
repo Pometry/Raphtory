@@ -9,6 +9,7 @@ use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
+    fmt::{Debug, Formatter},
     iter::Zip,
     sync::Arc,
 };
@@ -17,6 +18,31 @@ use std::{
 pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: usize,
     pub(crate) props: P,
+}
+
+impl<P: PropertiesOps> Debug for TemporalPropertyView<P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TemporalPropertyView")
+            .field("history", &self.iter().collect::<Vec<_>>())
+            .finish()
+    }
+}
+
+impl<P: PropertiesOps> PartialEq for TemporalPropertyView<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<P: PropertiesOps, RHS, V> PartialEq<RHS> for TemporalPropertyView<P>
+where
+    for<'a> &'a RHS: IntoIterator<Item = &'a (i64, V)>,
+    V: Clone + Into<Prop>,
+{
+    fn eq(&self, other: &RHS) -> bool {
+        self.iter()
+            .eq(other.into_iter().map(|(t, v)| (*t, v.clone().into())))
+    }
 }
 
 impl<P: PropertiesOps> TemporalPropertyView<P> {

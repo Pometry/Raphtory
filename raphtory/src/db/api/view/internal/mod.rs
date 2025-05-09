@@ -15,7 +15,7 @@ mod wrapped_graph;
 use crate::{
     db::{
         api::{
-            properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
+            properties::internal::{ConstantPropertiesOps, InheritPropertiesOps, PropertiesOps},
             storage::storage::Storage,
         },
         graph::views::deletion_graph::PersistentGraph,
@@ -50,7 +50,7 @@ pub trait BoxableGraphView:
     + GraphTimeSemanticsOps
     + InternalMaterialize
     + PropertiesOps
-    + ConstPropertiesOps
+    + ConstantPropertiesOps
     + InternalStorageOps
     + NodeHistoryFilter
     + EdgeHistoryFilter
@@ -68,7 +68,7 @@ impl<
             + GraphTimeSemanticsOps
             + InternalMaterialize
             + PropertiesOps
-            + ConstPropertiesOps
+            + ConstantPropertiesOps
             + InternalStorageOps
             + NodeHistoryFilter
             + EdgeHistoryFilter

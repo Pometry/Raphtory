@@ -42,7 +42,7 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                InheritConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             state::Index,
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
@@ -273,7 +273,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritStaticPropertiesOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritConstantPropertiesOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 

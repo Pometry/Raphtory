@@ -49,7 +49,7 @@ pub trait TemporalPropertiesRowView {
 }
 
 #[enum_dispatch]
-pub trait ConstPropertiesOps: Send + Sync {
+pub trait ConstantPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
@@ -78,18 +78,21 @@ pub trait TemporalPropertiesOps {
 }
 
 pub trait PropertiesOps:
-    TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps
+    TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps
 {
 }
 
-impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps> PropertiesOps for P {}
+impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps> PropertiesOps
+    for P
+{
+}
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
-pub trait InheritStaticPropertiesOps: Base + Send + Sync {}
+pub trait InheritConstantPropertiesOps: Base + Send + Sync {}
 pub trait InheritPropertiesOps: Base + Send + Sync {}
 
-impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
+impl<P: InheritPropertiesOps> InheritConstantPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
 
 impl<P: InheritTemporalPropertyViewOps> TemporalPropertyViewOps for P
@@ -173,9 +176,9 @@ where
     }
 }
 
-impl<P: InheritStaticPropertiesOps> ConstPropertiesOps for P
+impl<P: InheritConstantPropertiesOps> ConstantPropertiesOps for P
 where
-    P::Base: ConstPropertiesOps,
+    P::Base: ConstantPropertiesOps,
 {
     #[inline]
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

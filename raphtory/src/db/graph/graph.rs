@@ -505,7 +505,7 @@ mod db_tests {
         db::{
             api::{
                 mutation::internal::InternalAdditionOps,
-                properties::internal::ConstPropertiesOps,
+                properties::internal::ConstantPropertiesOps,
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps},
                     time::internal::InternalTimeOps,
