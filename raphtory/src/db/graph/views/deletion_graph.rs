@@ -1213,6 +1213,24 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_graph_property_semantics() {
+        let g = PersistentGraph::new();
+        g.add_properties(1, [("weight", 10i64)]).unwrap();
+        g.add_properties(3, [("weight", 20i64)]).unwrap();
+        let prop = g.properties().temporal().get("weight").unwrap();
+
+        assert_eq!(prop, [(1, 10i64), (3, 20i64)]);
+
+        let prop = g
+            .window(5, 7)
+            .properties()
+            .temporal()
+            .get("weight")
+            .unwrap();
+        assert_eq!(prop, [(5, 20i64)])
+    }
+
+    #[test]
     fn test_exploded_edge_window() {
         let g = PersistentGraph::new();
         g.add_edge(1, 0, 1, [("test", 1i64)], None).unwrap();
