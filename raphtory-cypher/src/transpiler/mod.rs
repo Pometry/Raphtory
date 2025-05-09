@@ -13,7 +13,7 @@ use raphtory::{
         entities::{edges::edge_ref::Dir, VID},
         Direction,
     },
-    db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
+    db::{api::properties::internal::ConstantPropertiesOps, graph::node::NodeView},
     disk_graph::DiskGraphStorage,
     prelude::*,
 };
@@ -582,7 +582,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
             .expect("edge not found")];
 
         let mut last_edge_dir = first_edge.direction;
-        let mut last_edge: Option<NodeView<Graph>> = None;
+        let mut last_edge: Option<NodeView<'static, Graph>> = None;
 
         let mut additional_filters = vec![];
 
@@ -1320,7 +1320,7 @@ mod test {
              UNION ALL \
              SELECT id, layer_id, src, dst, time FROM L2) \
              SELECT COUNT(e.id) FROM e",
-            ["L1", "L2"],
+            ["_default", "L1", "L2"],
         )
     }
 
@@ -1367,7 +1367,7 @@ mod test {
              SELECT id, layer_id, src, dst, time FROM L1 \
              UNION ALL SELECT id, layer_id, src, dst, time FROM L2) \
              SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
-            ["L1", "L2"],
+            ["_default", "L1", "L2"],
         );
     }
 
@@ -1688,6 +1688,6 @@ mod test {
     }
 
     fn check_cypher_to_sql(query: &str, expected: &str) {
-        check_cypher_to_sql_layers::<[String; 0]>(query, expected, [])
+        check_cypher_to_sql_layers(query, expected, ["_default"])
     }
 }

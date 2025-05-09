@@ -93,7 +93,6 @@ def test_node_edge_properties_schema():
             "graph": {
                 "schema": {
                     "layers": [
-                        {"name": "_default", "edges": []},
                         {
                             "name": "0",
                             "edges": [

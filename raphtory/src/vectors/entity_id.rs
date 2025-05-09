@@ -18,7 +18,7 @@ impl EntityId {
         Self::Graph { name }
     }
 
-    pub(crate) fn from_node<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Self {
+    pub(crate) fn from_node<'graph, G: GraphViewOps<'graph>>(node: NodeView<'graph, G>) -> Self {
         Self::Node { id: node.id() }
     }
 

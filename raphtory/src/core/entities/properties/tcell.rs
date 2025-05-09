@@ -1,8 +1,7 @@
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
-use raphtory_api::{
-    core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike},
-    iter::BoxedLIter,
-};
+use either::Either;
+use iter_enum::{DoubleEndedIterator, ExactSizeIterator, Extend, FusedIterator, Iterator};
+use raphtory_api::core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
@@ -14,6 +13,14 @@ pub enum TCell<A> {
     TCell1(TimeIndexEntry, A),
     TCellCap(SVM<TimeIndexEntry, A>),
     TCellN(BTreeMap<TimeIndexEntry, A>),
+}
+
+#[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Extend)]
+enum TCellVariants<Empty, TCell1, TCellCap, TCellN> {
+    Empty(Empty),
+    TCell1(TCell1),
+    TCellCap(TCellCap),
+    TCellN(TCellN),
 }
 
 const BTREE_CUTOFF: usize = 128;
@@ -70,14 +77,12 @@ impl<A: PartialEq> TCell<A> {
     }
 }
 impl<A: Sync + Send> TCell<A> {
-    pub fn iter(
-        &self,
-    ) -> Box<dyn DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync + '_> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
-            TCell::TCellCap(svm) => Box::new(svm.iter()),
-            TCell::TCellN(btm) => Box::new(btm.iter()),
+            TCell::Empty => TCellVariants::Empty(std::iter::empty()),
+            TCell::TCell1(t, value) => TCellVariants::TCell1(std::iter::once((t, value))),
+            TCell::TCellCap(svm) => TCellVariants::TCellCap(svm.iter()),
+            TCell::TCellN(btm) => TCellVariants::TCellN(btm.iter()),
         }
     }
 
@@ -88,18 +93,16 @@ impl<A: Sync + Send> TCell<A> {
     pub fn iter_window(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync + '_> {
+    ) -> impl DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, value) => {
-                if r.contains(t) {
-                    Box::new(std::iter::once((t, value)))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TCell::TCellCap(svm) => Box::new(svm.range(r)),
-            TCell::TCellN(btm) => Box::new(btm.range(r)),
+            TCell::Empty => TCellVariants::Empty(std::iter::empty()),
+            TCell::TCell1(t, value) => TCellVariants::TCell1(if r.contains(t) {
+                Either::Left(std::iter::once((t, value)))
+            } else {
+                Either::Right(std::iter::empty())
+            }),
+            TCell::TCellCap(svm) => TCellVariants::TCellCap(svm.range(r)),
+            TCell::TCellN(btm) => TCellVariants::TCellN(btm.range(r)),
         }
     }
 
@@ -140,22 +143,9 @@ impl<A: Sync + Send> TCell<A> {
     }
 }
 
-impl<A: Send + Sync> TimeIndexLike for TCell<A> {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType> {
-        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
-    }
-
-    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.iter_window(w).next_back().map(|(ti, _)| *ti)
-    }
-}
-
-impl<A: Send + Sync> TimeIndexOps for TCell<A> {
+impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'a>
-        = TimeIndexWindow<'a, TimeIndexEntry, Self>
-    where
-        Self: 'a;
+    type RangeType = TimeIndexWindow<'a, Self::IndexType, TCell<A>>;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -167,21 +157,21 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
         }
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
-        match &self {
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        let range = match self {
             TCell::Empty => TimeIndexWindow::Empty,
             TCell::TCell1(t, _) => w
                 .contains(t)
-                .then(|| TimeIndexWindow::All(self))
+                .then(|| TimeIndexWindow::All(*self))
                 .unwrap_or(TimeIndexWindow::Empty),
             _ => {
                 if let Some(min_val) = self.first() {
                     if let Some(max_val) = self.last() {
                         if min_val >= w.start && max_val < w.end {
-                            TimeIndexWindow::All(self)
+                            TimeIndexWindow::All(*self)
                         } else {
-                            TimeIndexWindow::TimeIndexRange {
-                                timeindex: self,
+                            TimeIndexWindow::Range {
+                                timeindex: *self,
                                 range: w,
                             }
                         }
@@ -192,7 +182,8 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
                     TimeIndexWindow::Empty
                 }
             }
-        }
+        };
+        range
     }
 
     fn first(&self) -> Option<Self::IndexType> {
@@ -213,13 +204,18 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
         }
     }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType> {
+    #[allow(refining_impl_trait)]
+    fn iter(self) -> impl DoubleEndedIterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, _) => Box::new(std::iter::once(*t)),
-            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(ti, _)| *ti)),
-            TCell::TCellN(btm) => Box::new(btm.keys().copied()),
+            TCell::Empty => TCellVariants::Empty(std::iter::empty()),
+            TCell::TCell1(t, _) => TCellVariants::TCell1(std::iter::once(*t)),
+            TCell::TCellCap(svm) => TCellVariants::TCellCap(svm.iter().map(|(ti, _)| *ti)),
+            TCell::TCellN(btm) => TCellVariants::TCellN(btm.keys().copied()),
         }
+    }
+
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        TimeIndexOps::iter(self).rev()
     }
 
     fn len(&self) -> usize {
@@ -229,6 +225,42 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
             TCell::TCellCap(svm) => svm.len(),
             TCell::TCellN(btm) => btm.len(),
         }
+    }
+}
+
+impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
+    #[allow(refining_impl_trait)]
+    fn range_iter(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl DoubleEndedIterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.iter_window(w).map(|(ti, _)| *ti)
+    }
+
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.range_iter(w).rev()
+    }
+
+    fn range_count(&self, w: Range<Self::IndexType>) -> usize {
+        match self {
+            TCell::Empty => 0,
+            TCell::TCell1(t, _) => {
+                if w.contains(t) {
+                    1
+                } else {
+                    0
+                }
+            }
+            TCell::TCellCap(ts) => ts.range(w).count(),
+            TCell::TCellN(ts) => ts.range(w).count(),
+        }
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.iter_window(w).next_back().map(|(ti, _)| *ti)
     }
 }
 

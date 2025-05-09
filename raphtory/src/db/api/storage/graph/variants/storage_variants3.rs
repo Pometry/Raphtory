@@ -1,5 +1,5 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::{core::storage::timeindex::TimeIndexEntry, iter::BoxedLDIter};
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
     IndexedParallelIterator, ParallelIterator,
@@ -35,27 +35,6 @@ macro_rules! for_all {
             StorageVariants::Unlocked($pattern) => $result,
             #[cfg(feature = "storage")]
             StorageVariants::Disk($pattern) => $result,
-        }
-    };
-}
-
-#[cfg(feature = "storage")]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
-            StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
-        }
-    };
-}
-
-#[cfg(not(feature = "storage"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
         }
     };
 }
@@ -279,18 +258,15 @@ impl<
         for_all!(self, props => props.last_before(t))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter())
+    fn iter(&self) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        for_all!(self, props => props.iter())
     }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter_window(r))
+    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'a, (TimeIndexEntry, Prop)> {
+        for_all!(self, props => props.iter_window(r))
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
     }
 }

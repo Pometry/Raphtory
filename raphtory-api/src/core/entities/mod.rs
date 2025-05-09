@@ -1,4 +1,5 @@
 use super::input::input_node::parse_u64_strict;
+use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
 use edges::edge_ref::EdgeRef;
 use num_traits::ToPrimitive;
@@ -6,7 +7,9 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fmt::{Display, Formatter},
+    fmt::{Debug, Display, Formatter},
+    iter,
+    iter::Copied,
     sync::Arc,
 };
 
@@ -64,6 +67,14 @@ impl EID {
     pub fn as_u64(self) -> u64 {
         self.0 as u64
     }
+
+    pub fn with_layer(self, layer: usize) -> ELID {
+        ELID::new(self, layer)
+    }
+
+    pub fn with_layer_deletion(self, layer: usize) -> ELID {
+        ELID::new_deletion(self, layer)
+    }
 }
 
 impl From<EID> for usize {
@@ -81,6 +92,49 @@ impl From<usize> for EID {
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+pub struct ELID {
+    pub edge: EID,
+    layer_and_deletion: usize,
+}
+
+impl Debug for ELID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ELID")
+            .field("edge", &self.edge)
+            .field("layer", &self.layer())
+            .field("deletion", &self.is_deletion())
+            .finish()
+    }
+}
+
+const LAYER_FLAG: usize = 1usize.reverse_bits();
+pub const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
+
+impl ELID {
+    pub fn new(edge: EID, layer: usize) -> Self {
+        ELID {
+            edge,
+            layer_and_deletion: layer,
+        }
+    }
+
+    pub fn new_deletion(edge: EID, layer: usize) -> Self {
+        ELID {
+            edge,
+            layer_and_deletion: layer | LAYER_FLAG,
+        }
+    }
+
+    pub fn layer(&self) -> usize {
+        self.layer_and_deletion & !LAYER_FLAG
+    }
+
+    pub fn is_deletion(&self) -> bool {
+        self.layer_and_deletion & LAYER_FLAG != 0
     }
 }
 
@@ -332,6 +386,15 @@ pub enum LayerIds {
 #[derive(Clone, Debug, Default)]
 pub struct Multiple(pub Arc<[usize]>);
 
+impl<'a> IntoIterator for &'a Multiple {
+    type Item = usize;
+    type IntoIter = Copied<std::slice::Iter<'a, usize>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter().copied()
+    }
+}
+
 impl Multiple {
     #[inline]
     pub fn binary_search(&self, pos: &usize) -> Option<usize> {
@@ -463,6 +526,19 @@ impl LayerIds {
     pub fn is_none(&self) -> bool {
         matches!(self, LayerIds::None)
     }
+
+    pub fn is_single(&self) -> bool {
+        matches!(self, LayerIds::One(_))
+    }
+
+    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> {
+        match self {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
+        }
+    }
 }
 
 impl From<Vec<usize>> for LayerIds {
@@ -497,5 +573,29 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
 impl From<usize> for LayerIds {
     fn from(id: usize) -> Self {
         LayerIds::One(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::entities::{EID, MAX_LAYER};
+    use proptest::{prop_assert, prop_assert_eq, proptest};
+
+    #[test]
+    fn test_elid_layer() {
+        proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
+            let elid = EID(eid).with_layer(layer);
+            prop_assert_eq!(elid.layer(), layer);
+            prop_assert!(!elid.is_deletion());
+        })
+    }
+
+    #[test]
+    fn test_elid_deletion() {
+        proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
+            let elid = EID(eid).with_layer_deletion(layer);
+            prop_assert_eq!(elid.layer(), layer);
+            prop_assert!(elid.is_deletion());
+        })
     }
 }

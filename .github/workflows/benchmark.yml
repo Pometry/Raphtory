@@ -1,4 +1,6 @@
 name: Rust Benchmarks
+permissions:
+  pull-requests: write
 on:
   workflow_call:
     inputs:

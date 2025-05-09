@@ -26,11 +26,11 @@ use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
     entities::{properties::props::PropMapper, GidRef, EID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     unify_types, Direction, PropType,
 };
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::{iter, ops::Deref, sync::Arc};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -103,6 +103,7 @@ impl StableEncode for GraphStorage {
             .temporal_props()
             .map(|(key, values)| {
                 values
+                    .deref()
                     .iter()
                     .map(move |(t, v)| (t, (key, v)))
                     .collect::<Vec<_>>()
@@ -432,10 +433,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -443,10 +444,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -662,7 +663,7 @@ mod proto_test {
     use super::*;
     use crate::{
         db::{
-            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            api::{mutation::DeletionOps, properties::internal::ConstantPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,

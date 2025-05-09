@@ -36,3 +36,6 @@ __pycache__/
 
 # Python
 *.egg-info
+
+# Profiling
+profile.json

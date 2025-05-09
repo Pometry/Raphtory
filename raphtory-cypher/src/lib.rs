@@ -672,7 +672,7 @@ mod cypher {
             let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
 
             let df = run_cypher(
-                "match ()-[e:_default|LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+                "match ()-[e:LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
                 &graph,
                 true).await.unwrap();
 

@@ -9,11 +9,12 @@ use crate::{
         view::internal::{
             Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
             InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, InternalLayerOps, NodeFilterOps, Static,
+            InheritTimeSemantics, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
 };
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
@@ -26,6 +27,7 @@ use crate::db::api::view::internal::InheritStorageOps;
 #[derive(Clone)]
 pub struct CachedView<G> {
     pub(crate) graph: G,
+    pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
     pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap)]>,
 }
 
@@ -62,6 +64,13 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
         let mut layered_masks = vec![];
+        let global_nodes_mask = Arc::new(
+            graph
+                .nodes()
+                .iter()
+                .map(|node| node.node.as_u64())
+                .collect(),
+        );
         for l_name in graph.unique_layers() {
             let l_id = graph.get_layer_id(&l_name).unwrap();
             let layer_g = graph.layers(l_name).unwrap();
@@ -97,6 +106,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
 
         Self {
             graph,
+            global_nodes_mask,
             layered_mask: layered_masks.into(),
         }
     }
@@ -111,8 +121,25 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
+
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        let layer = eid.layer();
+        if layer_ids.contains(&layer) {
+            self.layered_mask
+                .get(layer)
+                .map_or(false, |(_, edges)| edges.contains(eid.edge.as_u64()))
+                && self.graph.filter_edge_history(eid, t, layer_ids)
+        } else {
+            false
+        }
     }
 
     #[inline]
@@ -130,26 +157,23 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
-    fn nodes_filtered(&self) -> bool {
-        self.graph.nodes_filtered()
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        self.graph.internal_nodes_filtered()
     }
-    fn node_list_trusted(&self) -> bool {
-        self.graph.node_list_trusted()
+    fn internal_node_list_trusted(&self) -> bool {
+        self.graph.internal_node_list_trusted()
     }
 
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         true
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => self
-                .layered_mask
-                .iter()
-                .any(|(nodes, _)| nodes.contains(node.vid().as_u64())),
+            LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
                 .get(*id)
@@ -286,6 +310,32 @@ mod test {
         proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 0 ))| {
             check(&edge_list);
         })
+    }
+
+    #[test]
+    fn failing() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(2, 0, 0, NO_PROPS, Some("1")).unwrap();
+
+        let earliest = graph.earliest_time().unwrap();
+        let latest = graph.latest_time().unwrap();
+        let middle = earliest + (latest - earliest) / 2;
+
+        let layers = graph
+            .unique_layers()
+            .take(graph.unique_layers().count() / 2)
+            .collect_vec();
+
+        if !layers.is_empty() && earliest < middle && middle < latest {
+            let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
+            let masked = subgraph.cache_view();
+            println!("view nodes: {:?}", subgraph.nodes());
+            println!("view edges: {:?}", subgraph.edges());
+            println!("cached nodes: {:?}", masked.nodes());
+            println!("cached edges: {:?}", masked.edges());
+            assert_graph_equal(&subgraph, &masked);
+        }
     }
 
     #[cfg(all(test, feature = "search"))]

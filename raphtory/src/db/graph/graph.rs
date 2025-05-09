@@ -45,6 +45,12 @@ pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
+impl From<Arc<Storage>> for Graph {
+    fn from(inner: Arc<Storage>) -> Self {
+        Self { inner }
+    }
+}
+
 impl Static for Graph {}
 
 pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
@@ -57,7 +63,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.at(e.time().expect("exploded")).is_active())
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_valid())
                     .is_some()
             })
     } else {
@@ -66,51 +72,64 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 }
 
 pub fn assert_node_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
 >(
-    n1: NodeView<G1, GH1>,
-    n2: NodeView<G2, GH2>,
+    n1: NodeView<'graph, G1, GH1>,
+    n2: NodeView<'graph, G2, GH2>,
+) {
+    assert_node_equal_layer(n1, n2, "")
+}
+
+pub fn assert_node_equal_layer<
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
+>(
+    n1: NodeView<'graph, G1, GH1>,
+    n2: NodeView<'graph, G2, GH2>,
+    layer_tag: &str,
 ) {
     assert_eq!(
         n1.id(),
         n2.id(),
-        "mismatched node id: left {:?}, right {:?}",
+        "mismatched node id{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n2.id()
     );
     assert_eq!(
         n1.name(),
         n2.name(),
-        "mismatched node name: left {:?}, right {:?}",
+        "mismatched node name{layer_tag}: left {:?}, right {:?}",
         n1.name(),
         n2.name()
     );
     assert_eq!(
         n1.earliest_time(),
         n2.earliest_time(),
-        "mismatched node earliest time for node {:?}: left {:?}, right {:?}",
+        "mismatched node earliest time for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.earliest_time(),
         n2.earliest_time()
     );
     // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
-    // assert_eq!(
-    //     n1.latest_time(),
-    //     n2.latest_time(),
-    //     "mismatched node latest time for node {:?}: left {:?}, right {:?}",
-    //     n1.id(),
-    //     n1.latest_time(),
-    //     n2.latest_time()
-    // );
+    assert_eq!(
+        n1.latest_time(),
+        n2.latest_time(),
+        "mismatched node latest time for node {:?}{layer_tag}: left {:?}, right {:?}",
+        n1.id(),
+        n1.latest_time(),
+        n2.latest_time()
+    );
     assert_eq!(
         n1.properties().constant().as_map(),
         n2.properties().constant().as_map(),
-        "mismatched constant properties for node {:?}: left {:?}, right {:?}",
+        "mismatched constant properties for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.properties().constant().as_map(),
         n2.properties().constant().as_map()
@@ -118,7 +137,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.properties().temporal().as_map(),
         n2.properties().temporal().as_map(),
-        "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
+        "mismatched temporal properties for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.properties().temporal().as_map(),
         n2.properties().temporal().as_map()
@@ -126,7 +145,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.out_degree(),
         n2.out_degree(),
-        "mismatched out-degree for node {:?}: left {}, right {}",
+        "mismatched out-degree for node {:?}{layer_tag}: left {}, right {}",
         n1.id(),
         n1.out_degree(),
         n2.out_degree(),
@@ -134,7 +153,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.in_degree(),
         n2.in_degree(),
-        "mismatched in-degree for node {:?}: left {}, right {}",
+        "mismatched in-degree for node {:?}{layer_tag}: left {}, right {}",
         n1.id(),
         n1.in_degree(),
         n2.in_degree(),
@@ -142,7 +161,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.degree(),
         n2.degree(),
-        "mismatched degree for node {:?}: left {}, right {}",
+        "mismatched degree for node {:?}{layer_tag}: left {}, right {}",
         n1.id(),
         n1.degree(),
         n2.degree(),
@@ -150,7 +169,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.out_neighbours().id().collect::<HashSet<_>>(),
         n2.out_neighbours().id().collect::<HashSet<_>>(),
-        "mismatched out-neighbours for node {:?}: left {:?}, right {:?}",
+        "mismatched out-neighbours for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.out_neighbours().id().collect::<HashSet<_>>(),
         n2.out_neighbours().id().collect::<HashSet<_>>()
@@ -158,7 +177,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>(),
-        "mismatched in-neighbours for node {:?}: left {:?}, right {:?}",
+        "mismatched in-neighbours for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>()
@@ -166,15 +185,28 @@ pub fn assert_node_equal<
 }
 
 pub fn assert_nodes_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
 >(
-    nodes1: &Nodes<'graph1, G1, GH1>,
-    nodes2: &Nodes<'graph2, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1>,
+    nodes2: &Nodes<'graph, G2, GH2>,
+) {
+    assert_nodes_equal_layer(nodes1, nodes2, "");
+}
+
+pub fn assert_nodes_equal_layer<
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
+>(
+    nodes1: &Nodes<'graph, G1, GH1>,
+    nodes2: &Nodes<'graph, G2, GH2>,
+    layer_tag: &str,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
     nodes1.sort();
@@ -183,7 +215,7 @@ pub fn assert_nodes_equal<
     assert_eq!(
         nodes1.len(),
         nodes2.len(),
-        "mismatched number of nodes: left {}, right {}",
+        "mismatched number of nodes{layer_tag}: left {}, right {}",
         nodes1.len(),
         nodes2.len()
     );
@@ -203,12 +235,27 @@ pub fn assert_edges_equal<
     edges1: &Edges<'graph1, G1, GH1>,
     edges2: &Edges<'graph2, G2, GH2>,
 ) {
+    assert_edges_equal_layer(edges1, edges2, "");
+}
+
+pub fn assert_edges_equal_layer<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    GH1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+    GH2: GraphViewOps<'graph2>,
+>(
+    edges1: &Edges<'graph1, G1, GH1>,
+    edges2: &Edges<'graph2, G2, GH2>,
+    layer_tag: &str,
+) {
     let mut edges1: Vec<_> = edges1.collect();
     let mut edges2: Vec<_> = edges2.collect();
     assert_eq!(
         edges1.len(),
         edges2.len(),
-        "mismatched number of edges: left {}, right {}",
+        "mismatched number of edges{layer_tag}: left {}, right {}",
         edges1.len(),
         edges2.len()
     );
@@ -219,14 +266,14 @@ pub fn assert_edges_equal<
         assert_eq!(
             e1.id(),
             e2.id(),
-            "mismatched edge ids: left {:?}, right {:?}",
+            "mismatched edge ids{layer_tag}: left {:?}, right {:?}",
             e1.id(),
             e2.id()
         );
         assert_eq!(
             e1.earliest_time(),
             e2.earliest_time(),
-            "mismatched earliest time for edge {:?}: left {:?}, right {:?}",
+            "mismatched earliest time for edge {:?}{layer_tag}: left {:?}, right {:?}",
             e1.id(),
             e1.earliest_time(),
             e2.earliest_time()
@@ -234,7 +281,7 @@ pub fn assert_edges_equal<
         assert_eq!(
             e1.properties().constant().as_map(),
             e2.properties().constant().as_map(),
-            "mismatched constant properties for edge {:?}: left {:?}, right {:?}",
+            "mismatched constant properties for edge {:?}{layer_tag}: left {:?}, right {:?}",
             e1.id(),
             e1.properties().constant().as_map(),
             e2.properties().constant().as_map()
@@ -242,7 +289,7 @@ pub fn assert_edges_equal<
         assert_eq!(
             e1.properties().temporal().as_map(),
             e2.properties().temporal().as_map(),
-            "mismatched temporal properties for edge {:?}: left {:?}, right {:?}",
+            "mismatched temporal properties for edge {:?}{layer_tag}: left {:?}, right {:?}",
             e1.id(),
             e1.properties().temporal().as_map(),
             e2.properties().temporal().as_map(),
@@ -266,7 +313,7 @@ pub fn assert_edges_equal<
         assert_eq!(
             e1_updates,
             e2_updates,
-            "mismatched updates for edge {:?}: left {:?}, right {:?}",
+            "mismatched updates for edge {:?}{layer_tag}: left {:?}, right {:?}",
             e1.id(),
             e1_updates,
             e2_updates,
@@ -274,78 +321,73 @@ pub fn assert_edges_equal<
     }
 }
 
-fn assert_graph_equal_layer<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
+    layer: Option<&str>,
 ) {
+    let layer_tag = match layer {
+        None => "",
+        Some(layer) => &format!(" for layer {layer}"),
+    };
     assert_eq!(
         g1.count_nodes(),
         g2.count_nodes(),
-        "mismatched number of nodes: left {}, right {}",
+        "mismatched number of nodes{layer_tag}: left {}, right {}",
         g1.count_nodes(),
         g2.count_nodes()
     );
     assert_eq!(
         g1.count_edges(),
         g2.count_edges(),
-        "mismatched number of edges: left {}, right {}",
+        "mismatched number of edges{layer_tag}: left {}, right {}",
         g1.count_edges(),
         g2.count_edges()
     );
     assert_eq!(
         g1.count_temporal_edges(),
         g2.count_temporal_edges(),
-        "mismatched number of temporal edges: left {}, right {}",
+        "mismatched number of temporal edges{layer_tag}: left {}, right {}",
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
     assert_eq!(
         g1.earliest_time(),
         g2.earliest_time(),
-        "mismatched earliest time: left {:?}, right {:?}",
+        "mismatched earliest time{layer_tag}: left {:?}, right {:?}",
         g1.earliest_time(),
         g2.earliest_time()
     );
     assert_eq!(
         g1.latest_time(),
         g2.latest_time(),
-        "mismatched latest time: left {:?}, right {:?}",
+        "mismatched latest time{layer_tag}: left {:?}, right {:?}",
         g1.latest_time(),
         g2.latest_time()
     );
     assert_eq!(
         g1.properties().constant().as_map(),
         g2.properties().constant().as_map(),
-        "mismatched graph constant properties: left {:?}, right {:?}",
+        "mismatched graph constant properties{layer_tag}: left {:?}, right {:?}",
         g1.properties().constant().as_map(),
         g2.properties().constant().as_map()
     );
     assert_eq!(
         g1.properties().temporal().as_map(),
         g2.properties().temporal().as_map(),
-        "mismatched graph temporal properties: left {:?}, right {:?}",
+        "mismatched graph temporal properties{layer_tag}: left {:?}, right {:?}",
         g1.properties().temporal().as_map(),
         g2.properties().temporal().as_map()
     );
-    assert_nodes_equal(&g1.nodes(), &g2.nodes());
-    assert_edges_equal(&g1.edges(), &g2.edges());
+    assert_nodes_equal_layer(&g1.nodes(), &g2.nodes(), layer_tag);
+    assert_edges_equal_layer(&g1.edges(), &g2.edges(), layer_tag);
 }
 
-pub fn assert_graph_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_layer(g1, g2);
+    assert_graph_equal_layer(g1, g2, None);
     let left_layers: HashSet<_> = g1.unique_layers().collect();
     let right_layers: HashSet<_> = g2.unique_layers().collect();
     assert_eq!(
@@ -360,6 +402,7 @@ pub fn assert_graph_equal<
                 .expect(&format!("Left graph missing layer {layer})")),
             &g2.layers(layer.deref())
                 .expect(&format!("Right graph missing layer {layer}")),
+            Some(&layer),
         );
     }
 }
@@ -461,14 +504,15 @@ mod db_tests {
         },
         db::{
             api::{
-                properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
+                mutation::internal::InternalAdditionOps,
+                properties::internal::ConstantPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -588,10 +632,7 @@ mod db_tests {
 
             assert!(graph.is_empty());
 
-            assert_eq!(
-                graph.nodes().collect(),
-                Vec::<NodeView<Graph, Graph>>::new()
-            );
+            assert!(graph.nodes().collect().is_empty());
             assert_eq!(
                 graph.edges().collect(),
                 Vec::<EdgeView<Graph, Graph>>::new()
@@ -2776,15 +2817,18 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .filter_map(|e| {
-                    e.edge
-                        .layer()
+                    e.layer_name()
+                        .ok()
                         .map(|layer| (e.src().id(), e.dst().id(), layer))
                 })
                 .collect::<Vec<_>>();
 
             assert_eq!(
                 layer_exploded,
-                vec![(GID::U64(1), GID::U64(2), 1), (GID::U64(1), GID::U64(2), 2)]
+                vec![
+                    (GID::U64(1), GID::U64(2), ArcStr::from("layer1")),
+                    (GID::U64(1), GID::U64(2), ArcStr::from("layer2"))
+                ]
             );
         });
     }
@@ -2805,8 +2849,8 @@ mod db_tests {
                 .iter()
                 .flat_map(|e| {
                     e.explode().into_iter().filter_map(|e| {
-                        e.edge
-                            .layer()
+                        e.layer_name()
+                            .ok()
                             .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
@@ -2815,10 +2859,15 @@ mod db_tests {
 
             assert_eq!(
                 layer_exploded,
-                vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
-                    .into_iter()
-                    .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), d))
-                    .collect::<Vec<_>>()
+                vec![
+                    (0, 1, 2, "layer1"),
+                    (2, 1, 2, "layer1"),
+                    (1, 1, 2, "layer2"),
+                    (3, 1, 2, "_default"),
+                ]
+                .into_iter()
+                .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), ArcStr::from(d)))
+                .collect::<Vec<_>>()
             );
         });
     }
@@ -2840,9 +2889,9 @@ mod db_tests {
                 .iter()
                 .flat_map(|e| {
                     e.explode().into_iter().filter_map(|e| {
-                        e.edge
-                            .layer()
-                            .zip(Some(e.time().unwrap()))
+                        e.layer_name()
+                            .ok()
+                            .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
@@ -2850,10 +2899,14 @@ mod db_tests {
 
             assert_eq!(
                 layer_exploded,
-                vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
-                    .into_iter()
-                    .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), d) })
-                    .collect::<Vec<_>>()
+                vec![
+                    (0, 1, 2, "layer1"),
+                    (2, 1, 2, "layer1"),
+                    (1, 1, 2, "layer2")
+                ]
+                .into_iter()
+                .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), ArcStr::from(d)) })
+                .collect::<Vec<_>>()
             );
         });
     }
@@ -3745,15 +3798,14 @@ mod db_tests {
             .neighbours()
             .is_empty());
 
-        assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .type_filter(&vec!["d"])
-                .iter()
-                .collect_vec(),
-            Vec::<NodeView<Graph, Graph>>::new()
-        );
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .iter()
+            .collect_vec()
+            .is_empty(),);
 
         assert_eq!(
             g.node("2")
@@ -3913,10 +3965,37 @@ mod db_tests {
     #[test]
     fn materialize_window_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, false), w in any::<Range<i64>>())| {
-            let g = build_graph(graph_f);
+            let g = Graph::from(build_graph(&graph_f));
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);
         })
+    }
+
+    #[test]
+    fn test_multilayer() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        g.add_edge(1, 0, 0, NO_PROPS, Some("a")).unwrap();
+        let gw = g.window(0, 1);
+
+        let expected = Graph::new();
+        expected.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gw, &expected);
+    }
+
+    #[test]
+    fn test_empty_window() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        let gw = g.window(-1, 0);
+
+        assert!(g.window(-1, 0).nodes().is_empty());
+        assert_eq!(g.window(-1, 0).count_nodes(), 0);
+        for layer in gw.unique_layers() {
+            let layered = gw.valid_layers(layer);
+            assert_eq!(layered.count_nodes(), 0);
+        }
     }
 }

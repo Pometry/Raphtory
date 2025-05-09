@@ -1,7 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
+        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
 };
@@ -14,8 +14,7 @@ pub trait LayerOps<'graph> {
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.layers(Layer::Default)
-            .expect("Default layer not found")
+        self.valid_layers(Layer::Default)
     }
 
     /// Return a graph containing the layers in `names`. Errors if one or more of the layers do not exists.
@@ -40,7 +39,17 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::FilteredGraph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
+        let layers = match self.current_filter().get_default_layer_id() {
+            None => LayerIds::None,
+            Some(layer) => {
+                if self.current_filter().layer_ids().contains(&layer) {
+                    LayerIds::One(layer)
+                } else {
+                    LayerIds::None
+                }
+            }
+        };
+        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), layers))
     }
 
     fn layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
@@ -97,6 +106,18 @@ pub enum Layer {
     Default,
     One(ArcStr),
     Multiple(Arc<[ArcStr]>),
+}
+
+impl Layer {
+    pub fn contains(&self, name: &str) -> bool {
+        match self {
+            Layer::All => true,
+            Layer::None => false,
+            Layer::Default => name == "_default",
+            Layer::One(layer) => layer == name,
+            Layer::Multiple(layers) => layers.iter().any(|l| l == name),
+        }
+    }
 }
 
 trait SingleLayer {

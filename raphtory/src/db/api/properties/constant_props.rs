@@ -1,6 +1,6 @@
 use crate::{
     core::{utils::iter::GenLockedIter, Prop},
-    db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
+    db::api::{properties::internal::ConstantPropertiesOps, view::BoxedLIter},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
@@ -8,18 +8,18 @@ use std::{
     fmt::{Debug, Formatter},
 };
 
-pub struct ConstantProperties<'a, P: ConstPropertiesOps> {
+pub struct ConstantProperties<'a, P: ConstantPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> Debug for ConstantProperties<'a, P> {
+impl<'a, P: ConstantPropertiesOps + Sync> Debug for ConstantProperties<'a, P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
+impl<'a, P: ConstantPropertiesOps + Sync> ConstantProperties<'a, P> {
     pub(crate) fn new(props: P) -> Self {
         Self {
             props,
@@ -63,7 +63,7 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstantProperties<'a, P> {
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<'a, P> {
+impl<'a, P: ConstantPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<'a, P> {
     type Item = (ArcStr, Prop);
     type IntoIter = BoxedLIter<'a, Self::Item>;
 
@@ -80,7 +80,7 @@ impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'a, P> {
+impl<'a, P: ConstantPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'a, P> {
     type Item = (ArcStr, Prop);
     type IntoIter = Box<dyn Iterator<Item = (ArcStr, Prop)> + 'a>;
 
@@ -95,7 +95,7 @@ impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'
     }
 }
 
-impl<'a, P: ConstPropertiesOps + Sync> PartialEq for ConstantProperties<'a, P> {
+impl<'a, P: ConstantPropertiesOps + Sync> PartialEq for ConstantProperties<'a, P> {
     fn eq(&self, other: &Self) -> bool {
         self.as_map() == other.as_map()
     }
