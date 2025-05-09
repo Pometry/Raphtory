@@ -1,3 +1,5 @@
+use crate::core::utils::errors::GraphError;
+use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -21,32 +23,58 @@ pub(in crate::search) mod fields {
     pub const SECONDARY_TIME: &str = "secondary_time";
     pub const NODE_ID: &str = "node_id";
     pub const NODE_NAME: &str = "node_name";
+    pub const NODE_NAME_TOKENIZED: &str = "node_name_tokenized";
     pub const NODE_TYPE: &str = "node_type";
+    pub const NODE_TYPE_TOKENIZED: &str = "node_type_tokenized";
     pub const EDGE_ID: &str = "edge_id";
     pub const SOURCE: &str = "src";
+    pub const SOURCE_TOKENIZED: &str = "src_tokenized";
     pub const DESTINATION: &str = "dst";
+    pub const DESTINATION_TOKENIZED: &str = "dst_tokenized";
     pub const LAYER_ID: &str = "layer_id";
 }
 
 pub(crate) const TOKENIZER: &str = "custom_default";
 
-pub(crate) fn new_index(schema: Schema) -> (Index, IndexReader) {
-    let index = Index::builder()
-        .settings(IndexSettings::default())
-        .schema(schema)
-        .create_in_ram()
-        .expect("Failed to create index");
-
-    let reader = index
-        .reader_builder()
-        .reload_policy(tantivy::ReloadPolicy::Manual)
-        .try_into()
-        .unwrap();
-
+pub fn register_default_tokenizers(index: &Index) {
     let tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
         .filter(LowerCaser)
         .build();
     index.tokenizers().register(TOKENIZER, tokenizer);
+}
 
-    (index, reader)
+pub(crate) fn new_index(
+    schema: Schema,
+    path: &Option<PathBuf>,
+) -> Result<(Index, IndexReader), GraphError> {
+    let index_builder = Index::builder()
+        .settings(IndexSettings::default())
+        .schema(schema);
+
+    let index = if let Some(path) = path {
+        create_dir_all(path).map_err(|e| {
+            GraphError::IOErrorMsg(format!(
+                "Failed to create index directory {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+
+        index_builder.create_in_dir(path).map_err(|e| {
+            GraphError::IndexErrorMsg(format!("Failed to create index in directory: {}", e))
+        })?
+    } else {
+        index_builder.create_in_ram().map_err(|e| {
+            GraphError::IndexErrorMsg(format!("Failed to create in-memory index: {}", e))
+        })?
+    };
+
+    let reader = index
+        .reader_builder()
+        .reload_policy(tantivy::ReloadPolicy::Manual)
+        .try_into()?;
+
+    register_default_tokenizers(&index);
+
+    Ok((index, reader))
 }

@@ -44,8 +44,10 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
+    path::PathBuf,
     sync::Arc,
 };
+use tracing::info;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -73,6 +75,9 @@ impl Base for Storage {
         &self.graph
     }
 }
+
+#[cfg(feature = "search")]
+const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
     pub(crate) fn new(num_locks: usize) -> Self {
@@ -135,13 +140,59 @@ impl Storage {
 
 #[cfg(feature = "search")]
 impl Storage {
-    pub(crate) fn get_or_create_index(&self) -> Result<&GraphIndex, GraphError> {
-        self.index
-            .get_or_try_init(|| Ok::<_, GraphError>(GraphIndex::try_from(&self.graph)?))
+    pub(crate) fn get_or_create_index(
+        &self,
+        path: Option<PathBuf>,
+    ) -> Result<&GraphIndex, GraphError> {
+        self.index.get_or_try_init(|| {
+            if let Some(path) = path {
+                Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
+            } else {
+                let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+                Ok::<_, GraphError>(GraphIndex::create_from_graph(
+                    &self.graph,
+                    false,
+                    cache_path,
+                )?)
+            }
+        })
+    }
+
+    pub(crate) fn get_or_create_index_in_ram(&self) -> Result<&GraphIndex, GraphError> {
+        let index = self.index.get_or_try_init(|| {
+            Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, true, None)?)
+        })?;
+        if index.path.is_some() {
+            Err(GraphError::FailedToCreateIndexInRam)
+        } else {
+            Ok(index)
+        }
     }
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
         self.index.get()
+    }
+
+    pub(crate) fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        if let Some(index) = self.get_index() {
+            if index.path.is_none() {
+                info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
+                return Ok(());
+            }
+            index.persist_to_disk(path)?
+        }
+        Ok(())
+    }
+
+    pub(crate) fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        if let Some(index) = self.get_index() {
+            if index.path.is_none() {
+                info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
+                return Ok(());
+            }
+            index.persist_to_disk_zip(path)?
+        }
+        Ok(())
     }
 }
 
@@ -207,7 +258,7 @@ impl InternalAdditionOps for Storage {
 
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError> {
         match id.as_node_ref() {
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+            NodeRef::Internal(id) => Ok(Existing(id)),
             NodeRef::External(gid) => {
                 let id = self.graph.resolve_node(gid)?;
 

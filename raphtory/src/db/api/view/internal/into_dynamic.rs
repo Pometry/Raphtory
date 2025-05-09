@@ -1,7 +1,8 @@
 use crate::db::api::view::{
     internal::{DynamicGraph, OneHopFilter, Static},
-    StaticGraphViewOps,
+    BoxableGraphView, StaticGraphViewOps,
 };
+use std::sync::Arc;
 
 pub trait IntoDynamic: 'static {
     fn into_dynamic(self) -> DynamicGraph;
@@ -16,6 +17,12 @@ impl<G: StaticGraphViewOps + Static> IntoDynamic for G {
 impl IntoDynamic for DynamicGraph {
     fn into_dynamic(self) -> DynamicGraph {
         self
+    }
+}
+
+impl IntoDynamic for Arc<dyn BoxableGraphView> {
+    fn into_dynamic(self) -> DynamicGraph {
+        DynamicGraph(self)
     }
 }
 
