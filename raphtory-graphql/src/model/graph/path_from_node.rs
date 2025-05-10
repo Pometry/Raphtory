@@ -1,6 +1,10 @@
-use crate::model::graph::node::Node;
+use crate::model::graph::{node::Node, windowset::GqlPathFromNodeWindowSet};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
+    core::utils::errors::{
+        GraphError,
+        GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
+    },
     db::{api::view::DynamicGraph, graph::path::PathFromNode},
     prelude::*,
 };
@@ -49,6 +53,58 @@ impl GqlPathFromNode {
 
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.nn.exclude_valid_layers(name))
+    }
+
+    fn rolling(
+        &self,
+        window_str: Option<String>,
+        window_int: Option<i64>,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
+        match (window_str, window_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "window_str".to_string(),
+                "window_int".to_string(),
+            )),
+            (None, Some(window_int)) => {
+                if step_str.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlPathFromNodeWindowSet::new(
+                    self.nn.rolling(window_int, step_int)?,
+                ))
+            }
+            (Some(window_str), None) => {
+                if step_int.is_some() {
+                    return Err(MismatchedIntervalTypes);
+                }
+                Ok(GqlPathFromNodeWindowSet::new(
+                    self.nn.rolling(window_str, step_str)?,
+                ))
+            }
+            (None, None) => return Err(NoIntervalProvided),
+        }
+    }
+
+    fn expanding(
+        &self,
+        step_str: Option<String>,
+        step_int: Option<i64>,
+    ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
+        match (step_str, step_int) {
+            (Some(_), Some(_)) => Err(WrongNumOfArgs(
+                "step_str".to_string(),
+                "step_int".to_string(),
+            )),
+            (None, Some(step_int)) => {
+                Ok(GqlPathFromNodeWindowSet::new(self.nn.expanding(step_int)?))
+            }
+            (Some(step_str), None) => {
+                Ok(GqlPathFromNodeWindowSet::new(self.nn.expanding(step_str)?))
+            }
+            (None, None) => return Err(NoIntervalProvided),
+        }
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
