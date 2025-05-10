@@ -1,11 +1,52 @@
-use crate::model::graph::{
-    edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, path_from_node::GqlPathFromNode,
+use crate::{
+    model::graph::{
+        edge::Edge, edges::GqlEdges, graph::GqlGraph, node::Node, nodes::GqlNodes,
+        path_from_node::GqlPathFromNode,
+    },
+    paths::ExistingGraphFolder,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::view::{DynamicGraph, WindowSet},
-    graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode},
+    graph::{
+        edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode,
+    },
 };
+
+#[derive(ResolvedObject)]
+pub(crate) struct GqlGraphWindowSet {
+    pub(crate) ws: WindowSet<'static, DynamicGraph>,
+    path: ExistingGraphFolder,
+}
+
+impl GqlGraphWindowSet {
+    pub(crate) fn new(ws: WindowSet<'static, DynamicGraph>, path: ExistingGraphFolder) -> Self {
+        Self { ws, path }
+    }
+}
+#[ResolvedObjectFields]
+impl GqlGraphWindowSet {
+    async fn count(&self) -> usize {
+        self.ws.clone().count()
+    }
+
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlGraph> {
+        let start = offset * limit;
+        self.ws
+            .clone()
+            .skip(start)
+            .take(limit)
+            .map(|g| GqlGraph::new(self.path.clone(), g))
+            .collect()
+    }
+
+    async fn list(&self) -> Vec<GqlGraph> {
+        self.ws
+            .clone()
+            .map(|g| GqlGraph::new(self.path.clone(), g))
+            .collect()
+    }
+}
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodeWindowSet {

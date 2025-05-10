@@ -8,6 +8,7 @@ use crate::{
             node::Node,
             nodes::GqlNodes,
             property::GqlProperties,
+            windowset::GqlGraphWindowSet,
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
@@ -136,7 +137,7 @@ impl GqlGraph {
         window_int: Option<i64>,
         step_str: Option<String>,
         step_int: Option<i64>,
-    ) -> Result<Vec<GqlGraph>, GraphError> {
+    ) -> Result<GqlGraphWindowSet, GraphError> {
         match (window_str, window_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "window_str".to_string(),
@@ -146,21 +147,19 @@ impl GqlGraph {
                 if step_str.is_some() {
                     return Err(MismatchedIntervalTypes);
                 }
-                Ok(self
-                    .graph
-                    .rolling(window_int, step_int)?
-                    .map(|g| GqlGraph::new(self.path.clone(), g))
-                    .collect())
+                Ok(GqlGraphWindowSet::new(
+                    self.graph.rolling(window_int, step_int)?,
+                    self.path.clone(),
+                ))
             }
             (Some(window_str), None) => {
                 if step_int.is_some() {
                     return Err(MismatchedIntervalTypes);
                 }
-                Ok(self
-                    .graph
-                    .rolling(window_str, step_str)?
-                    .map(|g| GqlGraph::new(self.path.clone(), g))
-                    .collect())
+                Ok(GqlGraphWindowSet::new(
+                    self.graph.rolling(window_str, step_str)?,
+                    self.path.clone(),
+                ))
             }
             (None, None) => return Err(NoIntervalProvided),
         }
@@ -170,22 +169,20 @@ impl GqlGraph {
         &self,
         step_str: Option<String>,
         step_int: Option<i64>,
-    ) -> Result<Vec<GqlGraph>, GraphError> {
+    ) -> Result<GqlGraphWindowSet, GraphError> {
         match (step_str, step_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "step_str".to_string(),
                 "step_int".to_string(),
             )),
-            (None, Some(step_int)) => Ok(self
-                .graph
-                .expanding(step_int)?
-                .map(|g| GqlGraph::new(self.path.clone(), g))
-                .collect()),
-            (Some(step_str), None) => Ok(self
-                .graph
-                .expanding(step_str)?
-                .map(|g| GqlGraph::new(self.path.clone(), g))
-                .collect()),
+            (None, Some(step_int)) => Ok(GqlGraphWindowSet::new(
+                self.graph.expanding(step_int)?,
+                self.path.clone(),
+            )),
+            (Some(step_str), None) => Ok(GqlGraphWindowSet::new(
+                self.graph.expanding(step_str)?,
+                self.path.clone(),
+            )),
             (None, None) => return Err(NoIntervalProvided),
         }
     }
