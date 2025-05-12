@@ -8,9 +8,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::view::{DynamicGraph, WindowSet},
-    graph::{
-        edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode,
-    },
+    graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode},
 };
 
 #[derive(ResolvedObject)]
