@@ -33,6 +33,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::prelude::DeletionOps;
 #[cfg(feature = "search")]
 use crate::{
     db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
@@ -128,6 +129,8 @@ impl InternalStorageOps for Storage {
         Some(self)
     }
 }
+
+impl DeletionOps for Arc<Storage> {}
 
 impl InheritNodeHistoryFilter for Storage {}
 impl InheritEdgeHistoryFilter for Storage {}
