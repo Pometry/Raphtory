@@ -1,4 +1,4 @@
-use crate::{model::graph::property::GqlProp, paths::ExistingGraphFolder};
+use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{core::utils::errors::GraphError, serialise::metadata::GraphMetadata};
 
@@ -37,10 +37,11 @@ impl MetaGraph {
 }
 
 #[derive(Clone, SimpleObject)]
+#[graphql(name = "GraphMetadata")]
 pub(crate) struct GqlGraphMetadata {
     pub(crate) node_count: usize,
     pub(crate) edge_count: usize,
-    pub(crate) properties: Vec<GqlProp>,
+    pub(crate) properties: Vec<GqlProperty>,
 }
 
 impl From<GraphMetadata> for GqlGraphMetadata {
@@ -51,7 +52,7 @@ impl From<GraphMetadata> for GqlGraphMetadata {
             properties: metadata
                 .properties
                 .into_iter()
-                .map(|(key, prop)| GqlProp::new(key.to_string(), prop))
+                .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
                 .collect(),
         }
     }

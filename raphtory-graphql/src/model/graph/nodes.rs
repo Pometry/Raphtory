@@ -1,7 +1,7 @@
 use crate::model::{
     graph::{
         filtering::{FilterCondition, NodesViewCollection, Operator},
-        node::Node,
+        node::GqlNode,
         windowset::GqlNodesWindowSet,
     },
     sorting::{NodeSortBy, SortByTime},
@@ -23,6 +23,7 @@ use raphtory_api::core::entities::VID;
 use std::cmp::Ordering;
 
 #[derive(ResolvedObject)]
+#[graphql(name = "Nodes")]
 pub(crate) struct GqlNodes {
     pub(crate) nn: Nodes<'static, DynamicGraph>,
 }
@@ -38,8 +39,8 @@ impl GqlNodes {
         Self { nn: nodes.into() }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
-        let iter = self.nn.iter_owned().map(Node::from);
+    fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
+        let iter = self.nn.iter_owned().map(GqlNode::from);
         Box::new(iter)
     }
 }
@@ -453,12 +454,12 @@ impl GqlNodes {
         self.iter().count()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Node> {
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
         let start = offset * limit;
         self.iter().skip(start).take(limit).collect()
     }
 
-    async fn list(&self) -> Vec<Node> {
+    async fn list(&self) -> Vec<GqlNode> {
         self.iter().collect()
     }
 

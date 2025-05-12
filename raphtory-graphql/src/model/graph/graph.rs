@@ -2,10 +2,10 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            edge::Edge,
+            edge::GqlEdge,
             edges::GqlEdges,
             filtering::{EdgeFilter, FilterCondition, GraphViewCollection, NodeFilter, Operator},
-            node::Node,
+            node::GqlNode,
             nodes::GqlNodes,
             property::GqlProperties,
             windowset::GqlGraphWindowSet,
@@ -42,6 +42,7 @@ use raphtory::{
 use std::{collections::HashSet, convert::Into, sync::Arc};
 
 #[derive(ResolvedObject)]
+#[graphql(name = "Graph")]
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
@@ -314,7 +315,7 @@ impl GqlGraph {
     //////// GETTERS ///////
     ////////////////////////
 
-    async fn node(&self, name: String) -> Option<Node> {
+    async fn node(&self, name: String) -> Option<GqlNode> {
         self.graph.node(name).map(|v| v.into())
     }
 
@@ -326,7 +327,7 @@ impl GqlGraph {
         }
     }
 
-    pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
+    pub fn edge(&self, src: String, dst: String) -> Option<GqlEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
@@ -380,7 +381,7 @@ impl GqlGraph {
         self.graph.clone().into()
     }
 
-    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<GqlNode> {
         if selected_nodes.is_empty() {
             return vec![];
         }
@@ -749,7 +750,7 @@ impl GqlGraph {
         filter: NodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<Node>, GraphError> {
+    ) -> Result<Vec<GqlNode>, GraphError> {
         self.execute_search(|| {
             Ok(self
                 .graph
@@ -767,7 +768,7 @@ impl GqlGraph {
         filter: EdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<Edge>, GraphError> {
+    ) -> Result<Vec<GqlEdge>, GraphError> {
         self.execute_search(|| {
             Ok(self
                 .graph

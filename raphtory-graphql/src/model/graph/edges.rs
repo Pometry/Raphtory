@@ -1,5 +1,5 @@
 use crate::model::{
-    graph::{edge::Edge, filtering::EdgesViewCollection, windowset::GqlEdgesWindowSet},
+    graph::{edge::GqlEdge, filtering::EdgesViewCollection, windowset::GqlEdgesWindowSet},
     sorting::{EdgeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -19,6 +19,7 @@ use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
 
 #[derive(ResolvedObject)]
+#[graphql(name = "Edges")]
 pub(crate) struct GqlEdges {
     pub(crate) ee: Edges<'static, DynamicGraph>,
 }
@@ -34,8 +35,8 @@ impl GqlEdges {
         Self { ee: edges.into() }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Edge> + '_> {
-        let iter = self.ee.iter().map(Edge::from_ref);
+    fn iter(&self) -> Box<dyn Iterator<Item = GqlEdge> + '_> {
+        let iter = self.ee.iter().map(GqlEdge::from_ref);
         Box::new(iter)
     }
 }
@@ -309,12 +310,12 @@ impl GqlEdges {
         self.iter().count()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Edge> {
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
         let start = offset * limit;
         self.iter().skip(start).take(limit).collect()
     }
 
-    async fn list(&self) -> Vec<Edge> {
+    async fn list(&self) -> Vec<GqlEdge> {
         self.iter().collect()
     }
 }

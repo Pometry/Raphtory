@@ -1,5 +1,5 @@
 use crate::model::graph::{
-    edges::GqlEdges, filtering::EdgeViewCollection, node::Node, property::GqlProperties,
+    edges::GqlEdges, filtering::EdgeViewCollection, node::GqlNode, property::GqlProperties,
     windowset::GqlEdgeWindowSet,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -16,12 +16,13 @@ use raphtory::{
 };
 
 #[derive(ResolvedObject, Clone)]
-pub struct Edge {
+#[graphql(name = "Edge")]
+pub struct GqlEdge {
     pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<EdgeView<G, GH>> for Edge
+    From<EdgeView<G, GH>> for GqlEdge
 {
     fn from(value: EdgeView<G, GH>) -> Self {
         Self {
@@ -34,7 +35,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl Edge {
+impl GqlEdge {
     pub(crate) fn from_ref<
         G: StaticGraphViewOps + IntoDynamic,
         GH: StaticGraphViewOps + IntoDynamic,
@@ -46,28 +47,28 @@ impl Edge {
 }
 
 #[ResolvedObjectFields]
-impl Edge {
+impl GqlEdge {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn default_layer(&self) -> Edge {
+    async fn default_layer(&self) -> GqlEdge {
         self.ee.default_layer().into()
     }
 
-    async fn layers(&self, names: Vec<String>) -> Edge {
+    async fn layers(&self, names: Vec<String>) -> GqlEdge {
         self.ee.valid_layers(names).into()
     }
 
-    async fn exclude_layers(&self, names: Vec<String>) -> Edge {
+    async fn exclude_layers(&self, names: Vec<String>) -> GqlEdge {
         self.ee.exclude_valid_layers(names).into()
     }
 
-    async fn layer(&self, name: String) -> Edge {
+    async fn layer(&self, name: String) -> GqlEdge {
         self.ee.valid_layers(name).into()
     }
 
-    async fn exclude_layer(&self, name: String) -> Edge {
+    async fn exclude_layer(&self, name: String) -> GqlEdge {
         self.ee.exclude_valid_layers(name).into()
     }
 
@@ -119,31 +120,31 @@ impl Edge {
         }
     }
 
-    async fn window(&self, start: i64, end: i64) -> Edge {
+    async fn window(&self, start: i64, end: i64) -> GqlEdge {
         self.ee.window(start, end).into()
     }
 
-    async fn at(&self, time: i64) -> Edge {
+    async fn at(&self, time: i64) -> GqlEdge {
         self.ee.at(time).into()
     }
 
-    async fn latest(&self) -> Edge {
+    async fn latest(&self) -> GqlEdge {
         self.ee.latest().into()
     }
 
-    async fn snapshot_at(&self, time: i64) -> Edge {
+    async fn snapshot_at(&self, time: i64) -> GqlEdge {
         self.ee.snapshot_at(time).into()
     }
 
-    async fn snapshot_latest(&self) -> Edge {
+    async fn snapshot_latest(&self) -> GqlEdge {
         self.ee.snapshot_latest().into()
     }
 
-    async fn before(&self, time: i64) -> Edge {
+    async fn before(&self, time: i64) -> GqlEdge {
         self.ee.before(time).into()
     }
 
-    async fn after(&self, time: i64) -> Edge {
+    async fn after(&self, time: i64) -> GqlEdge {
         self.ee.after(time).into()
     }
 
@@ -159,8 +160,8 @@ impl Edge {
         self.ee.shrink_end(end).into()
     }
 
-    async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<Edge, GraphError> {
-        let mut return_view: Edge = self.ee.clone().into();
+    async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
+        let mut return_view: GqlEdge = self.ee.clone().into();
 
         for view in views {
             let mut count = 0;
@@ -260,11 +261,11 @@ impl Edge {
         self.ee.end()
     }
 
-    async fn src(&self) -> Node {
+    async fn src(&self) -> GqlNode {
         self.ee.src().into()
     }
 
-    async fn dst(&self) -> Node {
+    async fn dst(&self) -> GqlNode {
         self.ee.dst().into()
     }
 
@@ -321,7 +322,7 @@ impl Edge {
         self.ee.is_self_loop()
     }
 
-    async fn nbr(&self) -> Node {
+    async fn nbr(&self) -> GqlNode {
         self.ee.nbr().into()
     }
 }

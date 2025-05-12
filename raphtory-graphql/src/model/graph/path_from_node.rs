@@ -1,4 +1,4 @@
-use crate::model::graph::{node::Node, windowset::GqlPathFromNodeWindowSet};
+use crate::model::graph::{node::GqlNode, windowset::GqlPathFromNodeWindowSet};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::{
@@ -10,6 +10,7 @@ use raphtory::{
 };
 
 #[derive(ResolvedObject)]
+#[graphql(name = "PathFromNode")]
 pub(crate) struct GqlPathFromNode {
     pub(crate) nn: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
@@ -27,8 +28,8 @@ impl GqlPathFromNode {
         Self { nn: nodes.into() }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
-        let iter = self.nn.iter().map(Node::from);
+    fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
+        let iter = self.nn.iter().map(GqlNode::from);
         Box::new(iter)
     }
 }
@@ -169,12 +170,12 @@ impl GqlPathFromNode {
         self.iter().count()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Node> {
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
         let start = offset * limit;
         self.iter().skip(start).take(limit).collect()
     }
 
-    async fn list(&self) -> Vec<Node> {
+    async fn list(&self) -> Vec<GqlNode> {
         self.iter().collect()
     }
 

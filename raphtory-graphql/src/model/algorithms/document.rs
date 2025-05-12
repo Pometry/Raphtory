@@ -1,4 +1,4 @@
-use crate::model::graph::{edge::Edge, node::Node};
+use crate::model::graph::{edge::GqlEdge, node::GqlNode};
 use dynamic_graphql::{SimpleObject, Union};
 use raphtory::{
     core::Lifespan,
@@ -18,9 +18,10 @@ impl From<String> for Graph {
 }
 
 #[derive(Union)]
+#[graphql(name = "DocumentEntity")]
 enum GqlDocumentEntity {
-    Node(Node),
-    Edge(Edge),
+    Node(GqlNode),
+    Edge(GqlEdge),
     Graph(Graph),
 }
 
@@ -30,8 +31,8 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumen
             DocumentEntity::Graph { name, .. } => Self::Graph(Graph {
                 name: name.unwrap(),
             }),
-            DocumentEntity::Node(node) => Self::Node(Node::from(node)),
-            DocumentEntity::Edge(edge) => Self::Edge(Edge::from(edge)),
+            DocumentEntity::Node(node) => Self::Node(GqlNode::from(node)),
+            DocumentEntity::Edge(edge) => Self::Edge(GqlEdge::from(edge)),
         }
     }
 }

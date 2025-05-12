@@ -1,6 +1,6 @@
 use crate::{
     model::graph::{
-        edge::Edge, edges::GqlEdges, graph::GqlGraph, node::Node, nodes::GqlNodes,
+        edge::GqlEdge, edges::GqlEdges, graph::GqlGraph, node::GqlNode, nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
     },
     paths::ExistingGraphFolder,
@@ -12,6 +12,7 @@ use raphtory::db::{
 };
 
 #[derive(ResolvedObject)]
+#[graphql(name = "GraphWindowSet")]
 pub(crate) struct GqlGraphWindowSet {
     pub(crate) ws: WindowSet<'static, DynamicGraph>,
     path: ExistingGraphFolder,
@@ -47,6 +48,7 @@ impl GqlGraphWindowSet {
 }
 
 #[derive(ResolvedObject)]
+#[graphql(name = "NodeWindowSet")]
 pub(crate) struct GqlNodeWindowSet {
     pub(crate) ws: WindowSet<'static, NodeView<DynamicGraph, DynamicGraph>>,
 }
@@ -62,7 +64,7 @@ impl GqlNodeWindowSet {
         self.ws.clone().count()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Node> {
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
         let start = offset * limit;
         self.ws
             .clone()
@@ -72,12 +74,13 @@ impl GqlNodeWindowSet {
             .collect()
     }
 
-    async fn list(&self) -> Vec<Node> {
+    async fn list(&self) -> Vec<GqlNode> {
         self.ws.clone().map(|n| n.into()).collect()
     }
 }
 
 #[derive(ResolvedObject)]
+#[graphql(name = "NodesWindowSet")]
 pub(crate) struct GqlNodesWindowSet {
     pub(crate) ws: WindowSet<'static, Nodes<'static, DynamicGraph, DynamicGraph>>,
 }
@@ -109,6 +112,7 @@ impl GqlNodesWindowSet {
 }
 
 #[derive(ResolvedObject)]
+#[graphql(name = "PathFromNodeWindowSet")]
 pub(crate) struct GqlPathFromNodeWindowSet {
     pub(crate) ws: WindowSet<'static, PathFromNode<'static, DynamicGraph, DynamicGraph>>,
 }
@@ -140,6 +144,7 @@ impl GqlPathFromNodeWindowSet {
 }
 
 #[derive(ResolvedObject)]
+#[graphql(name = "EdgeWindowSet")]
 pub(crate) struct GqlEdgeWindowSet {
     pub(crate) ws: WindowSet<'static, EdgeView<DynamicGraph, DynamicGraph>>,
 }
@@ -155,7 +160,7 @@ impl GqlEdgeWindowSet {
         self.ws.clone().count()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Edge> {
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
         let start = offset * limit;
         self.ws
             .clone()
@@ -165,12 +170,13 @@ impl GqlEdgeWindowSet {
             .collect()
     }
 
-    async fn list(&self) -> Vec<Edge> {
+    async fn list(&self) -> Vec<GqlEdge> {
         self.ws.clone().map(|e| e.into()).collect()
     }
 }
 
 #[derive(ResolvedObject)]
+#[graphql(name = "EdgesWindowSet")]
 pub(crate) struct GqlEdgesWindowSet {
     pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph, DynamicGraph>>,
 }

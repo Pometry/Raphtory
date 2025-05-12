@@ -5,6 +5,7 @@ use raphtory::core::utils::errors::GraphError;
 use crate::paths::ExistingGraphFolder;
 
 #[derive(ResolvedObject)]
+#[graphql(name = "Graphs")]
 pub(crate) struct GqlGraphs {
     folders: Vec<ExistingGraphFolder>,
 }

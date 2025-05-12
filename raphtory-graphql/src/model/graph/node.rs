@@ -17,12 +17,13 @@ use raphtory::{
 };
 
 #[derive(ResolvedObject, Clone)]
-pub struct Node {
+#[graphql(name = "Node")]
+pub struct GqlNode {
     pub(crate) vv: NodeView<DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<G, GH>> for Node
+    From<NodeView<G, GH>> for GqlNode
 {
     fn from(value: NodeView<G, GH>) -> Self {
         Self {
@@ -36,7 +37,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 }
 
 #[ResolvedObjectFields]
-impl Node {
+impl GqlNode {
     async fn id(&self) -> String {
         self.vv.id().to_string()
     }
@@ -48,22 +49,22 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
-    async fn default_layer(&self) -> Node {
+    async fn default_layer(&self) -> GqlNode {
         self.vv.default_layer().into()
     }
-    async fn layers(&self, names: Vec<String>) -> Node {
+    async fn layers(&self, names: Vec<String>) -> GqlNode {
         self.vv.valid_layers(names).into()
     }
 
-    async fn exclude_layers(&self, names: Vec<String>) -> Node {
+    async fn exclude_layers(&self, names: Vec<String>) -> GqlNode {
         self.vv.exclude_valid_layers(names).into()
     }
 
-    async fn layer(&self, name: String) -> Node {
+    async fn layer(&self, name: String) -> GqlNode {
         self.vv.valid_layers(name).into()
     }
 
-    async fn exclude_layer(&self, name: String) -> Node {
+    async fn exclude_layer(&self, name: String) -> GqlNode {
         self.vv.exclude_valid_layers(name).into()
     }
 
@@ -115,31 +116,31 @@ impl Node {
         }
     }
 
-    async fn window(&self, start: i64, end: i64) -> Node {
+    async fn window(&self, start: i64, end: i64) -> GqlNode {
         self.vv.window(start, end).into()
     }
 
-    async fn at(&self, time: i64) -> Node {
+    async fn at(&self, time: i64) -> GqlNode {
         self.vv.at(time).into()
     }
 
-    async fn latest(&self) -> Node {
+    async fn latest(&self) -> GqlNode {
         self.vv.latest().into()
     }
 
-    async fn snapshot_at(&self, time: i64) -> Node {
+    async fn snapshot_at(&self, time: i64) -> GqlNode {
         self.vv.snapshot_at(time).into()
     }
 
-    async fn snapshot_latest(&self) -> Node {
+    async fn snapshot_latest(&self) -> GqlNode {
         self.vv.snapshot_latest().into()
     }
 
-    async fn before(&self, time: i64) -> Node {
+    async fn before(&self, time: i64) -> GqlNode {
         self.vv.before(time).into()
     }
 
-    async fn after(&self, time: i64) -> Node {
+    async fn after(&self, time: i64) -> GqlNode {
         self.vv.after(time).into()
     }
 
@@ -155,8 +156,8 @@ impl Node {
         self.vv.shrink_end(end).into()
     }
 
-    async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<Node, GraphError> {
-        let mut return_view: Node = self.vv.clone().into();
+    async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
+        let mut return_view: GqlNode = self.vv.clone().into();
 
         for view in views {
             let mut count = 0;
