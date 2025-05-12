@@ -112,21 +112,11 @@ impl GqlGraph {
         self.apply(|g| g.subgraph(nodes.clone()))
     }
 
-    async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        self.apply(|g| g.subgraph(nodes.clone()))
-    }
-
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
         self.apply(|g| g.subgraph_node_types(node_types.clone()))
     }
 
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        self.apply(|g| g.exclude_nodes(nodes.clone()))
-    }
-
-    async fn exclude_nodes_id(&self, nodes: Vec<u64>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
         self.apply(|g| g.exclude_nodes(nodes.clone()))
     }
@@ -309,22 +299,7 @@ impl GqlGraph {
         self.graph.has_node(name)
     }
 
-    async fn has_node_id(&self, id: u64) -> bool {
-        self.graph.has_node(id)
-    }
-
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
-        match layer {
-            Some(name) => self
-                .graph
-                .layers(name)
-                .map(|l| l.has_edge(src, dst))
-                .unwrap_or(false),
-            None => self.graph.has_edge(src, dst),
-        }
-    }
-
-    async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
         match layer {
             Some(name) => self
                 .graph
@@ -343,10 +318,6 @@ impl GqlGraph {
         self.graph.node(name).map(|v| v.into())
     }
 
-    async fn node_id(&self, id: u64) -> Option<Node> {
-        self.graph.node(id).map(|v| v.into())
-    }
-
     /// query (optionally a subset of) the nodes in the graph
     async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
         match ids {
@@ -356,10 +327,6 @@ impl GqlGraph {
     }
 
     pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
-        self.graph.edge(src, dst).map(|e| e.into())
-    }
-
-    pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
@@ -842,10 +809,6 @@ impl GqlGraph {
                 count += 1;
                 return_view = return_view.subgraph(nodes).await;
             }
-            if let Some(nodes) = view.subgraph_id {
-                count += 1;
-                return_view = return_view.subgraph_id(nodes).await;
-            }
             if let Some(types) = view.subgraph_node_types {
                 count += 1;
                 return_view = return_view.subgraph_node_types(types).await;
@@ -853,10 +816,6 @@ impl GqlGraph {
             if let Some(nodes) = view.exclude_nodes {
                 count += 1;
                 return_view = return_view.exclude_nodes(nodes).await;
-            }
-            if let Some(nodes) = view.exclude_nodes_id {
-                count += 1;
-                return_view = return_view.exclude_nodes_id(nodes).await;
             }
             if let Some(window) = view.window {
                 count += 1;

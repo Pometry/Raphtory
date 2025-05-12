@@ -88,8 +88,8 @@ impl QueryRoot {
         while Instant::now() - start < wait_time {}
         1
     }
-    
-    //Server runs fine and eventually returns 1 
+
+    //Server runs fine and eventually returns 1
     async fn busy_loop_spawn_blocking_test() -> i64 {
         tokio::task::spawn_blocking(|| {
             let start = Instant::now();
@@ -101,8 +101,6 @@ impl QueryRoot {
         .unwrap();
         1
     }
-
-
 
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
