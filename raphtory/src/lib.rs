@@ -474,19 +474,8 @@ mod test_utils {
         len: usize,
     ) -> impl Strategy<Value = PropUpdatesFixture> {
         let t_props = t_props(schema.clone(), len);
-        t_props.prop_flat_map(move |t_props| {
-            let schema = if t_props.is_empty() {
-                vec![]
-            } else {
-                schema.clone()
-            };
-            let c_props = make_props(schema);
-            let t_props = t_props;
-            c_props.prop_map(move |c_props| PropUpdatesFixture {
-                t_props: t_props.clone(),
-                c_props,
-            })
-        })
+        let c_props = make_props(schema);
+        (t_props, c_props).prop_map(|(t_props, c_props)| PropUpdatesFixture { t_props, c_props })
     }
 
     fn node_updates(
@@ -603,13 +592,15 @@ mod test_utils {
                 g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
             }
             if let Some(e) = g.edge(src, dst) {
-                if !updates.props.c_props.is_empty() {
-                    e.add_constant_properties(updates.props.c_props.clone(), layer)
-                        .unwrap();
+                if e.has_layer(layer) {
+                    if !updates.props.c_props.is_empty() {
+                        e.add_constant_properties(updates.props.c_props.clone(), layer)
+                            .unwrap();
+                    }
                 }
-                for t in updates.deletions.iter() {
-                    e.delete(*t, layer).unwrap();
-                }
+            }
+            for t in updates.deletions.iter() {
+                g.delete_edge(*t, src, dst, layer).unwrap();
             }
         }
 
