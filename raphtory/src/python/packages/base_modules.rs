@@ -57,6 +57,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyRef,
         PyPropertyFilter,
         PyWindowSet,
+        PyHistory,
     );
 
     #[cfg(feature = "storage")]
@@ -155,3 +156,4 @@ use crate::python::{
     algorithm::epidemics::PyInfected, graph::properties::PropertiesView,
     types::wrappers::document::PyEmbedding,
 };
+use crate::python::graph::history::PyHistory;

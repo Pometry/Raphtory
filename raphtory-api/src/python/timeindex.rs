@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyObject, Python};
-use pyo3::types::PyDateTime;
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
@@ -21,7 +20,6 @@ pub struct PyRaphtoryTime {
 #[pymethods]
 impl PyRaphtoryTime {
     /// Get the datetime representation of the time
-    /// TODO: Use PyTime internal converter
     pub fn dt(&self) -> Option<DateTime<Utc>> {
         self.time.dt()
     }
@@ -32,7 +30,7 @@ impl PyRaphtoryTime {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("RaphtoryTime(epoch={})", self.epoch())
+        format!("TimeIndexEntry[{}, {}]", self.time.0, self.time.1)
     }
 }
 

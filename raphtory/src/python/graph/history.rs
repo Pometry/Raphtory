@@ -1,19 +1,20 @@
+use std::cell::RefCell;
 use std::sync::Arc;
 use pyo3::{
     prelude::*,
-    types::PyType,
-    ToPyObject,
 };
-use pyo3::types::PyBool;
 use crate::{
     db::api::view::history::*,
 };
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::{TimeIndexEntry};
 use crate::python::graph::edge::PyEdge;
 use crate::python::graph::node::PyNode;
+use crate::python::types::repr::{iterator_repr};
 use crate::python::types::wrappers::iterators::PyBorrowingIterator;
 
+// TODO: Do we need "frozen" here? I might need to mutate the object in my merge and compose functions
 #[pyclass(name = "History", module = "raphtory", frozen)]
+#[derive(Clone)]
 pub struct PyHistory {
     history: History<Arc<dyn InternalHistoryOps>>
 }
@@ -24,7 +25,7 @@ impl PyHistory {
     #[staticmethod]
     pub fn from_node(node: &PyNode) -> Self {
         Self {
-            history: History::new(Arc::new(node.node.clone())),
+            history: History::new(Arc::new(node.node.clone()))
         }
     }
 
@@ -34,6 +35,11 @@ impl PyHistory {
             history: History::new(Arc::new(edge.edge.clone()))
         }
     }
+
+    // FIXME: How do we wanna deal with merge and composite functions? RefCell, make the pyclass not frozen, ...
+    // pub fn merge(&mut self, history: PyHistory) {
+    // 
+    // }
 
     /// Get the earliest time in the history
     /// Implement RaphtoryTime into PyRaphtoryTime
@@ -55,35 +61,15 @@ impl PyHistory {
     }
     
     pub fn __repr__(&self) -> String {
-        format!("History(earliest={:?}, latest={:?})", 
-            self.earliest_time().map(|t| t.t()),
-            self.latest_time().map(|t| t.t()))
+        format!("History({})", iterator_repr(self.history.iter()))
     }
 
-    // FIXME: Fix use of deprecated to_object function. Other functions return PyBool or Borrow<PyBool> which aren't PyObject
-    // PyObject is needed if we want to have NotImplemented support
-    fn __eq__(&self, other: PyObject) -> PyResult<PyObject> {
-        Python::with_gil(|py| {
-            if let Ok(other_history) = other.extract::<PyRef<PyHistory>>(py) {
-                let equals = self.history.eq(&other_history.history);
-                Ok(equals.to_object(py))
-            } else {
-                // Return NotImplemented for mismatched types
-                Ok(py.NotImplemented())
-            }
-        })
+    fn __eq__(&self, other: &PyHistory) -> bool {
+        self.history.eq(&other.history)
     }
 
-    fn __ne__(&self, other: PyObject) -> PyResult<PyObject> {
-        Python::with_gil(|py| {
-            if let Ok(other_history) = other.extract::<PyRef<PyHistory>>(py) {
-                let not_equals = self.history.ne(&other_history.history);
-                Ok(not_equals.to_object(py))
-            } else {
-                // Return NotImplemented for mismatched types
-                Ok(py.NotImplemented())
-            }
-        })
+    fn __ne__(&self, other: &PyHistory) -> bool {
+        self.history.ne(&other.history)
     }
 }
 
@@ -104,8 +90,6 @@ impl PyEdge {
         }
     }
 }
-
-// TODO: get rid of RaphtoryTime on the rust side and implement python class for TimeIndexEntry
 
 
 impl<T: InternalHistoryOps + 'static> From<History<T>> for PyHistory {

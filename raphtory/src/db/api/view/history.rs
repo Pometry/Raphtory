@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
+use std::cell::RefCell;
+use std::ops::Deref;
 use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -12,27 +14,7 @@ use crate::db::graph::edge::EdgeView;
 use crate::db::graph::node::NodeView;
 use crate::prelude::*;
 
-// TODO: Wanna define ordered/orderable and anything else necessary so we can use them in python for __eq__, __ne__
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
-pub struct RaphtoryTime {
-    time_index: TimeIndexEntry
-}
-
-impl RaphtoryTime {
-    pub fn new(time_index: TimeIndexEntry) -> Self { Self{time_index} }
-    pub fn dt(&self) -> Option<DateTime<Utc>> {
-        self.time_index.dt()
-    }
-    pub fn epoch(&self) -> i64 {
-        self.time_index.t()
-    }
-}
-
-impl From<TimeIndexEntry> for RaphtoryTime {
-    fn from(time_index: TimeIndexEntry) -> Self {
-        Self { time_index }
-    }
-}
+// TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
@@ -43,7 +25,6 @@ pub trait InternalHistoryOps: Send + Sync {
 }
 
 // FIXME: Doesn't support deletions of edges yet
-// TODO: Wanna define ordered/orderable and anything else necessary so we can use them in python for __eq__, __ne__, ideally on T using InternalHistoryOps
 // TODO: Implement hashable so they can be used in maps in python
 #[derive(Clone)]
 pub struct History<T>(pub T);
@@ -223,7 +204,6 @@ impl<G: TimeSemantics + Send + Sync> InternalHistoryOps for NodeView<G> {
         x.into_iter().into_dyn_boxed()
     }
     
-    // FIXME: I had trouble using node.earliest_time because of all the traits I needed to add as bounds
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
@@ -238,7 +218,7 @@ impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for E
         self.graph.edge_history(self.edge, self.graph.layer_ids())
     }
 
-    // Implementation is not efficient, only for testing purposes
+    // FIXME: Implementation is not efficient, only for testing purposes
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         let mut x = self.graph.edge_history(self.edge, self.graph.layer_ids()).collect_vec();
         x.reverse();
