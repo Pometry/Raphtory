@@ -81,28 +81,6 @@ impl QueryRoot {
         "Hello world from raphtory-graphql"
     }
 
-    //Server unresponsive for 20 seconds
-    async fn busy_loop_test() -> i64 {
-        let wait_time = Duration::from_secs(20);
-        let start = Instant::now();
-
-        while Instant::now() - start < wait_time {}
-        1
-    }
-
-    //Server runs fine and eventually returns 1
-    async fn busy_loop_spawn_blocking_test() -> i64 {
-        tokio::task::spawn_blocking(|| {
-            let start = Instant::now();
-            while Instant::now() - start < Duration::from_secs(20) {
-                // real busy loop
-            }
-        })
-        .await
-        .unwrap();
-        1
-    }
-
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
