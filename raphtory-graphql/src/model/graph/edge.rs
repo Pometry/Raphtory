@@ -72,14 +72,15 @@ impl GqlEdge {
         self.ee.exclude_valid_layers(name).into()
     }
 
-    fn rolling(
+    async fn rolling(
         &self,
         window_str: Option<String>,
         window_int: Option<i64>,
         step_str: Option<String>,
         step_int: Option<i64>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
-        match (window_str, window_int) {
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || match (window_str, window_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "window_str".to_string(),
                 "window_int".to_string(),
@@ -89,7 +90,7 @@ impl GqlEdge {
                     return Err(MismatchedIntervalTypes);
                 }
                 Ok(GqlEdgeWindowSet::new(
-                    self.ee.rolling(window_int, step_int)?,
+                    self_clone.ee.rolling(window_int, step_int)?,
                 ))
             }
             (Some(window_str), None) => {
@@ -97,27 +98,32 @@ impl GqlEdge {
                     return Err(MismatchedIntervalTypes);
                 }
                 Ok(GqlEdgeWindowSet::new(
-                    self.ee.rolling(window_str, step_str)?,
+                    self_clone.ee.rolling(window_str, step_str)?,
                 ))
             }
             (None, None) => return Err(NoIntervalProvided),
-        }
+        })
+        .await
+        .unwrap()
     }
 
-    fn expanding(
+    async fn expanding(
         &self,
         step_str: Option<String>,
         step_int: Option<i64>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
-        match (step_str, step_int) {
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || match (step_str, step_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "step_str".to_string(),
                 "step_int".to_string(),
             )),
-            (None, Some(step_int)) => Ok(GqlEdgeWindowSet::new(self.ee.expanding(step_int)?)),
-            (Some(step_str), None) => Ok(GqlEdgeWindowSet::new(self.ee.expanding(step_str)?)),
+            (None, Some(step_int)) => Ok(GqlEdgeWindowSet::new(self_clone.ee.expanding(step_int)?)),
+            (Some(step_str), None) => Ok(GqlEdgeWindowSet::new(self_clone.ee.expanding(step_str)?)),
             (None, None) => return Err(NoIntervalProvided),
-        }
+        })
+        .await
+        .unwrap()
     }
 
     async fn window(&self, start: i64, end: i64) -> GqlEdge {
@@ -163,102 +169,126 @@ impl GqlEdge {
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
         let mut return_view: GqlEdge = self.ee.clone().into();
 
-        for view in views {
-            let mut count = 0;
-            if let Some(_) = view.default_layer {
-                count += 1;
-                return_view = return_view.default_layer().await;
+        tokio::task::spawn(async move {
+            for view in views {
+                let mut count = 0;
+                if let Some(_) = view.default_layer {
+                    count += 1;
+                    return_view = return_view.default_layer().await;
+                }
+                if let Some(layers) = view.layers {
+                    count += 1;
+                    return_view = return_view.layers(layers).await;
+                }
+                if let Some(layers) = view.exclude_layers {
+                    count += 1;
+                    return_view = return_view.exclude_layers(layers).await;
+                }
+                if let Some(layer) = view.layer {
+                    count += 1;
+                    return_view = return_view.layer(layer).await;
+                }
+                if let Some(layer) = view.exclude_layer {
+                    count += 1;
+                    return_view = return_view.exclude_layer(layer).await;
+                }
+                if let Some(window) = view.window {
+                    count += 1;
+                    return_view = return_view.window(window.start, window.end).await;
+                }
+                if let Some(time) = view.at {
+                    count += 1;
+                    return_view = return_view.at(time).await;
+                }
+                if let Some(_) = view.latest {
+                    count += 1;
+                    return_view = return_view.latest().await;
+                }
+                if let Some(time) = view.snapshot_at {
+                    count += 1;
+                    return_view = return_view.snapshot_at(time).await;
+                }
+                if let Some(_) = view.snapshot_latest {
+                    count += 1;
+                    return_view = return_view.snapshot_latest().await;
+                }
+                if let Some(time) = view.before {
+                    count += 1;
+                    return_view = return_view.before(time).await;
+                }
+                if let Some(time) = view.after {
+                    count += 1;
+                    return_view = return_view.after(time).await;
+                }
+                if let Some(window) = view.shrink_window {
+                    count += 1;
+                    return_view = return_view.shrink_window(window.start, window.end).await;
+                }
+                if let Some(time) = view.shrink_start {
+                    count += 1;
+                    return_view = return_view.shrink_start(time).await;
+                }
+                if let Some(time) = view.shrink_end {
+                    count += 1;
+                    return_view = return_view.shrink_end(time).await;
+                }
+                if count > 1 {
+                    return Err(GraphError::TooManyViewsSet);
+                }
             }
-            if let Some(layers) = view.layers {
-                count += 1;
-                return_view = return_view.layers(layers).await;
-            }
-            if let Some(layers) = view.exclude_layers {
-                count += 1;
-                return_view = return_view.exclude_layers(layers).await;
-            }
-            if let Some(layer) = view.layer {
-                count += 1;
-                return_view = return_view.layer(layer).await;
-            }
-            if let Some(layer) = view.exclude_layer {
-                count += 1;
-                return_view = return_view.exclude_layer(layer).await;
-            }
-            if let Some(window) = view.window {
-                count += 1;
-                return_view = return_view.window(window.start, window.end).await;
-            }
-            if let Some(time) = view.at {
-                count += 1;
-                return_view = return_view.at(time).await;
-            }
-            if let Some(_) = view.latest {
-                count += 1;
-                return_view = return_view.latest().await;
-            }
-            if let Some(time) = view.snapshot_at {
-                count += 1;
-                return_view = return_view.snapshot_at(time).await;
-            }
-            if let Some(_) = view.snapshot_latest {
-                count += 1;
-                return_view = return_view.snapshot_latest().await;
-            }
-            if let Some(time) = view.before {
-                count += 1;
-                return_view = return_view.before(time).await;
-            }
-            if let Some(time) = view.after {
-                count += 1;
-                return_view = return_view.after(time).await;
-            }
-            if let Some(window) = view.shrink_window {
-                count += 1;
-                return_view = return_view.shrink_window(window.start, window.end).await;
-            }
-            if let Some(time) = view.shrink_start {
-                count += 1;
-                return_view = return_view.shrink_start(time).await;
-            }
-            if let Some(time) = view.shrink_end {
-                count += 1;
-                return_view = return_view.shrink_end(time).await;
-            }
-            if count > 1 {
-                return Err(GraphError::TooManyViewsSet);
-            }
-        }
-
-        Ok(return_view)
+            Ok(return_view)
+        })
+        .await
+        .unwrap()
     }
 
     async fn earliest_time(&self) -> Option<i64> {
-        self.ee.earliest_time()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.earliest_time())
+            .await
+            .unwrap()
     }
 
     async fn first_update(&self) -> Option<i64> {
-        self.ee.history().first().cloned()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.history().first().cloned())
+            .await
+            .unwrap()
     }
 
     async fn latest_time(&self) -> Option<i64> {
-        self.ee.latest_time()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.latest_time())
+            .await
+            .unwrap()
     }
 
     async fn last_update(&self) -> Option<i64> {
-        self.ee.history().last().cloned()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.history().last().cloned())
+            .await
+            .unwrap()
     }
 
     async fn time(&self) -> Result<i64, GraphError> {
-        self.ee.time().map(|x| x.into())
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.time().map(|x| x.into()))
+            .await
+            .unwrap()
     }
 
     async fn start(&self) -> Option<i64> {
-        self.ee.start()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.start())
+            .await
+            .unwrap()
     }
 
     async fn end(&self) -> Option<i64> {
-        self.ee.end()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.end())
+            .await
+            .unwrap()
     }
 
     async fn src(&self) -> GqlNode {
@@ -268,10 +298,18 @@ impl GqlEdge {
     async fn dst(&self) -> GqlNode {
         self.ee.dst().into()
     }
+    async fn nbr(&self) -> GqlNode {
+        self.ee.nbr().into()
+    }
 
     async fn id(&self) -> Vec<String> {
-        let (src_name, dst_name) = self.ee.id();
-        vec![src_name.to_string(), dst_name.to_string()]
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let (src_name, dst_name) = self_clone.ee.id();
+            vec![src_name.to_string(), dst_name.to_string()]
+        })
+        .await
+        .unwrap()
     }
 
     async fn properties(&self) -> GqlProperties {
@@ -279,50 +317,79 @@ impl GqlEdge {
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.ee
-            .layer_names()
-            .into_iter()
-            .map(|x| x.into())
-            .collect()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || {
+            self_clone
+                .ee
+                .layer_names()
+                .into_iter()
+                .map(|x| x.into())
+                .collect()
+        })
+        .await
+        .unwrap()
     }
 
     async fn layer_name(&self) -> Result<String, GraphError> {
-        self.ee.layer_name().map(|x| x.into())
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.layer_name().map(|x| x.into()))
+            .await
+            .unwrap()
     }
 
     async fn explode(&self) -> GqlEdges {
-        GqlEdges::new(self.ee.explode())
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || GqlEdges::new(self_clone.ee.explode()))
+            .await
+            .unwrap()
     }
 
     async fn explode_layers(&self) -> GqlEdges {
-        GqlEdges::new(self.ee.explode_layers())
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || GqlEdges::new(self_clone.ee.explode_layers()))
+            .await
+            .unwrap()
     }
 
     async fn history(&self) -> Vec<i64> {
-        self.ee.history()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.history())
+            .await
+            .unwrap()
     }
 
     async fn deletions(&self) -> Vec<i64> {
-        self.ee.deletions()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.deletions())
+            .await
+            .unwrap()
     }
 
     async fn is_valid(&self) -> bool {
-        self.ee.is_valid()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.is_valid())
+            .await
+            .unwrap()
     }
 
     async fn is_active(&self) -> bool {
-        self.ee.is_active()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.is_active())
+            .await
+            .unwrap()
     }
 
     async fn is_deleted(&self) -> bool {
-        self.ee.is_deleted()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.is_deleted())
+            .await
+            .unwrap()
     }
 
     async fn is_self_loop(&self) -> bool {
-        self.ee.is_self_loop()
-    }
-
-    async fn nbr(&self) -> GqlNode {
-        self.ee.nbr().into()
+        let self_clone = self.clone();
+        tokio::task::spawn_blocking(move || self_clone.ee.is_self_loop())
+            .await
+            .unwrap()
     }
 }
