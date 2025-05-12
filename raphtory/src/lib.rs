@@ -148,7 +148,11 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{core::DECIMAL_MAX, db::api::storage::storage::Storage, prelude::*};
+    use crate::{
+        core::DECIMAL_MAX,
+        db::api::{mutation::internal::InternalAdditionOps, storage::storage::Storage},
+        prelude::*,
+    };
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
@@ -443,8 +447,12 @@ mod test_utils {
         }
     }
 
-    fn make_node_type() -> impl Strategy<Value = Option<&'static str>> {
+    pub fn make_node_type() -> impl Strategy<Value = Option<&'static str>> {
         proptest::sample::select(vec![None, Some("one"), Some("two")])
+    }
+
+    pub fn make_node_types() -> impl Strategy<Value = Vec<&'static str>> {
+        proptest::sample::subsequence(vec!["_default", "one", "two"], 0..=3)
     }
 
     fn make_props(schema: Vec<(String, PropType)>) -> impl Strategy<Value = Vec<(String, Prop)>> {
@@ -475,7 +483,16 @@ mod test_utils {
     ) -> impl Strategy<Value = PropUpdatesFixture> {
         let t_props = t_props(schema.clone(), len);
         let c_props = make_props(schema);
-        (t_props, c_props).prop_map(|(t_props, c_props)| PropUpdatesFixture { t_props, c_props })
+        (t_props, c_props).prop_map(|(t_props, c_props)| {
+            if t_props.is_empty() {
+                PropUpdatesFixture {
+                    t_props,
+                    c_props: vec![],
+                }
+            } else {
+                PropUpdatesFixture { t_props, c_props }
+            }
+        })
     }
 
     fn node_updates(
@@ -592,11 +609,9 @@ mod test_utils {
                 g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
             }
             if let Some(e) = g.edge(src, dst) {
-                if e.has_layer(layer) {
-                    if !updates.props.c_props.is_empty() {
-                        e.add_constant_properties(updates.props.c_props.clone(), layer)
-                            .unwrap();
-                    }
+                if !updates.props.c_props.is_empty() {
+                    e.add_constant_properties(updates.props.c_props.clone(), layer)
+                        .unwrap();
                 }
             }
             for t in updates.deletions.iter() {
@@ -628,6 +643,16 @@ mod test_utils {
         let layers = layers.into();
 
         for ((src, dst, layer), updates) in graph_fix.edges() {
+            // properties always exist in the graph
+            for (_, props) in updates.props.t_props.iter() {
+                for (key, value) in props {
+                    g.resolve_edge_property(key, value.dtype(), false).unwrap();
+                }
+            }
+            for (key, value) in updates.props.c_props.iter() {
+                g.resolve_edge_property(key, value.dtype(), true).unwrap();
+            }
+
             if layers.contains(layer.unwrap_or("_default")) {
                 for (t, props) in updates.props.t_props.iter() {
                     g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
@@ -637,9 +662,9 @@ mod test_utils {
                         e.add_constant_properties(updates.props.c_props.clone(), layer)
                             .unwrap();
                     }
-                    for t in updates.deletions.iter() {
-                        e.delete(*t, layer).unwrap();
-                    }
+                }
+                for t in updates.deletions.iter() {
+                    g.delete_edge(*t, src, dst, layer).unwrap();
                 }
             }
         }

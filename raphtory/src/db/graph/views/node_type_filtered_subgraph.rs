@@ -416,7 +416,7 @@ mod tests {
     use crate::{
         db::graph::{graph::assert_graph_equal, views::property_filter::PropertyRef},
         prelude::*,
-        test_utils::{build_graph, build_graph_strat},
+        test_utils::{build_graph, build_graph_strat, make_node_types},
     };
     use proptest::{arbitrary::any, proptest};
     use std::ops::Range;
@@ -471,28 +471,28 @@ mod tests {
 
     #[test]
     fn materialize_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
-            let g = Graph::from(build_graph(&graph_f));
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), node_types in make_node_types())| {
+            let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
             let gm = g.materialize().unwrap();
             assert_graph_equal(&g, &gm);
         })
     }
 
     #[test]
-    fn materialize_valid_window_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
-            let g = Graph::from(build_graph(&graph_f));
-            let gvw = g.valid().unwrap().window(w.start, w.end);
+    fn materialize_type_window_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+            let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
+            let gvw = g.window(w.start, w.end);
             let gmw = gvw.materialize().unwrap();
             assert_graph_equal(&gvw, &gmw);
         })
     }
 
     #[test]
-    fn materialize_window_valid_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+    fn materialize_window_type_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
             let g = Graph::from(build_graph(&graph_f));
-            let gvw = g.window(w.start, w.end).valid().unwrap();
+            let gvw = g.window(w.start, w.end).subgraph_node_types(node_types);
             let gmw = gvw.materialize().unwrap();
             assert_graph_equal(&gvw, &gmw);
         })
