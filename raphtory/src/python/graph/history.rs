@@ -1,19 +1,21 @@
+use std::sync::Arc;
 use pyo3::{
     prelude::*,
-    types::{PyDateTime},
+    types::PyType,
+    ToPyObject,
 };
-use chrono::{Datelike, Timelike};
+use pyo3::types::PyBool;
 use crate::{
     db::api::view::history::*,
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use raphtory_api::iter::{BoxedIter};
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use crate::python::graph::edge::PyEdge;
 use crate::python::graph::node::PyNode;
+use crate::python::types::wrappers::iterators::PyBorrowingIterator;
 
 #[pyclass(name = "History", module = "raphtory", frozen)]
 pub struct PyHistory {
-    history: History<Box<dyn InternalHistoryOps>>
+    history: History<Arc<dyn InternalHistoryOps>>
 }
 
 // TODO: Implement __eq__, __ne__, __lt__, ...
@@ -22,49 +24,66 @@ impl PyHistory {
     #[staticmethod]
     pub fn from_node(node: &PyNode) -> Self {
         Self {
-            history: History::new(Box::new(node.node.clone())),
+            history: History::new(Arc::new(node.node.clone())),
         }
     }
 
     #[staticmethod]
     pub fn from_edge(edge: &PyEdge) -> Self {
         Self {
-            history: History::new(Box::new(edge.edge.clone()))
+            history: History::new(Arc::new(edge.edge.clone()))
         }
     }
 
     /// Get the earliest time in the history
     /// Implement RaphtoryTime into PyRaphtoryTime
-    pub fn earliest_time(&self) -> Option<PyRaphtoryTime> {
-        self.history.earliest_time().map(|time| time.into())
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.history.earliest_time()
     }
 
     /// Get the latest time in the history
-    pub fn latest_time(&self) -> Option<PyRaphtoryTime> {
-        self.history.latest_time().map(|time| time.into())
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.history.latest_time()
     }
     
-    pub fn __list__(&self) -> PyResult<Vec<PyRaphtoryTime>> {
-        Ok(self.history
-            .iter()
-            .map(|t| t.clone().into())
-            .collect())
+    pub fn __list__(&self) -> Vec<TimeIndexEntry> {
+        self.history.iter().collect()
     }
 
-    pub fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<PyRaphtoryTimeIterator>> {
-        // Convert to a Vec first to collect any borrowed data, then make a static iterator. Need to do this so it works with lifetimes
-        // FIXME: Inefficient but I don't know what else to do
-        let times: Vec<RaphtoryTime> = slf.history.iter().map(|t| t.clone().into()).collect();
-        let iter = PyRaphtoryTimeIterator {
-            iter: Box::new(times.into_iter())
-        };
-        Py::new(slf.py(), iter)
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(self.history.clone(), History<Arc<dyn InternalHistoryOps>>, |history| history.iter())
     }
     
     pub fn __repr__(&self) -> String {
         format!("History(earliest={:?}, latest={:?})", 
-            self.earliest_time().map(|t| t.epoch()),
-            self.latest_time().map(|t| t.epoch()))
+            self.earliest_time().map(|t| t.t()),
+            self.latest_time().map(|t| t.t()))
+    }
+
+    // FIXME: Fix use of deprecated to_object function. Other functions return PyBool or Borrow<PyBool> which aren't PyObject
+    // PyObject is needed if we want to have NotImplemented support
+    fn __eq__(&self, other: PyObject) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            if let Ok(other_history) = other.extract::<PyRef<PyHistory>>(py) {
+                let equals = self.history.eq(&other_history.history);
+                Ok(equals.to_object(py))
+            } else {
+                // Return NotImplemented for mismatched types
+                Ok(py.NotImplemented())
+            }
+        })
+    }
+
+    fn __ne__(&self, other: PyObject) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            if let Ok(other_history) = other.extract::<PyRef<PyHistory>>(py) {
+                let not_equals = self.history.ne(&other_history.history);
+                Ok(not_equals.to_object(py))
+            } else {
+                // Return NotImplemented for mismatched types
+                Ok(py.NotImplemented())
+            }
+        })
     }
 }
 
@@ -72,7 +91,7 @@ impl PyHistory {
 impl PyNode {
     fn get_history(&self) -> PyHistory {
         PyHistory {
-            history: History::new(Box::new(self.node.clone()))
+            history: History::new(Arc::new(self.node.clone()))
         }
     }
 }
@@ -81,92 +100,27 @@ impl PyNode {
 impl PyEdge {
     fn get_history(&self) -> PyHistory {
         PyHistory {
-            history: History::new(Box::new(self.edge.clone()))
+            history: History::new(Arc::new(self.edge.clone()))
         }
     }
 }
 
-#[pyclass(name = "RaphtoryTime", module = "raphtory", frozen)]
-pub struct PyRaphtoryTime {
-    time: RaphtoryTime,
-}
+// TODO: get rid of RaphtoryTime on the rust side and implement python class for TimeIndexEntry
 
-#[pymethods]
-impl PyRaphtoryTime {
-    /// Get the datetime representation of the time
-    /// TODO: Use PyTime internal converter
-    pub fn dt(&self) -> Option<PyObject> {
-        self.time.dt().map(|dt| {
-            Python::with_gil(|py| {
-                let datetime = PyDateTime::new(
-                    py,
-                    dt.year(),
-                    dt.month() as u8,
-                    dt.day() as u8,
-                    dt.hour() as u8,
-                    dt.minute() as u8,
-                    dt.second() as u8,
-                    dt.nanosecond() / 1000, // convert to microseconds, that's what PyDateTime::new takes
-                    None,
-                ).unwrap();
-                datetime.into_py(py)
-            })
-        })
-    }
 
-    /// Get the epoch timestamp of the time
-    pub fn epoch(&self) -> i64 {
-        self.time.epoch()
-    }
-
-    pub fn __repr__(&self) -> String {
-        format!("RaphtoryTime(epoch={})", self.epoch())
+impl<T: InternalHistoryOps + 'static> From<History<T>> for PyHistory {
+    fn from(history: History<T>) -> Self {
+        Self { history: History::new(Arc::new(history.0)) }
     }
 }
 
-impl PyRaphtoryTime {
-    pub fn new(time_entry: TimeIndexEntry) -> Self {
-        Self { time: RaphtoryTime::new(time_entry) }
-    }
-}
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<T> {
+    type Target = PyHistory;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
 
-#[pyclass(name = "RaphtoryTimeIterator", module = "raphtory")]
-pub struct PyRaphtoryTimeIterator {
-    iter: BoxedIter<RaphtoryTime>
-}
-
-#[pymethods]
-impl PyRaphtoryTimeIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyRaphtoryTime> {
-        slf.iter.next().map(|time| time.into())
-    }
-}
-
-impl From<History<Box<dyn InternalHistoryOps>>> for PyHistory {
-    fn from(history: History<Box<dyn InternalHistoryOps>>) -> Self {
-        Self { history }
-    }
-}
-
-impl From<RaphtoryTime> for PyRaphtoryTime {
-    fn from(time: RaphtoryTime) -> Self {
-        Self { time }
-    }
-}
-
-impl From<TimeIndexEntry> for PyRaphtoryTime {
-    fn from(entry: TimeIndexEntry) -> Self {
-        Self { time: RaphtoryTime::new(entry) }
-    }
-}
-
-impl From<BoxedIter<RaphtoryTime>> for PyRaphtoryTimeIterator {
-    fn from(iter: BoxedIter<RaphtoryTime>) -> Self {
-        Self { iter }
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyHistory::from(self).into_pyobject(py)
     }
 }
 

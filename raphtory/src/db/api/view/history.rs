@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
+use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
@@ -44,7 +45,8 @@ pub trait InternalHistoryOps: Send + Sync {
 // FIXME: Doesn't support deletions of edges yet
 // TODO: Wanna define ordered/orderable and anything else necessary so we can use them in python for __eq__, __ne__, ideally on T using InternalHistoryOps
 // TODO: Implement hashable so they can be used in maps in python
-pub struct History<T>(T);
+#[derive(Clone)]
+pub struct History<T>(pub T);
 
 impl<T: InternalHistoryOps> History<T> {
     pub fn new(item: T) -> Self {
@@ -78,6 +80,24 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     }
 }
 
+impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        T::iter(self)
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        T::iter_rev(self)
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        T::earliest_time(self)
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        T::latest_time(self)
+    }
+}
+
 impl<T: InternalHistoryOps> History<T> {
     pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter()
@@ -91,18 +111,32 @@ impl<T: InternalHistoryOps> History<T> {
         History::new(MergedHistory::new(self.0, right.0))
     }
 
-    pub fn earliest_time(&self) -> Option<RaphtoryTime> {
-        self.0.earliest_time().map(|t| t.clone().into())
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.earliest_time()
     }
 
-    pub fn latest_time(&self) -> Option<RaphtoryTime> {
-        self.0.latest_time().map(|t| t.clone().into())
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.latest_time()
     }
 
     pub fn print(&self, prelude: &str) {
         println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
     }
 }
+
+impl<T: InternalHistoryOps> PartialEq for History<T> {
+    fn eq(&self, other: &Self) -> bool {
+        // Optimization: check latest_time first
+        if self.latest_time() != other.latest_time() {
+            return false;
+        }
+
+        // If latest_time was None for both, iter().eq(other.iter()) will correctly return true.
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<T: InternalHistoryOps> Eq for History<T> {}
 
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
