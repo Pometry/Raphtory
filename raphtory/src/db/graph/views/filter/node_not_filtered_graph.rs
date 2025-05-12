@@ -62,7 +62,7 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for NodeNotFiltere
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for NodeNotFilteredGraph<G, T> {}
 
-impl<G, T: NodeFilterOps> NodeFilterOps for NodeNotFilteredGraph<G, T> {
+impl<G: NodeFilterOps, T: NodeFilterOps> NodeFilterOps for NodeNotFilteredGraph<G, T> {
     #[inline]
     fn nodes_filtered(&self) -> bool {
         true

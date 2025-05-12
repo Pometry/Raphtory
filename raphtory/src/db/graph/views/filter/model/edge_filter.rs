@@ -41,37 +41,6 @@ impl Display for CompositeEdgeFilter {
     }
 }
 
-impl CompositeEdgeFilter {
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        t_prop_ids: &HashMap<String, usize>,
-        c_prop_ids: &HashMap<String, usize>,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        match self {
-            CompositeEdgeFilter::Edge(edge_filter) => edge_filter.matches_edge::<G>(graph, edge),
-            CompositeEdgeFilter::Property(property_filter) => {
-                let prop_name = property_filter.prop_ref.name();
-                let t_prop_id = t_prop_ids.get(prop_name).copied();
-                let c_prop_id = c_prop_ids.get(prop_name).copied();
-                property_filter.matches_edge(graph, t_prop_id, c_prop_id, edge)
-            }
-            CompositeEdgeFilter::And(left, right) => {
-                left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-                    && right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
-            CompositeEdgeFilter::Or(left, right) => {
-                left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-                    || right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
-            CompositeEdgeFilter::Not(filter) => {
-                !filter.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
-        }
-    }
-}
-
 impl InternalEdgeFilterOps for CompositeEdgeFilter {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
 
