@@ -29,7 +29,7 @@ pub trait LayerOps<'graph> {
     fn exclude_valid_layers<L: Into<Layer>>(&self, layers: L) -> Self::LayeredViewType;
 
     /// Check if `name` is a valid layer name
-    fn has_layer(&self, name: &str) -> bool;
+    fn has_layer<L: SingleLayer>(&self, name: L) -> bool;
 
     /// Return a graph containing the layers in `names`. Any layers that do not exist are ignored.
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType;
@@ -85,7 +85,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         ))
     }
 
-    fn has_layer(&self, name: &str) -> bool {
+    fn has_layer<L: SingleLayer>(&self, name: L) -> bool {
         !self
             .current_filter()
             .valid_layer_ids_from_names(name.into())
@@ -120,7 +120,7 @@ impl Layer {
     }
 }
 
-trait SingleLayer {
+pub trait SingleLayer {
     fn name(self) -> ArcStr;
 }
 
@@ -141,10 +141,30 @@ impl SingleLayer for String {
         self.into()
     }
 }
-
-impl<'a, T: ToOwned<Owned = String> + ?Sized> SingleLayer for &'a T {
+impl<'a> SingleLayer for &'a str {
     fn name(self) -> ArcStr {
-        self.to_owned().into()
+        self.into()
+    }
+}
+
+impl<'a> SingleLayer for &'a String {
+    fn name(self) -> ArcStr {
+        self.as_str().into()
+    }
+}
+
+impl<'a> SingleLayer for &'a ArcStr {
+    fn name(self) -> ArcStr {
+        self.clone()
+    }
+}
+
+impl<T: SingleLayer> SingleLayer for Option<T> {
+    fn name(self) -> ArcStr {
+        match self {
+            None => ArcStr::from("_default"),
+            Some(s) => s.name(),
+        }
     }
 }
 
