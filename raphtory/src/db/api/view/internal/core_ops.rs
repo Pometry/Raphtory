@@ -367,7 +367,11 @@ fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
     .unwrap_or_else(|| Box::new(iter::empty()))
 }
 
+
+#[derive(Default)]
 pub enum NodeAdditions<'a> {
+    #[default]
+    Empty,
     Mem(&'a PropTimestamps),
     Range(TimeIndexWindow<'a, TimeIndexEntry, PropTimestamps>),
     #[cfg(feature = "storage")]
@@ -377,6 +381,7 @@ pub enum NodeAdditions<'a> {
 impl<'a> NodeAdditions<'a> {
     pub fn into_prop_events(self) -> BoxedLIter<'a, TimeIndexEntry> {
         match self {
+            NodeAdditions::Empty => Box::new(iter::empty()),
             NodeAdditions::Mem(index) => Box::new(index.props_ts.iter().map(|(time, _)| *time)),
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => Box::new(iter::empty()),
@@ -394,6 +399,7 @@ impl<'a> NodeAdditions<'a> {
 
     pub fn into_edge_events(self) -> BoxedLIter<'a, TimeIndexEntry> {
         match self {
+            NodeAdditions::Empty => Box::new(iter::empty()),
             NodeAdditions::Mem(index) => Box::new(index.edge_ts.iter().map(|(time, _)| *time)),
             NodeAdditions::Range(index) => match index {
                 TimeIndexWindow::Empty => Box::new(iter::empty()),
@@ -420,6 +426,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     #[inline]
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
+            NodeAdditions::Empty => false,
             NodeAdditions::Mem(index) => index.active(w),
             NodeAdditions::Range(index) => index.active(w),
             #[cfg(feature = "storage")]
@@ -429,6 +436,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
         match self {
+            NodeAdditions::Empty => NodeAdditions::Empty,
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "storage")]
@@ -438,6 +446,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
+            NodeAdditions::Empty => None,
             NodeAdditions::Mem(index) => index.first(),
             NodeAdditions::Range(index) => index.first(),
             #[cfg(feature = "storage")]
@@ -447,6 +456,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
+            NodeAdditions::Empty => None,
             NodeAdditions::Mem(index) => index.last(),
             NodeAdditions::Range(index) => index.last(),
             #[cfg(feature = "storage")]
@@ -456,6 +466,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         match self {
+            NodeAdditions::Empty => Box::new(iter::empty()),
             NodeAdditions::Mem(index) => <PropTimestamps as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => index.iter(),
             #[cfg(feature = "storage")]
@@ -465,6 +476,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn len(&self) -> usize {
         match self {
+            NodeAdditions::Empty => 0,
             NodeAdditions::Mem(index) => index.len(),
             NodeAdditions::Range(range) => range.len(),
             #[cfg(feature = "storage")]
@@ -480,6 +492,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
 
     fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
         match self {
+            NodeAdditions::Empty => NodeAdditions::Empty,
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.into_range(w)),
             #[cfg(feature = "storage")]
@@ -489,6 +502,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
         match self {
+            NodeAdditions::Empty => Box::new(iter::empty()),
             NodeAdditions::Mem(index) => <PropTimestamps as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => Box::new(index.into_iter()),
             #[cfg(feature = "storage")]

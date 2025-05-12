@@ -406,6 +406,6 @@ impl NodeCol {
     }
 }
 
-pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {
+pub(crate) fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {
     (df.chunk[index].as_ref()).try_into()
 }
