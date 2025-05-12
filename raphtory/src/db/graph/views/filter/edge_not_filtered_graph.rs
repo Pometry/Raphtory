@@ -6,18 +6,14 @@ use crate::{
             storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps,
-                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                    InheritTimeSemantics, Static,
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
                 },
                 Base,
             },
         },
-        graph::views::filter::{
-            internal::InternalEdgeFilterOps,
-            model::NotFilter,
-        },
+        graph::views::filter::{internal::InternalEdgeFilterOps, model::NotFilter},
     },
     prelude::GraphViewOps,
 };
