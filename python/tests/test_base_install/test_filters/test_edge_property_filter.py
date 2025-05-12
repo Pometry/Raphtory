@@ -182,3 +182,14 @@ def test_filter_edges_for_property_not_contains():
     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
     expected_ids = []
     assert result_ids == expected_ids
+
+
+def test_filter_edges_for_not_property():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr = filter.Property("p3").is_none()
+    result_ids = sorted(graph.filter_edges(~filter_expr).edges.id)
+    expected_ids = sorted([("2","1"),("3","1"), ("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")])
+    assert result_ids == expected_ids
+

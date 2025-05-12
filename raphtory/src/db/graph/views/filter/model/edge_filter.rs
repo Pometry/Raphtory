@@ -4,7 +4,7 @@ use crate::{
         api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::BoxableGraphView},
         graph::views::filter::{
             internal::InternalEdgeFilterOps,
-            model::{property_filter::PropertyFilter, AndFilter, Filter, OrFilter},
+            model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
         },
     },
     prelude::GraphViewOps,
@@ -26,6 +26,7 @@ pub enum CompositeEdgeFilter {
     Property(PropertyFilter),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
+    Not(Box<CompositeEdgeFilter>),
 }
 
 impl Display for CompositeEdgeFilter {
@@ -35,34 +36,7 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-        }
-    }
-}
-
-impl CompositeEdgeFilter {
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        t_prop_ids: &HashMap<String, usize>,
-        c_prop_ids: &HashMap<String, usize>,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        match self {
-            CompositeEdgeFilter::Edge(edge_filter) => edge_filter.matches_edge::<G>(graph, edge),
-            CompositeEdgeFilter::Property(property_filter) => {
-                let prop_name = property_filter.prop_ref.name();
-                let t_prop_id = t_prop_ids.get(prop_name).copied();
-                let c_prop_id = c_prop_ids.get(prop_name).copied();
-                property_filter.matches_edge(graph, t_prop_id, c_prop_id, edge)
-            }
-            CompositeEdgeFilter::And(left, right) => {
-                left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-                    && right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
-            CompositeEdgeFilter::Or(left, right) => {
-                left.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-                    || right.matches_edge(graph, t_prop_ids, c_prop_ids, edge)
-            }
+            CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
         }
     }
 }
@@ -93,6 +67,10 @@ impl InternalEdgeFilterOps for CompositeEdgeFilter {
                 }
                 .create_edge_filter(graph)?,
             )),
+            CompositeEdgeFilter::Not(filter) => {
+                let base = filter.deref().clone();
+                Ok(Arc::new(NotFilter(base).create_edge_filter(graph)?))
+            }
         }
     }
 }

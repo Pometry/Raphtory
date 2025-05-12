@@ -373,6 +373,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
                 Ok(combined.into_iter().collect())
             }
+            CompositeNodeFilter::Not(_) => Self::raph_filter_nodes(graph, filter, limit, offset),
         }
     }
 

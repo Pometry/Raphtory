@@ -1,5 +1,14 @@
 use crate::model::graph::property::Value;
-use dynamic_graphql::{Enum, InputObject};
+use async_graphql::dynamic::{TypeRef, ValueAccessor};
+use dynamic_graphql::{
+    internal::{
+        FromValue, GetInputTypeRef, InputTypeName, InputValueError, InputValueResult, Register,
+        Registry, TypeName, TypeRefBuilder,
+    },
+    Enum, InputObject,
+};
+use futures_util::TryFutureExt;
+use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
@@ -11,8 +20,10 @@ use raphtory::{
     },
 };
 use std::{
+    borrow::Cow,
     fmt,
     fmt::{Display, Formatter},
+    ops::Deref,
     sync::Arc,
 };
 
@@ -162,7 +173,42 @@ pub struct NodeFilter {
     pub temporal_property: Option<TemporalPropertyFilterExpr>,
     pub and: Option<Vec<NodeFilter>>,
     pub or: Option<Vec<NodeFilter>>,
+    pub not: Option<Wrapped<NodeFilter>>,
 }
+
+#[derive(Clone, Debug)]
+pub struct Wrapped<T>(Box<T>);
+
+impl<T> Deref for Wrapped<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
+impl<T: Register + 'static> Register for Wrapped<T> {
+    fn register(registry: Registry) -> Registry {
+        registry.register::<T>()
+    }
+}
+
+impl<T: FromValue + GetInputTypeRef + InputTypeName + 'static> FromValue for Wrapped<T> {
+    fn from_value(value: async_graphql::Result<ValueAccessor>) -> InputValueResult<Self> {
+        match T::from_value(value) {
+            Ok(value) => Ok(Wrapped(Box::new(value))),
+            Err(err) => Err(err.propagate()),
+        }
+    }
+}
+
+impl<T: TypeName + 'static> TypeName for Wrapped<T> {
+    fn get_type_name() -> Cow<'static, str> {
+        T::get_type_name()
+    }
+}
+
+impl<T: InputTypeName + 'static> InputTypeName for Wrapped<T> {}
 
 impl NodeFilter {
     pub fn validate(&self) -> Result<(), GraphError> {
@@ -173,6 +219,7 @@ impl NodeFilter {
             self.temporal_property.is_some(),
             self.and.is_some(),
             self.or.is_some(),
+            self.not.is_some(),
         ];
 
         let count = fields_set.iter().filter(|x| **x).count();
@@ -207,6 +254,7 @@ pub struct EdgeFilter {
     pub temporal_property: Option<TemporalPropertyFilterExpr>,
     pub and: Option<Vec<EdgeFilter>>,
     pub or: Option<Vec<EdgeFilter>>,
+    pub not: Option<Wrapped<EdgeFilter>>,
 }
 
 impl EdgeFilter {
@@ -219,6 +267,7 @@ impl EdgeFilter {
             self.temporal_property.is_some(),
             self.and.is_some(),
             self.or.is_some(),
+            self.not.is_some(),
         ];
 
         let count = fields_set.iter().filter(|x| **x).count();
@@ -313,6 +362,11 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
             }
         }
 
+        if let Some(not_filters) = filter.not {
+            let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
+            exprs.push(CompositeNodeFilter::Not(Box::new(inner)));
+        }
+
         let result = match exprs.len() {
             0 => Err(GraphError::ParsingError),
             1 => Ok(exprs.remove(0)),
@@ -392,6 +446,11 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 });
                 exprs.push(or_chain);
             }
+        }
+
+        if let Some(not_filters) = filter.not {
+            let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
+            exprs.push(CompositeEdgeFilter::Not(Box::new(inner)));
         }
 
         match exprs.len() {

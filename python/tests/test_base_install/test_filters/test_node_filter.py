@@ -147,3 +147,14 @@ def test_filter_nodes_for_fuzzy_search():
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = ["2"]
     assert result_ids == expected_ids
+
+
+def test_filter_nodes_for_not_node_type():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
+    result_ids = sorted(graph.filter_nodes(~filter_expr).nodes.id)
+    expected_ids = sorted(["1", "3"])
+    assert result_ids == expected_ids
+

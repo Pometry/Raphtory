@@ -59,3 +59,21 @@ def test_edge_composite_filter():
     result_ids = sorted(graph.filter_edges((filter_expr1 & filter_expr2) | filter_expr3).edges.id)
     expected_ids = sorted([("1", "2")])
     assert result_ids == expected_ids
+
+
+def test_not_edge_composite_filter():
+    graph = Graph()
+    graph = init_graph(graph)
+
+    filter_expr1 = filter.Edge.dst().name() == "1"
+    filter_expr2 = filter.Property("p2") <= 2
+    result_ids = sorted(graph.filter_edges(~filter_expr1 & filter_expr2).edges.id)
+    expected_ids = sorted([('2', '3')])
+    assert result_ids == expected_ids
+
+    filter_expr1 = filter.Edge.dst().name() == "1"
+    filter_expr2 = filter.Property("p2") <= 6
+    result_ids = sorted(graph.filter_edges(~(filter_expr1 & filter_expr2)).edges.id)
+    expected_ids = sorted([('1', '2'), ('2', '3')])
+    assert result_ids == expected_ids
+
