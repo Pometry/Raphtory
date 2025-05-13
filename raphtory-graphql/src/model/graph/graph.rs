@@ -26,8 +26,8 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                internal::DelegateCoreOps, DynamicGraph, IntoDynamic, NodeViewOps,
-                SearchableGraphOps, StaticGraphViewOps, TimeOps,
+                DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps, StaticGraphViewOps,
+                TimeOps,
             },
         },
         graph::{

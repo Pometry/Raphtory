@@ -556,10 +556,6 @@ mod test_utils {
         })
     }
 
-    pub(crate) fn build_window() -> impl Strategy<Value = (i64, i64)> {
-        (i64::MIN..i64::MAX, i64::MIN..i64::MAX)
-    }
-
     pub(crate) fn build_graph_from_edge_list<'a>(
         edge_list: impl IntoIterator<Item = &'a (u64, u64, i64, String, i64)>,
     ) -> Graph {

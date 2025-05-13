@@ -1,14 +1,11 @@
 use crate::model::graph::property::Value;
-use async_graphql::dynamic::{TypeRef, ValueAccessor};
+use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
-        FromValue, GetInputTypeRef, InputTypeName, InputValueError, InputValueResult, Register,
-        Registry, TypeName, TypeRefBuilder,
+        FromValue, GetInputTypeRef, InputTypeName, InputValueResult, Register, Registry, TypeName,
     },
     Enum, InputObject,
 };
-use futures_util::TryFutureExt;
-use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
@@ -135,18 +132,6 @@ pub struct EdgeViewCollection {
 pub struct Window {
     pub start: i64,
     pub end: i64,
-}
-
-#[derive(InputObject, Clone, Debug)]
-pub struct FilterProperty {
-    pub property: String,
-    pub condition: FilterCondition,
-}
-
-#[derive(InputObject, Clone, Debug)]
-pub struct FilterCondition {
-    pub operator: Operator,
-    pub value: Option<Value>,
 }
 
 #[derive(Enum, Copy, Clone, Debug)]

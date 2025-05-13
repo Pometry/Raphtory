@@ -1491,11 +1491,9 @@ mod proto_test {
                 AdditionOps, CacheOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
                 SearchableGraphOps, StableDecode, StableEncode,
             },
-            serialise::{incremental::InternalCache, GraphFolder},
+            serialise::GraphFolder,
         };
-        use neo4rs::Path;
         use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
-        use std::path::PathBuf;
 
         fn init_graph<G>(graph: G) -> G
         where

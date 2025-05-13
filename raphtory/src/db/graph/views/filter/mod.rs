@@ -2001,10 +2001,7 @@ pub(crate) mod test_filters {
         use crate::db::graph::views::test_helpers::search_edges_with;
         use crate::{
             db::graph::views::{
-                filter::{
-                    internal::InternalEdgeFilterOps, test_filters::init_edges_graph,
-                    EdgeFieldFilter,
-                },
+                filter::{internal::InternalEdgeFilterOps, test_filters::init_edges_graph},
                 test_helpers::filter_edges_with,
             },
             prelude::Graph,
