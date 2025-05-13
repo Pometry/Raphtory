@@ -18,8 +18,9 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
+    disk_graph::DiskGraphStorage,
     io::parquet_loaders::*,
-    prelude::{DeletionOps, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, Graph, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
@@ -104,6 +105,17 @@ impl PyPersistentGraph {
             },
             PyGraphView::from(graph),
         )
+    }
+
+    #[cfg(feature = "storage")]
+    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<PersistentGraph, GraphError> {
+        use crate::db::api::storage::graph::storage_ops::GraphStorage;
+        use std::sync::Arc;
+
+        let disk_graph = DiskGraphStorage::from_graph(&self.graph.event_graph(), graph_dir)?;
+        let storage = GraphStorage::Disk(Arc::new(disk_graph));
+        let graph = PersistentGraph::from_internal_graph(storage);
+        Ok(graph)
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {

@@ -62,7 +62,10 @@ pub mod macros_nodes {
     #[macro_export]
     macro_rules! assert_filter_nodes_results_w {
         ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {{
-            let filter_results = filter_nodes_with($filter.clone(), $init_fn(Graph::new()).window($w.start, $w.end));
+            let filter_results = filter_nodes_with(
+                $filter.clone(),
+                $init_fn(Graph::new()).window($w.start, $w.end),
+            );
             assert_eq!($expected_results, filter_results);
 
             #[cfg(feature = "storage")]
@@ -71,8 +74,11 @@ pub mod macros_nodes {
                 let path = TempDir::new().unwrap();
                 let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
 
-                // let filter_results = filter_nodes_with($filter.clone(), dgs.clone().into_graph().window($w.start, $w.end));
-                // assert_eq!($expected_results, filter_results);
+                let filter_results = filter_nodes_with(
+                    $filter.clone(),
+                    dgs.clone().into_graph().window($w.start, $w.end),
+                );
+                assert_eq!($expected_results, filter_results);
             }
         }};
     }
@@ -219,9 +225,8 @@ pub mod macros_edges {
                 let path = TempDir::new().unwrap();
                 let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
 
-                // let filter_results =
-                //     filter_edges_with($filter.clone(), dgs.clone().into_graph());
-                // assert_eq!($expected_results, filter_results);
+                let filter_results = filter_edges_with($filter.clone(), dgs.clone().into_graph());
+                assert_eq!($expected_results, filter_results);
 
                 // TODO: PropertyFilteringNotImplemented
                 // let filter_results =

@@ -19,12 +19,13 @@ def init_graph_for_secondary_indexes(graph):
     return graph
 
 
-# @pytest.mark.parametrize("graph", [graph, event_disk_graph])
-# def test_constant_semantics(graph):
-#     filter_expr = filter.Property("p1").constant() == 1
-#     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-#     expected_ids = sorted([("N1","N2"), ("N10","N11"), ("N11","N12"), ("N12","N13"), ("N13","N14"), ("N14","N15"), ("N15","N1"), ("N9","N10")])
-#     assert result_ids == expected_ids
+# Disk graph doesn't have constant edge properties
+@pytest.mark.parametrize("graph", [graph])
+def test_constant_semantics(graph):
+    filter_expr = filter.Property("p1").constant() == 1
+    result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+    expected_ids = sorted([("N1","N2"), ("N10","N11"), ("N11","N12"), ("N12","N13"), ("N13","N14"), ("N14","N15"), ("N15","N1"), ("N9","N10")])
+    assert result_ids == expected_ids
 
 
 @pytest.mark.parametrize("graph", [graph, event_disk_graph])
@@ -86,12 +87,21 @@ def test_temporal_latest_semantics_for_secondary_indexes_dsg(graph):
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
 
 
-# @pytest.mark.parametrize("graph", [graph, event_disk_graph])
-# def test_property_semantics(graph):
-#     filter_expr = filter.Property("p1") == 1
-#     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-#     expected_ids = sorted([("N1","N2"), ("N14","N15"), ("N15","N1"), ("N3","N4"), ("N4","N5"), ("N6","N7"), ("N7","N8")])
-#     assert result_ids == expected_ids
+@pytest.mark.parametrize("graph", [graph])
+def test_property_semantics(graph):
+    filter_expr = filter.Property("p1") == 1
+    result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+    expected_ids = sorted([("N1","N2"), ("N14","N15"), ("N15","N1"), ("N3","N4"), ("N4","N5"), ("N6","N7"), ("N7","N8")])
+    assert result_ids == expected_ids
+
+
+# Disk graph doesn't have constant edge properties
+@pytest.mark.parametrize("graph", [event_disk_graph])
+def test_property_semantics2(graph):
+    filter_expr = filter.Property("p1") == 1
+    result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+    expected_ids = sorted([("N1","N2"), ("N3","N4"), ("N4","N5"), ("N6","N7"), ("N7","N8")])
+    assert result_ids == expected_ids
 
 
 @pytest.mark.parametrize("base_graph", [graph])
@@ -117,12 +127,20 @@ def test_property_semantics_for_secondary_indexes_dsg(graph):
 
 graph1, persistent_graph1, event_disk_graph1, persistent_disk_graph1 = generate_graph_variants(init_edges_graph1)
 
-# @pytest.mark.parametrize("graph", [graph1, event_disk_graph1])
-# def test_property_semantics_only_constant(graph):
-#     filter_expr = filter.Property("p1") == 1
-#     result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
-#     expected_ids = sorted([("N1","N2"), ("N2","N3")])
-#     assert result_ids == expected_ids
+@pytest.mark.parametrize("graph", [graph1])
+def test_property_semantics_only_constant(graph):
+    filter_expr = filter.Property("p1") == 1
+    result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+    expected_ids = sorted([("N1","N2"), ("N2","N3")])
+    assert result_ids == expected_ids
+
+# Disk graph doesn't have constant edge properties
+@pytest.mark.parametrize("graph", [event_disk_graph1])
+def test_property_semantics_only_constant2(graph):
+    filter_expr = filter.Property("p1") == 1
+    result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+    expected_ids = []
+    assert result_ids == expected_ids
 
 
 graph2, persistent_graph2, event_disk_graph2, persistent_disk_graph2 = generate_graph_variants(init_edges_graph2)

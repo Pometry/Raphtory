@@ -56,26 +56,6 @@ def create_graph_with_deletions():
     return g
 
 
-if "DISK_TEST_MARK" in os.environ:
-
-    def with_disk_graph(func):
-        def inner(graph):
-            def inner2(graph, tmpdirname):
-                g = graph.to_disk_graph(tmpdirname)
-                func(g)
-
-            func(graph)
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                inner2(graph, tmpdirname)
-
-        return inner
-
-else:
-
-    def with_disk_graph(func):
-        return func
-
-
 def test_graph_len_edge_len():
     g = create_graph()
 
