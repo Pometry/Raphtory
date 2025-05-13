@@ -425,14 +425,12 @@ fn import_edge_internal<
             )?;
         }
 
-        if graph.include_deletions() {
-            for (t, _) in edge.deletions_hist() {
-                let ti = time_from_input(graph, t.t())?;
-                let src_node = graph.resolve_node(&src_id)?.inner();
-                let dst_node = graph.resolve_node(&dst_id)?.inner();
-                let layer = graph.resolve_layer(layer_name)?.inner();
-                graph.internal_delete_edge(ti, src_node, dst_node, layer)?;
-            }
+        for (t, _) in edge.deletions_hist() {
+            let ti = time_from_input(graph, t.t())?;
+            let src_node = graph.resolve_node(&src_id)?.inner();
+            let dst_node = graph.resolve_node(&dst_id)?.inner();
+            let layer = graph.resolve_layer(layer_name)?.inner();
+            graph.internal_delete_edge(ti, src_node, dst_node, layer)?;
         }
 
         graph

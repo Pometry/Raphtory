@@ -137,10 +137,6 @@ impl InternalMaterialize for PersistentGraph {
     fn graph_type(&self) -> GraphType {
         GraphType::PersistentGraph
     }
-
-    fn include_deletions(&self) -> bool {
-        true
-    }
 }
 
 impl DeletionOps for PersistentGraph {}

@@ -293,8 +293,6 @@ pub trait InternalMaterialize {
     }
 
     fn graph_type(&self) -> GraphType;
-
-    fn include_deletions(&self) -> bool;
 }
 
 pub trait InheritMaterialize: Base {}
@@ -312,11 +310,6 @@ where
     fn graph_type(&self) -> GraphType {
         self.base().graph_type()
     }
-
-    #[inline]
-    fn include_deletions(&self) -> bool {
-        self.base().include_deletions()
-    }
 }
 
 #[cfg(test)]
@@ -326,8 +319,7 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps,
-            InternalMaterialize, MaterializedGraph,
+            CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, MaterializedGraph,
         },
         prelude::*,
     };
@@ -360,12 +352,6 @@ mod test_materialised_graph_dispatch {
     fn materialised_graph_has_time_semantics() {
         let mg = MaterializedGraph::from(Graph::new());
         assert!(mg.view_start().is_none());
-    }
-
-    #[test]
-    fn materialised_graph_has_internal_materialise() {
-        let mg = MaterializedGraph::from(Graph::new());
-        assert!(!mg.include_deletions());
     }
 
     #[test]

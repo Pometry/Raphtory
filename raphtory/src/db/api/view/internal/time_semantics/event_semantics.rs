@@ -20,7 +20,7 @@ use raphtory_api::{
     },
     iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
 };
-use std::{iter, ops::Range};
+use std::ops::Range;
 
 #[derive(Debug, Copy, Clone)]
 pub struct EventSemantics;
@@ -189,6 +189,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> bool {
         edge.filtered_additions_iter(&view, layer_ids)
             .any(|(_, additions)| additions.active_t(w.clone()))
+            || edge
+                .filtered_deletions_iter(&view, layer_ids)
+                .any(|(_, deletions)| deletions.active_t(w.clone()))
     }
 
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
@@ -258,8 +261,14 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, usize> {
         if view.edge_history_filtered() {
-            e.filtered_additions_iter(view, layer_ids)
-                .filter_map(move |(layer_id, additions)| additions.iter().next().map(|_| layer_id))
+            e.filtered_updates_iter(view, layer_ids)
+                .filter_map(move |(layer_id, additions, deletions)| {
+                    if additions.is_empty() && deletions.is_empty() {
+                        None
+                    } else {
+                        Some(layer_id)
+                    }
+                })
                 .into_dyn_boxed()
         } else {
             e.layer_ids_iter(layer_ids).into_dyn_boxed()
@@ -283,9 +292,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'graph, usize> {
-        e.filtered_additions_iter(view, layer_ids)
-            .filter_map(move |(layer_id, additions)| {
-                additions.active_t(w.clone()).then_some(layer_id)
+        e.filtered_updates_iter(view, layer_ids)
+            .filter_map(move |(layer_id, additions, deletions)| {
+                (additions.active_t(w.clone()) || deletions.active_t(w.clone())).then_some(layer_id)
             })
             .into_dyn_boxed()
     }
@@ -297,6 +306,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<i64> {
         e.filtered_additions_iter(&view, view.layer_ids())
             .filter_map(|(_, additions)| additions.first_t())
+            .chain(
+                e.filtered_deletions_iter(&view, view.layer_ids())
+                    .filter_map(|(_, deletions)| deletions.first_t()),
+            )
             .min()
     }
 
@@ -308,6 +321,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<i64> {
         e.filtered_additions_iter(&view, view.layer_ids())
             .filter_map(|(_, additions)| additions.range_t(w.clone()).first_t())
+            .chain(
+                e.filtered_deletions_iter(&view, view.layer_ids())
+                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).first_t()),
+            )
             .min()
     }
 
@@ -343,6 +360,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<i64> {
         e.filtered_additions_iter(&view, view.layer_ids())
             .filter_map(|(_, additions)| additions.last_t())
+            .chain(
+                e.filtered_deletions_iter(&view, view.layer_ids())
+                    .filter_map(|(_, deletions)| deletions.last_t()),
+            )
             .max()
     }
 
@@ -354,6 +375,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<i64> {
         e.filtered_additions_iter(&view, view.layer_ids())
             .filter_map(|(_, additions)| additions.range_t(w.clone()).last_t())
+            .chain(
+                e.filtered_deletions_iter(&view, view.layer_ids())
+                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).last_t()),
+            )
             .max()
     }
 
@@ -380,60 +405,36 @@ impl EdgeTimeSemanticsOps for EventSemantics {
 
     fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(
         self,
-        _e: EdgeStorageRef<'graph>,
-        _view: G,
-        _layer_ids: &'graph LayerIds,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        iter::empty().into_dyn_boxed()
+        e.filtered_deletions_iter(view, layer_ids)
+            .map(|(layer_id, t)| t.iter().map(move |t| (t, layer_id)))
+            .kmerge()
+            .into_dyn_boxed()
     }
 
     fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
-        _e: EdgeStorageRef<'graph>,
-        _view: G,
-        _layer_ids: &'graph LayerIds,
-        _w: Range<i64>,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
     ) -> BoxedLIter<'graph, (TimeIndexEntry, usize)> {
-        iter::empty().into_dyn_boxed()
+        edge.filtered_deletions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range_t(w.clone())
+                    .iter()
+                    .map(move |t| (t, layer_id))
+            })
+            .kmerge()
+            .into_dyn_boxed()
     }
 
-    /// An edge is valid with event semantics if it has at least one update in the current view (i.e, if it is active)
+    /// An edge is valid with event semantics if it has at least one addition event in the current view
     fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        e: EdgeStorageRef<'graph>,
-        view: G,
-    ) -> bool {
-        self.edge_is_active(e, view)
-    }
-
-    /// An edge is valid in a window with event semantics if it has at least one update in the current view in the window
-    fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        e: EdgeStorageRef<'graph>,
-        view: G,
-        r: Range<i64>,
-    ) -> bool {
-        self.edge_is_active_window(e, view, r)
-    }
-
-    fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        _e: EdgeStorageRef<'graph>,
-        _view: G,
-    ) -> bool {
-        false
-    }
-
-    fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        _e: EdgeStorageRef<'graph>,
-        _view: G,
-        _w: Range<i64>,
-    ) -> bool {
-        false
-    }
-
-    fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
@@ -442,7 +443,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .any(|(_, additions)| !additions.is_empty())
     }
 
-    fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
+    /// An edge is valid in a window with event semantics if it has at least one addition event in the current view in the window
+    fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
@@ -450,6 +452,46 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> bool {
         e.filtered_additions_iter(&view, view.layer_ids())
             .any(|(_, additions)| !additions.range_t(w.clone()).is_empty())
+    }
+
+    /// An edge is deleted with event semantics if it has at least one deletion event in the current view
+    fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        e.filtered_deletions_iter(&view, view.layer_ids())
+            .any(|(_, deletions)| !deletions.is_empty())
+    }
+
+    /// An edge is deleted in a window with event semantics if it has at least one deletion event in the current view in the window
+    fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        e.filtered_deletions_iter(&view, view.layer_ids())
+            .any(|(_, deletions)| !deletions.range_t(w.clone()).is_empty())
+    }
+
+    /// An edge is valid with event semantics if it has at least one event in the current view
+    fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+    ) -> bool {
+        self.edge_is_valid(e, &view) || self.edge_is_deleted(e, &view)
+    }
+
+    /// An edge is active in a window with event semantics if it has at least one event in the current view in the window
+    fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        self.edge_is_valid_window(e, &view, w.clone()) || self.edge_is_deleted_window(e, &view, w)
     }
 
     fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
