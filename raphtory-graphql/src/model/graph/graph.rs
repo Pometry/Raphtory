@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{EdgeFilter, FilterCondition, GraphViewCollection, NodeFilter, Operator},
+            filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
             node::GqlNode,
             nodes::GqlNodes,
             property::GqlProperties,
@@ -35,11 +35,20 @@ use raphtory::{
                 TimeOps,
             },
         },
-        graph::{node::NodeView, views::property_filter::PropertyRef},
+        graph::{
+            node::NodeView,
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+            },
+        },
     },
     prelude::*,
 };
-use std::{collections::HashSet, convert::Into, sync::Arc};
+use std::{
+    collections::HashSet,
+    convert::{Into, TryInto},
+    sync::Arc,
+};
 
 #[derive(ResolvedObject)]
 #[graphql(name = "Graph")]
@@ -422,324 +431,24 @@ impl GqlGraph {
         Ok(true)
     }
 
-    async fn node_filter(
-        &self,
-        property: String,
-        condition: FilterCondition,
-    ) -> Result<Self, GraphError> {
-        let prop_ref = PropertyRef::Property(property);
-        match condition.operator {
-            Operator::Equal => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::eq(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "Equal".into(),
-                    ))
-                }
-            }
-            Operator::NotEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::ne(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "NotEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::ge(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::LessThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::le(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::gt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThan".into(),
-                    ))
-                }
-            }
-            Operator::LessThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::lt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThan".into(),
-                    ))
-                }
-            }
-            Operator::IsNone => {
-                let filtered_graph = self
-                    .graph
-                    .filter_nodes(PropertyFilter::is_none(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::IsSome => {
-                let filtered_graph = self
-                    .graph
-                    .filter_nodes(PropertyFilter::is_some(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::includes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "Any".into(),
-                    ))
-                }
-            }
-            Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::excludes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "NotAny".into(),
-                    ))
-                }
-            }
-        }
+    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        filter.validate()?;
+        let filter: CompositeNodeFilter = filter.try_into()?;
+        let filtered_graph = self.graph.filter_nodes(filter)?;
+        Ok(GqlGraph::new(
+            self.path.clone(),
+            filtered_graph.into_dynamic(),
+        ))
     }
 
-    async fn edge_filter(
-        &self,
-        property: String,
-        condition: FilterCondition,
-    ) -> Result<Self, GraphError> {
-        let prop_ref = PropertyRef::Property(property);
-        match condition.operator {
-            Operator::Equal => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::eq(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "Equal".into(),
-                    ))
-                }
-            }
-            Operator::NotEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::ne(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "NotEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::ge(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::LessThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::le(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::gt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThan".into(),
-                    ))
-                }
-            }
-            Operator::LessThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::lt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThan".into(),
-                    ))
-                }
-            }
-            Operator::IsNone => {
-                let filtered_graph = self
-                    .graph
-                    .filter_edges(PropertyFilter::is_none(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::IsSome => {
-                let filtered_graph = self
-                    .graph
-                    .filter_edges(PropertyFilter::is_some(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::includes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "Any".into(),
-                    ))
-                }
-            }
-            Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::excludes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "NotAny".into(),
-                    ))
-                }
-            }
-        }
+    async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+        filter.validate()?;
+        let filter: CompositeEdgeFilter = filter.try_into()?;
+        let filtered_graph = self.graph.filter_edges(filter)?;
+        Ok(GqlGraph::new(
+            self.path.clone(),
+            filtered_graph.into_dynamic(),
+        ))
     }
 
     ////////////////////////
@@ -751,10 +460,12 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>, GraphError> {
+        filter.validate()?;
+        let f: CompositeNodeFilter = filter.try_into()?;
         self.execute_search(|| {
             Ok(self
                 .graph
-                .search_nodes(filter.try_into()?, limit, offset)
+                .search_nodes(f, limit, offset)
                 .into_iter()
                 .flatten()
                 .map(|vv| vv.into())
@@ -769,10 +480,12 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>, GraphError> {
+        filter.validate()?;
+        let f: CompositeEdgeFilter = filter.try_into()?;
         self.execute_search(|| {
             Ok(self
                 .graph
-                .search_edges(filter.try_into()?, limit, offset)
+                .search_edges(f, limit, offset)
                 .into_iter()
                 .flatten()
                 .map(|vv| vv.into())
@@ -860,15 +573,11 @@ impl GqlGraph {
             }
             if let Some(node_filter) = view.node_filter {
                 count += 1;
-                return_view = return_view
-                    .node_filter(node_filter.property, node_filter.condition)
-                    .await?;
+                return_view = return_view.node_filter(node_filter).await?;
             }
             if let Some(edge_filter) = view.edge_filter {
                 count += 1;
-                return_view = return_view
-                    .edge_filter(edge_filter.property, edge_filter.condition)
-                    .await?;
+                return_view = return_view.edge_filter(edge_filter).await?;
             }
 
             if count > 1 {

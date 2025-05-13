@@ -1,5 +1,7 @@
 use crate::model::{
     graph::{
+        filtering::{NodeFilter, NodesViewCollection},
+        node::Node,
         filtering::{FilterCondition, NodesViewCollection, Operator},
         node::GqlNode,
         windowset::GqlNodesWindowSet,
@@ -15,7 +17,7 @@ use raphtory::{
     },
     db::{
         api::{state::Index, view::DynamicGraph},
-        graph::{nodes::Nodes, views::property_filter::PropertyRef},
+        graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
     },
     prelude::*,
 };
@@ -162,141 +164,11 @@ impl GqlNodes {
         self.update(self.nn.type_filter(&node_types))
     }
 
-    async fn node_filter(
-        &self,
-        property: String,
-        condition: FilterCondition,
-    ) -> Result<Self, GraphError> {
-        match condition.operator {
-            Operator::Equal => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::eq(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "Equal".into(),
-                    ))
-                }
-            }
-            Operator::NotEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ne(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "NotEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ge(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::LessThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::le(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThan => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::gt(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThan".into(),
-                    ))
-                }
-            }
-            Operator::LessThan => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::lt(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThan".into(),
-                    ))
-                }
-            }
-            Operator::IsNone => {
-                let filtered_nodes = self
-                    .nn
-                    .filter_nodes(PropertyFilter::is_none(PropertyRef::Property(property)))?;
-                Ok(self.update(filtered_nodes))
-            }
-            Operator::IsSome => {
-                let filtered_nodes = self
-                    .nn
-                    .filter_nodes(PropertyFilter::is_some(PropertyRef::Property(property)))?;
-                Ok(self.update(filtered_nodes))
-            }
-            Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::includes(
-                        PropertyRef::Property(property),
-                        prop_values,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "Any".into(),
-                    ))
-                }
-            }
-            Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::excludes(
-                        PropertyRef::Property(property),
-                        prop_values,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "NotAny".into(),
-                    ))
-                }
-            }
-        }
+    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        filter.validate()?;
+        let filter: CompositeNodeFilter = filter.try_into()?;
+        let filtered_nodes = self.nn.filter_nodes(filter)?;
+        Ok(self.update(filtered_nodes.into_dyn()))
     }
 
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
@@ -370,9 +242,7 @@ impl GqlNodes {
             }
             if let Some(node_filter) = view.node_filter {
                 count += 1;
-                return_view = return_view
-                    .node_filter(node_filter.property, node_filter.condition)
-                    .await?;
+                return_view = return_view.node_filter(node_filter).await?;
             }
 
             if count > 1 {
