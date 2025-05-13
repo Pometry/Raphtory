@@ -14,25 +14,12 @@ def test_embedding():
 
 
 def setup_graph(g):
-    g.update_constant_properties({"name": "abb"})
     g.add_node(1, "aab")
     g.add_edge(1, "aab", "bbb")
 
 
 def assert_correct_documents(client):
     query = """{
-    plugins {
-        globalSearch(query: "aab", limit: 1) {
-            entity {
-                __typename
-                ... on Graph {
-                    name
-                }
-            }
-            content
-            embedding
-        }
-    }
     vectorisedGraph(path: "abb") {
         algorithms {
             similaritySearch(query:"ab", limit: 1) {
@@ -58,15 +45,6 @@ def assert_correct_documents(client):
     }"""
     result = client.query(query)
     assert result == {
-        "plugins": {
-            "globalSearch": [
-                {
-                    "entity": {"__typename": "Graph", "name": "abb"},
-                    "content": "abb",
-                    "embedding": [1.0, 2.0],
-                },
-            ],
-        },
         "vectorisedGraph": {
             "algorithms": {
                 "similaritySearch": [
@@ -87,7 +65,6 @@ def setup_server(work_dir):
         cache="/tmp/graph-cache",
         embedding=embedding,
         nodes="{{ name }}",
-        graphs="{{ properties.name }}",
         edges=False,
     )
     return server
@@ -121,7 +98,8 @@ def test_upload_graph():
 
 
 def test_include_graph():
-    work_dir = tempfile.mkdtemp()
+    work_dir = tempfile.mkdtemp() # TODO: re-enable this
+    # work_dir = "/tmp/include-graph"
     g_path = work_dir + "/abb"
     g = Graph()
     setup_graph(g)
@@ -130,7 +108,3 @@ def test_include_graph():
     with server.start():
         client = RaphtoryClient("http://localhost:1736")
         assert_correct_documents(client)
-
-
-test_upload_graph()
-test_include_graph()

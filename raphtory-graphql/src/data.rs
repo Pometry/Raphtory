@@ -9,6 +9,8 @@ use moka::sync::Cache;
 use raphtory::{
     core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
     db::api::view::MaterializedGraph,
+    prelude::CacheOps,
+    serialise::GraphFolder,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
@@ -99,26 +101,23 @@ impl Data {
         path: &str,
         graph: MaterializedGraph,
     ) -> Result<(), GraphError> {
-        let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
-        let vectors = self.vectorise(graph.clone(), &folder).await;
-        let graph = GraphWithVectors::new(graph, vectors);
-        self.insert_graph_with_vectors(path, graph)
-    }
-
-    pub fn insert_graph_with_vectors(
-        &self,
-        path: &str,
-        graph: GraphWithVectors,
-    ) -> Result<(), GraphError> {
+        // TODO: try to organize this, too many things going on
         // TODO: replace ValidGraphFolder with ValidNonExistingGraphFolder !!!!!!!!!
         // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
         // we can write to it and its guaranteed to me atomic
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
+        dbg!(&folder);
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
                 fs::create_dir_all(folder.get_base_path())?;
-                graph.cache(folder)?;
+                // let graph_folder: GraphFolder = path.into();
+                graph.cache(folder.clone())?;
+                let vectors = self.vectorise(graph.clone(), &folder).await;
+                let graph = GraphWithVectors::new(graph, vectors);
+                graph
+                    .folder
+                    .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
                 self.cache.insert(path.into(), graph);
                 Ok(())
             }
@@ -165,7 +164,7 @@ impl Data {
                 conf.cache.clone(),
                 true, // overwrite
                 template.clone(),
-                Some(folder.get_original_path_str().to_owned()),
+                Some(&folder.get_vectors_path()),
                 true, // verbose
             )
             .await;
@@ -188,24 +187,19 @@ impl Data {
         self.vectorise_with_template(graph, folder, template).await
     }
 
-    async fn vectorise_folder(
-        &self,
-        folder: &ExistingGraphFolder,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
+    async fn vectorise_folder(&self, folder: &ExistingGraphFolder) -> Option<()> {
         // it's important that we check if there is a valid template set for this graph path
         // before actually loading the graph, otherwise we are loading the graph for no reason
         let template = self.resolve_template(folder.get_original_path())?;
         let graph = self.read_graph_from_folder(folder).ok()?.graph;
-        self.vectorise_with_template(graph, folder, template).await
+        self.vectorise_with_template(graph, folder, template).await;
+        Some(())
     }
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
         for folder in self.get_all_graph_folders() {
             if !folder.get_vectors_path().exists() {
-                let vectors = self.vectorise_folder(&folder).await;
-                if let Some(vectors) = vectors {
-                    vectors.write_to_path(&folder.get_vectors_path())?;
-                }
+                self.vectorise_folder(&folder).await;
             }
         }
         Ok(())

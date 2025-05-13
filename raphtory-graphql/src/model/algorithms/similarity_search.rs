@@ -35,6 +35,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
         entry_point: &VectorAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        dbg!();
         let data = ctx.data_unchecked::<Data>().clone();
         let query = ctx
             .args
@@ -68,7 +69,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
             let embedding = data.embed_query(query).await?;
 
             let documents = graph
-                .documents_by_similarity(&embedding, limit, window)
+                .entities_by_similarity(&embedding, limit, window)
                 .get_documents();
 
             let gql_documents = documents

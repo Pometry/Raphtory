@@ -34,7 +34,7 @@ use raphtory::{
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    folder: OnceCell<GraphFolder>,
+    pub(crate) folder: OnceCell<GraphFolder>, // TODO: not ideal this is pub
 }
 
 impl GraphWithVectors {
@@ -47,16 +47,6 @@ impl GraphWithVectors {
             vectors,
             folder: Default::default(),
         }
-    }
-
-    pub(crate) async fn update_graph_embeddings(
-        &self,
-        graph_name: Option<String>,
-    ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
-            vectors.update_graph(graph_name).await?;
-        }
-        Ok(())
     }
 
     pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
@@ -77,36 +67,12 @@ impl GraphWithVectors {
         Ok(())
     }
 
-    pub(crate) fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        let folder = path.into();
-        self.folder
-            .get_or_try_init(|| Ok::<_, GraphError>(folder.clone()))?;
-        self.graph.cache(folder)?;
-        self.dump_vectors_to_disk()
-    }
-
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
         match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => {
-                self.graph.write_updates()?;
-            }
+            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(_) => {}
         }
-        self.dump_vectors_to_disk()
-    }
-
-    fn dump_vectors_to_disk(&self) -> Result<(), GraphError> {
-        if let Some(vectors) = &self.vectors {
-            vectors.write_to_path(
-                &self
-                    .folder
-                    .get()
-                    .ok_or(GraphError::CacheNotInnitialised)?
-                    .get_vectors_path(),
-            )?;
-        }
-        Ok(())
     }
 
     pub(crate) fn read_from_folder(
@@ -122,12 +88,14 @@ impl GraphWithVectors {
             MaterializedGraph::load_cached(folder.clone())?
         };
 
+        dbg!();
         let vectors = VectorisedGraph::read_from_path(
             &folder.get_vectors_path(),
             graph.clone(),
             embedding,
             cache,
         );
+        dbg!();
 
         println!("Graph loaded = {}", folder.get_original_path_str());
 
