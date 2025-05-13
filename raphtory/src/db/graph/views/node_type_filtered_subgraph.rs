@@ -414,7 +414,10 @@ mod search_edges_node_type_filtered_subgraph_tests {
 #[cfg(test)]
 mod tests {
     use crate::{
-        db::graph::{graph::assert_graph_equal, views::property_filter::PropertyRef},
+        db::{
+            api::mutation::internal::InternalAdditionOps,
+            graph::{graph::assert_graph_equal, views::property_filter::PropertyRef},
+        },
         prelude::*,
         test_utils::{build_graph, build_graph_strat, make_node_types},
     };
@@ -496,5 +499,15 @@ mod tests {
             let gmw = gvw.materialize().unwrap();
             assert_graph_equal(&gvw, &gmw);
         })
+    }
+
+    #[test]
+    fn node_removed_via_edge_removal() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.node(1).unwrap().set_node_type("test").unwrap();
+        let expected = Graph::new();
+        expected.resolve_layer(None).unwrap();
+        assert_graph_equal(&g.subgraph_node_types(["test"]), &expected);
     }
 }
