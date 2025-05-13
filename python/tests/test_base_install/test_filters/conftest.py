@@ -5,7 +5,7 @@ import pytest
 import shutil
 import atexit
 
-def default_init_graph(graph):
+def init_graph(graph):
     nodes = [
          (1, 1, {"p1": "shivam_kapoor", "p9": 5, "p10": "Paper_airplane"}, "fire_nation"),
          (2, 2, {"p1": "prop12", "p2": 2, "p10": "Paper_ship"}, "air_nomads"),
@@ -34,21 +34,3 @@ def default_init_graph(graph):
 
     return graph
 
-def generate_graph_variants(init_graph=None):
-    init_graph = init_graph or default_init_graph
-    graph = init_graph(Graph())
-    persistent_graph = init_graph(PersistentGraph())
-
-    tmpdir = tempfile.TemporaryDirectory()
-    atexit.register(tmpdir.cleanup)
-    path = f"{tmpdir.name}/graph"
-
-    graph.to_disk_graph(path)
-    disk_graph = DiskGraphStorage.load_from_dir(path)
-
-    return [
-        graph,
-        persistent_graph,
-        disk_graph.to_events(),
-        disk_graph.to_persistent(),
-    ]

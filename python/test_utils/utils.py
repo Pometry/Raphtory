@@ -5,8 +5,10 @@ import time
 from typing import TypeVar, Callable
 import os
 import pytest
-
+from functools import wraps
 from raphtory.graphql import GraphServer
+from raphtory import Graph, PersistentGraph
+from raphtory import DiskGraphStorage
 
 B = TypeVar("B")
 
@@ -29,6 +31,39 @@ if "DISK_TEST_MARK" in os.environ:
 else:
     def with_disk_graph(func):
         return func
+
+
+def with_disk_variants(init_fn, variants=None):
+    if variants is None:
+        variants = ["graph", "persistent_graph", "event_disk_graph", "persistent_disk_graph"]
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper():
+            check = func()
+
+            if "graph" in variants:
+                g = init_fn(Graph())
+                check(g)
+
+            if "persistent_graph" in variants:
+                pg = init_fn(PersistentGraph())
+                check(pg)
+
+            if "DISK_TEST_MARK" in os.environ:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    if "event_disk_graph" in variants or "persistent_disk_graph" in variants:
+                        g = init_fn(Graph())
+                        g.to_disk_graph(tmpdir)
+                        disk = DiskGraphStorage.load_from_dir(tmpdir)
+
+                        if "event_disk_graph" in variants:
+                            check(disk.to_events())
+                        if "persistent_disk_graph" in variants:
+                            check(disk.to_persistent())
+
+        return wrapper
+    return decorator
 
 
 def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) -> B:
