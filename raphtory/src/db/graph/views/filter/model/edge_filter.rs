@@ -1,7 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::BoxableGraphView},
+        api::view::BoxableGraphView,
         graph::views::filter::{
             internal::InternalEdgeFilterOps,
             model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
@@ -9,7 +9,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use std::{collections::HashMap, fmt, fmt::Display, ops::Deref, sync::Arc};
+use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilter(pub Filter);

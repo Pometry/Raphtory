@@ -5,7 +5,6 @@ pub mod layer_graph;
 pub mod node_subgraph;
 pub mod window_graph;
 
-#[macro_export]
 pub mod macros {
     #[macro_export]
     macro_rules! assert_filter_results {
@@ -54,6 +53,7 @@ pub mod macros {
     }
 }
 
+#[cfg(test)]
 mod test_helpers {
     #[cfg(feature = "search")]
     pub use crate::db::api::view::SearchableGraphOps;

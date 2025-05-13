@@ -15,10 +15,7 @@ use crate::{
     prelude::*,
     search::{
         entity_index::EntityIndex,
-        fields::{
-            DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, NODE_ID, NODE_NAME, NODE_NAME_TOKENIZED,
-            NODE_TYPE, NODE_TYPE_TOKENIZED, SOURCE, SOURCE_TOKENIZED,
-        },
+        fields::{DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, SOURCE, SOURCE_TOKENIZED},
         TOKENIZER,
     },
 };

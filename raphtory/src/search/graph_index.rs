@@ -4,7 +4,7 @@ use crate::{
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
-    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::InternalStorageOps},
+    db::api::storage::graph::storage_ops::GraphStorage,
     prelude::*,
     search::{
         edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex,

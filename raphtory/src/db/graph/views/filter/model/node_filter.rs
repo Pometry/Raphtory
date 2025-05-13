@@ -1,16 +1,15 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::{storage::graph::nodes::node_ref::NodeStorageRef, view::BoxableGraphView},
+        api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+            internal::InternalNodeFilterOps,
             model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
-use std::{collections::HashMap, fmt, fmt::Display, ops::Deref, sync::Arc};
+use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);

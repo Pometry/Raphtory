@@ -1,12 +1,9 @@
 use crate::{
     core::{prop_array::PropArray, utils::errors::GraphError, Prop},
     db::{
-        api::view::{BoxableGraphView, DynamicGraph, IntoDynamic},
+        api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::{
-                InternalEdgeFilterOps,
-                InternalNodeFilterOps, // InternalExplodedEdgeFilterOps, ,
-            },
+            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
             model::{
                 property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
                 InternalNodeFilterBuilderOps, NodeFilterBuilderOps,

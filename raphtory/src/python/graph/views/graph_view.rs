@@ -21,7 +21,7 @@ use crate::{
             views::{
                 cached_view::CachedView,
                 filter::{
-                    edge_property_filtered_graph::EdgePropertyFilteredGraph, internal::*,
+                    edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
@@ -36,7 +36,7 @@ use crate::{
         graph::{edge::PyEdge, node::PyNode},
         types::{
             repr::{Repr, StructReprBuilder},
-            wrappers::{filter_expr::PyFilterExpr, prop::PyPropertyFilter},
+            wrappers::filter_expr::PyFilterExpr,
         },
         utils::PyNodeRef,
     },
