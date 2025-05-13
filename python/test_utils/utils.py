@@ -3,7 +3,7 @@ import re
 import tempfile
 import time
 from typing import TypeVar, Callable
-
+import os
 import pytest
 
 from raphtory.graphql import GraphServer
@@ -11,6 +11,24 @@ from raphtory.graphql import GraphServer
 B = TypeVar("B")
 
 PORT = 1737
+
+
+if "DISK_TEST_MARK" in os.environ:
+    def with_disk_graph(func):
+        def inner(graph):
+            def inner2(graph, tmpdirname):
+                g = graph.to_disk_graph(tmpdirname)
+                func(g)
+
+            func(graph)
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                inner2(graph, tmpdirname)
+
+        return inner
+
+else:
+    def with_disk_graph(func):
+        return func
 
 
 def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) -> B:
