@@ -8,34 +8,11 @@ pub mod window_graph;
 #[macro_export]
 pub mod macros {
     #[macro_export]
-    macro_rules! assert_filter_results {
-        ($filter_fn:ident, $filter:expr, $expected_results:expr) => {{
-            let filter_results = $filter_fn($filter.clone());
-            assert_eq!($expected_results, filter_results);
-        }};
-    }
-
-    #[macro_export]
     macro_rules! assert_filter_results_w {
         ($filter_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
             let filter_results = $filter_fn($filter.clone(), $window);
             assert_eq!($expected_results, filter_results);
         }};
-    }
-
-    #[macro_export]
-    #[cfg(feature = "search")]
-    macro_rules! assert_search_results {
-        ($search_fn:ident, $filter:expr, $expected_results:expr) => {{
-            let search_results = $search_fn($filter.clone());
-            assert_eq!($expected_results, search_results);
-        }};
-    }
-
-    #[macro_export]
-    #[cfg(not(feature = "search"))]
-    macro_rules! assert_search_results {
-        ($search_fn:ident, $filter:expr, $expected_results:expr) => {};
     }
 
     #[macro_export]
@@ -51,6 +28,140 @@ pub mod macros {
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_results_w {
         ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
+    }
+}
+
+#[macro_export]
+pub mod macros_nodes {
+    #[macro_export]
+    macro_rules! assert_filter_nodes_results {
+        ($init_fn:ident, $filter:expr, $expected_results:expr) => {{
+            let filter_results = filter_nodes_with($filter.clone(), $init_fn(Graph::new()));
+            assert_eq!($expected_results, filter_results);
+
+            let filter_results =
+                filter_nodes_with($filter.clone(), $init_fn(PersistentGraph::new()));
+            assert_eq!($expected_results, filter_results);
+
+            #[cfg(feature = "storage")]
+            {
+                let graph = $init_fn(Graph::new());
+                let path = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+
+                let filter_results = filter_nodes_with($filter.clone(), dgs.clone().into_graph());
+                assert_eq!($expected_results, filter_results);
+
+                let filter_results =
+                    filter_nodes_with($filter.clone(), dgs.into_persistent_graph());
+                assert_eq!($expected_results, filter_results);
+            }
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_nodes_results {
+        ($init_fn:ident, $filter:expr, $expected_results:expr) => {{
+            let filter_results = search_nodes_with($filter.clone(), $init_fn(Graph::new()));
+            assert_eq!($expected_results, filter_results);
+
+            let search_results =
+                search_nodes_with($filter.clone(), $init_fn(PersistentGraph::new()));
+            assert_eq!($expected_results, search_results);
+
+            #[cfg(feature = "storage")]
+            {
+                let graph = $init_fn(Graph::new());
+                let path = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+
+                let search_results = search_nodes_with($filter.clone(), dgs.clone().into_graph());
+                assert_eq!($expected_results, search_results);
+
+                let search_results =
+                    search_nodes_with($filter.clone(), dgs.into_persistent_graph());
+                assert_eq!($expected_results, search_results);
+            }
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_nodes_results {
+        ($init_fn:ident, $filter:expr, $expected_results:expr) => {};
+    }
+}
+
+#[macro_export]
+pub mod macros_edges {
+    #[macro_export]
+    macro_rules! assert_filter_edges_results {
+        ($init_fn:ident, $filter:expr, $expected_results:expr) => {{
+            let filter_results = filter_edges_with($filter.clone(), $init_fn(Graph::new()));
+            assert_eq!($expected_results, filter_results);
+
+            // TODO: PropertyFilteringNotImplemented
+            // let filter_results =
+            //     filter_edges_with($filter.clone(), $init_fn(PersistentGraph::new()));
+            // assert_eq!($expected_results, filter_results);
+
+            #[cfg(feature = "storage")]
+            {
+                use crate::disk_graph::DiskGraphStorage;
+                use tempfile::TempDir;
+
+                let graph = $init_fn(Graph::new());
+                let path = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+
+                // let filter_results =
+                //     filter_edges_with($filter.clone(), dgs.clone().into_graph());
+                // assert_eq!($expected_results, filter_results);
+
+                // TODO: PropertyFilteringNotImplemented
+                // let filter_results =
+                //     filter_edges_with($filter.clone(), dgs.into_persistent_graph());
+                // assert_eq!($expected_results, filter_results);
+            }
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_edges_results {
+        ($init_fn:ident, $filter:expr, $expected_results:expr) => {{
+            let filter_results = search_edges_with($filter.clone(), $init_fn(Graph::new()));
+            assert_eq!($expected_results, filter_results);
+
+            // let search_results =
+            //     search_edges_with($filter.clone(), $init_fn(PersistentGraph::new()));
+            // assert_eq!($expected_results, search_results);
+
+            #[cfg(feature = "storage")]
+            {
+                use crate::disk_graph::DiskGraphStorage;
+                use tempfile::TempDir;
+
+                let graph = $init_fn(Graph::new());
+                let path = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+
+                // let search_results =
+                //     search_edges_with($filter.clone(), dgs.clone().into_graph());
+                // assert_eq!($expected_results, search_results);
+
+                // let search_results =
+                //     search_edges_with($filter.clone(), dgs.into_persistent_graph());
+                // assert_eq!($expected_results, search_results);
+            }
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_edges_results {
+        ($init_fn:ident, $filter:expr, $expected_results:expr) => {};
     }
 }
 
