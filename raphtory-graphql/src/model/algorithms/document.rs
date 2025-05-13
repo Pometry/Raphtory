@@ -7,11 +7,11 @@ use raphtory::{
 };
 
 #[derive(SimpleObject)]
-struct Graph {
+struct DocumentGraph {
     name: String, // TODO: maybe return the graph as well here
 }
 
-impl From<String> for Graph {
+impl From<String> for DocumentGraph {
     fn from(value: String) -> Self {
         Self { name: value }
     }
@@ -22,13 +22,13 @@ impl From<String> for Graph {
 enum GqlDocumentEntity {
     Node(GqlNode),
     Edge(GqlEdge),
-    Graph(Graph),
+    Graph(DocumentGraph),
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
     fn from(value: DocumentEntity<G>) -> Self {
         match value {
-            DocumentEntity::Graph { name, .. } => Self::Graph(Graph {
+            DocumentEntity::Graph { name, .. } => Self::Graph(DocumentGraph {
                 name: name.unwrap(),
             }),
             DocumentEntity::Node(node) => Self::Node(GqlNode::from(node)),

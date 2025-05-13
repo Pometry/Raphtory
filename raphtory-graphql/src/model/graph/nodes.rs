@@ -1,8 +1,6 @@
 use crate::model::{
     graph::{
         filtering::{NodeFilter, NodesViewCollection},
-        node::Node,
-        filtering::{FilterCondition, NodesViewCollection, Operator},
         node::GqlNode,
         windowset::GqlNodesWindowSet,
     },
