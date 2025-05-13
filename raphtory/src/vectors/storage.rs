@@ -1,9 +1,9 @@
-use arroy::{distances::Cosine, Database as ArroyDatabase};
+use arroy::{distances::Cosine, Database as ArroyDatabase, Reader};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
@@ -24,8 +24,7 @@ pub(super) struct VectorMeta {
 impl VectorMeta {
     pub(super) fn write_to_path(&self, path: &Path) -> Result<(), GraphError> {
         let file = File::create(meta_path(path))?;
-        serde_json::to_writer(file, self);
-
+        serde_json::to_writer(file, self)?;
         Ok(())
     }
 }
@@ -41,8 +40,11 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let meta_string = std::fs::read_to_string(meta_path(path)).ok()?;
         let meta: VectorMeta = serde_json::from_str(&meta_string).ok()?;
 
+        dbg!();
         let node_db = open_database(&node_vectors_path(path));
+        dbg!();
         let edge_db = open_database(&edge_vectors_path(path));
+        dbg!();
 
         Some(VectorisedGraph {
             template: meta.template,
@@ -71,10 +73,20 @@ fn open_database(path: &Path) -> VectorDb {
     // TODO: fix unwraps!
     let env = open_env(path);
     let rtxn = env.read_txn().unwrap();
-    let db: ArroyDatabase<Cosine> = env.open_database(&rtxn, None).unwrap().unwrap();
-    let (_, node) = db.first(&rtxn).unwrap().unwrap();
-    let dimensions = node.leaf().unwrap().vector.len();
+    // let db: ArroyDatabase<Cosine> = env.database_options().types().open(&rtxn).unwrap().unwrap(); // alternative, this comes from https://github.com/meilisearch/arroy/blob/main/examples/graph.rs
+    let db: ArroyDatabase<Cosine> = env.open_database(&rtxn, None).unwrap().unwrap(); // this is the old implementation, causing an issue I think
+    let first_vector = Reader::open(&rtxn, 0, db)
+        .ok()
+        .and_then(|reader| reader.iter(&rtxn).ok()?.next()?.ok());
+    let dimensions = if let Some((_, vector)) = first_vector {
+        // FIXME: maybe there should not be any db at all if this is the case?
+        vector.len().into()
+    } else {
+        OnceLock::new()
+    };
+    dbg!();
     rtxn.commit().unwrap();
+    dbg!();
     VectorDb {
         vectors: db,
         env,

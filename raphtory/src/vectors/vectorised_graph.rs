@@ -16,7 +16,11 @@ use crate::{
 };
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
 use rand::{rngs::StdRng, SeedableRng};
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashSet,
+    path::PathBuf,
+    sync::{Arc, OnceLock},
+};
 use tempfile::TempDir;
 
 use super::{
@@ -162,37 +166,26 @@ pub(super) trait VectorSearch {
     ) -> impl Iterator<Item = (EntityRef, f32)> {
         let db = self.get_db();
         let rtxn = db.env.read_txn().unwrap();
-        let reader = Reader::open(&rtxn, 0, db.vectors).unwrap(); // TODO: review index value, hardcoded to 0
-        let mut query_builder = reader.nns(k);
-        let candidates =
-            candidates.map(|filter| roaring::RoaringBitmap::from_iter(filter.map(|id| id as u32)));
-        let query_builder = if let Some(filter) = &candidates {
-            query_builder.candidates(filter)
+        // FIXME: if the db has no edges, I get a MissingMetadata here. Handle that properly,
+        // Maybe the edge db should not exist at all if there are no edge embeddings
+        // because there might be some errors other than MissingMetadata
+        let vectors = if let Ok(reader) = Reader::open(&rtxn, 0, db.vectors) {
+            let mut query_builder = reader.nns(k);
+            let candidates = candidates
+                .map(|filter| roaring::RoaringBitmap::from_iter(filter.map(|id| id as u32)));
+            let query_builder = if let Some(filter) = &candidates {
+                query_builder.candidates(filter)
+            } else {
+                &query_builder
+            };
+            query_builder.by_vector(&rtxn, query.as_ref()).unwrap()
         } else {
-            &query_builder
+            vec![]
         };
-        query_builder
-            .by_vector(&rtxn, query.as_ref())
-            .unwrap()
+        vectors
             .into_iter()
-            // for arroy, distance = (1.0 - score) / 2.0
+            // for arroy, distance = (1.0 - score) / 2.0, where score is cosine: [-1, 1]
             .map(|(id, distance)| (Self::into_entity_ref(id), 1.0 - 2.0 * distance))
-    }
-}
-
-pub struct Key {
-    pub index: u16,
-    pub node: u32,
-    _padding: u8,
-}
-
-impl From<usize> for Key {
-    fn from(value: usize) -> Self {
-        Self {
-            index: 0, // TODO: bear in mind hardcoded index
-            node: value as u32,
-            _padding: 0,
-        }
     }
 }
 
@@ -202,7 +195,7 @@ pub(crate) struct VectorDb {
     pub(crate) vectors: ArroyDatabase<Cosine>, // TODO: review is this safe to clone? does it point to the same thing?
     pub(crate) env: heed::Env,
     pub(crate) _tempdir: Option<Arc<TempDir>>, // do I really need, is the file open not enough
-    pub(crate) dimensions: usize,
+    pub(crate) dimensions: OnceLock<usize>,
 }
 
 // TODO: merge this with the above
@@ -211,7 +204,8 @@ impl VectorDb {
         // FIXME: remove unwraps
         let mut wtxn = self.env.write_txn().unwrap();
 
-        let writer = Writer::<Cosine>::new(self.vectors, 0, self.dimensions);
+        let dimensions = self.dimensions.get_or_init(|| embedding.len());
+        let writer = Writer::<Cosine>::new(self.vectors, 0, *dimensions);
         writer
             .add_item(&mut wtxn, id as u32, embedding.as_ref())
             .unwrap();
@@ -223,14 +217,10 @@ impl VectorDb {
     }
 
     pub(super) fn get_id(&self, id: usize) -> Embedding {
-        // FIXME: remove unsafe code, ask arroy mantainers to make the type public
-        // let rtxn = self.env.read_txn().unwrap();
-        // let key: Key = id.into();
-        // let arroy_key = unsafe { std::mem::transmute(&key) };
-        // let node = self.vectors.get(&rtxn, arroy_key).unwrap().unwrap();
-        // let vector = node.leaf().unwrap().vector.to_vec().into();
-        // vector
-        [1.0].into()
+        let rtxn = self.env.read_txn().unwrap();
+        let reader = Reader::open(&rtxn, 0, self.vectors).unwrap();
+        let vector = reader.item_vector(&rtxn, id as u32).unwrap().unwrap();
+        vector.into()
     }
 }
 
@@ -329,7 +319,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
         let view = apply_window(&self.source_graph, window);
+        dbg!();
         let nodes = self.node_db.top_k(query, limit, view.clone(), None); // TODO: avoid this clone
+        dbg!();
         let edges = self.edge_db.top_k(query, limit, view, None);
         let docs = find_top_k(nodes.chain(edges), limit).collect();
         VectorSelection::new(self.clone(), docs)

@@ -63,13 +63,17 @@ mod vector_tests {
         prelude::{AdditionOps, Graph, GraphViewOps},
         vectors::{
             embeddings::openai_embedding,
-            template::{DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+            template::{DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
             vectorisable::Vectorisable,
+            vectorised_graph::VectorisedGraph,
         },
     };
+    use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
     use dotenv::dotenv;
     use itertools::Itertools;
+    use rand::{rngs::StdRng, SeedableRng};
     use std::fs::remove_file;
+    use tempfile::tempdir;
     use template::DocumentTemplate;
     use tokio;
 
@@ -96,6 +100,86 @@ mod vector_tests {
                     .to_owned(),
             ),
         }
+    }
+
+    const TWENTY_HUNDRED_MIB: usize = 2 * 1024 * 1024 * 1024;
+
+    #[tokio::test]
+    async fn test_arroy() {
+        let tempdir = tempfile::tempdir().unwrap();
+
+        {
+            let env = unsafe {
+                heed::EnvOpenOptions::new()
+                    .map_size(TWENTY_HUNDRED_MIB)
+                    .open(tempdir.path())
+            }
+            .unwrap();
+
+            let dimensions = 1;
+            let vector = [1.0];
+            let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
+            let db: ArroyDatabase<Cosine> = env.create_database(&mut wtxn, None).unwrap();
+            let writer = Writer::<Cosine>::new(db, 0, dimensions);
+            writer.add_item(&mut wtxn, 0, &vector).unwrap();
+            let mut rng = StdRng::seed_from_u64(42);
+            writer.builder(&mut rng).build(&mut wtxn).unwrap();
+            wtxn.commit().unwrap();
+        }
+
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(TWENTY_HUNDRED_MIB)
+                .open(tempdir.path())
+        }
+        .unwrap();
+        let rtxn = env.read_txn().unwrap();
+        let db: ArroyDatabase<Cosine> =
+            env.database_options().types().open(&rtxn).unwrap().unwrap();
+        dbg!();
+        let reader = Reader::open(&rtxn, 0, db).unwrap();
+        dbg!();
+        let result = reader.nns(1).by_vector(&rtxn, &[1.0]).unwrap();
+        assert_eq!(result, vec![(0, 0.0)]);
+        dbg!();
+        let vector = reader.item_vector(&rtxn, 0).unwrap().unwrap();
+        assert_eq!(vector, vec![1.0]);
+        dbg!();
+        let test = reader.iter(&rtxn).unwrap().next();
+        dbg!();
+        let (_, node) = db.iter(&rtxn).unwrap().next().unwrap().unwrap();
+        dbg!();
+        let (_, node) = db.first(&rtxn).unwrap().unwrap();
+        dbg!();
+        assert_eq!(node.leaf().unwrap().vector.len(), 1);
+        rtxn.commit().unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_vector_storage() {
+        let g = Graph::new();
+        g.add_node(0, 0, NO_PROPS, None).unwrap();
+        let tempdir = tempdir().unwrap();
+        {
+            g.vectorise(
+                Box::new(fake_embedding),
+                None.into(),
+                false,
+                custom_template(),
+                Some(tempdir.path()),
+                false,
+            )
+            .await
+            .unwrap();
+            // this should release the lmdb environment and let the next call pick it up
+        }
+
+        VectorisedGraph::read_from_path(
+            tempdir.path(),
+            g,
+            Arc::new(fake_embedding),
+            None.into(), // TODO: should be Option<Arc>, not otherwise
+        );
     }
 
     // #[tokio::test]

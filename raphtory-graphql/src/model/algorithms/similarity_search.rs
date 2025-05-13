@@ -35,6 +35,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
         entry_point: &VectorAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        dbg!();
         let data = ctx.data_unchecked::<Data>().clone();
         let query = ctx
             .args

@@ -12,7 +12,7 @@ use itertools::Itertools;
 use rand::{rngs::StdRng, SeedableRng};
 use std::{
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 use tracing::info;
 
@@ -123,7 +123,10 @@ async fn db_from_docs(
     let vectors = compute_embeddings(docs, embedding, &cache).await?;
 
     let (env, tempdir) = match path {
-        Some(path) => (open_env(&path), None),
+        Some(path) => {
+            std::fs::create_dir_all(&path).unwrap();
+            (open_env(&path), None)
+        }
         None => {
             let tempdir = tempfile::tempdir()?;
             (open_env(tempdir.path()), Some(tempdir.into()))
@@ -134,15 +137,20 @@ async fn db_from_docs(
     let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
     let db: ArroyDatabase<Cosine> = env.create_database(&mut wtxn, None).unwrap();
 
-    let dimensions = vectors.get(0).unwrap().1.len();
-    let writer = Writer::<Cosine>::new(db, 0, dimensions);
-    for (id, vector) in vectors {
-        writer.add_item(&mut wtxn, id, &vector).unwrap();
-    }
+    let dimensions = if let Some(first_vector) = vectors.first() {
+        let dimensions = first_vector.1.len(); // TODO: if vectors is empty, simply don't wirte anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        let writer = Writer::<Cosine>::new(db, 0, dimensions);
+        for (id, vector) in vectors {
+            writer.add_item(&mut wtxn, id, &vector).unwrap();
+        }
 
-    // TODO: review this -> You can specify the number of trees to use or specify None.
-    let mut rng = StdRng::seed_from_u64(42);
-    writer.builder(&mut rng).build(&mut wtxn).unwrap();
+        // TODO: review this -> You can specify the number of trees to use or specify None.
+        let mut rng = StdRng::seed_from_u64(42);
+        writer.builder(&mut rng).build(&mut wtxn).unwrap();
+        dimensions.into()
+    } else {
+        OnceLock::new()
+    };
 
     wtxn.commit().unwrap();
 
