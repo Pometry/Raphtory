@@ -3,8 +3,8 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
-            namespace::Namespace, vectorised_graph::GqlVectorisedGraph,
+            graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
+            vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -126,13 +126,6 @@ impl QueryRoot {
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
-    }
-
-    //To deprecate I think
-    async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
-        let data = ctx.data_unchecked::<Data>();
-        let paths = data.get_all_graph_folders();
-        Ok(GqlGraphs::new(paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
