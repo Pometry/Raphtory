@@ -10,6 +10,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
+use tokio::{spawn, task::spawn_blocking};
 
 #[derive(InputObject)]
 #[graphql(name = "PropertyInput")]
@@ -41,7 +42,7 @@ pub struct EdgeAddition {
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableGraph")]
 pub struct GqlMutableGraph {
     path: ExistingGraphFolder,
@@ -93,13 +94,23 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
-        let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-        let node = self
-            .graph
-            .add_node(time, &name, prop_iter, node_type.as_str())?;
-        node.update_embeddings().await?;
-        self.graph.write_updates()?;
-        Ok(node.into())
+        let self_clone = self.clone();
+        spawn(async move {
+            let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
+            let self_clone_2 = self_clone.clone();
+            let node = spawn_blocking(move || {
+                self_clone
+                    .graph
+                    .add_node(time, &name, prop_iter, node_type.as_str())
+            })
+            .await
+            .unwrap()?;
+            node.update_embeddings().await?;
+            self_clone_2.graph.write_updates()?;
+            Ok(node.into())
+        })
+        .await
+        .unwrap()
     }
 
     /// Create a new node or fail if it already exists
@@ -110,39 +121,58 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
-        let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-        let node = self
-            .graph
-            .create_node(time, &name, prop_iter, node_type.as_str())?;
-        node.update_embeddings().await?;
-        self.graph.write_updates()?;
-        Ok(node.into())
+        let self_clone = self.clone();
+        spawn(async move {
+            let self_clone_2 = self_clone.clone();
+            let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
+            let node = spawn_blocking(move || {
+                self_clone
+                    .graph
+                    .create_node(time, &name, prop_iter, node_type.as_str())
+            })
+            .await
+            .unwrap()?;
+            node.update_embeddings().await?;
+            self_clone_2.graph.write_updates()?;
+            Ok(node.into())
+        })
+        .await
+        .unwrap()
     }
 
     /// Add a batch of nodes
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
-        for node in nodes {
-            let name = node.name.as_str();
+        //TODO: How do we want to handle this par?
+        let self_clone = self.clone();
+        spawn(async move {
+            for node in nodes {
+                let name = node.name.as_str();
 
-            for prop in node.updates.unwrap_or(vec![]) {
-                let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
-                self.graph.add_node(prop.time, name, prop_iter, None)?;
+                for prop in node.updates.unwrap_or(vec![]) {
+                    let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
+                    self_clone
+                        .graph
+                        .add_node(prop.time, name, prop_iter, None)?;
+                }
+                if let Some(node_type) = node.node_type.as_str() {
+                    self_clone.get_node_view(name)?.set_node_type(node_type)?;
+                }
+                let constant_props = node.constant_properties.unwrap_or(vec![]);
+                if !constant_props.is_empty() {
+                    let prop_iter = as_properties(constant_props)?;
+                    self_clone
+                        .get_node_view(name)?
+                        .add_constant_properties(prop_iter)?;
+                }
+                if let Ok(node) = self_clone.get_node_view(name) {
+                    let _ = node.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
+                }
             }
-            if let Some(node_type) = node.node_type.as_str() {
-                self.get_node_view(name)?.set_node_type(node_type)?;
-            }
-            let constant_props = node.constant_properties.unwrap_or(vec![]);
-            if !constant_props.is_empty() {
-                let prop_iter = as_properties(constant_props)?;
-                self.get_node_view(name)?
-                    .add_constant_properties(prop_iter)?;
-            }
-            if let Ok(node) = self.get_node_view(name) {
-                let _ = node.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
-            }
-        }
-        self.graph.write_updates()?;
-        Ok(true)
+            self_clone.graph.write_updates()?;
+            Ok(true)
+        })
+        .await
+        .unwrap()
     }
 
     /// Get a mutable existing edge
