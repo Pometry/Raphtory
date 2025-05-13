@@ -16,7 +16,6 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
-use std::time::{Duration, Instant};
 
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};

@@ -826,3 +826,5 @@ class Infected(object):
         Returns:
             int:
         """
+
+def connected_components(graph): ...

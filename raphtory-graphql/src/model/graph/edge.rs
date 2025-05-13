@@ -14,6 +14,7 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
+use tokio::{spawn, task::spawn_blocking};
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edge")]
@@ -53,23 +54,37 @@ impl GqlEdge {
     ////////////////////////
 
     async fn default_layer(&self) -> GqlEdge {
-        self.ee.default_layer().into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.ee.default_layer().into())
+            .await
+            .unwrap()
     }
 
     async fn layers(&self, names: Vec<String>) -> GqlEdge {
-        self.ee.valid_layers(names).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.ee.valid_layers(names).into())
+            .await
+            .unwrap()
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlEdge {
-        self.ee.exclude_valid_layers(names).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.ee.exclude_valid_layers(names).into())
+            .await
+            .unwrap()
     }
 
     async fn layer(&self, name: String) -> GqlEdge {
-        self.ee.valid_layers(name).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.ee.valid_layers(name).into())
+            .await
+            .unwrap()
     }
-
     async fn exclude_layer(&self, name: String) -> GqlEdge {
-        self.ee.exclude_valid_layers(name).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.ee.exclude_valid_layers(name).into())
+            .await
+            .unwrap()
     }
 
     async fn rolling(
@@ -80,7 +95,7 @@ impl GqlEdge {
         step_int: Option<i64>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || match (window_str, window_int) {
+        spawn_blocking(move || match (window_str, window_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "window_str".to_string(),
                 "window_int".to_string(),
@@ -113,7 +128,7 @@ impl GqlEdge {
         step_int: Option<i64>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || match (step_str, step_int) {
+        spawn_blocking(move || match (step_str, step_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "step_str".to_string(),
                 "step_int".to_string(),
@@ -169,7 +184,7 @@ impl GqlEdge {
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
         let mut return_view: GqlEdge = self.ee.clone().into();
 
-        tokio::task::spawn(async move {
+        spawn(async move {
             for view in views {
                 let mut count = 0;
                 if let Some(_) = view.default_layer {
@@ -244,51 +259,47 @@ impl GqlEdge {
 
     async fn earliest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.earliest_time())
+        spawn_blocking(move || self_clone.ee.earliest_time())
             .await
             .unwrap()
     }
 
     async fn first_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.history().first().cloned())
+        spawn_blocking(move || self_clone.ee.history().first().cloned())
             .await
             .unwrap()
     }
 
     async fn latest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.latest_time())
+        spawn_blocking(move || self_clone.ee.latest_time())
             .await
             .unwrap()
     }
 
     async fn last_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.history().last().cloned())
+        spawn_blocking(move || self_clone.ee.history().last().cloned())
             .await
             .unwrap()
     }
 
     async fn time(&self) -> Result<i64, GraphError> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.time().map(|x| x.into()))
+        spawn_blocking(move || self_clone.ee.time().map(|x| x.into()))
             .await
             .unwrap()
     }
 
     async fn start(&self) -> Option<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.start())
-            .await
-            .unwrap()
+        spawn_blocking(move || self_clone.ee.start()).await.unwrap()
     }
 
     async fn end(&self) -> Option<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.end())
-            .await
-            .unwrap()
+        spawn_blocking(move || self_clone.ee.end()).await.unwrap()
     }
 
     async fn src(&self) -> GqlNode {
@@ -304,7 +315,7 @@ impl GqlEdge {
 
     async fn id(&self) -> Vec<String> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || {
+        spawn_blocking(move || {
             let (src_name, dst_name) = self_clone.ee.id();
             vec![src_name.to_string(), dst_name.to_string()]
         })
@@ -318,7 +329,7 @@ impl GqlEdge {
 
     async fn layer_names(&self) -> Vec<String> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || {
+        spawn_blocking(move || {
             self_clone
                 .ee
                 .layer_names()
@@ -332,63 +343,63 @@ impl GqlEdge {
 
     async fn layer_name(&self) -> Result<String, GraphError> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.layer_name().map(|x| x.into()))
+        spawn_blocking(move || self_clone.ee.layer_name().map(|x| x.into()))
             .await
             .unwrap()
     }
 
     async fn explode(&self) -> GqlEdges {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || GqlEdges::new(self_clone.ee.explode()))
+        spawn_blocking(move || GqlEdges::new(self_clone.ee.explode()))
             .await
             .unwrap()
     }
 
     async fn explode_layers(&self) -> GqlEdges {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || GqlEdges::new(self_clone.ee.explode_layers()))
+        spawn_blocking(move || GqlEdges::new(self_clone.ee.explode_layers()))
             .await
             .unwrap()
     }
 
     async fn history(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.history())
+        spawn_blocking(move || self_clone.ee.history())
             .await
             .unwrap()
     }
 
     async fn deletions(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.deletions())
+        spawn_blocking(move || self_clone.ee.deletions())
             .await
             .unwrap()
     }
 
     async fn is_valid(&self) -> bool {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.is_valid())
+        spawn_blocking(move || self_clone.ee.is_valid())
             .await
             .unwrap()
     }
 
     async fn is_active(&self) -> bool {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.is_active())
+        spawn_blocking(move || self_clone.ee.is_active())
             .await
             .unwrap()
     }
 
     async fn is_deleted(&self) -> bool {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.is_deleted())
+        spawn_blocking(move || self_clone.ee.is_deleted())
             .await
             .unwrap()
     }
 
     async fn is_self_loop(&self) -> bool {
         let self_clone = self.clone();
-        tokio::task::spawn_blocking(move || self_clone.ee.is_self_loop())
+        spawn_blocking(move || self_clone.ee.is_self_loop())
             .await
             .unwrap()
     }

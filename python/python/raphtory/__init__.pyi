@@ -1319,6 +1319,17 @@ class Graph(GraphView):
           MutableNode: The node object with the specified id, or None if the node does not exist
         """
 
+    def persist_as_disk_graph(self, graph_dir: str | PathLike) -> DiskGraphStorage:
+        """
+        save graph in disk_graph format and memory map the result
+
+        Arguments:
+            graph_dir (str | PathLike): folder where the graph will be saved
+
+        Returns:
+            DiskGraphStorage: the persisted disk graph storage
+        """
+
     def persistent_graph(self) -> PersistentGraph:
         """
         View graph with persistent semantics
@@ -1354,6 +1365,17 @@ class Graph(GraphView):
 
         Returns:
           bytes:
+        """
+
+    def to_disk_graph(self, graph_dir: str | PathLike) -> Graph:
+        """
+        Persist graph on disk
+
+        Arguments:
+            graph_dir (str | PathLike): the folder where the graph will be persisted
+
+        Returns:
+            Graph: a view of the persisted graph
         """
 
     def to_parquet(self, graph_dir: str | PathLike):
@@ -6087,3 +6109,35 @@ class WindowSet(object):
         Returns:
             Iterable: the time index"
         """
+
+class DiskGraphStorage(object):
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def append_node_temporal_properties(self, location, chunk_size=20000000): ...
+    def graph_dir(self): ...
+    @staticmethod
+    def load_from_dir(graph_dir): ...
+    @staticmethod
+    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col): ...
+    @staticmethod
+    def load_from_parquets(
+        graph_dir,
+        layer_parquet_cols,
+        node_properties=None,
+        chunk_size=10000000,
+        t_props_chunk_size=10000000,
+        num_threads=4,
+        node_type_col=None,
+        node_id_col=None,
+    ): ...
+    def load_node_const_properties(self, location, col_names=None, chunk_size=None): ...
+    def load_node_types(self, location, col_name, chunk_size=None): ...
+    def merge_by_sorted_gids(self, other, graph_dir):
+        """
+        Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
+        sorted by their global ids or the resulting graph will be nonsense!
+        """
+
+    def to_events(self): ...
+    def to_persistent(self): ...
