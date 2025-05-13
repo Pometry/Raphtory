@@ -144,7 +144,9 @@ impl From<&DataType> for PropType {
             DataType::UInt64 => PropType::U64,
             DataType::Float32 => PropType::F32,
             DataType::Float64 => PropType::F64,
-            DataType::Decimal(_, scale) => PropType::Decimal { scale: *scale as i64 },
+            DataType::Decimal(_, scale) => PropType::Decimal {
+                scale: *scale as i64,
+            },
             DataType::Boolean => PropType::Bool,
 
             _ => PropType::Empty,
