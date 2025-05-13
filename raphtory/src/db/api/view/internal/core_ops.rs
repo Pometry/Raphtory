@@ -811,7 +811,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn len(&self) -> usize {
-        if !self.view.edges_filtered() {
+        if matches!(self.view.filter_state(), FilterState::Neither) {
             match &self.additions {
                 NodeAdditions::Mem(additions) => additions.edge_ts.len(),
                 NodeAdditions::Range(additions) => match additions {
@@ -832,7 +832,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn is_empty(&self) -> bool {
-        if !self.view.edges_filtered() {
+        if matches!(self.view.filter_state(), FilterState::Neither) {
             match &self.additions {
                 NodeAdditions::Mem(additions) => additions.edge_ts.is_empty(),
                 NodeAdditions::Range(additions) => match additions {
