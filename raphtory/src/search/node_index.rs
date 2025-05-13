@@ -16,19 +16,22 @@ use crate::{
     prelude::*,
     search::{
         entity_index::EntityIndex,
-        fields::{NODE_ID, NODE_NAME, NODE_TYPE},
+        fields::{NODE_ID, NODE_NAME, NODE_NAME_TOKENIZED, NODE_TYPE, NODE_TYPE_TOKENIZED},
         TOKENIZER,
     },
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    path::{Path, PathBuf},
+};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST,
-        INDEXED, STORED,
+        INDEXED, STORED, STRING,
     },
     Document, IndexWriter, TantivyDocument,
 };
@@ -38,7 +41,9 @@ pub struct NodeIndex {
     pub(crate) entity_index: EntityIndex,
     pub(crate) node_id_field: Field,
     pub(crate) node_name_field: Field,
+    pub(crate) node_name_tokenized_field: Field,
     pub(crate) node_type_field: Field,
+    pub(crate) node_type_tokenized_field: Field,
 }
 
 impl Debug for NodeIndex {
@@ -50,39 +55,94 @@ impl Debug for NodeIndex {
 }
 
 impl NodeIndex {
-    pub(crate) fn new() -> Self {
+    fn fetch_fields(schema: &Schema) -> Result<(Field, Field, Field, Field, Field), GraphError> {
+        let node_id_field = schema
+            .get_field(NODE_ID)
+            .map_err(|_| GraphError::IndexErrorMsg("Node ID field missing in schema.".into()))?;
+
+        let node_name_field = schema
+            .get_field(NODE_NAME)
+            .map_err(|_| GraphError::IndexErrorMsg("Node name field missing in schema.".into()))?;
+
+        let node_name_tokenized_field = schema.get_field(NODE_NAME_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized node name field missing in schema.".into())
+        })?;
+
+        let node_type_field = schema
+            .get_field(NODE_TYPE)
+            .map_err(|_| GraphError::IndexErrorMsg("Node type field missing in schema.".into()))?;
+
+        let node_type_tokenized_field = schema.get_field(NODE_TYPE_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized node type field missing in schema.".into())
+        })?;
+
+        Ok((
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        ))
+    }
+
+    pub(crate) fn new(path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let schema = Self::schema_builder().build();
-        let node_id_field = schema.get_field(NODE_ID).ok().expect("Node id absent");
-        let node_name_field = schema.get_field(NODE_NAME).expect("Node name absent");
-        let node_type_field = schema.get_field(NODE_TYPE).expect("Node type absent");
-        let entity_index = EntityIndex::new(schema);
-        Self {
+        let (
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        ) = Self::fetch_fields(&schema)?;
+
+        let entity_index = EntityIndex::new(schema, path)?;
+
+        Ok(Self {
             entity_index,
             node_id_field,
             node_name_field,
+            node_name_tokenized_field,
             node_type_field,
-        }
+            node_type_tokenized_field,
+        })
+    }
+
+    pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        let entity_index = EntityIndex::load_nodes_index_from_path(path)?;
+        let schema = entity_index.index.schema();
+        let (
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        ) = Self::fetch_fields(&schema)?;
+
+        Ok(Self {
+            entity_index,
+            node_id_field,
+            node_name_field,
+            node_name_tokenized_field,
+            node_type_field,
+            node_type_tokenized_field,
+        })
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = self.entity_index.reader.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
-
         println!("Total node doc count: {}", top_docs.len());
-
         for (_score, doc_address) in top_docs {
             let doc: TantivyDocument = searcher.doc(doc_address)?;
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
         let constant_property_indexes = self.entity_index.const_property_indexes.read();
-
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
         let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
-
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }
@@ -93,16 +153,18 @@ impl NodeIndex {
     fn schema_builder() -> SchemaBuilder {
         let mut schema_builder: SchemaBuilder = Schema::builder();
         schema_builder.add_u64_field(NODE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_text_field(NODE_NAME, STRING);
         schema_builder.add_text_field(
-            NODE_NAME,
+            NODE_NAME_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
         );
+        schema_builder.add_text_field(NODE_TYPE, STRING);
         schema_builder.add_text_field(
-            NODE_TYPE,
+            NODE_TYPE_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
@@ -116,6 +178,13 @@ impl NodeIndex {
         self.entity_index.index.schema().get_field(field_name)
     }
 
+    pub fn get_tokenized_node_field(&self, field_name: &str) -> tantivy::Result<Field> {
+        self.entity_index
+            .index
+            .schema()
+            .get_field(format!("{field_name}_tokenized").as_ref())
+    }
+
     fn create_document<'a>(
         &self,
         node_id: u64,
@@ -124,9 +193,11 @@ impl NodeIndex {
     ) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.node_id_field, node_id);
-        document.add_text(self.node_name_field, node_name);
+        document.add_text(self.node_name_field, node_name.clone());
+        document.add_text(self.node_name_tokenized_field, node_name);
         if let Some(node_type) = node_type {
-            document.add_text(self.node_type_field, node_type);
+            document.add_text(self.node_type_field, node_type.clone());
+            document.add_text(self.node_type_tokenized_field, node_type);
         }
         document
     }
@@ -213,23 +284,41 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_nodes(graph: &GraphStorage) -> Result<NodeIndex, GraphError> {
-        let node_index = NodeIndex::new();
+    pub(crate) fn index_nodes(
+        graph: &GraphStorage,
+        path: Option<&Path>,
+    ) -> Result<NodeIndex, GraphError> {
+        let node_index_path = path.as_deref().map(|p| p.join("nodes"));
+        let node_index = NodeIndex::new(&node_index_path)?;
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
+        let const_properties_index_path = node_index_path
+            .as_deref()
+            .map(|p| p.join("const_properties"));
         let mut const_writers = node_index
             .entity_index
-            .initialize_node_const_property_indexes(graph, const_property_keys)?;
+            .initialize_node_const_property_indexes(
+                graph,
+                const_property_keys,
+                &const_properties_index_path,
+            )?;
 
         let temporal_property_keys = graph
             .node_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
+        let temporal_properties_index_path = node_index_path
+            .as_deref()
+            .map(|p| p.join("temporal_properties"));
         let mut temporal_writers = node_index
             .entity_index
-            .initialize_node_temporal_property_indexes(graph, temporal_property_keys)?;
+            .initialize_node_temporal_property_indexes(
+                graph,
+                temporal_property_keys,
+                &temporal_properties_index_path,
+            )?;
 
         // Index nodes in parallel
         let mut writer = node_index.entity_index.index.writer(100_000_000)?;

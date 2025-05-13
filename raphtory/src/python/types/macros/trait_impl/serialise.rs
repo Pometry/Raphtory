@@ -89,7 +89,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn deserialise(bytes: &[u8]) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(bytes)
+                <$base_type as $crate::serialise::InternalStableDecode>::decode_from_bytes(bytes)
             }
 
             #[doc = concat!(" Serialise ", $name, " to bytes.")]

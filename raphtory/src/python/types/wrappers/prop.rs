@@ -1,13 +1,20 @@
 use crate::{
     core::{prop_array::PropArray, utils::errors::GraphError, Prop},
-    db::graph::views::property_filter::{
-        internal::{
-            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
+    db::{
+        api::view::BoxableGraphView,
+        graph::views::filter::{
+            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+            model::{
+                property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
+                InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
+            },
         },
-        PropertyRef,
     },
     prelude::{GraphViewOps, PropertyFilter},
-    python::types::repr::Repr,
+    python::types::{
+        repr::Repr,
+        wrappers::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
+    },
 };
 use bigdecimal::BigDecimal;
 use pyo3::{
@@ -161,33 +168,202 @@ impl InternalEdgeFilterOps for PyPropertyFilter {
     }
 }
 
-impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
-    type ExplodedEdgeFiltered<'graph, G>
-        = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
-    where
-        G: GraphViewOps<'graph>,
-        Self: 'graph;
+// impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
+//     type ExplodedEdgeFiltered<'graph, G>
+//         = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
+//     where
+//         G: GraphViewOps<'graph>,
+//         Self: 'graph;
+//
+//     fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+//         self,
+//         graph: G,
+//     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+//         self.0.create_exploded_edge_filter(graph)
+//     }
+// }
 
-    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        self.0.create_exploded_edge_filter(graph)
-    }
-}
-
-impl InternalNodePropertyFilterOps for PyPropertyFilter {
-    type NodePropertyFiltered<'graph, G>
-        = <PropertyFilter as InternalNodePropertyFilterOps>::NodePropertyFiltered<'graph, G>
+impl InternalNodeFilterOps for PyPropertyFilter {
+    type NodeFiltered<'graph, G>
+        = <PropertyFilter as InternalNodeFilterOps>::NodeFiltered<'graph, G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
 
-    fn create_node_property_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
-        self.0.create_node_property_filter(graph)
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        self.0.create_node_filter(graph)
+    }
+}
+
+impl InternalNodeFilterOps for PyFilterExpr {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Node(i) => i.create_node_filter(graph),
+            PyInnerFilterExpr::Property(i) => i.create_node_filter(graph),
+            PyInnerFilterExpr::Edge(_) => Err(GraphError::ParsingError),
+        }
+    }
+}
+
+pub trait DynNodeFilterBuilderOps: Send + Sync {
+    fn eq(&self, value: String) -> PyFilterExpr;
+
+    fn ne(&self, value: String) -> PyFilterExpr;
+
+    fn is_in(&self, values: Vec<String>) -> PyFilterExpr;
+
+    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
+
+    fn contains(&self, value: String) -> PyFilterExpr;
+
+    fn not_contains(&self, value: String) -> PyFilterExpr;
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr;
+}
+
+impl<T> DynNodeFilterBuilderOps for T
+where
+    T: InternalNodeFilterBuilderOps,
+{
+    fn eq(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::eq(
+            self, value,
+        ))))
+    }
+
+    fn ne(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::ne(
+            self, value,
+        ))))
+    }
+
+    fn is_in(&self, values: Vec<String>) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::is_in(self, values),
+        )))
+    }
+
+    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::is_not_in(self, values),
+        )))
+    }
+
+    fn contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::contains(self, value),
+        )))
+    }
+
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::not_contains(self, value),
+        )))
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::fuzzy_search(self, value, levenshtein_distance, prefix_match),
+        )))
+    }
+}
+
+pub trait DynInternalNodeFilterOps: AsNodeFilter {
+    fn create_dyn_node_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+}
+
+impl<T: InternalNodeFilterOps + AsNodeFilter + Clone + 'static> DynInternalNodeFilterOps for T {
+    fn create_dyn_node_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_node_filter(graph)?))
+    }
+}
+
+impl<T: DynInternalNodeFilterOps + ?Sized + 'static> InternalNodeFilterOps for Arc<T> {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        self.deref().create_dyn_node_filter(Arc::new(graph))
+    }
+}
+
+impl InternalEdgeFilterOps for PyFilterExpr {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Edge(i) => i.create_edge_filter(graph),
+            PyInnerFilterExpr::Property(i) => i.create_edge_filter(graph),
+            PyInnerFilterExpr::Node(_) => Err(GraphError::ParsingError),
+        }
+    }
+}
+
+pub trait DynInternalEdgeFilterOps: AsEdgeFilter {
+    fn create_dyn_edge_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+}
+
+impl<T: InternalEdgeFilterOps + AsEdgeFilter + Clone + 'static> DynInternalEdgeFilterOps for T {
+    fn create_dyn_edge_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_edge_filter(graph)?))
+    }
+}
+
+impl<T: DynInternalEdgeFilterOps + ?Sized + 'static> InternalEdgeFilterOps for Arc<T> {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        self.deref().create_dyn_edge_filter(Arc::new(graph))
     }
 }
 
@@ -261,6 +437,24 @@ impl PyPropertyRef {
         PyPropertyFilter(filter)
     }
 
+    /// Create a filter that keeps entities that contains the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
+    fn contains(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::contains(PropertyRef::Property(self.name.clone()), value);
+        PyPropertyFilter(filter)
+    }
+
+    /// Create a filter that keeps entities that do not contain the property
+    ///
+    /// Returns:
+    ///     PropertyFilter: the property filter
+    fn not_contains(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::not_contains(PropertyRef::Property(self.name.clone()), value);
+        PyPropertyFilter(filter)
+    }
+
     /// Create a filter that keeps entities if their property value is in the set
     ///
     /// Arguments:
@@ -268,8 +462,8 @@ impl PyPropertyRef {
     ///
     /// Returns:
     ///     PropertyFilter: the property filter
-    fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::includes(PropertyRef::Property(self.name.clone()), values);
+    fn is_in(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+        let filter = PropertyFilter::is_in(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 
@@ -281,8 +475,8 @@ impl PyPropertyRef {
     ///
     /// Returns:
     ///     PropertyFilter: the property filter
-    fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::excludes(PropertyRef::Property(self.name.clone()), values);
+    fn is_not_in(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+        let filter = PropertyFilter::is_not_in(PropertyRef::Property(self.name.clone()), values);
         PyPropertyFilter(filter)
     }
 }
