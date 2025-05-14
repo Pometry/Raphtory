@@ -1539,6 +1539,34 @@ mod test_deletions {
         assert_eq!(view.count_edges(), 0);
         assert_graph_equal(&view, &view.materialize().unwrap())
     }
+
+    #[test]
+    fn deletions_window_has_exclusive_start() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.delete_edge(2, 0, 1, None).unwrap();
+        let e = g.edge(0, 1).unwrap();
+        assert!(e.is_active()); // has updates
+        assert!(!e.is_valid()); // last update is a deletion
+        assert!(e.is_deleted());
+
+        assert!(e.window(0, 1).is_active()); // addition in window
+        assert!(e.window(0, 1).is_valid()); // not deleted
+        assert!(!e.window(0, 1).is_deleted());
+
+        assert!(e.window(1, 3).is_active()); // deletion in window
+        assert!(!e.window(1, 3).is_valid());
+        assert!(e.window(1, 3).is_deleted());
+
+        assert!(!e.window(1, 2).is_active()); // no updates in window
+        assert!(e.window(1, 2).is_valid()); // deletion not in window (exclusive end)
+        assert!(!e.window(1, 2).is_deleted());
+
+        assert!(!e.window(2, 3).is_active()); // deletion at start of window are not included
+        assert!(!e.window(2, 3).is_valid());
+        assert!(e.window(2, 3).is_deleted());
+        assert!(!e.latest().is_active()); // this is the same as above
+    }
 }
 
 #[cfg(test)]
