@@ -1454,7 +1454,8 @@ mod views_test {
         mod test_nodes_filters_window_graph {
             use crate::{
                 assert_filter_nodes_results_pg_w, assert_filter_nodes_results_w,
-                assert_search_nodes_results_pg_w, assert_search_nodes_results_w,
+                assert_filter_nodes_results_w_variant, assert_search_nodes_results_pg_w,
+                assert_search_nodes_results_w,
                 core::Prop,
                 db::{
                     api::{
