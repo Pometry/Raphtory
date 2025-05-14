@@ -5092,6 +5092,7 @@ dependencies = [
  "serde",
  "sorted_vector_map",
  "tempfile",
+ "tokio",
  "tracing",
 ]
 

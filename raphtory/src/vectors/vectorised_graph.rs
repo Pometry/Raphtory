@@ -319,9 +319,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G> {
         let view = apply_window(&self.source_graph, window);
-        dbg!();
         let nodes = self.node_db.top_k(query, limit, view.clone(), None); // TODO: avoid this clone
-        dbg!();
         let edges = self.edge_db.top_k(query, limit, view, None);
         let docs = find_top_k(nodes.chain(edges), limit).collect();
         VectorSelection::new(self.clone(), docs)

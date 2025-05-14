@@ -200,9 +200,7 @@ impl GraphServer {
             }
         };
 
-        dbg!();
         self.data.vectorise_all_graphs_that_are_not().await?;
-        dbg!();
         let work_dir = self.data.work_dir.clone();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
@@ -223,9 +221,7 @@ impl GraphServer {
 
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
-        dbg!();
         let server_result = tokio::spawn(server_task);
-        dbg!();
 
         Ok(RunningGraphServer {
             signal_sender,

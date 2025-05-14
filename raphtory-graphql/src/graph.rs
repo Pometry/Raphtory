@@ -88,14 +88,12 @@ impl GraphWithVectors {
             MaterializedGraph::load_cached(folder.clone())?
         };
 
-        dbg!();
         let vectors = VectorisedGraph::read_from_path(
             &folder.get_vectors_path(),
             graph.clone(),
             embedding,
             cache,
         );
-        dbg!();
 
         println!("Graph loaded = {}", folder.get_original_path_str());
 

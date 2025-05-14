@@ -40,11 +40,8 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let meta_string = std::fs::read_to_string(meta_path(path)).ok()?;
         let meta: VectorMeta = serde_json::from_str(&meta_string).ok()?;
 
-        dbg!();
         let node_db = open_database(&node_vectors_path(path));
-        dbg!();
         let edge_db = open_database(&edge_vectors_path(path));
-        dbg!();
 
         Some(VectorisedGraph {
             template: meta.template,
@@ -84,9 +81,7 @@ fn open_database(path: &Path) -> VectorDb {
     } else {
         OnceLock::new()
     };
-    dbg!();
     rtxn.commit().unwrap();
-    dbg!();
     VectorDb {
         vectors: db,
         env,

@@ -136,21 +136,14 @@ mod vector_tests {
         let rtxn = env.read_txn().unwrap();
         let db: ArroyDatabase<Cosine> =
             env.database_options().types().open(&rtxn).unwrap().unwrap();
-        dbg!();
         let reader = Reader::open(&rtxn, 0, db).unwrap();
-        dbg!();
         let result = reader.nns(1).by_vector(&rtxn, &[1.0]).unwrap();
         assert_eq!(result, vec![(0, 0.0)]);
-        dbg!();
         let vector = reader.item_vector(&rtxn, 0).unwrap().unwrap();
         assert_eq!(vector, vec![1.0]);
-        dbg!();
         let test = reader.iter(&rtxn).unwrap().next();
-        dbg!();
         let (_, node) = db.iter(&rtxn).unwrap().next().unwrap().unwrap();
-        dbg!();
         let (_, node) = db.first(&rtxn).unwrap().unwrap();
-        dbg!();
         assert_eq!(node.leaf().unwrap().vector.len(), 1);
         rtxn.commit().unwrap();
     }

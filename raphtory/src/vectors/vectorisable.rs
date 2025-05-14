@@ -48,7 +48,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ) -> GraphResult<VectorisedGraph<G>>;
 }
 
-const TWENTY_HUNDRED_MIB: usize = 2 * 1024 * 1024 * 1024; // TODO: review !!!!!!!!!!!!
+const LMDB_MAX_SIZE: usize = 20 * 1024 * 1024 * 1024 * 1024; // 20 GB // TODO: review !!!!!!!!!!!!
 
 #[async_trait]
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
@@ -61,6 +61,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
+        dbg!();
         if verbose {
             info!("computing embeddings for nodes");
         }
@@ -108,10 +109,11 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
 pub(super) fn open_env(path: &Path) -> heed::Env {
     unsafe {
         heed::EnvOpenOptions::new()
-            .map_size(TWENTY_HUNDRED_MIB)
+            .map_size(LMDB_MAX_SIZE)
             .open(path)
     }
-    .unwrap() // FIXME: remove unwrap
+    .unwrap()
+    // FIXME: remove unwrap
 }
 
 async fn db_from_docs(

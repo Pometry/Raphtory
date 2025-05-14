@@ -106,7 +106,6 @@ impl Data {
         // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
         // we can write to it and its guaranteed to me atomic
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
-        dbg!(&folder);
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
