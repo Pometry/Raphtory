@@ -8,8 +8,9 @@ use raphtory::{
     db::{api::view::DynamicGraph, graph::path::PathFromNode},
     prelude::*,
 };
+use tokio::task::spawn_blocking;
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
 pub(crate) struct GqlPathFromNode {
     pub(crate) nn: PathFromNode<'static, DynamicGraph, DynamicGraph>,
@@ -41,29 +42,42 @@ impl GqlPathFromNode {
     ////////////////////////
 
     async fn layers(&self, names: Vec<String>) -> Self {
-        self.update(self.nn.valid_layers(names))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.valid_layers(names)))
+            .await
+            .unwrap()
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
-        self.update(self.nn.exclude_valid_layers(names))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.exclude_valid_layers(names)))
+            .await
+            .unwrap()
     }
 
     async fn layer(&self, name: String) -> Self {
-        self.update(self.nn.valid_layers(name))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.valid_layers(name)))
+            .await
+            .unwrap()
     }
 
     async fn exclude_layer(&self, name: String) -> Self {
-        self.update(self.nn.exclude_valid_layers(name))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.exclude_valid_layers(name)))
+            .await
+            .unwrap()
     }
 
-    fn rolling(
+    async fn rolling(
         &self,
         window_str: Option<String>,
         window_int: Option<i64>,
         step_str: Option<String>,
         step_int: Option<i64>,
     ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
-        match (window_str, window_int) {
+        let self_clone = self.clone();
+        spawn_blocking(move || match (window_str, window_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "window_str".to_string(),
                 "window_int".to_string(),
@@ -73,7 +87,7 @@ impl GqlPathFromNode {
                     return Err(MismatchedIntervalTypes);
                 }
                 Ok(GqlPathFromNodeWindowSet::new(
-                    self.nn.rolling(window_int, step_int)?,
+                    self_clone.nn.rolling(window_int, step_int)?,
                 ))
             }
             (Some(window_str), None) => {
@@ -81,31 +95,36 @@ impl GqlPathFromNode {
                     return Err(MismatchedIntervalTypes);
                 }
                 Ok(GqlPathFromNodeWindowSet::new(
-                    self.nn.rolling(window_str, step_str)?,
+                    self_clone.nn.rolling(window_str, step_str)?,
                 ))
             }
             (None, None) => return Err(NoIntervalProvided),
-        }
+        })
+        .await
+        .unwrap()
     }
 
-    fn expanding(
+    async fn expanding(
         &self,
         step_str: Option<String>,
         step_int: Option<i64>,
     ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
-        match (step_str, step_int) {
+        let self_clone = self.clone();
+        spawn_blocking(move || match (step_str, step_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "step_str".to_string(),
                 "step_int".to_string(),
             )),
-            (None, Some(step_int)) => {
-                Ok(GqlPathFromNodeWindowSet::new(self.nn.expanding(step_int)?))
-            }
-            (Some(step_str), None) => {
-                Ok(GqlPathFromNodeWindowSet::new(self.nn.expanding(step_str)?))
-            }
+            (None, Some(step_int)) => Ok(GqlPathFromNodeWindowSet::new(
+                self_clone.nn.expanding(step_int)?,
+            )),
+            (Some(step_str), None) => Ok(GqlPathFromNodeWindowSet::new(
+                self_clone.nn.expanding(step_str)?,
+            )),
             (None, None) => return Err(NoIntervalProvided),
-        }
+        })
+        .await
+        .unwrap()
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
@@ -117,14 +136,20 @@ impl GqlPathFromNode {
     }
 
     async fn snapshot_latest(&self) -> Self {
-        self.update(self.nn.snapshot_latest())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.snapshot_latest()))
+            .await
+            .unwrap()
     }
 
     async fn snapshot_at(&self, time: i64) -> Self {
         self.update(self.nn.snapshot_at(time))
     }
     async fn latest(&self) -> Self {
-        self.update(self.nn.latest())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.latest()))
+            .await
+            .unwrap()
     }
 
     async fn before(&self, time: i64) -> Self {
@@ -147,7 +172,10 @@ impl GqlPathFromNode {
     }
 
     async fn type_filter(&self, node_types: Vec<String>) -> Self {
-        self.update(self.nn.type_filter(&node_types))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.type_filter(&node_types)))
+            .await
+            .unwrap()
     }
 
     ////////////////////////
@@ -167,19 +195,33 @@ impl GqlPathFromNode {
     /////////////////
 
     async fn count(&self) -> usize {
-        self.iter().count()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.iter().count())
+            .await
+            .unwrap()
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
-        let start = offset * limit;
-        self.iter().skip(start).take(limit).collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let start = offset * limit;
+            self_clone.iter().skip(start).take(limit).collect()
+        })
+        .await
+        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlNode> {
-        self.iter().collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.iter().collect())
+            .await
+            .unwrap()
     }
 
     async fn ids(&self) -> Vec<String> {
-        self.nn.name().collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.nn.name().collect())
+            .await
+            .unwrap()
     }
 }
