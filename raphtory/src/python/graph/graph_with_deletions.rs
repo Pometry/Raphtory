@@ -9,6 +9,8 @@ use super::{
     graph::{PyGraph, PyGraphEncoder},
     io::pandas_loaders::*,
 };
+#[cfg(feature = "storage")]
+use crate::disk_graph::DiskGraphStorage;
 use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
@@ -18,9 +20,8 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
-    disk_graph::DiskGraphStorage,
     io::parquet_loaders::*,
-    prelude::{DeletionOps, Graph, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
