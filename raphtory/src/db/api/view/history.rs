@@ -161,6 +161,11 @@ impl CompositeHistory {
     pub fn new(history_objects: Vec<Box<dyn InternalHistoryOps>>) -> Self {
         Self { history_objects }
     }
+
+    // FIXME: If we need this, fix it
+    // pub fn new_box(history_objects: Vec<Box<dyn InternalHistoryOps>>) -> Self {
+    //     Self {history_objects: history_objects.into_iter().map(|obj| Arc::new(*obj)).collect() }
+    // }
 }
 
 // Note: All the items held by their respective HistoryImplemented objects must already be of type Box<T>
@@ -192,6 +197,8 @@ impl InternalHistoryOps for CompositeHistory {
     }
 }
 
+// TODO: Change earliest_time and latest_time implementations to use the built in earliest_time and latest_time functions
+// They are probably more efficient. New PR has iter_rev implementation apparently
 impl<G: TimeSemantics + Send + Sync> InternalHistoryOps for NodeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.graph.node_history(self.node)
@@ -243,9 +250,9 @@ mod tests {
     #[test]
     fn basic() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
-        let gandalf_node = graph.add_node(
+        let dumbledore_node = graph.add_node(
             1,
-            "Gandalf",
+            "Dumbledore",
             [("type", Prop::str("Character"))],
             None
         ).unwrap();
@@ -259,7 +266,7 @@ mod tests {
 
         let character_edge = graph.add_edge(
             3,
-            "Gandalf",
+            "Dumbledore",
             "Harry",
             [(
                 "meeting",
@@ -268,9 +275,9 @@ mod tests {
             None,
         ).unwrap();
 
-        // create gandalf node history object
-        let gandalf_node_history_object = History::new(gandalf_node.clone());
-        assert_eq!(gandalf_node_history_object.iter().collect_vec(),
+        // create dumbledore node history object
+        let dumbledore_node_history_object = History::new(dumbledore_node.clone());
+        assert_eq!(dumbledore_node_history_object.iter().collect_vec(),
                     vec![TimeIndexEntry::new(1, 0),
                          TimeIndexEntry::new(3, 2)]);
 
@@ -286,7 +293,7 @@ mod tests {
                    vec![TimeIndexEntry::new(3, 2)]);
 
         // create Composite History Object
-        let tmp_vector: Vec<Box<dyn InternalHistoryOps>> = vec![Box::new(gandalf_node), Box::new(harry_node), Box::new(character_edge)];
+        let tmp_vector: Vec<Box<dyn InternalHistoryOps>> = vec![Box::new(dumbledore_node), Box::new(harry_node), Box::new(character_edge)];
         let composite_history_object = compose_history_from_items(tmp_vector);
         assert_eq!(composite_history_object.iter().collect_vec(),
                    vec![TimeIndexEntry::new(1, 0),
@@ -303,13 +310,13 @@ mod tests {
     fn test_single_layer() -> Result<(), Box<dyn std::error::Error>> {
         // generate graph
         let graph = Graph::new();
-        let gandalf_node = graph.add_node(
+        let dumbledore_node = graph.add_node(
             1,
-            "Gandalf",
+            "Dumbledore",
             [("type", Prop::str("Character"))],
             None
         ).unwrap();
-        let gandalf_node_id = gandalf_node.id();
+        let dumbledore_node_id = dumbledore_node.id();
 
         let harry_node = graph.add_node(
             2,
@@ -321,7 +328,7 @@ mod tests {
 
         let character_edge = graph.add_edge(
             3,
-            "Gandalf",
+            "Dumbledore",
             "Harry",
             [(
                 "meeting",
@@ -351,17 +358,17 @@ mod tests {
         ).unwrap();
         let broom_harry_magical_edge_id = broom_harry_magical_edge.id();
 
-        let broom_gandalf_magical_edge = graph.add_edge(
+        let broom_dumbledore_magical_edge = graph.add_edge(
             4,
             "Broom",
-            "Gandalf",
+            "Dumbledore",
             [(
                 "use",
                 Prop::str("Flying on broom"),
             )],
             Some("Magical Object Uses"),
         ).unwrap();
-        let broom_gandalf_magical_edge_id = broom_gandalf_magical_edge.id();
+        let broom_dumbledore_magical_edge_id = broom_dumbledore_magical_edge.id();
 
         let broom_harry_normal_edge = graph.add_edge(
             5,
@@ -375,23 +382,23 @@ mod tests {
         ).unwrap();
         let broom_harry_normal_edge_id = broom_harry_normal_edge.id();
 
-        let broom_gandalf_normal_edge = graph.add_edge(
+        let broom_dumbledore_normal_edge = graph.add_edge(
             5,
             "Broom",
-            "Gandalf",
+            "Dumbledore",
             [(
                 "use",
                 Prop::str("Cleaning with broom"),
             )],
             None,
         ).unwrap();
-        let broom_gandalf_normal_edge_id = broom_gandalf_normal_edge.id();
+        let broom_dumbledore_normal_edge_id = broom_dumbledore_normal_edge.id();
 
         let layer_id = graph.get_layer_id("Magical Object Uses").unwrap();
 
         // node history objects
-        let gandalf_history = History::new(gandalf_node);
-        assert_eq!(gandalf_history.iter().collect_vec(),
+        let dumbledore_history = History::new(dumbledore_node);
+        assert_eq!(dumbledore_history.iter().collect_vec(),
                    vec![TimeIndexEntry::new(1, 0),
                         TimeIndexEntry::new(3, 2),
                         TimeIndexEntry::new(4, 5),
@@ -419,12 +426,12 @@ mod tests {
         // let broom_harry_history = HistoryImplemented::new(broom_harry_edge);
         // broom_harry_history.print("Broom-Harry History: ");
         //
-        // let broom_gandalf_history = HistoryImplemented::new(broom_gandalf_edge);
-        // broom_gandalf_history.print("Broom-Gandalf History: ");
+        // let broom_dumbledore_history = HistoryImplemented::new(broom_dumbledore_edge);
+        // broom_dumbledore_history.print("Broom-Dumbledore History: ");
 
         // make graphview using layer
         let magical_graph_view = graph.layers("Magical Object Uses").unwrap();
-        let gandalf_node_magical_view = magical_graph_view.node(gandalf_node_id.clone()).unwrap();
+        let dumbledore_node_magical_view = magical_graph_view.node(dumbledore_node_id.clone()).unwrap();
         let harry_node_magical_view = magical_graph_view.node(harry_node_id.clone()).unwrap();
         let broom_node_magical_view = magical_graph_view.node(broom_node_id.clone()).unwrap();
 
@@ -432,7 +439,7 @@ mod tests {
         let harry_magical_history = History::new(harry_node_magical_view);
         harry_magical_history.print("Harry Magical History: ");
 
-        let x = magical_graph_view.edge(broom_node_id, gandalf_node_id).unwrap();
+        let x = magical_graph_view.edge(broom_node_id, dumbledore_node_id).unwrap();
 
         println!("{:?}", x.layer_name());
 

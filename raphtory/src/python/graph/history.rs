@@ -7,19 +7,19 @@ use crate::{
     db::api::view::history::*,
 };
 use raphtory_api::core::storage::timeindex::{TimeIndexEntry};
+use crate::prelude::EdgeViewOps;
 use crate::python::graph::edge::PyEdge;
 use crate::python::graph::node::PyNode;
 use crate::python::types::repr::{iterator_repr};
 use crate::python::types::wrappers::iterators::PyBorrowingIterator;
 
-// TODO: Do we need "frozen" here? I might need to mutate the object in my merge and compose functions
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistory {
     history: History<Arc<dyn InternalHistoryOps>>
 }
 
-// TODO: Implement __eq__, __ne__, __lt__, ...
+// TODO: Implement __lt__, __gt__, ...?
 #[pymethods]
 impl PyHistory {
     #[staticmethod]
@@ -36,10 +36,28 @@ impl PyHistory {
         }
     }
 
-    // FIXME: How do we wanna deal with merge and composite functions? RefCell, make the pyclass not frozen, ...
-    // pub fn merge(&mut self, history: PyHistory) {
-    // 
+    // FIXME: potentially implement this using dynamic type checking.
+    // FIXME: if all items in vec are "dyn InternalHistoryOps", create object, or else return error/message
+    // #[staticmethod]
+    // pub fn compose_from_items(objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps>>) -> Self {
+    //     // History<Arc<CompositeHistory>>
+    //     Self {
+    //         history: History::new(Arc::new(CompositeHistory::new(objects.into_iter().map(|obj| *obj).collect())))
+    //     }
     // }
+    
+    #[staticmethod]
+    pub fn compose_from_histories(objects: Vec<PyHistory>) -> Self {
+        //FIXME: This has type Vec<Box<Arc<dyn InternalHistoryOps>>>. I couldn't extract the T from Arc<T>.
+        // When trying to extract the T, I kept getting "size for values of type dyn InternalHistoryOps cannot be known at compile time.
+        let underlying_objects: Vec<Box<dyn InternalHistoryOps>> = objects.into_iter().map(|obj| Box::new(obj.history.0) as Box<dyn InternalHistoryOps>).collect();
+        // the only way to get History objects from python is if they are already Arc<...>
+        Self {
+            // FIXME: This has type History<Arc<CompositeHistory>>, they can be nested. After a single call, we have:
+            // FIXME: Overall, the items are held in History<Arc<Vec<Box<Arc<dyn InternalHistoryOps>>>>>. Too much indirection.
+            history: History::new(Arc::new(CompositeHistory::new(underlying_objects)))
+        }
+    }
 
     /// Get the earliest time in the history
     /// Implement RaphtoryTime into PyRaphtoryTime
