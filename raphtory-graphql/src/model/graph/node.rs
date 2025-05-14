@@ -15,6 +15,7 @@ use raphtory::{
     },
     prelude::NodeStateOps,
 };
+use tokio::{spawn, task::spawn_blocking};
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
@@ -39,43 +40,63 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 #[ResolvedObjectFields]
 impl GqlNode {
     async fn id(&self) -> String {
-        self.vv.id().to_string()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.id().to_string())
+            .await
+            .unwrap()
     }
 
     pub async fn name(&self) -> String {
-        self.vv.name()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.name()).await.unwrap()
     }
 
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
     async fn default_layer(&self) -> GqlNode {
-        self.vv.default_layer().into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.default_layer().into())
+            .await
+            .unwrap()
     }
     async fn layers(&self, names: Vec<String>) -> GqlNode {
-        self.vv.valid_layers(names).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.valid_layers(names).into())
+            .await
+            .unwrap()
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlNode {
-        self.vv.exclude_valid_layers(names).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.exclude_valid_layers(names).into())
+            .await
+            .unwrap()
     }
 
     async fn layer(&self, name: String) -> GqlNode {
-        self.vv.valid_layers(name).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.valid_layers(name).into())
+            .await
+            .unwrap()
     }
 
     async fn exclude_layer(&self, name: String) -> GqlNode {
-        self.vv.exclude_valid_layers(name).into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.exclude_valid_layers(name).into())
+            .await
+            .unwrap()
     }
 
-    fn rolling(
+    async fn rolling(
         &self,
         window_str: Option<String>,
         window_int: Option<i64>,
         step_str: Option<String>,
         step_int: Option<i64>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
-        match (window_str, window_int) {
+        let self_clone = self.clone();
+        spawn_blocking(move || match (window_str, window_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "window_str".to_string(),
                 "window_int".to_string(),
@@ -85,7 +106,7 @@ impl GqlNode {
                     return Err(MismatchedIntervalTypes);
                 }
                 Ok(GqlNodeWindowSet::new(
-                    self.vv.rolling(window_int, step_int)?,
+                    self_clone.vv.rolling(window_int, step_int)?,
                 ))
             }
             (Some(window_str), None) => {
@@ -93,27 +114,32 @@ impl GqlNode {
                     return Err(MismatchedIntervalTypes);
                 }
                 Ok(GqlNodeWindowSet::new(
-                    self.vv.rolling(window_str, step_str)?,
+                    self_clone.vv.rolling(window_str, step_str)?,
                 ))
             }
             (None, None) => return Err(NoIntervalProvided),
-        }
+        })
+        .await
+        .unwrap()
     }
 
-    fn expanding(
+    async fn expanding(
         &self,
         step_str: Option<String>,
         step_int: Option<i64>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
-        match (step_str, step_int) {
+        let self_clone = self.clone();
+        spawn_blocking(move || match (step_str, step_int) {
             (Some(_), Some(_)) => Err(WrongNumOfArgs(
                 "step_str".to_string(),
                 "step_int".to_string(),
             )),
-            (None, Some(step_int)) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step_int)?)),
-            (Some(step_str), None) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step_str)?)),
+            (None, Some(step_int)) => Ok(GqlNodeWindowSet::new(self_clone.vv.expanding(step_int)?)),
+            (Some(step_str), None) => Ok(GqlNodeWindowSet::new(self_clone.vv.expanding(step_str)?)),
             (None, None) => return Err(NoIntervalProvided),
-        }
+        })
+        .await
+        .unwrap()
     }
 
     async fn window(&self, start: i64, end: i64) -> GqlNode {
@@ -125,7 +151,10 @@ impl GqlNode {
     }
 
     async fn latest(&self) -> GqlNode {
-        self.vv.latest().into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.latest().into())
+            .await
+            .unwrap()
     }
 
     async fn snapshot_at(&self, time: i64) -> GqlNode {
@@ -133,7 +162,10 @@ impl GqlNode {
     }
 
     async fn snapshot_latest(&self) -> GqlNode {
-        self.vv.snapshot_latest().into()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.snapshot_latest().into())
+            .await
+            .unwrap()
     }
 
     async fn before(&self, time: i64) -> GqlNode {
@@ -158,76 +190,78 @@ impl GqlNode {
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
         let mut return_view: GqlNode = self.vv.clone().into();
+        spawn(async move {
+            for view in views {
+                let mut count = 0;
+                if let Some(_) = view.default_layer {
+                    count += 1;
+                    return_view = return_view.default_layer().await;
+                }
+                if let Some(layers) = view.layers {
+                    count += 1;
+                    return_view = return_view.layers(layers).await;
+                }
+                if let Some(layers) = view.exclude_layers {
+                    count += 1;
+                    return_view = return_view.exclude_layers(layers).await;
+                }
+                if let Some(layer) = view.layer {
+                    count += 1;
+                    return_view = return_view.layer(layer).await;
+                }
+                if let Some(layer) = view.exclude_layer {
+                    count += 1;
+                    return_view = return_view.exclude_layer(layer).await;
+                }
+                if let Some(window) = view.window {
+                    count += 1;
+                    return_view = return_view.window(window.start, window.end).await;
+                }
+                if let Some(time) = view.at {
+                    count += 1;
+                    return_view = return_view.at(time).await;
+                }
+                if let Some(_) = view.latest {
+                    count += 1;
+                    return_view = return_view.latest().await;
+                }
+                if let Some(time) = view.snapshot_at {
+                    count += 1;
+                    return_view = return_view.snapshot_at(time).await;
+                }
+                if let Some(_) = view.snapshot_latest {
+                    count += 1;
+                    return_view = return_view.snapshot_latest().await;
+                }
+                if let Some(time) = view.before {
+                    count += 1;
+                    return_view = return_view.before(time).await;
+                }
+                if let Some(time) = view.after {
+                    count += 1;
+                    return_view = return_view.after(time).await;
+                }
+                if let Some(window) = view.shrink_window {
+                    count += 1;
+                    return_view = return_view.shrink_window(window.start, window.end).await;
+                }
+                if let Some(time) = view.shrink_start {
+                    count += 1;
+                    return_view = return_view.shrink_start(time).await;
+                }
+                if let Some(time) = view.shrink_end {
+                    count += 1;
+                    return_view = return_view.shrink_end(time).await;
+                }
 
-        for view in views {
-            let mut count = 0;
-            if let Some(_) = view.default_layer {
-                count += 1;
-                return_view = return_view.default_layer().await;
+                if count > 1 {
+                    return Err(GraphError::TooManyViewsSet);
+                }
             }
-            if let Some(layers) = view.layers {
-                count += 1;
-                return_view = return_view.layers(layers).await;
-            }
-            if let Some(layers) = view.exclude_layers {
-                count += 1;
-                return_view = return_view.exclude_layers(layers).await;
-            }
-            if let Some(layer) = view.layer {
-                count += 1;
-                return_view = return_view.layer(layer).await;
-            }
-            if let Some(layer) = view.exclude_layer {
-                count += 1;
-                return_view = return_view.exclude_layer(layer).await;
-            }
-            if let Some(window) = view.window {
-                count += 1;
-                return_view = return_view.window(window.start, window.end).await;
-            }
-            if let Some(time) = view.at {
-                count += 1;
-                return_view = return_view.at(time).await;
-            }
-            if let Some(_) = view.latest {
-                count += 1;
-                return_view = return_view.latest().await;
-            }
-            if let Some(time) = view.snapshot_at {
-                count += 1;
-                return_view = return_view.snapshot_at(time).await;
-            }
-            if let Some(_) = view.snapshot_latest {
-                count += 1;
-                return_view = return_view.snapshot_latest().await;
-            }
-            if let Some(time) = view.before {
-                count += 1;
-                return_view = return_view.before(time).await;
-            }
-            if let Some(time) = view.after {
-                count += 1;
-                return_view = return_view.after(time).await;
-            }
-            if let Some(window) = view.shrink_window {
-                count += 1;
-                return_view = return_view.shrink_window(window.start, window.end).await;
-            }
-            if let Some(time) = view.shrink_start {
-                count += 1;
-                return_view = return_view.shrink_start(time).await;
-            }
-            if let Some(time) = view.shrink_end {
-                count += 1;
-                return_view = return_view.shrink_end(time).await;
-            }
-
-            if count > 1 {
-                return Err(GraphError::TooManyViewsSet);
-            }
-        }
-
-        Ok(return_view)
+            Ok(return_view)
+        })
+        .await
+        .unwrap()
     }
 
     ////////////////////////
@@ -235,19 +269,31 @@ impl GqlNode {
     ////////////////////////
 
     async fn earliest_time(&self) -> Option<i64> {
-        self.vv.earliest_time()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.earliest_time())
+            .await
+            .unwrap()
     }
 
     async fn first_update(&self) -> Option<i64> {
-        self.vv.history().first().cloned()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.history().first().cloned())
+            .await
+            .unwrap()
     }
 
     async fn latest_time(&self) -> Option<i64> {
-        self.vv.latest_time()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.latest_time())
+            .await
+            .unwrap()
     }
 
     async fn last_update(&self) -> Option<i64> {
-        self.vv.history().last().cloned()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.history().last().cloned())
+            .await
+            .unwrap()
     }
 
     async fn start(&self) -> Option<i64> {
@@ -259,11 +305,17 @@ impl GqlNode {
     }
 
     async fn history(&self) -> Vec<i64> {
-        self.vv.history()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.history())
+            .await
+            .unwrap()
     }
 
     async fn is_active(&self) -> bool {
-        self.vv.is_active()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.is_active())
+            .await
+            .unwrap()
     }
 
     ////////////////////////
@@ -271,10 +323,13 @@ impl GqlNode {
     ////////////////////////
 
     pub async fn node_type(&self) -> Option<String> {
-        match self.vv.node_type() {
+        let self_clone = self.clone();
+        spawn_blocking(move || match self_clone.vv.node_type() {
             None => None,
             str => str.map(|s| (*s).to_string()),
-        }
+        })
+        .await
+        .unwrap()
     }
 
     async fn properties(&self) -> GqlProperties {
@@ -287,50 +342,83 @@ impl GqlNode {
     /// Returns the number of edges connected to this node
 
     async fn degree(&self) -> usize {
-        self.vv.degree()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.degree())
+            .await
+            .unwrap()
     }
 
     /// Returns the number edges with this node as the source
 
     async fn out_degree(&self) -> usize {
-        self.vv.out_degree()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.out_degree())
+            .await
+            .unwrap()
     }
 
     /// Returns the number edges with this node as the destination
 
     async fn in_degree(&self) -> usize {
-        self.vv.in_degree()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.vv.in_degree())
+            .await
+            .unwrap()
     }
 
     async fn in_component(&self) -> GqlNodes {
-        GqlNodes::new(in_component(self.vv.clone()).nodes())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlNodes::new(in_component(self_clone.vv.clone()).nodes()))
+            .await
+            .unwrap()
     }
 
     async fn out_component(&self) -> GqlNodes {
-        GqlNodes::new(out_component(self.vv.clone()).nodes())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlNodes::new(out_component(self_clone.vv.clone()).nodes()))
+            .await
+            .unwrap()
     }
 
     async fn edges(&self) -> GqlEdges {
-        GqlEdges::new(self.vv.edges())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlEdges::new(self_clone.vv.edges()))
+            .await
+            .unwrap()
     }
 
     async fn out_edges(&self) -> GqlEdges {
-        GqlEdges::new(self.vv.out_edges())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlEdges::new(self_clone.vv.out_edges()))
+            .await
+            .unwrap()
     }
 
     async fn in_edges(&self) -> GqlEdges {
-        GqlEdges::new(self.vv.in_edges())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlEdges::new(self_clone.vv.in_edges()))
+            .await
+            .unwrap()
     }
 
     async fn neighbours<'a>(&self) -> GqlPathFromNode {
-        GqlPathFromNode::new(self.vv.neighbours())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlPathFromNode::new(self_clone.vv.neighbours()))
+            .await
+            .unwrap()
     }
 
     async fn in_neighbours<'a>(&self) -> GqlPathFromNode {
-        GqlPathFromNode::new(self.vv.in_neighbours())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlPathFromNode::new(self_clone.vv.in_neighbours()))
+            .await
+            .unwrap()
     }
 
     async fn out_neighbours(&self) -> GqlPathFromNode {
-        GqlPathFromNode::new(self.vv.out_neighbours())
+        let self_clone = self.clone();
+        spawn_blocking(move || GqlPathFromNode::new(self_clone.vv.out_neighbours()))
+            .await
+            .unwrap()
     }
 }
