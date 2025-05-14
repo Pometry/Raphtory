@@ -742,7 +742,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> bool {
-        EventSemantics.edge_is_active_window(e, view, w)
+        let del_w = w.start.saturating_add(1)..w.end; // deletions window has exclusive start
+        EventSemantics.edge_is_valid_window(e, &view, w)
+            || EventSemantics.edge_is_deleted_window(e, view, del_w)
     }
 
     fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
