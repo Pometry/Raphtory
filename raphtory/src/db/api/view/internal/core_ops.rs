@@ -367,7 +367,6 @@ fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
     .unwrap_or_else(|| Box::new(iter::empty()))
 }
 
-
 #[derive(Default)]
 pub enum NodeAdditions<'a> {
     #[default]
