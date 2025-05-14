@@ -110,6 +110,11 @@ pub fn assert_node_equal_layer<
         n2.name()
     );
     assert_eq!(
+        n1.node_type(),
+        n2.node_type(),
+        "mismatched node type{layer_tag}"
+    );
+    assert_eq!(
         n1.earliest_time(),
         n2.earliest_time(),
         "mismatched node earliest time for node {:?}{layer_tag}: left {:?}, right {:?}",

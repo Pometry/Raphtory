@@ -210,6 +210,20 @@ mod tests_node_type_filtered_subgraph {
         assert_graph_equal(&g.subgraph_node_types(["test"]), &expected);
     }
 
+    #[test]
+    fn node_removed_via_edge_removal_window() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.node(0).unwrap().set_node_type("two").unwrap();
+        let gw = g.window(0, 1);
+        let expected = Graph::new();
+        expected.resolve_layer(None).unwrap();
+        let sg = gw.subgraph_node_types(["_default"]);
+        assert!(!sg.has_node(0));
+        assert!(!sg.has_node(1));
+        assert_graph_equal(&sg, &expected);
+        assert_graph_equal(&sg, &sg.materialize().unwrap())
+    }
     mod test_filters_node_type_filtered_subgraph {
         use crate::{
             db::api::view::StaticGraphViewOps,

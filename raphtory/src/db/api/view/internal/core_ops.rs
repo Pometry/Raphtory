@@ -769,29 +769,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        if self.view.edge_history_filtered() {
-            self.additions
-                .range(w)
-                .edge_events()
-                .filter(|(t, e)| self.view.filter_edge_history(*e, *t, self.view.layer_ids()))
-                .next()
-                .is_some()
-        } else {
-            match &self.additions {
-                NodeAdditions::Mem(h) => h.edge_ts().active(w),
-                NodeAdditions::Range(h) => match h {
-                    TimeIndexWindow::Empty => false,
-                    TimeIndexWindow::Range { timeindex, range } => {
-                        let start = range.start.max(w.start);
-                        let end = range.end.min(w.end).max(start);
-                        timeindex.edge_ts().active(start..end)
-                    }
-                    TimeIndexWindow::All(h) => h.edge_ts().active(w),
-                },
-                #[cfg(feature = "storage")]
-                NodeAdditions::Col(h) => h.with_range(w).edge_events().any(|t| !t.is_empty()),
-            }
-        }
+        !self.range(w).is_empty()
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {

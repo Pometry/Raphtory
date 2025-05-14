@@ -332,6 +332,12 @@ mod test_utils {
     #[derive(Debug, Default, Clone)]
     pub struct NodeFixture(pub HashMap<u64, NodeUpdatesFixture>);
 
+    impl FromIterator<(u64, NodeUpdatesFixture)> for NodeFixture {
+        fn from_iter<T: IntoIterator<Item = (u64, NodeUpdatesFixture)>>(iter: T) -> Self {
+            Self(iter.into_iter().collect())
+        }
+    }
+
     impl NodeFixture {
         pub fn iter(&self) -> impl Iterator<Item = (u64, &NodeUpdatesFixture)> {
             self.0.iter().map(|(k, v)| (*k, v))
@@ -364,6 +370,16 @@ mod test_utils {
             &self,
         ) -> impl Iterator<Item = ((u64, u64, Option<&str>), &EdgeUpdatesFixture)> {
             self.0.iter().map(|(k, v)| (*k, v))
+        }
+    }
+
+    impl FromIterator<((u64, u64, Option<&'static str>), EdgeUpdatesFixture)> for EdgeFixture {
+        fn from_iter<
+            T: IntoIterator<Item = ((u64, u64, Option<&'static str>), EdgeUpdatesFixture)>,
+        >(
+            iter: T,
+        ) -> Self {
+            Self(iter.into_iter().collect())
         }
     }
 
