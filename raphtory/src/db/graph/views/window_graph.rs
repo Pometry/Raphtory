@@ -1453,9 +1453,10 @@ mod views_test {
     mod test_filters_window_graph {
         mod test_nodes_filters_window_graph {
             use crate::{
-                assert_filter_nodes_results_pg_w, assert_filter_nodes_results_w,
-                assert_filter_nodes_results_w_variant, assert_search_nodes_results_pg_w,
-                assert_search_nodes_results_w,
+                assert_filter_nodes_results_pg_w, assert_filter_nodes_results_pg_w_variant,
+                assert_filter_nodes_results_w, assert_filter_nodes_results_w_variant,
+                assert_search_nodes_results_pg_w, assert_search_nodes_results_pg_w_variant,
+                assert_search_nodes_results_w, assert_search_nodes_results_w_variant,
                 core::Prop,
                 db::{
                     api::{
@@ -1614,22 +1615,7 @@ mod views_test {
                     ),
                     (2, "N13", vec![("q1", Prop::U64(0u64))], None),
                     (3, "N13", vec![("p1", Prop::U64(3u64))], None),
-                    (
-                        2,
-                        "N14",
-                        vec![
-                            ("q1", Prop::U64(0u64)),
-                            (
-                                "x",
-                                Prop::List(Arc::from(vec![
-                                    Prop::U64(1),
-                                    Prop::U64(6),
-                                    Prop::U64(9),
-                                ])),
-                            ),
-                        ],
-                        None,
-                    ),
+                    (2, "N14", vec![("q1", Prop::U64(0u64))], None),
                     (2, "N15", vec![], None),
                 ];
 
@@ -1681,49 +1667,48 @@ mod views_test {
                 graph
             }
 
-            fn filter_nodes_w<I: InternalNodeFilterOps>(filter: I, w: Range<i64>) -> Vec<String> {
-                filter_nodes_with(filter, init_graph(Graph::new()).window(w.start, w.end))
-            }
+            fn init_graph2<
+                G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+            >(
+                graph: G,
+            ) -> G {
+                let nodes = vec![(
+                    2,
+                    "N14",
+                    vec![
+                        ("q1", Prop::U64(0u64)),
+                        (
+                            "x",
+                            Prop::List(Arc::from(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)])),
+                        ),
+                    ],
+                    None,
+                )];
 
-            fn filter_nodes_pg_w<I: InternalNodeFilterOps>(
-                filter: I,
-                w: Range<i64>,
-            ) -> Vec<String> {
-                filter_nodes_with(
-                    filter,
-                    init_graph(PersistentGraph::new()).window(w.start, w.end),
-                )
-            }
-
-            #[cfg(feature = "search")]
-            mod search_nodes {
-                use std::ops::Range;
-                use crate::db::graph::views::deletion_graph::PersistentGraph;
-                use crate::db::graph::views::filter::model::AsNodeFilter;
-                use crate::db::graph::views::test_helpers::search_nodes_with;
-                use crate::db::graph::views::window_graph::views_test::test_filters_window_graph::test_nodes_filters_window_graph::init_graph;
-                use crate::prelude::{Graph, TimeOps};
-
-                pub fn search_nodes_w<I: AsNodeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
-                    search_nodes_with(filter, init_graph(Graph::new()).window(w.start, w.end))
+                // Add nodes to the graph
+                for (id, name, props, layer) in &nodes {
+                    graph.add_node(*id, name, props.clone(), *layer).unwrap();
                 }
 
-                pub fn search_nodes_pg_w<I: AsNodeFilter>(filter: I, w: Range<i64>) -> Vec<String> {
-                    search_nodes_with(
-                        filter,
-                        init_graph(PersistentGraph::new()).window(w.start, w.end),
-                    )
-                }
+                graph
             }
-
-            #[cfg(feature = "search")]
-            use search_nodes::*;
 
             #[test]
             fn test_nodes_filters_for_node_name_eq() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::name().eq("N2");
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
             }
 
@@ -1737,10 +1722,23 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_name_ne() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::name().ne("N2");
                 let expected_results = vec!["N1", "N3", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -1756,14 +1754,27 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_name_in() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::name().is_in(vec!["N2".into()]);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
 
                 let filter = NodeFilter::name().is_in(vec!["N2".into(), "N5".into()]);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
             }
 
@@ -1782,10 +1793,23 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_name_not_in() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::name().is_not_in(vec!["N5".into()]);
                 let expected_results = vec!["N1", "N2", "N3", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -1801,10 +1825,23 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_type_eq() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::node_type().eq("fire_nation");
                 let expected_results = vec!["N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -1817,10 +1854,23 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_type_ne() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::node_type().ne("fire_nation");
                 let expected_results = vec!["N1", "N2", "N3", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -1835,16 +1885,41 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_type_in() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
                 let expected_results = vec!["N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter =
                     NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomad".into()]);
                 let expected_results = vec!["N1", "N3", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -1863,10 +1938,23 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_node_type_not_in() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
                 let expected_results = vec!["N1", "N2", "N3", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -1881,29 +1969,72 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_eq() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").eq(2i64);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k3").eq(true);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("k4").eq(6.0f64);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
 
                 let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
@@ -1912,7 +2043,13 @@ mod views_test {
                     Prop::U64(9),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_w!(init_graph, filter, 1..9, expected_results);
             }
@@ -1934,10 +2071,41 @@ mod views_test {
                 assert_filter_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
                 assert_search_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
 
+                // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("k3").eq(true);
                 let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
+                assert_search_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
+
+                // TODO: Const properties not supported for disk_graph.
+                let filter = PropertyFilter::property("k3").eq(true);
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
+                assert_filter_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_disk_graph]
+                );
+                assert_search_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_disk_graph]
+                );
 
                 let filter = PropertyFilter::property("k4").eq(6.0f64);
                 let expected_results = vec!["N1"];
@@ -1950,37 +2118,104 @@ mod views_test {
                     Prop::U64(9),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_pg_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
             }
 
             #[test]
             fn test_nodes_filters_for_property_ne() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").ne(1u64);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").ne(2i64);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k3").ne(true);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").ne(6.0f64);
                 let expected_results = vec!["N2", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
                     Prop::U64(1),
@@ -1988,7 +2223,13 @@ mod views_test {
                     Prop::U64(9),
                 ])));
                 let expected_results = Vec::<String>::new();
-                assert_filter_nodes_results_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_w!(init_graph, filter, 1..9, expected_results);
             }
@@ -2033,20 +2274,57 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_lt() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").lt(3u64);
                 let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").lt(3i64);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").lt(10.0f64);
                 let expected_results = vec!["N1", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
                     Prop::U64(1),
@@ -2054,7 +2332,13 @@ mod views_test {
                     Prop::U64(0),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_w!(init_graph, filter, 1..9, expected_results);
             }
@@ -2083,27 +2367,70 @@ mod views_test {
                     Prop::U64(0),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_pg_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
             }
 
             #[test]
             fn test_nodes_filters_for_property_le() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").le(2i64);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").le(6.0f64);
                 let expected_results = vec!["N1", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
                     Prop::U64(1),
@@ -2111,7 +2438,13 @@ mod views_test {
                     Prop::U64(0),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_w!(init_graph, filter, 1..9, expected_results);
             }
@@ -2146,20 +2479,57 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_gt() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").gt(2i64);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").gt(6.0f64);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
                     Prop::U64(1),
@@ -2167,7 +2537,13 @@ mod views_test {
                     Prop::U64(9),
                 ])));
                 let expected_results = Vec::<String>::new();
-                assert_filter_nodes_results_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_w!(init_graph, filter, 1..9, expected_results);
             }
@@ -2195,27 +2571,70 @@ mod views_test {
                     Prop::U64(3),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_pg_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
             }
 
             #[test]
             fn test_nodes_filters_for_property_ge() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").ge(2i64);
                 let expected_results = vec!["N1", "N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").ge(6.0f64);
                 let expected_results = vec!["N1", "N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
                     Prop::U64(1),
@@ -2223,7 +2642,13 @@ mod views_test {
                     Prop::U64(9),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_w!(init_graph, filter, 1..9, expected_results);
             }
@@ -2254,37 +2679,104 @@ mod views_test {
                     Prop::U64(3),
                 ])));
                 let expected_results = vec!["N14"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
+                assert_filter_nodes_results_pg_w!(
+                    init_graph2,
+                    filter,
+                    1..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
                 // TODO: Search APIs don't support list yet
                 // assert_search_nodes_results_pg_w!(init_graph, filter, 1..9, expected_results);
             }
 
             #[test]
             fn test_nodes_filters_for_property_in() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec!["N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -2304,10 +2796,41 @@ mod views_test {
                 assert_filter_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
                 assert_search_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
 
+                // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_pg_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
+                assert_search_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_graph]
+                );
+
+                // TODO: Const properties not supported for disk_graph.
+                let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
+                assert_filter_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_disk_graph]
+                );
+                assert_search_nodes_results_pg_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [persistent_disk_graph]
+                );
 
                 let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N1"];
@@ -2317,31 +2840,92 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_not_in() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter =
                     PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
                 let expected_results = vec!["N2", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -2375,17 +2959,54 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_for_property_is_some() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").is_some();
                 let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let expected_results = Vec::<String>::new();
-                assert_filter_nodes_results_w!(init_graph, filter, 1..2, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 1..2, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    1..2,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    1..2,
+                    expected_results,
+                    variants = [graph]
+                );
 
-                assert_filter_nodes_results_w!(init_graph, filter, 10..12, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 10..12, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    10..12,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    10..12,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -2432,10 +3053,23 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_fuzzy_search() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Airpla", 2, false);
                 let expected_results = vec!["N1"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]
@@ -2448,15 +3082,40 @@ mod views_test {
 
             #[test]
             fn test_nodes_filters_fuzzy_search_prefix_match() {
+                // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
                 let expected_results = vec!["N1", "N2"];
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
 
                 let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
                 let expected_results = Vec::<String>::new();
-                assert_filter_nodes_results_w!(init_graph, filter, 6..9, expected_results);
-                assert_search_nodes_results_w!(init_graph, filter, 6..9, expected_results);
+                assert_filter_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
+                assert_search_nodes_results_w!(
+                    init_graph,
+                    filter,
+                    6..9,
+                    expected_results,
+                    variants = [graph]
+                );
             }
 
             #[test]

@@ -293,10 +293,11 @@ mod test {
         mod test_nodes_filters_cached_view_graph {
             use crate::{
                 assert_filter_nodes_results, assert_filter_nodes_results_pg_w,
-                assert_filter_nodes_results_variant, assert_filter_nodes_results_w,
-                assert_filter_nodes_results_w_variant, assert_search_nodes_results,
-                assert_search_nodes_results_pg_w, assert_search_nodes_results_variant,
-                assert_search_nodes_results_w,
+                assert_filter_nodes_results_pg_w_variant, assert_filter_nodes_results_variant,
+                assert_filter_nodes_results_w, assert_filter_nodes_results_w_variant,
+                assert_search_nodes_results, assert_search_nodes_results_pg_w,
+                assert_search_nodes_results_pg_w_variant, assert_search_nodes_results_variant,
+                assert_search_nodes_results_w, assert_search_nodes_results_w_variant,
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,

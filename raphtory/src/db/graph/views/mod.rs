@@ -209,24 +209,55 @@ pub mod macros_nodes_w {
 
     #[macro_export]
     macro_rules! assert_filter_nodes_results_pg_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {{
-            let filter_results = filter_nodes_with(
+        // Default to both variants
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {
+            assert_filter_nodes_results_pg_w!(
+                $init_fn,
+                $filter,
+                $w,
+                $expected,
+                variants = [persistent_graph, persistent_disk_graph]
+            );
+        };
+
+        // Variant-controlled
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
+            $(
+                assert_filter_nodes_results_pg_w_variant!(
+                    $init_fn,
+                    $filter.clone(),
+                    $w,
+                    $expected,
+                    $variant
+                );
+            )*
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! assert_filter_nodes_results_pg_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_graph) => {{
+            let result = filter_nodes_with(
                 $filter.clone(),
                 $init_fn(PersistentGraph::new()).window($w.start, $w.end),
             );
-            assert_eq!($expected_results, filter_results);
+            assert_eq!($expected, result);
+        }};
 
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
             #[cfg(feature = "storage")]
             {
-                let graph = $init_fn(Graph::new());
-                let path = TempDir::new().unwrap();
-                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+                use crate::disk_graph::DiskGraphStorage;
+                use tempfile::TempDir;
 
-                let filter_results = filter_nodes_with(
+                let g = $init_fn(Graph::new());
+                let tmp = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
+                let result = filter_nodes_with(
                     $filter.clone(),
                     dgs.into_persistent_graph().window($w.start, $w.end),
                 );
-                assert_eq!($expected_results, filter_results);
+                assert_eq!($expected, result);
             }
         }};
     }
@@ -234,24 +265,53 @@ pub mod macros_nodes_w {
     #[macro_export]
     #[cfg(feature = "search")]
     macro_rules! assert_search_nodes_results_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {{
-            let filter_results = search_nodes_with(
+        // Default to both graph and event_disk_graph
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {
+            assert_search_nodes_results_w!(
+                $init_fn,
+                $filter,
+                $w,
+                $expected,
+                variants = [graph, event_disk_graph]
+            );
+        };
+
+        // With explicit variant list
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
+            $(
+                assert_search_nodes_results_w_variant!(
+                    $init_fn,
+                    $filter.clone(),
+                    $w,
+                    $expected,
+                    $variant
+                );
+            )*
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_nodes_results_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, graph) => {{
+            let result = search_nodes_with(
                 $filter.clone(),
                 $init_fn(Graph::new()).window($w.start, $w.end),
             );
-            assert_eq!($expected_results, filter_results);
-
+            assert_eq!($expected, result);
+        }};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, event_disk_graph) => {{
             #[cfg(feature = "storage")]
             {
-                let graph = $init_fn(Graph::new());
-                let path = TempDir::new().unwrap();
-                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+                use crate::disk_graph::DiskGraphStorage;
+                use tempfile::TempDir;
 
-                let search_results = search_nodes_with(
-                    $filter.clone(),
-                    dgs.clone().into_graph().window($w.start, $w.end),
-                );
-                assert_eq!($expected_results, search_results);
+                let g = $init_fn(Graph::new());
+                let tmp = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
+                let result =
+                    search_nodes_with($filter.clone(), dgs.into_graph().window($w.start, $w.end));
+                assert_eq!($expected, result);
             }
         }};
     }
@@ -265,24 +325,56 @@ pub mod macros_nodes_w {
     #[macro_export]
     #[cfg(feature = "search")]
     macro_rules! assert_search_nodes_results_pg_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {{
-            let search_results = search_nodes_with(
+        // Default variant expansion
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {
+            assert_search_nodes_results_pg_w!(
+                $init_fn,
+                $filter,
+                $w,
+                $expected,
+                variants = [persistent_graph, persistent_disk_graph]
+            );
+        };
+
+        // Custom variants
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
+            $(
+                assert_search_nodes_results_pg_w_variant!(
+                    $init_fn,
+                    $filter.clone(),
+                    $w,
+                    $expected,
+                    $variant
+                );
+            )*
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_nodes_results_pg_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_graph) => {{
+            let result = search_nodes_with(
                 $filter.clone(),
                 $init_fn(PersistentGraph::new()).window($w.start, $w.end),
             );
-            assert_eq!($expected_results, search_results);
+            assert_eq!($expected, result);
+        }};
 
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
             #[cfg(feature = "storage")]
             {
-                let graph = $init_fn(Graph::new());
-                let path = TempDir::new().unwrap();
-                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+                use crate::disk_graph::DiskGraphStorage;
+                use tempfile::TempDir;
 
-                let search_results = search_nodes_with(
+                let graph = $init_fn(Graph::new());
+                let tmp = TempDir::new().unwrap();
+                let dgs = DiskGraphStorage::from_graph(&graph, &tmp).unwrap();
+                let result = search_nodes_with(
                     $filter.clone(),
                     dgs.into_persistent_graph().window($w.start, $w.end),
                 );
-                assert_eq!($expected_results, search_results);
+                assert_eq!($expected, result);
             }
         }};
     }
