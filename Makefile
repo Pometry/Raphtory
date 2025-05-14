@@ -9,12 +9,6 @@ rust-build:
 rust-build-docs: 
 	cargo doc --no-deps -p raphtory -q
 
-rust-build-readthedocs:
-	cargo doc --no-deps -p raphtory -q --target-dir $(RUST_READTHEDOCS_DOCS_TARGET)
-	rm -rf $(RUST_READTHEDOCS_DOCS_TARGET)/debug
-	mv $(RUST_READTHEDOCS_DOCS_TARGET)/doc/* $(RUST_READTHEDOCS_DOCS_TARGET)
-	rm -rf $(RUST_READTHEDOCS_DOCS_TARGET)/doc
-
 build-all: rust-build
 	cd python && maturin develop
 
@@ -61,6 +55,9 @@ tidy-public: rust-fmt build-python-public stubs python-fmt
 
 build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev
+
+debug-python-public: deactivate-storage
+	cd python && maturin develop --profile=debug
 
 debug-stubs: debug-python stubs
 
