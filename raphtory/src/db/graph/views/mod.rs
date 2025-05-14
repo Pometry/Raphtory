@@ -7,14 +7,6 @@ pub mod window_graph;
 
 pub mod macros {
     #[macro_export]
-    macro_rules! assert_filter_results_w {
-        ($filter_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
-            let filter_results = $filter_fn($filter.clone(), $window);
-            assert_eq!($expected_results, filter_results);
-        }};
-    }
-
-    #[macro_export]
     #[cfg(feature = "search")]
     macro_rules! assert_search_results_w {
         ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
@@ -517,13 +509,42 @@ pub mod macros_edges {
 pub mod macros_edges_w {
     #[macro_export]
     macro_rules! assert_filter_edges_results_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {{
-            let filter_results = filter_edges_with(
+        // Default variants
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {
+            assert_filter_edges_results_w!(
+                $init_fn,
+                $filter,
+                $w,
+                $expected,
+                variants = [graph, event_disk_graph]
+            );
+        };
+
+        // Custom variants
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
+            $(
+                assert_filter_edges_results_w_variant!(
+                    $init_fn,
+                    $filter.clone(),
+                    $w,
+                    $expected,
+                    $variant
+                );
+            )*
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! assert_filter_edges_results_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, graph) => {{
+            let result = filter_edges_with(
                 $filter.clone(),
                 $init_fn(Graph::new()).window($w.start, $w.end),
             );
-            assert_eq!($expected_results, filter_results);
+            assert_eq!($expected, result);
+        }};
 
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, event_disk_graph) => {{
             #[cfg(feature = "storage")]
             {
                 use crate::disk_graph::DiskGraphStorage;
@@ -533,11 +554,9 @@ pub mod macros_edges_w {
                 let path = TempDir::new().unwrap();
                 let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
 
-                let filter_results = filter_edges_with(
-                    $filter.clone(),
-                    dgs.clone().into_graph().window($w.start, $w.end),
-                );
-                assert_eq!($expected_results, filter_results);
+                let result =
+                    filter_edges_with($filter.clone(), dgs.into_graph().window($w.start, $w.end));
+                assert_eq!($expected, result);
             }
         }};
     }
@@ -623,27 +642,57 @@ pub mod macros_edges_w {
     #[macro_export]
     #[cfg(feature = "search")]
     macro_rules! assert_search_edges_results_pg_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {{
-            let search_results = search_edges_with(
+        // Default variants
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {
+            assert_search_edges_results_pg_w!(
+                $init_fn,
+                $filter,
+                $w,
+                $expected,
+                variants = [persistent_graph, persistent_disk_graph]
+            );
+        };
+
+        // Custom variants
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
+            $(
+                assert_search_edges_results_pg_w_variant!(
+                    $init_fn,
+                    $filter.clone(),
+                    $w,
+                    $expected,
+                    $variant
+                );
+            )*
+        }};
+    }
+
+    #[macro_export]
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_edges_results_pg_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_graph) => {{
+            let results = search_edges_with(
                 $filter.clone(),
                 $init_fn(PersistentGraph::new()).window($w.start, $w.end),
             );
-            assert_eq!($expected_results, search_results);
+            assert_eq!($expected, results);
+        }};
 
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
             #[cfg(feature = "storage")]
             {
                 use crate::disk_graph::DiskGraphStorage;
                 use tempfile::TempDir;
 
-                let graph = $init_fn(Graph::new());
+                let g = $init_fn(Graph::new());
                 let path = TempDir::new().unwrap();
-                let dgs = DiskGraphStorage::from_graph(&graph, &path).unwrap();
+                let dgs = DiskGraphStorage::from_graph(&g, &path).unwrap();
 
-                let search_results = search_edges_with(
+                let results = search_edges_with(
                     $filter.clone(),
                     dgs.into_persistent_graph().window($w.start, $w.end),
                 );
-                assert_eq!($expected_results, search_results);
+                assert_eq!($expected, results);
             }
         }};
     }
