@@ -4,10 +4,17 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
-            views::property_filter::{CompositeNodeFilter, Filter, PropertyRef, Temporal},
+            views::filter::{
+                internal::CreateNodeFilter,
+                model::{
+                    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                    property_filter::{PropertyRef, Temporal},
+                    Filter,
+                },
+            },
         },
     },
-    prelude::{NodePropertyFilterOps, NodeViewOps, PropertyFilter, ResetFilter},
+    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
@@ -129,7 +136,6 @@ impl<'a> NodeFilterExecutor<'a> {
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            // Query is none for "is_none" filters because it's cheaper to just ask raphtory
             None => Self::raph_filter_nodes(graph, filter, limit, offset),
         }
     }
@@ -318,9 +324,15 @@ impl<'a> NodeFilterExecutor<'a> {
                 limit,
                 offset,
             )?,
-            None => {
-                vec![]
-            }
+            None => match filter.field_name.as_str() {
+                "node_name" => {
+                    Self::raph_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?
+                }
+                "node_type" => {
+                    Self::raph_filter_nodes(graph, &NodeTypeFilter(filter.clone()), limit, offset)?
+                }
+                _ => vec![],
+            },
         };
 
         Ok(results)
@@ -340,35 +352,29 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
             }
-            CompositeNodeFilter::And(filters) => {
-                let mut results = None;
+            CompositeNodeFilter::And(left, right) => {
+                let left_result = self.filter_nodes(graph, left, limit, offset)?;
+                let right_result = self.filter_nodes(graph, right, limit, offset)?;
 
-                for sub_filter in filters {
-                    let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
+                let left_set: HashSet<_> = left_result.into_iter().collect();
+                let intersection = right_result
+                    .into_iter()
+                    .filter(|n| left_set.contains(n))
+                    .collect::<Vec<_>>();
 
-                    results = Some(
-                        results
-                            .map(|r: Vec<_>| {
-                                r.into_iter()
-                                    .filter(|item| sub_result.contains(item))
-                                    .collect::<Vec<_>>() // Ensure intersection results stay in a Vec
-                            })
-                            .unwrap_or(sub_result),
-                    );
-                }
-
-                Ok(results.unwrap_or_default())
+                Ok(intersection)
             }
-            CompositeNodeFilter::Or(filters) => {
-                let mut results = HashSet::new();
+            CompositeNodeFilter::Or(left, right) => {
+                let left_result = self.filter_nodes(graph, left, limit, offset)?;
+                let right_result = self.filter_nodes(graph, right, limit, offset)?;
 
-                for sub_filter in filters {
-                    let sub_result = self.filter_nodes(graph, sub_filter, limit, offset)?;
-                    results.extend(sub_result);
-                }
+                let mut combined = HashSet::new();
+                combined.extend(left_result);
+                combined.extend(right_result);
 
-                Ok(results.into_iter().collect())
+                Ok(combined.into_iter().collect())
             }
+            CompositeNodeFilter::Not(_) => Self::raph_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -423,18 +429,19 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn raph_filter_nodes<G: StaticGraphViewOps>(
         graph: &G,
-        filter: &PropertyFilter,
+        filter: &(impl CreateNodeFilter + Clone),
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        Ok(graph
-            .nodes()
+        let filtered_nodes = graph
             .filter_nodes(filter.clone())?
-            .into_iter()
-            .map(|n| n.reset_filter())
+            .nodes()
+            .iter()
+            .map(|n| NodeView::new_internal(graph.clone(), n.node))
             .skip(offset)
             .take(limit)
-            .collect())
+            .collect();
+        Ok(filtered_nodes)
     }
 
     #[allow(dead_code)]

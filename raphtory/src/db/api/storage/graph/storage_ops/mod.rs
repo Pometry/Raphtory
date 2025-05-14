@@ -418,8 +418,8 @@ impl GraphStorage {
         view: G,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
         match view.node_list() {
-            NodeList::List { nodes } => {
-                return nodes
+            NodeList::List { elems } => {
+                return elems
                     .into_iter()
                     .flat_map(move |v| {
                         self.clone()

@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
-    db::graph::views::property_filter::{FilterExpr, FilterOperator},
+    db::graph::views::filter::model::filter_operator::FilterOperator,
 };
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -138,6 +138,14 @@ pub enum GraphError {
     IndexNotCreated,
     #[error("Failed to create index.")]
     FailedToCreateIndex,
+    #[error("Failed to persist index.")]
+    FailedToPersistIndex,
+    #[error("Graph index is missing")]
+    GraphIndexIsMissing,
+    #[error("Failed to remove existing graph index: {0}")]
+    FailedToRemoveExistingGraphIndex(PathBuf),
+    #[error("Failed to move graph index")]
+    FailedToMoveGraphIndex,
     #[error("Disk Graph is immutable")]
     ImmutableDiskGraph,
     #[error("Event Graph doesn't support deletions")]
@@ -225,6 +233,9 @@ pub enum GraphError {
         source: io::Error,
     },
 
+    #[error("IO operation failed: {0}")]
+    IOErrorMsg(String),
+
     #[cfg(feature = "proto")]
     #[error("zip operation failed")]
     ZipError {
@@ -254,11 +265,15 @@ pub enum GraphError {
     DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
-    #[error("Index operation failed")]
+    #[error("Index operation failed: {source}")]
     IndexError {
         #[from]
         source: tantivy::TantivyError,
     },
+
+    #[cfg(feature = "search")]
+    #[error("Index operation failed: {0}")]
+    IndexErrorMsg(String),
 
     #[cfg(feature = "vectors")]
     #[error("Embedding operation failed")]
@@ -344,6 +359,9 @@ pub enum GraphError {
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilter(FilterOperator),
 
+    #[error("Invalid filter: {0}")]
+    InvalidGqlFilter(String),
+
     #[error("Property {0} not found in temporal or constant metadata")]
     PropertyNotFound(String),
 
@@ -365,11 +383,17 @@ pub enum GraphError {
     #[error("Unsupported Value: {0}")]
     UnsupportedValue(String),
 
-    #[error("Illegal FilterExpr: {0}, Reason: {1}.")]
-    IllegalFilterExpr(FilterExpr, String),
-
     #[error("Value cannot be empty.")]
     EmptyValue,
+
+    #[error("Filter must contain at least one filter condition.")]
+    ParsingError,
+
+    #[error("Indexing not supported")]
+    IndexingNotSupported,
+
+    #[error("Failed to create index in ram")]
+    FailedToCreateIndexInRam,
 }
 
 impl GraphError {

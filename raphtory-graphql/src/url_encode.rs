@@ -2,7 +2,7 @@ use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
 use raphtory::{
     core::utils::errors::GraphError,
     db::api::view::MaterializedGraph,
-    serialise::{StableDecode, StableEncode},
+    serialise::{InternalStableDecode, StableEncode},
 };
 
 #[derive(thiserror::Error, Debug)]

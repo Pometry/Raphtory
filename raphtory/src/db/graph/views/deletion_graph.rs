@@ -417,20 +417,20 @@ mod test_deletions {
     fn test_nodes() {
         let g = PersistentGraph::new();
 
-        g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
-            .unwrap();
-        g.add_edge(1, 1, 3, [("added", Prop::I64(0))], Some("assigned"))
-            .unwrap();
-        g.add_edge(2, 4, 2, [("added", Prop::I64(0))], Some("has"))
-            .unwrap();
-        g.add_edge(3, 4, 2, [("added", Prop::I64(0))], Some("has"))
-            .unwrap();
-        g.add_edge(4, 5, 2, [("added", Prop::I64(0))], Some("blocks"))
-            .unwrap();
-        g.add_edge(5, 4, 5, [("added", Prop::I64(0))], Some("has"))
-            .unwrap();
-        g.add_edge(6, 6, 5, [("added", Prop::I64(0))], Some("assigned"))
-            .unwrap();
+        let edges = [
+            (0, 1, 2, "assigned"),
+            (1, 1, 3, "assigned"),
+            (2, 4, 2, "has"),
+            (3, 4, 2, "has"),
+            (4, 5, 2, "blocks"),
+            (5, 4, 5, "has"),
+            (6, 6, 5, "assigned"),
+        ];
+
+        for (time, src, dst, layer) in edges {
+            g.add_edge(time, src, dst, [("added", Prop::I64(0))], Some(layer))
+                .unwrap();
+        }
 
         let nodes = g
             .window(0, 1701786285758)
@@ -1557,55 +1557,26 @@ mod test_node_history_filter_persistent_graph {
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        graph
-            .add_node(6, "N1", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-        graph
-            .add_node(7, "N1", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
+        let nodes = [
+            (6, "N1", Prop::U64(2)),
+            (7, "N1", Prop::U64(1)),
+            (6, "N2", Prop::U64(1)),
+            (7, "N2", Prop::U64(2)),
+            (8, "N3", Prop::U64(1)),
+            (9, "N4", Prop::U64(1)),
+            (5, "N5", Prop::U64(1)),
+            (6, "N5", Prop::U64(2)),
+            (5, "N6", Prop::U64(1)),
+            (6, "N6", Prop::U64(1)),
+            (3, "N7", Prop::U64(1)),
+            (5, "N7", Prop::U64(1)),
+            (3, "N8", Prop::U64(1)),
+            (4, "N8", Prop::U64(2)),
+        ];
 
-        graph
-            .add_node(6, "N2", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(7, "N2", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(8, "N3", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(9, "N4", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(5, "N5", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(6, "N5", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(5, "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(6, "N6", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(3, "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(5, "N7", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-
-        graph
-            .add_node(3, "N8", [("p1", Prop::U64(1u64))], None)
-            .unwrap();
-        graph
-            .add_node(4, "N8", [("p1", Prop::U64(2u64))], None)
-            .unwrap();
+        for (time, id, prop) in nodes {
+            graph.add_node(time, id, [("p1", prop)], None).unwrap();
+        }
 
         graph
     }
@@ -1770,62 +1741,30 @@ mod test_edge_history_filter_persistent_graph {
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        graph
-            .add_edge(6, "N1", "N2", [("p1", Prop::U64(2u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(7, "N1", "N2", [("p1", Prop::U64(1u64))], Some("layer2"))
-            .unwrap();
+        let edges = [
+            (6, "N1", "N2", Prop::U64(2), Some("layer1")),
+            (7, "N1", "N2", Prop::U64(1), Some("layer2")),
+            (6, "N2", "N3", Prop::U64(1), Some("layer1")),
+            (7, "N2", "N3", Prop::U64(2), Some("layer2")),
+            (8, "N3", "N4", Prop::U64(1), Some("layer1")),
+            (9, "N4", "N5", Prop::U64(1), Some("layer1")),
+            (5, "N5", "N6", Prop::U64(1), Some("layer1")),
+            (6, "N5", "N6", Prop::U64(2), Some("layer2")),
+            (5, "N6", "N7", Prop::U64(1), Some("layer1")),
+            (6, "N6", "N7", Prop::U64(1), Some("layer2")),
+            (3, "N7", "N8", Prop::U64(1), Some("layer1")),
+            (5, "N7", "N8", Prop::U64(1), Some("layer2")),
+            (3, "N8", "N1", Prop::U64(1), Some("layer1")),
+            (4, "N8", "N1", Prop::U64(2), Some("layer2")),
+            (3, "N9", "N2", Prop::U64(1), Some("layer1")),
+            (3, "N9", "N2", Prop::U64(2), Some("layer2")),
+        ];
 
-        graph
-            .add_edge(6, "N2", "N3", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(7, "N2", "N3", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(8, "N3", "N4", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-
-        graph
-            .add_edge(9, "N4", "N5", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-
-        graph
-            .add_edge(5, "N5", "N6", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(6, "N5", "N6", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(5, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(6, "N6", "N7", [("p1", Prop::U64(1u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(3, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(5, "N7", "N8", [("p1", Prop::U64(1u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(3, "N8", "N1", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(4, "N8", "N1", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
-
-        graph
-            .add_edge(3, "N9", "N2", [("p1", Prop::U64(1u64))], Some("layer1"))
-            .unwrap();
-        graph
-            .add_edge(3, "N9", "N2", [("p1", Prop::U64(2u64))], Some("layer2"))
-            .unwrap();
+        for (time, src, dst, prop, layer) in edges {
+            graph
+                .add_edge(time, src, dst, [("p1", prop)], layer)
+                .unwrap();
+        }
 
         graph
     }

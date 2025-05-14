@@ -1,25 +1,25 @@
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            storage::graph::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritTimeSemantics, InternalNodeFilterOps, Static,
+                    InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
-                node::NodeViewOps,
                 Base,
             },
         },
-        graph::{node::NodeView, views::property_filter::internal::InternalNodePropertyFilterOps},
+        graph::views::filter::{
+            internal::CreateNodeFilter, model::property_filter::PropertyFilter,
+        },
     },
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::GraphViewOps,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
+use raphtory_api::core::entities::LayerIds;
 
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
@@ -45,23 +45,20 @@ impl<'graph, G> NodePropertyFilteredGraph<G> {
     }
 }
 
-impl InternalNodePropertyFilterOps for PropertyFilter {
-    type NodePropertyFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
+impl CreateNodeFilter for PropertyFilter {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
 
-    fn create_node_property_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_ids(graph.node_meta())?;
-        let c_prop_id = self.resolve_constant_prop_ids(graph.node_meta())?;
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        let t_prop_id = self.resolve_temporal_prop_id(graph.node_meta())?;
+        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta())?;
         Ok(NodePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))
     }
 }
-
-impl<G> Static for NodePropertyFilteredGraph<G> {}
-impl<G> Immutable for NodePropertyFilteredGraph<G> {}
 
 impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
     type Base = G;
@@ -71,10 +68,11 @@ impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
     }
 }
 
+impl<G> Static for NodePropertyFilteredGraph<G> {}
+impl<G> Immutable for NodePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFilteredGraph<G> {}
@@ -103,20 +101,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilt
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.internal_filter_node(node, layer_ids) {
-            let props = NodeView::new_internal(&self.graph, node.vid()).properties();
-            let prop_value = self
-                .t_prop_id
-                .and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                })
-                .or_else(|| {
-                    self.c_prop_id
-                        .and_then(|prop_id| props.constant().get_by_id(prop_id))
-                });
-            self.filter.matches(prop_value.as_ref())
+            self.filter
+                .matches_node(&self.graph, self.t_prop_id, self.c_prop_id, node)
         } else {
             false
         }

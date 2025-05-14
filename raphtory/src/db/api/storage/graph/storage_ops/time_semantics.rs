@@ -737,7 +737,7 @@ mod test_graph_storage {
     mod search_nodes {
         use super::*;
         use crate::{
-            db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
+            db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
             prelude::{Graph, NodeViewOps, PropertyFilter},
         };
 
@@ -763,7 +763,7 @@ mod test_graph_storage {
     mod search_edges {
         use super::*;
         use crate::{
-            db::{api::view::SearchableGraphOps, graph::views::property_filter::PropertyFilterOps},
+            db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
             prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
         };
         #[test]

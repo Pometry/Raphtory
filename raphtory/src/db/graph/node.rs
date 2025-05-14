@@ -30,7 +30,10 @@ use crate::{
         api::{
             state::NodeOp,
             storage::graph::storage_ops::GraphStorage,
-            view::{internal::NodeTimeSemanticsOps, DynamicGraph, IntoDynamic},
+            view::{
+                internal::NodeTimeSemanticsOps, DynamicGraph, ExplodedEdgePropertyFilterOps,
+                IntoDynamic,
+            },
         },
         graph::edges::Edges,
     },

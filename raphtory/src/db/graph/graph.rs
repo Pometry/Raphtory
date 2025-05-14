@@ -493,6 +493,8 @@ impl Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
+    #[cfg(feature = "proto")]
+    use crate::serialise::StableDecode;
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{

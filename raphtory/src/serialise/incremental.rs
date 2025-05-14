@@ -1,4 +1,6 @@
 use super::GraphFolder;
+#[cfg(feature = "search")]
+use crate::prelude::SearchableGraphOps;
 use crate::{
     core::{
         utils::errors::{GraphError, WriteError},
@@ -8,9 +10,9 @@ use crate::{
         api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::Graph,
+    prelude::{Graph, StableDecode},
     serialise::{
-        serialise::{CacheOps, StableDecode, StableEncode},
+        serialise::{CacheOps, InternalStableDecode, StableEncode},
         ProtoGraph,
     },
 };
@@ -34,7 +36,7 @@ use tracing::instrument;
 pub struct GraphWriter {
     writer: Arc<Mutex<File>>,
     proto_delta: Mutex<ProtoGraph>,
-    folder: GraphFolder,
+    pub(crate) folder: GraphFolder,
 }
 
 fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
@@ -291,17 +293,21 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
+impl<G: InternalCache + InternalStableDecode + StableEncode> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;
         self.init_cache(&folder)
     }
+
     #[instrument(level = "debug", skip(self))]
     fn write_updates(&self) -> Result<(), GraphError> {
         let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
         cache.write()?;
-        cache.folder.write_metadata(self)
+        cache.folder.write_metadata(self)?;
+        #[cfg(feature = "search")]
+        self.persist_index_to_disk(&cache.folder.root_folder)?;
+        Ok(())
     }
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {

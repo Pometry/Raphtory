@@ -6,7 +6,9 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic, MaterializedGraph, OneHopFilter},
+                internal::{
+                    DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
+                },
                 LayerOps, StaticGraphViewOps,
             },
         },
@@ -18,14 +20,13 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
+                filter::{
+                    edge_property_filtered_graph::EdgePropertyFilteredGraph,
+                    node_property_filtered_graph::NodePropertyFilteredGraph,
+                    node_type_filtered_graph::NodeTypeFilteredGraph,
+                },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
-                property_filter::{
-                    edge_property_filter::EdgePropertyFilteredGraph,
-                    exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, internal::*,
-                    node_property_filter::NodePropertyFilteredGraph,
-                },
                 window_graph::WindowedGraph,
             },
         },
@@ -35,7 +36,7 @@ use crate::{
         graph::{edge::PyEdge, node::PyNode},
         types::{
             repr::{Repr, StructReprBuilder},
-            wrappers::prop::PyPropertyFilter,
+            wrappers::filter_expr::PyFilterExpr,
         },
         utils::PyNodeRef,
     },
@@ -137,7 +138,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for CachedView<
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for TypeFilteredSubgraph<G> {
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeTypeFilteredGraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -167,17 +168,17 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropert
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
-    for ExplodedEdgePropertyFilteredGraph<G>
-{
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
+// impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
+//     for ExplodedEdgePropertyFilteredGraph<G>
+// {
+//     type Target = PyGraphView;
+//     type Output = <Self::Target as IntoPyObject<'py>>::Output;
+//     type Error = <Self::Target as IntoPyObject<'py>>::Error;
+//
+//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+//         PyGraphView::from(self).into_pyobject(py)
+//     }
+// }
 
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
@@ -413,7 +414,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView: Returns the subgraph
-    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> TypeFilteredSubgraph<DynamicGraph> {
+    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> NodeTypeFilteredGraph<DynamicGraph> {
         self.graph.subgraph_node_types(node_types)
     }
 

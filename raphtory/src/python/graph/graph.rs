@@ -22,7 +22,7 @@ use crate::{
     },
     serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
-        StableDecode, StableEncode,
+        InternalStableDecode, StableEncode,
     },
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};

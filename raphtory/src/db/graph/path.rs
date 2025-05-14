@@ -13,7 +13,7 @@ use crate::{
             edges::{Edges, NestedEdges},
             node::NodeView,
             views::{
-                layer_graph::LayeredGraph, node_type_filtered_subgraph::TypeFilteredSubgraph,
+                filter::node_type_filtered_graph::NodeTypeFilteredGraph, layer_graph::LayeredGraph,
                 window_graph::WindowedGraph,
             },
         },
@@ -34,10 +34,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for PathFromGraph<'graph, G, GH>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
-{
-}
+// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+//     ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
+// {
+// }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for PathFromGraph<'graph, G, GH>
@@ -113,7 +113,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         self.iter_refs().next().is_none()
     }
 
-    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromGraph<'graph, G, GH> {
+    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
+        &self,
+        node_types: I,
+    ) -> PathFromGraph<'graph, G, GH> {
         let node_types_filter =
             create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 
@@ -283,11 +286,11 @@ impl From<PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>>
     }
 }
 
-impl From<PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>>
+impl From<PathFromNode<'static, DynamicGraph, NodeTypeFilteredGraph<DynamicGraph>>>
     for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
     fn from(
-        value: PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>,
+        value: PathFromNode<'static, DynamicGraph, NodeTypeFilteredGraph<DynamicGraph>>,
     ) -> Self {
         PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
     }
@@ -304,10 +307,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for PathFromNode<'graph, G, GH>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
-{
-}
+// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+//     ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
+// {
+// }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for PathFromNode<'graph, G, GH>
@@ -363,7 +366,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         self.iter().next().is_none()
     }
 
-    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromNode<'graph, G, GH> {
+    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
+        &self,
+        node_types: I,
+    ) -> PathFromNode<'graph, G, GH> {
         let node_types_filter =
             create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 

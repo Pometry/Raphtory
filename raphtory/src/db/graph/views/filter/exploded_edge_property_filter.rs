@@ -14,7 +14,7 @@ use crate::{
                 Base,
             },
         },
-        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
+        graph::views::filter::internal::InternalExplodedEdgeFilterOps,
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
@@ -69,7 +69,7 @@ impl InternalExplodedEdgeFilterOps for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_ids(graph.edge_meta())?;
+        let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
         Ok(ExplodedEdgePropertyFilteredGraph::new(
             graph.clone(),
             t_prop_id,

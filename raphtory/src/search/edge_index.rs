@@ -15,19 +15,22 @@ use crate::{
     prelude::*,
     search::{
         entity_index::EntityIndex,
-        fields::{DESTINATION, EDGE_ID, SOURCE},
+        fields::{DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, SOURCE, SOURCE_TOKENIZED},
         TOKENIZER,
     },
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::ParallelIterator;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    path::{Path, PathBuf},
+};
 use tantivy::{
     collector::TopDocs,
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST,
-        INDEXED, STORED,
+        INDEXED, STORED, STRING,
     },
     Document, IndexWriter, TantivyDocument, TantivyError,
 };
@@ -36,8 +39,10 @@ use tantivy::{
 pub struct EdgeIndex {
     pub(crate) entity_index: EntityIndex,
     pub(crate) edge_id_field: Field,
-    pub(crate) from_field: Field,
-    pub(crate) to_field: Field,
+    pub(crate) src_field: Field,
+    pub(crate) src_tokenized_field: Field,
+    pub(crate) dst_field: Field,
+    pub(crate) dst_tokenized_field: Field,
 }
 
 impl Debug for EdgeIndex {
@@ -49,21 +54,67 @@ impl Debug for EdgeIndex {
 }
 
 impl EdgeIndex {
-    pub(crate) fn new() -> Self {
-        let schema = Self::schema_builder().build();
-        let edge_id_field = schema.get_field(EDGE_ID).ok().expect("Edge ID is absent");
-        let from_field = schema.get_field(SOURCE).expect("Source is absent");
-        let to_field = schema
-            .get_field(DESTINATION)
-            .expect("Destination is absent");
+    fn fetch_fields(schema: &Schema) -> Result<(Field, Field, Field, Field, Field), GraphError> {
+        let edge_id_field = schema
+            .get_field(EDGE_ID)
+            .map_err(|_| GraphError::IndexErrorMsg("Edge ID field missing in schema.".into()))?;
 
-        let entity_index = EntityIndex::new(schema);
-        EdgeIndex {
+        let src_field = schema
+            .get_field(SOURCE)
+            .map_err(|_| GraphError::IndexErrorMsg("Source field missing in schema.".into()))?;
+
+        let src_tokenized_field = schema.get_field(SOURCE_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized source field missing in schema.".into())
+        })?;
+
+        let dst_field = schema.get_field(DESTINATION).map_err(|_| {
+            GraphError::IndexErrorMsg("Destination field missing in schema.".into())
+        })?;
+
+        let dst_tokenized_field = schema.get_field(DESTINATION_TOKENIZED).map_err(|_| {
+            GraphError::IndexErrorMsg("Tokenized destination field missing in schema.".into())
+        })?;
+
+        Ok((
+            edge_id_field,
+            src_field,
+            src_tokenized_field,
+            dst_field,
+            dst_tokenized_field,
+        ))
+    }
+
+    pub(crate) fn new(path: &Option<PathBuf>) -> Result<Self, GraphError> {
+        let schema = Self::schema_builder().build();
+        let (edge_id_field, src_field, src_tokenized_field, dst_field, dst_tokenized_field) =
+            Self::fetch_fields(&schema)?;
+
+        let entity_index = EntityIndex::new(schema, path)?;
+
+        Ok(Self {
             entity_index,
             edge_id_field,
-            from_field,
-            to_field,
-        }
+            src_field,
+            src_tokenized_field,
+            dst_field,
+            dst_tokenized_field,
+        })
+    }
+
+    pub(crate) fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+        let entity_index = EntityIndex::load_edges_index_from_path(path)?;
+        let schema = entity_index.index.schema();
+        let (edge_id_field, src_field, src_tokenized_field, dst_field, dst_tokenized_field) =
+            Self::fetch_fields(&schema)?;
+
+        Ok(Self {
+            entity_index,
+            edge_id_field,
+            src_field,
+            src_tokenized_field,
+            dst_field,
+            dst_tokenized_field,
+        })
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
@@ -78,13 +129,11 @@ impl EdgeIndex {
         }
 
         let constant_property_indexes = self.entity_index.const_property_indexes.read();
-
         for property_index in constant_property_indexes.iter().flatten() {
             property_index.print()?;
         }
 
         let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
-
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }
@@ -95,16 +144,18 @@ impl EdgeIndex {
     fn schema_builder() -> SchemaBuilder {
         let mut schema_builder = Schema::builder();
         schema_builder.add_u64_field(EDGE_ID, INDEXED | FAST | STORED);
+        schema_builder.add_text_field(SOURCE, STRING);
         schema_builder.add_text_field(
-            SOURCE,
+            SOURCE_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             ),
         );
+        schema_builder.add_text_field(DESTINATION, STRING);
         schema_builder.add_text_field(
-            DESTINATION,
+            DESTINATION_TOKENIZED,
             TextOptions::default().set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(TOKENIZER)
@@ -118,11 +169,20 @@ impl EdgeIndex {
         self.entity_index.index.schema().get_field(field_name)
     }
 
+    pub fn get_tokenized_edge_field(&self, field_name: &str) -> tantivy::Result<Field> {
+        self.entity_index
+            .index
+            .schema()
+            .get_field(format!("{field_name}_tokenized").as_ref())
+    }
+
     fn create_document<'a>(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.edge_id_field, edge_id);
-        document.add_text(self.from_field, src);
-        document.add_text(self.to_field, dst);
+        document.add_text(self.src_field, src.clone());
+        document.add_text(self.src_tokenized_field, src);
+        document.add_text(self.dst_field, dst.clone());
+        document.add_text(self.dst_tokenized_field, dst);
         document
     }
 
@@ -247,23 +307,41 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edges(graph: &GraphStorage) -> Result<EdgeIndex, GraphError> {
-        let edge_index = EdgeIndex::new();
+    pub(crate) fn index_edges(
+        graph: &GraphStorage,
+        path: Option<&Path>,
+    ) -> Result<EdgeIndex, GraphError> {
+        let edge_index_path = path.as_deref().map(|p| p.join("edges"));
+        let edge_index = EdgeIndex::new(&edge_index_path)?;
 
         // Initialize property indexes and get their writers
         let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();
+        let const_properties_index_path = edge_index_path
+            .as_deref()
+            .map(|p| p.join("const_properties"));
         let mut const_writers = edge_index
             .entity_index
-            .initialize_edge_const_property_indexes(graph, const_property_keys)?;
+            .initialize_edge_const_property_indexes(
+                graph,
+                const_property_keys,
+                &const_properties_index_path,
+            )?;
 
         let temporal_property_keys = graph
             .edge_meta()
             .temporal_prop_meta()
             .get_keys()
             .into_iter();
+        let temporal_properties_index_path = edge_index_path
+            .as_deref()
+            .map(|p| p.join("temporal_properties"));
         let mut temporal_writers = edge_index
             .entity_index
-            .initialize_edge_temporal_property_indexes(graph, temporal_property_keys)?;
+            .initialize_edge_temporal_property_indexes(
+                graph,
+                temporal_property_keys,
+                &temporal_properties_index_path,
+            )?;
 
         let mut writer = edge_index.entity_index.index.writer(100_000_000)?;
         let locked_g = graph.core_graph();

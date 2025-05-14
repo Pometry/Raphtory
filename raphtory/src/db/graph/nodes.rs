@@ -6,7 +6,8 @@ use crate::{
             storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{is_view_compatible, FilterOps, NodeList, OneHopFilter, Static},
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
+                IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{create_node_type_filter, edges::NestedEdges, node::NodeView, path::PathFromGraph},
@@ -166,9 +167,9 @@ where
                 self.graph.node_list(),
                 node_types_filter,
             )),
-            Some(nodes) => Either::Right(g.into_nodes_par(
+            Some(elems) => Either::Right(g.into_nodes_par(
                 self.graph.clone(),
-                NodeList::List { nodes },
+                NodeList::List { elems },
                 node_types_filter,
             )),
         }
@@ -193,9 +194,9 @@ where
                 self.graph.node_list(),
                 node_types_filter,
             ),
-            Some(nodes) => g.into_nodes_iter(
+            Some(elems) => g.into_nodes_iter(
                 self.graph.clone(),
-                NodeList::List { nodes },
+                NodeList::List { elems },
                 node_types_filter,
             ),
         }
@@ -260,7 +261,10 @@ where
         })
     }
 
-    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
+    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
+        &self,
+        node_types: I,
+    ) -> Nodes<'graph, G, GH> {
         let node_types_filter = Some(create_node_type_filter(
             self.graph.node_meta().node_type_meta(),
             node_types,

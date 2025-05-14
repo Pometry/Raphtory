@@ -23,9 +23,16 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Index<K> {
     index: Arc<IndexSet<K, ahash::RandomState>>,
+}
+
+impl<K> Clone for Index<K> {
+    fn clone(&self) -> Self {
+        let index = self.index.clone();
+        Self { index }
+    }
 }
 
 impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator<K> for Index<K> {
@@ -42,7 +49,7 @@ impl Index<VID> {
             if graph.node_list_trusted() {
                 match graph.node_list() {
                     NodeList::All { .. } => None,
-                    NodeList::List { nodes } => Some(nodes),
+                    NodeList::List { elems } => Some(elems),
                 }
             } else {
                 Some(Self::from_iter(graph.nodes().iter().map(|node| node.node)))
@@ -97,6 +104,10 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         (0..self.len())
             .into_par_iter()
             .map(move |i| *self.index.get_index(i).unwrap())
+    }
+
+    pub fn intersection(&self, other: &Self) -> Self {
+        self.index.intersection(&other.index).copied().collect()
     }
 }
 
