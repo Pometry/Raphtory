@@ -5,23 +5,6 @@ pub mod layer_graph;
 pub mod node_subgraph;
 pub mod window_graph;
 
-pub mod macros {
-    #[macro_export]
-    #[cfg(feature = "search")]
-    macro_rules! assert_search_results_w {
-        ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {{
-            let search_results = $search_fn($filter.clone(), $window);
-            assert_eq!($expected_results, search_results);
-        }};
-    }
-
-    #[macro_export]
-    #[cfg(not(feature = "search"))]
-    macro_rules! assert_search_results_w {
-        ($search_fn:ident, $filter:expr, $window:expr, $expected_results:expr) => {};
-    }
-}
-
 pub mod macros_nodes {
     #[macro_export]
     macro_rules! assert_filter_nodes_results {
