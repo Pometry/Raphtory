@@ -21,9 +21,12 @@ use crate::{
         api::{
             mutation::internal::InheritMutationOps,
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
-            view::internal::{
-                Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritViewOps, Static,
+            view::{
+                internal::{
+                    Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                    InheritViewOps, Static,
+                },
+                time::internal::InternalTimeOps,
             },
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
@@ -82,7 +85,7 @@ pub fn assert_node_equal<
     n1: NodeView<'graph, G1, GH1>,
     n2: NodeView<'graph, G2, GH2>,
 ) {
-    assert_node_equal_layer(n1, n2, "")
+    assert_node_equal_layer(n1, n2, "", false)
 }
 
 pub fn assert_node_equal_layer<
@@ -95,6 +98,7 @@ pub fn assert_node_equal_layer<
     n1: NodeView<'graph, G1, GH1>,
     n2: NodeView<'graph, G2, GH2>,
     layer_tag: &str,
+    persistent: bool,
 ) {
     assert_eq!(
         n1.id(),
@@ -187,7 +191,35 @@ pub fn assert_node_equal_layer<
         n1.id(),
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>()
-    )
+    );
+    if persistent {
+        let earliest = n1.timeline_start();
+        match earliest {
+            None => {
+                assert!(
+                    n2.timeline_end().is_none(),
+                    "expected empty timeline for node {:?}{layer_tag}",
+                    n1.id()
+                );
+            }
+            Some(earliest) => {
+                // persistent graph might have updates at start after materialize
+                assert_eq!(
+                    n1.after(earliest).history(),
+                    n2.after(earliest).history(),
+                    "mismatched history for node {:?}{layer_tag}",
+                    n1.id()
+                );
+            }
+        }
+    } else {
+        assert_eq!(
+            n1.history(),
+            n2.history(),
+            "mismatched history for node {:?}{layer_tag}",
+            n1.id()
+        );
+    }
 }
 
 pub fn assert_nodes_equal<
@@ -200,7 +232,7 @@ pub fn assert_nodes_equal<
     nodes1: &Nodes<'graph, G1, GH1>,
     nodes2: &Nodes<'graph, G2, GH2>,
 ) {
-    assert_nodes_equal_layer(nodes1, nodes2, "");
+    assert_nodes_equal_layer(nodes1, nodes2, "", false);
 }
 
 pub fn assert_nodes_equal_layer<
@@ -213,6 +245,7 @@ pub fn assert_nodes_equal_layer<
     nodes1: &Nodes<'graph, G1, GH1>,
     nodes2: &Nodes<'graph, G2, GH2>,
     layer_tag: &str,
+    persistent: bool,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
     nodes1.sort();
@@ -221,12 +254,10 @@ pub fn assert_nodes_equal_layer<
     assert_eq!(
         nodes1.len(),
         nodes2.len(),
-        "mismatched number of nodes{layer_tag}: left {}, right {}",
-        nodes1.len(),
-        nodes2.len()
+        "mismatched number of nodes{layer_tag}",
     );
     for (n1, n2) in nodes1.into_iter().zip(nodes2) {
-        assert_node_equal(n1, n2);
+        assert_node_equal_layer(n1, n2, layer_tag, persistent);
     }
 }
 
@@ -241,7 +272,7 @@ pub fn assert_edges_equal<
     edges1: &Edges<'graph1, G1, GH1>,
     edges2: &Edges<'graph2, G2, GH2>,
 ) {
-    assert_edges_equal_layer(edges1, edges2, "");
+    assert_edges_equal_layer(edges1, edges2, "", false);
 }
 
 pub fn assert_edges_equal_layer<
@@ -255,21 +286,20 @@ pub fn assert_edges_equal_layer<
     edges1: &Edges<'graph1, G1, GH1>,
     edges2: &Edges<'graph2, G2, GH2>,
     layer_tag: &str,
+    persistent: bool,
 ) {
     let mut edges1: Vec<_> = edges1.collect();
     let mut edges2: Vec<_> = edges2.collect();
     assert_eq!(
         edges1.len(),
         edges2.len(),
-        "mismatched number of edges{layer_tag}: left {}, right {}",
-        edges1.len(),
-        edges2.len()
+        "mismatched number of edges{layer_tag}",
     );
     edges1.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
     edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
 
     for (e1, e2) in edges1.into_iter().zip(edges2) {
-        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}",);
+        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
         assert_eq!(
             e1.earliest_time(),
             e2.earliest_time(),
@@ -294,12 +324,33 @@ pub fn assert_edges_equal_layer<
             "mismatched is_valid for edge {:?}{layer_tag}",
             e1.id()
         );
-        assert_eq!(
-            e1.is_active(),
-            e2.is_active(),
-            "mismatched is_active for edge {:?}{layer_tag}",
-            e1.id()
-        );
+        if persistent {
+            let earliest = e1.timeline_start();
+            match earliest {
+                None => {
+                    assert!(
+                        e2.timeline_start().is_none(),
+                        "expected empty timeline for edge {:?}{layer_tag}",
+                        e1.id()
+                    )
+                }
+                Some(earliest) => {
+                    assert_eq!(
+                        e1.after(earliest).is_active(),
+                        e2.after(earliest).is_active(),
+                        "mismatched is_active for edge {:?}{layer_tag}",
+                        e1.id()
+                    );
+                }
+            }
+        } else {
+            assert_eq!(
+                e1.is_active(),
+                e2.is_active(),
+                "mismatched is_active for edge {:?}{layer_tag}",
+                e1.id()
+            );
+        }
         assert_eq!(
             e1.is_deleted(),
             e2.is_deleted(),
@@ -325,10 +376,8 @@ pub fn assert_edges_equal_layer<
         assert_eq!(
             e1_updates,
             e2_updates,
-            "mismatched updates for edge {:?}{layer_tag}: left {:?}, right {:?}",
+            "mismatched updates for edge {:?}{layer_tag}",
             e1.id(),
-            e1_updates,
-            e2_updates,
         );
     }
 }
@@ -337,6 +386,7 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
     g1: &G1,
     g2: &G2,
     layer: Option<&str>,
+    persistent: bool,
 ) {
     let layer_tag = match layer {
         None => "",
@@ -377,16 +427,17 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
         g2.properties().temporal().as_map(),
         "mismatched graph temporal properties{layer_tag}",
     );
-    assert_nodes_equal_layer(&g1.nodes(), &g2.nodes(), layer_tag);
-    assert_edges_equal_layer(&g1.edges(), &g2.edges(), layer_tag);
+    assert_nodes_equal_layer(&g1.nodes(), &g2.nodes(), layer_tag, persistent);
+    assert_edges_equal_layer(&g1.edges(), &g2.edges(), layer_tag, persistent);
 }
 
-pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
+    persistent: bool,
 ) {
     black_box({
-        assert_graph_equal_layer(g1, g2, None);
+        assert_graph_equal_layer(g1, g2, None, persistent);
         let left_layers: HashSet<_> = g1.unique_layers().collect();
         let right_layers: HashSet<_> = g2.unique_layers().collect();
         assert_eq!(
@@ -402,9 +453,17 @@ pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'gr
                 &g2.layers(layer.deref())
                     .expect(&format!("Right graph missing layer {layer}")),
                 Some(&layer),
+                persistent,
             );
         }
     })
+}
+
+pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    g1: &G1,
+    g2: &G2,
+) {
+    assert_graph_equal_inner(g1, g2, false)
 }
 
 pub fn assert_persistent_materialize_graph_equal<
@@ -415,15 +474,7 @@ pub fn assert_persistent_materialize_graph_equal<
     g1: &G1,
     g2: &G2,
 ) {
-    let earliest = g1.earliest_time();
-    assert_eq!(earliest, g2.earliest_time(), "mismatched earliest time");
-    match earliest {
-        None => assert_graph_equal(g1, g2),
-        Some(earliest) => {
-            // start of window has weird behaviour when materializing persistent graph, ignore it.
-            assert_graph_equal(&g1.after(earliest), &g2.after(earliest));
-        }
-    }
+    assert_graph_equal_inner(g1, g2, true)
 }
 
 impl Display for Graph {
