@@ -328,7 +328,7 @@ mod tests {
             .window(-2925244660385668055, 7060945172792084486)
             .valid()
             .unwrap();
-        assert_graph_equal(&gv, &gv.materialize().unwrap());
+        assert_persistent_materialize_graph_equal(&gv, &gv.materialize().unwrap());
     }
 
     #[test]

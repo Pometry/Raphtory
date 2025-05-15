@@ -807,7 +807,7 @@ mod test_deletions {
 
             let wg = g.window(3, 5);
             let mg = wg.materialize().unwrap();
-            assert_graph_equal(&wg, &mg);
+            assert_persistent_materialize_graph_equal(&wg, &mg);
         });
     }
 
