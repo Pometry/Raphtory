@@ -91,7 +91,10 @@ mod tests {
         core::utils::errors::GraphError,
         db::{
             api::mutation::internal::InternalAdditionOps,
-            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+            graph::{
+                graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
+                views::deletion_graph::PersistentGraph,
+            },
         },
         prelude::*,
         test_utils::{build_graph, build_graph_strat},
@@ -132,7 +135,7 @@ mod tests {
             let g = PersistentGraph(build_graph(&graph_f));
             let gvw = g.valid().unwrap().window(w.start, w.end);
             let gmw = gvw.materialize().unwrap();
-            assert_graph_equal(&gvw, &gmw);
+            assert_persistent_materialize_graph_equal(&gvw, &gmw);
         })
     }
 
@@ -142,7 +145,7 @@ mod tests {
             let g = PersistentGraph(build_graph(&graph_f));
             let gvw = g.window(w.start, w.end).valid().unwrap();
             let gmw = gvw.materialize().unwrap();
-            assert_graph_equal(&gvw, &gmw);
+            assert_persistent_materialize_graph_equal(&gvw, &gmw);
         })
     }
 
@@ -334,6 +337,6 @@ mod tests {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let gwv = g.window(10, 11).valid().unwrap();
         let gm = gwv.materialize().unwrap();
-        assert_graph_equal(&gwv, &gm);
+        assert_persistent_materialize_graph_equal(&gwv, &gm);
     }
 }

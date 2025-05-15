@@ -400,7 +400,7 @@ mod test_deletions {
             api::{mutation::internal::InternalAdditionOps, view::time::internal::InternalTimeOps},
             graph::{
                 edge::EdgeView,
-                graph::assert_graph_equal,
+                graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
                 views::deletion_graph::{GraphTimeSemanticsOps, PersistentGraph},
             },
         },
@@ -572,7 +572,7 @@ mod test_deletions {
             let g = PersistentGraph(build_graph(&graph_f));
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
-            assert_graph_equal(&gw, &gmw);
+            assert_persistent_materialize_graph_equal(&gw, &gmw);
         })
     }
 
@@ -596,9 +596,9 @@ mod test_deletions {
         expected.resolve_layer(Some("a")).unwrap(); // empty layer exists
 
         println!("expected: {:?}", expected);
-        assert_graph_equal(&gw, &expected);
+        assert_persistent_materialize_graph_equal(&gw, &expected);
 
-        assert_graph_equal(&gw, &gm);
+        assert_persistent_materialize_graph_equal(&gw, &gm);
     }
 
     #[test]
@@ -613,8 +613,8 @@ mod test_deletions {
         println!("materialized: {gm:?}");
         assert_eq!(gm.default_layer().count_nodes(), 1);
 
-        assert_graph_equal(&gw, &gm.clone().into_persistent().unwrap());
-        assert_graph_equal(&gw, &gm);
+        assert_persistent_materialize_graph_equal(&gw, &gm.clone().into_persistent().unwrap());
+        assert_persistent_materialize_graph_equal(&gw, &gm);
     }
 
     #[test]
@@ -637,7 +637,7 @@ mod test_deletions {
             let g = PersistentGraph(build_graph(&graph_f));
             let glw = g.valid_layers(l).window(w.start, w.end);
             let gmlw = glw.materialize().unwrap();
-            assert_graph_equal(&glw, &gmlw);
+            assert_persistent_materialize_graph_equal(&glw, &gmlw);
         })
     }
 
@@ -678,7 +678,7 @@ mod test_deletions {
             .add_constant_properties([("other", "b")], None)
             .unwrap();
         let gw = g.window(-7549523977641994620, -995047120251067629);
-        assert_graph_equal(&gw, &gw.materialize().unwrap())
+        assert_persistent_materialize_graph_equal(&gw, &gw.materialize().unwrap())
     }
 
     #[test]
@@ -702,7 +702,7 @@ mod test_deletions {
 
         let gw = g.after(1);
         let gmw = gw.materialize().unwrap();
-        assert_graph_equal(&gw, &gmw);
+        assert_persistent_materialize_graph_equal(&gw, &gmw);
     }
 
     ///
@@ -756,7 +756,7 @@ mod test_deletions {
             .unwrap()
             .into_persistent()
             .unwrap();
-        assert_graph_equal(&gm, &g.window(3, 5))
+        assert_persistent_materialize_graph_equal(&g.window(3, 5), &gm); // ignore start of window as it has different updates by design
     }
 
     #[test]

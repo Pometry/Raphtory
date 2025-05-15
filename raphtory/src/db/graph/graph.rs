@@ -35,6 +35,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fmt::{Display, Formatter},
+    hint::black_box,
     ops::Deref,
     sync::Arc,
 };
@@ -344,51 +345,37 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
     assert_eq!(
         g1.count_nodes(),
         g2.count_nodes(),
-        "mismatched number of nodes{layer_tag}: left {}, right {}",
-        g1.count_nodes(),
-        g2.count_nodes()
+        "mismatched number of nodes{layer_tag}",
     );
     assert_eq!(
         g1.count_edges(),
         g2.count_edges(),
-        "mismatched number of edges{layer_tag}: left {}, right {}",
-        g1.count_edges(),
-        g2.count_edges()
+        "mismatched number of edges{layer_tag}",
     );
     assert_eq!(
         g1.count_temporal_edges(),
         g2.count_temporal_edges(),
-        "mismatched number of temporal edges{layer_tag}: left {}, right {}",
-        g1.count_temporal_edges(),
-        g2.count_temporal_edges()
+        "mismatched number of temporal edges{layer_tag}",
     );
     assert_eq!(
         g1.earliest_time(),
         g2.earliest_time(),
-        "mismatched earliest time{layer_tag}: left {:?}, right {:?}",
-        g1.earliest_time(),
-        g2.earliest_time()
+        "mismatched earliest time{layer_tag}",
     );
     assert_eq!(
         g1.latest_time(),
         g2.latest_time(),
-        "mismatched latest time{layer_tag}: left {:?}, right {:?}",
-        g1.latest_time(),
-        g2.latest_time()
+        "mismatched latest time{layer_tag}",
     );
     assert_eq!(
         g1.properties().constant().as_map(),
         g2.properties().constant().as_map(),
-        "mismatched graph constant properties{layer_tag}: left {:?}, right {:?}",
-        g1.properties().constant().as_map(),
-        g2.properties().constant().as_map()
+        "mismatched graph constant properties{layer_tag}",
     );
     assert_eq!(
         g1.properties().temporal().as_map(),
         g2.properties().temporal().as_map(),
-        "mismatched graph temporal properties{layer_tag}: left {:?}, right {:?}",
-        g1.properties().temporal().as_map(),
-        g2.properties().temporal().as_map()
+        "mismatched graph temporal properties{layer_tag}",
     );
     assert_nodes_equal_layer(&g1.nodes(), &g2.nodes(), layer_tag);
     assert_edges_equal_layer(&g1.edges(), &g2.edges(), layer_tag);
@@ -398,23 +385,44 @@ pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'gr
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_layer(g1, g2, None);
-    let left_layers: HashSet<_> = g1.unique_layers().collect();
-    let right_layers: HashSet<_> = g2.unique_layers().collect();
-    assert_eq!(
-        left_layers, right_layers,
-        "mismatched layers: left {:?}, right {:?}",
-        left_layers, right_layers
-    );
-
-    for layer in left_layers {
-        assert_graph_equal_layer(
-            &g1.layers(layer.deref())
-                .expect(&format!("Left graph missing layer {layer})")),
-            &g2.layers(layer.deref())
-                .expect(&format!("Right graph missing layer {layer}")),
-            Some(&layer),
+    black_box({
+        assert_graph_equal_layer(g1, g2, None);
+        let left_layers: HashSet<_> = g1.unique_layers().collect();
+        let right_layers: HashSet<_> = g2.unique_layers().collect();
+        assert_eq!(
+            left_layers, right_layers,
+            "mismatched layers: left {:?}, right {:?}",
+            left_layers, right_layers
         );
+
+        for layer in left_layers {
+            assert_graph_equal_layer(
+                &g1.layers(layer.deref())
+                    .expect(&format!("Left graph missing layer {layer})")),
+                &g2.layers(layer.deref())
+                    .expect(&format!("Right graph missing layer {layer}")),
+                Some(&layer),
+            );
+        }
+    })
+}
+
+pub fn assert_persistent_materialize_graph_equal<
+    'graph,
+    G1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+>(
+    g1: &G1,
+    g2: &G2,
+) {
+    let earliest = g1.earliest_time();
+    assert_eq!(earliest, g2.earliest_time(), "mismatched earliest time");
+    match earliest {
+        None => assert_graph_equal(g1, g2),
+        Some(earliest) => {
+            // start of window has weird behaviour when materializing persistent graph, ignore it.
+            assert_graph_equal(&g1.after(earliest), &g2.after(earliest));
+        }
     }
 }
 

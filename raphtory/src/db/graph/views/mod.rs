@@ -140,5 +140,5 @@ mod test_helpers {
     }
 
     #[cfg(feature = "search")]
-    pub use indexed_search::*;
+    pub(crate) use indexed_search::*;
 }
