@@ -268,36 +268,42 @@ pub fn assert_edges_equal_layer<
     edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
 
     for (e1, e2) in edges1.into_iter().zip(edges2) {
-        assert_eq!(
-            e1.id(),
-            e2.id(),
-            "mismatched edge ids{layer_tag}: left {:?}, right {:?}",
-            e1.id(),
-            e2.id()
-        );
+        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}",);
         assert_eq!(
             e1.earliest_time(),
             e2.earliest_time(),
-            "mismatched earliest time for edge {:?}{layer_tag}: left {:?}, right {:?}",
+            "mismatched earliest time for edge {:?}{layer_tag}",
             e1.id(),
-            e1.earliest_time(),
-            e2.earliest_time()
         );
         assert_eq!(
             e1.properties().constant().as_map(),
             e2.properties().constant().as_map(),
-            "mismatched constant properties for edge {:?}{layer_tag}: left {:?}, right {:?}",
+            "mismatched constant properties for edge {:?}{layer_tag}",
             e1.id(),
-            e1.properties().constant().as_map(),
-            e2.properties().constant().as_map()
         );
         assert_eq!(
             e1.properties().temporal().as_map(),
             e2.properties().temporal().as_map(),
-            "mismatched temporal properties for edge {:?}{layer_tag}: left {:?}, right {:?}",
+            "mismatched temporal properties for edge {:?}{layer_tag}",
             e1.id(),
-            e1.properties().temporal().as_map(),
-            e2.properties().temporal().as_map(),
+        );
+        assert_eq!(
+            e1.is_valid(),
+            e2.is_valid(),
+            "mismatched is_valid for edge {:?}{layer_tag}",
+            e1.id()
+        );
+        assert_eq!(
+            e1.is_active(),
+            e2.is_active(),
+            "mismatched is_active for edge {:?}{layer_tag}",
+            e1.id()
+        );
+        assert_eq!(
+            e1.is_deleted(),
+            e2.is_deleted(),
+            "mismatched is_deleted for edge {:?}{layer_tag}",
+            e1.id()
         );
 
         // FIXME: DiskGraph does not currently preserve secondary index
