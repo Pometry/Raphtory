@@ -592,8 +592,6 @@ mod test_layers {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
         }
 
-        // Edges
-
         macro_rules! assert_filter_edges_results {
             // Default usage with all variants
             ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {
