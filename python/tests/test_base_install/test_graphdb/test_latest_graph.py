@@ -25,12 +25,12 @@ def test_edge_latest():
     g.add_edge(5, 1, 3)
     g.add_edge(6, 1, 3)
 
-    assert g.edge(1, 2).latest().latest_time is None
+    assert g.edge(1, 2).latest().latest_time == None
     assert not g.edge(1, 2).latest().is_active()
     assert g.edge(1, 3).latest().is_active()
 
     wg = g.window(2, 4)
-    assert wg.edge(1, 2).latest().latest_time is 3
+    assert wg.edge(1, 2).latest().latest_time == 3
     assert wg.edge(1, 2).latest().is_active()
 
     assert g.edges.latest().earliest_time.collect() == [None, 6]
@@ -99,7 +99,7 @@ def test_persistent_edge_latest():
     g.add_edge(5, 1, 4)
     g.delete_edge(6, 1, 4)
 
-    assert g.edge(1, 2).latest().latest_time is 6
+    assert g.edge(1, 2).latest().latest_time == 6
     assert not g.edge(1, 2).latest().is_active()  # not updated at the latest time
     assert g.edge(1, 2).latest().is_valid()  # is valid (i.e., not deleted)
     assert not g.edge(1, 2).latest().is_deleted()  # not deleted
