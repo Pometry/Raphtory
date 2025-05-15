@@ -154,11 +154,11 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
 /// TODO: Write benchmark to see performance hit of Boxes
 pub struct CompositeHistory {
-    history_objects: Vec<Box<dyn InternalHistoryOps>>
+    history_objects: Vec<Arc<dyn InternalHistoryOps>>
 }
 
 impl CompositeHistory {
-    pub fn new(history_objects: Vec<Box<dyn InternalHistoryOps>>) -> Self {
+    pub fn new(history_objects: Vec<Arc<dyn InternalHistoryOps>>) -> Self {
         Self { history_objects }
     }
 
@@ -169,12 +169,12 @@ impl CompositeHistory {
 }
 
 // Note: All the items held by their respective HistoryImplemented objects must already be of type Box<T>
-pub fn compose_multiple_histories(objects: impl IntoIterator<Item = History<Box<dyn InternalHistoryOps>>>) -> History<CompositeHistory> {
+pub fn compose_multiple_histories(objects: impl IntoIterator<Item = History<Arc<dyn InternalHistoryOps>>>) -> History<CompositeHistory> {
     History::new(CompositeHistory::new(objects.into_iter().map(|h| h.0).collect()))
 }
 
 // Note: Items supplied by the iterator must already be of type Box<T>
-pub fn compose_history_from_items(objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps>>) -> History<CompositeHistory> {
+pub fn compose_history_from_items(objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps>>) -> History<CompositeHistory> {
     History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
 
@@ -293,7 +293,7 @@ mod tests {
                    vec![TimeIndexEntry::new(3, 2)]);
 
         // create Composite History Object
-        let tmp_vector: Vec<Box<dyn InternalHistoryOps>> = vec![Box::new(dumbledore_node), Box::new(harry_node), Box::new(character_edge)];
+        let tmp_vector: Vec<Arc<dyn InternalHistoryOps>> = vec![Arc::new(dumbledore_node), Arc::new(harry_node), Arc::new(character_edge)];
         let composite_history_object = compose_history_from_items(tmp_vector);
         assert_eq!(composite_history_object.iter().collect_vec(),
                    vec![TimeIndexEntry::new(1, 0),

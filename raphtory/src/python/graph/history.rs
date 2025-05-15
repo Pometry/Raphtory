@@ -39,22 +39,52 @@ impl PyHistory {
     // FIXME: potentially implement this using dynamic type checking.
     // FIXME: if all items in vec are "dyn InternalHistoryOps", create object, or else return error/message
     // #[staticmethod]
-    // pub fn compose_from_items(objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps>>) -> Self {
-    //     // History<Arc<CompositeHistory>>
-    //     Self {
-    //         history: History::new(Arc::new(CompositeHistory::new(objects.into_iter().map(|obj| *obj).collect())))
+    // pub fn compose_from_items(objects: Vec<Bound<'_, PyAny>>) -> PyResult<Self> {
+    //     let mut items: Vec<Arc<dyn InternalHistoryOps>> = Vec::new();
+    //
+    //     for obj in objects {
+    //         let item = obj.get();
+    //
+    //         // Try to extract as PyNode
+    //         if let Ok(node) = item.extract::<PyRef<PyNode>>() {
+    //             items.push(Arc::new(node.node.clone()));
+    //             continue;
+    //         }
+    //
+    //         // Try to extract as PyEdge
+    //         if let Ok(edge) = item.extract::<PyRef<PyEdge>>() {
+    //             items.push(Arc::new(edge.edge.clone()));
+    //             continue;
+    //         }
+    //
+    //         // Try to extract as PyHistory
+    //         if let Ok(history) = item.extract::<PyRef<PyHistory>>() {
+    //             // Clone the Arc to avoid unsafe code
+    //             let hist_clone = Arc::clone(&history.history.0);
+    //             items.push(Arc::new(hist_clone));
+    //             continue;
+    //         }
+    //
+    //         // If we got here, the item isn't supported
+    //         return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+    //             format!("Expected Node, Edge, or History, got: {}", item.get_type().name()?)
+    //         ));
     //     }
+    //
+    //     Ok(Self {
+    //         history: History::new(Arc::new(CompositeHistory::new(items)))
+    //     })
     // }
-    
+
     #[staticmethod]
     pub fn compose_from_histories(objects: Vec<PyHistory>) -> Self {
-        //FIXME: This has type Vec<Box<Arc<dyn InternalHistoryOps>>>. I couldn't extract the T from Arc<T>.
-        // When trying to extract the T, I kept getting "size for values of type dyn InternalHistoryOps cannot be known at compile time.
-        let underlying_objects: Vec<Box<dyn InternalHistoryOps>> = objects.into_iter().map(|obj| Box::new(obj.history.0) as Box<dyn InternalHistoryOps>).collect();
         // the only way to get History objects from python is if they are already Arc<...>
+        let underlying_objects: Vec<Arc<dyn InternalHistoryOps>> =
+            objects
+                .into_iter()
+                .map(|obj| Arc::clone(&obj.history.0))
+                .collect();
         Self {
-            // FIXME: This has type History<Arc<CompositeHistory>>, they can be nested. After a single call, we have:
-            // FIXME: Overall, the items are held in History<Arc<Vec<Box<Arc<dyn InternalHistoryOps>>>>>. Too much indirection.
             history: History::new(Arc::new(CompositeHistory::new(underlying_objects)))
         }
     }
