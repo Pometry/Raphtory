@@ -8,6 +8,7 @@ use std::{
     fmt::{Debug, Formatter},
 };
 
+#[derive(Clone)]
 pub struct ConstantProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
