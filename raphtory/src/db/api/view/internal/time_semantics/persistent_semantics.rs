@@ -742,9 +742,11 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> bool {
-        let del_w = w.start.saturating_add(1)..w.end; // deletions window has exclusive start
-        EventSemantics.edge_is_valid_window(e, &view, w)
-            || EventSemantics.edge_is_deleted_window(e, view, del_w)
+        e.filtered_updates_iter(&view, view.layer_ids())
+            .any(|(_, additions, deletions)| {
+                let w = interior_window(w.clone(), &deletions);
+                additions.active(w.clone()) || deletions.active(w)
+            })
     }
 
     fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
