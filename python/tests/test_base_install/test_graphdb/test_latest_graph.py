@@ -121,10 +121,14 @@ def test_persistent_edge_latest():
     assert g.edges.latest().latest_time.collect() == [6, 6, None]
 
     assert g.edges.latest().is_active().collect() == [False, True, False]
+    assert g.edges.latest().is_deleted().collect() == [False, False, True]
+    assert g.edges.latest().is_valid().collect() == [True, True, False]
 
     assert wg.edges.latest().earliest_time.collect() == [5, 5, 5]
     assert wg.edges.latest().latest_time.collect() == [5, 5, 5]
     assert wg.edges.latest().is_active().collect() == [False, True, True]
+    assert wg.edges.latest().is_deleted().collect() == [False, False, False]
+    assert wg.edges.latest().is_valid().collect() == [True, True, True]
 
     assert g.nodes.edges.latest().earliest_time.collect() == [
         [6, 6, None],
