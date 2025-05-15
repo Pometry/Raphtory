@@ -111,7 +111,7 @@ def test_persistent_edge_latest():
     assert g.edge(1, 4).latest().is_deleted()
 
     wg = g.window(3, 6)
-    assert wg.edge(1, 2).latest().latest_time is 5
+    assert wg.edge(1, 2).latest().latest_time == 5
     assert not wg.edge(1, 2).latest().is_active()  # not updated at 5
     assert wg.edge(1, 2).latest().is_valid()
 
