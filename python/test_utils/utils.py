@@ -8,7 +8,6 @@ import pytest
 from functools import wraps
 from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
-from raphtory import DiskGraphStorage
 
 B = TypeVar("B")
 
@@ -51,6 +50,8 @@ def with_disk_variants(init_fn, variants=None):
                 check(pg)
 
             if "DISK_TEST_MARK" in os.environ:
+                from raphtory import DiskGraphStorage
+
                 with tempfile.TemporaryDirectory() as tmpdir:
                     if "event_disk_graph" in variants or "persistent_disk_graph" in variants:
                         g = init_fn(Graph())

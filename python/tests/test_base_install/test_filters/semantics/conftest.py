@@ -1,5 +1,4 @@
 from raphtory import Graph, PersistentGraph
-from raphtory import DiskGraphStorage
 import tempfile
 import pytest
 import shutil
