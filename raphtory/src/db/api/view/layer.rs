@@ -1,7 +1,7 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
+        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
 };
@@ -14,8 +14,7 @@ pub trait LayerOps<'graph> {
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.layers(Layer::Default)
-            .expect("Default layer not found")
+        self.valid_layers(Layer::Default)
     }
 
     /// Return a graph containing the layers in `names`. Errors if one or more of the layers do not exists.
@@ -30,7 +29,7 @@ pub trait LayerOps<'graph> {
     fn exclude_valid_layers<L: Into<Layer>>(&self, layers: L) -> Self::LayeredViewType;
 
     /// Check if `name` is a valid layer name
-    fn has_layer(&self, name: &str) -> bool;
+    fn has_layer<L: SingleLayer>(&self, name: L) -> bool;
 
     /// Return a graph containing the layers in `names`. Any layers that do not exist are ignored.
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType;
@@ -40,7 +39,17 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::FilteredGraph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
+        let layers = match self.current_filter().get_default_layer_id() {
+            None => LayerIds::None,
+            Some(layer) => {
+                if self.current_filter().layer_ids().contains(&layer) {
+                    LayerIds::One(layer)
+                } else {
+                    LayerIds::None
+                }
+            }
+        };
+        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), layers))
     }
 
     fn layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
@@ -76,7 +85,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         ))
     }
 
-    fn has_layer(&self, name: &str) -> bool {
+    fn has_layer<L: SingleLayer>(&self, name: L) -> bool {
         !self
             .current_filter()
             .valid_layer_ids_from_names(name.into())
@@ -99,7 +108,19 @@ pub enum Layer {
     Multiple(Arc<[ArcStr]>),
 }
 
-trait SingleLayer {
+impl Layer {
+    pub fn contains(&self, name: &str) -> bool {
+        match self {
+            Layer::All => true,
+            Layer::None => false,
+            Layer::Default => name == "_default",
+            Layer::One(layer) => layer == name,
+            Layer::Multiple(layers) => layers.iter().any(|l| l == name),
+        }
+    }
+}
+
+pub trait SingleLayer {
     fn name(self) -> ArcStr;
 }
 
@@ -120,10 +141,30 @@ impl SingleLayer for String {
         self.into()
     }
 }
-
-impl<'a, T: ToOwned<Owned = String> + ?Sized> SingleLayer for &'a T {
+impl<'a> SingleLayer for &'a str {
     fn name(self) -> ArcStr {
-        self.to_owned().into()
+        self.into()
+    }
+}
+
+impl<'a> SingleLayer for &'a String {
+    fn name(self) -> ArcStr {
+        self.as_str().into()
+    }
+}
+
+impl<'a> SingleLayer for &'a ArcStr {
+    fn name(self) -> ArcStr {
+        self.clone()
+    }
+}
+
+impl<T: SingleLayer> SingleLayer for Option<T> {
+    fn name(self) -> ArcStr {
+        match self {
+            None => ArcStr::from("_default"),
+            Some(s) => s.name(),
+        }
     }
 }
 

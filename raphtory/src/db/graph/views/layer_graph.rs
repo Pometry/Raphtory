@@ -1,8 +1,3 @@
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
-
 use crate::{
     core::{
         entities::{LayerIds, Multiple},
@@ -10,19 +5,23 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
-                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
                 InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritTimeSemantics, InternalLayerOps, Static,
+                InheritStorageOps, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
     },
     prelude::GraphViewOps,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -57,21 +56,18 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
@@ -120,11 +116,59 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
+    fn edges_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All) || self.graph.edges_filtered()
+    }
+
+    fn edge_history_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All) || self.graph.edge_history_filtered()
+    }
+
+    fn edge_list_trusted(&self) -> bool {
+        matches!(self.layers, LayerIds::All) && self.graph.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, layer_ids)
+    }
+
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, &layer_ids)
+    }
+}
+
 #[cfg(test)]
 mod test_layers {
-    use crate::{prelude::*, test_storage};
+    use crate::{
+        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        prelude::*,
+        test_storage,
+        test_utils::{build_graph, build_graph_layer, build_graph_strat},
+    };
     use itertools::Itertools;
+    use proptest::proptest;
     use raphtory_api::core::entities::GID;
+
+    #[test]
+    fn prop_test_layering() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, false), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
+            let g_layer_expected = Graph::from(build_graph_layer(&graph_f, layer.clone()));
+            let g = Graph::from(build_graph(&graph_f));
+                let g_layer = g.valid_layers(layer.clone());
+                assert_graph_equal(&g_layer, &g_layer_expected);
+        })
+    }
+
+    #[test]
+    fn prop_test_layering_persistent_graph() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
+            let g_layer_expected = PersistentGraph::from(build_graph_layer(&graph_f, layer.clone()));
+            let g = PersistentGraph::from(build_graph(&graph_f));
+            let g_layer = g.valid_layers(layer);
+            assert_graph_equal(&g_layer, &g_layer_expected);
+        })
+    }
 
     #[test]
     fn test_layer_node() {
@@ -213,8 +257,11 @@ mod test_layers {
         let e1 = graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
         graph.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
 
+        println!("edge: {e1:?}");
         // FIXME: this is weird, see issue #1458
         assert!(e1.has_layer("2"));
+        let history = e1.layers("2").unwrap().history();
+        println!("history: {:?}", history);
         assert!(e1.layers("2").unwrap().history().is_empty());
 
         test_storage!(&graph, |graph| {
@@ -287,7 +334,7 @@ mod test_layers {
             use std::ops::Range;
 
             use crate::db::graph::views::{
-                filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
+                filter::internal::CreateNodeFilter, test_helpers::filter_nodes_with,
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -338,17 +385,14 @@ mod test_layers {
                 graph
             }
 
-            fn filter_nodes<I: InternalNodeFilterOps>(
-                filter: I,
-                layers: Vec<String>,
-            ) -> Vec<String> {
+            fn filter_nodes<I: CreateNodeFilter>(filter: I, layers: Vec<String>) -> Vec<String> {
                 filter_nodes_with(
                     filter,
                     init_graph(Graph::new()).layers(layers.clone()).unwrap(),
                 )
             }
 
-            fn filter_nodes_w<I: InternalNodeFilterOps>(
+            fn filter_nodes_w<I: CreateNodeFilter>(
                 filter: I,
                 w: Range<i64>,
                 layers: Vec<String>,
@@ -362,10 +406,7 @@ mod test_layers {
                 )
             }
 
-            fn filter_nodes_pg<I: InternalNodeFilterOps>(
-                filter: I,
-                layers: Vec<String>,
-            ) -> Vec<String> {
+            fn filter_nodes_pg<I: CreateNodeFilter>(filter: I, layers: Vec<String>) -> Vec<String> {
                 filter_nodes_with(
                     filter,
                     init_graph(PersistentGraph::new())
@@ -374,7 +415,7 @@ mod test_layers {
                 )
             }
 
-            fn filter_nodes_pg_w<I: InternalNodeFilterOps>(
+            fn filter_nodes_pg_w<I: CreateNodeFilter>(
                 filter: I,
                 w: Range<i64>,
                 layers: Vec<String>,

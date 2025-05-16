@@ -6,9 +6,10 @@ use crate::{
             storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
+                    CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps,
+                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
+                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                    InheritTimeSemantics, Static,
                 },
                 Base,
             },
@@ -17,7 +18,10 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::core::{
+    entities::{LayerIds, ELID},
+    storage::timeindex::TimeIndexEntry,
+};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilteredGraph<G> {
@@ -70,9 +74,20 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgeFieldFilteredGraph<G
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
+            let edge = self.core_edge(eid.edge);
+            self.filter.matches_edge(&self.graph, edge.as_ref())
+        }
     }
 
     #[inline]

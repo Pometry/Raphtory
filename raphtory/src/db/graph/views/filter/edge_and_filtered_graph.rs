@@ -19,7 +19,7 @@ use crate::{
     prelude::{GraphViewOps, Layer},
 };
 use raphtory_api::core::{
-    entities::{LayerIds, EID},
+    entities::{LayerIds, EID, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use std::ops::Range;
@@ -191,9 +191,18 @@ impl<G, L: EdgeFilterOps, R: EdgeFilterOps> EdgeFilterOps for EdgeAndFilteredGra
         self.left.edges_filtered() || self.right.edges_filtered()
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        self.left.edge_history_filtered() || self.right.edge_history_filtered()
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.left.edge_list_trusted() && self.right.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.left.filter_edge_history(eid, t, layer_ids)
+            && self.right.filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]

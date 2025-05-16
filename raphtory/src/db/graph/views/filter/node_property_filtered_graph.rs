@@ -8,13 +8,13 @@ use crate::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
+                    InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
                 Base,
             },
         },
         graph::views::filter::{
-            internal::InternalNodeFilterOps, model::property_filter::PropertyFilter,
+            internal::CreateNodeFilter, model::property_filter::PropertyFilter,
         },
     },
     prelude::GraphViewOps,
@@ -45,7 +45,7 @@ impl<'graph, G> NodePropertyFilteredGraph<G> {
     }
 }
 
-impl InternalNodeFilterOps for PropertyFilter {
+impl CreateNodeFilter for PropertyFilter {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
@@ -82,25 +82,25 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilteredGraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         false
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         false
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.filter_node(node, layer_ids) {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        if self.graph.internal_filter_node(node, layer_ids) {
             self.filter
                 .matches_node(&self.graph, self.t_prop_id, self.c_prop_id, node)
         } else {

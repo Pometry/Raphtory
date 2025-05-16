@@ -14,7 +14,7 @@ use crate::{
 };
 use either::Either;
 use raphtory_api::core::{
-    entities::{GidType, EID, VID},
+    entities::{GidType, EID, MAX_LAYER, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use std::sync::atomic::Ordering;
@@ -53,9 +53,13 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
-        Ok(layer
-            .map(|name| self.edge_meta.get_or_create_layer_id(name))
-            .unwrap_or(MaybeNew::Existing(0)))
+        let id = self.edge_meta.get_or_create_layer_id(layer);
+        if let MaybeNew::New(id) = id {
+            if id > MAX_LAYER {
+                return Err(GraphError::TooManyLayers);
+            }
+        }
+        Ok(id)
     }
 
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
@@ -164,7 +168,7 @@ impl InternalAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        self.link_nodes(src, dst, t, layer, move |mut edge| {
+        self.link_nodes(src, dst, t, layer, false, move |mut edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);
@@ -184,7 +188,7 @@ impl InternalAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.link_edge(edge, t, layer, |mut edge| {
+        self.link_edge(edge, t, layer, false, |mut edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);

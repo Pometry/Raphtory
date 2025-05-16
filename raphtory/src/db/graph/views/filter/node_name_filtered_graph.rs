@@ -8,12 +8,12 @@ use crate::{
                 internal::{
                     Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
+                    InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
                 Base,
             },
         },
-        graph::views::filter::{internal::InternalNodeFilterOps, model::Filter, NodeNameFilter},
+        graph::views::filter::{internal::CreateNodeFilter, model::Filter, NodeNameFilter},
     },
     prelude::GraphViewOps,
 };
@@ -31,7 +31,7 @@ impl<'graph, G> NodeNameFilteredGraph<G> {
     }
 }
 
-impl InternalNodeFilterOps for NodeNameFilter {
+impl CreateNodeFilter for NodeNameFilter {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodeNameFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
@@ -64,25 +64,25 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeNameFilteredG
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeNameFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeNameFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeNameFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeNameFilteredGraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         false
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         false
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.filter_node(node, layer_ids) {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        if self.graph.internal_filter_node(node, layer_ids) {
             self.filter.matches(Some(&node.id().to_str()))
         } else {
             false

@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
+            properties::internal::{ConstantPropertiesOps, TemporalPropertiesOps},
             storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
             view::internal::core_ops::CoreGraphOps,
         },
@@ -287,7 +287,7 @@ impl EdgeIndex {
                 )?;
 
                 for edge in edge.explode() {
-                    if let Some(time) = edge.time_and_index() {
+                    if let Ok(time) = edge.time_and_index() {
                         let temporal_properties = self.collect_temporal_properties(&edge);
                         self.entity_index.index_edge_temporal_properties(
                             time,

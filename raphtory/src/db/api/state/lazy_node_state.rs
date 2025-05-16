@@ -7,7 +7,7 @@ use crate::{
                 Index, NodeState, NodeStateOps,
             },
             view::{
-                internal::{NodeList, OneHopFilter},
+                internal::{FilterOps, NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
             },
         },
@@ -29,11 +29,11 @@ pub struct LazyNodeState<'graph, Op, G, GH = G> {
 }
 
 impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, RHS>
-    PartialEq<[RHS]> for LazyNodeState<'graph, Op, G, GH>
+    PartialEq<&[RHS]> for LazyNodeState<'graph, Op, G, GH>
 where
     Op::Output: PartialEq<RHS>,
 {
-    fn eq(&self, other: &[RHS]) -> bool {
+    fn eq(&self, other: &&[RHS]) -> bool {
         self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| a == *b)
     }
 }
@@ -125,7 +125,7 @@ impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
 impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for LazyNodeState<'graph, Op, G, GH>
 {
-    type Item = (NodeView<G, GH>, Op::Output);
+    type Item = (NodeView<'graph, G, GH>, Op::Output);
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -234,7 +234,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &'a self,
     ) -> impl Iterator<
         Item = (
-            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
             Self::Value<'a>,
         ),
     > + 'a
@@ -255,7 +255,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
             Self::Value<'a>,
         ),
     >

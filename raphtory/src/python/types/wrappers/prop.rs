@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+            internal::{CreateNodeFilter, InternalEdgeFilterOps, InternalExplodedEdgeFilterOps},
             model::{
                 property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
                 InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
@@ -168,24 +168,24 @@ impl InternalEdgeFilterOps for PyPropertyFilter {
     }
 }
 
-// impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
-//     type ExplodedEdgeFiltered<'graph, G>
-//         = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
-//     where
-//         G: GraphViewOps<'graph>,
-//         Self: 'graph;
-//
-//     fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
-//         self,
-//         graph: G,
-//     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-//         self.0.create_exploded_edge_filter(graph)
-//     }
-// }
+impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
+    type ExplodedEdgeFiltered<'graph, G>
+        = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+        Self: 'graph;
 
-impl InternalNodeFilterOps for PyPropertyFilter {
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        self.0.create_exploded_edge_filter(graph)
+    }
+}
+
+impl CreateNodeFilter for PyPropertyFilter {
     type NodeFiltered<'graph, G>
-        = <PropertyFilter as InternalNodeFilterOps>::NodeFiltered<'graph, G>
+        = <PropertyFilter as CreateNodeFilter>::NodeFiltered<'graph, G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -198,7 +198,7 @@ impl InternalNodeFilterOps for PyPropertyFilter {
     }
 }
 
-impl InternalNodeFilterOps for PyFilterExpr {
+impl CreateNodeFilter for PyFilterExpr {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>>
         = Arc<dyn BoxableGraphView + 'graph>
     where
@@ -296,7 +296,7 @@ pub trait DynInternalNodeFilterOps: AsNodeFilter {
     ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
 }
 
-impl<T: InternalNodeFilterOps + AsNodeFilter + Clone + 'static> DynInternalNodeFilterOps for T {
+impl<T: CreateNodeFilter + AsNodeFilter + Clone + 'static> DynInternalNodeFilterOps for T {
     fn create_dyn_node_filter<'graph>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
@@ -305,7 +305,7 @@ impl<T: InternalNodeFilterOps + AsNodeFilter + Clone + 'static> DynInternalNodeF
     }
 }
 
-impl<T: DynInternalNodeFilterOps + ?Sized + 'static> InternalNodeFilterOps for Arc<T> {
+impl<T: DynInternalNodeFilterOps + ?Sized + 'static> CreateNodeFilter for Arc<T> {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>>
         = Arc<dyn BoxableGraphView + 'graph>
     where

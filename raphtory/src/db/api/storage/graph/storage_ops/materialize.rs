@@ -6,8 +6,4 @@ impl InternalMaterialize for GraphStorage {
     fn graph_type(&self) -> GraphType {
         GraphType::EventGraph
     }
-
-    fn include_deletions(&self) -> bool {
-        false
-    }
 }

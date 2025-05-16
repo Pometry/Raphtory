@@ -25,12 +25,12 @@ def test_edge_latest():
     g.add_edge(5, 1, 3)
     g.add_edge(6, 1, 3)
 
-    assert g.edge(1, 2).latest().latest_time is None
+    assert g.edge(1, 2).latest().latest_time == None
     assert not g.edge(1, 2).latest().is_active()
     assert g.edge(1, 3).latest().is_active()
 
     wg = g.window(2, 4)
-    assert wg.edge(1, 2).latest().latest_time is 3
+    assert wg.edge(1, 2).latest().latest_time == 3
     assert wg.edge(1, 2).latest().is_active()
 
     assert g.edges.latest().earliest_time.collect() == [None, 6]
@@ -99,23 +99,36 @@ def test_persistent_edge_latest():
     g.add_edge(5, 1, 4)
     g.delete_edge(6, 1, 4)
 
-    assert g.edge(1, 2).latest().latest_time is 6
-    assert g.edge(1, 2).latest().is_active()
+    assert g.edge(1, 2).latest().latest_time == 6
+    assert not g.edge(1, 2).latest().is_active()  # not updated at the latest time
+    assert g.edge(1, 2).latest().is_valid()  # is valid (i.e., not deleted)
+    assert not g.edge(1, 2).latest().is_deleted()  # not deleted
+
     assert g.edge(1, 3).latest().is_active()
-    assert not g.edge(1, 4).latest().is_active()
+    assert (
+        not g.edge(1, 4).latest().is_active()
+    )  # deletions use exclusive start (it is a bit weird but the alternative is weirder)
+    assert g.edge(1, 4).latest().is_deleted()
 
     wg = g.window(3, 6)
-    assert wg.edge(1, 2).latest().latest_time is 5
-    assert wg.edge(1, 2).latest().is_active()
+    assert wg.edge(1, 2).latest().latest_time == 5
+    assert not wg.edge(1, 2).latest().is_active()  # not updated at 5
+    assert wg.edge(1, 2).latest().is_valid()
+
     assert wg.edge(1, 4).latest().is_active()
 
     assert g.edges.latest().earliest_time.collect() == [6, 6, None]
     assert g.edges.latest().latest_time.collect() == [6, 6, None]
-    assert g.edges.latest().is_active().collect() == [True, True, False]
+
+    assert g.edges.latest().is_active().collect() == [False, True, False]
+    assert g.edges.latest().is_deleted().collect() == [False, False, True]
+    assert g.edges.latest().is_valid().collect() == [True, True, False]
 
     assert wg.edges.latest().earliest_time.collect() == [5, 5, 5]
     assert wg.edges.latest().latest_time.collect() == [5, 5, 5]
-    assert wg.edges.latest().is_active().collect() == [True, True, True]
+    assert wg.edges.latest().is_active().collect() == [False, True, True]
+    assert wg.edges.latest().is_deleted().collect() == [False, False, False]
+    assert wg.edges.latest().is_valid().collect() == [True, True, True]
 
     assert g.nodes.edges.latest().earliest_time.collect() == [
         [6, 6, None],
@@ -130,8 +143,8 @@ def test_persistent_edge_latest():
         [None],
     ]
     assert g.nodes.edges.latest().is_active().collect() == [
-        [True, True, False],
-        [True],
+        [False, True, False],
+        [False],
         [True],
         [False],
     ]
@@ -139,8 +152,8 @@ def test_persistent_edge_latest():
     assert wg.nodes.edges.latest().earliest_time.collect() == [[5, 5, 5], [5], [5], [5]]
     assert wg.nodes.edges.latest().latest_time.collect() == [[5, 5, 5], [5], [5], [5]]
     assert wg.nodes.edges.latest().is_active().collect() == [
-        [True, True, True],
-        [True],
+        [False, True, True],
+        [False],
         [True],
         [True],
     ]
@@ -155,9 +168,9 @@ def test_persistent_node_latest():
     assert not g.node(2).latest().is_active()
 
     wg = g.window(5, 12)
-    assert wg.latest_time == 11
+    assert wg.latest_time == 10
     assert wg.earliest_time == 5
-    check_arr(wg.node(1).latest().history(), [])
+    check_arr(wg.node(1).latest().history(), [10])
 
     check_arr(g.nodes.latest().id.collect(), [1, 2, 3])
     check_arr(wg.nodes.latest().id.collect(), [1, 2])

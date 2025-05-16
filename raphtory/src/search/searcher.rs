@@ -34,7 +34,7 @@ impl<'a> Searcher<'a> {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError>
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         G: StaticGraphViewOps,
         F: AsNodeFilter,

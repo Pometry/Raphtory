@@ -8,7 +8,7 @@ use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
 use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::{collections::HashMap, error::Error, ops::Deref, sync::Arc};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
     let values: Vec<String> = iter.take(11).map(|v| v.repr()).collect();
@@ -212,6 +212,15 @@ impl<T: Repr> Repr for Option<T> {
         match &self {
             Some(v) => v.repr(),
             None => "None".to_string(),
+        }
+    }
+}
+
+impl<T: Repr, E: Error> Repr for Result<T, E> {
+    fn repr(&self) -> String {
+        match self {
+            Ok(v) => v.repr(),
+            Err(e) => e.to_string(),
         }
     }
 }

@@ -4,6 +4,7 @@ from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
 from numpy.testing import assert_equal as check_arr
+from utils import assert_set_eq
 
 
 def make_props():
@@ -133,7 +134,7 @@ def test_add_edge():
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.edge("ben", "hamza"), props)
 
-        assert g.unique_layers == ["_default", "friends", "colleagues"]
+        assert_set_eq(g.unique_layers, ["_default", "friends", "colleagues"])
         assert g.layer("friends").count_edges() == 1
 
 

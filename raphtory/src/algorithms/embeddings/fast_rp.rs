@@ -12,6 +12,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
+    prelude::GraphViewOps,
 };
 use rand::prelude::*;
 use std::sync::Arc;

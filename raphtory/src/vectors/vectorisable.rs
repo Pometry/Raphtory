@@ -4,6 +4,7 @@ use crate::{
         api::view::{internal::IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
+    prelude::GraphViewOps,
     vectors::{
         document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
         template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
@@ -111,7 +112,7 @@ pub(crate) async fn vectorise_graph<G: StaticGraphViewOps>(
 }
 
 pub(crate) async fn vectorise_node<G: StaticGraphViewOps>(
-    node: NodeView<G>,
+    node: NodeView<'static, G>,
     template: &DocumentTemplate,
     embedding: &Arc<dyn EmbeddingFunction>,
     cache_storage: &Option<EmbeddingCache>,
@@ -147,7 +148,7 @@ fn indexed_docs_for_graph<'a, G: StaticGraphViewOps>(
 }
 
 fn indexed_docs_for_node<G: StaticGraphViewOps>(
-    node: NodeView<G>,
+    node: NodeView<'static, G>,
     template: &DocumentTemplate,
 ) -> impl Iterator<Item = IndexedDocumentInput> + Send {
     template

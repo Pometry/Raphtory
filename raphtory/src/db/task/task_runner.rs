@@ -20,6 +20,7 @@ use crate::{
             node::{eval_node::EvalNodeView, eval_node_state::EVState},
         },
     },
+    prelude::GraphViewOps,
 };
 use rayon::{prelude::*, ThreadPool};
 use std::{

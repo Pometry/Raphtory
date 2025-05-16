@@ -7,9 +7,10 @@ use crate::{
         Direction,
     },
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
-    prelude::Prop,
+    prelude::{GraphViewOps, Prop},
 };
 use itertools::Itertools;
+use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
 
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -18,13 +19,31 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
+    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)>;
+
     fn prop(self, prop_id: usize) -> Option<Prop>;
 
     fn edges_iter(
         self,
         layers: &LayerIds,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + Send + 'a;
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a;
+
+    fn filtered_edges_iter<G: GraphViewOps<'a>>(
+        self,
+        view: G,
+        dir: Direction,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        let iter = self.edges_iter(view.layer_ids(), dir);
+        if view.edges_filtered() {
+            iter.filter(move |e| {
+                view.filter_edge(view.core_edge(e.pid()).as_ref(), view.layer_ids())
+            })
+            .into_dyn_boxed()
+        } else {
+            iter.into_dyn_boxed()
+        }
+    }
 
     fn node_type_id(self) -> usize;
 

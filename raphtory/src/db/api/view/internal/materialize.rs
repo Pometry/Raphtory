@@ -18,7 +18,7 @@ use crate::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             storage::graph::{
                 edges::{
@@ -38,7 +38,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
-        entities::GidType,
+        entities::{GidType, ELID},
         storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
     },
     GraphType,
@@ -49,19 +49,30 @@ use std::ops::Range;
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]
-#[enum_dispatch(TimeSemantics)]
+#[enum_dispatch(GraphTimeSemanticsOps)]
 #[enum_dispatch(EdgeFilterOps)]
-#[enum_dispatch(NodeFilterOps)]
+#[enum_dispatch(InternalNodeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
-#[enum_dispatch(ConstPropertiesOps)]
+#[enum_dispatch(ConstantPropertiesOps)]
 #[enum_dispatch(InternalAdditionOps)]
 #[enum_dispatch(InternalPropertyAdditionOps)]
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
+}
+
+impl Debug for MaterializedGraph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut builder = f.debug_tuple("MaterializedGraph");
+        match self {
+            MaterializedGraph::EventGraph(g) => builder.field(g),
+            MaterializedGraph::PersistentGraph(g) => builder.field(g),
+        }
+        .finish()
+    }
 }
 
 impl Static for MaterializedGraph {}
@@ -282,8 +293,6 @@ pub trait InternalMaterialize {
     }
 
     fn graph_type(&self) -> GraphType;
-
-    fn include_deletions(&self) -> bool;
 }
 
 pub trait InheritMaterialize: Base {}
@@ -301,11 +310,6 @@ where
     fn graph_type(&self) -> GraphType {
         self.base().graph_type()
     }
-
-    #[inline]
-    fn include_deletions(&self) -> bool {
-        self.base().include_deletions()
-    }
 }
 
 #[cfg(test)]
@@ -315,8 +319,7 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, InternalLayerOps, InternalMaterialize, MaterializedGraph,
-            TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, MaterializedGraph,
         },
         prelude::*,
     };
@@ -349,12 +352,6 @@ mod test_materialised_graph_dispatch {
     fn materialised_graph_has_time_semantics() {
         let mg = MaterializedGraph::from(Graph::new());
         assert!(mg.view_start().is_none());
-    }
-
-    #[test]
-    fn materialised_graph_has_internal_materialise() {
-        let mg = MaterializedGraph::from(Graph::new());
-        assert!(!mg.include_deletions());
     }
 
     #[test]

@@ -9,7 +9,7 @@ use crate::{
         api::state::{Index, NodeState},
         graph::nodes::Nodes,
     },
-    prelude::{EdgeViewOps, NodeViewOps, Prop},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, Prop},
 };
 use indexmap::IndexSet;
 use raphtory_api::core::entities::VID;

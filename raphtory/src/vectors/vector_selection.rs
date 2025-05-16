@@ -55,7 +55,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the nodes present in the current selection
-    pub fn nodes(&self) -> Vec<NodeView<G>> {
+    pub fn nodes(&self) -> Vec<NodeView<'static, G>> {
         self.selected_docs
             .iter()
             .unique_by(|(doc, _)| &doc.entity_id)
@@ -515,7 +515,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
     fn nodes_into_document_groups<'a, W: StaticGraphViewOps>(
         &'a self,
-        nodes: impl Iterator<Item = NodeView<W>> + 'static,
+        nodes: impl Iterator<Item = NodeView<'static, W>> + 'static,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
     ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + 'a> {

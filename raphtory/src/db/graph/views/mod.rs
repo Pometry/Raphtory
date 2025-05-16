@@ -3,6 +3,7 @@ pub mod deletion_graph;
 pub mod filter;
 pub mod layer_graph;
 pub mod node_subgraph;
+pub mod valid_graph;
 pub mod window_graph;
 
 pub mod macros {
@@ -55,22 +56,17 @@ pub mod macros {
 
 #[cfg(test)]
 mod test_helpers {
-    #[cfg(feature = "search")]
-    pub use crate::db::api::view::SearchableGraphOps;
     use crate::{
         db::{
             api::view::StaticGraphViewOps,
-            graph::views::filter::{
-                internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-                model::{AsEdgeFilter, AsNodeFilter},
-            },
+            graph::views::filter::internal::{CreateNodeFilter, InternalEdgeFilterOps},
         },
         prelude::{
             EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, NodePropertyFilterOps, NodeViewOps,
         },
     };
 
-    pub(crate) fn filter_nodes_with<G, I: InternalNodeFilterOps>(filter: I, graph: G) -> Vec<String>
+    pub(crate) fn filter_nodes_with<G, I: CreateNodeFilter>(filter: I, graph: G) -> Vec<String>
     where
         G: StaticGraphViewOps,
     {
@@ -80,23 +76,6 @@ mod test_helpers {
             .nodes()
             .iter()
             .map(|n| n.name())
-            .collect::<Vec<_>>();
-        results.sort();
-        results
-    }
-
-    #[cfg(feature = "search")]
-    pub(crate) fn search_nodes_with<G, I: AsNodeFilter>(filter: I, graph: G) -> Vec<String>
-    where
-        G: StaticGraphViewOps,
-    {
-        graph.create_index_in_ram().unwrap();
-
-        let mut results = graph
-            .search_nodes(filter, 20, 0)
-            .unwrap()
-            .into_iter()
-            .map(|nv| nv.name())
             .collect::<Vec<_>>();
         results.sort();
         results
@@ -118,19 +97,48 @@ mod test_helpers {
     }
 
     #[cfg(feature = "search")]
-    pub(crate) fn search_edges_with<G, I: AsEdgeFilter>(filter: I, graph: G) -> Vec<String>
-    where
-        G: StaticGraphViewOps,
-    {
-        graph.create_index_in_ram().unwrap();
+    mod indexed_search {
+        use crate::{
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::{AsEdgeFilter, AsNodeFilter},
+            },
+            prelude::{EdgeViewOps, NodeViewOps, SearchableGraphOps},
+        };
 
-        let mut results = graph
-            .search_edges(filter, 20, 0)
-            .unwrap()
-            .into_iter()
-            .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-            .collect::<Vec<_>>();
-        results.sort();
-        results
+        pub(crate) fn search_edges_with<G, I: AsEdgeFilter>(filter: I, graph: G) -> Vec<String>
+        where
+            G: StaticGraphViewOps,
+        {
+            graph.create_index_in_ram().unwrap();
+
+            let mut results = graph
+                .search_edges(filter, 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+
+        pub(crate) fn search_nodes_with<G, I: AsNodeFilter>(filter: I, graph: G) -> Vec<String>
+        where
+            G: StaticGraphViewOps,
+        {
+            graph.create_index_in_ram().unwrap();
+
+            let mut results = graph
+                .search_nodes(filter, 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
     }
+
+    #[cfg(feature = "search")]
+    pub(crate) use indexed_search::*;
 }

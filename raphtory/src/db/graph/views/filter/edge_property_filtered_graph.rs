@@ -17,8 +17,12 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 
-use crate::db::{api::view::internal::InheritStorageOps, graph::views::filter::PropertyFilter};
+use crate::db::{
+    api::view::internal::{CoreGraphOps, InheritStorageOps},
+    graph::views::filter::PropertyFilter,
+};
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -87,9 +91,21 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
+            let edge = self.core_edge(eid.edge);
+            self.filter
+                .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge.as_ref())
+        }
     }
 
     #[inline]

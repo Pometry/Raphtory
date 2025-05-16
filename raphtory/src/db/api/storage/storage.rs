@@ -17,29 +17,16 @@ use crate::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
         storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{Base, InheritViewOps},
+        view::{
+            internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+            Base, InheritViewOps,
+        },
     },
+    prelude::DeletionOps,
 };
-
-use crate::db::api::{
-    storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-};
-#[cfg(feature = "search")]
-use crate::search::graph_index::GraphIndex;
-#[cfg(feature = "proto")]
-use crate::serialise::GraphFolder;
-#[cfg(feature = "proto")]
-use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidType, EID, VID},
-    storage::{
-        dict_mapper::{
-            MaybeNew,
-            MaybeNew::{Existing, New},
-        },
-        timeindex::TimeIndexEntry,
-    },
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -48,6 +35,17 @@ use std::{
     sync::Arc,
 };
 use tracing::info;
+
+#[cfg(feature = "search")]
+use crate::{
+    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+    search::graph_index::GraphIndex,
+};
+
+#[cfg(feature = "proto")]
+use crate::serialise::incremental::InternalCache;
+#[cfg(feature = "proto")]
+use once_cell::sync::OnceCell;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -122,22 +120,6 @@ impl Storage {
     }
 }
 
-#[cfg(feature = "proto")]
-impl Storage {
-    /// Initialise the cache by pointing it at a proto file.
-    /// Future updates will be appended to the cache.
-    pub(crate) fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache
-            .get_or_try_init(|| Ok::<_, GraphError>(GraphWriter::new(path.clone())?))?;
-        Ok(())
-    }
-
-    /// Get the cache writer if it is initialised.
-    pub(crate) fn get_cache(&self) -> Option<&GraphWriter> {
-        self.cache.get()
-    }
-}
-
 #[cfg(feature = "search")]
 impl Storage {
     pub(crate) fn get_or_create_index(
@@ -202,6 +184,8 @@ impl InternalStorageOps for Storage {
     }
 }
 
+impl DeletionOps for Arc<Storage> {}
+
 impl InheritNodeHistoryFilter for Storage {}
 impl InheritEdgeHistoryFilter for Storage {}
 
@@ -258,7 +242,7 @@ impl InternalAdditionOps for Storage {
 
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError> {
         match id.as_node_ref() {
-            NodeRef::Internal(id) => Ok(Existing(id)),
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
             NodeRef::External(gid) => {
                 let id = self.graph.resolve_node(gid)?;
 
@@ -353,7 +337,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, New(v), props))?;
+        self.if_index(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
 
         Ok(())
     }
@@ -397,7 +381,15 @@ impl InternalAdditionOps for Storage {
             let ee = self.graph.edge_entry(edge);
             let src = ee.src();
             let dst = ee.dst();
-            index.add_edge_update(&self.graph, Existing(edge), t, src, dst, layer, props)
+            index.add_edge_update(
+                &self.graph,
+                MaybeNew::Existing(edge),
+                t,
+                src,
+                dst,
+                layer,
+                props,
+            )
         })?;
 
         Ok(())

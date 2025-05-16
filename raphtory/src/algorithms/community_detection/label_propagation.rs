@@ -21,7 +21,7 @@ use crate::{
 pub fn label_propagation<G>(
     g: &G,
     seed: Option<[u8; 32]>,
-) -> Result<Vec<HashSet<NodeView<G>>>, &'static str>
+) -> Result<Vec<HashSet<NodeView<'static, G>>>, &'static str>
 where
     G: StaticGraphViewOps,
 {
@@ -60,7 +60,7 @@ where
     }
 
     // Group nodes by their labels to form communities
-    let mut communities: HashMap<GID, HashSet<NodeView<G>>> = HashMap::new();
+    let mut communities: HashMap<GID, HashSet<NodeView<'static, G>>> = HashMap::new();
     for (node, label) in labels {
         communities.entry(label).or_default().insert(node.cloned());
     }

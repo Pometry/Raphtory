@@ -7,10 +7,10 @@ use crate::{
             view::internal::{
                 Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
+                InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::InternalNodeFilterOps, NodeTypeFilter},
+        graph::views::filter::{internal::CreateNodeFilter, NodeTypeFilter},
     },
     prelude::GraphViewOps,
 };
@@ -41,7 +41,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeTypeFilteredGraph<G> {
     }
 }
 
-impl InternalNodeFilterOps for NodeTypeFilter {
+impl CreateNodeFilter for NodeTypeFilter {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodeTypeFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
@@ -81,38 +81,47 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeTypeFilte
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeTypeFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeTypeFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeTypeFilteredGraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         false
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         false
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.node_types_filter
             .get(node.node_type_id())
             .copied()
             .unwrap_or(false)
-            && self.graph.filter_node(node, layer_ids)
+            && self.graph.internal_filter_node(node, layer_ids)
     }
 }
 
 #[cfg(test)]
 mod tests_node_type_filtered_subgraph {
     use crate::{
-        db::graph::views::filter::model::property_filter::{PropertyFilter, PropertyRef},
+        db::{
+            api::mutation::internal::InternalAdditionOps,
+            graph::{
+                graph::assert_graph_equal,
+                views::filter::model::property_filter::{PropertyFilter, PropertyRef},
+            },
+        },
         prelude::*,
+        test_utils::{build_graph, build_graph_strat, make_node_types},
     };
+    use proptest::{arbitrary::any, proptest};
+    use std::ops::Range;
 
     #[test]
     fn test_type_filtered_subgraph() {
@@ -162,10 +171,63 @@ mod tests_node_type_filtered_subgraph {
             .is_empty())
     }
 
+    #[test]
+    fn materialize_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), node_types in make_node_types())| {
+            let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
+            let gm = g.materialize().unwrap();
+            assert_graph_equal(&g, &gm);
+        })
+    }
+
+    #[test]
+    fn materialize_type_window_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+            let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
+            let gvw = g.window(w.start, w.end);
+            let gmw = gvw.materialize().unwrap();
+            assert_graph_equal(&gvw, &gmw);
+        })
+    }
+
+    #[test]
+    fn materialize_window_type_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+            let g = Graph::from(build_graph(&graph_f));
+            let gvw = g.window(w.start, w.end).subgraph_node_types(node_types);
+            let gmw = gvw.materialize().unwrap();
+            assert_graph_equal(&gvw, &gmw);
+        })
+    }
+
+    #[test]
+    fn node_removed_via_edge_removal() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.node(1).unwrap().set_node_type("test").unwrap();
+        let expected = Graph::new();
+        expected.resolve_layer(None).unwrap();
+        assert_graph_equal(&g.subgraph_node_types(["test"]), &expected);
+    }
+
+    #[test]
+    fn node_removed_via_edge_removal_window() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.node(0).unwrap().set_node_type("two").unwrap();
+        let gw = g.window(0, 1);
+        let expected = Graph::new();
+        expected.resolve_layer(None).unwrap();
+        let sg = gw.subgraph_node_types(["_default"]);
+        assert!(!sg.has_node(0));
+        assert!(!sg.has_node(1));
+        assert_graph_equal(&sg, &expected);
+        assert_graph_equal(&sg, &sg.materialize().unwrap())
+    }
     mod test_filters_node_type_filtered_subgraph {
         use crate::{
             db::api::view::StaticGraphViewOps,
-            prelude::{AdditionOps, NodeViewOps},
+            prelude::{AdditionOps, GraphViewOps, NodeViewOps},
         };
 
         macro_rules! assert_filter_results {
@@ -277,7 +339,7 @@ mod tests_node_type_filtered_subgraph {
             };
             use std::ops::Range;
 
-            use crate::db::graph::views::filter::internal::InternalNodeFilterOps;
+            use crate::db::graph::views::filter::internal::CreateNodeFilter;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -305,7 +367,7 @@ mod tests_node_type_filtered_subgraph {
                 graph
             }
 
-            fn filter_nodes<I: InternalNodeFilterOps>(
+            fn filter_nodes<I: CreateNodeFilter>(
                 filter: I,
                 node_types: Option<Vec<String>>,
             ) -> Vec<String> {
@@ -315,7 +377,7 @@ mod tests_node_type_filtered_subgraph {
                 filter_nodes_with(filter, graph.subgraph_node_types(node_types))
             }
 
-            fn filter_nodes_w<I: InternalNodeFilterOps>(
+            fn filter_nodes_w<I: CreateNodeFilter>(
                 filter: I,
                 w: Range<i64>,
                 node_types: Option<Vec<String>>,
@@ -329,7 +391,7 @@ mod tests_node_type_filtered_subgraph {
                 )
             }
 
-            fn filter_nodes_pg<I: InternalNodeFilterOps>(
+            fn filter_nodes_pg<I: CreateNodeFilter>(
                 filter: I,
                 node_types: Option<Vec<String>>,
             ) -> Vec<String> {
@@ -339,7 +401,7 @@ mod tests_node_type_filtered_subgraph {
                 filter_nodes_with(filter, graph.subgraph_node_types(node_types))
             }
 
-            fn filter_nodes_pg_w<I: InternalNodeFilterOps>(
+            fn filter_nodes_pg_w<I: CreateNodeFilter>(
                 filter: I,
                 w: Range<i64>,
                 node_types: Option<Vec<String>>,

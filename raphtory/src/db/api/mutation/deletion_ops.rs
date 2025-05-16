@@ -16,6 +16,7 @@ use crate::{
     },
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use std::sync::Arc;
 
 pub trait DeletionOps:
     InternalDeletionOps + InternalAdditionOps + StaticGraphViewOps + Sized
@@ -52,3 +53,5 @@ pub trait DeletionOps:
         self.delete_edge(time, src, dst, layer)
     }
 }
+
+impl<T: DeletionOps + ?Sized> DeletionOps for Arc<T> {}

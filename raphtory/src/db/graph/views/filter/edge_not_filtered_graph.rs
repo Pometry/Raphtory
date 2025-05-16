@@ -17,7 +17,10 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::core::{
+    entities::{LayerIds, ELID},
+    storage::timeindex::TimeIndexEntry,
+};
 
 #[derive(Debug, Clone)]
 pub struct EdgeNotFilteredGraph<G, T> {
@@ -70,9 +73,18 @@ impl<'graph, G: GraphViewOps<'graph>, T: EdgeFilterOps> EdgeFilterOps
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids)
+            && !self.filter.filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]

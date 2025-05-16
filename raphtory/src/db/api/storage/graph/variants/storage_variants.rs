@@ -1,5 +1,5 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::{TimeIndexEntry, TimeIndexOps};
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
     IndexedParallelIterator, ParallelIterator,
@@ -263,18 +263,61 @@ impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> 
         for_all!(self, props => props.last_before(t))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter())
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter_window(r))
     }
 
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
+    }
+}
+
+impl<
+        'a,
+        Mem: TimeIndexOps<'a>,
+        #[cfg(feature = "storage")] Disk: TimeIndexOps<'a, IndexType = Mem::IndexType>,
+    > TimeIndexOps<'a> for SelfType!(Mem, Disk)
+{
+    type IndexType = Mem::IndexType;
+
+    #[cfg(not(feature = "storage"))]
+    type RangeType = Mem::RangeType;
+
+    #[cfg(feature = "storage")]
+    type RangeType = StorageVariants<Mem::RangeType, Disk::RangeType>;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        for_all!(self, props => props.active(w))
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        for_all_iter!(self, props => props.range(w))
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        for_all!(self, props => props.first())
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        for_all!(self, props => props.last())
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        for_all_iter!(self, props => props.iter())
+    }
+
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        for_all_iter!(self, props => props.iter_rev())
+    }
+
+    fn len(&self) -> usize {
+        for_all!(self, props => props.len())
     }
 }

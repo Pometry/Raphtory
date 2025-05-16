@@ -258,7 +258,7 @@ pub(crate) fn load_edges_from_df<
 
     let mut src_col_resolved = vec![];
     let mut dst_col_resolved = vec![];
-    let mut eid_col_resolved = vec![];
+    let mut eid_col_resolved: Vec<EID> = vec![];
 
     let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock()?;
@@ -363,7 +363,10 @@ pub(crate) fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
-                        src_node.update_time(TimeIndexEntry(time, start_idx + row), eid);
+                        src_node.update_time(
+                            TimeIndexEntry(time, start_idx + row),
+                            eid.with_layer(*layer),
+                        );
                         src_node.add_edge(*dst, Direction::OUT, *layer, eid);
                         eid_col_shared[row].store(eid.0, Ordering::Relaxed);
                     }
@@ -385,7 +388,10 @@ pub(crate) fn load_edges_from_df<
                 {
                     if let Some(node) = shard.get_mut(*dst) {
                         node.init(*dst, dst_gid);
-                        node.update_time(TimeIndexEntry(time, row + start_idx), *eid);
+                        node.update_time(
+                            TimeIndexEntry(time, row + start_idx),
+                            eid.with_layer(*layer),
+                        );
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }
                 }
@@ -897,7 +903,7 @@ mod tests {
             },
             disk_graph::DiskGraphStorage,
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::{Graph, LayerOps},
+            prelude::Graph,
             test_utils::build_edge_list,
         };
         use polars_arrow::{
@@ -981,8 +987,6 @@ mod tests {
                 )
                 .unwrap();
             }
-
-            let expected = expected.exclude_layers("_default").unwrap();
 
             let g = TemporalGraph::from_parquets(
                 num_threads,
@@ -1137,5 +1141,47 @@ mod tests {
             }
             assert_graph_equal(&g, &g2);
         })
+    }
+
+    #[test]
+    fn load_single_edge_with_cache() {
+        let edges = [(0, 0, 0, "".to_string(), 0)];
+        let df_view = build_df(1, &edges);
+        let g = Graph::new();
+        let cache_file = TempDir::new().unwrap();
+        g.cache(cache_file.path()).unwrap();
+        let props = ["str_prop", "int_prop"];
+        load_edges_from_df(
+            df_view,
+            "time",
+            "src",
+            "dst",
+            &props,
+            &[],
+            None,
+            None,
+            None,
+            &g,
+        )
+        .unwrap();
+        let g = Graph::load_cached(cache_file.path()).unwrap();
+        let g2 = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            g2.add_edge(
+                time,
+                src,
+                dst,
+                [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+            let edge = g.edge(src, dst).unwrap().at(time);
+            assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+            assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+        }
+        assert_graph_equal(&g, &g2);
     }
 }

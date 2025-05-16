@@ -5,7 +5,7 @@ use crate::{
         graph::{
             node::NodeView,
             views::filter::{
-                internal::InternalNodeFilterOps,
+                internal::CreateNodeFilter,
                 model::{
                     node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
                     property_filter::{PropertyRef, Temporal},
@@ -56,7 +56,7 @@ impl<'a> NodeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::NODE_ID.to_string());
         let node_ids = searcher.search(&query, &collector)?;
@@ -78,7 +78,7 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError>
+    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<u64>>,
@@ -102,7 +102,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let query = self.query_builder.build_property_query::<G>(&pi, filter)?;
         match query {
             Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
@@ -120,7 +120,7 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
-    ) -> Result<Vec<NodeView<G>>, GraphError>
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<u64>>,
     {
@@ -147,7 +147,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         if let Some((cpi, _)) = self
             .index
             .node_index
@@ -168,7 +168,7 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
-    ) -> Result<Vec<NodeView<G>>, GraphError>
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<u64>>,
     {
@@ -218,7 +218,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let cpi = self
             .index
             .node_index
@@ -254,7 +254,8 @@ impl<'a> NodeFilterExecutor<'a> {
                     })
                     .collect::<HashSet<_>>();
 
-                let combined: Vec<NodeView<G>> = filtered.into_iter().chain(tpi_results).collect();
+                let combined: Vec<NodeView<'static, G>> =
+                    filtered.into_iter().chain(tpi_results).collect();
                 Ok(combined)
             }
             (Some((cpi, _)), None) => self.execute_or_fallback(graph, &cpi, filter, limit, offset),
@@ -277,7 +278,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &PropertyFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         match &filter.prop_ref {
             PropertyRef::ConstantProperty(prop_name) => {
                 self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
@@ -312,7 +313,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &Filter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
 
         let results = match query {
@@ -343,7 +344,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError> {
         match filter {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
@@ -383,18 +384,18 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError> {
         self.filter_nodes_internal(graph, filter, limit, offset)
     }
 
     #[allow(dead_code)]
     // Useful for debugging
-    fn resolve_nodes_from_search_results<'graph, G: StaticGraphViewOps>(
+    fn resolve_nodes_from_search_results<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         searcher: &Searcher,
         docs: Vec<(Score, DocAddress)>,
-    ) -> tantivy::Result<Vec<NodeView<G>>> {
+    ) -> tantivy::Result<Vec<NodeView<'static, G>>> {
         let schema = searcher.schema();
         let node_id_field = schema.get_field(fields::NODE_ID)?;
 
@@ -418,7 +419,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         node_ids: HashSet<u64>,
-    ) -> tantivy::Result<Vec<NodeView<G>>> {
+    ) -> tantivy::Result<Vec<NodeView<'static, G>>> {
         let nodes = node_ids
             .into_iter()
             .filter_map(|id| graph.node(VID(id as usize)))
@@ -428,10 +429,10 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn raph_filter_nodes<G: StaticGraphViewOps>(
         graph: &G,
-        filter: &(impl InternalNodeFilterOps + Clone),
+        filter: &(impl CreateNodeFilter + Clone),
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let filtered_nodes = graph
             .filter_nodes(filter.clone())?
             .nodes()

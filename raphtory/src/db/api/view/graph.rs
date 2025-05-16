@@ -7,10 +7,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView},
-                Properties,
-            },
+            properties::{internal::ConstantPropertiesOps, Properties},
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             },
@@ -29,9 +26,11 @@ use crate::{
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
             },
         },
     },
+    prelude::*,
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::{
@@ -41,6 +40,7 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
+    GraphType,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -75,6 +75,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
 
     fn cache_view(&self) -> CachedView<Self>;
+
+    fn valid(&self) -> Result<ValidGraph<Self>, GraphError>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
@@ -123,7 +125,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
 
     /// Get an edge `(src, dst)`.
     fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
@@ -153,7 +155,7 @@ pub trait SearchableGraphOps: Sized {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+    ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
     fn search_edges<F: AsEdgeFilter>(
         &self,
@@ -165,7 +167,7 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
-impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
         let edges = Arc::new(move || {
@@ -203,12 +205,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
-                return Ok(self.new_base_graph(g.into()));
+                // no layers to map
+                vec![]
             }
             LayerIds::All => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in 1..layers.len() {
+                for id in 0..layers.len() {
                     let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }
@@ -216,20 +219,17 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                if *l_id > 0 {
-                    let new_id =
-                        g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
-                    layer_map[*l_id] = new_id.inner();
-                }
+                let new_id =
+                    g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
+                layer_map[*l_id] = new_id.inner();
                 layer_map
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids.0[0] == 0 { &ids.0[1..] } else { &ids.0 };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
-                    layer_map[*id] = new_id;
+                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                    layer_map[id] = new_id;
                 }
                 layer_map
             }
@@ -301,18 +301,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         edge_store.dst = node_map[edge.edge.dst().index()];
                         edge_store.eid = EID(eid);
                         for edge in edge.explode_layers() {
-                            let old_layer = LayerIds::All.constrain_from_edge(edge.edge);
                             let layer = layer_map[edge.edge.layer().unwrap()];
                             let additions = new_edge.additions_mut(layer);
                             for edge in edge.explode() {
                                 let t = edge.edge.time().unwrap();
                                 additions.insert(t);
                             }
-                            for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in
-                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
-                                {
-                                    new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
+                            for t_prop in edge.properties().temporal().values() {
+                                let prop_id = t_prop.id();
+                                for (t, prop_value) in t_prop.iter_indexed() {
+                                    new_edge.layer_mut(layer).add_prop(t, prop_id, prop_value)?;
                                 }
                             }
                             for c_prop in edge.const_prop_ids() {
@@ -322,16 +320,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                         .add_constant_prop(c_prop, prop_value)?;
                                 }
                             }
-                            if self.include_deletions() {
-                                let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
-                                if deletion_history.peek().is_some() {
-                                    let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
-                                    for t in deletion_history {
-                                        edge_deletions.insert(t);
-                                    }
-                                }
-                            }
+                        }
+
+                        let time_semantics = self.edge_time_semantics();
+                        let edge_entry = self.core_edge(edge.edge.pid());
+                        for (t, layer) in time_semantics.edge_deletion_history(
+                            edge_entry.as_ref(),
+                            self,
+                            self.layer_ids(),
+                        ) {
+                            new_edge.deletions_mut(layer_map[layer]).insert(t);
                         }
                     }
                 }
@@ -341,42 +339,54 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
-                            src_node.update_time(t, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index()?;
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            src_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             src_node.add_edge(
                                 node_map[edge.edge.dst().index()],
                                 Direction::OUT,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
-                            dst_node.update_time(t, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index()?;
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            dst_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             dst_node.add_edge(
                                 node_map[edge.edge.src().index()],
                                 Direction::IN,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
                     }
 
-                    if self.include_deletions() {
-                        for t in self.edge_deletion_history(edge.edge, self.layer_ids()) {
-                            if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
-                            {
-                                src_node.update_time(t, edge.edge.pid());
-                            }
-                            if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()])
-                            {
-                                dst_node.update_time(t, edge.edge.pid());
-                            }
+                    let edge_time_semantics = self.edge_time_semantics();
+                    let edge_entry = self.core_edge(edge.edge.pid());
+                    for (t, layer) in edge_time_semantics.edge_deletion_history(
+                        edge_entry.as_ref(),
+                        self,
+                        self.layer_ids(),
+                    ) {
+                        if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
+                            src_node.update_time(
+                                t,
+                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                            );
+                        }
+                        if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
+                            dst_node.update_time(
+                                t,
+                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                            );
                         }
                     }
                 }
@@ -394,6 +404,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn cache_view(&self) -> CachedView<G> {
         CachedView::new(self.clone())
+    }
+
+    fn valid(&self) -> Result<ValidGraph<Self>, GraphError> {
+        match self.graph_type() {
+            GraphType::EventGraph => Err(GraphError::EventGraphNoValidView),
+            GraphType::PersistentGraph => Ok(ValidGraph::new(self.clone())),
+        }
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
@@ -429,34 +446,45 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     #[inline]
     fn earliest_time(&self) -> Option<i64> {
-        self.earliest_time_global()
+        match self.filter_state() {
+            FilterState::Neither => self.earliest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history().next())
+                .min()
+                .into_iter()
+                .chain(
+                    self.nodes()
+                        .earliest_time()
+                        .par_iter_values()
+                        .flatten()
+                        .min(),
+                )
+                .min(),
+        }
     }
 
     #[inline]
     fn latest_time(&self) -> Option<i64> {
-        self.latest_time_global()
+        match self.filter_state() {
+            FilterState::Neither => self.latest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history_rev().next())
+                .max()
+                .into_iter()
+                .chain(self.nodes().latest_time().par_iter_values().flatten().max())
+                .max(),
+        }
     }
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        if !self.node_list_trusted() {
-            let node_list = self.node_list();
-            let core_nodes = self.core_nodes();
-            let layer_ids = self.layer_ids();
-            match node_list {
-                NodeList::All { .. } => core_nodes
-                    .as_ref()
-                    .par_iter()
-                    .filter(move |v| self.filter_node(*v, layer_ids))
-                    .count(),
-                NodeList::List { elems } => elems
-                    .par_iter()
-                    .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
-                    .count(),
-            }
-        } else {
-            self.node_list().len()
-        }
+        (&self).nodes().len()
     }
 
     #[inline]
@@ -477,8 +505,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(self.layer_ids())
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
                     .count()
             }
@@ -489,8 +517,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .as_ref()
                     .par_iter(self.layer_ids())
                     .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                        self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
                     .count()
             }
@@ -508,11 +536,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn count_temporal_edges(&self) -> usize {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
+        let edge_time_semantics = self.edge_time_semantics();
         match self.filter_state() {
             FilterState::Neither => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
-                .map(move |edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
             FilterState::Both => {
                 let nodes = self.core_nodes();
@@ -521,10 +550,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(layer_ids)
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| edge_time_semantics.edge_exploded_count(e.as_ref(), self))
                     .sum()
             }
             FilterState::Nodes => {
@@ -533,17 +562,17 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .as_ref()
                     .par_iter(layer_ids)
                     .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                        self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                     .sum()
             }
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
         }
     }
@@ -553,7 +582,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {
                 let node = self.core_node_entry(node_id);
-                self.filter_node(node.as_ref(), self.layer_ids())
+                self.filter_node(node.as_ref())
             } else {
                 true
             }
@@ -567,12 +596,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.nodes_filtered() {
             let core_node = self.core_node_entry(vid);
-            if !self.filter_node(core_node.as_ref(), self.layer_ids()) {
+            if !self.filter_node(core_node.as_ref()) {
                 return None;
             }
         }
@@ -590,24 +619,24 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Both => {
-                if !self.filter_node(src_node.as_ref(), self.layer_ids()) {
+                if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
                 if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
                     return None;
                 }
-                if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
+                if !self.filter_node(self.core_node_entry(dst).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Nodes => {
-                if !self.filter_node(src_node.as_ref(), self.layer_ids()) {
+                if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
+                if !self.filter_node(self.core_node_entry(dst).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))
@@ -628,7 +657,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 }
 
 #[cfg(feature = "search")]
-impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+impl<G: StaticGraphViewOps> SearchableGraphOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
@@ -705,7 +734,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let index = self
             .get_storage()
             .and_then(|s| s.get_index())
@@ -732,9 +761,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     }
 }
 
-pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
+pub trait StaticGraphViewOps: GraphView + 'static {}
 
-impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
+impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
     type BaseGraph = G;

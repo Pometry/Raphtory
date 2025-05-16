@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::InternalNodeFilterOps,
+            internal::CreateNodeFilter,
             model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
         },
     },
@@ -62,7 +62,7 @@ impl Display for CompositeNodeFilter {
     }
 }
 
-impl InternalNodeFilterOps for CompositeNodeFilter {
+impl CreateNodeFilter for CompositeNodeFilter {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(

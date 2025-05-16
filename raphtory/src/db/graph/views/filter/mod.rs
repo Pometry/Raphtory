@@ -530,13 +530,14 @@ pub(crate) mod test_filters {
 
             use crate::{
                 db::graph::views::filter::{
-                    internal::InternalNodeFilterOps, test_filters::filter_nodes_with,
+                    internal::CreateNodeFilter, test_filters::filter_nodes_with,
                 },
                 prelude::PropertyFilter,
             };
 
             #[cfg(feature = "search")]
             use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::prelude::GraphViewOps;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -626,11 +627,11 @@ pub(crate) mod test_filters {
                 graph
             }
 
-            fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+            fn filter_nodes<I: CreateNodeFilter>(filter: I) -> Vec<String> {
                 filter_nodes_with(filter, init_graph(Graph::new()))
             }
 
-            fn filter_nodes_secondary_index<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+            fn filter_nodes_secondary_index<I: CreateNodeFilter>(filter: I) -> Vec<String> {
                 filter_nodes_with(filter, init_graph_for_secondary_indexes(Graph::new()))
             }
 
@@ -735,7 +736,7 @@ pub(crate) mod test_filters {
                     graph
                 }
 
-                fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+                fn filter_nodes<I: CreateNodeFilter>(filter: I) -> Vec<String> {
                     filter_nodes_with(filter, init_graph(Graph::new()))
                 }
 
@@ -778,7 +779,7 @@ pub(crate) mod test_filters {
                     graph
                 }
 
-                fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+                fn filter_nodes<I: CreateNodeFilter>(filter: I) -> Vec<String> {
                     filter_nodes_with(filter, init_graph(Graph::new()))
                 }
 
@@ -817,6 +818,7 @@ pub(crate) mod test_filters {
             use crate::{
                 assert_filter_results, assert_search_results,
                 db::graph::views::filter::model::property_filter::PropertyFilter,
+                prelude::GraphViewOps,
             };
 
             fn init_graph<
@@ -1094,7 +1096,7 @@ pub(crate) mod test_filters {
     }
 
     use crate::db::graph::views::{
-        filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+        filter::internal::{CreateNodeFilter, InternalEdgeFilterOps},
         test_helpers::{filter_edges_with, filter_nodes_with},
     };
 
@@ -1249,7 +1251,7 @@ pub(crate) mod test_filters {
         graph
     }
 
-    fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+    fn filter_nodes<I: CreateNodeFilter>(filter: I) -> Vec<String> {
         filter_nodes_with(filter, init_nodes_graph(Graph::new()))
     }
 
@@ -1834,7 +1836,7 @@ pub(crate) mod test_filters {
     mod test_node_composite_filter {
         use crate::{
             db::graph::views::filter::{
-                internal::InternalNodeFilterOps, test_filters::init_nodes_graph,
+                internal::CreateNodeFilter, test_filters::init_nodes_graph,
             },
             prelude::Graph,
         };
@@ -1853,7 +1855,7 @@ pub(crate) mod test_filters {
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_nodes_with;
 
-        fn filter_nodes<I: InternalNodeFilterOps>(filter: I) -> Vec<String> {
+        fn filter_nodes<I: CreateNodeFilter>(filter: I) -> Vec<String> {
             filter_nodes_with(filter, init_nodes_graph(Graph::new()))
         }
 

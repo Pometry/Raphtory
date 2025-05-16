@@ -12,21 +12,25 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-#[cfg(feature = "storage")]
-use polars_arrow::array::StructArray;
-use polars_arrow::datatypes::{ArrowDataType, ArrowSchema, Field};
+use polars_arrow::datatypes::ArrowSchema;
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
 use std::{
     collections::HashMap,
     fs,
     fs::File,
     path::{Path, PathBuf},
 };
+
+#[cfg(feature = "storage")]
+use polars_arrow::{
+    array::StructArray,
+    datatypes::{ArrowDataType, Field},
+};
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
