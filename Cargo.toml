@@ -3,7 +3,6 @@ members = [
     "raphtory",
     "raphtory-cypher",
     "raphtory-benchmark",
-    "pometry-storage",
     "examples/rust",
     "examples/netflow",
     "examples/custom-gql-apis",

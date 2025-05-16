@@ -156,7 +156,7 @@ python = [
 # storage
 storage = [
     "arrow",
-    "pometry-storage",
+    "pometry-storage/storage",
     "raphtory-api/storage",
     "dep:memmap2",
     "dep:tempfile",
