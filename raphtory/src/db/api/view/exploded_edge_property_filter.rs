@@ -474,8 +474,8 @@ mod test {
             gfwm.earliest_time(),
             gfwm.latest_time()
         );
-        assert!(gfw.node(0).is_some());
-        assert!(gfwm.node(0).is_some());
+        assert!(gfw.node(0).is_none());
+        assert!(gfwm.node(0).is_none());
         assert_eq!(gfw.earliest_time(), None);
     }
 }
