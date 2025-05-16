@@ -425,6 +425,12 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
 pub struct PropertyFilterBuilder(pub String);
 
 impl PropertyFilterBuilder {
+    pub fn new(prop: impl Into<String>) -> Self {
+        Self(prop.into())
+    }
+}
+
+impl PropertyFilterBuilder {
     pub fn constant(self) -> ConstPropertyFilterBuilder {
         ConstPropertyFilterBuilder(self.0)
     }

@@ -23,6 +23,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
+            views::filter::internal::InternalExplodedEdgeFilterOps,
         },
     },
     python::{
@@ -33,7 +34,7 @@ use crate::{
         types::{
             iterable::FromIterable,
             repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*},
+            wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
         },
         utils::{PyNodeRef, PyTime},
     },

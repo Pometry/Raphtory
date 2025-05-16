@@ -33,7 +33,10 @@ mod test {
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
                 },
                 views::{
-                    deletion_graph::PersistentGraph, filter::model::property_filter::PropertyRef,
+                    deletion_graph::PersistentGraph,
+                    filter::model::{
+                        property_filter::PropertyRef, PropertyFilterBuilder, PropertyFilterOps,
+                    },
                 },
             },
         },
@@ -378,34 +381,34 @@ mod test {
     }
 
     // FIXME: Semantics for materialised graph and filtering are not implemented properly, disabled for now
-    //
-    // #[test]
-    // fn test_persistent_graph() {
-    //     let g = PersistentGraph::new();
-    //     g.add_edge(0, 1, 2, [("int_prop", 0i64)], None).unwrap();
-    //     g.delete_edge(2, 1, 2, None).unwrap();
-    //     g.add_edge(5, 1, 2, [("int_prop", 5i64)], None).unwrap();
-    //     g.delete_edge(7, 1, 2, None).unwrap();
-    //
-    //     let edges = g
-    //         .node(1)
-    //         .unwrap()
-    //         .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
-    //         .unwrap()
-    //         .edges()
-    //         .explode()
-    //         .collect();
-    //     println!("{:?}", edges);
-    //
-    //     assert_eq!(edges.len(), 1);
-    //     let gf = g
-    //         .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
-    //         .unwrap();
-    //     let gfm = gf.materialize().unwrap();
-    //
-    //     assert_graph_equal(&gf, &gfm); // check materialise is consistent
-    // }
-    //
+
+    #[test]
+    fn test_persistent_graph() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, [("int_prop", 0i64)], None).unwrap();
+        g.delete_edge(2, 1, 2, None).unwrap();
+        g.add_edge(5, 1, 2, [("int_prop", 5i64)], None).unwrap();
+        g.delete_edge(7, 1, 2, None).unwrap();
+
+        let edges = g
+            .node(1)
+            .unwrap()
+            .filter_exploded_edges(PropertyFilterBuilder::new("int_prop").gt(1i64))
+            .unwrap()
+            .edges()
+            .explode()
+            .collect();
+        println!("{:?}", edges);
+
+        assert_eq!(edges.len(), 1);
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("int_prop").gt(1i64))
+            .unwrap();
+        let gfm = gf.materialize().unwrap();
+
+        assert_graph_equal(&gf, &gfm); // check materialise is consistent
+    }
+
     // #[test]
     // fn test_persistent_graph_materialise() {
     //     proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>())| {
@@ -451,28 +454,28 @@ mod test {
     //         assert_graph_equal(&gfw, &gfwm);
     //     })
     // }
-    //
-    // #[test]
-    // fn test_persistent_graph_only_deletion() {
-    //     let g = PersistentGraph::new();
-    //     g.delete_edge(0, 0, 0, None).unwrap();
-    //     let gfw = g
-    //         .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
-    //         .unwrap()
-    //         .window(-1, 1);
-    //     println!(
-    //         "earliest: {:?}, latest: {:?}",
-    //         gfw.earliest_time(),
-    //         gfw.latest_time()
-    //     );
-    //     let gfwm = gfw.materialize().unwrap();
-    //     println!(
-    //         "earliest: {:?}, latest: {:?}",
-    //         gfwm.earliest_time(),
-    //         gfwm.latest_time()
-    //     );
-    //     assert!(gfw.node(0).is_some());
-    //     assert!(gfwm.node(0).is_some());
-    //     assert_eq!(gfw.earliest_time(), None);
-    // }
+
+    #[test]
+    fn test_persistent_graph_only_deletion() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 0, None).unwrap();
+        let gfw = g
+            .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(1i64))
+            .unwrap()
+            .window(-1, 1);
+        println!(
+            "earliest: {:?}, latest: {:?}",
+            gfw.earliest_time(),
+            gfw.latest_time()
+        );
+        let gfwm = gfw.materialize().unwrap();
+        println!(
+            "earliest: {:?}, latest: {:?}",
+            gfwm.earliest_time(),
+            gfwm.latest_time()
+        );
+        assert!(gfw.node(0).is_some());
+        assert!(gfwm.node(0).is_some());
+        assert_eq!(gfw.earliest_time(), None);
+    }
 }
