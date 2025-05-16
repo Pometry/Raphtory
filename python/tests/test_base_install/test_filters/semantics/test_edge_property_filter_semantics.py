@@ -1,6 +1,6 @@
 from raphtory import filter, Prop
 import pytest
-from test_base_install.test_filters.semantics.conftest import init_edges_graph, init_edges_graph1, init_edges_graph2
+from .conftest import init_edges_graph, init_edges_graph1, init_edges_graph2
 from utils import with_disk_variants
 
 
