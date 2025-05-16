@@ -1473,11 +1473,9 @@ mod views_test {
                 prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter, TimeOps},
             };
             use raphtory_api::core::storage::arc_str::ArcStr;
-            use std::{ops::Range, sync::Arc};
+            use std::sync::Arc;
 
-            use crate::db::graph::views::{
-                filter::internal::InternalNodeFilterOps, test_helpers::filter_nodes_with,
-            };
+            use crate::db::graph::views::test_helpers::filter_nodes_with;
 
             #[cfg(feature = "storage")]
             use tempfile::TempDir;

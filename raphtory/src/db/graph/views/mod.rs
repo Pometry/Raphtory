@@ -131,7 +131,17 @@ pub mod macros_nodes {
     #[macro_export]
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_nodes_results {
-        ($init_fn:ident, $filter:expr, $expected_results:expr) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_nodes_results_variant {
+        ($init_fn:ident, $filter:expr, $expected:expr, graph) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, persistent_graph) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, event_disk_graph) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, persistent_disk_graph) => {};
     }
 }
 
@@ -294,7 +304,15 @@ pub mod macros_nodes_w {
     #[macro_export]
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_nodes_results_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_nodes_results_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, graph) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, event_disk_graph) => {};
     }
 
     #[macro_export]
@@ -357,7 +375,15 @@ pub mod macros_nodes_w {
     #[macro_export]
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_nodes_results_pg_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_nodes_results_pg_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_graph) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
     }
 }
 
@@ -434,13 +460,14 @@ pub mod macros_edges {
         // Explicit variant usage
         ($init_fn:ident, $filter:expr, $expected_results:expr, variants = [$($variant:ident),*]) => {{
             $(
-                assert_search_edges_variant!($init_fn, $filter.clone(), $expected_results, $variant);
+                assert_search_edges_results_variant!($init_fn, $filter.clone(), $expected_results, $variant);
             )*
         }};
     }
 
     #[macro_export]
-    macro_rules! assert_search_edges_variant {
+    #[cfg(feature = "search")]
+    macro_rules! assert_search_edges_results_variant {
         ($init_fn:ident, $filter:expr, $expected_results:expr, graph) => {{
             let g = $init_fn(Graph::new());
             let results = search_edges_with($filter, g);
@@ -485,7 +512,17 @@ pub mod macros_edges {
     #[macro_export]
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_edges_results {
-        ($init_fn:ident, $filter:expr, $expected_results:expr) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_edges_results_variant {
+        ($init_fn:ident, $filter:expr, $expected:expr, graph) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, persistent_graph) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, event_disk_graph) => {};
+        ($init_fn:ident, $filter:expr, $expected:expr, persistent_disk_graph) => {};
     }
 }
 
@@ -619,7 +656,8 @@ pub mod macros_edges_w {
     #[macro_export]
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_edges_results_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
     }
 
     #[macro_export]
@@ -683,7 +721,15 @@ pub mod macros_edges_w {
     #[macro_export]
     #[cfg(not(feature = "search"))]
     macro_rules! assert_search_edges_results_pg_w {
-        ($init_fn:ident, $filter:expr, $w:expr, $expected_results:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+    }
+
+    #[macro_export]
+    #[cfg(not(feature = "search"))]
+    macro_rules! assert_search_edges_results_pg_w_variant {
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_graph) => {};
+        ($init_fn:ident, $filter:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
     }
 }
 

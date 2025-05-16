@@ -386,7 +386,7 @@ mod test {
                 assert_filter_edges_results_variant, assert_filter_edges_results_w,
                 assert_filter_edges_results_w_variant, assert_search_edges_results,
                 assert_search_edges_results_pg_w, assert_search_edges_results_pg_w_variant,
-                assert_search_edges_results_w, assert_search_edges_variant,
+                assert_search_edges_results_variant, assert_search_edges_results_w,
             };
 
             #[cfg(feature = "search")]

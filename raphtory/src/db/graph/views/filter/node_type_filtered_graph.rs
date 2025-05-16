@@ -436,7 +436,16 @@ mod tests_node_type_filtered_subgraph {
 
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_nodes_results {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected_results:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_nodes_results_variant {
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         #[cfg(feature = "search")]
@@ -499,6 +508,13 @@ mod tests_node_type_filtered_subgraph {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_nodes_results_w {
             ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_nodes_results_w_variant {
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {};
         }
 
         #[cfg(feature = "search")]
@@ -569,6 +585,13 @@ mod tests_node_type_filtered_subgraph {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_nodes_results_pg_w {
             ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_nodes_results_pg_w_variant {
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         macro_rules! assert_filter_edges_results {
@@ -839,7 +862,16 @@ mod tests_node_type_filtered_subgraph {
 
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected_results:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_variant {
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         #[cfg(feature = "search")]
@@ -902,6 +934,13 @@ mod tests_node_type_filtered_subgraph {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_w {
             ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_w_variant {
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {};
         }
 
         #[cfg(feature = "search")]
@@ -972,6 +1011,13 @@ mod tests_node_type_filtered_subgraph {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_pg_w {
             ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_pg_w_variant {
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         macro_rules! assert_filter_edges_results_layers {
@@ -1285,7 +1331,16 @@ mod tests_node_type_filtered_subgraph {
 
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_layers {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected_results:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_layers_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, event_disk_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         #[cfg(feature = "search")]
@@ -1354,6 +1409,13 @@ mod tests_node_type_filtered_subgraph {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_layers_w {
             ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_layers_w_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {};
         }
 
         #[cfg(feature = "search")]
@@ -1431,6 +1493,13 @@ mod tests_node_type_filtered_subgraph {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_layers_pg_w {
             ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_layers_pg_w_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         fn get_all_node_types<G: StaticGraphViewOps + AdditionOps>(graph: &G) -> Vec<String> {

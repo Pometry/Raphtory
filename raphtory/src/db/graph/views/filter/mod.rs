@@ -799,7 +799,7 @@ pub(crate) mod test_filters {
         mod test_edge_property_filter_semantics {
             use crate::{
                 assert_filter_edges_results, assert_filter_edges_results_variant,
-                assert_search_edges_results, assert_search_edges_variant,
+                assert_search_edges_results, assert_search_edges_results_variant,
                 core::Prop,
                 db::{
                     api::{
@@ -1494,7 +1494,7 @@ pub(crate) mod test_filters {
         use crate::disk_graph::DiskGraphStorage;
         use crate::{
             assert_filter_edges_results, assert_filter_edges_results_variant,
-            assert_search_edges_results, assert_search_edges_variant,
+            assert_search_edges_results, assert_search_edges_results_variant,
             core::Prop,
             db::graph::views::{
                 deletion_graph::PersistentGraph,
@@ -2161,7 +2161,7 @@ pub(crate) mod test_filters {
         use crate::db::graph::views::test_helpers::search_edges_with;
         use crate::{
             assert_filter_edges_results, assert_filter_edges_results_variant,
-            assert_search_edges_results, assert_search_edges_variant,
+            assert_search_edges_results, assert_search_edges_results_variant,
             db::graph::views::{
                 deletion_graph::PersistentGraph, filter::test_filters::init_edges_graph,
                 test_helpers::filter_edges_with,
@@ -2413,7 +2413,7 @@ pub(crate) mod test_filters {
     mod test_edge_composite_filter {
         use crate::{
             assert_filter_edges_results, assert_filter_edges_results_variant,
-            assert_search_edges_results, assert_search_edges_variant,
+            assert_search_edges_results, assert_search_edges_results_variant,
             db::graph::views::{
                 filter::{test_filters::init_edges_graph, EdgeFieldFilter},
                 test_helpers::filter_edges_with,

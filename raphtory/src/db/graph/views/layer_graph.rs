@@ -471,9 +471,19 @@ mod test_layers {
 
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_nodes_results {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected_results:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
         }
 
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_nodes_results_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {};
+        }
+
+        #[cfg(feature = "search")]
         macro_rules! assert_search_nodes_results_w {
             // Default case (graph + event_disk_graph)
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
@@ -495,6 +505,7 @@ mod test_layers {
             }};
         }
 
+        #[cfg(feature = "search")]
         macro_rules! assert_search_nodes_results_w_variant {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {{
                 let g = $init_fn(Graph::new())
@@ -527,8 +538,16 @@ mod test_layers {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_nodes_results_w {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
         }
 
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_nodes_results_w_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {};
+        }
+
+        #[cfg(feature = "search")]
         macro_rules! assert_search_nodes_results_pg_w {
             // Default to both variants
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
@@ -557,6 +576,7 @@ mod test_layers {
             }};
         }
 
+        #[cfg(feature = "search")]
         macro_rules! assert_search_nodes_results_pg_w_variant {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {{
                 let g = $init_fn(PersistentGraph::new())
@@ -590,6 +610,13 @@ mod test_layers {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_nodes_results_pg_w {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_nodes_results_pg_w_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         macro_rules! assert_filter_edges_results {
@@ -830,9 +857,19 @@ mod test_layers {
 
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected_results:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
         }
 
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {};
+        }
+
+        #[cfg(feature = "search")]
         macro_rules! assert_search_edges_results_w {
             // Default case (graph + event_disk_graph)
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
@@ -854,6 +891,7 @@ mod test_layers {
             }};
         }
 
+        #[cfg(feature = "search")]
         macro_rules! assert_search_edges_results_w_variant {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {{
                 let g = $init_fn(Graph::new())
@@ -886,8 +924,16 @@ mod test_layers {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_w {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
         }
 
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_w_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {};
+        }
+
+        #[cfg(feature = "search")]
         macro_rules! assert_search_edges_results_pg_w {
             // Default to both variants
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
@@ -916,6 +962,7 @@ mod test_layers {
             }};
         }
 
+        #[cfg(feature = "search")]
         macro_rules! assert_search_edges_results_pg_w_variant {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {{
                 let g = $init_fn(PersistentGraph::new())
@@ -949,6 +996,13 @@ mod test_layers {
         #[cfg(not(feature = "search"))]
         macro_rules! assert_search_edges_results_pg_w {
             ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
+        }
+
+        #[cfg(not(feature = "search"))]
+        macro_rules! assert_search_edges_results_pg_w_variant {
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {};
+            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
         }
 
         mod test_nodes_filters_layer_graph {
