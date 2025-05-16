@@ -91,7 +91,9 @@ def test_temporal_any_semantics_for_secondary_indexes():
     filter_expr = filter.Property("p1").temporal().any() == 1
 
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-    expected_ids = sorted(["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"])
+    expected_ids = sorted(
+        ["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+    )
     assert result_ids == expected_ids
 
 
@@ -167,13 +169,10 @@ def test_property_semantics_only_temporal():
     graph = Graph()
     nodes = [
         (1, "N1", {"p1": 1}),
-
         (2, "N2", {"p1": 1}),
         (3, "N2", {"p1": 2}),
-
         (2, "N3", {"p1": 2}),
         (3, "N3", {"p1": 1}),
-
         (2, "N4", {}),
     ]
 
@@ -192,4 +191,3 @@ def test_property_semantics_only_temporal():
     result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
     expected_ids = sorted(["N1", "N3"])
     assert result_ids == expected_ids
-

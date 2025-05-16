@@ -1,4 +1,6 @@
 import tempfile
+from threading import Thread
+
 import pytest
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
@@ -236,3 +238,28 @@ def test_wrong_paths():
                 "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
                 in str(excinfo.value)
             )
+
+
+def test_namespaces():
+    work_dir = tempfile.mkdtemp()
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        make_folder_structure(client)
+        import time
+
+        time.sleep(500)
+        query = """
+            {
+                namespaces{
+                graphs{
+                    name
+                  }
+                  path
+                }
+                
+            }"""
+        result = client.query(query)
+        correct = {}
+
+        assert sort_dict(result) == sort_dict(correct)

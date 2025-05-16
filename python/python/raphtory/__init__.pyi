@@ -113,6 +113,14 @@ class GraphView(object):
     def create_index(self):
         """Create graph index"""
 
+    def create_index_in_ram(self):
+        """
+        Creates a graph index in memory (RAM).
+
+        This is primarily intended for use in tests and should not be used in production environments,
+        as the index will not be persisted to disk.
+        """
+
     def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
@@ -251,18 +259,6 @@ class GraphView(object):
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: PropertyFilter) -> GraphView:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
                                      filter using `Prop`.
 
         Returns:
@@ -1319,6 +1315,17 @@ class Graph(GraphView):
           MutableNode: The node object with the specified id, or None if the node does not exist
         """
 
+    def persist_as_disk_graph(self, graph_dir: str | PathLike) -> DiskGraphStorage:
+        """
+        save graph in disk_graph format and memory map the result
+
+        Arguments:
+            graph_dir (str | PathLike): folder where the graph will be saved
+
+        Returns:
+            DiskGraphStorage: the persisted disk graph storage
+        """
+
     def persistent_graph(self) -> PersistentGraph:
         """
         View graph with persistent semantics
@@ -1354,6 +1361,17 @@ class Graph(GraphView):
 
         Returns:
           bytes:
+        """
+
+    def to_disk_graph(self, graph_dir: str | PathLike) -> Graph:
+        """
+        Persist graph on disk
+
+        Arguments:
+            graph_dir (str | PathLike): the folder where the graph will be persisted
+
+        Returns:
+            Graph: a view of the persisted graph
         """
 
     def to_parquet(self, graph_dir: str | PathLike):
@@ -2323,18 +2341,6 @@ class Node(object):
             Node: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> Node:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Node: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> Node:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -2865,18 +2871,6 @@ class Nodes(object):
             Nodes: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> Nodes:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Nodes: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> Nodes:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -3387,18 +3381,6 @@ class PathFromNode(object):
             PathFromNode: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> PathFromNode:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            PathFromNode: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> PathFromNode:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -3826,18 +3808,6 @@ class PathFromGraph(object):
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            PathFromGraph: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: PropertyFilter) -> PathFromGraph:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
                                      filter using `Prop`.
 
         Returns:
@@ -6029,7 +5999,15 @@ class Prop(object):
     def __new__(cls, name: str) -> Prop:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def any(self, values: set[PropValue]) -> PropertyFilter:
+    def contains(self, value) -> PropertyFilter:
+        """
+        Create a filter that keeps entities that contains the property
+
+        Returns:
+            PropertyFilter: the property filter
+        """
+
+    def is_in(self, values: set[PropValue]) -> PropertyFilter:
         """
         Create a filter that keeps entities if their property value is in the set
 
@@ -6048,6 +6026,18 @@ class Prop(object):
             PropertyFilter: the property filter
         """
 
+    def is_not_in(self, values: set[PropValue]) -> PropertyFilter:
+        """
+        Create a filter that keeps entities if their property value is not in the set or
+        if they don't have the property
+
+        Arguments:
+            values (set[PropValue]): the set of values to exclude
+
+        Returns:
+            PropertyFilter: the property filter
+        """
+
     def is_some(self) -> PropertyFilter:
         """
         Create a filter that only keeps entities if they have the property
@@ -6056,13 +6046,9 @@ class Prop(object):
             PropertyFilter: the property filter
         """
 
-    def not_any(self, values: set[PropValue]) -> PropertyFilter:
+    def not_contains(self, value) -> PropertyFilter:
         """
-        Create a filter that keeps entities if their property value is not in the set or
-        if they don't have the property
-
-        Arguments:
-            values (set[PropValue]): the set of values to exclude
+        Create a filter that keeps entities that do not contain the property
 
         Returns:
             PropertyFilter: the property filter
@@ -6087,3 +6073,35 @@ class WindowSet(object):
         Returns:
             Iterable: the time index"
         """
+
+class DiskGraphStorage(object):
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def append_node_temporal_properties(self, location, chunk_size=20000000): ...
+    def graph_dir(self): ...
+    @staticmethod
+    def load_from_dir(graph_dir): ...
+    @staticmethod
+    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col): ...
+    @staticmethod
+    def load_from_parquets(
+        graph_dir,
+        layer_parquet_cols,
+        node_properties=None,
+        chunk_size=10000000,
+        t_props_chunk_size=10000000,
+        num_threads=4,
+        node_type_col=None,
+        node_id_col=None,
+    ): ...
+    def load_node_const_properties(self, location, col_names=None, chunk_size=None): ...
+    def load_node_types(self, location, col_name, chunk_size=None): ...
+    def merge_by_sorted_gids(self, other, graph_dir):
+        """
+        Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
+        sorted by their global ids or the resulting graph will be nonsense!
+        """
+
+    def to_events(self): ...
+    def to_persistent(self): ...

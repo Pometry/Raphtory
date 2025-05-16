@@ -3,6 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 
 #[derive(ResolvedObject)]
+#[graphql(name = "VectorisedGraph")]
 pub(crate) struct GqlVectorisedGraph {
     graph: VectorisedGraph<MaterializedGraph>,
 }

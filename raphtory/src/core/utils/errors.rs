@@ -385,6 +385,12 @@ pub enum GraphError {
 
     #[error("Failed to create index in ram")]
     FailedToCreateIndexInRam,
+
+    #[error("Your window and step must be of the same type (int or String)")]
+    MismatchedIntervalTypes,
+
+    #[error("You must provide either a window_str or window_int")]
+    NoIntervalProvided,
 }
 
 impl GraphError {
