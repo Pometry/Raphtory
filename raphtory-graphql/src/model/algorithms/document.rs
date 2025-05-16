@@ -20,19 +20,19 @@ impl From<String> for DocumentGraph {
 #[derive(Union)]
 #[graphql(name = "DocumentEntity")]
 enum GqlDocumentEntity {
-    Node(GqlNode),
-    Edge(GqlEdge),
-    Graph(DocumentGraph),
+    DocNode(GqlNode),
+    DocEdge(GqlEdge),
+    DocGraph(DocumentGraph),
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
     fn from(value: DocumentEntity<G>) -> Self {
         match value {
-            DocumentEntity::Graph { name, .. } => Self::Graph(DocumentGraph {
+            DocumentEntity::Graph { name, .. } => Self::DocGraph(DocumentGraph {
                 name: name.unwrap(),
             }),
-            DocumentEntity::Node(node) => Self::Node(GqlNode::from(node)),
-            DocumentEntity::Edge(edge) => Self::Edge(GqlEdge::from(edge)),
+            DocumentEntity::Node(node) => Self::DocNode(GqlNode::from(node)),
+            DocumentEntity::Edge(edge) => Self::DocEdge(GqlEdge::from(edge)),
         }
     }
 }

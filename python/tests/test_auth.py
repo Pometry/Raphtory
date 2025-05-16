@@ -31,11 +31,10 @@ WRITE_HEADERS = {
 
 NEW_TEST_GRAPH = """mutation { newGraph(path:"test", graphType:EVENT) }"""
 
-QUERY_GRAPHS = """query { graphs { name } }"""
-QUERY_NAMEPSACES = """query { namespaces { path } }"""
+QUERY_NAMESPACES = """query { namespaces { path } }"""
 QUERY_ROOT = """query { root { graphs { path } } }"""
 QUERY_GRAPH = """query { graph(path: "test") { path } }"""
-TEST_QUERIES = [QUERY_GRAPHS, QUERY_NAMEPSACES, QUERY_ROOT, QUERY_GRAPH]
+TEST_QUERIES = [QUERY_NAMESPACES, QUERY_GRAPH, QUERY_ROOT]
 
 
 def assert_successful_response(response: requests.Response):
@@ -60,7 +59,7 @@ def test_expired_token():
             "Authorization": f"Bearer {token}",
         }
         response = requests.post(
-            RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_GRAPHS})
+            RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_ROOT})
         )
         assert response.status_code == 401
 
@@ -69,7 +68,7 @@ def test_expired_token():
             "Authorization": f"Bearer {token}",
         }
         response = requests.post(
-            RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_GRAPHS})
+            RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_ROOT})
         )
         assert response.status_code == 401
 

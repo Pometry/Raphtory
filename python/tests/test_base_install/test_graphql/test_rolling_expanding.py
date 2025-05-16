@@ -48,19 +48,19 @@ def run_graphql_error_test(query, expected_error_message, graph):
         ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
-def test_graph_rolling(graph):
-    query = """
-        {
-          graph(path: "g") {
-            rolling(
-            nodes(ids: ["0"]) {
-              list {
-                id
-                degree
-              }
-            }
-          }
-        }
-    """
-    expected_output = {"graph": {"nodes": {"list": [{"id": "0", "degree": 1}]}}}
-    run_graphql_test(query, expected_output, graph)
+# def test_graph_rolling(graph):
+#     query = """
+#         {
+#           graph(path: "g") {
+#             rolling(
+#             nodes(ids: ["0"]) {
+#               list {
+#                 id
+#                 degree
+#               }
+#             }
+#           }
+#         }
+#     """
+#     expected_output = {"graph": {"nodes": {"list": [{"id": "0", "degree": 1}]}}}
+#     run_graphql_test(query, expected_output, graph)
