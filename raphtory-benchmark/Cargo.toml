@@ -26,6 +26,10 @@ csv = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }
 
+[[bin]]
+name = "vectorise"
+path = "bin/vectorise.rs"
+
 [[bench]]
 name = "tgraph_benchmarks"
 harness = false

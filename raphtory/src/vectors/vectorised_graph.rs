@@ -15,6 +15,7 @@ use crate::{
     },
 };
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
+use futures_util::StreamExt;
 use rand::{rngs::StdRng, SeedableRng};
 use std::{
     collections::HashSet,
@@ -275,13 +276,13 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     async fn compute_embedding(&self, doc: String) -> GraphResult<Embedding> {
-        let mut vectors = compute_embeddings(
+        let result = compute_embeddings(
             std::iter::once((0, doc)),
             &self.embedding,
             &self.cache_storage,
-        )
-        .await?;
-        Ok(vectors.remove(0).1) // FIXME: unwrap
+        );
+        futures_util::pin_mut!(result);
+        Ok(result.next().await.unwrap()?.1)
     }
 
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`

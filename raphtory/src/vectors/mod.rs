@@ -104,6 +104,41 @@ mod vector_tests {
 
     const TWENTY_HUNDRED_MIB: usize = 2 * 1024 * 1024 * 1024;
 
+    #[test]
+    fn test_heed() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(1000 * 1024 * 1024 * 1024)
+                .open(tempdir.path())
+        }
+        .unwrap();
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(1000 * 1024 * 1024 * 1024)
+                .open(tempdir.path())
+        }
+        .unwrap();
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(1000 * 1024 * 1024 * 1024)
+                .open(tempdir.path())
+        }
+        .unwrap();
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(1000 * 1024 * 1024 * 1024)
+                .open(tempdir.path())
+        }
+        .unwrap();
+    }
+
     #[tokio::test]
     async fn test_arroy() {
         let tempdir = tempfile::tempdir().unwrap();

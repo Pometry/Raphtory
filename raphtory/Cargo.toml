@@ -73,6 +73,7 @@ minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 arroy = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
+async-stream = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -139,6 +140,7 @@ vectors = [
     "dep:minijinja-contrib",
     "dep:arroy",
     "dep:heed",
+    "dep:async-stream",
     "dep:tempfile",          # also used for the storage feature
 ]
 

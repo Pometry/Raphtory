@@ -7,7 +7,9 @@ use crate::{
     },
 };
 use arroy::{distances::Cosine, Database as ArroyDatabase, Writer};
+use async_stream::stream;
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use itertools::Itertools;
 use rand::{rngs::StdRng, SeedableRng};
 use std::{
@@ -48,7 +50,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ) -> GraphResult<VectorisedGraph<G>>;
 }
 
-const LMDB_MAX_SIZE: usize = 20 * 1024 * 1024 * 1024 * 1024; // 20 GB // TODO: review !!!!!!!!!!!!
+const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB // TODO: review !!!!!!!!!!!!
 
 #[async_trait]
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
@@ -61,7 +63,6 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
-        dbg!();
         if verbose {
             info!("computing embeddings for nodes");
         }
@@ -107,23 +108,22 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
 }
 
 pub(super) fn open_env(path: &Path) -> heed::Env {
-    unsafe {
+    let env = unsafe {
         heed::EnvOpenOptions::new()
             .map_size(LMDB_MAX_SIZE)
             .open(path)
     }
-    .unwrap()
+    .unwrap();
     // FIXME: remove unwrap
+    env
 }
 
 async fn db_from_docs(
-    docs: impl Iterator<Item = (u32, String)>,
+    docs: impl Iterator<Item = (u32, String)> + Send,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
     path: Option<PathBuf>,
 ) -> GraphResult<VectorDb> {
-    let vectors = compute_embeddings(docs, embedding, &cache).await?;
-
     let (env, tempdir) = match path {
         Some(path) => {
             std::fs::create_dir_all(&path).unwrap();
@@ -139,16 +139,29 @@ async fn db_from_docs(
     let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
     let db: ArroyDatabase<Cosine> = env.create_database(&mut wtxn, None).unwrap();
 
-    let dimensions = if let Some(first_vector) = vectors.first() {
+    let vectors = compute_embeddings(docs, embedding, &cache);
+    futures_util::pin_mut!(vectors);
+    let first_vector = vectors.next().await;
+    let dimensions = if let Some(Ok(first_vector)) = first_vector {
         let dimensions = first_vector.1.len(); // TODO: if vectors is empty, simply don't wirte anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         let writer = Writer::<Cosine>::new(db, 0, dimensions);
-        for (id, vector) in vectors {
+
+        while let Some(result) = vectors.next().await {
+            let (id, vector) = result?;
             writer.add_item(&mut wtxn, id, &vector).unwrap();
         }
 
         // TODO: review this -> You can specify the number of trees to use or specify None.
         let mut rng = StdRng::seed_from_u64(42);
-        writer.builder(&mut rng).build(&mut wtxn).unwrap();
+        dbg!();
+        writer
+            .builder(&mut rng)
+            // .available_memory(1024 * 1024 * 1024 * 12) // 12 GB
+            .progress(|progress| {
+                // dbg!(progress);
+            })
+            .build(&mut wtxn)
+            .unwrap();
         dimensions.into()
     } else {
         OnceLock::new()
@@ -165,30 +178,47 @@ async fn db_from_docs(
 }
 
 // TODO: mvoe this to common place, utils maybe?
-pub(super) async fn compute_embeddings<I>(
+pub(super) fn compute_embeddings<'a, I>(
     documents: I,
-    embedding: &dyn EmbeddingFunction,
-    cache: &Option<EmbeddingCache>,
-) -> GraphResult<Vec<(u32, Embedding)>>
+    embedding: &'a dyn EmbeddingFunction,
+    cache: &'a Option<EmbeddingCache>,
+) -> impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
+// TODO: review if this type make sense?
 where
-    I: Iterator<Item = (u32, String)>,
+    I: Iterator<Item = (u32, String)> + Send + 'a,
 {
-    let mut embeddings = vec![];
-    let mut buffer = Vec::with_capacity(CHUNK_SIZE);
-
-    for document in documents {
-        buffer.push(document);
-        if buffer.len() >= CHUNK_SIZE {
-            let chunk = compute_chunk(&buffer, embedding, cache).await?;
-            embeddings.extend(chunk);
-            buffer.clear();
+    stream! {
+        // tried to implement this using documents.chunks(), but the resulting type is not Send and breaks this function
+        let mut buffer = Vec::with_capacity(CHUNK_SIZE);
+        for document in documents {
+            buffer.push(document);
+            if buffer.len() >= CHUNK_SIZE {
+                let chunk = compute_chunk(&buffer, embedding, cache).await?;
+                for result in chunk {
+                    yield Ok(result)
+                }
+                buffer.clear();
+            }
         }
+        if buffer.len() > 0 {
+            let chunk = compute_chunk(&buffer, embedding, cache).await?;
+            for result in chunk {
+                yield Ok(result)
+            }
+        }
+        // for chunk in documents.chunks(CHUNK_SIZE).into_iter().map(|chunk| chunk.collect::<Vec<_>>()) {
+        //     match compute_chunk(&chunk, embedding, cache).await {
+        //         Ok(results) => {
+        //             for result in results {
+        //                 yield Ok(result);
+        //             }
+        //         }
+        //         Err(error) => {
+        //             // Handle error if needed
+        //         }
+        //     }
+        // }
     }
-    if buffer.len() > 0 {
-        let chunk = compute_chunk(&buffer, embedding, cache).await?;
-        embeddings.extend(chunk);
-    }
-    Ok(embeddings)
 }
 
 async fn compute_chunk(

@@ -4977,6 +4977,7 @@ dependencies = [
  "arrow-schema",
  "arroy",
  "async-openai",
+ "async-stream",
  "async-trait",
  "bigdecimal",
  "bincode",
