@@ -1,11 +1,11 @@
+use super::DocumentEntity;
 use crate::{
     db::api::view::StaticGraphViewOps,
+    prelude::GraphViewOps,
     vectors::{entity_id::EntityId, template::DocumentTemplate, Document, Embedding, Lifespan},
 };
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
-
-use super::DocumentEntity;
 
 /// this struct contains the minimum amount of information need to regenerate a document using a
 /// template and to quickly apply windows over them

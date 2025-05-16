@@ -227,7 +227,7 @@ mod tests_node_type_filtered_subgraph {
     mod test_filters_node_type_filtered_subgraph {
         use crate::{
             db::api::view::StaticGraphViewOps,
-            prelude::{AdditionOps, NodeViewOps},
+            prelude::{AdditionOps, GraphViewOps, NodeViewOps},
         };
 
         macro_rules! assert_filter_results {

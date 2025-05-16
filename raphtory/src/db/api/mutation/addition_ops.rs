@@ -12,7 +12,7 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::NodeViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew::{Existing, New};
 

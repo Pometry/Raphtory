@@ -309,7 +309,9 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
         let node = self.graph.core_node_entry(self.node);
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
-            semantics.node_updates(node.as_ref(), graph)
+            semantics
+                .node_updates(node.as_ref(), graph)
+                .into_dyn_boxed()
         })
         .into_dyn_boxed()
     }

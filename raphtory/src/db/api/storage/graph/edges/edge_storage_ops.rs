@@ -13,7 +13,7 @@ use crate::{
     },
     db::api::{
         storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
-        view::BoxableGraphView,
+        view::{internal::GraphView, BoxableGraphView},
     },
     prelude::GraphViewOps,
 };
@@ -21,12 +21,9 @@ use either::Either;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
-use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::Dir, EID, ELID},
-        storage::timeindex::TimeIndexEntry,
-    },
-    iter::{BoxedLDIter, IntoDynDBoxed},
+use raphtory_api::core::{
+    entities::{edges::edge_ref::Dir, EID, ELID},
+    storage::timeindex::TimeIndexEntry,
 };
 use rayon::prelude::*;
 use std::ops::Range;
@@ -191,6 +188,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct FilteredEdgeTProp<G, P> {
     eid: ELID,
     view: G,
@@ -200,22 +198,25 @@ pub struct FilteredEdgeTProp<G, P> {
 impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
-    fn iter(&self) -> BoxedLDIter<'graph, (TimeIndexEntry, Prop)> {
+    fn iter(
+        self,
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         let view = self.view.clone();
         let eid = self.eid;
         self.props
             .iter()
             .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-            .into_dyn_dboxed()
     }
 
-    fn iter_window(&self, r: Range<TimeIndexEntry>) -> BoxedLDIter<'graph, (TimeIndexEntry, Prop)> {
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         let view = self.view.clone();
         let eid = self.eid;
         self.props
             .iter_window(r)
             .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-            .into_dyn_dboxed()
     }
 
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
@@ -415,7 +416,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
-    fn filtered_temporal_prop_iter<G: GraphViewOps<'a>>(
+    fn filtered_temporal_prop_iter<G: GraphView + 'a>(
         self,
         prop_id: usize,
         view: G,

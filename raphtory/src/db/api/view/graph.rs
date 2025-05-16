@@ -167,7 +167,7 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
-impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
         let edges = Arc::new(move || {
@@ -761,9 +761,9 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
     }
 }
 
-pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
+pub trait StaticGraphViewOps: GraphView + 'static {}
 
-impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
+impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
     type BaseGraph = G;

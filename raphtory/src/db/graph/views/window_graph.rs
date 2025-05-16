@@ -1440,6 +1440,7 @@ mod views_test {
                 }
             }
 
+            use crate::prelude::GraphViewOps;
             #[cfg(feature = "search")]
             use search_nodes::*;
 
@@ -2496,6 +2497,7 @@ mod views_test {
                 }
             }
 
+            use crate::prelude::GraphViewOps;
             #[cfg(feature = "search")]
             use search_edges::*;
 

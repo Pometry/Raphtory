@@ -11,6 +11,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
+    prelude::GraphViewOps,
 };
 use num_traits::abs;
 

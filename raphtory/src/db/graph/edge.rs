@@ -135,14 +135,18 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
                 }
                 None => match e.layer() {
                     None => GenLockedIter::from(edge, move |edge| {
-                        time_semantics.edge_deletion_history(edge.as_ref(), g, g.layer_ids())
+                        time_semantics
+                            .edge_deletion_history(edge.as_ref(), g, g.layer_ids())
+                            .into_dyn_boxed()
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
                         if self.graph.layer_ids().contains(&layer) {
                             let layer_ids = LayerIds::One(layer);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
-                                time_semantics.edge_deletion_history(edge.as_ref(), g, layer_ids)
+                                time_semantics
+                                    .edge_deletion_history(edge.as_ref(), g, layer_ids)
+                                    .into_dyn_boxed()
                             })
                             .into_dyn_boxed()
                         } else {
@@ -496,23 +500,17 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalProperty
             match self.edge.time() {
                 None => match self.edge.layer() {
                     None => GenLockedIter::from(edge, move |edge| {
-                        time_semantics.temporal_edge_prop_hist(
-                            edge.as_ref(),
-                            graph,
-                            graph.layer_ids(),
-                            id,
-                        )
+                        time_semantics
+                            .temporal_edge_prop_hist(edge.as_ref(), graph, graph.layer_ids(), id)
+                            .into_dyn_boxed()
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
                         let layer_ids = LayerIds::One(layer);
                         GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
-                            time_semantics.temporal_edge_prop_hist(
-                                edge.as_ref(),
-                                graph,
-                                layer_ids,
-                                id,
-                            )
+                            time_semantics
+                                .temporal_edge_prop_hist(edge.as_ref(), graph, layer_ids, id)
+                                .into_dyn_boxed()
                         })
                         .into_dyn_boxed()
                     }
@@ -541,23 +539,22 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalProperty
             match self.edge.time() {
                 None => match self.edge.layer() {
                     None => GenLockedIter::from(edge, move |edge| {
-                        time_semantics.temporal_edge_prop_hist_rev(
-                            edge.as_ref(),
-                            graph,
-                            graph.layer_ids(),
-                            id,
-                        )
+                        time_semantics
+                            .temporal_edge_prop_hist_rev(
+                                edge.as_ref(),
+                                graph,
+                                graph.layer_ids(),
+                                id,
+                            )
+                            .into_dyn_boxed()
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
                         let layer_ids = LayerIds::One(layer);
                         GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
-                            time_semantics.temporal_edge_prop_hist_rev(
-                                edge.as_ref(),
-                                graph,
-                                layer_ids,
-                                id,
-                            )
+                            time_semantics
+                                .temporal_edge_prop_hist_rev(edge.as_ref(), graph, layer_ids, id)
+                                .into_dyn_boxed()
                         })
                         .into_dyn_boxed()
                     }

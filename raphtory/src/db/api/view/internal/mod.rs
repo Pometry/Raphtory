@@ -78,6 +78,10 @@ impl<
 {
 }
 
+pub trait GraphView: BoxableGraphView + Sized + Clone {}
+
+impl<T: BoxableGraphView + Sized + Clone> GraphView for T {}
+
 pub trait InheritViewOps: Base + Send + Sync {}
 
 impl<G: InheritViewOps> InheritNodeFilterOps for G {}

@@ -8,6 +8,7 @@ use crate::{
         },
     },
     db::{api::view::StaticGraphViewOps, graph::node::NodeView},
+    prelude::GraphViewOps,
 };
 use std::{fmt::Debug, sync::Arc};
 

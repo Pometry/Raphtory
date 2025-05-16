@@ -537,6 +537,7 @@ pub(crate) mod test_filters {
 
             #[cfg(feature = "search")]
             use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::prelude::GraphViewOps;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -817,6 +818,7 @@ pub(crate) mod test_filters {
             use crate::{
                 assert_filter_results, assert_search_results,
                 db::graph::views::filter::model::property_filter::PropertyFilter,
+                prelude::GraphViewOps,
             };
 
             fn init_graph<
