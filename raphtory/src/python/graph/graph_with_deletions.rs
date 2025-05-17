@@ -9,6 +9,8 @@ use super::{
     graph::{PyGraph, PyGraphEncoder},
     io::pandas_loaders::*,
 };
+#[cfg(feature = "storage")]
+use crate::disk_graph::DiskGraphStorage;
 use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
@@ -104,6 +106,17 @@ impl PyPersistentGraph {
             },
             PyGraphView::from(graph),
         )
+    }
+
+    #[cfg(feature = "storage")]
+    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<PersistentGraph, GraphError> {
+        use crate::db::api::storage::graph::storage_ops::GraphStorage;
+        use std::sync::Arc;
+
+        let disk_graph = DiskGraphStorage::from_graph(&self.graph.event_graph(), graph_dir)?;
+        let storage = GraphStorage::Disk(Arc::new(disk_graph));
+        let graph = PersistentGraph::from_internal_graph(storage);
+        Ok(graph)
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {

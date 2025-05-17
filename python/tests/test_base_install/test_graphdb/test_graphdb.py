@@ -23,6 +23,7 @@ import os
 import shutil
 import numpy as np
 import pickle
+from utils import with_disk_graph
 
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
@@ -54,26 +55,6 @@ def create_graph_with_deletions():
     g.edge(edges[0][1], edges[0][2]).add_constant_properties({"static": "test"})
     g.delete_edge(10, edges[0][1], edges[0][2])
     return g
-
-
-if "DISK_TEST_MARK" in os.environ:
-
-    def with_disk_graph(func):
-        def inner(graph):
-            def inner2(graph, tmpdirname):
-                g = graph.to_disk_graph(tmpdirname)
-                func(g)
-
-            func(graph)
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                inner2(graph, tmpdirname)
-
-        return inner
-
-else:
-
-    def with_disk_graph(func):
-        return func
 
 
 def test_graph_len_edge_len():
