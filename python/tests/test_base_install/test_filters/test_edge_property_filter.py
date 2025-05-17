@@ -1,6 +1,6 @@
 from raphtory import Prop, filter
 import pytest
-from .conftest import init_graph
+from conftest import init_graph
 from utils import with_disk_variants
 
 
