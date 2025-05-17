@@ -1,8 +1,7 @@
 from raphtory import Prop, filter
 import pytest
-from conftest import init_graph
+from filters_setup import init_graph
 from utils import with_disk_variants
-
 
 @with_disk_variants(init_graph)
 def test_filter_nodes_for_property_eq():

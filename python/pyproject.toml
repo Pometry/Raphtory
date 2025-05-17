@@ -42,8 +42,4 @@ python-source = "python"
 include = ["motif-images/*"]
 
 [tool.pytest.ini_options]
-pythonpath = [
-    "test_utils",
-    "tests/test_base_install/test_filters",
-    "tests/test_base_install/test_filters/semantics"
-] # adds directories to the python path for tests
+pythonpath = ["test_utils"] # adds directories to the python path for tests
