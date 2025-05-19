@@ -10,6 +10,8 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
+use raphtory::db::api::view::history::History;
+use crate::model::graph::history::GqlHistory;
 
 #[derive(ResolvedObject, Clone)]
 pub struct Edge {
@@ -245,8 +247,8 @@ impl Edge {
         GqlEdges::new(self.ee.explode_layers())
     }
 
-    async fn history(&self) -> Vec<i64> {
-        self.ee.history()
+    async fn history(&self) -> GqlHistory {
+        History::new(self.ee.clone()).into()
     }
 
     async fn deletions(&self) -> Vec<i64> {

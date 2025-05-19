@@ -119,6 +119,14 @@ impl<T: InternalHistoryOps> PartialEq for History<T> {
 
 impl<T: InternalHistoryOps> Eq for History<T> {}
 
+impl<T: InternalHistoryOps> std::hash::Hash for History<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for item in self.iter() {
+            item.hash(state);
+        }
+    }
+}
+
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
 /// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
@@ -161,11 +169,6 @@ impl CompositeHistory {
     pub fn new(history_objects: Vec<Arc<dyn InternalHistoryOps>>) -> Self {
         Self { history_objects }
     }
-
-    // FIXME: If we need this, fix it
-    // pub fn new_box(history_objects: Vec<Box<dyn InternalHistoryOps>>) -> Self {
-    //     Self {history_objects: history_objects.into_iter().map(|obj| Arc::new(*obj)).collect() }
-    // }
 }
 
 // Note: All the items held by their respective HistoryImplemented objects must already be of type Box<T>

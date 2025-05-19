@@ -19,9 +19,8 @@ pub struct GqlHistory {
 //     }
 // }
 
-/// Creates GqlHistory from History<T> object, not that this consumes the History<T> object
-impl<T: InternalHistoryOps + 'static> From<History<T>> for GqlHistory
-{
+/// Creates GqlHistory from History<T> object, note that this consumes the History<T> object
+impl<T: InternalHistoryOps + 'static> From<History<T>> for GqlHistory {
     fn from(history: History<T>) -> Self {
         Self {
             history: History::new(Arc::new(history.0)),
@@ -47,7 +46,6 @@ impl GqlHistory {
     }
 
     /// A list of all timestamps (as Unix epochs in milliseconds) present in this history,
-    /// FIXME: Returns an entire vec of timestamps, might want to experiment with pagination or streaming (subscriptions/deferred responses)
     async fn timestamps(&self) -> Vec<i64> {
         self.history
             .iter()
@@ -63,3 +61,4 @@ impl GqlHistory {
             .collect()
     }
 }
+

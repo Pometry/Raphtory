@@ -12,6 +12,8 @@ use raphtory::{
     },
     prelude::NodeStateOps,
 };
+use raphtory::db::api::view::history::History;
+use crate::model::graph::history::GqlHistory;
 
 #[derive(ResolvedObject, Clone)]
 pub struct Node {
@@ -206,8 +208,8 @@ impl Node {
         self.vv.end()
     }
 
-    async fn history(&self) -> Vec<i64> {
-        self.vv.history()
+    async fn history(&self) -> GqlHistory {
+        History::new(self.vv.clone()).into()
     }
 
     async fn is_active(&self) -> bool {
