@@ -63,6 +63,8 @@ def with_disk_variants(init_fn, variants=None):
                         if "persistent_disk_graph" in variants:
                             check(disk.to_persistent())
 
+                        del disk
+
         return wrapper
     return decorator
 
