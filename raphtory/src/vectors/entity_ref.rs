@@ -1,5 +1,6 @@
 use raphtory_api::core::entities::GID;
 
+use crate::db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use crate::db::api::view::StaticGraphViewOps;
 use crate::db::graph::{edge::EdgeView, node::NodeView};
 

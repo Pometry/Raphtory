@@ -13,6 +13,7 @@ use crate::{
     prelude::{EdgeViewOps, NodeViewOps, *},
 };
 
+use super::db::EntityDb;
 use super::{
     entity_ref::EntityRef,
     utils::{apply_window, find_top_k},

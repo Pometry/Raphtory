@@ -5,7 +5,8 @@ use std::{
 };
 
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
-use rand::rngs::StdRng;
+use futures_util::StreamExt;
+use rand::{rngs::StdRng, SeedableRng};
 use sysinfo::System;
 use tempfile::TempDir;
 
@@ -69,7 +70,7 @@ impl EntityDb for EdgeDb {
 // FIXME: remove unwraps in here
 // TODO: rename this to GraphVectorSearch
 // TODO: merge this and VectorDb !!!!!!!!!!!!!!!!!???????
-pub(super) trait EntityDb {
+pub(super) trait EntityDb: Sized {
     fn from_vector_db(db: VectorDb) -> Self;
     fn get_db(&self) -> &VectorDb;
     fn into_entity_ref(id: u32) -> EntityRef;
@@ -80,11 +81,12 @@ pub(super) trait EntityDb {
         vectors: impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send,
         path: Option<PathBuf>,
     ) -> GraphResult<Self> {
-        Self::from_vector_db(VectorDb::from_vectors(vectors, path).await)
+        let db = VectorDb::from_vectors(vectors, path).await?;
+        Ok(Self::from_vector_db(db))
     }
 
-    async fn from_path(path: &Path) -> GraphResult<Self> {
-        Self::from_vector_db(VectorDb::from_path(path).await)
+    fn from_path(path: &Path) -> Self {
+        Self::from_vector_db(VectorDb::from_path(path))
     }
 
     fn top_k<G: StaticGraphViewOps>(
@@ -218,7 +220,7 @@ impl VectorDb {
         let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
         let db: ArroyDatabase<Cosine> = env.create_database(&mut wtxn, None).unwrap();
 
-        // futures_util::pin_mut!(vectors);
+        futures_util::pin_mut!(vectors);
         let first_vector = vectors.next().await;
         let dimensions = if let Some(Ok(first_vector)) = first_vector {
             let dimensions = first_vector.1.len(); // TODO: if vectors is empty, simply don't write anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

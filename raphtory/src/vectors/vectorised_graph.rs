@@ -10,6 +10,7 @@ use crate::{
 use futures_util::StreamExt;
 use std::{path::PathBuf, sync::Arc};
 
+use super::db::EntityDb;
 use super::{
     db::{EdgeDb, NodeDb},
     embeddings::EmbeddingFunction,

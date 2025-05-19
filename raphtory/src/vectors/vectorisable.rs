@@ -7,7 +7,6 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use futures_util::StreamExt;
 use std::{path::Path, sync::Arc};
 use tracing::info;
 
@@ -62,7 +61,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let node_path = path.map(node_vectors_path);
         let node_vectors = compute_embeddings(node_docs, embedding.as_ref(), &cache);
         // futures_util::pin_mut!(node_vectors);
-        let node_db = NodeDb::from_vectors(node_vectors, path).await?;
+        let node_db = NodeDb::from_vectors(node_vectors, node_path).await?;
 
         if verbose {
             info!("computing embeddings for edges");
@@ -76,7 +75,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let edge_path = path.map(edge_vectors_path);
         let edge_vectors = compute_embeddings(edge_docs, embedding.as_ref(), &cache);
         // futures_util::pin_mut!(edge_vectors);
-        let edge_db = EdgeDb::from_vectors(edge_vectors, path).await?;
+        let edge_db = EdgeDb::from_vectors(edge_vectors, edge_path).await?;
 
         if overwrite_cache {
             cache.iter().for_each(|cache| cache.dump_to_disk());
@@ -95,7 +94,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             embedding: embedding.into(),
             cache_storage: cache.into(),
             node_db,
-            edge_db: EdgeDb(edge_db),
+            edge_db,
         })
     }
 }

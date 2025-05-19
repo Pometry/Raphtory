@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::{future::Future, sync::Arc};
 
 use crate::{core::utils::errors::GraphResult, vectors::Embedding};

@@ -12,9 +12,9 @@ use raphtory::{
     prelude::CacheOps,
     serialise::GraphFolder,
     vectors::{
-        embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
-        EmbeddingFunction,
+        embedding_cache::EmbeddingCache, embeddings::openai_embedding,
+        embeddings::EmbeddingFunction, template::DocumentTemplate, vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph, Embedding,
     },
 };
 use std::{

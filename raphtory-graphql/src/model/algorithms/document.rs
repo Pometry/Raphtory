@@ -2,7 +2,7 @@ use crate::model::graph::{edge::Edge, node::Node};
 use dynamic_graphql::{SimpleObject, Union};
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
-    vectors::{Document as RustDocument, DocumentEntity},
+    vectors::DocumentEntity,
 };
 
 #[derive(SimpleObject)]
@@ -17,7 +17,7 @@ impl From<String> for Graph {
 }
 
 #[derive(Union)]
-enum GqlDocumentEntity {
+pub(crate) enum GqlDocumentEntity {
     Node(Node),
     Edge(Edge),
 }
@@ -32,23 +32,9 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumen
 }
 
 #[derive(SimpleObject)]
-pub struct Document {
-    entity: GqlDocumentEntity,
-    content: String,
-    embedding: Vec<f32>,
-}
-
-impl<G: StaticGraphViewOps + IntoDynamic> From<RustDocument<G>> for Document {
-    fn from(value: RustDocument<G>) -> Self {
-        let RustDocument {
-            entity,
-            content,
-            embedding,
-        } = value;
-        Self {
-            entity: entity.into(),
-            content,
-            embedding: embedding.to_vec(),
-        }
-    }
+pub struct GqlDocument {
+    pub(crate) entity: GqlDocumentEntity,
+    pub(crate) content: String,
+    pub(crate) embedding: Vec<f32>,
+    pub(crate) score: f32,
 }

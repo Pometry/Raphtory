@@ -1,5 +1,5 @@
 use crate::model::{
-    algorithms::document::Document,
+    algorithms::document::GqlDocument,
     plugins::{operation::Operation, query_plugin::QueryPlugin},
 };
 use async_graphql::{
@@ -12,7 +12,7 @@ use futures_util::future::BoxFuture;
 pub(crate) struct GlobalSearch;
 
 impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
-    type OutputType = Document;
+    type OutputType = GqlDocument;
 
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(String::get_type_name())

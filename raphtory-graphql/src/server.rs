@@ -21,7 +21,7 @@ use poem::{
     middleware::{Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
-use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
+use raphtory::vectors::{embeddings::EmbeddingFunction, template::DocumentTemplate};
 use serde_json::json;
 use std::{
     fs,

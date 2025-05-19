@@ -1,7 +1,7 @@
 use crate::{
     config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
     model::{
-        algorithms::document::Document as GqlDocument,
+        algorithms::document::GqlDocument,
         plugins::{entry_point::EntryPoint, query_plugin::QueryPlugin},
     },
     python::{
