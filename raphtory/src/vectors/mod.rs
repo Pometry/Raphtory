@@ -2,12 +2,13 @@ use crate::db::{
     api::view::StaticGraphViewOps,
     graph::{edge::EdgeView, node::NodeView},
 };
-use futures_util::future::BoxFuture;
-use std::{error, future::Future, ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 pub mod datetimeformat;
+mod db;
 pub mod embedding_cache;
 pub mod embeddings;
+mod entity_ref;
 pub mod splitting;
 mod storage;
 pub mod template;
@@ -31,32 +32,9 @@ pub struct Document<G: StaticGraphViewOps> {
     pub embedding: Embedding,
 }
 
-pub(crate) type EmbeddingError = Box<dyn error::Error + Send + Sync>;
-pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
-
-pub trait EmbeddingFunction: Send + Sync {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>>;
-}
-
-impl<T, F> EmbeddingFunction for T
-where
-    T: Fn(Vec<String>) -> F + Send + Sync,
-    F: Future<Output = EmbeddingResult<Vec<Embedding>>> + Send + 'static,
-{
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        Box::pin(self(texts))
-    }
-}
-
-impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        Box::pin(self.deref().call(texts))
-    }
-}
-
 #[cfg(test)]
 mod vector_tests {
-    use super::*;
+    use super::{embeddings::EmbeddingResult, *};
     use crate::{
         core::Prop,
         prelude::{AdditionOps, Graph, GraphViewOps},

@@ -14,8 +14,9 @@ use crate::{
 };
 
 use super::{
+    entity_ref::EntityRef,
     utils::{apply_window, find_top_k},
-    vectorised_graph::{EntityRef, VectorSearch, VectorisedGraph},
+    vectorised_graph::VectorisedGraph,
     Document, DocumentEntity, Embedding,
 };
 
