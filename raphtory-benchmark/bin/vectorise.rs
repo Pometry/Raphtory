@@ -52,7 +52,7 @@ fn print_time(start: SystemTime, message: &str) {
 }
 
 fn main() {
-    for size in [100_000, 200_000, 400_000] {
+    for size in [10_000] {
         let graph = create_graph(size);
         let start = SystemTime::now();
         vectorise_graph(graph);

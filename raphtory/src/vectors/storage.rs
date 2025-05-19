@@ -70,7 +70,6 @@ fn open_database(path: &Path) -> VectorDb {
     // TODO: fix unwraps!
     let env = open_env(path);
     let rtxn = env.read_txn().unwrap();
-    // let db: ArroyDatabase<Cosine> = env.database_options().types().open(&rtxn).unwrap().unwrap(); // alternative, this comes from https://github.com/meilisearch/arroy/blob/main/examples/graph.rs
     let db: ArroyDatabase<Cosine> = env.open_database(&rtxn, None).unwrap().unwrap(); // this is the old implementation, causing an issue I think
     let first_vector = Reader::open(&rtxn, 0, db)
         .ok()

@@ -2,7 +2,7 @@ use crate::{
     core::utils::errors::GraphResult,
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     vectors::{
-        embedding_cache::EmbeddingCache, entity_id::EntityId, template::DocumentTemplate,
+        embedding_cache::EmbeddingCache, template::DocumentTemplate,
         vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
@@ -16,6 +16,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, OnceLock},
 };
+use sysinfo::System;
 use tracing::info;
 
 use super::{
@@ -135,7 +136,6 @@ async fn db_from_docs(
         }
     };
 
-    // we will open the default LMDB unnamed database
     let mut wtxn = env.write_txn().unwrap(); // FIXME: remove unwrap
     let db: ArroyDatabase<Cosine> = env.create_database(&mut wtxn, None).unwrap();
 
@@ -143,7 +143,7 @@ async fn db_from_docs(
     futures_util::pin_mut!(vectors);
     let first_vector = vectors.next().await;
     let dimensions = if let Some(Ok(first_vector)) = first_vector {
-        let dimensions = first_vector.1.len(); // TODO: if vectors is empty, simply don't wirte anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        let dimensions = first_vector.1.len(); // TODO: if vectors is empty, simply don't write anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         let writer = Writer::<Cosine>::new(db, 0, dimensions);
 
         while let Some(result) = vectors.next().await {
@@ -153,13 +153,9 @@ async fn db_from_docs(
 
         // TODO: review this -> You can specify the number of trees to use or specify None.
         let mut rng = StdRng::seed_from_u64(42);
-        dbg!();
         writer
             .builder(&mut rng)
-            // .available_memory(1024 * 1024 * 1024 * 12) // 12 GB
-            .progress(|progress| {
-                // dbg!(progress);
-            })
+            .available_memory(System::new().total_memory() as usize / 2)
             .build(&mut wtxn)
             .unwrap();
         dimensions.into()
@@ -177,13 +173,12 @@ async fn db_from_docs(
     })
 }
 
-// TODO: mvoe this to common place, utils maybe?
+// TODO: move this to common place, utils maybe?
 pub(super) fn compute_embeddings<'a, I>(
     documents: I,
     embedding: &'a dyn EmbeddingFunction,
     cache: &'a Option<EmbeddingCache>,
 ) -> impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
-// TODO: review if this type make sense?
 where
     I: Iterator<Item = (u32, String)> + Send + 'a,
 {
@@ -206,18 +201,6 @@ where
                 yield Ok(result)
             }
         }
-        // for chunk in documents.chunks(CHUNK_SIZE).into_iter().map(|chunk| chunk.collect::<Vec<_>>()) {
-        //     match compute_chunk(&chunk, embedding, cache).await {
-        //         Ok(results) => {
-        //             for result in results {
-        //                 yield Ok(result);
-        //             }
-        //         }
-        //         Err(error) => {
-        //             // Handle error if needed
-        //         }
-        //     }
-        // }
     }
 }
 

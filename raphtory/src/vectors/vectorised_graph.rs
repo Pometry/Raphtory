@@ -10,8 +10,8 @@ use crate::{
     },
     prelude::*,
     vectors::{
-        embedding_cache::EmbeddingCache, similarity_search_utils::find_top_k,
-        template::DocumentTemplate, Embedding, EmbeddingFunction,
+        embedding_cache::EmbeddingCache, template::DocumentTemplate, utils::find_top_k, Embedding,
+        EmbeddingFunction,
     },
 };
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
@@ -25,8 +25,7 @@ use std::{
 use tempfile::TempDir;
 
 use super::{
-    similarity_search_utils::apply_window, vector_selection::VectorSelection,
-    vectorisable::compute_embeddings,
+    utils::apply_window, vector_selection::VectorSelection, vectorisable::compute_embeddings,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -67,12 +66,12 @@ impl EntityRef {
         }
     }
 
-    fn as_usize(&self) -> usize {
-        match self {
-            EntityRef::Node(id) => *id,
-            EntityRef::Edge(id) => *id,
-        }
-    }
+    // fn as_usize(&self) -> usize {
+    //     match self {
+    //         EntityRef::Node(id) => *id,
+    //         EntityRef::Edge(id) => *id,
+    //     }
+    // }
 
     fn as_u32(&self) -> u32 {
         match self {

@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    similarity_search_utils::{apply_window, find_top_k},
+    utils::{apply_window, find_top_k},
     vectorised_graph::{EntityRef, VectorSearch, VectorisedGraph},
     Document, DocumentEntity, Embedding,
 };
