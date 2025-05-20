@@ -33,8 +33,9 @@ impl VectorCache {
     }
     pub(super) async fn get_embeddings(
         &self,
-        texts: impl IntoIterator<Item = String>,
+        texts: Vec<String>,
     ) -> impl Iterator<Item = Embedding> + '_ {
+        // TODO: review, turned this into a vec only to make compute_embeddings work
         let mut results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
                 match self.cache.get(&text).await.unwrap() {
