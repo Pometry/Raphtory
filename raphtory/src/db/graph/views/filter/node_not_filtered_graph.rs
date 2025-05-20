@@ -6,8 +6,8 @@ use crate::{
             storage::graph::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
-                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+                    Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
                     InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
                 Base,
@@ -18,6 +18,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::LayerIds;
+use raphtory_storage::core_ops::InheritCoreOps;
 
 #[derive(Debug, Clone)]
 pub struct NodeNotFilteredGraph<G, T> {

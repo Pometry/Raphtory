@@ -27,33 +27,6 @@ impl<'a> IntoIterator for Row<'a> {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct MemRow<'a> {
-    cols: &'a TColumns,
-    row: Option<usize>,
-}
-
-impl<'a> MemRow<'a> {
-    pub fn new(cols: &'a TColumns, row: Option<usize>) -> Self {
-        Self { cols, row }
-    }
-}
-
-impl<'a> IntoIterator for MemRow<'a> {
-    type Item = (usize, Option<Prop>);
-
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Box::new(
-            self.cols
-                .iter()
-                .enumerate()
-                .map(move |(i, col)| (i, self.row.and_then(|row| col.get(row)))),
-        )
-    }
-}
-
 #[cfg(feature = "storage")]
 #[derive(Debug, Copy, Clone)]
 pub struct DiskRow<'a> {

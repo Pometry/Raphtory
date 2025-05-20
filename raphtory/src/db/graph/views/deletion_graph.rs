@@ -28,6 +28,7 @@ use raphtory_api::{
     iter::{BoxedLDIter, IntoDynDBoxed},
     GraphType,
 };
+use raphtory_storage::core_ops::InheritCoreOps;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -1574,15 +1575,13 @@ mod test_node_history_filter_persistent_graph {
     use crate::{
         core::Prop,
         db::{
-            api::view::{
-                internal::{CoreGraphOps, NodeHistoryFilter},
-                StaticGraphViewOps,
-            },
+            api::view::{internal::NodeHistoryFilter, StaticGraphViewOps},
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::{AdditionOps, GraphViewOps},
     };
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
         let nodes = [
@@ -1759,7 +1758,7 @@ mod test_edge_history_filter_persistent_graph {
         core::Prop,
         db::{
             api::view::{
-                internal::{CoreGraphOps, EdgeHistoryFilter, InternalLayerOps},
+                internal::{EdgeHistoryFilter, InternalLayerOps},
                 StaticGraphViewOps,
             },
             graph::views::deletion_graph::PersistentGraph,
@@ -1767,6 +1766,7 @@ mod test_edge_history_filter_persistent_graph {
         prelude::{AdditionOps, GraphViewOps},
     };
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
         let edges = [

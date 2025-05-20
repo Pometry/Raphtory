@@ -15,7 +15,7 @@ use crate::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
-                internal::{CoreGraphOps, GraphTimeSemanticsOps, OneHopFilter, Static},
+                internal::{GraphTimeSemanticsOps, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
@@ -39,6 +39,7 @@ use crate::{
     },
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     fmt,
     hash::{Hash, Hasher},

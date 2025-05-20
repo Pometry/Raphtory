@@ -11,7 +11,7 @@ use raphtory::{
             properties::internal::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::CoreGraphOps, SearchableGraphOps},
+            view::SearchableGraphOps,
         },
         graph::{
             edge::EdgeView,
@@ -30,6 +30,7 @@ use raphtory::{
     serialise::StableDecode,
 };
 use raphtory_api::core::PropType;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 use std::{iter, sync::Arc, time::Instant};
 

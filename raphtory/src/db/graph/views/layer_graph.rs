@@ -8,8 +8,8 @@ use crate::{
         storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
-                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                Base, EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritListOps,
+                InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
                 InheritStorageOps, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
@@ -18,6 +18,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use raphtory_storage::core_ops::InheritCoreOps;
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,

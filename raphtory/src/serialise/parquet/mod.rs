@@ -4,7 +4,6 @@ use crate::{
         api::{
             mutation::internal::InternalAdditionOps,
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
-            view::internal::CoreGraphOps,
         },
         graph::views::deletion_graph::PersistentGraph,
     },
@@ -31,9 +30,10 @@ use parquet::{
     file::properties::WriterProperties,
 };
 use raphtory_api::{
-    core::entities::{properties::props::PropMapper, GidType},
+    core::entities::{properties::meta::PropMapper, GidType},
     GraphType,
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::{
     fs::File,

@@ -1,9 +1,6 @@
 use crate::{
     core::utils::{errors::GraphError, iter::GenLockedIter},
-    db::{
-        api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
-        graph::node::NodeView,
-    },
+    db::{api::storage::graph::storage_ops::GraphStorage, graph::node::NodeView},
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
         run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID, TIME_COL, TYPE_COL,
@@ -12,6 +9,7 @@ use crate::{
 use arrow_schema::{DataType, Field};
 use itertools::Itertools;
 use raphtory_api::{core::entities::VID, iter::IntoDynBoxed};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::path::Path;
 
 pub(crate) fn encode_nodes_tprop(

@@ -1,12 +1,12 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
+        api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
 };
-use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
-use std::sync::Arc;
+use raphtory_api::core::entities::{Layer, LayerIds, SingleLayer};
+use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {
@@ -96,107 +96,6 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         let layers = names.into();
         let ids = self.current_filter().valid_layer_ids_from_names(layers);
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Layer {
-    All,
-    None,
-    Default,
-    One(ArcStr),
-    Multiple(Arc<[ArcStr]>),
-}
-
-impl Layer {
-    pub fn contains(&self, name: &str) -> bool {
-        match self {
-            Layer::All => true,
-            Layer::None => false,
-            Layer::Default => name == "_default",
-            Layer::One(layer) => layer == name,
-            Layer::Multiple(layers) => layers.iter().any(|l| l == name),
-        }
-    }
-}
-
-pub trait SingleLayer {
-    fn name(self) -> ArcStr;
-}
-
-impl<T: SingleLayer> From<T> for Layer {
-    fn from(value: T) -> Self {
-        Layer::One(value.name())
-    }
-}
-
-impl SingleLayer for ArcStr {
-    fn name(self) -> ArcStr {
-        self
-    }
-}
-
-impl SingleLayer for String {
-    fn name(self) -> ArcStr {
-        self.into()
-    }
-}
-impl<'a> SingleLayer for &'a str {
-    fn name(self) -> ArcStr {
-        self.into()
-    }
-}
-
-impl<'a> SingleLayer for &'a String {
-    fn name(self) -> ArcStr {
-        self.as_str().into()
-    }
-}
-
-impl<'a> SingleLayer for &'a ArcStr {
-    fn name(self) -> ArcStr {
-        self.clone()
-    }
-}
-
-impl<T: SingleLayer> SingleLayer for Option<T> {
-    fn name(self) -> ArcStr {
-        match self {
-            None => ArcStr::from("_default"),
-            Some(s) => s.name(),
-        }
-    }
-}
-
-impl<T: SingleLayer> From<Vec<T>> for Layer {
-    fn from(names: Vec<T>) -> Self {
-        match names.len() {
-            0 => Layer::None,
-            1 => Layer::One(names.into_iter().next().unwrap().name()),
-            _ => Layer::Multiple(
-                names
-                    .into_iter()
-                    .map(|s| s.name())
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        }
-    }
-}
-
-impl<T: SingleLayer, const N: usize> From<[T; N]> for Layer {
-    fn from(names: [T; N]) -> Self {
-        match N {
-            0 => Layer::None,
-            1 => Layer::One(names.into_iter().next().unwrap().name()),
-            _ => Layer::Multiple(
-                names
-                    .into_iter()
-                    .map(|s| s.name())
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        }
     }
 }
 

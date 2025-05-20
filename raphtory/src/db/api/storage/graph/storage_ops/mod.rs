@@ -33,7 +33,7 @@ use crate::{
             },
             storage::Storage,
         },
-        view::internal::{CoreGraphOps, FilterOps, FilterState, InternalStorageOps, NodeList},
+        view::internal::{FilterOps, FilterState, InternalStorageOps, NodeList},
     },
     prelude::{DeletionOps, EdgeViewOps, GraphViewOps},
 };
@@ -53,6 +53,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::iter::{BoxedLIter, IntoDynBoxed};
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{

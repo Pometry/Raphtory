@@ -16,6 +16,7 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
+raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
 iter-enum = { workspace = true, features = ["rayon"] }
 arrow-ipc = { workspace = true }
 arrow-array = { workspace = true, features = ["chrono-tz"] }

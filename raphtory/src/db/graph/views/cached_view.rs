@@ -7,22 +7,21 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+            Base, EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
             InheritTimeSemantics, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
 };
 use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Clone)]
 pub struct CachedView<G> {

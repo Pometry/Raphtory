@@ -8,7 +8,7 @@ members = [
     "examples/custom-gql-apis",
     "python",
     "raphtory-graphql",
-    "raphtory-api",
+    "raphtory-api", "raphtory-core", "raphtory-storage", "raphtory-compute", "raphtory-filter",
 ]
 default-members = ["raphtory"]
 resolver = "2"

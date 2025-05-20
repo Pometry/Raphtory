@@ -15,8 +15,7 @@ use raphtory::{
             storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{
-                    CoreGraphOps, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
-                    InheritStorageOps, Static,
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
                 },
                 Base, InheritViewOps, MaterializedGraph,
             },
@@ -29,6 +28,7 @@ use raphtory::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {

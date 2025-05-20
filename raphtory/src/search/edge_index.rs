@@ -8,7 +8,6 @@ use crate::{
         api::{
             properties::internal::{ConstantPropertiesOps, TemporalPropertiesOps},
             storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
-            view::internal::core_ops::CoreGraphOps,
         },
         graph::edge::EdgeView,
     },
@@ -20,6 +19,7 @@ use crate::{
     },
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},

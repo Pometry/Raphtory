@@ -84,7 +84,6 @@
 //! If you are interested in contributing, please see
 //! our [GitHub repository](https://github.com/Raphtory/raphtory)
 pub mod algorithms;
-pub mod core;
 pub mod db;
 pub mod graphgen;
 
@@ -107,6 +106,7 @@ pub mod vectors;
 #[cfg(feature = "io")]
 pub mod io;
 
+pub mod core;
 #[cfg(feature = "proto")]
 pub mod serialise;
 

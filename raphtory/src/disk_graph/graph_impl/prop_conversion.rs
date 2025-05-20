@@ -8,9 +8,8 @@ use crate::{
         utils::iter::GenLockedIter,
         PropType,
     },
-    db::api::{
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
-        view::internal::CoreGraphOps,
+    db::api::storage::graph::{
+        nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
     },
     prelude::{Graph, Prop, PropUnwrap},
 };
@@ -20,6 +19,7 @@ use pometry_storage::{
     properties::{node_ts, NodePropsBuilder, Properties},
     RAError,
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::path::Path;
 
 pub fn make_node_properties_from_graph(

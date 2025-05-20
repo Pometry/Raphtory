@@ -16,6 +16,8 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
+bigdecimal = { workspace = true }
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
 chrono.workspace = true
@@ -33,6 +35,12 @@ twox-hash.workspace = true
 tracing-subscriber = { workspace = true }
 tracing = { workspace = true }
 sorted_vector_map = { workspace = true }
+arrow-array = { workspace = true, optional = true }
+arrow-ipc = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
+itertools = { workspace = true }
+iter-enum = { workspace = true }
+
 [dev-dependencies]
 proptest.workspace = true
 quickcheck.workspace = true
@@ -48,3 +56,9 @@ python = [
 storage = [
     "dep:polars-arrow",
 ]
+
+proto = []
+vectors = []
+arrow = ["dep:arrow-array", "dep:arrow-ipc", "dep:arrow-schema"]
+search = []
+io = ["dep:serde_json"]

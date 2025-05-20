@@ -9,9 +9,7 @@ use crate::{
             properties::{internal::PropertiesOps, Properties},
             storage::graph::edges::edge_entry::EdgeStorageEntry,
             view::{
-                internal::{
-                    CoreGraphOps, EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps,
-                },
+                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps},
                 BoxableGraphView, IntoDynBoxed,
             },
         },
@@ -31,6 +29,7 @@ use raphtory_api::{
     },
     iter::BoxedLIter,
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{iter, marker::PhantomData};
 
 #[self_referencing]

@@ -5,7 +5,7 @@ use crate::{
             state::{Index, LazyNodeState, NodeOp},
             storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::{is_view_compatible, FilterOps, NodeList, OneHopFilter, Static},
+                internal::{FilterOps, NodeList, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
                 IntoDynBoxed, IntoDynamic,
             },
@@ -15,6 +15,7 @@ use crate::{
     prelude::*,
 };
 use either::Either;
+use raphtory_storage::core_ops::is_view_compatible;
 use rayon::iter::ParallelIterator;
 use std::{
     collections::HashSet,

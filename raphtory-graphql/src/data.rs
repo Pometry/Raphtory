@@ -274,9 +274,10 @@ pub(crate) mod data_tests {
 
     #[cfg(feature = "storage")]
     use raphtory::{
-        db::api::storage::graph::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
-        disk_graph::DiskGraphStorage,
+        db::api::storage::graph::storage_ops::GraphStorage, disk_graph::DiskGraphStorage,
     };
+    #[cfg(feature = "storage")]
+    use raphtory_storage::core_ops::CoreGraphOps;
     #[cfg(feature = "storage")]
     use std::path::PathBuf;
     #[cfg(feature = "storage")]

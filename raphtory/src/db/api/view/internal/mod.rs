@@ -38,6 +38,7 @@ pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
 pub use one_hop_filter::*;
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
 pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view

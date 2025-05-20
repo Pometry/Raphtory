@@ -579,7 +579,7 @@ mod db_tests {
                 mutation::internal::InternalAdditionOps,
                 properties::internal::ConstantPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps},
+                    internal::{EdgeFilterOps, GraphTimeSemanticsOps},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
@@ -604,6 +604,8 @@ mod db_tests {
         },
         utils::logging::global_info_logger,
     };
+    use raphtory_storage::core_ops::CoreGraphOps;
+    use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
         ops::Range,
@@ -4068,6 +4070,22 @@ mod db_tests {
         for layer in gw.unique_layers() {
             let layered = gw.valid_layers(layer);
             assert_eq!(layered.count_nodes(), 0);
+        }
+    }
+
+    #[test]
+    fn add_edge_and_read_props_concurrent() {
+        let g = Graph::new();
+        for t in 0..1000 {
+            join(
+                || g.add_edge(t, 1, 2, [("test", true)], None).unwrap(),
+                || {
+                    // if the edge exists already, it should have the property set
+                    g.window(t, t + 1)
+                        .edge(1, 2)
+                        .map(|e| assert!(e.properties().get("test").is_some()))
+                },
+            );
         }
     }
 }

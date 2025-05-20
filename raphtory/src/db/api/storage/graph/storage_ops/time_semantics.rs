@@ -7,8 +7,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
         },
         view::internal::{
-            CoreGraphOps, EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter,
-            TimeSemantics,
+            EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
         },
     },
     prelude::Prop,
@@ -20,6 +19,7 @@ use raphtory_api::{
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
 
@@ -338,11 +338,12 @@ mod test_graph_storage {
         use crate::{
             db::api::{
                 storage::graph::storage_ops::time_semantics::test_graph_storage::init_graph_for_nodes_tests,
-                view::internal::{CoreGraphOps, NodeHistoryFilter},
+                view::internal::NodeHistoryFilter,
             },
             prelude::{Graph, GraphViewOps},
         };
         use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+        use raphtory_storage::core_ops::CoreGraphOps;
 
         #[test]
         fn test_is_node_prop_update_latest() {
@@ -493,11 +494,12 @@ mod test_graph_storage {
         use crate::{
             db::api::{
                 storage::graph::storage_ops::time_semantics::test_graph_storage::init_graph_for_edges_tests,
-                view::internal::{CoreGraphOps, EdgeHistoryFilter, InternalLayerOps},
+                view::internal::{EdgeHistoryFilter, InternalLayerOps},
             },
             prelude::{Graph, GraphViewOps},
         };
         use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+        use raphtory_storage::core_ops::CoreGraphOps;
 
         #[test]
         fn test_is_edge_prop_update_latest() {

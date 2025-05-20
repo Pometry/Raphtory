@@ -311,11 +311,12 @@ mod test {
                 lazy_node_state::LazyNodeState,
                 ops::node::{Degree, NodeOp},
             },
-            view::{internal::CoreGraphOps, IntoDynamic},
+            view::IntoDynamic,
         },
         prelude::*,
     };
     use raphtory_api::core::{entities::VID, Direction};
+    use raphtory_storage::core_ops::CoreGraphOps;
     use std::sync::Arc;
 
     struct TestWrapper<Op: NodeOp>(Op);

@@ -1,0 +1,22 @@
+[package]
+name = "raphtory-storage"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
+raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
+rayon = { workspace = true }
+either = { workspace = true }
+iter-enum = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+itertools = { workspace = true }
+thiserror = { workspace = true }

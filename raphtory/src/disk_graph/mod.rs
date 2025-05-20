@@ -6,10 +6,7 @@ use crate::{
         },
         utils::errors::GraphError,
     },
-    db::{
-        api::{storage::graph::storage_ops, view::internal::CoreGraphOps},
-        graph::views::deletion_graph::PersistentGraph,
-    },
+    db::{api::storage::graph::storage_ops, graph::views::deletion_graph::PersistentGraph},
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
@@ -42,6 +39,7 @@ pub mod prelude {
 }
 
 pub use pometry_storage as disk_storage;
+use raphtory_storage::core_ops::CoreGraphOps;
 
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {

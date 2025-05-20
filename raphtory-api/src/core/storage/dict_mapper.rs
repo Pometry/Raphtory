@@ -48,6 +48,17 @@ impl<Index> MaybeNew<Index> {
     }
 
     #[inline]
+    pub fn try_map<R, E>(
+        self,
+        map_fn: impl FnOnce(Index) -> Result<R, E>,
+    ) -> Result<MaybeNew<R>, E> {
+        match self {
+            MaybeNew::New(inner) => Ok(MaybeNew::New(map_fn(inner)?)),
+            MaybeNew::Existing(inner) => Ok(MaybeNew::Existing(map_fn(inner)?)),
+        }
+    }
+
+    #[inline]
     pub fn as_ref(&self) -> MaybeNew<&Index> {
         match self {
             MaybeNew::New(inner) => MaybeNew::New(inner),

@@ -8,18 +8,16 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, CoreGraphOps, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps,
-            InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
-            InheritNodeHistoryFilter, InheritTimeSemantics, InternalNodeFilterOps, ListOps,
-            NodeList, Static,
+            Base, EdgeFilterOps, EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
 use std::fmt::{Debug, Formatter};
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {

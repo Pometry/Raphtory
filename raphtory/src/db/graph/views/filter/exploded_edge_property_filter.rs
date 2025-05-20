@@ -6,10 +6,9 @@ use crate::{
             storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                    InheritTimeSemantics, Static,
+                    EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
                 },
                 Base,
             },
@@ -22,6 +21,7 @@ use raphtory_api::core::{
     entities::{EID, ELID},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
+use raphtory_storage::core_ops::InheritCoreOps;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {

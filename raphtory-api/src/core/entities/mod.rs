@@ -3,18 +3,18 @@ use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
 use edges::edge_ref::EdgeRef;
 use num_traits::ToPrimitive;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fmt::{Debug, Display, Formatter},
     iter,
-    iter::Copied,
-    sync::Arc,
 };
 
 pub mod edges;
+pub mod layers;
 pub mod properties;
+
+pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
 #[repr(transparent)]
@@ -372,72 +372,6 @@ impl<'a> GidRef<'a> {
             GidRef::U64(v) => Some(v),
             GidRef::Str(v) => parse_u64_strict(v),
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum LayerIds {
-    None,
-    All,
-    One(usize),
-    Multiple(Multiple),
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Multiple(pub Arc<[usize]>);
-
-impl<'a> IntoIterator for &'a Multiple {
-    type Item = usize;
-    type IntoIter = Copied<std::slice::Iter<'a, usize>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter().copied()
-    }
-}
-
-impl Multiple {
-    #[inline]
-    pub fn binary_search(&self, pos: &usize) -> Option<usize> {
-        self.0.binary_search(pos).ok()
-    }
-
-    #[inline]
-    pub fn into_iter(&self) -> impl Iterator<Item = usize> {
-        let ids = self.0.clone();
-        (0..ids.len()).map(move |i| ids[i])
-    }
-
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
-        self.0.iter().copied()
-    }
-
-    #[inline]
-    pub fn find(&self, id: usize) -> Option<usize> {
-        self.0.get(id).copied()
-    }
-
-    #[inline]
-    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = usize> {
-        let bit_vec = self.0.clone();
-        (0..bit_vec.len()).into_par_iter().map(move |i| bit_vec[i])
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl FromIterator<usize> for Multiple {
-    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-        Multiple(iter.into_iter().collect())
-    }
-}
-
-impl From<Vec<usize>> for Multiple {
-    fn from(v: Vec<usize>) -> Self {
-        v.into_iter().collect()
     }
 }
 

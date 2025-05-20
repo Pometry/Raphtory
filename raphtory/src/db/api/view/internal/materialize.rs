@@ -1,14 +1,7 @@
 use crate::{
     core::{
-        entities::{
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, EID, GID, VID,
-        },
-        storage::{
-            locked_view::LockedView, raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry,
-            WriteLockedNodes,
-        },
+        entities::{nodes::node_ref::AsNodeRef, properties::props::Meta, LayerIds, EID, VID},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
         PropType,
     },
@@ -20,29 +13,15 @@ use crate::{
             properties::internal::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::graph::{
-                edges::{
-                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
-                },
-                locked::WriteLockedGraph,
-                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
-                storage_ops::GraphStorage,
-            },
-            view::{internal::*, BoxedIter, BoxedLIter},
+            storage::graph::storage_ops::GraphStorage,
+            view::internal::*,
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
 };
-use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::{
-    core::{
-        entities::{GidType, ELID},
-        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
-    },
-    GraphType,
-};
+use raphtory_api::{core::storage::dict_mapper::MaybeNew, GraphType};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -314,15 +293,15 @@ where
 
 #[cfg(test)]
 mod test_materialised_graph_dispatch {
-    use raphtory_api::core::entities::GID;
-
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, MaterializedGraph,
+            EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, MaterializedGraph,
         },
         prelude::*,
     };
+    use raphtory_api::core::entities::GID;
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     #[test]
     fn materialised_graph_has_core_ops() {

@@ -6,23 +6,19 @@ use crate::{
             storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritTimeSemantics, Static,
+                    EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
                 },
                 Base,
             },
         },
-        graph::views::filter::internal::InternalEdgeFilterOps,
+        graph::views::filter::{internal::InternalEdgeFilterOps, PropertyFilter},
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
-
-use crate::db::{
-    api::view::internal::{CoreGraphOps, InheritStorageOps},
-    graph::views::filter::PropertyFilter,
-};
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {

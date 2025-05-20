@@ -1,9 +1,7 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
-        api::view::{
-            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
-        },
+        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -30,6 +28,7 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyDict};
 use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 

@@ -14,7 +14,7 @@ use crate::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
             },
-            view::{internal::CoreGraphOps, MaterializedGraph, StaticGraphViewOps},
+            view::{MaterializedGraph, StaticGraphViewOps},
         },
         graph::views::deletion_graph::PersistentGraph,
     },
@@ -27,10 +27,11 @@ use crate::{
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{properties::props::PropMapper, GidRef, EID, VID},
+    entities::{properties::meta::PropMapper, GidRef, EID, VID},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     unify_types, Direction, PropType,
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 use std::{iter, ops::Deref, sync::Arc};
 

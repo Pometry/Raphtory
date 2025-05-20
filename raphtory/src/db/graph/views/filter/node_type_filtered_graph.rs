@@ -5,15 +5,16 @@ use crate::{
             properties::internal::InheritPropertiesOps,
             storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             view::internal::{
-                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
+                Base, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
         graph::views::filter::{internal::CreateNodeFilter, NodeTypeFilter},
     },
     prelude::GraphViewOps,
 };
+use raphtory_storage::core_ops::InheritCoreOps;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -417,11 +418,7 @@ mod tests_node_type_filtered_subgraph {
 
             #[cfg(feature = "search")]
             mod search_nodes {
-                use crate::{
-                    prelude::{
-                        TimeOps,
-                    },
-                };
+                use crate::prelude::TimeOps;
                 use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
                 use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
@@ -478,7 +475,7 @@ mod tests_node_type_filtered_subgraph {
                 }
             }
 
-            use crate::{db::graph::views::test_helpers::filter_nodes_with};
+            use crate::db::graph::views::test_helpers::filter_nodes_with;
             #[cfg(feature = "search")]
             use search_nodes::*;
             use crate::db::graph::views::filter::model::property_filter::PropertyFilter;

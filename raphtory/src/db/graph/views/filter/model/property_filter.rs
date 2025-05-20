@@ -16,7 +16,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
+use raphtory_api::core::{entities::properties::meta::Meta, storage::arc_str::ArcStr};
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

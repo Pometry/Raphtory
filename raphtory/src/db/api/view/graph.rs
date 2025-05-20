@@ -1307,13 +1307,14 @@ mod test_exploded_edges {
 #[cfg(test)]
 mod test_materialize {
     use crate::{
-        db::{api::view::internal::CoreGraphOps, graph::graph::assert_graph_equal},
+        db::graph::graph::assert_graph_equal,
         prelude::*,
         test_storage,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use raphtory_storage::core_ops::CoreGraphOps;
     use std::ops::Range;
 
     #[test]

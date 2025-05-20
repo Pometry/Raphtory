@@ -2,11 +2,12 @@ use crate::model::schema::{property_schema::PropertySchema, DEFAULT_NODE_TYPE};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{internal::CoreGraphOps, DynamicGraph},
+        api::view::DynamicGraph,
         graph::views::filter::node_type_filtered_graph::NodeTypeFilteredGraph,
     },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 
 #[derive(ResolvedObject)]

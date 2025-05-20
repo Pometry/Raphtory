@@ -48,10 +48,10 @@ use crate::{
             storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList,
-                    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, Immutable, InheritCoreOps,
-                    InheritLayerOps, InheritMaterialize, InheritStorageOps, InternalNodeFilterOps,
-                    ListOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
+                    Base, EdgeFilterOps, EdgeHistoryFilter, EdgeList, EdgeTimeSemanticsOps,
+                    GraphTimeSemanticsOps, Immutable, InheritLayerOps, InheritMaterialize,
+                    InheritStorageOps, InternalNodeFilterOps, ListOps, NodeHistoryFilter, NodeList,
+                    Static, TimeSemantics,
                 },
                 BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
@@ -67,6 +67,7 @@ use raphtory_api::{
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
 use std::{
     fmt::{Debug, Formatter},
     iter,

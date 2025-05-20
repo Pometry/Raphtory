@@ -6,8 +6,8 @@ use crate::{
             storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritNodeFilterOps,
                     InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
                 },
                 Base,
@@ -21,6 +21,7 @@ use raphtory_api::core::{
     entities::{LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
+use raphtory_storage::core_ops::InheritCoreOps;
 
 #[derive(Debug, Clone)]
 pub struct EdgeNotFilteredGraph<G, T> {

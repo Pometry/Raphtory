@@ -6,9 +6,9 @@ use crate::{
             storage::graph::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
-                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
-                    InheritTimeSemantics, InternalNodeFilterOps, NodeHistoryFilter, Static,
+                    Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
+                    InternalNodeFilterOps, NodeHistoryFilter, Static,
                 },
                 Base,
             },
@@ -21,6 +21,7 @@ use raphtory_api::core::{
     entities::{LayerIds, VID},
     storage::timeindex::TimeIndexEntry,
 };
+use raphtory_storage::core_ops::InheritCoreOps;
 use std::ops::Range;
 
 #[derive(Debug, Clone)]

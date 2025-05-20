@@ -13,8 +13,8 @@ use crate::{
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
-                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic,
-                    IntoDynamicOrMutable, MaterializedGraph,
+                    DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic, IntoDynamicOrMutable,
+                    MaterializedGraph,
                 },
                 *,
             },
@@ -58,6 +58,7 @@ use python::{
     },
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
 

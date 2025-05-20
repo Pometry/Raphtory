@@ -4905,6 +4905,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_distr",
  "raphtory-api",
+ "raphtory-core",
  "rayon",
  "regex",
  "reqwest",
@@ -4928,9 +4929,15 @@ dependencies = [
 name = "raphtory-api"
 version = "0.15.1"
 dependencies = [
+ "arrow-array",
+ "arrow-ipc",
+ "arrow-schema",
+ "bigdecimal",
  "bytemuck",
  "chrono",
  "dashmap",
+ "iter-enum",
+ "itertools 0.13.0",
  "lock_api",
  "num-traits",
  "parking_lot",
@@ -4943,6 +4950,7 @@ dependencies = [
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_json",
  "sorted_vector_map",
  "thiserror 2.0.12",
  "tracing",
@@ -4968,6 +4976,33 @@ dependencies = [
  "sorted_vector_map",
  "tempfile",
  "tracing",
+]
+
+[[package]]
+name = "raphtory-compute"
+version = "0.15.1"
+
+[[package]]
+name = "raphtory-core"
+version = "0.15.1"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "dashmap",
+ "either",
+ "iter-enum",
+ "itertools 0.13.0",
+ "lock_api",
+ "once_cell",
+ "ouroboros",
+ "parking_lot",
+ "proptest",
+ "raphtory-api",
+ "rayon",
+ "regex",
+ "rustc-hash 2.1.1",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -5000,6 +5035,14 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "raphtory-filter"
+version = "0.15.1"
+dependencies = [
+ "raphtory-api",
+ "raphtory-storage",
 ]
 
 [[package]]
@@ -5058,6 +5101,20 @@ dependencies = [
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
+]
+
+[[package]]
+name = "raphtory-storage"
+version = "0.15.1"
+dependencies = [
+ "either",
+ "iter-enum",
+ "itertools 0.13.0",
+ "raphtory-api",
+ "raphtory-core",
+ "rayon",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

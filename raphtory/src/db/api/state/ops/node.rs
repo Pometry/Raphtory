@@ -1,12 +1,10 @@
-use crate::{
-    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
-    prelude::GraphViewOps,
-};
+use crate::{db::api::storage::graph::storage_ops::GraphStorage, prelude::GraphViewOps};
 use raphtory_api::core::{
     entities::{GID, VID},
     storage::arc_str::ArcStr,
     Direction,
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {

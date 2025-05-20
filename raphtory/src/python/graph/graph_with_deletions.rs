@@ -12,10 +12,7 @@ use super::{
 use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
-        api::{
-            mutation::{AdditionOps, PropertyAdditionOps},
-            view::internal::CoreGraphOps,
-        },
+        api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     io::parquet_loaders::*,
@@ -28,6 +25,7 @@ use crate::{
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
