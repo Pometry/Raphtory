@@ -282,9 +282,9 @@ mod subgraph_tests {
             }
         }
 
-        struct NodeSubgraphTransformerWindow(Option<Vec<String>>, Range<i64>);
+        struct NodeSubgraphWindowTransformer(Option<Vec<String>>, Range<i64>);
 
-        impl GraphTransformer for NodeSubgraphTransformerWindow {
+        impl GraphTransformer for NodeSubgraphWindowTransformer {
             type Return<G: StaticGraphViewOps> = NodeSubgraph<WindowedGraph<G>>;
             fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
                 let graph = graph.window(self.1.start, self.1.end);
@@ -308,7 +308,7 @@ mod subgraph_tests {
                         views::{
                             filter::model::PropertyFilterOps,
                             node_subgraph::subgraph_tests::test_filters_node_subgraph::{
-                                NodeSubgraphTransformer, NodeSubgraphTransformerWindow,
+                                NodeSubgraphTransformer, NodeSubgraphWindowTransformer,
                                 TestGraphVariants,
                             },
                         },
@@ -388,14 +388,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N1", "N3", "N6"];
                 assert_filter_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
                 assert_search_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::Only(vec![TestGraphVariants::Graph]),
@@ -406,14 +406,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N3"];
                 assert_filter_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names.clone(), 6..9),
+                    NodeSubgraphWindowTransformer(node_names.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
                 assert_search_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names, 6..9),
+                    NodeSubgraphWindowTransformer(node_names, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::Only(vec![TestGraphVariants::Graph]),
@@ -426,14 +426,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::PersistentOnly,
@@ -445,14 +445,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N2", "N3", "N5"];
                 assert_filter_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names.clone(), 6..9),
+                    NodeSubgraphWindowTransformer(node_names.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names, 6..9),
+                    NodeSubgraphWindowTransformer(node_names, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::PersistentOnly,
@@ -472,7 +472,7 @@ mod subgraph_tests {
                         views::{
                             filter::model::PropertyFilterOps,
                             node_subgraph::subgraph_tests::test_filters_node_subgraph::{
-                                NodeSubgraphTransformer, NodeSubgraphTransformerWindow,
+                                NodeSubgraphTransformer, NodeSubgraphWindowTransformer,
                             },
                         },
                     },
@@ -551,14 +551,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
                 assert_filter_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::EventOnly,
@@ -570,14 +570,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N2->N3", "N3->N4"];
                 assert_filter_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names.clone(), 6..9),
+                    NodeSubgraphWindowTransformer(node_names.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names, 6..9),
+                    NodeSubgraphWindowTransformer(node_names, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::EventOnly,
@@ -591,14 +591,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::Only(vec![]),
                 );
                 assert_search_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(None, 6..9),
+                    NodeSubgraphWindowTransformer(None, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::PersistentOnly,
@@ -615,14 +615,14 @@ mod subgraph_tests {
                 let expected_results = vec!["N3->N4"];
                 assert_filter_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names.clone(), 6..9),
+                    NodeSubgraphWindowTransformer(node_names.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::Only(vec![]),
                 );
                 assert_search_edges_results(
                     init_graph,
-                    NodeSubgraphTransformerWindow(node_names, 6..9),
+                    NodeSubgraphWindowTransformer(node_names, 6..9),
                     filter,
                     &expected_results,
                     TestVariants::PersistentOnly,
