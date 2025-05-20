@@ -27,8 +27,9 @@ use raphtory::{
     python::{packages::vectors::TemplateConfig, types::wrappers::document::PyDocument},
     vectors::{
         embeddings::openai_embedding,
+        embeddings::EmbeddingFunction,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-        Document, EmbeddingFunction,
+        Document,
     },
 };
 use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
@@ -85,77 +86,6 @@ impl PyGraphServer {
         let server = take_server_ownership(slf)?;
         let cache = PathBuf::from(cache);
         Ok(server.set_embeddings(embedding, &cache, global_template))
-    }
-
-    fn with_generic_document_search_function<
-        'a,
-        E: EntryPoint<'a> + 'static,
-        F: Fn(&E, Python) -> PyObject + Send + Sync + 'static,
-    >(
-        slf: PyRefMut<Self>,
-        name: String,
-        input: HashMap<String, String>,
-        function: Py<PyFunction>,
-        adapter: F,
-    ) -> PyResult<GraphServer> {
-        let input_mapper = HashMap::from([
-            ("str", TypeRef::named_nn(TypeRef::STRING)),
-            ("int", TypeRef::named_nn(TypeRef::INT)),
-            ("float", TypeRef::named_nn(TypeRef::FLOAT)),
-        ]);
-
-        let input_values = input
-            .into_iter()
-            .map(|(name, type_name)| {
-                let type_ref = input_mapper.get(&type_name.as_str()).cloned();
-                type_ref
-                    .map(|type_ref| InputValue::new(name, type_ref))
-                    .ok_or_else(|| {
-                        let valid_types = input_mapper.keys().map(|key| key.to_owned());
-                        let valid_types_string: String = intersperse(valid_types, ", ").collect();
-                        let msg = format!("types in input have to be one of: {valid_types_string}");
-                        PyAttributeError::new_err(msg)
-                    })
-            })
-            .collect::<PyResult<Vec<InputValue>>>()?;
-
-        // FIXME: this should return a result!
-        let register_function = |name: &str, registry: Registry, parent: Object| {
-            let registry = registry.register::<GqlDocument>();
-            let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
-            let mut field = Field::new(name, output_type, move |ctx| {
-                let documents: Vec<Document<DynamicGraph>> = Python::with_gil(|py| {
-                    let entry_point = adapter(ctx.parent_value.downcast_ref().unwrap(), py);
-                    let kw_args: HashMap<&str, PyObject> = ctx
-                        .args
-                        .iter()
-                        .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
-                        .collect();
-                    let py_kw_args = kw_args.into_py_dict(py).unwrap();
-                    let result = function
-                        .call(py, (entry_point,), Some(&py_kw_args))
-                        .unwrap();
-                    let list = result.downcast_bound::<PyList>(py).unwrap();
-                    let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
-                    py_documents.map(|doc| doc.into()).collect()
-                });
-
-                let gql_documents = documents
-                    .into_iter()
-                    .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
-
-                FieldFuture::Value(Some(FieldValue::list(gql_documents)))
-            });
-            for input_value in input_values {
-                field = field.argument(input_value);
-            }
-            let parent = parent.field(field);
-            (registry, parent)
-        };
-        E::lock_plugins().insert(name, Box::new(register_function));
-
-        let new_server = take_server_ownership(slf)?;
-        Ok(new_server)
     }
 }
 
@@ -276,34 +206,6 @@ impl PyGraphServer {
         ))?;
         let server = take_server_ownership(slf)?;
         Ok(server.with_vectorised_graphs(graph_names, template))
-    }
-
-    /// Register a function in the GraphQL schema for document search among all the graphs.
-    ///
-    /// The function needs to take a `GraphqlGraphs` object as the first argument followed by a
-    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-    /// They have to be specified using the `input` parameter as a dict where the keys are the
-    /// names of the parameters and the values are the types, expressed as strings.
-    ///
-    /// Arguments:
-    ///   name (str): the name of the function in the GraphQL schema.
-    ///   input (dict[str, str]):  the keyword arguments expected by the function.
-    ///   function (Callable): the function to run.
-    ///
-    /// Returns:
-    ///    GraphServer: A new server object with the function registered
-    pub fn with_global_search_function(
-        slf: PyRefMut<Self>,
-        name: String,
-        input: HashMap<String, String>,
-        function: Py<PyFunction>,
-    ) -> PyResult<GraphServer> {
-        let adapter = |entry_point: &QueryPlugin, py: Python| {
-            PyGlobalPlugins(entry_point.clone())
-                .into_py_any(py)
-                .unwrap()
-        };
-        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
     /// Start the server and return a handle to it.

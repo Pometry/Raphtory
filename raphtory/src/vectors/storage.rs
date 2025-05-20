@@ -8,8 +8,8 @@ use std::{
 use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
 
 use super::{
+    cache::VectorCache,
     db::{EdgeDb, EntityDb, NodeDb},
-    embedding_cache::EmbeddingCache,
     embeddings::EmbeddingFunction,
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
@@ -29,12 +29,7 @@ impl VectorMeta {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub fn read_from_path(
-        path: &Path,
-        graph: G,
-        embedding: Arc<dyn EmbeddingFunction>,
-        cache_storage: Arc<Option<EmbeddingCache>>,
-    ) -> Option<Self> {
+    pub fn read_from_path(path: &Path, graph: G, cache: Arc<VectorCache>) -> Option<Self> {
         // TODO: return Result instead of Option
         let meta_string = std::fs::read_to_string(meta_path(path)).ok()?;
         let meta: VectorMeta = serde_json::from_str(&meta_string).ok()?;
@@ -45,8 +40,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         Some(VectorisedGraph {
             template: meta.template,
             source_graph: graph,
-            embedding,
-            cache_storage,
+            cache,
             node_db,
             edge_db,
         })

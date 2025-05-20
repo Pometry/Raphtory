@@ -4,9 +4,9 @@ use crate::db::{
 };
 use std::sync::Arc;
 
+pub mod cache;
 pub mod datetimeformat;
 mod db;
-pub mod embedding_cache;
 pub mod embeddings;
 mod entity_ref;
 pub mod splitting;
@@ -37,19 +37,12 @@ mod vector_tests {
     use super::{embeddings::EmbeddingResult, *};
     use crate::{
         core::Prop,
-        prelude::{AdditionOps, Graph, GraphViewOps},
-        vectors::{
-            embeddings::openai_embedding,
-            template::{DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-            vectorisable::Vectorisable,
-            vectorised_graph::VectorisedGraph,
-        },
+        prelude::{AdditionOps, Graph},
+        vectors::{vectorisable::Vectorisable, vectorised_graph::VectorisedGraph},
     };
     use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
-    use dotenv::dotenv;
     use itertools::Itertools;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::fs::remove_file;
     use tempfile::tempdir;
     use template::DocumentTemplate;
     use tokio;

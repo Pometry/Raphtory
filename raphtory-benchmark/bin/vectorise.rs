@@ -6,7 +6,10 @@ use std::{
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory::{
     prelude::{AdditionOps, Graph, NO_PROPS},
-    vectors::{template::DocumentTemplate, vectorisable::Vectorisable, Embedding, EmbeddingResult},
+    vectors::{
+        embeddings::EmbeddingResult, template::DocumentTemplate, vectorisable::Vectorisable,
+        Embedding,
+    },
 };
 use tokio::runtime::Runtime;
 
@@ -16,7 +19,7 @@ fn gen_embedding(text: &str) -> Embedding {
     let hash = hasher.finish();
 
     let mut rng: StdRng = SeedableRng::seed_from_u64(hash);
-    (0..3072).map(|_| rng.gen()).collect()
+    (0..1024).map(|_| rng.gen()).collect()
 }
 
 async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
@@ -52,7 +55,7 @@ fn print_time(start: SystemTime, message: &str) {
 }
 
 fn main() {
-    for size in [10_000] {
+    for size in [1_000_000] {
         let graph = create_graph(size);
         let start = SystemTime::now();
         vectorise_graph(graph);

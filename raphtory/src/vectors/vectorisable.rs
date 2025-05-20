@@ -2,8 +2,8 @@ use crate::{
     core::utils::errors::GraphResult,
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     vectors::{
-        db::EntityDb, embedding_cache::EmbeddingCache, embeddings::compute_embeddings,
-        template::DocumentTemplate, vectorised_graph::VectorisedGraph,
+        db::EntityDb, embeddings::compute_embeddings, template::DocumentTemplate,
+        vectorised_graph::VectorisedGraph,
     },
 };
 use async_trait::async_trait;
@@ -11,6 +11,7 @@ use std::{path::Path, sync::Arc};
 use tracing::info;
 
 use super::{
+    cache::VectorCache,
     db::{EdgeDb, NodeDb},
     embeddings::EmbeddingFunction,
     storage::{edge_vectors_path, node_vectors_path, VectorMeta},
@@ -32,8 +33,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache: Arc<Option<EmbeddingCache>>,
-        overwrite_cache: bool,
+        cache: Arc<VectorCache>,
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
@@ -45,8 +45,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache: Arc<Option<EmbeddingCache>>,
-        overwrite_cache: bool,
+        cache: Arc<VectorCache>,
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
@@ -59,7 +58,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             .iter()
             .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u32, doc)));
         let node_path = path.map(node_vectors_path);
-        let node_vectors = compute_embeddings(node_docs, embedding.as_ref(), &cache);
+        let node_vectors = compute_embeddings(node_docs, &cache);
         // futures_util::pin_mut!(node_vectors);
         let node_db = NodeDb::from_vectors(node_vectors, node_path).await?;
 
@@ -73,13 +72,9 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
                 .map(|doc| (edge.edge.pid().0 as u32, doc))
         });
         let edge_path = path.map(edge_vectors_path);
-        let edge_vectors = compute_embeddings(edge_docs, embedding.as_ref(), &cache);
+        let edge_vectors = compute_embeddings(edge_docs, &cache);
         // futures_util::pin_mut!(edge_vectors);
         let edge_db = EdgeDb::from_vectors(edge_vectors, edge_path).await?;
-
-        if overwrite_cache {
-            cache.iter().for_each(|cache| cache.dump_to_disk());
-        }
 
         if let Some(path) = path {
             let meta = VectorMeta {
@@ -91,8 +86,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         Ok(VectorisedGraph {
             source_graph: self.clone(),
             template,
-            embedding: embedding.into(),
-            cache_storage: cache.into(),
+            cache,
             node_db,
             edge_db,
         })

@@ -3,17 +3,15 @@ use crate::{
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
     prelude::*,
     vectors::{
-        embedding_cache::EmbeddingCache, embeddings::compute_embeddings,
-        template::DocumentTemplate, utils::find_top_k, Embedding,
+        embeddings::compute_embeddings, template::DocumentTemplate, utils::find_top_k, Embedding,
     },
 };
 use futures_util::StreamExt;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-use super::db::EntityDb;
+use super::{cache::VectorCache, db::EntityDb};
 use super::{
     db::{EdgeDb, NodeDb},
-    embeddings::EmbeddingFunction,
     utils::apply_window,
     vector_selection::VectorSelection,
 };
@@ -22,8 +20,7 @@ use super::{
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
-    pub(crate) embedding: Arc<dyn EmbeddingFunction>,
-    pub(crate) cache_storage: Arc<Option<EmbeddingCache>>,
+    pub(crate) cache: Arc<VectorCache>,
     // it is not the end of the world but we are storing the entity id twice
     pub(crate) node_db: NodeDb,
     pub(crate) edge_db: EdgeDb,
@@ -37,8 +34,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
         VectorisedGraph {
             source_graph: self.source_graph.clone().into_dynamic(),
             template: self.template,
-            embedding: self.embedding,
-            cache_storage: self.cache_storage,
+            cache: self.cache,
             node_db: self.node_db,
             edge_db: self.edge_db,
         }
@@ -69,27 +65,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     async fn compute_embedding(&self, doc: String) -> GraphResult<Embedding> {
-        let result = compute_embeddings(
-            std::iter::once((0, doc)),
-            &self.embedding,
-            &self.cache_storage,
-        );
+        let result = compute_embeddings(std::iter::once((0, doc)), &self.cache);
         futures_util::pin_mut!(result);
         Ok(result.next().await.unwrap()?.1)
-    }
-
-    /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
-    pub fn save_embeddings(&self, file: PathBuf) {
-        // let cache = EmbeddingCache::new(file);
-        // let node_documents = self.node_documents.read();
-        // let edge_documents = self.edge_documents.read();
-        // chain!(node_documents.iter(), edge_documents.iter()).for_each(|(_, group)| {
-        //     group.iter().for_each(|doc| {
-        //         let original = doc.regenerate(&self.source_graph, &self.template);
-        //         cache.upsert_embedding(&original.content, doc.embedding.clone());
-        //     })
-        // });
-        // cache.dump_to_disk();
     }
 
     /// Return an empty selection of documents

@@ -10,11 +10,13 @@ use crate::{
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
+        embeddings::EmbeddingFunction,
+        embeddings::EmbeddingResult,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
-        Document, DocumentEntity, Embedding, EmbeddingFunction, EmbeddingResult,
+        Document, DocumentEntity, Embedding,
     },
 };
 use futures_util::future::BoxFuture;
