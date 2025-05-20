@@ -75,12 +75,12 @@ pub(crate) fn combine_properties(
     })
 }
 
-pub fn combine_properties_arrow<A: arrow_array::Array>(
+pub fn combine_properties_arrow<A: arrow_array::Array, E>(
     props: &[impl AsRef<str>],
     indices: &[usize],
     df: &[A],
-    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
-) -> Result<PropCols, GraphError> {
+    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, E>,
+) -> Result<PropCols, E> {
     let dtypes = indices
         .iter()
         .map(|idx| prop_type_from_arrow_dtype(df[*idx].data_type()))
@@ -93,7 +93,7 @@ pub fn combine_properties_arrow<A: arrow_array::Array>(
         .iter()
         .zip(dtypes.into_iter())
         .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
-        .collect::<Result<Vec<_>, GraphError>>()?;
+        .collect::<Result<Vec<_>, E>>()?;
 
     Ok(PropCols {
         prop_ids,
