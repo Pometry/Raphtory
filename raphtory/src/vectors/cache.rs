@@ -1,4 +1,4 @@
-use crate::vectors::Embedding;
+use crate::{core::utils::errors::GraphResult, vectors::Embedding};
 use foyer::{DirectFsDeviceOptions, Engine, HybridCache, HybridCacheBuilder};
 use futures_util::StreamExt;
 use std::{collections::VecDeque, ops::Deref, path::Path};
@@ -34,7 +34,7 @@ impl VectorCache {
     pub(super) async fn get_embeddings(
         &self,
         texts: Vec<String>,
-    ) -> impl Iterator<Item = Embedding> + '_ {
+    ) -> GraphResult<impl Iterator<Item = Embedding> + '_> {
         // TODO: review, turned this into a vec only to make compute_embeddings work
         let mut results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
@@ -53,17 +53,22 @@ impl VectorCache {
             })
             .collect();
         let mut fresh_vectors: VecDeque<_> = self.function.call(misses).await.unwrap().into();
-        results.into_iter().map(move |(text, vector)| match vector {
+        let embeddings = results.into_iter().map(move |(text, vector)| match vector {
             Some(vector) => vector,
             None => {
                 let vector = fresh_vectors.pop_front().unwrap();
                 self.cache.insert(text, vector.clone());
                 vector
             }
-        })
+        });
+        Ok(embeddings)
     }
 
     pub(super) async fn get_single(&self, text: String) -> Embedding {
-        self.get_embeddings(vec![text]).await.next().unwrap()
+        self.get_embeddings(vec![text])
+            .await
+            .unwrap() // FIXME: remove this unwrap
+            .next()
+            .unwrap()
     }
 }

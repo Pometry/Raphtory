@@ -57,73 +57,30 @@ pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embeddi
         .collect())
 }
 
-// pub(super) fn compute_embeddings<'a, I>(
-//     documents: I,
-//     cache: &'a VectorCache,
-// ) -> impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
-// where
-//     I: Iterator<Item = (u32, String)> + Send + 'a,
-// {
-//     async_stream::stream! {
-//         // tried to implement this using documents.chunks(), but the resulting type is not Send and breaks this function
-//         let mut buffer = Vec::with_capacity(CHUNK_SIZE);
-//         for document in documents {
-//             buffer.push(document);
-//             if buffer.len() >= CHUNK_SIZE {
-//                 let chunk = compute_chunk(&buffer, cache).await?;
-//                 for result in chunk {
-//                     yield Ok(result)
-//                 }
-//                 buffer.clear();
-//             }
-//         }
-//         if buffer.len() > 0 {
-//             let chunk = compute_chunk(&buffer, cache).await?;
-//             for result in chunk {
-//                 yield Ok(result)
-//             }
-//         }
-//     }
-// }
-
 pub(super) fn compute_embeddings<'a, I>(
     documents: I,
     cache: &'a VectorCache,
-) -> impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
+) -> impl Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
 where
     I: Iterator<Item = (u32, String)> + Send + 'a,
 {
-    async_stream::stream! {
-        // tried to implement this using documents.chunks(), but the resulting type is not Send and breaks this function
-        let mut buffer = Vec::with_capacity(CHUNK_SIZE);
-        for document in documents {
-            buffer.push(document);
-            if buffer.len() >= CHUNK_SIZE {
-                let chunk = compute_chunk(&buffer, cache).await?;
-                for result in chunk {
-                    yield Ok(result)
-                }
-                buffer.clear();
-            }
-        }
-        if buffer.len() > 0 {
-            let chunk = compute_chunk(&buffer, cache).await?;
-            for result in chunk {
-                yield Ok(result)
-            }
-        }
-    }
-}
-
-async fn compute_chunk(
-    documents: &Vec<(u32, String)>,
-    cache: &VectorCache,
-) -> GraphResult<Vec<(u32, Embedding)>> {
-    let texts = documents.iter().map(|(_, text)| text.clone()).collect();
-    let vectors = cache.get_embeddings(texts).await;
-    let embedded = documents
-        .into_iter()
-        .zip(vectors)
-        .map(|((id, _), vector)| (*id, vector));
-    Ok(embedded.collect())
+    futures_util::stream::iter(documents)
+        .chunks(CHUNK_SIZE)
+        .then(|chunk| async {
+            let texts = chunk.iter().map(|(_, text)| text.clone()).collect();
+            let stream: Pin<Box<dyn Stream<Item = GraphResult<(u32, Embedding)>> + Send>> =
+                match cache.get_embeddings(texts).await {
+                    Ok(embeddings) => {
+                        let embedded: Vec<_> = chunk
+                            .into_iter()
+                            .zip(embeddings)
+                            .map(|((id, _), vector)| Ok((id, vector)))
+                            .collect(); // TODO: do I really need this collect?
+                        Box::pin(futures_util::stream::iter(embedded))
+                    }
+                    Err(error) => Box::pin(futures_util::stream::iter([Err(error)])),
+                };
+            stream
+        })
+        .flatten()
 }
