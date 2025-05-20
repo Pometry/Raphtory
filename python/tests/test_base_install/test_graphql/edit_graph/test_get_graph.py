@@ -97,6 +97,7 @@ def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
                     }
                   }
                   namespaces{
+                    path
                     graphs {
                       name
                     }
@@ -104,5 +105,5 @@ def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
                 }"""
         assert client.query(query) == {
             "root": {"children": [], "graphs": []},
-            "namespaces": [],
+            'namespaces': [{'graphs': [], 'path': ''}],
         }
