@@ -12,6 +12,7 @@ use crate::{
         EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps, NodeViewOps,
     },
 };
+#[cfg(feature = "storage")]
 use tempfile::TempDir;
 
 pub enum TestGraphVariants {
