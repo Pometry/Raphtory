@@ -75,6 +75,7 @@ def test_children():
             """
         result = client.query(query)
 
+        print(result)
         correct = {
             "root": {
                 "path": "",
@@ -246,20 +247,96 @@ def test_namespaces():
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         make_folder_structure(client)
-        import time
 
-        time.sleep(500)
         query = """
             {
-                namespaces{
-                graphs{
-                    name
-                  }
+              namespaces {
+                path
+                children{
                   path
                 }
-                
+                graphs {
+                  name
+                  path
+                }
+              }
             }"""
         result = client.query(query)
-        correct = {}
+        correct = {    "namespaces": [
+            {
+                "path": "",
+                "children": [
+                    {
+                        "path": "test"
+                    }
+                ],
+                "graphs": [
+                    {
+                        "name": "graph",
+                        "path": "graph"
+                    }
+                ]
+            },
+            {
+                "path": "test",
+                "children": [
+                    {
+                        "path": "test/first"
+                    },
+                    {
+                        "path": "test/second"
+                    }
+                ],
+                "graphs": [
+                    {
+                        "name": "graph",
+                        "path": "test/graph"
+                    }
+                ]
+            },
+            {
+                "path": "test/first",
+                "children": [
+                    {
+                        "path": "test/first/internal"
+                    }
+                ],
+                "graphs": []
+            },
+            {
+                "path": "test/first/internal",
+                "children": [],
+                "graphs": [
+                    {
+                        "name": "graph",
+                        "path": "test/first/internal/graph"
+                    }
+                ]
+            },
+            {
+                "path": "test/second",
+                "children": [
+                    {
+                        "path": "test/second/internal"
+                    }
+                ],
+                "graphs": []
+            },
+            {
+                "path": "test/second/internal",
+                "children": [],
+                "graphs": [
+                    {
+                        "name": "graph1",
+                        "path": "test/second/internal/graph1"
+                    },
+                    {
+                        "name": "graph2",
+                        "path": "test/second/internal/graph2"
+                    }
+                ]
+            }
+        ]
+        }
 
-        assert sort_dict(result) == sort_dict(correct)
+        assert result == correct
