@@ -1453,10 +1453,11 @@ mod views_test {
     mod test_filters_window_graph {
         mod test_nodes_filters_window_graph {
             use crate::{
-                assert_filter_nodes_results_pg_w, assert_filter_nodes_results_pg_w_variant,
-                assert_filter_nodes_results_w, assert_filter_nodes_results_w_variant,
-                assert_search_nodes_results_pg_w, assert_search_nodes_results_pg_w_variant,
-                assert_search_nodes_results_w, assert_search_nodes_results_w_variant,
+                assert_filter_nodes_results, assert_filter_nodes_results_pg_w,
+                assert_filter_nodes_results_pg_w_variant, assert_filter_nodes_results_w,
+                assert_filter_nodes_results_w_variant, assert_search_nodes_results_pg_w,
+                assert_search_nodes_results_pg_w_variant, assert_search_nodes_results_w,
+                assert_search_nodes_results_w_variant,
                 core::Prop,
                 db::{
                     api::{
@@ -1473,9 +1474,12 @@ mod views_test {
                 prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter, TimeOps},
             };
             use raphtory_api::core::storage::arc_str::ArcStr;
-            use std::sync::Arc;
+            use std::{ops::Range, sync::Arc};
 
-            use crate::db::graph::views::test_helpers::filter_nodes_with;
+            use crate::db::graph::assertions::{
+                assert_filter_nodes_results, assert_search_nodes_results, filter_nodes_with,
+                GraphTransformer, TestGraphVariants, TestVariants,
+            };
 
             #[cfg(feature = "storage")]
             use tempfile::TempDir;
@@ -1484,7 +1488,11 @@ mod views_test {
             use crate::disk_graph::DiskGraphStorage;
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::db::graph::assertions::search_nodes_with;
+            use crate::{
+                db::graph::views::{node_subgraph::NodeSubgraph, window_graph::WindowedGraph},
+                prelude::{GraphViewOps, NodeViewOps},
+            };
 
             fn init_graph<
                 G: StaticGraphViewOps

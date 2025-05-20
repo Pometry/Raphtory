@@ -1514,7 +1514,7 @@ mod tests_node_type_filtered_subgraph {
 
         mod test_nodes_filters_node_type_filtered_subgraph {
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::db::graph::assertions::search_nodes_with;
             use crate::{
                 core::Prop,
                 db::{
@@ -1552,7 +1552,7 @@ mod tests_node_type_filtered_subgraph {
                 graph
             }
 
-            use crate::db::graph::views::test_helpers::filter_nodes_with;
+            use crate::db::graph::assertions::filter_nodes_with;
 
             use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::get_all_node_types;
@@ -1638,7 +1638,7 @@ mod tests_node_type_filtered_subgraph {
 
         mod test_edges_filters_node_type_filtered_subgraph {
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
+            use crate::db::graph::assertions::search_edges_with;
             use crate::{
                 core::Prop,
                 db::{
@@ -1752,7 +1752,7 @@ mod tests_node_type_filtered_subgraph {
                 graph
             }
 
-            use crate::{db::graph::views::test_helpers::filter_edges_with};
+            use crate::{db::graph::assertions::filter_edges_with};
             use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::get_all_node_types;
 

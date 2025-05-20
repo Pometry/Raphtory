@@ -1007,7 +1007,7 @@ mod test_layers {
 
         mod test_nodes_filters_layer_graph {
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::db::graph::assertions::search_nodes_with;
             use crate::{
                 core::Prop,
                 db::{
@@ -1019,7 +1019,7 @@ mod test_layers {
                 prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
             };
 
-            use crate::db::graph::views::test_helpers::filter_nodes_with;
+            use crate::db::graph::assertions::filter_nodes_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -1215,9 +1215,9 @@ mod test_layers {
             };
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
-            use crate::db::graph::views::{
-                deletion_graph::PersistentGraph, test_helpers::filter_edges_with,
+            use crate::db::graph::assertions::search_edges_with;
+            use crate::db::graph::{
+                assertions::filter_edges_with, views::deletion_graph::PersistentGraph,
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {

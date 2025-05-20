@@ -250,30 +250,24 @@ mod subgraph_tests {
     }
 
     mod test_filters_node_subgraph {
-        #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::{search_edges_with, search_nodes_with};
         use crate::{
             db::{
                 api::view::StaticGraphViewOps,
-                graph::views::{
-                    filter::{
-                        internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-                        model::{AsEdgeFilter, AsNodeFilter},
+                graph::{
+                    assertions::{ApplyFilter, GraphTransformer, TestGraphVariants},
+                    views::{
+                        filter::{
+                            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+                            model::{AsEdgeFilter, AsNodeFilter},
+                        },
+                        node_subgraph::NodeSubgraph,
+                        window_graph::WindowedGraph,
                     },
-                    node_subgraph::NodeSubgraph,
-                    test_helpers::{filter_edges_with, filter_nodes_with},
-                    window_graph::WindowedGraph,
                 },
             },
-            prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, TimeOps},
+            prelude::{AdditionOps, GraphViewOps, NodeViewOps, TimeOps},
         };
         use std::ops::Range;
-        use tempfile::TempDir;
-
-        trait GraphTransformer {
-            type Return<G: StaticGraphViewOps>: StaticGraphViewOps;
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G>;
-        }
 
         struct NodeSubgraphTransformer(Option<Vec<String>>);
 
@@ -302,208 +296,21 @@ mod subgraph_tests {
             }
         }
 
-        trait ApplyFilter {
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
-        }
-
-        struct FilterNodes<F: AsNodeFilter + InternalNodeFilterOps + Clone>(F);
-
-        impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for FilterNodes<F> {
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-                filter_nodes_with(self.0.clone(), graph)
-            }
-        }
-
-        struct SearchNodes<F: AsNodeFilter + InternalNodeFilterOps + Clone>(F);
-
-        impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for SearchNodes<F> {
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-                #[cfg(feature = "search")]
-                return search_nodes_with(self.0.clone(), graph);
-                #[cfg(not(feature = "search"))]
-                Vec::<String>::new()
-            }
-        }
-
-        struct FilterEdges<F: AsEdgeFilter + InternalEdgeFilterOps + Clone>(F);
-
-        impl<F: AsEdgeFilter + InternalEdgeFilterOps + Clone> ApplyFilter for FilterEdges<F> {
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-                filter_edges_with(self.0.clone(), graph)
-            }
-        }
-
-        struct SearchEdges<F: AsEdgeFilter + InternalEdgeFilterOps + Clone>(F);
-
-        impl<F: AsEdgeFilter + InternalEdgeFilterOps + Clone> ApplyFilter for SearchEdges<F> {
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-                #[cfg(feature = "search")]
-                return search_edges_with(self.0.clone(), graph);
-                #[cfg(not(feature = "search"))]
-                Vec::<String>::new()
-            }
-        }
-
-        enum TestGraphVariants {
-            Graph,
-            PersistentGraph,
-            EventDiskGraph,
-            PersistentDiskGraph,
-        }
-
-        enum TestVariants {
-            All,
-            EventOnly,
-            PersistentOnly,
-            Only(Vec<TestGraphVariants>),
-        }
-
-        impl From<TestVariants> for Vec<TestGraphVariants> {
-            fn from(variants: TestVariants) -> Self {
-                use TestGraphVariants::*;
-                match variants {
-                    TestVariants::All => {
-                        vec![Graph, PersistentGraph, EventDiskGraph, PersistentDiskGraph]
-                    }
-                    TestVariants::EventOnly => vec![Graph, EventDiskGraph],
-                    TestVariants::PersistentOnly => vec![PersistentGraph, PersistentDiskGraph],
-                    TestVariants::Only(v) => v,
-                }
-            }
-        }
-
-        fn assert_filter_nodes_results(
-            init_graph: impl FnOnce(Graph) -> Graph,
-            transform: impl GraphTransformer,
-            filter: impl AsNodeFilter + InternalNodeFilterOps + Clone,
-            expected: &[&str],
-            variants: impl Into<Vec<TestGraphVariants>>,
-        ) {
-            assert_results(
-                init_graph,
-                transform,
-                expected,
-                variants.into(),
-                FilterNodes(filter),
-            )
-        }
-
-        fn assert_search_nodes_results(
-            init_graph: impl FnOnce(Graph) -> Graph,
-            transform: impl GraphTransformer,
-            filter: impl AsNodeFilter + InternalNodeFilterOps + Clone,
-            expected: &[&str],
-            variants: impl Into<Vec<TestGraphVariants>>,
-        ) {
-            #[cfg(feature = "search")]
-            {
-                assert_results(
-                    init_graph,
-                    transform,
-                    expected,
-                    variants.into(),
-                    SearchNodes(filter),
-                )
-            }
-        }
-
-        fn assert_filter_edges_results(
-            init_graph: impl FnOnce(Graph) -> Graph,
-            transform: impl GraphTransformer,
-            filter: impl AsEdgeFilter + InternalEdgeFilterOps + Clone,
-            expected: &[&str],
-            variants: impl Into<Vec<TestGraphVariants>>,
-        ) {
-            assert_results(
-                init_graph,
-                transform,
-                expected,
-                variants.into(),
-                FilterEdges(filter),
-            )
-        }
-
-        fn assert_search_edges_results(
-            init_graph: impl FnOnce(Graph) -> Graph,
-            transform: impl GraphTransformer,
-            filter: impl AsEdgeFilter + InternalEdgeFilterOps + Clone,
-            expected: &[&str],
-            variants: impl Into<Vec<TestGraphVariants>>,
-        ) {
-            #[cfg(feature = "search")]
-            {
-                assert_results(
-                    init_graph,
-                    transform,
-                    expected,
-                    variants.into(),
-                    SearchEdges(filter),
-                )
-            }
-        }
-
-        fn assert_results(
-            init_graph: impl FnOnce(Graph) -> Graph,
-            transform: impl GraphTransformer,
-            expected: &[&str],
-            variants: Vec<TestGraphVariants>,
-            apply: impl ApplyFilter,
-        ) {
-            let graph = init_graph(Graph::new());
-            for v in variants {
-                match v {
-                    TestGraphVariants::Graph => {
-                        let graph = transform.apply(graph.clone());
-                        let result = apply.apply(graph);
-                        assert_eq!(expected, result);
-                    }
-                    TestGraphVariants::PersistentGraph => {
-                        let base = graph.persistent_graph();
-                        let graph = transform.apply(base);
-                        let result = apply.apply(graph);
-                        assert_eq!(expected, result);
-                    }
-                    TestGraphVariants::EventDiskGraph => {
-                        #[cfg(feature = "storage")]
-                        {
-                            use crate::disk_graph::DiskGraphStorage;
-                            let tmp = TempDir::new().unwrap();
-                            let graph = DiskGraphStorage::from_graph(&graph, &tmp)
-                                .unwrap()
-                                .into_graph();
-                            let graph = transform.apply(graph);
-                            let result = apply.apply(graph);
-                            assert_eq!(expected, result);
-                        }
-                    }
-                    TestGraphVariants::PersistentDiskGraph => {
-                        #[cfg(feature = "storage")]
-                        {
-                            use crate::disk_graph::DiskGraphStorage;
-                            let tmp = TempDir::new().unwrap();
-                            let graph = DiskGraphStorage::from_graph(&graph, &tmp)
-                                .unwrap()
-                                .into_persistent_graph();
-                            let graph = transform.apply(graph);
-                            let result = apply.apply(graph);
-                            assert_eq!(expected, result);
-                        }
-                    }
-                }
-            }
-        }
-
         mod test_nodes_filters_node_subgraph {
             use crate::{
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
-                    graph::views::{
-                        filter::model::PropertyFilterOps,
-                        node_subgraph::subgraph_tests::test_filters_node_subgraph::{
-                            assert_filter_nodes_results, assert_search_nodes_results,
-                            NodeSubgraphTransformer, NodeSubgraphTransformerWindow,
-                            TestGraphVariants, TestVariants,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                        },
+                        views::{
+                            filter::model::PropertyFilterOps,
+                            node_subgraph::subgraph_tests::test_filters_node_subgraph::{
+                                NodeSubgraphTransformer, NodeSubgraphTransformerWindow,
+                                TestGraphVariants,
+                            },
                         },
                     },
                 },
@@ -658,11 +465,15 @@ mod subgraph_tests {
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
-                    graph::views::{
-                        filter::model::PropertyFilterOps,
-                        node_subgraph::subgraph_tests::test_filters_node_subgraph::{
-                            assert_filter_edges_results, assert_search_edges_results,
-                            NodeSubgraphTransformer, NodeSubgraphTransformerWindow, TestVariants,
+                    graph::{
+                        assertions::{
+                            assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                        },
+                        views::{
+                            filter::model::PropertyFilterOps,
+                            node_subgraph::subgraph_tests::test_filters_node_subgraph::{
+                                NodeSubgraphTransformer, NodeSubgraphTransformerWindow,
+                            },
                         },
                     },
                 },

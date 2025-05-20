@@ -527,14 +527,14 @@ pub(crate) mod test_filters {
             };
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::db::graph::assertions::search_nodes_with;
             #[cfg(feature = "storage")]
             use crate::disk_graph::DiskGraphStorage;
             use crate::{
                 assert_filter_nodes_results, assert_filter_nodes_results_variant,
                 assert_search_nodes_results, assert_search_nodes_results_variant,
-                db::graph::views::{
-                    deletion_graph::PersistentGraph, filter::test_filters::filter_nodes_with,
+                db::graph::{
+                    assertions::filter_nodes_with, views::deletion_graph::PersistentGraph,
                 },
                 prelude::PropertyFilter,
             };
@@ -806,16 +806,18 @@ pub(crate) mod test_filters {
                         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                         view::StaticGraphViewOps,
                     },
-                    graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
-                        test_helpers::filter_edges_with,
+                    graph::{
+                        assertions::filter_edges_with,
+                        views::{
+                            deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                        },
                     },
                 },
                 prelude::{AdditionOps, Graph, PropertyAdditionOps},
             };
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
+            use crate::db::graph::assertions::search_edges_with;
 
             #[cfg(feature = "storage")]
             use crate::disk_graph::DiskGraphStorage;
@@ -1140,9 +1142,9 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::views::{
-        filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-        test_helpers::{filter_edges_with, filter_nodes_with},
+    use crate::db::graph::{
+        assertions::{filter_edges_with, filter_nodes_with},
+        views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
     };
 
     fn init_nodes_graph<
@@ -1299,7 +1301,7 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_node_property_filter {
         #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::search_nodes_with;
+        use crate::db::graph::assertions::search_nodes_with;
         use crate::{
             core::Prop,
             db::graph::views::filter::{model::PropertyFilterOps, test_filters::init_nodes_graph},
@@ -1310,10 +1312,12 @@ pub(crate) mod test_filters {
         use crate::{
             assert_filter_nodes_results, assert_filter_nodes_results_variant,
             assert_search_nodes_results, assert_search_nodes_results_variant,
-            db::graph::views::{
-                deletion_graph::PersistentGraph,
-                filter::model::{property_filter::PropertyFilter, ComposableFilter, NotFilter},
-                test_helpers::filter_nodes_with,
+            db::graph::{
+                assertions::filter_nodes_with,
+                views::{
+                    deletion_graph::PersistentGraph,
+                    filter::model::{property_filter::PropertyFilter, ComposableFilter, NotFilter},
+                },
             },
             prelude::NodeViewOps,
         };
@@ -1507,11 +1511,11 @@ pub(crate) mod test_filters {
         };
         use tempfile::TempDir;
 
+        #[cfg(feature = "search")]
+        use crate::db::graph::assertions::search_edges_with;
         use crate::db::graph::views::filter::model::{
             property_filter::PropertyFilter, ComposableFilter,
         };
-        #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::search_edges_with;
 
         #[test]
         fn test_filter_edges_for_property_eq() {
@@ -1859,7 +1863,7 @@ pub(crate) mod test_filters {
         };
 
         #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::search_nodes_with;
+        use crate::db::graph::assertions::search_nodes_with;
         #[cfg(feature = "storage")]
         use crate::disk_graph::DiskGraphStorage;
         use crate::{
@@ -2003,16 +2007,16 @@ pub(crate) mod test_filters {
     mod test_node_composite_filter {
         use crate::{db::graph::views::filter::test_filters::init_nodes_graph, prelude::Graph};
 
-        use crate::db::graph::views::{
-            filter::model::{
+        use crate::db::graph::{
+            assertions::filter_nodes_with,
+            views::filter::model::{
                 property_filter::PropertyFilter, AsNodeFilter, ComposableFilter, NodeFilter,
                 NodeFilterBuilderOps, PropertyFilterOps,
             },
-            test_helpers::filter_nodes_with,
         };
 
         #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::search_nodes_with;
+        use crate::db::graph::assertions::search_nodes_with;
         #[cfg(feature = "storage")]
         use crate::disk_graph::DiskGraphStorage;
         use crate::{
@@ -2158,13 +2162,13 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_edge_filter {
         #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::search_edges_with;
+        use crate::db::graph::assertions::search_edges_with;
         use crate::{
             assert_filter_edges_results, assert_filter_edges_results_variant,
             assert_search_edges_results, assert_search_edges_results_variant,
-            db::graph::views::{
-                deletion_graph::PersistentGraph, filter::test_filters::init_edges_graph,
-                test_helpers::filter_edges_with,
+            db::graph::{
+                assertions::filter_edges_with,
+                views::{deletion_graph::PersistentGraph, filter::test_filters::init_edges_graph},
             },
             prelude::Graph,
         };
@@ -2414,20 +2418,20 @@ pub(crate) mod test_filters {
         use crate::{
             assert_filter_edges_results, assert_filter_edges_results_variant,
             assert_search_edges_results, assert_search_edges_results_variant,
-            db::graph::views::{
-                filter::{test_filters::init_edges_graph, EdgeFieldFilter},
-                test_helpers::filter_edges_with,
+            db::graph::{
+                assertions::filter_edges_with,
+                views::filter::{test_filters::init_edges_graph, EdgeFieldFilter},
             },
             prelude::Graph,
         };
         use tempfile::TempDir;
 
+        #[cfg(feature = "search")]
+        use crate::db::graph::assertions::search_edges_with;
         use crate::db::graph::views::filter::model::{
             property_filter::PropertyFilter, AndFilter, AsEdgeFilter, ComposableFilter, EdgeFilter,
             EdgeFilterOps, PropertyFilterOps,
         };
-        #[cfg(feature = "search")]
-        use crate::db::graph::views::test_helpers::search_edges_with;
 
         #[cfg(feature = "storage")]
         use crate::disk_graph::DiskGraphStorage;

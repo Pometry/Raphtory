@@ -308,7 +308,7 @@ mod test {
                 prelude::{AdditionOps, Graph, PropertyFilter},
             };
 
-            use crate::db::graph::views::test_helpers::filter_nodes_with;
+            use crate::db::graph::assertions::filter_nodes_with;
 
             #[cfg(feature = "storage")]
             use tempfile::TempDir;
@@ -317,7 +317,7 @@ mod test {
             use crate::disk_graph::DiskGraphStorage;
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_nodes_with;
+            use crate::db::graph::assertions::search_nodes_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let node_data = vec![
@@ -390,7 +390,7 @@ mod test {
             };
 
             #[cfg(feature = "search")]
-            use crate::db::graph::views::test_helpers::search_edges_with;
+            use crate::db::graph::assertions::search_edges_with;
 
             #[cfg(feature = "storage")]
             use tempfile::TempDir;
@@ -402,9 +402,11 @@ mod test {
                 core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
-                    graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
-                        test_helpers::filter_edges_with,
+                    graph::{
+                        assertions::filter_edges_with,
+                        views::{
+                            deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                        },
                     },
                 },
                 prelude::{AdditionOps, Graph, PropertyFilter, TimeOps},
