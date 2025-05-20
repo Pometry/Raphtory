@@ -9,6 +9,8 @@ use crate::{
             nodes::GqlNodes,
             property::GqlProperties,
             windowset::GqlGraphWindowSet,
+            WindowDuration,
+            WindowDuration::{Duration, Epoch},
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
@@ -22,9 +24,7 @@ use raphtory::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
         utils::errors::{
-            GraphError,
-            GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
-            InvalidPathReason::PathNotParsable,
+            GraphError, GraphError::MismatchedIntervalTypes, InvalidPathReason::PathNotParsable,
         },
     },
     db::{
@@ -163,61 +163,57 @@ impl GqlGraph {
 
     async fn rolling(
         &self,
-        window_str: Option<String>,
-        window_int: Option<i64>,
-        step_str: Option<String>,
-        step_int: Option<i64>,
+        window: WindowDuration,
+        step: Option<WindowDuration>,
     ) -> Result<GqlGraphWindowSet, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || match (window_str, window_int) {
-            (Some(_), Some(_)) => Err(WrongNumOfArgs(
-                "window_str".to_string(),
-                "window_int".to_string(),
-            )),
-            (None, Some(window_int)) => {
-                if step_str.is_some() {
-                    return Err(MismatchedIntervalTypes);
-                }
-                Ok(GqlGraphWindowSet::new(
-                    self_clone.graph.rolling(window_int, step_int)?,
+        spawn_blocking(move || match window {
+            Duration(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(step_duration) => Ok(GqlGraphWindowSet::new(
+                        self_clone
+                            .graph
+                            .rolling(window_duration, Some(step_duration))?,
+                        self_clone.path.clone(),
+                    )),
+                    Epoch(_) => Err(MismatchedIntervalTypes),
+                },
+                None => Ok(GqlGraphWindowSet::new(
+                    self_clone.graph.rolling(window_duration, None)?,
                     self_clone.path.clone(),
-                ))
-            }
-            (Some(window_str), None) => {
-                if step_int.is_some() {
-                    return Err(MismatchedIntervalTypes);
-                }
-                Ok(GqlGraphWindowSet::new(
-                    self_clone.graph.rolling(window_str, step_str)?,
+                )),
+            },
+            Epoch(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Epoch(step_duration) => Ok(GqlGraphWindowSet::new(
+                        self_clone
+                            .graph
+                            .rolling(window_duration, Some(step_duration))?,
+                        self_clone.path.clone(),
+                    )),
+                },
+                None => Ok(GqlGraphWindowSet::new(
+                    self_clone.graph.rolling(window_duration, None)?,
                     self_clone.path.clone(),
-                ))
-            }
-            (None, None) => return Err(NoIntervalProvided),
+                )),
+            },
         })
         .await
         .unwrap()
     }
 
-    async fn expanding(
-        &self,
-        step_str: Option<String>,
-        step_int: Option<i64>,
-    ) -> Result<GqlGraphWindowSet, GraphError> {
+    async fn expanding(&self, step: WindowDuration) -> Result<GqlGraphWindowSet, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || match (step_str, step_int) {
-            (Some(_), Some(_)) => Err(WrongNumOfArgs(
-                "step_str".to_string(),
-                "step_int".to_string(),
-            )),
-            (None, Some(step_int)) => Ok(GqlGraphWindowSet::new(
-                self_clone.graph.expanding(step_int)?,
+        spawn_blocking(move || match step {
+            Duration(step) => Ok(GqlGraphWindowSet::new(
+                self_clone.graph.expanding(step)?,
                 self_clone.path.clone(),
             )),
-            (Some(step_str), None) => Ok(GqlGraphWindowSet::new(
-                self_clone.graph.expanding(step_str)?,
+            Epoch(step) => Ok(GqlGraphWindowSet::new(
+                self_clone.graph.expanding(step)?,
                 self_clone.path.clone(),
             )),
-            (None, None) => return Err(NoIntervalProvided),
         })
         .await
         .unwrap()
@@ -329,7 +325,7 @@ impl GqlGraph {
                 .edges()
                 .earliest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
                 .min();
             all_edges
         })
@@ -346,7 +342,7 @@ impl GqlGraph {
                 .edges()
                 .latest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
                 .max();
 
             all_edges

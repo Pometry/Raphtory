@@ -1,5 +1,11 @@
 use crate::model::{
-    graph::{edge::GqlEdge, filtering::EdgesViewCollection, windowset::GqlEdgesWindowSet},
+    graph::{
+        edge::GqlEdge,
+        filtering::EdgesViewCollection,
+        windowset::{GqlEdgesWindowSet, GqlNodesWindowSet},
+        WindowDuration,
+        WindowDuration::{Duration, Epoch},
+    },
     sorting::{EdgeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -18,6 +24,7 @@ use raphtory::{
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
 use tokio::{spawn, task::spawn_blocking};
+
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
 pub(crate) struct GqlEdges {
@@ -80,57 +87,47 @@ impl GqlEdges {
 
     async fn rolling(
         &self,
-        window_str: Option<String>,
-        window_int: Option<i64>,
-        step_str: Option<String>,
-        step_int: Option<i64>,
+        window: WindowDuration,
+        step: Option<WindowDuration>,
     ) -> Result<GqlEdgesWindowSet, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || match (window_str, window_int) {
-            (Some(_), Some(_)) => Err(WrongNumOfArgs(
-                "window_str".to_string(),
-                "window_int".to_string(),
-            )),
-            (None, Some(window_int)) => {
-                if step_str.is_some() {
-                    return Err(MismatchedIntervalTypes);
-                }
-                Ok(GqlEdgesWindowSet::new(
-                    self_clone.ee.rolling(window_int, step_int)?,
-                ))
-            }
-            (Some(window_str), None) => {
-                if step_int.is_some() {
-                    return Err(MismatchedIntervalTypes);
-                }
-                Ok(GqlEdgesWindowSet::new(
-                    self_clone.ee.rolling(window_str, step_str)?,
-                ))
-            }
-            (None, None) => return Err(NoIntervalProvided),
+        spawn_blocking(move || match window {
+            Duration(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(step_duration) => Ok(GqlEdgesWindowSet::new(
+                        self_clone
+                            .ee
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                    Epoch(_) => Err(MismatchedIntervalTypes),
+                },
+                None => Ok(GqlEdgesWindowSet::new(
+                    self_clone.ee.rolling(window_duration, None)?,
+                )),
+            },
+            Epoch(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Epoch(step_duration) => Ok(GqlEdgesWindowSet::new(
+                        self_clone
+                            .ee
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                },
+                None => Ok(GqlEdgesWindowSet::new(
+                    self_clone.ee.rolling(window_duration, None)?,
+                )),
+            },
         })
         .await
         .unwrap()
     }
 
-    async fn expanding(
-        &self,
-        step_str: Option<String>,
-        step_int: Option<i64>,
-    ) -> Result<GqlEdgesWindowSet, GraphError> {
+    async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || match (step_str, step_int) {
-            (Some(_), Some(_)) => Err(WrongNumOfArgs(
-                "step_str".to_string(),
-                "step_int".to_string(),
-            )),
-            (None, Some(step_int)) => {
-                Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step_int)?))
-            }
-            (Some(step_str), None) => {
-                Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step_str)?))
-            }
-            (None, None) => return Err(NoIntervalProvided),
+        spawn_blocking(move || match step {
+            Duration(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
+            Epoch(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
         })
         .await
         .unwrap()

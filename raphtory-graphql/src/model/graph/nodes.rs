@@ -3,16 +3,15 @@ use crate::model::{
         filtering::{NodeFilter, NodesViewCollection},
         node::GqlNode,
         windowset::GqlNodesWindowSet,
+        WindowDuration,
+        WindowDuration::{Duration, Epoch},
     },
     sorting::{NodeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::{
-        GraphError,
-        GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
-    },
+    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::{state::Index, view::DynamicGraph},
         graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
@@ -88,57 +87,47 @@ impl GqlNodes {
 
     async fn rolling(
         &self,
-        window_str: Option<String>,
-        window_int: Option<i64>,
-        step_str: Option<String>,
-        step_int: Option<i64>,
+        window: WindowDuration,
+        step: Option<WindowDuration>,
     ) -> Result<GqlNodesWindowSet, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || match (window_str, window_int) {
-            (Some(_), Some(_)) => Err(WrongNumOfArgs(
-                "window_str".to_string(),
-                "window_int".to_string(),
-            )),
-            (None, Some(window_int)) => {
-                if step_str.is_some() {
-                    return Err(MismatchedIntervalTypes);
-                }
-                Ok(GqlNodesWindowSet::new(
-                    self_clone.nn.rolling(window_int, step_int)?,
-                ))
-            }
-            (Some(window_str), None) => {
-                if step_int.is_some() {
-                    return Err(MismatchedIntervalTypes);
-                }
-                Ok(GqlNodesWindowSet::new(
-                    self_clone.nn.rolling(window_str, step_str)?,
-                ))
-            }
-            (None, None) => return Err(NoIntervalProvided),
+        spawn_blocking(move || match window {
+            Duration(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(step_duration) => Ok(GqlNodesWindowSet::new(
+                        self_clone
+                            .nn
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                    Epoch(_) => Err(MismatchedIntervalTypes),
+                },
+                None => Ok(GqlNodesWindowSet::new(
+                    self_clone.nn.rolling(window_duration, None)?,
+                )),
+            },
+            Epoch(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Epoch(step_duration) => Ok(GqlNodesWindowSet::new(
+                        self_clone
+                            .nn
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                },
+                None => Ok(GqlNodesWindowSet::new(
+                    self_clone.nn.rolling(window_duration, None)?,
+                )),
+            },
         })
         .await
         .unwrap()
     }
 
-    async fn expanding(
-        &self,
-        step_str: Option<String>,
-        step_int: Option<i64>,
-    ) -> Result<GqlNodesWindowSet, GraphError> {
+    async fn expanding(&self, step: WindowDuration) -> Result<GqlNodesWindowSet, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || match (step_str, step_int) {
-            (Some(_), Some(_)) => Err(WrongNumOfArgs(
-                "step_str".to_string(),
-                "step_int".to_string(),
-            )),
-            (None, Some(step_int)) => {
-                Ok(GqlNodesWindowSet::new(self_clone.nn.expanding(step_int)?))
-            }
-            (Some(step_str), None) => {
-                Ok(GqlNodesWindowSet::new(self_clone.nn.expanding(step_str)?))
-            }
-            (None, None) => return Err(NoIntervalProvided),
+        spawn_blocking(move || match step {
+            Duration(step) => Ok(GqlNodesWindowSet::new(self_clone.nn.expanding(step)?)),
+            Epoch(step) => Ok(GqlNodesWindowSet::new(self_clone.nn.expanding(step)?)),
         })
         .await
         .unwrap()
