@@ -311,9 +311,9 @@ mod test {
             }
         }
 
-        struct CachedGraphWindowTransformer(Range<i64>);
+        struct WindowedCachedGraphTransformer(Range<i64>);
 
-        impl GraphTransformer for CachedGraphWindowTransformer {
+        impl GraphTransformer for WindowedCachedGraphTransformer {
             type Return<G: StaticGraphViewOps> = WindowedGraph<CachedView<G>>;
             fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
                 graph.cache_view().window(self.0.start, self.0.end)
@@ -335,7 +335,7 @@ mod test {
             };
 
             use crate::db::graph::views::cached_view::test::test_filters_cached_view::{
-                CachedGraphTransformer, CachedGraphWindowTransformer,
+                CachedGraphTransformer, WindowedCachedGraphTransformer,
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -394,14 +394,14 @@ mod test {
                 let expected_results = vec!["N1", "N3", "N6"];
                 assert_filter_nodes_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
                 assert_search_nodes_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter,
                     &expected_results,
                     TestVariants::EventOnly,
@@ -414,14 +414,14 @@ mod test {
                 let expected_results = vec!["N2", "N5", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter,
                     &expected_results,
                     TestVariants::PersistentOnly,
@@ -440,7 +440,7 @@ mod test {
                         },
                         views::{
                             cached_view::test::test_filters_cached_view::{
-                                CachedGraphTransformer, CachedGraphWindowTransformer,
+                                CachedGraphTransformer, WindowedCachedGraphTransformer,
                             },
                             filter::model::PropertyFilterOps,
                         },
@@ -503,14 +503,14 @@ mod test {
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
                 assert_filter_edges_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter,
                     &expected_results,
                     TestVariants::EventOnly,
@@ -524,14 +524,14 @@ mod test {
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
                 assert_filter_edges_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
                     TestVariants::Only(vec![]),
                 );
                 assert_search_edges_results(
                     init_graph,
-                    CachedGraphWindowTransformer(6..9),
+                    WindowedCachedGraphTransformer(6..9),
                     filter,
                     &expected_results,
                     TestVariants::PersistentOnly,

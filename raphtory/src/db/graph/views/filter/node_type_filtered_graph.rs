@@ -164,1345 +164,21 @@ mod tests_node_type_filtered_subgraph {
 
     mod test_filters_node_type_filtered_subgraph {
         use crate::{
-            db::api::view::StaticGraphViewOps,
-            prelude::{AdditionOps, NodeViewOps},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::{
+                    assertions::GraphTransformer,
+                    views::{
+                        filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+                        layer_graph::LayeredGraph, window_graph::WindowedGraph,
+                    },
+                },
+            },
+            prelude::{AdditionOps, LayerOps, NodeViewOps, TimeOps},
         };
+        use std::ops::Range;
 
-        macro_rules! assert_filter_nodes_results {
-            // Default usage with all variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {
-                assert_filter_nodes_results!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // Custom variant list
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_filter_nodes_results_variant!($init_fn, $filter.clone(), $node_types.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    filter_nodes_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    filter_nodes_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap().into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        filter_nodes_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        filter_nodes_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_filter_nodes_results_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_nodes_results_w_variant!($init_fn, $filter.clone(), $node_types.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_nodes_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_nodes_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_filter_nodes_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_nodes_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $node_types.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_nodes_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_nodes_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results {
-            // Default usage for all variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {
-                assert_search_nodes_results!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // With custom variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_search_nodes_results_variant!($init_fn, $filter.clone(), $node_types.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    search_nodes_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    search_nodes_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap().into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        search_nodes_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        search_nodes_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_search_nodes_results_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_nodes_results_w_variant!($init_fn, $filter.clone(), $node_types.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_nodes_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_nodes_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_w {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_search_nodes_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_nodes_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $node_types.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_nodes_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_nodes_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_pg_w {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        macro_rules! assert_filter_edges_results {
-            // Default usage with all variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {
-                assert_filter_edges_results!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // Custom variant list
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_variant!($init_fn, $filter.clone(), $node_types.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    filter_edges_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    filter_edges_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap().into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        filter_edges_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        filter_edges_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_filter_edges_results_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_w_variant!($init_fn, $filter.clone(), $node_types.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_filter_edges_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $node_types.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results {
-            // Default usage for all variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {
-                assert_search_edges_results!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // With custom variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_search_edges_results_variant!($init_fn, $filter.clone(), $node_types.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    search_edges_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result =
-                    search_edges_with($filter.clone(), graph.subgraph_node_types(node_types));
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap().into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        search_edges_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result =
-                        search_edges_with($filter.clone(), dgs.subgraph_node_types(node_types));
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, event_disk_graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_search_edges_results_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_edges_results_w_variant!($init_fn, $filter.clone(), $node_types.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_w {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_search_edges_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_edges_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $node_types.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_pg_w {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        macro_rules! assert_filter_edges_results_layers {
-            // Default usage with all variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr) => {
-                assert_filter_edges_results_layers!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $node_types,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // Custom variant list
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_layers_variant!($init_fn, $filter.clone(), $layers.clone(), $node_types.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_layers_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap(),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap(),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap().into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).layers($layers).unwrap(),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).layers($layers).unwrap(),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_layers_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_filter_edges_results_layers_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_layers_w_variant!($init_fn, $filter.clone(), $layers.clone(), $node_types.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_layers_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap()
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types)
-                            .layers($layers)
-                            .unwrap()
-                            .window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_layers_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_filter_edges_results_layers_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_layers_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $layers.clone(),
-                        $node_types.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_layers_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = filter_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap()
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = filter_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types)
-                            .layers($layers)
-                            .unwrap()
-                            .window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_layers {
-            // Default usage for all variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr) => {
-                assert_search_edges_results_layers!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $node_types,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // With custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_search_edges_results_layers_variant!($init_fn, $filter.clone(), $layers.clone(), $node_types.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_layers_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap(),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap(),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap().into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).layers($layers).unwrap(),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types).layers($layers).unwrap(),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_layers {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_layers_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, event_disk_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_layers_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_search_edges_results_layers_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_edges_results_layers_w_variant!($init_fn, $filter.clone(), $layers.clone(), $node_types.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_layers_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {{
-                let graph = $init_fn(Graph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap()
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types)
-                            .layers($layers)
-                            .unwrap()
-                            .window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_layers_w {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_layers_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, event_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_layers_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {
-                assert_search_edges_results_layers_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $node_types,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_edges_results_layers_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $layers.clone(),
-                        $node_types.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_layers_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let graph = $init_fn(PersistentGraph::new());
-                let node_types: Vec<String> =
-                    $node_types.unwrap_or_else(|| get_all_node_types(&graph));
-                let result = search_edges_with(
-                    $filter.clone(),
-                    graph
-                        .subgraph_node_types(node_types)
-                        .layers($layers)
-                        .unwrap()
-                        .window($w.start, $w.end),
-                );
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph();
-                    let node_types: Vec<String> =
-                        $node_types.unwrap_or_else(|| get_all_node_types(&dgs));
-                    let result = search_edges_with(
-                        $filter.clone(),
-                        dgs.subgraph_node_types(node_types)
-                            .layers($layers)
-                            .unwrap()
-                            .window($w.start, $w.end),
-                    );
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_layers_pg_w {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_layers_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $node_types:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        fn get_all_node_types<G: StaticGraphViewOps + AdditionOps>(graph: &G) -> Vec<String> {
+        fn get_all_node_types<G: StaticGraphViewOps>(graph: &G) -> Vec<String> {
             graph
                 .nodes()
                 .node_type()
@@ -1512,18 +188,71 @@ mod tests_node_type_filtered_subgraph {
                 .collect()
         }
 
+        struct NodeTypeGraphTransformer(Option<Vec<String>>);
+
+        impl GraphTransformer for NodeTypeGraphTransformer {
+            type Return<G: StaticGraphViewOps> = NodeTypeFilteredGraph<G>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                let node_types: Vec<String> =
+                    self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
+                graph.subgraph_node_types(node_types)
+            }
+        }
+
+        struct WindowedNodeTypeGraphTransformer(Option<Vec<String>>, Range<i64>);
+
+        impl GraphTransformer for WindowedNodeTypeGraphTransformer {
+            type Return<G: StaticGraphViewOps> = WindowedGraph<NodeTypeFilteredGraph<G>>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                let node_types: Vec<String> =
+                    self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
+                graph
+                    .subgraph_node_types(node_types)
+                    .window(self.1.start, self.1.end)
+            }
+        }
+
+        struct LayeredNodeTypeGraphTransformer(Option<Vec<String>>, Vec<String>);
+
+        impl GraphTransformer for LayeredNodeTypeGraphTransformer {
+            type Return<G: StaticGraphViewOps> = LayeredGraph<NodeTypeFilteredGraph<G>>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                let node_types: Vec<String> =
+                    self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
+                graph
+                    .subgraph_node_types(node_types)
+                    .layers(self.1.clone())
+                    .unwrap()
+            }
+        }
+
+        struct LayeredWindowedNodeTypeGraphTransformer(
+            Option<Vec<String>>,
+            Range<i64>,
+            Vec<String>,
+        );
+
+        impl GraphTransformer for LayeredWindowedNodeTypeGraphTransformer {
+            type Return<G: StaticGraphViewOps> =
+                WindowedGraph<LayeredGraph<NodeTypeFilteredGraph<G>>>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                let node_types: Vec<String> =
+                    self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
+                graph
+                    .subgraph_node_types(node_types)
+                    .layers(self.2.clone())
+                    .unwrap()
+                    .window(self.1.start, self.1.end)
+            }
+        }
+
         mod test_nodes_filters_node_type_filtered_subgraph {
-            #[cfg(feature = "search")]
-            use crate::db::graph::assertions::search_nodes_with;
             use crate::{
                 core::Prop,
                 db::{
-                    api::view::StaticGraphViewOps,
-                    graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
-                    },
+                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
-                prelude::{AdditionOps, Graph, GraphViewOps, TimeOps},
+                prelude::AdditionOps,
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -1552,24 +281,51 @@ mod tests_node_type_filtered_subgraph {
                 graph
             }
 
-            use crate::db::graph::assertions::filter_nodes_with;
+            use crate::db::graph::assertions::{
+                assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+                TestVariants,
+            };
 
             use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
-            use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::get_all_node_types;
+            use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
 
             #[test]
             fn test_nodes_filters() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
-                assert_filter_nodes_results!(init_graph, filter, None, expected_results);
-                assert_search_nodes_results!(init_graph, filter, None, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    NodeTypeGraphTransformer(None),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    NodeTypeGraphTransformer(None),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N7"];
-                assert_filter_nodes_results!(init_graph, filter, node_types, expected_results);
-                assert_search_nodes_results!(init_graph, filter, node_types, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    NodeTypeGraphTransformer(node_types.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    NodeTypeGraphTransformer(node_types),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
             }
 
             #[test]
@@ -1577,34 +333,38 @@ mod tests_node_type_filtered_subgraph {
                 // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
-                assert_filter_nodes_results_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    None,
-                    6..9,
-                    expected_results,
-                    variants = [graph]
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
-                assert_search_nodes_results_w!(init_graph, filter, None, 6..9, expected_results);
+                assert_search_nodes_results(
+                    init_graph,
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3"];
-                assert_filter_nodes_results_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    node_types,
-                    6..9,
-                    expected_results,
-                    variants = [graph]
+                    WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
-                assert_search_nodes_results_w!(
+                assert_search_nodes_results(
                     init_graph,
+                    WindowedNodeTypeGraphTransformer(node_types, 6..9),
                     filter,
-                    node_types,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
             }
 
@@ -1612,42 +372,49 @@ mod tests_node_type_filtered_subgraph {
             fn test_nodes_filters_pg_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
-                assert_filter_nodes_results_pg_w!(init_graph, filter, None, 6..9, expected_results);
-                assert_search_nodes_results_pg_w!(init_graph, filter, None, 6..9, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N7"];
-                assert_filter_nodes_results_pg_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    node_types,
-                    6..9,
-                    expected_results
+                    WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
-                assert_search_nodes_results_pg_w!(
+                assert_search_nodes_results(
                     init_graph,
+                    WindowedNodeTypeGraphTransformer(node_types, 6..9),
                     filter,
-                    node_types,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
             }
         }
 
         mod test_edges_filters_node_type_filtered_subgraph {
-            #[cfg(feature = "search")]
-            use crate::db::graph::assertions::search_edges_with;
             use crate::{
                 core::Prop,
                 db::{
-                    api::view::StaticGraphViewOps,
-                    graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
-                    },
+                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
-                prelude::{AdditionOps, Graph, GraphViewOps, LayerOps, TimeOps, NO_PROPS},
+                prelude::{AdditionOps, NO_PROPS},
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -1752,57 +519,63 @@ mod tests_node_type_filtered_subgraph {
                 graph
             }
 
-            use crate::{db::graph::assertions::filter_edges_with};
+            use crate::db::graph::assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants};
             use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
-            use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::get_all_node_types;
+            use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{ LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
 
             #[test]
             fn test_edges_filters() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    None,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    NodeTypeGraphTransformer(None),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(init_graph, filter, None, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    NodeTypeGraphTransformer(None),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5"];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    node_types.clone(),
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    NodeTypeGraphTransformer(node_types.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(
+                assert_search_edges_results(
                     init_graph,
-                    filter,
-                    node_types.clone(),
-                    expected_results
+                    NodeTypeGraphTransformer(node_types.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
                 );
 
-                let layers = vec!["fire_nation"];
+                let layers = vec!["fire_nation".to_string()];
                 let expected_results = vec!["N3->N4"];
-                assert_filter_edges_results_layers!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    node_types,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    LayeredNodeTypeGraphTransformer(node_types.clone(), layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results_layers!(
+                assert_search_edges_results(
                     init_graph,
+                    LayeredNodeTypeGraphTransformer(node_types.clone(), layers),
                     filter,
-                    layers,
-                    node_types,
-                    expected_results
+                    &expected_results,
+                    TestVariants::All,
                 );
             }
 
@@ -1810,45 +583,59 @@ mod tests_node_type_filtered_subgraph {
             fn test_edges_filters_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
-                assert_filter_edges_results_w!(init_graph, filter, None, 6..9, expected_results);
-                assert_search_edges_results_w!(init_graph, filter, None, 6..9, expected_results);
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4"];
-                assert_filter_edges_results_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    node_types.clone(),
-                    6..9,
-                    expected_results
+                    WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results_w!(
+                assert_search_edges_results(
                     init_graph,
-                    filter,
-                    node_types.clone(),
-                    6..9,
-                    expected_results
+                    WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
 
-                let layers = vec!["fire_nation"];
+                let layers = vec!["fire_nation".to_string()];
                 let expected_results = vec!["N3->N4"];
-                assert_filter_edges_results_layers_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    node_types,
-                    6..9,
-                    expected_results
+                    LayeredWindowedNodeTypeGraphTransformer(
+                        node_types.clone(),
+                        6..9,
+                        layers.clone(),
+                    ),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results_layers_w!(
+                assert_search_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    node_types,
-                    6..9,
-                    expected_results
+                    LayeredWindowedNodeTypeGraphTransformer(node_types.clone(), 6..9, layers),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
             }
 
@@ -1856,54 +643,59 @@ mod tests_node_type_filtered_subgraph {
             fn test_edges_filters_pg_w() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
-                assert_filter_edges_results_pg_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    None,
-                    6..9,
-                    expected_results,
-                    variants = []
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![]),
                 );
-                assert_search_edges_results_pg_w!(init_graph, filter, None, 6..9, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    WindowedNodeTypeGraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4"];
-                assert_filter_edges_results_pg_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    node_types,
-                    6..9,
-                    expected_results,
-                    variants = []
+                    WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![]),
                 );
-                assert_search_edges_results_pg_w!(
+                assert_search_edges_results(
                     init_graph,
-                    filter,
-                    node_types.clone(),
-                    6..9,
-                    expected_results
+                    WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
 
-                let layers = vec!["fire_nation"];
+                let layers = vec!["fire_nation".to_string()];
                 let expected_results = vec!["N3->N4"];
-                assert_filter_edges_results_layers_pg_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    node_types,
-                    6..9,
-                    expected_results,
-                    variants = []
+                    LayeredWindowedNodeTypeGraphTransformer(
+                        node_types.clone(),
+                        6..9,
+                        layers.clone(),
+                    ),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![]),
                 );
-                assert_search_edges_results_layers_pg_w!(
+                assert_search_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    node_types,
-                    6..9,
-                    expected_results
+                    LayeredWindowedNodeTypeGraphTransformer(node_types.clone(), 6..9, layers),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
             }
         }

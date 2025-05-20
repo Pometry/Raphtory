@@ -232,794 +232,57 @@ mod test_layers {
     }
 
     mod test_filters_layer_graph {
+        use crate::{
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::{
+                    assertions::GraphTransformer,
+                    views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+                },
+            },
+            prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+        };
+        use std::ops::Range;
 
-        macro_rules! assert_filter_nodes_results {
-            // Default usage with all variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {
-                assert_filter_nodes_results!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
+        struct LayeredGraphTransformer(Vec<String>);
 
-            // Custom variant list
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_filter_nodes_results_variant!($init_fn, $filter.clone(), $layers.clone(), $expected, $variant);
-                )+
-            }};
+        impl GraphTransformer for LayeredGraphTransformer {
+            type Return<G: StaticGraphViewOps> = LayeredGraph<G>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                graph.layers(self.0.clone()).unwrap()
+            }
         }
 
-        macro_rules! assert_filter_nodes_results_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new()).layers($layers.clone()).unwrap();
-                let result = filter_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap();
-                let result = filter_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
+        struct LayeredGraphWindowTransformer(Vec<String>, Range<i64>);
 
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered = dgs.into_graph().layers($layers.clone()).unwrap();
-                    let result = filter_nodes_with($filter.clone(), layered);
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered = dgs.into_persistent_graph().layers($layers.clone()).unwrap();
-                    let result = filter_nodes_with($filter.clone(), layered);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_filter_nodes_results_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_nodes_results_w_variant!($init_fn, $filter.clone(), $layers.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new())
-                    .layers($layers.clone())
+        impl GraphTransformer for LayeredGraphWindowTransformer {
+            type Return<G: StaticGraphViewOps> = WindowedGraph<LayeredGraph<G>>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                graph
+                    .layers(self.0.clone())
                     .unwrap()
-                    .window($w.start, $w.end);
-                let result = filter_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered_w = dgs
-                        .into_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = filter_nodes_with($filter.clone(), layered_w);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_filter_nodes_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_nodes_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $layers.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_nodes_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = filter_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs
-                        .into_persistent_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = filter_nodes_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results {
-            // Default usage for all variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {
-                assert_search_nodes_results!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // With custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_search_nodes_results_variant!($init_fn, $filter.clone(), $layers.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new()).layers($layers.clone()).unwrap();
-                let result = search_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap();
-                let result = search_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph().layers($layers.clone()).unwrap();
-                    let result = search_nodes_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph().layers($layers.clone()).unwrap();
-                    let result = search_nodes_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_search_nodes_results_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_nodes_results_w_variant!($init_fn, $filter.clone(), $layers.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = search_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered_w = dgs
-                        .into_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = search_nodes_with($filter.clone(), layered_w);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_w {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_search_nodes_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_nodes_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $layers.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_nodes_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = search_nodes_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs
-                        .into_persistent_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = search_nodes_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_pg_w {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_nodes_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        macro_rules! assert_filter_edges_results {
-            // Default usage with all variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {
-                assert_filter_edges_results!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // Custom variant list
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_variant!($init_fn, $filter.clone(), $layers.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new()).layers($layers.clone()).unwrap();
-                let result = filter_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap();
-                let result = filter_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered = dgs.into_graph().layers($layers.clone()).unwrap();
-                    let result = filter_edges_with($filter.clone(), layered);
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered = dgs.into_persistent_graph().layers($layers.clone()).unwrap();
-                    let result = filter_edges_with($filter.clone(), layered);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_filter_edges_results_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_w_variant!($init_fn, $filter.clone(), $layers.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = filter_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered_w = dgs
-                        .into_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = filter_edges_with($filter.clone(), layered_w);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_filter_edges_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_filter_edges_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $layers.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        macro_rules! assert_filter_edges_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = filter_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs
-                        .into_persistent_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = filter_edges_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results {
-            // Default usage for all variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {
-                assert_search_edges_results!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $expected,
-                    variants = [graph, persistent_graph, event_disk_graph, persistent_disk_graph]
-                );
-            };
-
-            // With custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),+ $(,)?]) => {{
-                $(
-                    assert_search_edges_results_variant!($init_fn, $filter.clone(), $layers.clone(), $expected, $variant);
-                )+
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new()).layers($layers.clone()).unwrap();
-                let result = search_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap();
-                let result = search_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_graph().layers($layers.clone()).unwrap();
-                    let result = search_edges_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs.into_persistent_graph().layers($layers.clone()).unwrap();
-                    let result = search_edges_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, event_disk_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $expected:expr, persistent_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_w {
-            // Default case (graph + event_disk_graph)
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_search_edges_results_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [graph, event_disk_graph]
-                );
-            };
-
-            // Custom variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_edges_results_w_variant!($init_fn, $filter.clone(), $layers.clone(), $w, $expected, $variant);
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {{
-                let g = $init_fn(Graph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = search_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let layered_w = dgs
-                        .into_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = search_edges_with($filter.clone(), layered_w);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_w {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, event_disk_graph) => {};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_pg_w {
-            // Default to both variants
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {
-                assert_search_edges_results_pg_w!(
-                    $init_fn,
-                    $filter,
-                    $layers,
-                    $w,
-                    $expected,
-                    variants = [persistent_graph, persistent_disk_graph]
-                );
-            };
-
-            // Variant-controlled
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {{
-                $(
-                    assert_search_edges_results_pg_w_variant!(
-                        $init_fn,
-                        $filter.clone(),
-                        $layers.clone(),
-                        $w,
-                        $expected,
-                        $variant
-                    );
-                )*
-            }};
-        }
-
-        #[cfg(feature = "search")]
-        macro_rules! assert_search_edges_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {{
-                let g = $init_fn(PersistentGraph::new())
-                    .layers($layers.clone())
-                    .unwrap()
-                    .window($w.start, $w.end);
-                let result = search_edges_with($filter.clone(), g);
-                assert_eq!($expected, result);
-            }};
-
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {{
-                #[cfg(feature = "storage")]
-                {
-                    use crate::disk_graph::DiskGraphStorage;
-                    use tempfile::TempDir;
-
-                    let g = $init_fn(Graph::new());
-                    let tmp = TempDir::new().unwrap();
-                    let dgs = DiskGraphStorage::from_graph(&g, &tmp).unwrap();
-                    let dgs = dgs
-                        .into_persistent_graph()
-                        .layers($layers.clone())
-                        .unwrap()
-                        .window($w.start, $w.end);
-                    let result = search_edges_with($filter.clone(), dgs);
-                    assert_eq!($expected, result);
-                }
-            }};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_pg_w {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, variants = [$($variant:ident),* $(,)?]) => {};
-        }
-
-        #[cfg(not(feature = "search"))]
-        macro_rules! assert_search_edges_results_pg_w_variant {
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_graph) => {};
-            ($init_fn:ident, $filter:expr, $layers:expr, $w:expr, $expected:expr, persistent_disk_graph) => {};
+                    .window(self.1.start, self.1.end)
+            }
         }
 
         mod test_nodes_filters_layer_graph {
-            #[cfg(feature = "search")]
-            use crate::db::graph::assertions::search_nodes_with;
             use crate::{
                 core::Prop,
                 db::{
-                    api::view::StaticGraphViewOps,
-                    graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
-                    },
+                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
-                prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
+                prelude::{AdditionOps, PropertyFilter},
             };
 
-            use crate::db::graph::assertions::filter_nodes_with;
+            use crate::db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+                    TestVariants,
+                },
+                views::layer_graph::test_layers::test_filters_layer_graph::{
+                    LayeredGraphTransformer, LayeredGraphWindowTransformer,
+                },
+            };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -1076,32 +339,92 @@ mod test_layers {
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
-                assert_filter_nodes_results!(init_graph, filter, layers, expected_results);
-                assert_search_nodes_results!(init_graph, filter, layers, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").ge(2u64);
                 let expected_results = vec!["N2", "N5", "N8"];
-                assert_filter_nodes_results!(init_graph, filter, layers, expected_results);
-                assert_search_nodes_results!(init_graph, filter, layers, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
-                assert_filter_nodes_results!(init_graph, filter, layers, expected_results);
-                assert_search_nodes_results!(init_graph, filter, layers, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
-                assert_filter_nodes_results!(init_graph, filter, layers, expected_results);
-                assert_search_nodes_results!(init_graph, filter, layers, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec!["N2", "N5", "N8"];
-                assert_filter_nodes_results!(init_graph, filter, layers, expected_results);
-                assert_search_nodes_results!(init_graph, filter, layers, expected_results);
+                assert_filter_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
             }
 
             #[test]
@@ -1110,41 +433,56 @@ mod test_layers {
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
-                assert_filter_nodes_results_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results,
-                    variants = [graph]
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
-                assert_search_nodes_results_w!(init_graph, filter, layers, 6..9, expected_results);
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").ge(2u64);
                 let expected_results = vec!["N2", "N5"];
-                assert_filter_nodes_results_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results,
-                    variants = [graph]
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
-                assert_search_nodes_results_w!(init_graph, filter, layers, 6..9, expected_results);
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N1", "N3", "N6"];
-                assert_filter_nodes_results_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results,
-                    variants = [graph]
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![TestGraphVariants::Graph]),
                 );
-                assert_search_nodes_results_w!(init_graph, filter, layers, 6..9, expected_results);
+                assert_search_nodes_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
             }
 
             #[test]
@@ -1152,55 +490,55 @@ mod test_layers {
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
-                assert_filter_nodes_results_pg_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
-                assert_search_nodes_results_pg_w!(
+                assert_search_nodes_results(
                     init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
                     filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
-                assert_filter_nodes_results_pg_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
-                assert_search_nodes_results_pg_w!(
+                assert_search_nodes_results(
                     init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
                     filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec!["N2", "N5", "N8"];
-                assert_filter_nodes_results_pg_w!(
+                assert_filter_nodes_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
-                assert_search_nodes_results_pg_w!(
+                assert_search_nodes_results(
                     init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
                     filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
             }
         }
@@ -1209,15 +547,20 @@ mod test_layers {
             use crate::{
                 core::Prop,
                 db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                        },
+                        views::{
+                            filter::model::PropertyFilterOps,
+                            layer_graph::test_layers::test_filters_layer_graph::{
+                                LayeredGraphTransformer, LayeredGraphWindowTransformer,
+                            },
+                        },
+                    },
                 },
-                prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
-            };
-
-            #[cfg(feature = "search")]
-            use crate::db::graph::assertions::search_edges_with;
-            use crate::db::graph::{
-                assertions::filter_edges_with, views::deletion_graph::PersistentGraph,
+                prelude::{AdditionOps, PropertyFilter},
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -1253,66 +596,96 @@ mod test_layers {
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(init_graph, filter, layers, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results = vec![
                     "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1",
                 ];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(init_graph, filter, layers, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").ge(2u64);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(init_graph, filter, layers, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec![
                     "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1",
                 ];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(init_graph, filter, layers, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
-                assert_filter_edges_results!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    expected_results,
-                    variants = [graph, event_disk_graph]
+                    LayeredGraphTransformer(layers.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
                 );
-                assert_search_edges_results!(init_graph, filter, layers, expected_results);
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphTransformer(layers),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
             }
 
             #[test]
@@ -1324,8 +697,20 @@ mod test_layers {
                 let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
                 let filter = PropertyFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
-                assert_filter_edges_results_w!(init_graph, filter, layers, 6..9, expected_results);
-                assert_search_edges_results_w!(init_graph, filter, layers, 6..9, expected_results);
+                assert_filter_edges_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
 
                 // Edge Property Semantics:
                 // When filtering by specific layer, filter criteria (p1==1) and latest semantics is applicable
@@ -1333,14 +718,38 @@ mod test_layers {
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").lt(2u64);
                 let expected_results = vec!["N2->N3", "N3->N4"];
-                assert_filter_edges_results_w!(init_graph, filter, layers, 6..9, expected_results);
-                assert_search_edges_results_w!(init_graph, filter, layers, 6..9, expected_results);
+                assert_filter_edges_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec!["N2->N3", "N5->N6"];
-                assert_filter_edges_results_w!(init_graph, filter, layers, 6..9, expected_results);
-                assert_search_edges_results_w!(init_graph, filter, layers, 6..9, expected_results);
+                assert_filter_edges_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    LayeredGraphWindowTransformer(layers, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
             }
 
             #[test]
@@ -1360,59 +769,56 @@ mod test_layers {
                 // 2. Since the search is conducted across both the layers i.e., layer1 and layer2, the results are union of
                 //     results from both layer1 and layer2.
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
-                assert_filter_edges_results_pg_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results,
-                    variants = []
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![]),
                 );
-                assert_search_edges_results_pg_w!(
+                assert_search_edges_results(
                     init_graph,
+                    LayeredGraphWindowTransformer(layers, 6..9),
                     filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
 
                 let layers: Vec<String> = vec!["layer1".into()];
                 let filter = PropertyFilter::property("p1").le(1u64);
                 let expected_results =
                     vec!["N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"];
-                assert_filter_edges_results_pg_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results,
-                    variants = []
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![]),
                 );
-                assert_search_edges_results_pg_w!(
+                assert_search_edges_results(
                     init_graph,
+                    LayeredGraphWindowTransformer(layers, 6..9),
                     filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
 
                 let layers: Vec<String> = vec!["layer2".into()];
                 let filter = PropertyFilter::property("p1").ge(2u64);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
-                assert_filter_edges_results_pg_w!(
+                assert_filter_edges_results(
                     init_graph,
-                    filter,
-                    layers,
-                    6..9,
-                    expected_results,
-                    variants = []
+                    LayeredGraphWindowTransformer(layers.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::Only(vec![]),
                 );
-                assert_search_edges_results_pg_w!(
+                assert_search_edges_results(
                     init_graph,
+                    LayeredGraphWindowTransformer(layers, 6..9),
                     filter,
-                    layers,
-                    6..9,
-                    expected_results
+                    &expected_results,
+                    TestVariants::PersistentOnly,
                 );
             }
         }
