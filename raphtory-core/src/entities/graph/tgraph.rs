@@ -64,7 +64,7 @@ pub struct InvalidLayer {
 }
 
 impl InvalidLayer {
-    fn new(invalid_layer: ArcStr, valid: Vec<String>) -> Self {
+    pub fn new(invalid_layer: ArcStr, valid: Vec<String>) -> Self {
         let valid_layers = valid.join(", ");
         Self {
             invalid_layer,
@@ -209,12 +209,12 @@ impl TemporalGraph {
     }
 
     #[inline]
-    pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
+    pub fn graph_earliest_time(&self) -> Option<i64> {
         Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
     }
 
     #[inline]
-    pub(crate) fn graph_latest_time(&self) -> Option<i64> {
+    pub fn graph_latest_time(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 

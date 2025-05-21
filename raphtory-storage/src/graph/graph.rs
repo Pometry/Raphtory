@@ -2,46 +2,30 @@ use super::{
     edges::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges},
     nodes::node_entry::NodeStorageEntry,
 };
-use crate::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::edges::{EdgesStorage, EdgesStorageRef},
-        locked::LockedGraph,
-        nodes::{
-            node_owned_entry::NodeOwnedEntry, nodes::NodesStorage, nodes_ref::NodesStorageEntry,
-        },
-    },
+use crate::graph::{
+    edges::edges::{EdgesStorage, EdgesStorageRef},
+    locked::LockedGraph,
+    nodes::{node_owned_entry::NodeOwnedEntry, nodes::NodesStorage, nodes_ref::NodesStorageEntry},
 };
-#[cfg(feature = "storage")]
-use crate::{
-    db::api::storage::graph::variants::storage_variants::StorageVariants,
-    disk_graph::{
-        storage_interface::{
-            edges::DiskEdges,
-            edges_ref::DiskEdgesRef,
-            node::{DiskNode, DiskOwnedNode},
-            nodes::DiskNodesOwned,
-            nodes_ref::DiskNodesRef,
-        },
-        DiskGraphStorage,
-    },
-};
-use itertools::Itertools;
-use raphtory_api::{
-    core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID},
-    iter::{BoxedLIter, IntoDynBoxed},
-};
+use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{
     graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta,
 };
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Formatter},
-    iter,
-    sync::Arc,
-};
+use std::{fmt::Debug, iter, sync::Arc};
 use thiserror::Error;
+
+#[cfg(feature = "storage")]
+use crate::disk::{
+    storage_interface::{
+        edges::DiskEdges,
+        edges_ref::DiskEdgesRef,
+        node::{DiskNode, DiskOwnedNode},
+        nodes::DiskNodesOwned,
+        nodes_ref::DiskNodesRef,
+    },
+    DiskGraphStorage,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum GraphStorage {
@@ -110,6 +94,8 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(_) => Err(Immutable::ReadLockedImmutable),
             GraphStorage::Unlocked(graph) => Ok(graph),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => Err(Immutable::DiskGraphImmutable),
         }
     }
 

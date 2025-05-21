@@ -11,6 +11,7 @@ use raphtory_api::{
         },
         storage::arc_str::ArcStr,
     },
+    inherit::Base,
     iter::{BoxedIter, BoxedLIter},
 };
 use raphtory_core::{
@@ -47,7 +48,6 @@ pub trait CoreGraphOps: Send + Sync {
         self.core_graph().unfiltered_num_layers()
     }
 
-    #[inline]
     fn core_graph(&self) -> &GraphStorage;
 
     #[inline]
@@ -233,5 +233,17 @@ impl CoreGraphOps for GraphStorage {
     #[inline]
     fn core_graph(&self) -> &GraphStorage {
         self
+    }
+}
+
+pub trait InheritCoreGraphOps: Base {}
+
+impl<G: InheritCoreGraphOps + Send + Sync> CoreGraphOps for G
+where
+    G::Base: CoreGraphOps,
+{
+    #[inline]
+    fn core_graph(&self) -> &GraphStorage {
+        self.base().core_graph()
     }
 }

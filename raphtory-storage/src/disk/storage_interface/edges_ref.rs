@@ -1,11 +1,6 @@
-use crate::{
-    core::entities::{LayerIds, EID},
-    db::api::storage::graph::{
-        edges::edge_storage_ops::EdgeStorageOps, variants::layer_variants::LayerVariants,
-    },
-    disk_graph::storage_interface::edge::DiskEdge,
-};
+use crate::{disk::graph_impl::DiskEdge, graph::edges::edge_storage_ops::EdgeStorageOps};
 use pometry_storage::graph::TemporalGraph;
+use raphtory_api::core::entities::{LayerIds, LayerVariants, EID};
 use rayon::prelude::*;
 use std::iter;
 

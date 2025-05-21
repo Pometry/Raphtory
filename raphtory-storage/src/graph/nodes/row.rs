@@ -1,9 +1,14 @@
+use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_core::storage::node_entry::MemRow;
+
 #[cfg(feature = "storage")]
-use pometry_storage::{
-    graph::TemporalGraph, properties::TemporalProps, timestamps::TimeStamps, tprops::DiskTProp,
+use {
+    polars_arrow::datatypes::ArrowDataType,
+    pometry_storage::{
+        graph::TemporalGraph, properties::TemporalProps, timestamps::TimeStamps, tprops::DiskTProp,
+    },
+    raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry},
 };
-#[cfg(feature = "storage")]
-use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Row<'a> {
@@ -81,11 +86,6 @@ impl<'a> IntoIterator for DiskRow<'a> {
         Box::new(iter)
     }
 }
-
-#[cfg(feature = "storage")]
-use polars_arrow::datatypes::ArrowDataType;
-use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_core::storage::{node_entry::MemRow, TColumns};
 
 #[cfg(feature = "storage")]
 fn get<'a>(disk_col: &DiskTProp<'a, TimeIndexEntry>, row: usize) -> Option<Prop> {

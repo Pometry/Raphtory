@@ -1,23 +1,19 @@
 use crate::{
-    core::{
-        entities::{
-            properties::{graph_meta::GraphMeta, props::Meta},
-            LayerIds,
-        },
-        utils::errors::GraphError,
-    },
-    db::{api::storage::graph::storage_ops, graph::views::deletion_graph::PersistentGraph},
-    disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
-    prelude::{Graph, Layer},
+    core_ops::CoreGraphOps, disk::graph_impl::prop_conversion::make_node_properties_from_graph,
 };
 use polars_arrow::{
     array::{Array, PrimitiveArray, StructArray},
     datatypes::{ArrowDataType as DataType, Field},
 };
 use pometry_storage::{
-    graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
-    merge::merge_graph::merge_graphs, RAError,
+    graph::TemporalGraph, graph_fragment::TempColGraphFragment, interop::GraphLike,
+    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
 };
+use raphtory_api::core::{
+    entities::{properties::meta::Meta, Layer, LayerIds},
+    storage::timeindex::AsTime,
+};
+use raphtory_core::entities::{graph::tgraph::InvalidLayer, properties::graph_meta::GraphMeta};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
@@ -29,9 +25,6 @@ use std::{
 pub mod graph_impl;
 pub mod storage_interface;
 
-#[cfg(feature = "io")]
-pub mod io;
-
 pub type Time = i64;
 
 pub mod prelude {
@@ -39,7 +32,16 @@ pub mod prelude {
 }
 
 pub use pometry_storage as disk_storage;
-use raphtory_storage::core_ops::CoreGraphOps;
+
+#[derive(Debug)]
+pub struct ParquetLayerCols<'a> {
+    pub parquet_dir: &'a str,
+    pub layer: &'a str,
+    pub src_col: &'a str,
+    pub dst_col: &'a str,
+    pub time_col: &'a str,
+    pub exclude_edge_props: Vec<&'a str>,
+}
 
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
@@ -129,14 +131,15 @@ impl DiskGraphStorage {
         }
     }
 
-    pub fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
+    pub fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, InvalidLayer> {
         match key {
             Layer::All => Ok(LayerIds::All),
             Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(name) => {
-                let id = self.inner.find_layer_id(&name).ok_or_else(|| {
-                    GraphError::invalid_layer(name.to_string(), self.inner.get_valid_layers())
-                })?;
+                let id = self
+                    .inner
+                    .find_layer_id(&name)
+                    .ok_or_else(|| InvalidLayer::new(name, self.inner.get_valid_layers()))?;
                 Ok(LayerIds::One(id))
             }
             Layer::None => Ok(LayerIds::None),
@@ -145,10 +148,7 @@ impl DiskGraphStorage {
                     .iter()
                     .map(|name| {
                         self.inner.find_layer_id(name).ok_or_else(|| {
-                            GraphError::invalid_layer(
-                                name.to_string(),
-                                self.inner.get_valid_layers(),
-                            )
+                            InvalidLayer::new(name.clone(), self.inner.get_valid_layers())
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -168,14 +168,6 @@ impl DiskGraphStorage {
                 }
             }
         }
-    }
-
-    pub fn into_graph(self) -> Graph {
-        Graph::from_internal_graph(storage_ops::GraphStorage::Disk(Arc::new(self)))
-    }
-
-    pub fn into_persistent_graph(self) -> PersistentGraph {
-        PersistentGraph::from_internal_graph(storage_ops::GraphStorage::Disk(Arc::new(self)))
     }
 
     pub fn make_simple_graph(
@@ -223,7 +215,7 @@ impl DiskGraphStorage {
         &self,
         other: &DiskGraphStorage,
         new_graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraphStorage, GraphError> {
+    ) -> Result<DiskGraphStorage, RAError> {
         let graph_dir = new_graph_dir.as_ref();
         let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
         Ok(DiskGraphStorage::new(inner))
@@ -238,7 +230,10 @@ impl DiskGraphStorage {
         }
     }
 
-    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, GraphError> {
+    pub fn from_graph<T: AsTime, G: GraphLike<T> + CoreGraphOps>(
+        graph: &G,
+        graph_dir: impl AsRef<Path>,
+    ) -> Result<Self, RAError> {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;
@@ -325,7 +320,7 @@ impl DiskGraphStorage {
         &mut self,
         arrays: impl IntoIterator<Item = Result<Box<dyn Array>, RAError>>,
         chunk_size: usize,
-    ) -> Result<(), GraphError> {
+    ) -> Result<(), RAError> {
         let inner = Arc::make_mut(&mut self.inner);
         inner.load_node_types_from_chunks(arrays, chunk_size)?;
         Ok(())
@@ -375,26 +370,17 @@ mod test {
         str::FromStr,
     };
 
+    use crate::disk::{DiskGraphStorage, ParquetLayerCols};
     use bigdecimal::BigDecimal;
     use itertools::Itertools;
     use polars_arrow::{
         array::{PrimitiveArray, StructArray, Utf8Array},
-        datatypes::Field,
+        datatypes::{ArrowDataType, ArrowSchema, Field},
     };
-    use proptest::{prelude::*, sample::size_range};
-    use tempfile::TempDir;
-
     use pometry_storage::{graph::TemporalGraph, RAError};
-    use raphtory_api::core::entities::{EID, VID};
-
-    use crate::{
-        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
-        db::graph::graph::assert_graph_equal,
-        disk_graph::DiskGraphStorage,
-        prelude::*,
-    };
-
-    use super::graph_impl::ParquetLayerCols;
+    use proptest::{prelude::*, sample::size_range};
+    use raphtory_api::core::entities::{properties::prop::Prop, EID, VID};
+    use tempfile::TempDir;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
         edges
@@ -435,10 +421,10 @@ mod test {
             .into_iter()
             .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
 
-        let schema = Schema::from(vec![
-            Field::new("srcs", DataType::UInt64, false),
-            Field::new("dsts", DataType::UInt64, false),
-            Field::new("time", DataType::Int64, false),
+        let schema = ArrowSchema::from(vec![
+            Field::new("srcs", ArrowDataType::UInt64, false),
+            Field::new("dsts", ArrowDataType::UInt64, false),
+            Field::new("time", ArrowDataType::Int64, false),
         ]);
 
         let triples = srcs
@@ -446,7 +432,7 @@ mod test {
             .zip(times)
             .map(move |((a, b), c)| {
                 StructArray::new(
-                    DataType::Struct(schema.fields.clone()),
+                    ArrowDataType::Struct(schema.fields.clone()),
                     vec![a.boxed(), b.boxed(), c.boxed()],
                     None,
                 )
@@ -465,21 +451,6 @@ mod test {
     }
 
     fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TemporalGraph) {
-        let expected_graph = Graph::new();
-        for (src, dst, t) in edges {
-            expected_graph
-                .add_edge(*t, *src, *dst, NO_PROPS, None)
-                .unwrap();
-        }
-
-        let graph_dir = TempDir::new().unwrap();
-        // check persist_as_disk_graph works
-        let disk_graph_from_expected = expected_graph
-            .persist_as_disk_graph(graph_dir.path())
-            .unwrap()
-            .into_graph();
-        assert_graph_equal(&disk_graph_from_expected, &expected_graph);
-
         let actual_num_verts = nodes.len();
         let g_num_verts = graph.num_nodes();
         assert_eq!(actual_num_verts, g_num_verts);
@@ -508,19 +479,29 @@ mod test {
             .collect();
         assert_eq!(exploded_edges, edges);
 
+        let mut expected_inbounds = edges
+            .iter()
+            .map(|(src, dst, _)| (*dst, *src))
+            .into_group_map();
+        for v in expected_inbounds.values_mut() {
+            v.sort();
+            v.dedup();
+        }
+
         // check incoming edges
         for (v_id, g_id) in nodes.iter().enumerate() {
-            let node = expected_graph.node(*g_id).unwrap();
-            let mut expected_inbound = node.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
-            expected_inbound.sort();
+            let expected_inbound = match expected_inbounds.get(g_id) {
+                None => &vec![],
+                Some(res) => res,
+            };
 
             let actual_inbound = graph
                 .node(VID(v_id), 0)
                 .in_neighbours()
-                .map(|v| GID::U64(nodes[v.0]))
+                .map(|v| nodes[v.0])
                 .collect::<Vec<_>>();
 
-            assert_eq!(expected_inbound, actual_inbound);
+            assert_eq!(&actual_inbound, expected_inbound);
         }
 
         let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
@@ -585,64 +566,6 @@ mod test {
     fn edge_sanity_fail1() {
         let edges = vec![(0, 17, 0), (1, 0, -1), (17, 0, 0)];
         edges_sanity_check_inner(edges, 4, 4, 4)
-    }
-
-    #[test]
-    fn load_decimal_column() {
-        let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("resources/test/data_0.parquet")
-            .to_string_lossy()
-            .to_string();
-
-        let graph_dir = tempfile::tempdir().unwrap();
-
-        let layer_parquet_cols = vec![ParquetLayerCols {
-            parquet_dir: parquet_file_path.as_ref(),
-            layer: "large",
-            src_col: "from_address",
-            dst_col: "to_address",
-            time_col: "block_timestamp",
-            exclude_edge_props: vec![],
-        }];
-        let dgs = DiskGraphStorage::load_from_parquets(
-            graph_dir.path(),
-            layer_parquet_cols,
-            None,
-            100,
-            100,
-            1,
-            None,
-            None,
-        )
-        .unwrap();
-
-        let g = dgs.into_graph();
-        let (_, actual): (Vec<_>, Vec<_>) = g
-            .edges()
-            .properties()
-            .into_iter()
-            .flat_map(|props| props.temporal().into_iter())
-            .flat_map(|(_, view)| view.into_iter())
-            .unzip();
-
-        let expected = [
-            "20000000000000000000.000000000",
-            "20000000000000000000.000000000",
-            "20000000000000000000.000000000",
-            "24000000000000000000.000000000",
-            "20000000000000000000.000000000",
-            "104447267751554560119.000000000",
-            "42328815976923864739.000000000",
-            "23073375143032303343.000000000",
-            "23069234889247394908.000000000",
-            "18729358881519682914.000000000",
-        ]
-        .into_iter()
-        .map(|s| BigDecimal::from_str(s).map(|bd| Prop::Decimal(bd)))
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-
-        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -748,156 +671,5 @@ mod test {
     fn edge_sanity_chunk_broken_something() {
         let edges = vec![(0, 3, 0), (1, 2, 0), (3, 2, 0)];
         edges_sanity_check_inner(edges, 1, 1, 1)
-    }
-
-    #[test]
-    fn test_reload() {
-        let graph_dir = TempDir::new().unwrap();
-        let graph = Graph::new();
-        graph.add_edge(0, 0, 1, [("weight", 0.)], None).unwrap();
-        graph.add_edge(1, 0, 1, [("weight", 1.)], None).unwrap();
-        graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
-        graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
-        let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        let graph = disk_graph.inner;
-
-        let all_exploded: Vec<_> = graph.exploded_edges().collect();
-        let expected: Vec<_> = vec![
-            (VID(0), VID(1), 0),
-            (VID(0), VID(1), 1),
-            (VID(0), VID(1), 2),
-            (VID(1), VID(2), 3),
-        ];
-        assert_eq!(all_exploded, expected);
-
-        let reloaded_graph = TemporalGraph::new(graph.graph_dir()).unwrap();
-
-        check_graph_sanity(
-            &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
-            &[0, 1, 2],
-            &reloaded_graph,
-        );
-    }
-
-    #[test]
-    fn test_load_node_types() {
-        let graph_dir = TempDir::new().unwrap();
-        let graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        let mut dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
-            .unwrap();
-        assert_eq!(
-            dg.into_graph().nodes().node_type().collect_vec(),
-            [Some("1".into()), Some("2".into())]
-        );
-    }
-
-    #[test]
-    fn test_node_type() {
-        let graph_dir = TempDir::new().unwrap();
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, Some("1")).unwrap();
-        graph.add_node(0, 1, NO_PROPS, Some("2")).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        let dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        assert_eq!(
-            dg.into_graph().nodes().node_type().collect_vec(),
-            [Some("1".into()), Some("2".into())]
-        );
-        let dg = DiskGraphStorage::load_from_dir(graph_dir.path()).unwrap();
-        assert_eq!(
-            dg.into_graph().nodes().node_type().collect_vec(),
-            [Some("1".into()), Some("2".into())]
-        );
-    }
-    mod addition_bounds {
-        use itertools::Itertools;
-        use proptest::{prelude::*, sample::size_range};
-        use tempfile::TempDir;
-
-        use raphtory_api::core::entities::VID;
-
-        use super::{
-            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS,
-        };
-
-        fn compare_raphtory_graph(edges: Vec<(u64, u64, i64)>, chunk_size: usize) {
-            let nodes = edges
-                .iter()
-                .flat_map(|(src, dst, _)| [*src, *dst])
-                .sorted()
-                .dedup()
-                .collect::<Vec<_>>();
-
-            let rg = Graph::new();
-
-            for (src, dst, time) in &edges {
-                rg.add_edge(*time, *src, *dst, NO_PROPS, None)
-                    .expect("failed to add edge");
-            }
-
-            let test_dir = TempDir::new().unwrap();
-            let graph = edges_sanity_check_build_graph(
-                test_dir.path(),
-                &edges,
-                edges.len() as u64,
-                chunk_size,
-                chunk_size,
-            )
-            .unwrap();
-
-            for (v_id, node) in nodes.into_iter().enumerate() {
-                let node = rg.node(node).expect("failed to get node id");
-                let expected = node.history();
-                let node = graph.node(VID(v_id), 0);
-                let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
-                assert_eq!(actual, expected);
-            }
-        }
-
-        #[test]
-        fn node_additions_bounds_to_arrays() {
-            let edges = vec![(0, 0, -2), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 0, 2)];
-
-            compare_raphtory_graph(edges, 2);
-        }
-
-        #[test]
-        fn test_load_from_graph_missing_edge() {
-            let g = Graph::new();
-            g.add_edge(0, 1, 2, [("test", "test1")], Some("1")).unwrap();
-            g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
-            let test_dir = TempDir::new().unwrap();
-            let _ = g.persist_as_disk_graph(test_dir.path()).unwrap();
-        }
-
-        #[test]
-        fn one_edge_bounds_chunk_remainder() {
-            let edges = vec![(0u64, 1, 0)];
-            compare_raphtory_graph(edges, 3);
-        }
-
-        #[test]
-        fn same_edge_twice() {
-            let edges = vec![(0, 1, 0), (0, 1, 1)];
-            compare_raphtory_graph(edges, 3);
-        }
-
-        proptest! {
-            #[test]
-            fn node_addition_bounds_test(
-                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=100).lift()).prop_map(|v| {
-                    let mut v: Vec<(u64, u64, i64)> = v.into_iter().flat_map(|(src, dst, times)| {
-                        let src = src as u64;
-                        let dst = dst as u64;
-                        times.into_iter().map(move |t| (src, dst, t))}).collect();
-                    v.sort();
-                    v}).prop_filter("edge list mut have one edge at least",|edges| !edges.is_empty()),
-                chunk_size in 1..300usize,
-            ) {
-                compare_raphtory_graph(edges, chunk_size);
-            }
-        }
     }
 }

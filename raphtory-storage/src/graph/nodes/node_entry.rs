@@ -1,8 +1,6 @@
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    variants::storage_variants3::StorageVariants,
+    variants::storage_variants3::StorageVariants3,
 };
 use raphtory_api::{
     core::{
@@ -11,31 +9,25 @@ use raphtory_api::{
             properties::{prop::Prop, tprop::TPropOps},
             GidRef, LayerIds, VID,
         },
-        storage::timeindex::TimeIndexEntry,
         Direction,
     },
     iter::BoxedLIter,
 };
 use raphtory_core::{
-    entities::nodes::node_store::NodeTimestamps,
-    storage::{node_entry::NodePtr, timeindex::TimeIndexWindow, NodeEntry},
+    storage::{node_entry::NodePtr, NodeEntry},
     utils::iter::GenLockedIter,
 };
 use std::borrow::Cow;
+
+#[cfg(feature = "storage")]
+use crate::disk::storage_interface::node::DiskNode;
+use crate::graph::nodes::node_additions::NodeAdditions;
 
 pub enum NodeStorageEntry<'a> {
     Mem(NodePtr<'a>),
     Unlocked(NodeEntry<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
-}
-
-#[derive(Clone, Debug)]
-pub enum NodeAdditions<'a> {
-    Mem(&'a NodeTimestamps),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>),
-    #[cfg(feature = "storage")]
-    Col(LayerAdditions<'a>),
 }
 
 impl<'a> From<NodePtr<'a>> for NodeStorageEntry<'a> {
@@ -82,12 +74,12 @@ impl<'b> NodeStorageEntry<'b> {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + use<'b, '_> {
         match self {
-            NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
+            NodeStorageEntry::Mem(entry) => StorageVariants3::Mem(entry.edges_iter(layers, dir)),
             NodeStorageEntry::Unlocked(entry) => {
-                StorageVariants::Unlocked(entry.into_edges(layers, dir))
+                StorageVariants3::Unlocked(entry.into_edges(layers, dir))
             }
             #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => StorageVariants::Disk(node.edges_iter(layers, dir)),
+            NodeStorageEntry::Disk(node) => StorageVariants3::Disk(node.edges_iter(layers, dir)),
         }
     }
 

@@ -1,7 +1,3 @@
-#[cfg(feature = "storage")]
-use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::graph::edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef};
 use raphtory_api::core::entities::{
     properties::{prop::Prop, tprop::TPropOps},
@@ -10,6 +6,9 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::edges::edge_store::MemEdge;
 use rayon::prelude::*;
 use std::ops::Range;
+
+#[cfg(feature = "storage")]
+use crate::{disk::graph_impl::DiskEdge, graph::variants::storage_variants2::StorageVariants2};
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
@@ -25,8 +24,8 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            EdgeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
-            EdgeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
+            EdgeStorageRef::Mem($pattern) => StorageVariants2::Mem($result),
+            EdgeStorageRef::Disk($pattern) => StorageVariants2::Disk($result),
         }
     };
 }

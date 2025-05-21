@@ -1,3 +1,4 @@
+pub mod node_additions;
 pub mod node_entry;
 pub mod node_owned_entry;
 pub mod node_ref;

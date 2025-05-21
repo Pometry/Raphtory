@@ -8,19 +8,26 @@ use crate::{
         },
         LayerIds, EID, GID, VID,
     },
-    storage::{timeindex::TimeIndexEntry, ArcNodeEntry, NodeEntry},
+    storage::{
+        timeindex::{TimeIndexEntry, TimeIndexWindow},
+        ArcNodeEntry, NodeEntry,
+    },
     utils::iter::GenLockedIter,
 };
 use itertools::Itertools;
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GidRef, ELID},
+        storage::timeindex::{TimeIndexLike, TimeIndexOps},
         Direction,
     },
     iter::BoxedLIter,
 };
 use serde::{Deserialize, Serialize};
-use std::{iter, ops::Deref};
+use std::{
+    iter,
+    ops::{Deref, Range},
+};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
@@ -39,8 +46,8 @@ pub struct NodeStore {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeTimestamps {
     // all the timestamps that have been seen by this node
-    pub(crate) edge_ts: TCell<ELID>,
-    pub(crate) props_ts: TCell<Option<usize>>,
+    pub edge_ts: TCell<ELID>,
+    pub props_ts: TCell<Option<usize>>,
 }
 
 impl NodeTimestamps {
@@ -50,6 +57,114 @@ impl NodeTimestamps {
 
     pub fn props_ts(&self) -> &TCell<Option<usize>> {
         &self.props_ts
+    }
+}
+
+impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
+    type IndexType = TimeIndexEntry;
+    type RangeType = TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>;
+
+    #[inline]
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        self.edge_ts().active(w.clone()) || self.props_ts().active(w)
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        TimeIndexWindow::Range {
+            timeindex: *self,
+            range: w,
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        let first = self.edge_ts().first();
+        let other = self.props_ts().first();
+
+        first
+            .zip(other)
+            .map(|(a, b)| a.min(b))
+            .or_else(|| first.or(other))
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        let last = self.edge_ts().last();
+        let other = self.props_ts().last();
+
+        last.zip(other)
+            .map(|(a, b)| a.max(b))
+            .or_else(|| last.or(other))
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.edge_ts
+            .iter()
+            .map(|(t, _)| *t)
+            .merge(self.props_ts.iter().map(|(t, _)| *t))
+    }
+
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.edge_ts
+            .iter()
+            .rev()
+            .map(|(t, _)| *t)
+            .merge_by(self.props_ts.iter().rev().map(|(t, _)| *t), |lt, rt| {
+                lt >= rt
+            })
+    }
+
+    fn len(&self) -> usize {
+        self.edge_ts.len() + self.props_ts.len()
+    }
+}
+
+impl<'a> TimeIndexLike<'a> for &'a NodeTimestamps {
+    fn range_iter(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.edge_ts()
+            .range_iter(w.clone())
+            .merge(self.props_ts().range_iter(w))
+    }
+
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.edge_ts()
+            .range_iter_rev(w.clone())
+            .merge_by(self.props_ts().range_iter_rev(w), |lt, rt| lt >= rt)
+    }
+
+    fn range_count(&self, w: Range<Self::IndexType>) -> usize {
+        self.edge_ts().range_count(w.clone()) + self.props_ts().range_count(w)
+    }
+
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        let first = self
+            .edge_ts()
+            .iter_window(w.clone())
+            .next()
+            .map(|(t, _)| *t);
+        let other = self.props_ts().iter_window(w).next().map(|(t, _)| *t);
+
+        first
+            .zip(other)
+            .map(|(a, b)| a.min(b))
+            .or_else(|| first.or(other))
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        let last = self
+            .edge_ts
+            .iter_window(w.clone())
+            .next_back()
+            .map(|(t, _)| *t);
+        let other = self.props_ts.iter_window(w).next_back().map(|(t, _)| *t);
+
+        last.zip(other)
+            .map(|(a, b)| a.max(b))
+            .or_else(|| last.or(other))
     }
 }
 

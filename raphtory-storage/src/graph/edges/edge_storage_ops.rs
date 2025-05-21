@@ -1,4 +1,3 @@
-use either::Either;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
@@ -6,7 +5,7 @@ use raphtory_api::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, LayerVariants, EID, ELID, VID,
+        LayerIds, LayerVariants, EID, VID,
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };

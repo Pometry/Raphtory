@@ -6,20 +6,15 @@ use crate::{
     },
     mutation::MutationError,
 };
-use either::Either;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{Prop, PropError, PropType},
-        GidRef, GidType, EID, MAX_LAYER, VID,
+        properties::prop::{Prop, PropType},
+        GidType, EID, MAX_LAYER, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use raphtory_core::{
-    entities::{
-        graph::logical_to_physical::InvalidNodeId,
-        nodes::{node_ref::AsNodeRef, node_store::NodeStore},
-        properties::props::TPropError,
-    },
+    entities::nodes::node_ref::AsNodeRef,
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use std::sync::atomic::Ordering;
@@ -30,6 +25,8 @@ pub trait InternalAdditionOps: CoreGraphOps {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.logical_to_physical.dtype()
             }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
         }
     }
     fn write_lock(&self) -> Result<WriteLockedGraph, MutationError> {
@@ -43,11 +40,13 @@ pub trait InternalAdditionOps: CoreGraphOps {
     fn write_lock_edges(&self) -> Result<WriteLockedEdges, MutationError> {
         Ok(self.core_graph().mutable()?.storage.edges.write_lock())
     }
-    fn num_shards(&self) -> Result<usize, MutationError> {
+    fn num_shards(&self) -> usize {
         match self.core_graph() {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                Ok(graph.storage.num_shards())
+                graph.storage.num_shards()
             }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => 1,
         }
     }
     /// get the sequence id for the next event
@@ -65,6 +64,8 @@ pub trait InternalAdditionOps: CoreGraphOps {
             GraphStorage::Unlocked(graph) | GraphStorage::Mem(LockedGraph { graph, .. }) => {
                 graph.event_counter.load(Ordering::Relaxed)
             }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
         }
     }
 

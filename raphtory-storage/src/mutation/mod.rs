@@ -14,7 +14,7 @@ use thiserror::Error;
 
 pub mod addition_ops;
 pub mod deletion_ops;
-mod property_addition_ops;
+pub mod property_addition_ops;
 
 #[derive(Error, Debug)]
 pub enum MutationError {

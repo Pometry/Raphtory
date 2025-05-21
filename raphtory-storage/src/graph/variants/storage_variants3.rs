@@ -19,7 +19,7 @@ use std::ops::Range;
     ParallelIterator,
     IndexedParallelIterator,
 )]
-pub enum StorageVariants<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
+pub enum StorageVariants3<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
     Mem(Mem),
     Unlocked(Unlocked),
     #[cfg(feature = "storage")]
@@ -29,24 +29,24 @@ pub enum StorageVariants<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
 #[cfg(feature = "storage")]
 macro_rules! SelfType {
     ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
-        StorageVariants<$Mem, $Unlocked, $Disk>
+        StorageVariants3<$Mem, $Unlocked, $Disk>
     };
 }
 
 #[cfg(not(feature = "storage"))]
 macro_rules! SelfType {
     ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
-        StorageVariants<$Mem, $Unlocked>
+        StorageVariants3<$Mem, $Unlocked>
     };
 }
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            StorageVariants::Mem($pattern) => $result,
-            StorageVariants::Unlocked($pattern) => $result,
+            StorageVariants3::Mem($pattern) => $result,
+            StorageVariants3::Unlocked($pattern) => $result,
             #[cfg(feature = "storage")]
-            StorageVariants::Disk($pattern) => $result,
+            StorageVariants3::Disk($pattern) => $result,
         }
     };
 }
@@ -54,10 +54,10 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
+            StorageVariants3::Mem($pattern) => StorageVariants3::Mem($result),
+            StorageVariants3::Unlocked($pattern) => StorageVariants3::Unlocked($result),
             #[cfg(feature = "storage")]
-            StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
+            StorageVariants3::Disk($pattern) => StorageVariants3::Disk($result),
         }
     };
 }

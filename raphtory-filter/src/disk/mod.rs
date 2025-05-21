@@ -1,21 +1,7 @@
-use std::path::Path;
-
-use crate::{core::utils::errors::GraphError, disk_graph::DiskGraphStorage, prelude::Graph};
-
-mod edge_storage_ops;
 mod interop;
-pub mod prop_conversion;
-pub mod tprops;
 
-#[derive(Debug)]
-pub struct ParquetLayerCols<'a> {
-    pub parquet_dir: &'a str,
-    pub layer: &'a str,
-    pub src_col: &'a str,
-    pub dst_col: &'a str,
-    pub time_col: &'a str,
-    pub exclude_edge_props: Vec<&'a str>,
-}
+use raphtory_api::core::entities::properties::prop::IntoProp;
+use std::path::Path;
 
 impl Graph {
     pub fn persist_as_disk_graph(
@@ -38,8 +24,6 @@ mod test {
     use rayon::prelude::*;
     use tempfile::TempDir;
 
-    use pometry_storage::{graph::TemporalGraph, properties::Properties};
-
     use super::{DiskGraphStorage, ParquetLayerCols};
     use crate::{
         db::{
@@ -49,6 +33,8 @@ mod test {
         disk_graph::Time,
         prelude::*,
     };
+    use pometry_storage::{graph::TemporalGraph, properties::Properties};
+    use raphtory_api::core::entities::{properties::prop::Prop, VID};
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
         let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
@@ -692,6 +678,215 @@ mod test {
             g.nodes().type_filter(&vec![""]).name().collect_vec(),
             vec!["7", "8", "9"]
         );
+    }
+
+    #[test]
+    fn test_reload() {
+        let graph_dir = TempDir::new().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, [("weight", 0.)], None).unwrap();
+        graph.add_edge(1, 0, 1, [("weight", 1.)], None).unwrap();
+        graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
+        graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        let graph = disk_graph.inner;
+
+        let all_exploded: Vec<_> = graph.exploded_edges().collect();
+        let expected: Vec<_> = vec![
+            (VID(0), VID(1), 0),
+            (VID(0), VID(1), 1),
+            (VID(0), VID(1), 2),
+            (VID(1), VID(2), 3),
+        ];
+        assert_eq!(all_exploded, expected);
+
+        let reloaded_graph = TemporalGraph::new(graph.graph_dir()).unwrap();
+
+        check_graph_sanity(
+            &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
+            &[0, 1, 2],
+            &reloaded_graph,
+        );
+    }
+
+    #[test]
+    fn test_load_node_types() {
+        let graph_dir = TempDir::new().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let mut dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
+            .unwrap();
+        assert_eq!(
+            dg.into_graph().nodes().node_type().collect_vec(),
+            [Some("1".into()), Some("2".into())]
+        );
+    }
+
+    #[test]
+    fn test_node_type() {
+        let graph_dir = TempDir::new().unwrap();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, Some("1")).unwrap();
+        graph.add_node(0, 1, NO_PROPS, Some("2")).unwrap();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        assert_eq!(
+            dg.into_graph().nodes().node_type().collect_vec(),
+            [Some("1".into()), Some("2".into())]
+        );
+        let dg = DiskGraphStorage::load_from_dir(graph_dir.path()).unwrap();
+        assert_eq!(
+            dg.into_graph().nodes().node_type().collect_vec(),
+            [Some("1".into()), Some("2".into())]
+        );
+    }
+    mod addition_bounds {
+        use itertools::Itertools;
+        use proptest::{prelude::*, sample::size_range};
+        use tempfile::TempDir;
+
+        use raphtory_api::core::entities::VID;
+
+        use super::{
+            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS,
+        };
+
+        fn compare_raphtory_graph(edges: Vec<(u64, u64, i64)>, chunk_size: usize) {
+            let nodes = edges
+                .iter()
+                .flat_map(|(src, dst, _)| [*src, *dst])
+                .sorted()
+                .dedup()
+                .collect::<Vec<_>>();
+
+            let rg = Graph::new();
+
+            for (src, dst, time) in &edges {
+                rg.add_edge(*time, *src, *dst, NO_PROPS, None)
+                    .expect("failed to add edge");
+            }
+
+            let test_dir = TempDir::new().unwrap();
+            let graph = edges_sanity_check_build_graph(
+                test_dir.path(),
+                &edges,
+                edges.len() as u64,
+                chunk_size,
+                chunk_size,
+            )
+            .unwrap();
+
+            for (v_id, node) in nodes.into_iter().enumerate() {
+                let node = rg.node(node).expect("failed to get node id");
+                let expected = node.history();
+                let node = graph.node(VID(v_id), 0);
+                let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
+                assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn node_additions_bounds_to_arrays() {
+            let edges = vec![(0, 0, -2), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 0, 2)];
+
+            compare_raphtory_graph(edges, 2);
+        }
+
+        #[test]
+        fn test_load_from_graph_missing_edge() {
+            let g = Graph::new();
+            g.add_edge(0, 1, 2, [("test", "test1")], Some("1")).unwrap();
+            g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
+            let test_dir = TempDir::new().unwrap();
+            let _ = g.persist_as_disk_graph(test_dir.path()).unwrap();
+        }
+
+        #[test]
+        fn one_edge_bounds_chunk_remainder() {
+            let edges = vec![(0u64, 1, 0)];
+            compare_raphtory_graph(edges, 3);
+        }
+
+        #[test]
+        fn same_edge_twice() {
+            let edges = vec![(0, 1, 0), (0, 1, 1)];
+            compare_raphtory_graph(edges, 3);
+        }
+
+        proptest! {
+            #[test]
+            fn node_addition_bounds_test(
+                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=100).lift()).prop_map(|v| {
+                    let mut v: Vec<(u64, u64, i64)> = v.into_iter().flat_map(|(src, dst, times)| {
+                        let src = src as u64;
+                        let dst = dst as u64;
+                        times.into_iter().map(move |t| (src, dst, t))}).collect();
+                    v.sort();
+                    v}).prop_filter("edge list mut have one edge at least",|edges| !edges.is_empty()),
+                chunk_size in 1..300usize,
+            ) {
+                compare_raphtory_graph(edges, chunk_size);
+            }
+        }
+    }
+
+    #[test]
+    fn load_decimal_column() {
+        let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("resources/test/data_0.parquet")
+            .to_string_lossy()
+            .to_string();
+
+        let graph_dir = tempfile::tempdir().unwrap();
+
+        let layer_parquet_cols = vec![ParquetLayerCols {
+            parquet_dir: parquet_file_path.as_ref(),
+            layer: "large",
+            src_col: "from_address",
+            dst_col: "to_address",
+            time_col: "block_timestamp",
+            exclude_edge_props: vec![],
+        }];
+        let dgs = DiskGraphStorage::load_from_parquets(
+            graph_dir.path(),
+            layer_parquet_cols,
+            None,
+            100,
+            100,
+            1,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let g = dgs.into_graph();
+        let (_, actual): (Vec<_>, Vec<_>) = g
+            .edges()
+            .properties()
+            .into_iter()
+            .flat_map(|props| props.temporal().into_iter())
+            .flat_map(|(_, view)| view.into_iter())
+            .unzip();
+
+        let expected = [
+            "20000000000000000000.000000000",
+            "20000000000000000000.000000000",
+            "20000000000000000000.000000000",
+            "24000000000000000000.000000000",
+            "20000000000000000000.000000000",
+            "104447267751554560119.000000000",
+            "42328815976923864739.000000000",
+            "23073375143032303343.000000000",
+            "23069234889247394908.000000000",
+            "18729358881519682914.000000000",
+        ]
+        .into_iter()
+        .map(|s| BigDecimal::from_str(s).map(|bd| Prop::Decimal(bd)))
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+        assert_eq!(actual, expected);
     }
 }
 

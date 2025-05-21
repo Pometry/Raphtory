@@ -1,14 +1,12 @@
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::node::DiskOwnedNode;
-
 use crate::graph::nodes::node_storage_ops::NodeStorageIntoOps;
-#[cfg(feature = "storage")]
-use either::Either;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, LayerIds},
     Direction,
 };
 use raphtory_core::storage::ArcNodeEntry;
+
+#[cfg(feature = "storage")]
+use {crate::disk::storage_interface::node::DiskOwnedNode, either::Either};
 
 pub enum NodeOwnedEntry {
     Mem(ArcNodeEntry),

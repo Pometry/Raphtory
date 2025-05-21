@@ -1,15 +1,12 @@
-use crate::graph::nodes::node_entry::NodeAdditions;
+use crate::graph::nodes::node_additions::NodeAdditions;
 use itertools::Itertools;
-use raphtory_api::{
-    core::{
-        entities::{
-            edges::edge_ref::EdgeRef,
-            properties::{prop::Prop, tprop::TPropOps},
-            GidRef, LayerIds, VID,
-        },
-        Direction,
+use raphtory_api::core::{
+    entities::{
+        edges::edge_ref::EdgeRef,
+        properties::{prop::Prop, tprop::TPropOps},
+        GidRef, LayerIds, VID,
     },
-    iter::{BoxedLIter, IntoDynBoxed},
+    Direction,
 };
 use raphtory_core::{
     entities::nodes::node_store::NodeStore,

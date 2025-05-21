@@ -10,6 +10,9 @@ use raphtory_core::{entities::edges::edge_store::MemEdge, storage::raw_edges::Ed
 use rayon::prelude::*;
 use std::ops::Range;
 
+#[cfg(feature = "storage")]
+use crate::disk::graph_impl::DiskEdge;
+
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
     Mem(MemEdge<'a>),

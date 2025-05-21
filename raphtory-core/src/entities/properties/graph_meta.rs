@@ -24,7 +24,7 @@ pub struct GraphMeta {
 }
 
 impl GraphMeta {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             constant_mapper: PropMapper::default(),
             temporal_mapper: PropMapper::default(),
@@ -140,29 +140,29 @@ impl GraphMeta {
         self.constant_mapper.get_dtype(prop_id)
     }
 
-    pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {
+    pub fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.constant_mapper.get_keys()
     }
 
-    pub(crate) fn const_prop_ids(&self) -> impl Iterator<Item = usize> {
+    pub fn const_prop_ids(&self) -> impl Iterator<Item = usize> {
         0..self.constant_mapper.len()
     }
 
-    pub(crate) fn temporal_names(&self) -> ArcReadLockedVec<ArcStr> {
+    pub fn temporal_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.temporal_mapper.get_keys()
     }
 
-    pub(crate) fn temporal_ids(&self) -> impl Iterator<Item = usize> {
+    pub fn temporal_ids(&self) -> impl Iterator<Item = usize> {
         0..self.temporal_mapper.len()
     }
 
-    pub(crate) fn const_props(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
+    pub fn const_props(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
         self.constant
             .iter()
             .filter_map(|kv| kv.value().as_ref().map(|v| (*kv.key(), v.clone())))
     }
 
-    pub(crate) fn temporal_props(
+    pub fn temporal_props(
         &self,
     ) -> impl Iterator<Item = (usize, impl Deref<Target = TProp> + '_)> + '_ {
         (0..self.temporal_mapper.len()).filter_map(|id| self.temporal.get(&id).map(|v| (id, v)))

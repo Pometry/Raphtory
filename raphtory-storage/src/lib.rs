@@ -1,4 +1,6 @@
-mod core_ops;
+pub mod core_ops;
+#[cfg(feature = "storage")]
+pub mod disk;
 pub mod graph;
-mod layer_ops;
+pub mod layer_ops;
 pub mod mutation;

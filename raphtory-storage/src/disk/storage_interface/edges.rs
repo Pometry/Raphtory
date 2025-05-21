@@ -1,16 +1,12 @@
-use crate::{
-    core::{
-        entities::{LayerIds, EID},
-        utils::iter::GenLockedIter,
-    },
-    db::api::{storage::graph::variants::layer_variants::LayerVariants, view::IntoDynBoxed},
-    disk_graph::{
-        storage_interface::{edge::DiskEdge, edges_ref::DiskEdgesRef},
-        DiskGraphStorage,
-    },
+use crate::disk::{
+    graph_impl::DiskEdge, storage_interface::edges_ref::DiskEdgesRef, DiskGraphStorage,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_api::{
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, LayerVariants, EID},
+    iter::IntoDynBoxed,
+};
+use raphtory_core::utils::iter::GenLockedIter;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 

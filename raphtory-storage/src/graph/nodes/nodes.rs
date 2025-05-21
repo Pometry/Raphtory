@@ -1,10 +1,11 @@
 use super::node_ref::NodeStorageRef;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 use crate::graph::nodes::nodes_ref::NodesStorageEntry;
 use raphtory_api::core::entities::VID;
 use raphtory_core::storage::ReadLockedStorage;
 use std::sync::Arc;
+
+#[cfg(feature = "storage")]
+use crate::disk::storage_interface::nodes::DiskNodesOwned;
 
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage>),

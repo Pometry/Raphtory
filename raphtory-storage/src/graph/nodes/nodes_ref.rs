@@ -1,15 +1,11 @@
 use super::node_ref::NodeStorageRef;
+use crate::graph::variants::storage_variants3::StorageVariants3;
+use raphtory_api::core::entities::VID;
+use raphtory_core::storage::ReadLockedStorage;
 use rayon::iter::ParallelIterator;
 
 #[cfg(feature = "storage")]
-use crate::db::api::storage::graph::variants::storage_variants3::StorageVariants;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
-
-#[cfg(not(feature = "storage"))]
-use either::Either;
-use raphtory_api::core::entities::VID;
-use raphtory_core::storage::ReadLockedStorage;
+use crate::disk::storage_interface::nodes_ref::DiskNodesRef;
 
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a> {
@@ -19,23 +15,13 @@ pub enum NodesStorageEntry<'a> {
     Disk(DiskNodesRef<'a>),
 }
 
-#[cfg(feature = "storage")]
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            NodesStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
-            NodesStorageEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
-            NodesStorageEntry::Disk($pattern) => StorageVariants::Disk($result),
-        }
-    };
-}
-
-#[cfg(not(feature = "storage"))]
-macro_rules! for_all_variants {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            NodesStorageEntry::Mem($pattern) => Either::Left($result),
-            NodesStorageEntry::Unlocked($pattern) => Either::Right($result),
+            NodesStorageEntry::Mem($pattern) => StorageVariants3::Mem($result),
+            NodesStorageEntry::Unlocked($pattern) => StorageVariants3::Unlocked($result),
+            #[cfg(feature = "storage")]
+            NodesStorageEntry::Disk($pattern) => StorageVariants3::Disk($result),
         }
     };
 }

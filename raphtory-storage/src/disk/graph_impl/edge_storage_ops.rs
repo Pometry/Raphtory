@@ -1,17 +1,13 @@
-use crate::{
-    core::{
-        entities::{LayerIds, VID},
-        storage::timeindex::{TimeIndex, TimeIndexOps},
-        Prop,
-    },
-    db::api::storage::graph::{
-        edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
-        tprop_storage_ops::TPropOps,
-        variants::layer_variants::LayerVariants,
-    },
-};
+use crate::graph::edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef};
 use pometry_storage::{edge::Edge, tprops::DiskTProp};
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::{
+        properties::{prop::Prop, tprop::TPropOps},
+        LayerIds, LayerVariants, EID, VID,
+    },
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+};
+use raphtory_core::storage::timeindex::TimeIndex;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 

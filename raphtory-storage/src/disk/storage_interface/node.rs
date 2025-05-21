@@ -1,21 +1,7 @@
-use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::iter::GenLockedIter,
-        Direction,
-    },
-    db::api::{
-        storage::graph::{
-            nodes::{
-                node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
-                row::{DiskRow, Row},
-            },
-            tprop_storage_ops::TPropOps,
-            variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
-        },
-        view::{internal::NodeAdditions, BoxedLIter},
-    },
-    prelude::Prop,
+use crate::graph::nodes::{
+    node_additions::NodeAdditions,
+    node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+    row::{DiskRow, Row},
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
@@ -23,9 +9,18 @@ use pometry_storage::{
     graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
 };
 use raphtory_api::{
-    core::storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-    iter::IntoDynBoxed,
+    core::{
+        entities::{
+            edges::edge_ref::EdgeRef,
+            properties::{prop::Prop, tprop::TPropOps},
+            LayerIds, LayerVariants, VID,
+        },
+        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+        Direction, DirectionVariants,
+    },
+    iter::{BoxedLIter, IntoDynBoxed},
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use std::{borrow::Cow, iter, ops::Range, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]

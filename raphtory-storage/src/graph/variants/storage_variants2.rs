@@ -6,11 +6,7 @@ use raphtory_api::core::{
     entities::properties::{prop::Prop, tprop::TPropOps},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use rayon::iter::{
-    plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
-    IndexedParallelIterator, ParallelIterator,
-};
-use std::{cmp::Ordering, ops::Range};
+use std::ops::Range;
 
 #[derive(
     Copy,
