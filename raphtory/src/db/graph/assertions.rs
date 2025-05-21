@@ -28,7 +28,6 @@ pub enum TestVariants {
     PersistentOnly,
     NonDiskOnly,
     DiskOnly,
-    Only(Vec<TestGraphVariants>),
 }
 
 impl From<TestVariants> for Vec<TestGraphVariants> {
@@ -42,7 +41,6 @@ impl From<TestVariants> for Vec<TestGraphVariants> {
             TestVariants::PersistentOnly => vec![PersistentGraph, PersistentDiskGraph],
             TestVariants::NonDiskOnly => vec![Graph, PersistentGraph],
             TestVariants::DiskOnly => vec![EventDiskGraph, PersistentDiskGraph],
-            TestVariants::Only(v) => v,
         }
     }
 }

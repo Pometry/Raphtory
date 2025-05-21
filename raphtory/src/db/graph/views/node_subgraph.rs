@@ -391,14 +391,14 @@ mod subgraph_tests {
                     WindowedNodeSubgraphTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_nodes_results(
                     init_graph,
                     WindowedNodeSubgraphTransformer(None, 6..9),
                     filter,
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
 
                 let node_names: Option<Vec<String>> = Some(vec!["N3".into()]);
@@ -409,14 +409,14 @@ mod subgraph_tests {
                     WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_nodes_results(
                     init_graph,
                     WindowedNodeSubgraphTransformer(node_names, 6..9),
                     filter,
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
             }
 
@@ -594,7 +594,7 @@ mod subgraph_tests {
                     WindowedNodeSubgraphTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![]),
+                    vec![],
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -618,7 +618,7 @@ mod subgraph_tests {
                     WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![]),
+                    vec![],
                 );
                 assert_search_edges_results(
                     init_graph,

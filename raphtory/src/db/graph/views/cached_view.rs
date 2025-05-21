@@ -397,7 +397,7 @@ mod test {
                     WindowedCachedGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_nodes_results(
                     init_graph,
@@ -527,7 +527,7 @@ mod test {
                     WindowedCachedGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![]),
+                    vec![],
                 );
                 assert_search_edges_results(
                     init_graph,

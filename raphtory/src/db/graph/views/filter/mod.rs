@@ -750,20 +750,14 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![
-                        TestGraphVariants::Graph,
-                        TestGraphVariants::PersistentGraph,
-                    ]),
+                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
                 );
                 assert_search_nodes_results(
                     init_graph,
                     EventGraphTransformer,
                     filter,
                     &expected_results,
-                    TestVariants::Only(vec![
-                        TestGraphVariants::Graph,
-                        TestGraphVariants::PersistentGraph,
-                    ]),
+                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
                 );
             }
 
@@ -828,20 +822,14 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![
-                        TestGraphVariants::Graph,
-                        TestGraphVariants::PersistentGraph,
-                    ]),
+                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
                 );
                 assert_search_nodes_results(
                     init_graph,
                     EventGraphTransformer,
                     filter,
                     &expected_results,
-                    TestVariants::Only(vec![
-                        TestGraphVariants::Graph,
-                        TestGraphVariants::PersistentGraph,
-                    ]),
+                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
                 );
             }
 
@@ -880,20 +868,14 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![
-                        TestGraphVariants::Graph,
-                        TestGraphVariants::PersistentGraph,
-                    ]),
+                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
                 );
                 assert_search_nodes_results(
                     init_graph,
                     EventGraphTransformer,
                     filter,
                     &expected_results,
-                    TestVariants::Only(vec![
-                        TestGraphVariants::Graph,
-                        TestGraphVariants::PersistentGraph,
-                    ]),
+                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
                 );
             }
         }
@@ -1024,7 +1006,7 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -1163,7 +1145,7 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_edges_results(
                     init_graph_for_secondary_indexes,
@@ -1218,7 +1200,7 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -2307,7 +2289,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
 
             let filter = PropertyFilter::property("p1").fuzzy_search("ShiV", 2, true);
@@ -2317,7 +2299,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
 
             let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, false);
@@ -2327,7 +2309,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
         }
 
@@ -3511,7 +3493,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3526,7 +3508,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3545,7 +3527,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3560,7 +3542,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3586,7 +3568,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3601,7 +3583,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3621,7 +3603,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3636,7 +3618,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3655,7 +3637,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3670,7 +3652,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3690,7 +3672,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3705,7 +3687,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3761,7 +3743,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,
@@ -3777,7 +3759,7 @@ pub(crate) mod test_filters {
                 EventGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::Only(vec![TestGraphVariants::Graph]),
+                vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
                 init_edges_graph,

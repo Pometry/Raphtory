@@ -338,7 +338,7 @@ mod tests_node_type_filtered_subgraph {
                     WindowedNodeTypeGraphTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_nodes_results(
                     init_graph,
@@ -357,7 +357,7 @@ mod tests_node_type_filtered_subgraph {
                     WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![TestGraphVariants::Graph]),
+                    vec![TestGraphVariants::Graph],
                 );
                 assert_search_nodes_results(
                     init_graph,
@@ -648,7 +648,7 @@ mod tests_node_type_filtered_subgraph {
                     WindowedNodeTypeGraphTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![]),
+                    vec![],
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -667,7 +667,7 @@ mod tests_node_type_filtered_subgraph {
                     WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![]),
+                    vec![],
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -688,7 +688,7 @@ mod tests_node_type_filtered_subgraph {
                     ),
                     filter.clone(),
                     &expected_results,
-                    TestVariants::Only(vec![]),
+                    vec![],
                 );
                 assert_search_edges_results(
                     init_graph,
