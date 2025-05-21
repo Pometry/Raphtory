@@ -750,14 +750,14 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
+                    TestVariants::NonDiskOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
                     EventGraphTransformer,
                     filter,
                     &expected_results,
-                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
+                    TestVariants::NonDiskOnly,
                 );
             }
 
@@ -822,14 +822,14 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
+                    TestVariants::NonDiskOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
                     EventGraphTransformer,
                     filter,
                     &expected_results,
-                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
+                    TestVariants::NonDiskOnly,
                 );
             }
 
@@ -868,14 +868,14 @@ pub(crate) mod test_filters {
                     EventGraphTransformer,
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
+                    TestVariants::NonDiskOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
                     EventGraphTransformer,
                     filter,
                     &expected_results,
-                    vec![TestGraphVariants::Graph, TestGraphVariants::PersistentGraph],
+                    TestVariants::NonDiskOnly,
                 );
             }
         }
