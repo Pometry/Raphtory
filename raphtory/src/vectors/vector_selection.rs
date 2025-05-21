@@ -86,7 +86,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         self.get_documents_with_scores()
             .into_iter()
             .map(|(doc, _)| doc)
-            .collect_vec()
+            .collect()
     }
 
     /// Return the documents alongside their scores present in the current selection

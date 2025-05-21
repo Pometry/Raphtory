@@ -1,27 +1,31 @@
 use crate::{core::utils::errors::GraphResult, vectors::Embedding};
 use foyer::{DirectFsDeviceOptions, Engine, HybridCache, HybridCacheBuilder};
 use futures_util::StreamExt;
-use std::{collections::VecDeque, ops::Deref, path::Path};
+use std::{collections::VecDeque, ops::Deref, path::Path, sync::Arc};
 
 use super::embeddings::EmbeddingFunction;
 
+#[derive(Clone)]
 pub struct VectorCache {
     cache: HybridCache<String, Embedding>,
-    function: Box<dyn EmbeddingFunction>,
+    function: Arc<dyn EmbeddingFunction>,
 }
 
 impl VectorCache {
-    pub async fn in_memory(function: Box<dyn EmbeddingFunction>) -> Self {
+    pub async fn in_memory(function: impl EmbeddingFunction + 'static) -> Self {
         let cache: HybridCache<String, Embedding> = HybridCacheBuilder::new()
             .memory(1024 * 1024) // 1MB
             .storage(Engine::Large)
             .build()
             .await
             .unwrap();
-        Self { cache, function }
+        Self {
+            cache,
+            function: Arc::new(function),
+        }
     }
 
-    pub async fn from_path(path: &Path, function: Box<dyn EmbeddingFunction>) -> Self {
+    pub async fn from_path(path: &Path, function: impl EmbeddingFunction + 'static) -> Self {
         let cache: HybridCache<String, Embedding> = HybridCacheBuilder::new()
             .memory(1024 * 1024) // 1MB
             .storage(Engine::Large)
@@ -29,8 +33,12 @@ impl VectorCache {
             .build()
             .await
             .unwrap();
-        Self { cache, function }
+        Self {
+            cache,
+            function: Arc::new(function),
+        }
     }
+
     pub(super) async fn get_embeddings(
         &self,
         texts: Vec<String>,
@@ -64,11 +72,8 @@ impl VectorCache {
         Ok(embeddings)
     }
 
-    pub(super) async fn get_single(&self, text: String) -> Embedding {
-        self.get_embeddings(vec![text])
-            .await
-            .unwrap() // FIXME: remove this unwrap
-            .next()
-            .unwrap()
+    pub(crate) async fn get_single(&self, text: String) -> GraphResult<Embedding> {
+        let mut embeddings = self.get_embeddings(vec![text]).await?;
+        Ok(embeddings.next().unwrap())
     }
 }

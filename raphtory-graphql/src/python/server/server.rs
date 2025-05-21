@@ -1,38 +1,24 @@
 use crate::{
     config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
-    model::{
-        algorithms::document::GqlDocument,
-        plugins::{entry_point::EntryPoint, query_plugin::QueryPlugin},
-    },
-    python::{
-        adapt_graphql_value,
-        global_plugins::PyGlobalPlugins,
-        server::{
-            running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
-        },
+    python::server::{
+        running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
     },
     GraphServer,
 };
-use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef};
-use dynamic_graphql::internal::{Registry, TypeName};
-use itertools::intersperse;
 use pyo3::{
     exceptions::{PyAttributeError, PyException, PyValueError},
     prelude::*,
-    types::{IntoPyDict, PyFunction, PyList},
-    IntoPyObjectExt,
+    types::PyFunction,
 };
 use raphtory::{
-    db::api::view::DynamicGraph,
-    python::{packages::vectors::TemplateConfig, types::wrappers::document::PyDocument},
+    python::packages::vectors::TemplateConfig,
     vectors::{
         embeddings::openai_embedding,
         embeddings::EmbeddingFunction,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-        Document,
     },
 };
-use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
+use std::{path::PathBuf, sync::Arc, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -85,7 +71,8 @@ impl PyGraphServer {
         let global_template = template_from_python(nodes, edges);
         let server = take_server_ownership(slf)?;
         let cache = PathBuf::from(cache);
-        Ok(server.set_embeddings(embedding, &cache, global_template))
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        Ok(rt.block_on(server.set_embeddings(embedding, &cache, global_template)))
     }
 }
 
@@ -227,31 +214,28 @@ impl PyGraphServer {
         timeout_ms: u64,
     ) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
-        let server = take_server_ownership(slf)?;
-
         let cloned_sender = sender.clone();
 
+        let server = take_server_ownership(slf)?;
+
         let join_handle = thread::spawn(move || {
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(async move {
-                    let handler = server.start_with_port(port);
-                    let running_server = handler.await?;
-                    let tokio_sender = running_server._get_sender().clone();
-                    tokio::task::spawn_blocking(move || {
-                        match receiver.recv().expect("Failed to wait for cancellation") {
-                            BridgeCommand::StopServer => tokio_sender
-                                .blocking_send(())
-                                .expect("Failed to send cancellation signal"),
-                            BridgeCommand::StopListening => (),
-                        }
-                    });
-                    let result = running_server.wait().await;
-                    _ = cloned_sender.send(BridgeCommand::StopListening);
-                    result
-                })
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                let handler = server.start_with_port(port);
+                let running_server = handler.await?;
+                let tokio_sender = running_server._get_sender().clone();
+                tokio::task::spawn_blocking(move || {
+                    match receiver.recv().expect("Failed to wait for cancellation") {
+                        BridgeCommand::StopServer => tokio_sender
+                            .blocking_send(())
+                            .expect("Failed to send cancellation signal"),
+                        BridgeCommand::StopListening => (),
+                    }
+                });
+                let result = running_server.wait().await;
+                _ = cloned_sender.send(BridgeCommand::StopListening);
+                result
+            })
         });
 
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;

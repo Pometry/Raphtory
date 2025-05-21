@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::{errors::GraphError, time::IntoTime},
+    core::utils::time::IntoTime,
     db::{
         api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
@@ -10,8 +10,8 @@ use crate::{
         utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
-        embeddings::EmbeddingFunction,
-        embeddings::EmbeddingResult,
+        cache::VectorCache,
+        embeddings::{EmbeddingFunction, EmbeddingResult},
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
@@ -40,14 +40,16 @@ pub enum PyQuery {
 }
 
 impl PyQuery {
-    async fn into_embedding<E: EmbeddingFunction + ?Sized>(
+    fn into_embedding<G: StaticGraphViewOps>(
         self,
-        embedding: &E,
+        graph: &VectorisedGraph<G>,
     ) -> PyResult<Embedding> {
         match self {
             Self::Raw(query) => {
-                let result = embedding.call(vec![query]).await;
-                Ok(result.map_err(GraphError::from)?.remove(0))
+                let cache = graph.cache.clone();
+                Ok(execute_async_task(move || async move {
+                    cache.get_single(query).await
+                })?)
             }
             Self::Computed(embedding) => Ok(embedding),
         }
@@ -146,20 +148,16 @@ impl PyGraphView {
     ///
     /// Args:
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-    ///   cache (str, optional): the file to be used as a cache to avoid calling the embedding function
-    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings. Defaults to False.
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
     ///
     /// Returns:
     ///   VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), verbose = false))]
+    #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), verbose = false))]
     fn vectorise(
         &self,
         embedding: Bound<PyFunction>,
-        cache: Option<String>,
-        overwrite_cache: bool,
         nodes: TemplateConfig,
         edges: TemplateConfig,
         verbose: bool,
@@ -169,19 +167,11 @@ impl PyGraphView {
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         };
         let embedding = embedding.unbind();
-        let cache = cache.map(|cache| cache.into()).into();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let cache = rt.block_on(VectorCache::in_memory(embedding));
         let graph = self.graph.clone();
         execute_async_task(move || async move {
-            Ok(graph
-                .vectorise(
-                    Box::new(embedding),
-                    cache,
-                    overwrite_cache,
-                    template,
-                    None,
-                    verbose,
-                )
-                .await?)
+            Ok(graph.vectorise(cache, template, None, verbose).await?)
         })
     }
 }
@@ -225,11 +215,6 @@ impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
 /// over those documents
 #[pymethods]
 impl PyVectorisedGraph {
-    /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
-    fn save_embeddings(&self, file: String) {
-        self.0.save_embeddings(file.into());
-    }
-
     /// Return an empty selection of documents
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()
@@ -251,7 +236,7 @@ impl PyVectorisedGraph {
         limit: usize,
         window: PyWindow,
     ) -> PyResult<DynamicVectorSelection> {
-        let embedding = compute_embedding(&self.0, query)?;
+        let embedding = query.into_embedding(&self.0)?;
         Ok(self
             .0
             .entities_by_similarity(&embedding, limit, translate_window(window)))
@@ -273,7 +258,7 @@ impl PyVectorisedGraph {
         limit: usize,
         window: PyWindow,
     ) -> PyResult<DynamicVectorSelection> {
-        let embedding = compute_embedding(&self.0, query)?;
+        let embedding = query.into_embedding(&self.0)?;
         Ok(self
             .0
             .nodes_by_similarity(&embedding, limit, translate_window(window)))
@@ -295,7 +280,7 @@ impl PyVectorisedGraph {
         limit: usize,
         window: PyWindow,
     ) -> PyResult<DynamicVectorSelection> {
-        let embedding = compute_embedding(&self.0, query)?;
+        let embedding = query.into_embedding(&self.0)?;
         Ok(self
             .0
             .edges_by_similarity(&embedding, limit, translate_window(window)))
@@ -430,7 +415,7 @@ impl PyVectorSelection {
         limit: usize,
         window: PyWindow,
     ) -> PyResult<()> {
-        let embedding = compute_embedding(&self_.0.graph, query)?;
+        let embedding = query.into_embedding(&self_.0.graph)?;
         self_
             .0
             .expand_entities_by_similarity(&embedding, limit, translate_window(window));
@@ -455,7 +440,7 @@ impl PyVectorSelection {
         limit: usize,
         window: PyWindow,
     ) -> PyResult<()> {
-        let embedding = compute_embedding(&self_.0.graph, query)?;
+        let embedding = query.into_embedding(&self_.0.graph)?;
         self_
             .0
             .expand_nodes_by_similarity(&embedding, limit, translate_window(window));
@@ -480,20 +465,12 @@ impl PyVectorSelection {
         limit: usize,
         window: PyWindow,
     ) -> PyResult<()> {
-        let embedding = compute_embedding(&self_.0.graph, query)?;
+        let embedding = query.into_embedding(&self_.0.graph)?;
         self_
             .0
             .expand_edges_by_similarity(&embedding, limit, translate_window(window));
         Ok(())
     }
-}
-
-pub fn compute_embedding<G: StaticGraphViewOps>(
-    vectors: &VectorisedGraph<G>,
-    query: PyQuery,
-) -> PyResult<Embedding> {
-    let embedding = vectors.embedding.clone();
-    execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }
 
 impl EmbeddingFunction for Py<PyFunction> {

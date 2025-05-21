@@ -26,8 +26,7 @@ use raphtory::{
     prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
     serialise::GraphFolder,
     vectors::{
-        embedding_cache::EmbeddingCache, embeddings::EmbeddingFunction,
-        vectorised_graph::VectorisedGraph,
+        cache::VectorCache, embeddings::EmbeddingFunction, vectorised_graph::VectorisedGraph,
     },
 };
 
@@ -78,8 +77,7 @@ impl GraphWithVectors {
 
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
-        embedding: Arc<dyn EmbeddingFunction>,
-        cache: Arc<Option<EmbeddingCache>>,
+        cache: VectorCache,
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();
@@ -89,12 +87,8 @@ impl GraphWithVectors {
             MaterializedGraph::load_cached(folder.clone())?
         };
 
-        let vectors = VectorisedGraph::read_from_path(
-            &folder.get_vectors_path(),
-            graph.clone(),
-            embedding,
-            cache,
-        );
+        let vectors =
+            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache);
 
         println!("Graph loaded = {}", folder.get_original_path_str());
 

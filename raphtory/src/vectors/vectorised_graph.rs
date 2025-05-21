@@ -1,13 +1,8 @@
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
-    prelude::*,
-    vectors::{
-        embeddings::compute_embeddings, template::DocumentTemplate, utils::find_top_k, Embedding,
-    },
+    vectors::{template::DocumentTemplate, utils::find_top_k, Embedding},
 };
-use futures_util::StreamExt;
-use std::sync::Arc;
 
 use super::{cache::VectorCache, db::EntityDb};
 use super::{
@@ -20,13 +15,12 @@ use super::{
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
-    pub(crate) cache: Arc<VectorCache>,
-    // it is not the end of the world but we are storing the entity id twice
+    pub(crate) cache: VectorCache,
     pub(crate) node_db: NodeDb,
     pub(crate) edge_db: EdgeDb,
 }
 
-// This has to be here so it is shared between python and graphql
+// This has to be here so it is shared between python and graphql // UPDATE: we are dropping support for python plugins, so might not be necessary anymore
 pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
 impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
@@ -46,7 +40,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         if let Some(node) = self.source_graph.node(node) {
             let id = node.node.index();
             if let Some(doc) = self.template.node(node) {
-                let vector = self.compute_embedding(doc).await?;
+                let vector = self.cache.get_single(doc).await?;
                 self.node_db.0.insert_vector(id, &vector);
             }
         }
@@ -57,17 +51,11 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         if let Some(edge) = self.source_graph.edge(src, dst) {
             let id = edge.edge.pid().0;
             if let Some(doc) = self.template.edge(edge) {
-                let vector = self.compute_embedding(doc).await?;
+                let vector = self.cache.get_single(doc).await?;
                 self.edge_db.0.insert_vector(id, &vector);
             }
         }
         Ok(())
-    }
-
-    async fn compute_embedding(&self, doc: String) -> GraphResult<Embedding> {
-        let result = compute_embeddings(std::iter::once((0, doc)), &self.cache);
-        futures_util::pin_mut!(result);
-        Ok(result.next().await.unwrap()?.1)
     }
 
     /// Return an empty selection of documents

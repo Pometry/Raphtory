@@ -7,8 +7,8 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory::{
     prelude::{AdditionOps, Graph, NO_PROPS},
     vectors::{
-        embeddings::EmbeddingResult, template::DocumentTemplate, vectorisable::Vectorisable,
-        Embedding,
+        cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate,
+        vectorisable::Vectorisable, Embedding,
     },
 };
 use tokio::runtime::Runtime;
@@ -37,15 +37,12 @@ fn create_graph(size: usize) -> Graph {
 fn vectorise_graph(graph: Graph) {
     let rt = Runtime::new().unwrap();
     rt.block_on(async {
-        let embedding = Box::new(embedding_model);
+        let cache = VectorCache::in_memory(embedding_model).await;
         let template = DocumentTemplate {
             node_template: Some("{{name}}".to_owned()),
             edge_template: None,
         };
-        graph
-            .vectorise(embedding, None.into(), false, template, None, true)
-            .await
-            .unwrap()
+        graph.vectorise(cache, template, None, true).await.unwrap()
     });
 }
 

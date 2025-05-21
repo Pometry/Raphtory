@@ -222,10 +222,11 @@ impl VectorDb {
 
         futures_util::pin_mut!(vectors);
         let first_vector = vectors.next().await;
-        let dimensions = if let Some(Ok(first_vector)) = first_vector {
-            let dimensions = first_vector.1.len(); // TODO: if vectors is empty, simply don't write anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        let dimensions = if let Some(Ok((first_id, first_vector))) = first_vector {
+            let dimensions = first_vector.len(); // TODO: if vectors is empty, simply don't write anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             let writer = Writer::<Cosine>::new(db, 0, dimensions);
 
+            writer.add_item(&mut wtxn, first_id, &first_vector).unwrap();
             while let Some(result) = vectors.next().await {
                 let (id, vector) = result?;
                 writer.add_item(&mut wtxn, id, &vector).unwrap();

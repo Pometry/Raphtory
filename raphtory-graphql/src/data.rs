@@ -10,11 +10,13 @@ use raphtory::{
     core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
     db::api::view::MaterializedGraph,
     prelude::CacheOps,
-    serialise::GraphFolder,
     vectors::{
-        embedding_cache::EmbeddingCache, embeddings::openai_embedding,
-        embeddings::EmbeddingFunction, template::DocumentTemplate, vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph, Embedding,
+        cache::VectorCache,
+        embeddings::{openai_embedding, EmbeddingFunction},
+        template::DocumentTemplate,
+        vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph,
+        Embedding,
     },
 };
 use std::{
@@ -28,8 +30,7 @@ use walkdir::WalkDir;
 
 #[derive(Clone)]
 pub struct EmbeddingConf {
-    pub(crate) function: Arc<dyn EmbeddingFunction>,
-    pub(crate) cache: Arc<Option<EmbeddingCache>>, // FIXME: no need for this to be Option
+    pub(crate) cache: VectorCache,
     pub(crate) global_template: Option<DocumentTemplate>,
     pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
 }
@@ -130,18 +131,18 @@ impl Data {
         Ok(())
     }
 
-    pub async fn embed_query(&self, query: String) -> GraphResult<Embedding> {
-        let embedding_function = self
-            .embedding_conf
-            .as_ref()
-            .map(|conf| conf.function.clone());
-        let embedding = if let Some(embedding_function) = embedding_function {
-            embedding_function.call(vec![query]).await?.remove(0)
-        } else {
-            openai_embedding(vec![query]).await?.remove(0)
-        };
-        Ok(embedding)
-    }
+    // pub async fn embed_query(&self, query: String) -> GraphResult<Embedding> {
+    //     let embedding_function = self
+    //         .embedding_conf
+    //         .as_ref()
+    //         .map(|conf| conf.function.clone());
+    //     let embedding = if let Some(embedding_function) = embedding_function {
+    //         embedding_function.call(vec![query]).await?.remove(0)
+    //     } else {
+    //         openai_embedding(vec![query]).await?.remove(0)
+    //     };
+    //     Ok(embedding)
+    // }
 
     fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
         let conf = self.embedding_conf.as_ref()?;
@@ -159,9 +160,7 @@ impl Data {
         let conf = self.embedding_conf.as_ref()?;
         let vectors = graph
             .vectorise(
-                Box::new(conf.function.clone()),
                 conf.cache.clone(),
-                true, // overwrite
                 template.clone(),
                 Some(&folder.get_vectors_path()),
                 true, // verbose
@@ -239,18 +238,15 @@ impl Data {
         &self,
         folder: &ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let embedding = self
-            .embedding_conf
-            .as_ref()
-            .map(|conf| conf.function.clone())
-            .unwrap_or(Arc::new(openai_embedding));
         let cache = self
             .embedding_conf
             .as_ref()
             .map(|conf| conf.cache.clone())
-            .unwrap_or(Arc::new(None));
-
-        GraphWithVectors::read_from_folder(folder, embedding, cache, self.create_index)
+            .unwrap_or_else(|| {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(VectorCache::in_memory(openai_embedding)) // TODO: review, this is weird...
+            });
+        GraphWithVectors::read_from_folder(folder, cache, self.create_index)
     }
 }
 

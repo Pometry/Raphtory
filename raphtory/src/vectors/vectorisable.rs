@@ -7,13 +7,12 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 use tracing::info;
 
 use super::{
     cache::VectorCache,
     db::{EdgeDb, NodeDb},
-    embeddings::EmbeddingFunction,
     storage::{edge_vectors_path, node_vectors_path, VectorMeta},
 };
 
@@ -32,8 +31,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
         &self,
-        embedding: Box<dyn EmbeddingFunction>,
-        cache: Arc<VectorCache>,
+        cache: VectorCache,
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
@@ -44,8 +42,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
         &self,
-        embedding: Box<dyn EmbeddingFunction>,
-        cache: Arc<VectorCache>,
+        cache: VectorCache,
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,

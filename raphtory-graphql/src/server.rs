@@ -21,7 +21,9 @@ use poem::{
     middleware::{Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
-use raphtory::vectors::{embeddings::EmbeddingFunction, template::DocumentTemplate};
+use raphtory::vectors::{
+    cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate,
+};
 use serde_json::json;
 use std::{
     fs,
@@ -103,17 +105,15 @@ impl GraphServer {
         self
     }
 
-    pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
+    pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
         embedding: F,
         cache: &Path, // TODO: maybe now that we are storing vectors we could bin the cache!!!
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
     ) -> Self {
-        let cache = Some(PathBuf::from(cache).into()).into();
         self.data.embedding_conf = Some(EmbeddingConf {
-            function: Arc::new(embedding),
-            cache,
+            cache: VectorCache::from_path(cache, embedding).await,
             global_template,
             individual_templates: Default::default(),
         });
@@ -343,7 +343,7 @@ mod server_tests {
     use chrono::prelude::*;
     use raphtory::{
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{template::DocumentTemplate, Embedding, EmbeddingResult},
+        vectors::{embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tokio::time::{sleep, Duration};
@@ -387,6 +387,7 @@ mod server_tests {
         let cache = Path::new("/tmp/graph-cache");
         let handler = server
             .set_embeddings(failing_embedding, cache, Some(template))
+            .await
             .start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await

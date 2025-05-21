@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
@@ -10,7 +9,6 @@ use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
 use super::{
     cache::VectorCache,
     db::{EdgeDb, EntityDb, NodeDb},
-    embeddings::EmbeddingFunction,
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
 };
@@ -29,7 +27,7 @@ impl VectorMeta {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub fn read_from_path(path: &Path, graph: G, cache: Arc<VectorCache>) -> Option<Self> {
+    pub fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> Option<Self> {
         // TODO: return Result instead of Option
         let meta_string = std::fs::read_to_string(meta_path(path)).ok()?;
         let meta: VectorMeta = serde_json::from_str(&meta_string).ok()?;
