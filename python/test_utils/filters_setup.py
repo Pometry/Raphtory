@@ -4,6 +4,15 @@ import pytest
 import shutil
 import atexit
 
+
+def combined(initializers):
+    def func(graph):
+        for initializer in initializers:
+            graph = initializer(graph)
+        return graph
+    return func
+
+
 def init_graph(graph):
     nodes = [
          (1, 1, {"p1": "shivam_kapoor", "p9": 5, "p10": "Paper_airplane"}, "fire_nation"),

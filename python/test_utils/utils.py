@@ -40,6 +40,7 @@ def with_disk_variants(init_fn, variants=None):
         @wraps(func)
         def wrapper():
             check = func()
+            assert callable(check), f"Expected test function to return a callable, got {type(check)}"
 
             if "graph" in variants:
                 g = init_fn(Graph())

@@ -1,8 +1,9 @@
 from raphtory import filter, Prop
 import pytest
-from filters_setup import init_edges_graph, init_edges_graph1, init_edges_graph2
+from filters_setup import init_edges_graph, init_edges_graph1, init_edges_graph2, combined
 from utils import with_disk_variants
 
+# TODO: PropertyFilteringNotImplemented for variants persistent_graph for filter_edges.
 
 def init_graph_for_secondary_indexes(graph):
     edges = [
@@ -49,16 +50,13 @@ def test_temporal_any_semantics():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["graph"])
+@with_disk_variants(
+    init_fn=combined([init_edges_graph, init_graph_for_secondary_indexes]),
+    variants=["graph", "event_disk_graph"]
+)
 def test_temporal_any_semantics_for_secondary_indexes():
-    def check(base_graph):
-        # Create a new graph using the same type as base_graph (Graph or PersistentGraph)
-        graph = type(base_graph)()
-        graph = init_edges_graph(graph)
-        graph = init_graph_for_secondary_indexes(graph)
-
+    def check(graph):
         filter_expr = filter.Property("p1").temporal().any() == 1
-
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = sorted([
             ("N1", "N2"), ("N16", "N15"), ("N17", "N16"), ("N2", "N3"),
@@ -66,17 +64,6 @@ def test_temporal_any_semantics_for_secondary_indexes():
             ("N7", "N8"), ("N8", "N9")
         ])
         assert result_ids == expected_ids
-
-    return check
-
-
-@with_disk_variants(init_edges_graph, variants=["event_disk_graph"])
-def test_temporal_any_semantics_for_secondary_indexes_dsg():
-    def check(graph):
-        with pytest.raises(Exception, match="Immutable graph is .. immutable!"):
-            graph = init_graph_for_secondary_indexes(graph)
-            filter_expr = filter.Property("p1").temporal().any() == 1
-            result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
 
     return check
 
@@ -92,14 +79,12 @@ def test_temporal_latest_semantics():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["graph"])
-def test_temporal_latest_semantics_for_secondary_indexes():
-    def check(base_graph):
-        # Create a new graph using the same type as base_graph (Graph or PersistentGraph)
-        graph = type(base_graph)()
-        graph = init_edges_graph(graph)
-        graph = init_graph_for_secondary_indexes(graph)
-
+@with_disk_variants(
+    init_fn=combined([init_edges_graph, init_graph_for_secondary_indexes]),
+    variants=["graph", "event_disk_graph"]
+)
+def test_temporal_latest_semantics_for_secondary_indexes3():
+    def check(graph):
         filter_expr = filter.Property("p1").temporal().latest() == 1
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = sorted([
@@ -107,17 +92,6 @@ def test_temporal_latest_semantics_for_secondary_indexes():
             ("N4","N5"), ("N6","N7"), ("N7","N8")
         ])
         assert result_ids == expected_ids
-
-    return check
-
-
-@with_disk_variants(init_edges_graph, variants=["event_disk_graph"])
-def test_temporal_latest_semantics_for_secondary_indexes_dsg():
-    def check(graph):
-        with pytest.raises(Exception, match="Immutable graph is .. immutable!"):
-            graph = init_graph_for_secondary_indexes(graph)
-            filter_expr = filter.Property("p1").temporal().latest() == 1
-            result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
 
     return check
 
@@ -148,14 +122,12 @@ def test_property_semantics2():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["graph"])
+@with_disk_variants(
+    init_fn=combined([init_edges_graph, init_graph_for_secondary_indexes]),
+    variants=["graph"]
+)
 def test_property_semantics_for_secondary_indexes():
-    def check(base_graph):
-        # Create a new graph using the same type as base_graph (Graph or PersistentGraph)
-        graph = type(base_graph)()
-        graph = init_edges_graph(graph)
-        graph = init_graph_for_secondary_indexes(graph)
-
+    def check(graph):
         filter_expr = filter.Property("p1") == 1
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = sorted([
@@ -168,13 +140,20 @@ def test_property_semantics_for_secondary_indexes():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["event_disk_graph"])
+# TODO: Const properties not supported for disk_graph.
+@with_disk_variants(
+    init_fn=combined([init_edges_graph, init_graph_for_secondary_indexes]),
+    variants=["event_disk_graph"]
+)
 def test_property_semantics_for_secondary_indexes_dsg():
     def check(graph):
-        with pytest.raises(Exception, match="Immutable graph is .. immutable!"):
-            graph = init_graph_for_secondary_indexes(graph)
-            filter_expr = filter.Property("p1") == 1
-            result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Property("p1") == 1
+        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        expected_ids = sorted([
+            ("N1","N2"), ("N16","N15"), ("N3","N4"), ("N4","N5"),
+            ("N6","N7"), ("N7","N8")
+        ])
+        assert result_ids == expected_ids
 
     return check
 
