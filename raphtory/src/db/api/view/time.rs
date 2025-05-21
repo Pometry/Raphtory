@@ -1,7 +1,10 @@
 use crate::{
     core::{
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntoTime},
+        utils::time::{
+            error::{ParseTimeError, ParseTimeError::ZeroSizeStep},
+            Interval, IntervalSize, IntoTime,
+        },
     },
     db::api::view::{
         internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
@@ -250,10 +253,9 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         match (self.timeline_start(), self.timeline_end()) {
             (Some(start), Some(end)) => {
                 let step: Interval = step.try_into()?;
-
-                Ok(WindowSet::new(parent, start, end, step, None))
+                WindowSet::new(parent, start, end, step, None)
             }
-            _ => Ok(WindowSet::empty(parent)),
+            _ => WindowSet::empty(parent),
         }
     }
 
@@ -275,9 +277,9 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                Ok(WindowSet::new(parent, start, end, step, Some(window)))
+                WindowSet::new(parent, start, end, step, Some(window))
             }
-            _ => Ok(WindowSet::empty(parent)),
+            _ => WindowSet::empty(parent),
         }
     }
 }
@@ -293,19 +295,37 @@ pub struct WindowSet<'graph, T> {
 }
 
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
-    fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
+    fn new(
+        view: T,
+        start: i64,
+        end: i64,
+        step: Interval,
+        window: Option<Interval>,
+    ) -> Result<Self, ParseTimeError> {
+        match step.size {
+            IntervalSize::Discrete(v) => {
+                if (v == 0) {
+                    return Err(ZeroSizeStep);
+                }
+            }
+            IntervalSize::Temporal { millis, months } => {
+                if (millis == 0 && months == 0) {
+                    return Err(ZeroSizeStep);
+                }
+            }
+        };
         let cursor_start = start + step;
-        Self {
+        Ok(Self {
             view,
             cursor: cursor_start,
             end,
             step,
             window,
             _marker: PhantomData,
-        }
+        })
     }
 
-    fn empty(view: T) -> Self {
+    fn empty(view: T) -> Result<Self, ParseTimeError> {
         // timeline_start is greater than end, so no windows to return, even with end inclusive
         WindowSet::new(view, 1, 0, Default::default(), None)
     }

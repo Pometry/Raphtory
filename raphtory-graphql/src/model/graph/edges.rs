@@ -2,7 +2,7 @@ use crate::model::{
     graph::{
         edge::GqlEdge,
         filtering::EdgesViewCollection,
-        windowset::{GqlEdgesWindowSet, GqlNodesWindowSet},
+        windowset::GqlEdgesWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
     },
@@ -11,10 +11,7 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::{
-        GraphError,
-        GraphError::{MismatchedIntervalTypes, NoIntervalProvided, WrongNumOfArgs},
-    },
+    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::view::{internal::OneHopFilter, DynamicGraph},
         graph::edges::Edges,
