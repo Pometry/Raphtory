@@ -60,7 +60,15 @@ pub struct FilterNodes<F: AsNodeFilter + InternalNodeFilterOps + Clone>(F);
 
 impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for FilterNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-        filter_nodes_with(self.0.clone(), graph)
+        let mut results = graph
+            .filter_nodes(self.0.clone())
+            .unwrap()
+            .nodes()
+            .iter()
+            .map(|n| n.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        results
     }
 }
 
@@ -69,7 +77,18 @@ pub struct SearchNodes<F: AsNodeFilter + InternalNodeFilterOps + Clone>(F);
 impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for SearchNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
-        return search_nodes_with(self.0.clone(), graph);
+        {
+            graph.create_index_in_ram().unwrap();
+
+            let mut results = graph
+                .search_nodes(self.0.clone(), 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            return results;
+        }
         #[cfg(not(feature = "search"))]
         Vec::<String>::new()
     }
@@ -79,7 +98,15 @@ pub struct FilterEdges<F: AsEdgeFilter + InternalEdgeFilterOps + Clone>(F);
 
 impl<F: AsEdgeFilter + InternalEdgeFilterOps + Clone> ApplyFilter for FilterEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-        filter_edges_with(self.0.clone(), graph)
+        let mut results = graph
+            .filter_edges(self.0.clone())
+            .unwrap()
+            .edges()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        results.sort();
+        results
     }
 }
 
@@ -88,74 +115,21 @@ pub struct SearchEdges<F: AsEdgeFilter + InternalEdgeFilterOps + Clone>(F);
 impl<F: AsEdgeFilter + InternalEdgeFilterOps + Clone> ApplyFilter for SearchEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
-        return search_edges_with(self.0.clone(), graph);
+        {
+            graph.create_index_in_ram().unwrap();
+
+            let mut results = graph
+                .search_edges(self.0.clone(), 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            return results;
+        }
         #[cfg(not(feature = "search"))]
         Vec::<String>::new()
     }
-}
-
-pub(crate) fn filter_nodes_with<G, I: InternalNodeFilterOps>(filter: I, graph: G) -> Vec<String>
-where
-    G: StaticGraphViewOps,
-{
-    let mut results = graph
-        .filter_nodes(filter)
-        .unwrap()
-        .nodes()
-        .iter()
-        .map(|n| n.name())
-        .collect::<Vec<_>>();
-    results.sort();
-    results
-}
-
-#[cfg(feature = "search")]
-pub(crate) fn search_nodes_with<G, I: AsNodeFilter>(filter: I, graph: G) -> Vec<String>
-where
-    G: StaticGraphViewOps,
-{
-    graph.create_index_in_ram().unwrap();
-
-    let mut results = graph
-        .search_nodes(filter, 20, 0)
-        .unwrap()
-        .into_iter()
-        .map(|nv| nv.name())
-        .collect::<Vec<_>>();
-    results.sort();
-    results
-}
-
-pub(crate) fn filter_edges_with<G, I: InternalEdgeFilterOps>(filter: I, graph: G) -> Vec<String>
-where
-    G: StaticGraphViewOps,
-{
-    let mut results = graph
-        .filter_edges(filter)
-        .unwrap()
-        .edges()
-        .iter()
-        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-        .collect::<Vec<_>>();
-    results.sort();
-    results
-}
-
-#[cfg(feature = "search")]
-pub(crate) fn search_edges_with<G, I: AsEdgeFilter>(filter: I, graph: G) -> Vec<String>
-where
-    G: StaticGraphViewOps,
-{
-    graph.create_index_in_ram().unwrap();
-
-    let mut results = graph
-        .search_edges(filter, 20, 0)
-        .unwrap()
-        .into_iter()
-        .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-        .collect::<Vec<_>>();
-    results.sort();
-    results
 }
 
 pub fn assert_filter_nodes_results(
