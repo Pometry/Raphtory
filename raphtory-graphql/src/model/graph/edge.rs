@@ -3,16 +3,13 @@ use crate::model::graph::{
     filtering::EdgeViewCollection,
     node::GqlNode,
     property::GqlProperties,
-    windowset::{GqlEdgeWindowSet},
+    windowset::GqlEdgeWindowSet,
     WindowDuration,
     WindowDuration::{Duration, Epoch},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::{
-        GraphError,
-        GraphError::{MismatchedIntervalTypes},
-    },
+    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
