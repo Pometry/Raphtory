@@ -38,7 +38,7 @@ impl PyRaphtoryTime {
     #[staticmethod]
     pub fn new(t: i64, s: usize) -> Self {
         Self {
-            time: TimeIndexEntry::new(t, s)
+            time: TimeIndexEntry::new(t, s),
         }
     }
 }

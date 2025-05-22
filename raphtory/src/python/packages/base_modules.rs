@@ -59,7 +59,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyFilter,
         PyWindowSet,
         PyHistory,
-        PyRaphtoryTime      // TODO: Might wanna remove this later
+        PyRaphtoryTime // TODO: Might wanna remove this later
     );
 
     #[cfg(feature = "storage")]
