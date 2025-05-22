@@ -1,6 +1,6 @@
 use crate::{
     data::get_relative_path,
-    model::graph::{meta_graph::MetaGraph, namespaces::Namespaces},
+    model::graph::{meta_graph::MetaGraph, meta_graphs::MetaGraphs, namespaces::Namespaces},
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -57,21 +57,23 @@ impl Namespace {
 
 #[ResolvedObjectFields]
 impl Namespace {
-    async fn graphs(&self) -> Vec<MetaGraph> {
+    async fn graphs(&self) -> MetaGraphs {
         let self_clone = self.clone();
         spawn_blocking(move || {
-            self_clone
-                .get_all_graph_folders()
-                .into_iter()
-                .sorted_by(|a, b| {
-                    let a_as_valid_folder: ValidGraphFolder = a.clone().into();
-                    let b_as_valid_folder: ValidGraphFolder = b.clone().into();
-                    a_as_valid_folder
-                        .get_original_path_str()
-                        .cmp(b_as_valid_folder.get_original_path_str())
-                })
-                .map(|g| MetaGraph::new(g.clone()))
-                .collect()
+            MetaGraphs::new(
+                self_clone
+                    .get_all_graph_folders()
+                    .into_iter()
+                    .sorted_by(|a, b| {
+                        let a_as_valid_folder: ValidGraphFolder = a.clone().into();
+                        let b_as_valid_folder: ValidGraphFolder = b.clone().into();
+                        a_as_valid_folder
+                            .get_original_path_str()
+                            .cmp(b_as_valid_folder.get_original_path_str())
+                    })
+                    .map(|g| MetaGraph::new(g.clone()))
+                    .collect(),
+            )
         })
         .await
         .unwrap()

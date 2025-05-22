@@ -88,22 +88,30 @@ def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
 
         # Assert if no graphs are discoverable
         query = """{
-                  root{
-                    children{
-                      path
-                    }
-                    graphs{
-                      name
-                    }
-                  }
-                  namespaces{
-                    path
-                    graphs {
-                      name
-                    }
-                  }
-                }"""
+  root {
+    children {
+      list {
+        path
+      }
+    }
+    graphs {
+      list {
+        name
+      }
+    }
+  }
+  namespaces {
+    list {
+      path
+      graphs {
+        list {
+          name
+        }
+      }
+    }
+  }
+}"""
         assert client.query(query) == {
-            "root": {"children": [], "graphs": []},
-            "namespaces": [{"graphs": [], "path": ""}],
+            "root": {"children": {"list": []}, "graphs": {"list": []}},
+            "namespaces": {"list": [{"path": "", "graphs": {"list": []}}]},
         }
