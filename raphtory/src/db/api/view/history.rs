@@ -1,11 +1,6 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::sync::Arc;
-use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use crate::db::api::properties::internal::TemporalPropertiesOps;
 use crate::db::api::view::internal::{InternalLayerOps, TimeSemantics};
@@ -13,6 +8,11 @@ use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use crate::db::graph::edge::EdgeView;
 use crate::db::graph::node::NodeView;
 use crate::prelude::*;
+use chrono::{DateTime, Utc};
+use itertools::Itertools;
+use std::cell::RefCell;
+use std::ops::Deref;
+use std::sync::Arc;
 
 // TODO: Do we want to implement gt, lt, etc?
 
@@ -51,11 +51,11 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         T::iter_rev(self)
     }
-    
+
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         T::earliest_time(self)
     }
-    
+
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         T::latest_time(self)
     }
@@ -132,7 +132,7 @@ impl<T: InternalHistoryOps> std::hash::Hash for History<T> {
 /// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
 pub struct MergedHistory<L, R> {
     left: L,
-    right: R
+    right: R,
 }
 
 impl<L: InternalHistoryOps, R: InternalHistoryOps> MergedHistory<L, R> {
@@ -147,13 +147,16 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
     }
 
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.left.iter_rev().merge_by(self.right.iter_rev(), |a, b| a >= b).into_dyn_boxed()
+        self.left
+            .iter_rev()
+            .merge_by(self.right.iter_rev(), |a, b| a >= b)
+            .into_dyn_boxed()
     }
-    
+
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
-    
+
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.iter_rev().next()
     }
@@ -162,7 +165,7 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
 /// TODO: Write benchmark to see performance hit of Boxes
 pub struct CompositeHistory {
-    history_objects: Vec<Arc<dyn InternalHistoryOps>>
+    history_objects: Vec<Arc<dyn InternalHistoryOps>>,
 }
 
 impl CompositeHistory {
@@ -172,29 +175,43 @@ impl CompositeHistory {
 }
 
 // Note: All the items held by their respective HistoryImplemented objects must already be of type Box<T>
-pub fn compose_multiple_histories(objects: impl IntoIterator<Item = History<Arc<dyn InternalHistoryOps>>>) -> History<CompositeHistory> {
-    History::new(CompositeHistory::new(objects.into_iter().map(|h| h.0).collect()))
+pub fn compose_multiple_histories(
+    objects: impl IntoIterator<Item = History<Arc<dyn InternalHistoryOps>>>,
+) -> History<CompositeHistory> {
+    History::new(CompositeHistory::new(
+        objects.into_iter().map(|h| h.0).collect(),
+    ))
 }
 
 // Note: Items supplied by the iterator must already be of type Box<T>
-pub fn compose_history_from_items(objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps>>) -> History<CompositeHistory> {
+pub fn compose_history_from_items(
+    objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps>>,
+) -> History<CompositeHistory> {
     History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
 
 impl InternalHistoryOps for CompositeHistory {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.history_objects.iter().map(|object| object.iter()).kmerge().into_dyn_boxed()
+        self.history_objects
+            .iter()
+            .map(|object| object.iter())
+            .kmerge()
+            .into_dyn_boxed()
     }
 
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.history_objects.iter().map(|object| object.iter_rev()).kmerge_by(|a, b| a >= b).into_dyn_boxed()
+        self.history_objects
+            .iter()
+            .map(|object| object.iter_rev())
+            .kmerge_by(|a, b| a >= b)
+            .into_dyn_boxed()
     }
-    
+
     // Performance consideration: Is it more efficient to use the kmerged iterator or to call each object's implemented earliest_time() and return the smallest?
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
-    
+
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.iter_rev().next()
     }
@@ -213,11 +230,11 @@ impl<G: TimeSemantics + Send + Sync> InternalHistoryOps for NodeView<G> {
         x.reverse();
         x.into_iter().into_dyn_boxed()
     }
-    
+
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
-    
+
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.iter_rev().next()
     }
@@ -230,15 +247,18 @@ impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for E
 
     // FIXME: Implementation is not efficient, only for testing purposes
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = self.graph.edge_history(self.edge, self.graph.layer_ids()).collect_vec();
+        let mut x = self
+            .graph
+            .edge_history(self.edge, self.graph.layer_ids())
+            .collect_vec();
         x.reverse();
         x.into_iter().into_dyn_boxed()
     }
-    
+
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
-    
+
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.iter_rev().next()
     }
@@ -246,64 +266,69 @@ impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for E
 
 #[cfg(test)]
 mod tests {
-    use crate::db::api::view::internal::CoreGraphOps;
     use super::*;
+    use crate::db::api::view::internal::CoreGraphOps;
 
     // test nodes and edges
     #[test]
     fn basic() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
-        let dumbledore_node = graph.add_node(
-            1,
-            "Dumbledore",
-            [("type", Prop::str("Character"))],
-            None
-        ).unwrap();
+        let dumbledore_node = graph
+            .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
+            .unwrap();
 
-        let harry_node = graph.add_node(
-            2,
-            "Harry",
-            [("type", Prop::str("Character"))],
-            None
-        ).unwrap();
+        let harry_node = graph
+            .add_node(2, "Harry", [("type", Prop::str("Character"))], None)
+            .unwrap();
 
-        let character_edge = graph.add_edge(
-            3,
-            "Dumbledore",
-            "Harry",
-            [(
-                "meeting",
-                Prop::str("Character Co-occurrence"),
-            )],
-            None,
-        ).unwrap();
+        let character_edge = graph
+            .add_edge(
+                3,
+                "Dumbledore",
+                "Harry",
+                [("meeting", Prop::str("Character Co-occurrence"))],
+                None,
+            )
+            .unwrap();
 
         // create dumbledore node history object
         let dumbledore_node_history_object = History::new(dumbledore_node.clone());
-        assert_eq!(dumbledore_node_history_object.iter().collect_vec(),
-                    vec![TimeIndexEntry::new(1, 0),
-                         TimeIndexEntry::new(3, 2)]);
+        assert_eq!(
+            dumbledore_node_history_object.iter().collect_vec(),
+            vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 2)]
+        );
 
         // create Harry node history object
         let harry_node_history_object = History::new(harry_node.clone());
-        assert_eq!(harry_node_history_object.iter().collect_vec(),
-                   vec![TimeIndexEntry::new(2, 1),
-                        TimeIndexEntry::new(3, 2)]);
+        assert_eq!(
+            harry_node_history_object.iter().collect_vec(),
+            vec![TimeIndexEntry::new(2, 1), TimeIndexEntry::new(3, 2)]
+        );
 
         // create edge history object
         let edge_history_object = History::new(character_edge.clone());
-        assert_eq!(edge_history_object.iter().collect_vec(),
-                   vec![TimeIndexEntry::new(3, 2)]);
+        assert_eq!(
+            edge_history_object.iter().collect_vec(),
+            vec![TimeIndexEntry::new(3, 2)]
+        );
 
         // create Composite History Object
-        let tmp_vector: Vec<Arc<dyn InternalHistoryOps>> = vec![Arc::new(dumbledore_node), Arc::new(harry_node), Arc::new(character_edge)];
+        let tmp_vector: Vec<Arc<dyn InternalHistoryOps>> = vec![
+            Arc::new(dumbledore_node),
+            Arc::new(harry_node),
+            Arc::new(character_edge),
+        ];
         let composite_history_object = compose_history_from_items(tmp_vector);
-        assert_eq!(composite_history_object.iter().collect_vec(),
-                   vec![TimeIndexEntry::new(1, 0),
-                        TimeIndexEntry::new(2, 1),
-                        TimeIndexEntry::new(3, 2),
-                        TimeIndexEntry::new(3, 2),
-                        TimeIndexEntry::new(3, 2)]);
+        assert_eq!(
+            composite_history_object.iter().collect_vec(),
+            vec![
+                TimeIndexEntry::new(1, 0),
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(3, 2)
+            ]
+        );
 
         Ok(())
     }
@@ -313,114 +338,112 @@ mod tests {
     fn test_single_layer() -> Result<(), Box<dyn std::error::Error>> {
         // generate graph
         let graph = Graph::new();
-        let dumbledore_node = graph.add_node(
-            1,
-            "Dumbledore",
-            [("type", Prop::str("Character"))],
-            None
-        ).unwrap();
+        let dumbledore_node = graph
+            .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
+            .unwrap();
         let dumbledore_node_id = dumbledore_node.id();
 
-        let harry_node = graph.add_node(
-            2,
-            "Harry",
-            [("type", Prop::str("Character"))],
-            None
-        ).unwrap();
+        let harry_node = graph
+            .add_node(2, "Harry", [("type", Prop::str("Character"))], None)
+            .unwrap();
         let harry_node_id = harry_node.id();
 
-        let character_edge = graph.add_edge(
-            3,
-            "Dumbledore",
-            "Harry",
-            [(
-                "meeting",
-                Prop::str("Character Co-occurrence"),
-            )],
-            None,
-        ).unwrap();
+        let character_edge = graph
+            .add_edge(
+                3,
+                "Dumbledore",
+                "Harry",
+                [("meeting", Prop::str("Character Co-occurrence"))],
+                None,
+            )
+            .unwrap();
 
         // add broom node
-        let broom_node = graph.add_node(
-            4,
-            "Broom",
-            [("type", Prop::str("Magical Object"))],
-            None
-        ).unwrap();
+        let broom_node = graph
+            .add_node(4, "Broom", [("type", Prop::str("Magical Object"))], None)
+            .unwrap();
         let broom_node_id = broom_node.id();
 
-        let broom_harry_magical_edge = graph.add_edge(
-            4,
-            "Broom",
-            "Harry",
-            [(
-                "use",
-                Prop::str("Flying on broom"),
-            )],
-            Some("Magical Object Uses"),
-        ).unwrap();
+        let broom_harry_magical_edge = graph
+            .add_edge(
+                4,
+                "Broom",
+                "Harry",
+                [("use", Prop::str("Flying on broom"))],
+                Some("Magical Object Uses"),
+            )
+            .unwrap();
         let broom_harry_magical_edge_id = broom_harry_magical_edge.id();
 
-        let broom_dumbledore_magical_edge = graph.add_edge(
-            4,
-            "Broom",
-            "Dumbledore",
-            [(
-                "use",
-                Prop::str("Flying on broom"),
-            )],
-            Some("Magical Object Uses"),
-        ).unwrap();
+        let broom_dumbledore_magical_edge = graph
+            .add_edge(
+                4,
+                "Broom",
+                "Dumbledore",
+                [("use", Prop::str("Flying on broom"))],
+                Some("Magical Object Uses"),
+            )
+            .unwrap();
         let broom_dumbledore_magical_edge_id = broom_dumbledore_magical_edge.id();
 
-        let broom_harry_normal_edge = graph.add_edge(
-            5,
-            "Broom",
-            "Harry",
-            [(
-                "use",
-                Prop::str("Cleaning with broom"),
-            )],
-            None,
-        ).unwrap();
+        let broom_harry_normal_edge = graph
+            .add_edge(
+                5,
+                "Broom",
+                "Harry",
+                [("use", Prop::str("Cleaning with broom"))],
+                None,
+            )
+            .unwrap();
         let broom_harry_normal_edge_id = broom_harry_normal_edge.id();
 
-        let broom_dumbledore_normal_edge = graph.add_edge(
-            5,
-            "Broom",
-            "Dumbledore",
-            [(
-                "use",
-                Prop::str("Cleaning with broom"),
-            )],
-            None,
-        ).unwrap();
+        let broom_dumbledore_normal_edge = graph
+            .add_edge(
+                5,
+                "Broom",
+                "Dumbledore",
+                [("use", Prop::str("Cleaning with broom"))],
+                None,
+            )
+            .unwrap();
         let broom_dumbledore_normal_edge_id = broom_dumbledore_normal_edge.id();
 
         let layer_id = graph.get_layer_id("Magical Object Uses").unwrap();
 
         // node history objects
         let dumbledore_history = History::new(dumbledore_node);
-        assert_eq!(dumbledore_history.iter().collect_vec(),
-                   vec![TimeIndexEntry::new(1, 0),
-                        TimeIndexEntry::new(3, 2),
-                        TimeIndexEntry::new(4, 5),
-                        TimeIndexEntry::new(5, 7)]);
+        assert_eq!(
+            dumbledore_history.iter().collect_vec(),
+            vec![
+                TimeIndexEntry::new(1, 0),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(5, 7)
+            ]
+        );
 
         let harry_history = History::new(harry_node);
-        assert_eq!(harry_history.iter().collect_vec(),
-                   vec![TimeIndexEntry::new(2, 1),
-                        TimeIndexEntry::new(3, 2),
-                        TimeIndexEntry::new(4, 4),
-                        TimeIndexEntry::new(5, 6)]);
+        assert_eq!(
+            harry_history.iter().collect_vec(),
+            vec![
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(5, 6)
+            ]
+        );
 
         let broom_history = History::new(broom_node);
-        assert_eq!(broom_history.iter().collect_vec(),
-                   vec![TimeIndexEntry::new(4, 3),
-                        TimeIndexEntry::new(4, 4),
-                        TimeIndexEntry::new(4, 5),
-                        TimeIndexEntry::new(5, 6),
-                        TimeIndexEntry::new(5, 7)]);
+        assert_eq!(
+            broom_history.iter().collect_vec(),
+            vec![
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(5, 6),
+                TimeIndexEntry::new(5, 7)
+            ]
+        );
 
         // edge history objects
         // let character_edge_history = HistoryImplemented::new(character_edge);
@@ -434,7 +457,8 @@ mod tests {
 
         // make graphview using layer
         let magical_graph_view = graph.layers("Magical Object Uses").unwrap();
-        let dumbledore_node_magical_view = magical_graph_view.node(dumbledore_node_id.clone()).unwrap();
+        let dumbledore_node_magical_view =
+            magical_graph_view.node(dumbledore_node_id.clone()).unwrap();
         let harry_node_magical_view = magical_graph_view.node(harry_node_id.clone()).unwrap();
         let broom_node_magical_view = magical_graph_view.node(broom_node_id.clone()).unwrap();
 
@@ -442,11 +466,12 @@ mod tests {
         let harry_magical_history = History::new(harry_node_magical_view);
         harry_magical_history.print("Harry Magical History: ");
 
-        let x = magical_graph_view.edge(broom_node_id, dumbledore_node_id).unwrap();
+        let x = magical_graph_view
+            .edge(broom_node_id, dumbledore_node_id)
+            .unwrap();
 
         println!("{:?}", x.layer_name());
 
         Ok(())
     }
-
 }

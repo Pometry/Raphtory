@@ -1,7 +1,9 @@
+use crate::model::graph::history::GqlHistory;
 use crate::model::graph::{
     edges::GqlEdges, filtering::EdgeViewCollection, node::Node, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use raphtory::db::api::view::history::History;
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
@@ -10,8 +12,6 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
-use raphtory::db::api::view::history::History;
-use crate::model::graph::history::GqlHistory;
 
 #[derive(ResolvedObject, Clone)]
 pub struct Edge {

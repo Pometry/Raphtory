@@ -1,25 +1,21 @@
-use std::cell::RefCell;
-use std::sync::Arc;
-use pyo3::{
-    prelude::*,
-};
-use crate::{
-    db::api::view::history::*,
-};
-use raphtory_api::core::storage::timeindex::{TimeIndexEntry};
+use crate::db::api::view::history::*;
 use crate::prelude::EdgeViewOps;
 use crate::python::graph::edge::PyEdge;
 use crate::python::graph::node::PyNode;
-use crate::python::types::repr::{iterator_repr};
-use crate::python::types::wrappers::iterators::PyBorrowingIterator;
 use crate::python::types::iterable::FromIterable;
+use crate::python::types::repr::iterator_repr;
+use crate::python::types::wrappers::iterators::PyBorrowingIterator;
+use pyo3::prelude::*;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistory {
-    history: History<Arc<dyn InternalHistoryOps>>
+    history: History<Arc<dyn InternalHistoryOps>>,
 }
 
 // TODO: Implement __lt__, __gt__, ...?
@@ -28,27 +24,26 @@ impl PyHistory {
     #[staticmethod]
     pub fn from_node(node: &PyNode) -> Self {
         Self {
-            history: History::new(Arc::new(node.node.clone()))
+            history: History::new(Arc::new(node.node.clone())),
         }
     }
 
     #[staticmethod]
     pub fn from_edge(edge: &PyEdge) -> Self {
         Self {
-            history: History::new(Arc::new(edge.edge.clone()))
+            history: History::new(Arc::new(edge.edge.clone())),
         }
     }
-    
+
     #[staticmethod]
     pub fn compose_histories(objects: FromIterable<PyHistory>) -> Self {
         // the only way to get History objects from python is if they are already Arc<...>
-        let underlying_objects: Vec<Arc<dyn InternalHistoryOps>> =
-            objects
-                .into_iter()
-                .map(|obj| Arc::clone(&obj.history.0))
-                .collect();
+        let underlying_objects: Vec<Arc<dyn InternalHistoryOps>> = objects
+            .into_iter()
+            .map(|obj| Arc::clone(&obj.history.0))
+            .collect();
         Self {
-            history: History::new(Arc::new(CompositeHistory::new(underlying_objects)))
+            history: History::new(Arc::new(CompositeHistory::new(underlying_objects))),
         }
     }
 
@@ -62,15 +57,19 @@ impl PyHistory {
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.history.latest_time()
     }
-    
+
     pub fn __list__(&self) -> Vec<TimeIndexEntry> {
         self.history.iter().collect()
     }
 
     pub fn __iter__(&self) -> PyBorrowingIterator {
-        py_borrowing_iter!(self.history.clone(), History<Arc<dyn InternalHistoryOps>>, |history| history.iter())
+        py_borrowing_iter!(
+            self.history.clone(),
+            History<Arc<dyn InternalHistoryOps>>,
+            |history| history.iter()
+        )
     }
-    
+
     pub fn __repr__(&self) -> String {
         format!("History({})", iterator_repr(self.history.iter()))
     }
@@ -94,7 +93,7 @@ impl PyHistory {
 impl PyNode {
     fn get_history(&self) -> PyHistory {
         PyHistory {
-            history: History::new(Arc::new(self.node.clone()))
+            history: History::new(Arc::new(self.node.clone())),
         }
     }
 }
@@ -103,15 +102,16 @@ impl PyNode {
 impl PyEdge {
     fn get_history(&self) -> PyHistory {
         PyHistory {
-            history: History::new(Arc::new(self.edge.clone()))
+            history: History::new(Arc::new(self.edge.clone())),
         }
     }
 }
 
-
 impl<T: InternalHistoryOps + 'static> From<History<T>> for PyHistory {
     fn from(history: History<T>) -> Self {
-        Self { history: History::new(Arc::new(history.0)) }
+        Self {
+            history: History::new(Arc::new(history.0)),
+        }
     }
 }
 
@@ -124,4 +124,3 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<T> {
         PyHistory::from(self).into_pyobject(py)
     }
 }
-

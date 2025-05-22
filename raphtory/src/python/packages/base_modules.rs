@@ -151,9 +151,9 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     Ok(vectors_module)
 }
 
+use crate::python::graph::history::PyHistory;
 pub use crate::python::graph::node_state::base_node_state_module;
 use crate::python::{
     algorithm::epidemics::PyInfected, graph::properties::PropertiesView,
     types::wrappers::document::PyEmbedding,
 };
-use crate::python::graph::history::PyHistory;

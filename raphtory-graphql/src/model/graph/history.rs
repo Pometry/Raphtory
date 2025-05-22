@@ -1,8 +1,8 @@
+use dynamic_graphql::internal::TypeRefBuilder;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use raphtory::db::api::view::history::{History, InternalHistoryOps};
 use std::sync::Arc;
-use dynamic_graphql::internal::TypeRefBuilder;
 
 /// Represents the history of updates for an object (such as a Node or Edge) in Raphtory.
 /// It provides access to the temporal properties of the object.
@@ -36,7 +36,9 @@ impl GqlHistory {
     /// The earliest timestamp (as a Unix epoch in milliseconds) associated with this history.
     /// Returns `null` if the history is empty.
     async fn earliest_time(&self) -> Option<i64> {
-        self.history.earliest_time().map(|time_entry| time_entry.t())
+        self.history
+            .earliest_time()
+            .map(|time_entry| time_entry.t())
     }
 
     /// The latest timestamp (as a Unix epoch in milliseconds) associated with this history.
@@ -61,4 +63,3 @@ impl GqlHistory {
             .collect()
     }
 }
-

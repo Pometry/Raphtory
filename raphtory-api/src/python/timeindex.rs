@@ -1,6 +1,6 @@
+use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use chrono::{DateTime, Utc};
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
-use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     type Target = PyRaphtoryTime;

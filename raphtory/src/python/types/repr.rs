@@ -7,7 +7,9 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
 use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::GID, storage::arc_str::ArcStr, storage::timeindex::TimeIndexEntry,
+};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
