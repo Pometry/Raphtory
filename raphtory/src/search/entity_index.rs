@@ -1,6 +1,6 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::api::storage::graph::storage_ops::GraphStorage,
+    db::api::{storage::graph::storage_ops::GraphStorage, view::IndexSpec},
     search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
 use itertools::Itertools;
@@ -152,37 +152,25 @@ impl EntityIndex {
     // which is why create all the property indexes upfront.
     fn initialize_property_indexes(
         &self,
-        graph: &GraphStorage,
         property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
-        prop_keys: impl Iterator<Item = ArcStr>,
-        get_property_meta: fn(&GraphStorage) -> &PropMapper,
         add_schema_fields: fn(&mut SchemaBuilder),
         new_property: fn(Schema, &Option<PathBuf>) -> Result<PropertyIndex, GraphError>,
         path: &Option<PathBuf>,
+        props: &Vec<(String, usize, PropType)>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        let prop_meta = get_property_meta(graph);
-        let properties = prop_keys
-            .filter_map(|k| {
-                prop_meta.get_id(&*k).and_then(|prop_id| {
-                    prop_meta
-                        .get_dtype(prop_id)
-                        .map(|prop_type| (k.to_string(), prop_id, prop_type))
-                })
-            })
-            .collect_vec();
-
         let mut prop_index_guard = property_indexes.write();
         let mut writers: Vec<Option<IndexWriter>> = Vec::new();
 
-        for (prop_name, prop_id, prop_type) in properties {
+        for (prop_name, prop_id, prop_type) in props {
             // Resize the vector if needed
-            if prop_id >= prop_index_guard.len() {
+            if prop_id >= &prop_index_guard.len() {
                 prop_index_guard.resize(prop_id + 1, None);
             }
 
             // Create a new PropertyIndex if it doesn't exist
-            if prop_index_guard[prop_id].is_none() {
-                let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
+            if prop_index_guard[*prop_id].is_none() {
+                let mut schema_builder =
+                    PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
                 add_schema_fields(&mut schema_builder);
                 let schema = schema_builder.build();
                 let prop_index_path = path.as_deref().map(|p| p.join(prop_id.to_string()));
@@ -190,7 +178,7 @@ impl EntityIndex {
                 let writer = property_index.index.writer(50_000_000)?;
 
                 writers.push(Some(writer));
-                prop_index_guard[prop_id] = Some(property_index);
+                prop_index_guard[*prop_id] = Some(property_index);
             }
         }
 
@@ -199,34 +187,27 @@ impl EntityIndex {
 
     pub(crate) fn initialize_node_const_property_indexes(
         &self,
-        graph: &GraphStorage,
-        prop_keys: impl Iterator<Item = ArcStr>,
         path: &Option<PathBuf>,
+        node_const_props: &Vec<(String, usize, PropType)>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
-            graph,
             &self.const_property_indexes,
-            prop_keys,
-            |g| g.node_meta().const_prop_meta(),
             |schema| {
                 schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_node_property,
             path,
+            node_const_props,
         )
     }
 
     pub(crate) fn initialize_node_temporal_property_indexes(
         &self,
-        graph: &GraphStorage,
-        prop_keys: impl Iterator<Item = ArcStr>,
         path: &Option<PathBuf>,
+        node_temp_props: &Vec<(String, usize, PropType)>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
-            graph,
             &self.temporal_property_indexes,
-            prop_keys,
-            |g| g.node_meta().temporal_prop_meta(),
             |schema| {
                 schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
                 schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
@@ -234,40 +215,34 @@ impl EntityIndex {
             },
             PropertyIndex::new_node_property,
             path,
+            node_temp_props,
         )
     }
 
     pub(crate) fn initialize_edge_const_property_indexes(
         &self,
-        graph: &GraphStorage,
-        prop_keys: impl Iterator<Item = ArcStr>,
         path: &Option<PathBuf>,
+        edge_const_props: &Vec<(String, usize, PropType)>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
-            graph,
             &self.const_property_indexes,
-            prop_keys,
-            |g| g.edge_meta().const_prop_meta(),
             |schema| {
                 schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
                 schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
             },
             PropertyIndex::new_edge_property,
             path,
+            edge_const_props,
         )
     }
 
     pub(crate) fn initialize_edge_temporal_property_indexes(
         &self,
-        graph: &GraphStorage,
-        prop_keys: impl Iterator<Item = ArcStr>,
         path: &Option<PathBuf>,
+        edge_temp_props: &Vec<(String, usize, PropType)>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         self.initialize_property_indexes(
-            graph,
             &self.temporal_property_indexes,
-            prop_keys,
-            |g| g.edge_meta().temporal_prop_meta(),
             |schema| {
                 schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
                 schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
@@ -276,6 +251,7 @@ impl EntityIndex {
             },
             PropertyIndex::new_edge_property,
             path,
+            edge_temp_props,
         )
     }
 

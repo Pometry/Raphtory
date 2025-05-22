@@ -23,7 +23,10 @@ use crate::{
 
 use crate::db::api::{
     storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+    view::{
+        internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+        IndexSpec,
+    },
 };
 #[cfg(feature = "search")]
 use crate::search::graph_index::GraphIndex;
@@ -140,27 +143,34 @@ impl Storage {
 
 #[cfg(feature = "search")]
 impl Storage {
-    pub(crate) fn get_or_create_index(
-        &self,
-        path: Option<PathBuf>,
-    ) -> Result<&GraphIndex, GraphError> {
+    pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
         self.index.get_or_try_init(|| {
-            if let Some(path) = path {
-                Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
-            } else {
-                let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-                Ok::<_, GraphError>(GraphIndex::create_from_graph(
-                    &self.graph,
-                    false,
-                    cache_path,
-                )?)
-            }
+            let index = GraphIndex::load_from_path(&path)?;
+            Ok(index)
         })
     }
 
-    pub(crate) fn get_or_create_index_in_ram(&self) -> Result<&GraphIndex, GraphError> {
+    pub(crate) fn get_or_create_index(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<&GraphIndex, GraphError> {
+        self.index.get_or_try_init(|| {
+            let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+            GraphIndex::create_from_graph(&self.graph, false, cache_path, index_spec)
+        })
+    }
+
+    pub(crate) fn get_or_create_index_in_ram(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<&GraphIndex, GraphError> {
         let index = self.index.get_or_try_init(|| {
-            Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, true, None)?)
+            Ok::<_, GraphError>(GraphIndex::create_from_graph(
+                &self.graph,
+                true,
+                None,
+                index_spec,
+            )?)
         })?;
         if index.path.is_some() {
             Err(GraphError::FailedToCreateIndexInRam)

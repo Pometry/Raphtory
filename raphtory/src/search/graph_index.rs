@@ -4,7 +4,7 @@ use crate::{
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
-    db::api::storage::graph::storage_ops::GraphStorage,
+    db::api::{storage::graph::storage_ops::GraphStorage, view::IndexSpec},
     prelude::*,
     search::{
         edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex,
@@ -151,6 +151,7 @@ impl GraphIndex {
         graph: &GraphStorage,
         create_in_ram: bool,
         cache_path: Option<&Path>,
+        index_spec: IndexSpec,
     ) -> Result<Self, GraphError> {
         let dir = if !create_in_ram {
             let temp_dir = match cache_path {
@@ -165,10 +166,10 @@ impl GraphIndex {
         };
 
         let path = dir.as_ref().map(|p| p.path());
-        let node_index = NodeIndex::index_nodes(graph, path)?;
+        let node_index = NodeIndex::index_nodes(graph, path, &index_spec)?;
         // node_index.print()?;
 
-        let edge_index = EdgeIndex::index_edges(graph, path)?;
+        let edge_index = EdgeIndex::index_edges(graph, path, &index_spec)?;
         // edge_index.print()?;
 
         Ok(GraphIndex {

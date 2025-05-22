@@ -10,6 +10,7 @@ use crate::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
             },
             storage::graph::storage_ops::GraphStorage,
+            view::IndexSpec,
         },
         graph::node::NodeView,
     },
@@ -287,37 +288,30 @@ impl NodeIndex {
     pub(crate) fn index_nodes(
         graph: &GraphStorage,
         path: Option<&Path>,
+        index_spec: &IndexSpec,
     ) -> Result<NodeIndex, GraphError> {
         let node_index_path = path.as_deref().map(|p| p.join("nodes"));
         let node_index = NodeIndex::new(&node_index_path)?;
 
         // Initialize property indexes and get their writers
-        let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
         let const_properties_index_path = node_index_path
             .as_deref()
             .map(|p| p.join("const_properties"));
         let mut const_writers = node_index
             .entity_index
             .initialize_node_const_property_indexes(
-                graph,
-                const_property_keys,
                 &const_properties_index_path,
+                &index_spec.node_const_props,
             )?;
 
-        let temporal_property_keys = graph
-            .node_meta()
-            .temporal_prop_meta()
-            .get_keys()
-            .into_iter();
         let temporal_properties_index_path = node_index_path
             .as_deref()
             .map(|p| p.join("temporal_properties"));
         let mut temporal_writers = node_index
             .entity_index
             .initialize_node_temporal_property_indexes(
-                graph,
-                temporal_property_keys,
                 &temporal_properties_index_path,
+                &index_spec.node_temp_props,
             )?;
 
         // Index nodes in parallel
