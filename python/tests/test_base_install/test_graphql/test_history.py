@@ -58,7 +58,6 @@ def create_graph() -> Graph:
 
 def test_history_node():
     # FIXME: When viewing graph, "Field "history" of type "History" must have a selection of subfields"
-    # FIXME: GraphQL shows edge count: 1, but we added the Dumbledore -> Harry edge 4 times
     graph = create_graph()
     query = """
         {

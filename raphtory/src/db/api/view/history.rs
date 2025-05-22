@@ -25,7 +25,6 @@ pub trait InternalHistoryOps: Send + Sync {
 }
 
 // FIXME: Doesn't support deletions of edges yet
-// TODO: Implement hashable so they can be used in maps in python
 #[derive(Clone)]
 pub struct History<T>(pub T);
 
@@ -38,9 +37,6 @@ impl<T: InternalHistoryOps> History<T> {
 
     // Currently wont include any deletions which are available on edges but are not available on nodes
     // We will have node deletions soon, and we'll get 4 iterators in here, for insertions and deletions
-    // TODO: Implement tests (filters, combinations of filters, layer filter on edges, windowing filter)
-    // find some non-trivial data (like AML example) and run some tests.
-    // try to do some operations using the things above and make sure the desired effect is observed on the history object.
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {

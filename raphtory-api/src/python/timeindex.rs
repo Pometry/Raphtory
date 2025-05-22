@@ -12,7 +12,8 @@ impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     }
 }
 
-#[pyclass(name = "RaphtoryTime", module = "raphtory", frozen)]
+#[pyclass(name = "RaphtoryTime", module = "raphtory", frozen, eq, ord)]
+#[derive(Debug, Clone, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyRaphtoryTime {
     time: TimeIndexEntry,
 }
@@ -31,6 +32,14 @@ impl PyRaphtoryTime {
 
     pub fn __repr__(&self) -> String {
         format!("TimeIndexEntry[{}, {}]", self.time.0, self.time.1)
+    }
+
+    // TODO: Might wanna remove this later
+    #[staticmethod]
+    pub fn new(t: i64, s: usize) -> Self {
+        Self {
+            time: TimeIndexEntry::new(t, s)
+        }
     }
 }
 
