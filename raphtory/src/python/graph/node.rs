@@ -13,7 +13,7 @@ use crate::{
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
-                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynamic,
+                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic,
                     IntoDynamicOrMutable, MaterializedGraph,
                 },
                 *,
@@ -23,7 +23,6 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::property_filter::internal::*,
         },
     },
     python::{
@@ -34,7 +33,7 @@ use crate::{
         types::{
             iterable::FromIterable,
             repr::StructReprBuilder,
-            wrappers::{iterables::*, prop::PyPropertyFilter},
+            wrappers::{filter_expr::PyFilterExpr, iterables::*},
         },
         utils::{PyNodeRef, PyTime},
     },

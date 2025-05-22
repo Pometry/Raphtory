@@ -1,4 +1,11 @@
 name: Rust Benchmarks
+permissions:
+  # submit PR comment
+  pull-requests: write
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
 on:
   workflow_call:
     inputs:

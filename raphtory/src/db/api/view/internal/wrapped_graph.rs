@@ -5,10 +5,10 @@ use std::sync::Arc;
 
 use crate::db::api::view::internal::InheritStorageOps;
 
-impl InheritViewOps for Arc<dyn BoxableGraphView> {}
+impl<'graph> InheritViewOps for Arc<dyn BoxableGraphView + 'graph> {}
 
-impl InheritStorageOps for Arc<dyn BoxableGraphView> {}
+impl<'graph> InheritStorageOps for Arc<dyn BoxableGraphView + 'graph> {}
 
-impl InheritNodeHistoryFilter for Arc<dyn BoxableGraphView> {}
+impl<'graph> InheritNodeHistoryFilter for Arc<dyn BoxableGraphView + 'graph> {}
 
-impl InheritEdgeHistoryFilter for Arc<dyn BoxableGraphView> {}
+impl<'graph> InheritEdgeHistoryFilter for Arc<dyn BoxableGraphView + 'graph> {}

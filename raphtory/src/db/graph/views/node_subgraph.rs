@@ -110,7 +110,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> ListOps for NodeSubgraph<G> {
     fn node_list(&self) -> NodeList {
         NodeList::List {
-            nodes: self.nodes.clone(),
+            elems: self.nodes.clone(),
         }
     }
 
@@ -228,303 +228,6 @@ mod subgraph_tests {
         );
     }
 
-    #[cfg(all(test, feature = "search"))]
-    mod search_nodes_node_subgraph_tests {
-        use crate::{
-            core::Prop,
-            db::{
-                api::view::{SearchableGraphOps, StaticGraphViewOps},
-                graph::views::{
-                    deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
-                },
-            },
-            prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
-        };
-        use std::ops::Range;
-
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-            let nodes = vec![
-                (6, "N1", vec![("p1", Prop::U64(2u64))]),
-                (7, "N1", vec![("p1", Prop::U64(1u64))]),
-                (6, "N2", vec![("p1", Prop::U64(1u64))]),
-                (7, "N2", vec![("p1", Prop::U64(2u64))]),
-                (8, "N3", vec![("p1", Prop::U64(1u64))]),
-                (9, "N4", vec![("p1", Prop::U64(1u64))]),
-                (5, "N5", vec![("p1", Prop::U64(1u64))]),
-                (6, "N5", vec![("p1", Prop::U64(2u64))]),
-                (5, "N6", vec![("p1", Prop::U64(1u64))]),
-                (6, "N6", vec![("p1", Prop::U64(1u64))]),
-                (3, "N7", vec![("p1", Prop::U64(1u64))]),
-                (5, "N7", vec![("p1", Prop::U64(1u64))]),
-                (3, "N8", vec![("p1", Prop::U64(1u64))]),
-                (4, "N8", vec![("p1", Prop::U64(2u64))]),
-            ];
-
-            for (id, name, props) in &nodes {
-                graph.add_node(*id, name, props.clone(), None).unwrap();
-            }
-
-            graph
-        }
-
-        fn search_nodes_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            node_names: Vec<String>,
-            filter: FilterExpr,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let mut results = graph
-                .subgraph(node_names)
-                .search_nodes(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| v.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-
-        fn search_nodes_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            w: Range<i64>,
-            node_names: Vec<String>,
-            filter: FilterExpr,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let mut results = graph
-                .subgraph(node_names)
-                .window(w.start, w.end)
-                .search_nodes(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| v.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-
-        #[test]
-        fn test_search_nodes_subgraph() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(results, vec!["N3", "N4"]);
-        }
-
-        #[test]
-        fn test_search_nodes_subgraph_w() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-            let filter = PropertyFilter::property("p1").eq(1u64);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N1", "N3", "N6"]);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N3"]);
-        }
-
-        #[test]
-        fn test_search_nodes_persistent_subgraph() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(results, vec!["N1", "N3", "N4", "N6", "N7"]);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(results, vec!["N3", "N4"]);
-        }
-
-        #[test]
-        fn test_search_nodes_persistent_subgraph_w() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N1", "N3", "N6", "N7"]);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_nodes_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N3"]);
-        }
-    }
-
-    #[cfg(all(test, feature = "search"))]
-    mod search_edges_node_subgraph_tests {
-        use crate::{
-            core::Prop,
-            db::{
-                api::view::{SearchableGraphOps, StaticGraphViewOps},
-                graph::views::{
-                    deletion_graph::PersistentGraph,
-                    property_filter::{FilterExpr, PropertyFilterOps},
-                },
-            },
-            prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps,
-            },
-        };
-        use std::ops::Range;
-
-        fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-            let edges = vec![
-                (6, "N1", "N2", vec![("p1", Prop::U64(2u64))]),
-                (7, "N1", "N2", vec![("p1", Prop::U64(1u64))]),
-                (6, "N2", "N3", vec![("p1", Prop::U64(1u64))]),
-                (7, "N2", "N3", vec![("p1", Prop::U64(2u64))]),
-                (8, "N3", "N4", vec![("p1", Prop::U64(1u64))]),
-                (9, "N4", "N5", vec![("p1", Prop::U64(1u64))]),
-                (5, "N5", "N6", vec![("p1", Prop::U64(1u64))]),
-                (6, "N5", "N6", vec![("p1", Prop::U64(2u64))]),
-                (5, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
-                (6, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
-                (3, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
-                (5, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
-                (3, "N8", "N1", vec![("p1", Prop::U64(1u64))]),
-                (4, "N8", "N1", vec![("p1", Prop::U64(2u64))]),
-            ];
-
-            for (id, src, tgt, props) in &edges {
-                graph.add_edge(*id, src, tgt, props.clone(), None).unwrap();
-            }
-
-            graph
-        }
-
-        fn search_edges_by_composite_filter<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            node_names: Vec<String>,
-            filter: FilterExpr,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let mut results = graph
-                .subgraph(node_names)
-                .search_edges(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-
-        fn search_edges_by_composite_filter_w<G: StaticGraphViewOps + AdditionOps>(
-            graph: &G,
-            w: Range<i64>,
-            node_names: Vec<String>,
-            filter: FilterExpr,
-        ) -> Vec<String> {
-            graph.create_index().unwrap();
-            let mut results = graph
-                .subgraph(node_names)
-                .window(w.start, w.end)
-                .search_edges(filter, 10, 0)
-                .expect("Failed to search for nodes")
-                .into_iter()
-                .map(|v| format!("{}->{}", v.src().name(), v.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-
-        #[test]
-        fn test_search_edges_subgraph() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(
-                results,
-                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
-            );
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(results, vec!["N3->N4", "N4->N5"]);
-        }
-
-        #[test]
-        fn test_search_edges_subgraph_w() {
-            let graph = Graph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7"]);
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N3->N4"]);
-        }
-
-        #[test]
-        fn test_search_edges_persistent_subgraph() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(
-                results,
-                vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"]
-            );
-
-            let node_names: Vec<String> = vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter(&graph, node_names, filter);
-            assert_eq!(results, vec!["N3->N4", "N4->N5"]);
-        }
-
-        #[test]
-        fn test_search_edges_persistent_subgraph_w() {
-            let graph = PersistentGraph::new();
-            let graph = init_graph(graph);
-
-            let node_names = graph.nodes().name().collect_vec();
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"]);
-
-            let node_names: Vec<String> = vec![
-                "N2".into(),
-                "N3".into(),
-                "N4".into(),
-                "N5".into(),
-                "N6".into(),
-            ];
-            let filter = PropertyFilter::property("p1").eq(1u64);
-            let results = search_edges_by_composite_filter_w(&graph, 6..9, node_names, filter);
-            assert_eq!(results, vec!["N3->N4"]);
-        }
-    }
-
     #[test]
     fn test_layer_edges() {
         let graph = Graph::new();
@@ -544,5 +247,387 @@ mod subgraph_tests {
                 .collect_vec(),
             [(GID::U64(0), GID::U64(1))]
         );
+    }
+
+    mod test_filters_node_subgraph {
+        use crate::{
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::{
+                    assertions::{ApplyFilter, GraphTransformer, TestGraphVariants},
+                    views::{
+                        filter::{
+                            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+                            model::{AsEdgeFilter, AsNodeFilter},
+                        },
+                        node_subgraph::NodeSubgraph,
+                        window_graph::WindowedGraph,
+                    },
+                },
+            },
+            prelude::{AdditionOps, GraphViewOps, NodeViewOps, TimeOps},
+        };
+        use std::ops::Range;
+
+        struct NodeSubgraphTransformer(Option<Vec<String>>);
+
+        impl GraphTransformer for NodeSubgraphTransformer {
+            type Return<G: StaticGraphViewOps> = NodeSubgraph<G>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                let node_names: Vec<String> = self
+                    .0
+                    .clone()
+                    .unwrap_or_else(|| graph.nodes().name().collect::<Vec<String>>());
+                graph.subgraph(node_names)
+            }
+        }
+
+        struct WindowedNodeSubgraphTransformer(Option<Vec<String>>, Range<i64>);
+
+        impl GraphTransformer for WindowedNodeSubgraphTransformer {
+            type Return<G: StaticGraphViewOps> = NodeSubgraph<WindowedGraph<G>>;
+            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+                let graph = graph.window(self.1.start, self.1.end);
+                let node_names: Vec<String> = self
+                    .0
+                    .clone()
+                    .unwrap_or_else(|| graph.nodes().name().collect::<Vec<String>>());
+                graph.subgraph(node_names)
+            }
+        }
+
+        mod test_nodes_filters_node_subgraph {
+            use crate::{
+                core::Prop,
+                db::{
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                        },
+                        views::{
+                            filter::model::PropertyFilterOps,
+                            node_subgraph::subgraph_tests::test_filters_node_subgraph::{
+                                NodeSubgraphTransformer, TestGraphVariants,
+                                WindowedNodeSubgraphTransformer,
+                            },
+                        },
+                    },
+                },
+                prelude::{AdditionOps, NodeViewOps, PropertyFilter},
+            };
+
+            fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+                let nodes = vec![
+                    (6, "N1", vec![("p1", Prop::U64(2u64))]),
+                    (7, "N1", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N2", vec![("p1", Prop::U64(1u64))]),
+                    (7, "N2", vec![("p1", Prop::U64(2u64))]),
+                    (8, "N3", vec![("p1", Prop::U64(1u64))]),
+                    (9, "N4", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N5", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N5", vec![("p1", Prop::U64(2u64))]),
+                    (5, "N6", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N6", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N7", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N7", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N8", vec![("p1", Prop::U64(1u64))]),
+                    (4, "N8", vec![("p1", Prop::U64(2u64))]),
+                ];
+
+                for (id, name, props) in &nodes {
+                    graph.add_node(*id, name, props.clone(), None).unwrap();
+                }
+
+                graph
+            }
+
+            #[test]
+            fn test_search_nodes_subgraph() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = ["N1", "N3", "N4", "N6", "N7"];
+                assert_filter_nodes_results(
+                    init_graph,
+                    NodeSubgraphTransformer(None),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    NodeSubgraphTransformer(None),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
+
+                let node_names: Option<Vec<String>> =
+                    Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
+                let filter = PropertyFilter::property("p1").le(1u64);
+                let expected_results = vec!["N3", "N4"];
+                assert_filter_nodes_results(
+                    init_graph,
+                    NodeSubgraphTransformer(node_names.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::All,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    NodeSubgraphTransformer(node_names),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
+            }
+
+            #[test]
+            fn test_search_nodes_subgraph_w() {
+                // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1", "N3", "N6"];
+                assert_filter_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    vec![TestGraphVariants::Graph],
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    vec![TestGraphVariants::Graph],
+                );
+
+                let node_names: Option<Vec<String>> = Some(vec!["N3".into()]);
+                let filter = PropertyFilter::property("p1").gt(0u64);
+                let expected_results = vec!["N3"];
+                assert_filter_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    vec![TestGraphVariants::Graph],
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names, 6..9),
+                    filter,
+                    &expected_results,
+                    vec![TestGraphVariants::Graph],
+                );
+            }
+
+            #[test]
+            fn test_search_nodes_pg_w() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1", "N3", "N6", "N7"];
+                assert_filter_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+
+                let node_names: Option<Vec<String>> =
+                    Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
+                let filter = PropertyFilter::property("p1").ge(1u64);
+                let expected_results = vec!["N2", "N3", "N5"];
+                assert_filter_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+                assert_search_nodes_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+            }
+        }
+
+        mod test_edges_filters_node_subgraph {
+            use crate::{
+                core::Prop,
+                db::{
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                        },
+                        views::{
+                            filter::model::PropertyFilterOps,
+                            node_subgraph::subgraph_tests::test_filters_node_subgraph::{
+                                NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
+                            },
+                        },
+                    },
+                },
+                prelude::{AdditionOps, PropertyFilter},
+            };
+
+            fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
+                let edges = vec![
+                    (6, "N1", "N2", vec![("p1", Prop::U64(2u64))]),
+                    (7, "N1", "N2", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N2", "N3", vec![("p1", Prop::U64(1u64))]),
+                    (7, "N2", "N3", vec![("p1", Prop::U64(2u64))]),
+                    (8, "N3", "N4", vec![("p1", Prop::U64(1u64))]),
+                    (9, "N4", "N5", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N5", "N6", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N5", "N6", vec![("p1", Prop::U64(2u64))]),
+                    (5, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
+                    (6, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
+                    (5, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
+                    (3, "N8", "N1", vec![("p1", Prop::U64(1u64))]),
+                    (4, "N8", "N1", vec![("p1", Prop::U64(2u64))]),
+                ];
+
+                for (id, src, tgt, props) in &edges {
+                    graph.add_edge(*id, src, tgt, props.clone(), None).unwrap();
+                }
+
+                graph
+            }
+
+            #[test]
+            fn test_edges_filters() {
+                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
+                assert_filter_edges_results(
+                    init_graph,
+                    NodeSubgraphTransformer(None),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    NodeSubgraphTransformer(None),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
+
+                let node_names: Option<Vec<String>> =
+                    Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
+                let filter = PropertyFilter::property("p1").le(1u64);
+                let expected_results = vec!["N3->N4", "N4->N5"];
+                assert_filter_edges_results(
+                    init_graph,
+                    NodeSubgraphTransformer(node_names.clone()),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    NodeSubgraphTransformer(node_names),
+                    filter,
+                    &expected_results,
+                    TestVariants::All,
+                );
+            }
+
+            #[test]
+            fn test_edges_filters_w() {
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+
+                let node_names: Option<Vec<String>> =
+                    Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
+                let filter = PropertyFilter::property("p1").ge(1u64);
+                let expected_results = vec!["N2->N3", "N3->N4"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::EventOnly,
+                );
+            }
+
+            #[test]
+            fn test_edges_filters_pg_w() {
+                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
+                let filter = PropertyFilter::property("p1").eq(1u64);
+                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    vec![],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(None, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+
+                let node_names: Option<Vec<String>> = Some(vec![
+                    "N2".into(),
+                    "N3".into(),
+                    "N4".into(),
+                    "N5".into(),
+                    "N6".into(),
+                ]);
+                let filter = PropertyFilter::property("p1").lt(2u64);
+                let expected_results = vec!["N3->N4"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
+                    filter.clone(),
+                    &expected_results,
+                    vec![],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowedNodeSubgraphTransformer(node_names, 6..9),
+                    filter,
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+            }
+        }
     }
 }

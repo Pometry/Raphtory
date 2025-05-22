@@ -91,6 +91,8 @@ prost-types = { workspace = true, optional = true }
 roaring = { workspace = true }
 fake = { workspace = true }
 strsim = { workspace = true }
+walkdir = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -113,7 +115,6 @@ prost-build = { workspace = true, optional = true }
 default = []
 # Enables the graph loader io module
 io = [
-    "dep:zip",
     "dep:neo4rs",
     "dep:bzip2",
     "dep:flate2",
@@ -126,7 +127,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "proto"]
+search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
 # vectors
 vectors = [
     "dep:futures-util",
@@ -172,9 +173,9 @@ arrow = [
 proto = [
     "dep:prost",
     "dep:prost-types",
+    "dep:zip",
     "dep:prost-build",
     "dep:memmap2",
-    "dep:zip",
     "arrow",
     "io",
 ]
