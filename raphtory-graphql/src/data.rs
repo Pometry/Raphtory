@@ -7,16 +7,12 @@ use crate::{
 use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
+    core::utils::errors::{GraphError, InvalidPathReason},
     db::api::view::MaterializedGraph,
     prelude::CacheOps,
     vectors::{
-        cache::VectorCache,
-        embeddings::{openai_embedding, EmbeddingFunction},
-        template::DocumentTemplate,
-        vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
-        Embedding,
+        cache::VectorCache, embeddings::openai_embedding, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
@@ -242,10 +238,7 @@ impl Data {
             .embedding_conf
             .as_ref()
             .map(|conf| conf.cache.clone())
-            .unwrap_or_else(|| {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(VectorCache::in_memory(openai_embedding)) // TODO: review, this is weird...
-            });
+            .unwrap_or_else(|| VectorCache::new(openai_embedding)); // TODO: review, this is weird...
         GraphWithVectors::read_from_folder(folder, cache, self.create_index)
     }
 }

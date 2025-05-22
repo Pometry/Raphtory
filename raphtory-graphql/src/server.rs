@@ -108,12 +108,11 @@ impl GraphServer {
     pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
         embedding: F,
-        cache: &Path, // TODO: maybe now that we are storing vectors we could bin the cache!!!
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
     ) -> Self {
         self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::on_disk(cache, embedding),
+            cache: VectorCache::new(embedding),
             global_template,
             individual_templates: Default::default(),
         });
@@ -386,7 +385,7 @@ mod server_tests {
         };
         let cache = Path::new("/tmp/graph-cache");
         let handler = server
-            .set_embeddings(failing_embedding, cache, Some(template))
+            .set_embeddings(failing_embedding, Some(template))
             .await
             .start_with_port(0);
         sleep(Duration::from_secs(5)).await;
