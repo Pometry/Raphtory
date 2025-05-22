@@ -17,6 +17,7 @@ use dynamic_graphql::{
     Result, Upload,
 };
 
+use crate::model::graph::namespaces::Namespaces;
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
@@ -105,10 +106,10 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<Namespace> {
+    async fn namespaces<'a>(ctx: &Context<'a>) -> Namespaces {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        root.get_all_children()
+        Namespaces::new(root.get_all_children())
     }
     async fn namespace<'a>(
         ctx: &Context<'a>,
