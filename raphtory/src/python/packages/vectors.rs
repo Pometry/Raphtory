@@ -47,9 +47,12 @@ impl PyQuery {
         match self {
             Self::Raw(query) => {
                 let cache = graph.cache.clone();
-                Ok(execute_async_task(move || async move {
+                dbg!();
+                let result = Ok(execute_async_task(move || async move {
                     cache.get_single(query).await
-                })?)
+                })?);
+                dbg!();
+                result
             }
             Self::Computed(embedding) => Ok(embedding),
         }
