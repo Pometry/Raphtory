@@ -1,7 +1,9 @@
+use crate::model::graph::history::GqlHistory;
 use crate::model::graph::{
     edges::GqlEdges, filtering::EdgeViewCollection, node::Node, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use raphtory::db::api::view::history::History;
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
@@ -245,8 +247,8 @@ impl Edge {
         GqlEdges::new(self.ee.explode_layers())
     }
 
-    async fn history(&self) -> Vec<i64> {
-        self.ee.history()
+    async fn history(&self) -> GqlHistory {
+        History::new(self.ee.clone()).into()
     }
 
     async fn deletions(&self) -> Vec<i64> {

@@ -180,7 +180,7 @@ impl PyTemporalProperties {
 }
 
 /// A view of a temporal property
-#[pyclass(name = "TemporalProp", module = "raphtory", frozen)]
+#[pyclass(name = "TemporalProperty", module = "raphtory", frozen)]
 pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }

@@ -1,8 +1,10 @@
+use crate::model::graph::history::GqlHistory;
 use crate::model::graph::{
     edges::GqlEdges, filtering::NodeViewCollection, nodes::GqlNodes,
     path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use raphtory::db::api::view::history::History;
 use raphtory::{
     algorithms::components::{in_component, out_component},
     core::utils::errors::GraphError,
@@ -206,8 +208,8 @@ impl Node {
         self.vv.end()
     }
 
-    async fn history(&self) -> Vec<i64> {
-        self.vv.history()
+    async fn history(&self) -> GqlHistory {
+        History::new(self.vv.clone()).into()
     }
 
     async fn is_active(&self) -> bool {

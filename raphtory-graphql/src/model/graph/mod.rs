@@ -3,6 +3,7 @@ mod edges;
 pub(crate) mod filtering;
 pub(crate) mod graph;
 pub(crate) mod graphs;
+pub(crate) mod history;
 pub(crate) mod meta_graph;
 pub(crate) mod mutable_graph;
 pub(crate) mod namespace;
