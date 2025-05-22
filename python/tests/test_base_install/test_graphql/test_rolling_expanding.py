@@ -18,15 +18,15 @@ def create_graph_epoch(g):
     g.add_edge(3, 1, 3)
     g.add_edge(4, 1, 3)
 
-
-def test_start():
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(1736) as server:
-        graph = Graph()
-        create_graph_epoch(graph)
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
-        time.sleep(500000)
+#
+# def test_start():
+#     tmp_work_dir = tempfile.mkdtemp()
+#     with GraphServer(tmp_work_dir).start(1736) as server:
+#         graph = Graph()
+#         create_graph_epoch(graph)
+#         client = server.get_client()
+#         client.send_graph(path="g", graph=graph)
+#         time.sleep(500000)
 
 
 def test_graph_epoch():
