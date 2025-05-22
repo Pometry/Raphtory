@@ -113,7 +113,7 @@ impl GraphServer {
         global_template: Option<DocumentTemplate>,
     ) -> Self {
         self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::from_path(cache, embedding).await,
+            cache: VectorCache::on_disk(cache, embedding),
             global_template,
             individual_templates: Default::default(),
         });

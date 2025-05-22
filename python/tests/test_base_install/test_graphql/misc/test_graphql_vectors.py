@@ -18,11 +18,14 @@ def setup_graph(g):
     g.add_edge(1, "aab", "bbb")
 
 
+# FIXME: need to be able to provide a string here again
 def assert_correct_documents(client):
     query = """{
     vectorisedGraph(path: "abb") {
-        algorithms {
-            similaritySearch(query:"ab", limit: 1) {
+        entitiesBySimilarity(query: [1.0 1.0], limit: 1) {
+            getDocuments {
+                content
+                embedding
                 entity {
                     __typename
                     ... on Node {
@@ -37,8 +40,6 @@ def assert_correct_documents(client):
                         }
                     }
                 }
-                content
-                embedding
             }
         }
     }
@@ -46,8 +47,8 @@ def assert_correct_documents(client):
     result = client.query(query)
     assert result == {
         "vectorisedGraph": {
-            "algorithms": {
-                "similaritySearch": [
+            "entitiesBySimilarity": {
+                "getDocuments": [
                     {
                         "entity": {"__typename": "Node", "name": "aab"},
                         "content": "aab",

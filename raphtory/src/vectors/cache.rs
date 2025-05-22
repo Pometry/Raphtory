@@ -1,31 +1,72 @@
 use crate::{core::utils::errors::GraphResult, vectors::Embedding};
-use foyer::{Cache, CacheBuilder, DirectFsDeviceOptions, Engine, HybridCache, HybridCacheBuilder};
 use futures_util::StreamExt;
-use std::{collections::VecDeque, ops::Deref, path::Path, sync::Arc};
+use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
+use moka::sync::Cache;
+use parking_lot::RwLock;
+use std::{
+    collections::{HashMap, VecDeque},
+    hash::{DefaultHasher, Hash, Hasher},
+    path::Path,
+    sync::Arc,
+};
 
 use super::embeddings::EmbeddingFunction;
 
-#[derive(Clone)]
-enum MemDiskCache {
-    Mem(Cache<String, Embedding>),
-    Disk(HybridCache<String, Embedding>),
+type VectorDb = Database<SerdeBincode<u64>, SerdeBincode<Embedding>>;
+
+enum VectorStore {
+    Mem(RwLock<HashMap<u64, Embedding>>),
+    Disk { env: Env, db: VectorDb },
 }
 
-impl MemDiskCache {
-    async fn get(&self, key: &String) -> Option<Embedding> {
+impl VectorStore {
+    fn in_memory() -> Self {
+        Self::Mem(Default::default())
+    }
+    fn on_disk(path: &Path) -> Self {
+        std::fs::create_dir_all(path).unwrap();
+        let env = unsafe {
+            EnvOpenOptions::new()
+                .map_size(1024 * 1024 * 1024) // 1 GB
+                .open(&path)
+                .unwrap()
+        };
+        let mut wtxn = env.write_txn().unwrap();
+        let db: VectorDb = env.create_database(&mut wtxn, None).unwrap();
+        wtxn.commit().unwrap();
+        Self::Disk { env, db }
+    }
+
+    fn get(&self, key: &u64) -> Option<Embedding> {
         match self {
-            Self::Mem(cache) => Some(cache.get(key)?.deref().clone()),
-            Self::Disk(cache) => Some(cache.get(key).await.ok().flatten()?.deref().clone()),
+            VectorStore::Mem(store) => store.read().get(key).cloned(),
+            VectorStore::Disk { env, db } => {
+                let rtxn = env.read_txn().unwrap();
+                db.get(&rtxn, key).unwrap()
+            }
         }
     }
 
-    fn insert(&self, key: String, value: Embedding) {
+    fn insert(&self, key: u64, value: Embedding) {
         match self {
-            Self::Mem(cache) => {
-                cache.insert(key, value);
+            VectorStore::Mem(store) => {
+                store.write().insert(key, value);
             }
-            Self::Disk(cache) => {
-                cache.insert(key, value);
+            VectorStore::Disk { env, db } => {
+                let mut wtxn = env.write_txn().unwrap();
+                db.put(&mut wtxn, &key, &value).unwrap();
+            }
+        }
+    }
+
+    fn remove(&self, key: &u64) {
+        match self {
+            VectorStore::Mem(store) => {
+                store.write().remove(key);
+            }
+            VectorStore::Disk { env, db } => {
+                let mut wtxn = env.write_txn().unwrap();
+                db.delete(&mut wtxn, key).unwrap();
             }
         }
     }
@@ -33,32 +74,48 @@ impl MemDiskCache {
 
 #[derive(Clone)]
 pub struct VectorCache {
-    cache: MemDiskCache,
+    store: Arc<VectorStore>,
+    cache: Cache<u64, ()>,
     function: Arc<dyn EmbeddingFunction>,
 }
 
 impl VectorCache {
-    pub async fn in_memory(function: impl EmbeddingFunction + 'static) -> Self {
-        let cache = CacheBuilder::new(100).build();
+    pub fn in_memory(function: impl EmbeddingFunction + 'static) -> Self {
         Self {
-            cache: MemDiskCache::Mem(cache),
+            store: VectorStore::in_memory().into(),
+            cache: Cache::new(1000),
             function: Arc::new(function),
         }
     }
 
-    pub async fn from_path(path: &Path, function: impl EmbeddingFunction + 'static) -> Self {
-        let cache: HybridCache<String, Embedding> = HybridCacheBuilder::new()
-            .memory(1024 * 1024) // 1MB
-            .storage(Engine::Large)
-            .with_device_options(DirectFsDeviceOptions::new(path).with_capacity(1024 * 1024 * 1024)) // 1GB
-            .with_flush(true)
-            .build()
-            .await
-            .unwrap();
+    pub fn on_disk(path: &Path, function: impl EmbeddingFunction + 'static) -> Self {
+        let store: Arc<_> = VectorStore::on_disk(path).into();
+        let cloned = store.clone();
+
+        let cache: Cache<u64, ()> = Cache::builder()
+            .max_capacity(1_000_000)
+            .eviction_listener(move |key: Arc<u64>, _value: (), _cause| cloned.remove(key.as_ref()))
+            .build();
+
         Self {
-            cache: MemDiskCache::Disk(cache),
+            store,
+            cache,
             function: Arc::new(function),
         }
+    }
+
+    fn get(&self, text: &str) -> Option<Embedding> {
+        let hash = hash(text);
+        self.cache.get(&hash)?;
+        self.store.get(&hash)
+    }
+
+    fn insert(&self, text: String, vector: Embedding) {
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let hash = hasher.finish();
+        self.store.insert(hash, vector);
+        self.cache.insert(hash, ()); // FIXME: not worth keeping the string, better have the cache being u64 -> ()
     }
 
     pub(super) async fn get_embeddings(
@@ -68,7 +125,7 @@ impl VectorCache {
         // TODO: review, turned this into a vec only to make compute_embeddings work
         let mut results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
-                match self.cache.get(&text).await {
+                match self.get(&text) {
                     Some(cached) => (text, Some(cached)),
                     None => (text, None),
                 }
@@ -87,7 +144,7 @@ impl VectorCache {
             Some(vector) => vector,
             None => {
                 let vector = fresh_vectors.pop_front().unwrap();
-                self.cache.insert(text, vector.clone());
+                self.insert(text, vector.clone());
                 vector
             }
         });
@@ -100,13 +157,19 @@ impl VectorCache {
     }
 }
 
+fn hash(text: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
+}
+
 #[cfg(test)]
 mod cache_tests {
-    use std::{ops::Deref, path::PathBuf, time::Duration};
+    use std::{path::PathBuf, time::Duration};
 
     use foyer::{DirectFsDeviceOptions, Engine, HybridCache, HybridCacheBuilder};
 
-    use crate::vectors::{cache::MemDiskCache, embeddings::EmbeddingResult, Embedding};
+    use crate::vectors::{embeddings::EmbeddingResult, Embedding};
 
     use super::VectorCache;
 
@@ -117,24 +180,21 @@ mod cache_tests {
             .collect())
     }
 
-    // #[tokio::test]
-    // async fn test_foyer() {
-    //     let path = PathBuf::from("/tmp/foyer-test");
-    //     {
-    //         let cache = VectorCache::from_path(&path, fake_embedding).await;
-    //         cache.cache.insert("hello".to_owned(), [1.0].into());
-    //         if let MemDiskCache::Disk(cache) = &cache.cache {
-    //             dbg!();
-    //             cache.storage_writer("hello".to_owned()).force();
-    //         }
-    //         let vector = cache.cache.get(&"hello".to_owned()).await.unwrap();
-    //         assert_eq!(vector, [1.0].into());
-    //     }
+    async fn test_abstract_cache(cache: VectorCache) {
+        let vectors: Vec<_> = cache
+            .get_embeddings(vec!["a".to_owned()])
+            .await
+            .unwrap()
+            .collect();
+        assert_eq!(vectors, vec![[1.0, 0.0, 0.0].into()]);
+    }
 
-    //     let cache = VectorCache::from_path(&path, fake_embedding).await;
-    //     let vector = cache.cache.get(&"hello".to_owned()).await.unwrap();
-    //     assert_eq!(vector, [1.0].into());
-    // }
+    #[tokio::test]
+    async fn test_cache() {
+        test_abstract_cache(VectorCache::in_memory(fake_embedding)).await;
+        let path = PathBuf::from("/tmp/vector-cache-rust-test");
+        test_abstract_cache(VectorCache::on_disk(&path, fake_embedding)).await;
+    }
 
     #[tokio::test]
     async fn test_foyer() {
