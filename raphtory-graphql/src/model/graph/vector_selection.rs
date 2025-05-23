@@ -1,9 +1,6 @@
 use crate::model::algorithms::document::GqlDocument;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    vectors::{vector_selection::VectorSelection, vectorised_graph::VectorisedGraph, Document},
-};
+use raphtory::{db::api::view::MaterializedGraph, vectors::vector_selection::VectorSelection};
 
 use super::edge::Edge;
 use super::node::Node;

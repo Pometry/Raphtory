@@ -1,5 +1,8 @@
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
+use raphtory::{
+    db::api::view::MaterializedGraph,
+    vectors::{vectorised_graph::VectorisedGraph, Embedding},
+};
 
 use super::vector_selection::GqlVectorSelection;
 

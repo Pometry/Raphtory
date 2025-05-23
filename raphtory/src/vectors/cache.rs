@@ -13,6 +13,10 @@ use std::{
 
 use super::embeddings::EmbeddingFunction;
 
+const MAX_DISK_ITEMS: usize = 1_000_000;
+const MAX_VECTOR_DIM: usize = 8960;
+const MAX_TEXT_LENGTH: usize = 200_000;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct CacheEntry {
     key: String,
@@ -30,10 +34,14 @@ impl VectorStore {
         Self::Mem(Default::default())
     }
     fn on_disk(path: &Path) -> Self {
-        std::fs::create_dir_all(path).unwrap();
+        let _ = std::fs::create_dir_all(path);
+        let page_size = 16384;
+        let max_size =
+            (MAX_DISK_ITEMS * (MAX_VECTOR_DIM * 4 + MAX_TEXT_LENGTH)) / page_size * page_size;
+
         let env = unsafe {
             EnvOpenOptions::new()
-                .map_size(1024 * 1024 * 1024) // 1 GB
+                .map_size(max_size) // 1 GB
                 .open(&path)
                 .unwrap()
         };
@@ -113,12 +121,11 @@ impl VectorCache {
         let cloned = store.clone();
 
         let cache: Cache<u64, ()> = Cache::builder()
-            .max_capacity(1_000_000)
+            .max_capacity(MAX_DISK_ITEMS as u64)
             .eviction_listener(move |key: Arc<u64>, _value: (), _cause| cloned.remove(key.as_ref()))
             .build();
 
         for key in store.get_disk_keys() {
-            dbg!(key);
             cache.insert(key, ());
         }
 
@@ -171,7 +178,11 @@ impl VectorCache {
                 None => Some(text.clone()),
             })
             .collect();
-        let mut fresh_vectors: VecDeque<_> = self.function.call(misses).await.unwrap().into();
+        let mut fresh_vectors: VecDeque<_> = if misses.len() > 0 {
+            self.function.call(misses).await.unwrap().into()
+        } else {
+            vec![].into()
+        };
         let embeddings = results.into_iter().map(move |(text, vector)| match vector {
             Some(vector) => vector,
             None => {
@@ -203,7 +214,8 @@ mod cache_tests {
 
     use super::VectorCache;
 
-    async fn placeholder_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+    async fn placeholder_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        dbg!(texts);
         todo!()
     }
 
@@ -215,7 +227,6 @@ mod cache_tests {
         assert_eq!(cache.get("b"), None);
 
         cache.insert("a".to_owned(), vector_a.clone());
-        dbg!(cache.store.get_disk_keys());
         assert_eq!(cache.get("a"), Some(vector_a.clone()));
         assert_eq!(cache.get("b"), None);
 
@@ -225,10 +236,15 @@ mod cache_tests {
     }
 
     #[tokio::test]
+    async fn test_empty_request() {
+        let cache = VectorCache::in_memory(placeholder_embedding);
+        let result: Vec<_> = cache.get_embeddings(vec![]).await.unwrap().collect();
+        assert_eq!(result, vec![]);
+    }
+
+    #[tokio::test]
     async fn test_cache() {
-        dbg!();
         test_abstract_cache(VectorCache::in_memory(placeholder_embedding)).await;
-        dbg!();
         let path = PathBuf::from("/tmp/raphtory-cache-tests-test-cache");
         remove_dir_all(&path).unwrap();
         test_abstract_cache(VectorCache::on_disk(&path, placeholder_embedding)).await;
