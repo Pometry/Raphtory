@@ -223,7 +223,7 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 #[pymethods]
 impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
-    pub fn history(&self) -> NumpyArray {
+    pub fn history(&self) -> NumpyArray {   // TODO: Change this to history object?
         self.prop.history().collect::<Vec<_>>().into()
     }
 

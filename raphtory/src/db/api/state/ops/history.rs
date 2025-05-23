@@ -7,8 +7,11 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
+use crate::db::api::view::history::*;
+type HistoryObject = crate::db::api::view::history::History<Box<dyn InternalHistoryOps>>;
 
 #[derive(Debug, Clone)]
+// TODO: Change this definitely
 pub struct EarliestTime<G> {
     pub(crate) graph: G,
 }
@@ -75,15 +78,12 @@ pub struct History<G> {
     pub(crate) graph: G,
 }
 
+//TODO: Start with this, return history object
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
-    type Output = Vec<i64>;
+    type Output = HistoryObject;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph
-            .node_history(node)
-            .map(|t| t.t())
-            .dedup()
-            .collect()
+        history_from_node_boxed(self.graph.clone(), node)
     }
 }
 

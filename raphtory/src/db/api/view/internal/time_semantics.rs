@@ -22,10 +22,10 @@ pub trait TimeSemantics {
     fn node_latest_time(&self, v: VID) -> Option<i64>;
 
     /// Returns the start of the current view or `None` if unbounded
-    fn view_start(&self) -> Option<i64>;
+    fn view_start(&self) -> Option<i64>;    // DONT TOUCH
 
     /// Returns the end of the current view or `None` if unbounded
-    fn view_end(&self) -> Option<i64>;
+    fn view_end(&self) -> Option<i64>;      // DONT TOUCH
 
     /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
