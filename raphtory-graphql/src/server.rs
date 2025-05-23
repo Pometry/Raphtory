@@ -26,9 +26,8 @@ use raphtory::vectors::{
 };
 use serde_json::json;
 use std::{
-    fs,
+    fs::create_dir_all,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use thiserror::Error;
 use tokio::{
@@ -91,7 +90,7 @@ impl GraphServer {
         config_path: Option<PathBuf>,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
-            fs::create_dir_all(&work_dir)?;
+            create_dir_all(&work_dir)?;
         }
         let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
@@ -108,11 +107,12 @@ impl GraphServer {
     pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
         embedding: F,
+        cache: &Path,
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
     ) -> Self {
         self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::new(embedding),
+            cache: VectorCache::on_disk(cache, embedding),
             global_template,
             individual_templates: Default::default(),
         });
@@ -383,9 +383,9 @@ mod server_tests {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
-        let cache = Path::new("/tmp/graph-cache");
+        let cache = Path::new("/tmp/cache-for-test_server_start_with_failing_embedding");
         let handler = server
-            .set_embeddings(failing_embedding, Some(template))
+            .set_embeddings(failing_embedding, &cache, Some(template))
             .await
             .start_with_port(0);
         sleep(Duration::from_secs(5)).await;

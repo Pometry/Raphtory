@@ -238,7 +238,7 @@ impl Data {
             .embedding_conf
             .as_ref()
             .map(|conf| conf.cache.clone())
-            .unwrap_or_else(|| VectorCache::new(openai_embedding)); // TODO: review, this is weird...
+            .unwrap_or_else(|| VectorCache::in_memory(openai_embedding)); // TODO: review, this is weird...
         GraphWithVectors::read_from_folder(folder, cache, self.create_index)
     }
 }

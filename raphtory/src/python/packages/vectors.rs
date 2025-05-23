@@ -170,7 +170,7 @@ impl PyGraphView {
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         };
         let embedding = embedding.unbind();
-        let cache = VectorCache::new(embedding);
+        let cache = VectorCache::in_memory(embedding);
         let graph = self.graph.clone();
         execute_async_task(move || async move {
             Ok(graph.vectorise(cache, template, None, verbose).await?)

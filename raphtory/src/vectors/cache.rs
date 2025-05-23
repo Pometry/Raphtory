@@ -1,22 +1,153 @@
 use crate::{core::utils::errors::GraphResult, vectors::Embedding};
 use futures_util::StreamExt;
+use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
 use moka::sync::Cache;
-use std::{collections::VecDeque, sync::Arc};
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::{HashMap, VecDeque},
+    hash::{DefaultHasher, Hash, Hasher},
+    path::Path,
+    sync::Arc,
+};
 
 use super::embeddings::EmbeddingFunction;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct CacheEntry {
+    key: String,
+    value: Embedding,
+}
+type VectorDb = Database<SerdeBincode<u64>, SerdeBincode<CacheEntry>>;
+
+enum VectorStore {
+    Mem(RwLock<HashMap<u64, CacheEntry>>),
+    Disk { env: Env, db: VectorDb },
+}
+
+impl VectorStore {
+    fn in_memory() -> Self {
+        Self::Mem(Default::default())
+    }
+    fn on_disk(path: &Path) -> Self {
+        std::fs::create_dir_all(path).unwrap();
+        let env = unsafe {
+            EnvOpenOptions::new()
+                .map_size(1024 * 1024 * 1024) // 1 GB
+                .open(&path)
+                .unwrap()
+        };
+        let mut wtxn = env.write_txn().unwrap();
+        let db: VectorDb = env.create_database(&mut wtxn, None).unwrap();
+        wtxn.commit().unwrap();
+        Self::Disk { env, db }
+    }
+
+    fn get_disk_keys(&self) -> Vec<u64> {
+        match self {
+            VectorStore::Mem(_) => vec![],
+            VectorStore::Disk { env, db } => {
+                let rtxn = env.read_txn().unwrap();
+                db.iter(&rtxn)
+                    .unwrap()
+                    .filter_map(|result| Some(result.ok()?.0))
+                    .collect()
+            }
+        }
+    }
+
+    fn get(&self, key: &u64) -> Option<CacheEntry> {
+        match self {
+            VectorStore::Mem(store) => store.read().get(key).cloned(),
+            VectorStore::Disk { env, db } => {
+                let rtxn = env.read_txn().unwrap();
+                db.get(&rtxn, key).unwrap()
+            }
+        }
+    }
+
+    fn insert(&self, key: u64, value: CacheEntry) {
+        match self {
+            VectorStore::Mem(store) => {
+                store.write().insert(key, value);
+            }
+            VectorStore::Disk { env, db } => {
+                let mut wtxn = env.write_txn().unwrap();
+                db.put(&mut wtxn, &key, &value).unwrap();
+                wtxn.commit().unwrap();
+            }
+        }
+    }
+
+    fn remove(&self, key: &u64) {
+        match self {
+            VectorStore::Mem(store) => {
+                store.write().remove(key);
+            }
+            VectorStore::Disk { env, db } => {
+                let mut wtxn = env.write_txn().unwrap();
+                db.delete(&mut wtxn, key).unwrap();
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct VectorCache {
-    cache: Cache<String, Embedding>,
+    store: Arc<VectorStore>,
+    cache: Cache<u64, ()>,
     function: Arc<dyn EmbeddingFunction>,
 }
 
 impl VectorCache {
-    pub fn new(function: impl EmbeddingFunction + 'static) -> Self {
+    pub fn in_memory(function: impl EmbeddingFunction + 'static) -> Self {
         Self {
+            store: VectorStore::in_memory().into(),
             cache: Cache::new(1000),
             function: Arc::new(function),
         }
+    }
+
+    pub fn on_disk(path: &Path, function: impl EmbeddingFunction + 'static) -> Self {
+        let store: Arc<_> = VectorStore::on_disk(path).into();
+        let cloned = store.clone();
+
+        let cache: Cache<u64, ()> = Cache::builder()
+            .max_capacity(1_000_000)
+            .eviction_listener(move |key: Arc<u64>, _value: (), _cause| cloned.remove(key.as_ref()))
+            .build();
+
+        for key in store.get_disk_keys() {
+            dbg!(key);
+            cache.insert(key, ());
+        }
+
+        Self {
+            store,
+            cache,
+            function: Arc::new(function),
+        }
+    }
+
+    fn get(&self, text: &str) -> Option<Embedding> {
+        let hash = hash(text);
+        self.cache.get(&hash)?;
+        let entry = self.store.get(&hash)?;
+        if &entry.key == text {
+            Some(entry.value)
+        } else {
+            None
+        }
+    }
+
+    fn insert(&self, text: String, vector: Embedding) {
+        let hash = hash(&text);
+        let entry = CacheEntry {
+            key: text,
+            value: vector,
+        };
+        self.store.insert(hash, entry);
+        self.cache.insert(hash, ()); // FIXME: not worth keeping the string, better have the cache being u64 -> ()
     }
 
     pub(super) async fn get_embeddings(
@@ -26,7 +157,7 @@ impl VectorCache {
         // TODO: review, turned this into a vec only to make compute_embeddings work
         let mut results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
-                match self.cache.get(&text) {
+                match self.get(&text) {
                     Some(cached) => (text, Some(cached)),
                     None => (text, None),
                 }
@@ -45,7 +176,7 @@ impl VectorCache {
             Some(vector) => vector,
             None => {
                 let vector = fresh_vectors.pop_front().unwrap();
-                self.cache.insert(text, vector.clone());
+                self.insert(text, vector.clone());
                 vector
             }
         });
@@ -55,5 +186,66 @@ impl VectorCache {
     pub(crate) async fn get_single(&self, text: String) -> GraphResult<Embedding> {
         let mut embeddings = self.get_embeddings(vec![text]).await?;
         Ok(embeddings.next().unwrap())
+    }
+}
+
+fn hash(text: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[cfg(test)]
+mod cache_tests {
+    use std::{fs::remove_dir_all, path::PathBuf};
+
+    use crate::vectors::{embeddings::EmbeddingResult, Embedding};
+
+    use super::VectorCache;
+
+    async fn placeholder_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        todo!()
+    }
+
+    async fn test_abstract_cache(cache: VectorCache) {
+        let vector_a: Embedding = [1.0].into();
+        let vector_b: Embedding = [0.5].into();
+
+        assert_eq!(cache.get("a"), None);
+        assert_eq!(cache.get("b"), None);
+
+        cache.insert("a".to_owned(), vector_a.clone());
+        dbg!(cache.store.get_disk_keys());
+        assert_eq!(cache.get("a"), Some(vector_a.clone()));
+        assert_eq!(cache.get("b"), None);
+
+        cache.insert("b".to_owned(), vector_b.clone());
+        assert_eq!(cache.get("a"), Some(vector_a));
+        assert_eq!(cache.get("b"), Some(vector_b));
+    }
+
+    #[tokio::test]
+    async fn test_cache() {
+        dbg!();
+        test_abstract_cache(VectorCache::in_memory(placeholder_embedding)).await;
+        dbg!();
+        let path = PathBuf::from("/tmp/raphtory-cache-tests-test-cache");
+        remove_dir_all(&path).unwrap();
+        test_abstract_cache(VectorCache::on_disk(&path, placeholder_embedding)).await;
+    }
+
+    #[tokio::test]
+    async fn test_on_disk_cache() {
+        let vector: Embedding = [1.0].into();
+        let path = PathBuf::from("/tmp/raphtory-cache-tests-test-on-disk-cache");
+        remove_dir_all(&path).unwrap();
+
+        {
+            let cache = VectorCache::on_disk(&path, placeholder_embedding);
+            cache.insert("a".to_owned(), vector.clone());
+        } // here the heed env gets closed
+
+        let loaded_from_disk = VectorCache::on_disk(&path, placeholder_embedding);
+        assert_eq!(loaded_from_disk.get("a"), Some(vector))
     }
 }
