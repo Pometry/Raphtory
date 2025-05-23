@@ -34,6 +34,20 @@ impl EdgesStorage {
             EdgesStorage::Disk(storage) => EdgeStorageRef::Disk(storage.get(eid)),
         }
     }
+
+    pub fn iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> impl Iterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
+        match self {
+            EdgesStorage::Mem(storage) => storage
+                .iter()
+                .filter(|e| e.has_layer(layers))
+                .map(EdgeStorageRef::Mem),
+            #[cfg(feature = "storage")]
+            EdgesStorage::Disk(storage) => storage.as_ref().iter(layers).map(EdgeStorageRef::Disk),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -47,8 +61,8 @@ pub enum EdgesStorageRef<'a> {
 impl<'a> EdgesStorageRef<'a> {
     pub fn iter(
         self,
-        layers: &LayerIds,
-    ) -> impl Iterator<Item = EdgeStorageEntry<'a>> + use<'a, '_> {
+        layers: &'a LayerIds,
+    ) -> impl Iterator<Item = EdgeStorageEntry<'a>> + Send + Sync + 'a {
         match self {
             EdgesStorageRef::Mem(storage) => StorageVariants3::Mem(
                 storage

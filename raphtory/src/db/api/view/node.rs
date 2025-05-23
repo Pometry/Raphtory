@@ -2,17 +2,18 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
-        Direction,
     },
     db::api::{
         properties::internal::PropertiesOps,
         state::{ops, NodeOp},
-        storage::graph::storage_ops::GraphStorage,
-        view::{internal::OneHopFilter, reset_filter::ResetFilter, TimeOps},
+        view::{internal::OneHopFilter, node_edges, reset_filter::ResetFilter, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
+use raphtory_api::core::Direction;
+use raphtory_storage::graph::graph::GraphStorage;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -290,40 +291,55 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
-            cg.clone()
-                .into_node_edges_iter(v, Direction::BOTH, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::BOTH)
         })
     }
     #[inline]
     fn in_edges(&self) -> Self::Edges {
-        self.map_edges(|cg, g, v| cg.clone().into_node_edges_iter(v, Direction::IN, g.clone()))
+        self.map_edges(|cg, g, v| {
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::IN)
+        })
     }
     #[inline]
     fn out_edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
-            cg.clone()
-                .into_node_edges_iter(v, Direction::OUT, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::OUT)
         })
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::BOTH, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::BOTH)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::IN, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::IN)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::OUT, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::OUT)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
 }

@@ -1,8 +1,8 @@
 use crate::{
-    core::{utils::iter::GenLockedIter, Prop},
+    core::utils::iter::GenLockedIter,
     db::api::{properties::internal::ConstantPropertiesOps, view::BoxedLIter},
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

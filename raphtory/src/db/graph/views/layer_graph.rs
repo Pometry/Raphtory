@@ -1,24 +1,23 @@
 use crate::{
-    core::{
-        entities::{LayerIds, Multiple},
-        utils::errors::GraphError,
-    },
+    core::entities::{LayerIds, Multiple},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        view::{
-            internal::{
-                Base, EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritListOps,
-                InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, InternalLayerOps, Static,
-            },
-            Layer,
+        view::internal::{
+            EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritListOps, InheritMaterialize,
+            InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalLayerOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps,
+    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+};
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
@@ -57,7 +56,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
@@ -74,46 +73,11 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
         Self { graph, layers }
     }
-
-    /// Get the intersection between the previously requested layers and the layers of
-    /// this view
-    fn constrain(&self, layers: LayerIds) -> LayerIds {
-        match layers {
-            LayerIds::None => LayerIds::None,
-            LayerIds::All => self.layers.clone(),
-            _ => match &self.layers {
-                LayerIds::All => layers,
-                LayerIds::One(id) => match layers.find(*id) {
-                    Some(layer) => LayerIds::One(layer),
-                    None => LayerIds::None,
-                },
-                LayerIds::Multiple(ids) => {
-                    // intersect the layers
-                    let new_layers: Arc<[usize]> =
-                        ids.iter().filter_map(|id| layers.find(id)).collect();
-                    match new_layers.len() {
-                        0 => LayerIds::None,
-                        1 => LayerIds::One(new_layers[0]),
-                        _ => LayerIds::Multiple(Multiple(new_layers)),
-                    }
-                }
-                LayerIds::None => LayerIds::None,
-            },
-        }
-    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> &LayerIds {
         &self.layers
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
-        Ok(self.constrain(self.graph.layer_ids_from_names(key)?))
-    }
-
-    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.constrain(self.graph.valid_layer_ids_from_names(key))
     }
 }
 
@@ -323,20 +287,18 @@ mod test_layers {
 
         mod test_nodes_filters_layer_graph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                        deletion_graph::PersistentGraph,
+                        filter::{internal::CreateNodeFilter, model::PropertyFilterOps},
+                        test_helpers::filter_nodes_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
             use std::ops::Range;
-
-            use crate::db::graph::views::{
-                filter::internal::CreateNodeFilter, test_helpers::filter_nodes_with,
-            };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -432,11 +394,11 @@ mod test_layers {
 
             #[cfg(feature = "search")]
             mod search_nodes {
-                use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
                 use crate::db::graph::views::layer_graph::test_layers::test_filters_layer_graph::test_nodes_filters_layer_graph::init_graph;
                 use crate::db::graph::views::test_helpers::search_nodes_with;
                 use crate::prelude::{Graph, LayerOps, PropertyFilter, TimeOps};
+                use std::ops::Range;
 
                 pub fn search_nodes(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
                     search_nodes_with(
@@ -575,19 +537,18 @@ mod test_layers {
 
         mod test_edges_filters_layer_graph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
+                        test_helpers::filter_edges_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, LayerOps, PropertyFilter, TimeOps},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
             use std::ops::Range;
-
-            use crate::db::graph::views::test_helpers::filter_edges_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -670,11 +631,11 @@ mod test_layers {
 
             #[cfg(feature = "search")]
             mod search_edges {
-                use std::ops::Range;
                 use crate::db::graph::views::deletion_graph::PersistentGraph;
                 use crate::db::graph::views::layer_graph::test_layers::test_filters_layer_graph::test_edges_filters_layer_graph::init_graph;
                 use crate::db::graph::views::test_helpers::search_edges_with;
                 use crate::prelude::{Graph, LayerOps, PropertyFilter, TimeOps};
+                use std::ops::Range;
 
                 pub fn search_edges(filter: PropertyFilter, layers: Vec<String>) -> Vec<String> {
                     search_edges_with(

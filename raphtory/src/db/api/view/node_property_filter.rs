@@ -1,6 +1,6 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{api::view::internal::OneHopFilter, graph::views::filter::internal::CreateNodeFilter},
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 

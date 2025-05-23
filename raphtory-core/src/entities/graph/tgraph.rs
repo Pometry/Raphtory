@@ -24,7 +24,7 @@ use either::Either;
 use raphtory_api::core::{
     entities::{
         properties::{meta::Meta, prop::Prop},
-        GidRef, Layer,
+        GidRef, Layer, MAX_LAYER,
     },
     input::input_node::InputNode,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
@@ -62,6 +62,10 @@ pub struct InvalidLayer {
     invalid_layer: ArcStr,
     valid_layers: String,
 }
+
+#[derive(Error, Debug)]
+#[error("At most {MAX_LAYER} layers are supported.")]
+pub struct TooManyLayers;
 
 impl InvalidLayer {
     pub fn new(invalid_layer: ArcStr, valid: Vec<String>) -> Self {
@@ -133,6 +137,17 @@ impl TemporalGraph {
             }),
             Either::Right(id) => Ok(MaybeNew::Existing(id)),
         }
+    }
+
+    /// map layer name to id and allocate a new layer if needed
+    pub fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, TooManyLayers> {
+        let id = self.edge_meta.get_or_create_layer_id(layer);
+        if let MaybeNew::New(id) = id {
+            if id > MAX_LAYER {
+                Err(TooManyLayers)?;
+            }
+        }
+        Ok(id)
     }
 
     pub fn layer_ids(&self, key: Layer) -> Result<LayerIds, InvalidLayer> {

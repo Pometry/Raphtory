@@ -1,25 +1,23 @@
 use super::time_from_input;
 use crate::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        utils::{errors::GraphError, time::IntoTimeWithFormat},
-    },
+    core::{entities::nodes::node_ref::AsNodeRef, utils::time::IntoTimeWithFormat},
     db::{
-        api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalDeletionOps},
-                TryIntoInputTime,
-            },
-            view::StaticGraphViewOps,
-        },
+        api::{mutation::TryIntoInputTime, view::StaticGraphViewOps},
         graph::edge::EdgeView,
     },
+    errors::GraphError,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_storage::mutation::{
+    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+};
 use std::sync::Arc;
 
 pub trait DeletionOps:
     InternalDeletionOps + InternalAdditionOps + StaticGraphViewOps + Sized
+where
+    GraphError: From<<Self as InternalAdditionOps>::Error>,
+    GraphError: From<<Self as InternalDeletionOps>::Error>,
 {
     fn delete_edge<V: AsNodeRef, T: TryIntoInputTime>(
         &self,
@@ -54,4 +52,9 @@ pub trait DeletionOps:
     }
 }
 
-impl<T: DeletionOps + ?Sized> DeletionOps for Arc<T> {}
+impl<T: DeletionOps + ?Sized> DeletionOps for Arc<T>
+where
+    GraphError: From<<Self as InternalAdditionOps>::Error>,
+    GraphError: From<<Self as InternalDeletionOps>::Error>,
+{
+}

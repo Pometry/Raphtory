@@ -11,7 +11,6 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
@@ -21,6 +20,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     cell::{Ref, RefCell, RefMut},
     sync::Arc,

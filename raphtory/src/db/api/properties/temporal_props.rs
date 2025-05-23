@@ -1,11 +1,10 @@
-use crate::{
-    core::{Prop, PropType, PropUnwrap},
-    db::api::{properties::internal::PropertiesOps, view::BoxedLIter},
-};
-use arrow_array::ArrayRef;
+use crate::db::api::{properties::internal::PropertiesOps, view::BoxedLIter};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType, PropUnwrap},
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
@@ -13,6 +12,9 @@ use std::{
     iter::Zip,
     sync::Arc,
 };
+
+#[cfg(feature = "arrow")]
+use raphtory_api::core::entities::properties::prop::PropArrayUnwrap;
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: PropertiesOps> {
@@ -283,15 +285,18 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_ndtime()
     }
 
-    fn into_array(self) -> Option<ArrayRef> {
-        self.latest().into_array()
-    }
-
     fn as_f64(&self) -> Option<f64> {
         self.latest().as_f64()
     }
 
     fn into_decimal(self) -> Option<BigDecimal> {
         self.latest().into_decimal()
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl<P: PropertiesOps> PropArrayUnwrap for TemporalPropertyView<P> {
+    fn into_array(self) -> Option<ArrayRef> {
+        self.latest().into_array()
     }
 }

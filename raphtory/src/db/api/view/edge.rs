@@ -2,14 +2,12 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
     },
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            storage::graph::edges::edge_entry::EdgeStorageEntry,
             view::{
-                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps},
+                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
                 BoxableGraphView, IntoDynBoxed,
             },
         },
@@ -18,6 +16,7 @@ use crate::{
             views::layer_graph::LayeredGraph,
         },
     },
+    errors::GraphError,
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
@@ -29,7 +28,9 @@ use raphtory_api::{
     },
     iter::BoxedLIter,
 };
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::{
+    core_ops::CoreGraphOps, graph::edges::edge_entry::EdgeStorageEntry, layer_ops::InternalLayerOps,
+};
 use std::{iter, marker::PhantomData};
 
 #[self_referencing]

@@ -1,11 +1,12 @@
-use crate::{
-    core::{storage::timeindex::AsTime, Prop, PropType},
-    db::api::view::{internal::Base, BoxedLIter},
-};
+use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
-    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    core::{
+        entities::properties::prop::{Prop, PropType},
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
+    inherit::Base,
     iter::IntoDynBoxed,
 };
 

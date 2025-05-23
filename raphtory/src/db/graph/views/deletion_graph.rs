@@ -3,20 +3,10 @@ use crate::{
         entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
         utils::iter::GenLockedDIter,
-        Prop,
     },
     db::{
         api::{
-            mutation::internal::InheritMutationOps,
-            properties::internal::InheritPropertiesOps,
-            storage::{
-                graph::{
-                    edges::edge_storage_ops::EdgeStorageOps,
-                    nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage,
-                    tprop_storage_ops::TPropOps,
-                },
-                storage::Storage,
-            },
+            properties::internal::InheritPropertiesOps, storage::storage::Storage,
             view::internal::*,
         },
         graph::graph::graph_equal,
@@ -24,11 +14,18 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::{
-    core::entities::{EID, VID},
+    core::entities::{properties::tprop::TPropOps, EID, VID},
+    inherit::Base,
     iter::{BoxedLDIter, IntoDynDBoxed},
     GraphType,
 };
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_storage::{
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
+    mutation::InheritMutationOps,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -146,7 +143,7 @@ impl InheritMutationOps for PersistentGraph {}
 
 impl InheritListOps for PersistentGraph {}
 
-impl InheritCoreOps for PersistentGraph {}
+impl InheritCoreGraphOps for PersistentGraph {}
 
 impl HasDeletionOps for PersistentGraph {}
 
@@ -282,7 +279,7 @@ impl NodeHistoryFilter for PersistentGraph {
         } else if w.contains(&time.t()) {
             true
         } else {
-            let nse = self.0.core_node_entry(node_id);
+            let nse = self.0.core_node(node_id);
             let x = nse
                 .tprop(prop_id)
                 .last_before(TimeIndexEntry::start(w.start))
@@ -309,7 +306,7 @@ impl NodeHistoryFilter for PersistentGraph {
         w: Range<i64>,
     ) -> bool {
         time.t() < w.end && {
-            let nse = self.0.core_node_entry(node_id);
+            let nse = self.0.core_node(node_id);
             let x = nse
                 .tprop(prop_id)
                 .active(time.next()..TimeIndexEntry::start(w.end));
@@ -326,7 +323,7 @@ impl EdgeHistoryFilter for PersistentGraph {
         _edge_id: EID,
         _time: TimeIndexEntry,
     ) -> bool {
-        // let nse = self.0.core_node_entry(node_id);
+        // let nse = self.0.core_node(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
         true
     }
@@ -398,7 +395,7 @@ impl EdgeHistoryFilter for PersistentGraph {
 mod test_deletions {
     use crate::{
         db::{
-            api::{mutation::internal::InternalAdditionOps, view::time::internal::InternalTimeOps},
+            api::view::time::internal::InternalTimeOps,
             graph::{
                 edge::EdgeView,
                 graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
@@ -412,6 +409,7 @@ mod test_deletions {
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest, sample::subsequence};
     use raphtory_api::core::entities::GID;
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::ops::Range;
 
     #[test]
@@ -1573,14 +1571,15 @@ mod test_deletions {
 #[cfg(test)]
 mod test_node_history_filter_persistent_graph {
     use crate::{
-        core::Prop,
         db::{
             api::view::{internal::NodeHistoryFilter, StaticGraphViewOps},
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::{AdditionOps, GraphViewOps},
     };
-    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+    use raphtory_api::core::{
+        entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry,
+    };
     use raphtory_storage::core_ops::CoreGraphOps;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -1755,7 +1754,6 @@ mod test_node_history_filter_persistent_graph {
 #[cfg(test)]
 mod test_edge_history_filter_persistent_graph {
     use crate::{
-        core::Prop,
         db::{
             api::view::{
                 internal::{EdgeHistoryFilter, InternalLayerOps},
@@ -1765,7 +1763,9 @@ mod test_edge_history_filter_persistent_graph {
         },
         prelude::{AdditionOps, GraphViewOps},
     };
-    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+    use raphtory_api::core::{
+        entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry,
+    };
     use raphtory_storage::core_ops::CoreGraphOps;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {

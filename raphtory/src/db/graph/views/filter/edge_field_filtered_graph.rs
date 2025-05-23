@@ -1,27 +1,29 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
         graph::views::filter::{internal::InternalEdgeFilterOps, model::Filter, EdgeFieldFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{LayerIds, ELID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, ELID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
 };
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::edges::edge_ref::EdgeStorageRef,
+};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilteredGraph<G> {
@@ -57,7 +59,7 @@ impl<'graph, G> Base for EdgeFieldFilteredGraph<G> {
 impl<G> Static for EdgeFieldFilteredGraph<G> {}
 impl<G> Immutable for EdgeFieldFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for EdgeFieldFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgeFieldFilteredGraph<G> {}

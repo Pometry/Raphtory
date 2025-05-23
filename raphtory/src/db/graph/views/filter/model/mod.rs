@@ -1,19 +1,17 @@
 use crate::{
-    core::Prop,
-    db::{
-        api::storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        graph::views::filter::{
-            internal::CreateNodeFilter,
-            model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-                filter_operator::FilterOperator,
-                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-                property_filter::{PropertyFilter, PropertyRef, Temporal},
-            },
+    db::graph::views::filter::{
+        internal::CreateNodeFilter,
+        model::{
+            edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+            filter_operator::FilterOperator,
+            node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+            property_filter::{PropertyFilter, PropertyRef, Temporal},
         },
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
+use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 pub mod edge_filter;

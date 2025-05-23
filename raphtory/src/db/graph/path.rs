@@ -3,7 +3,6 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph,
                 ExplodedEdgePropertyFilterOps, IntoDynBoxed,
@@ -21,6 +20,7 @@ use crate::{
     },
     prelude::*,
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
 
 #[derive(Clone)]

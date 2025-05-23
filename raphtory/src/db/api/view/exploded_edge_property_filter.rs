@@ -1,9 +1,9 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::OneHopFilter,
         graph::views::filter::internal::InternalExplodedEdgeFilterOps,
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 
@@ -24,10 +24,7 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilterOps<'graph> for 
 mod test {
     use crate::{
         db::{
-            api::{
-                mutation::internal::InternalAdditionOps,
-                view::exploded_edge_property_filter::ExplodedEdgePropertyFilterOps,
-            },
+            api::view::exploded_edge_property_filter::ExplodedEdgePropertyFilterOps,
             graph::{
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
@@ -47,6 +44,7 @@ mod test {
         },
     };
     use proptest::{arbitrary::any, proptest};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
 
     fn build_filtered_graph(

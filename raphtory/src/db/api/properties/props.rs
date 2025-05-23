@@ -1,10 +1,7 @@
-use crate::{
-    core::Prop,
-    db::api::properties::{
-        constant_props::ConstantProperties, internal::*, temporal_props::TemporalProperties,
-    },
+use crate::db::api::properties::{
+    constant_props::ConstantProperties, internal::*, temporal_props::TemporalProperties,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

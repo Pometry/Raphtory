@@ -232,7 +232,6 @@ mod test_fluent_builder_apis {
 #[cfg(test)]
 mod test_composite_filters {
     use crate::{
-        core::Prop,
         db::graph::views::filter::model::{
             edge_filter::CompositeEdgeFilter,
             node_filter::CompositeNodeFilter,
@@ -241,7 +240,7 @@ mod test_composite_filters {
         },
         prelude::IntoProp,
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 
     #[test]
     fn test_composite_node_filter() {
@@ -501,12 +500,12 @@ mod test_composite_filters {
 #[cfg(test)]
 pub(crate) mod test_filters {
     use crate::{
-        core::IntoProp,
-        db::api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-            view::StaticGraphViewOps,
-        },
+        db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, Graph, PropertyAdditionOps},
+    };
+    use raphtory_api::core::entities::properties::prop::IntoProp;
+    use raphtory_storage::mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
 
     #[cfg(test)]
@@ -514,18 +513,17 @@ pub(crate) mod test_filters {
 
         #[cfg(test)]
         mod test_node_property_filter_semantics {
-            use crate::{assert_filter_results, assert_search_results};
-
             use crate::{
-                core::Prop,
+                assert_filter_results, assert_search_results,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
-                    graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, Graph, PropertyAdditionOps},
+            };
+            use raphtory_api::core::entities::properties::prop::Prop;
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
             };
 
             use crate::{
@@ -798,18 +796,19 @@ pub(crate) mod test_filters {
         #[cfg(test)]
         mod test_edge_property_filter_semantics {
             use crate::{
-                core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
                         filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
                         test_helpers::filter_edges_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, PropertyAdditionOps},
+            };
+            use raphtory_api::core::entities::properties::prop::Prop;
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
             };
 
             #[cfg(feature = "search")]
@@ -1264,13 +1263,13 @@ pub(crate) mod test_filters {
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_nodes_with;
         use crate::{
-            core::Prop,
             db::graph::views::filter::{
                 model::PropertyFilterOps,
                 test_filters::{filter_nodes, init_nodes_graph},
             },
             prelude::Graph,
         };
+        use raphtory_api::core::entities::properties::prop::Prop;
 
         use crate::{
             assert_filter_results, assert_search_results,
@@ -1454,13 +1453,13 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_edge_property_filter {
         use crate::{
-            core::Prop,
             db::graph::views::filter::{
                 model::PropertyFilterOps,
                 test_filters::{filter_edges, init_edges_graph},
             },
             prelude::Graph,
         };
+        use raphtory_api::core::entities::properties::prop::Prop;
 
         #[cfg(feature = "search")]
         use crate::db::graph::views::test_helpers::search_edges_with;

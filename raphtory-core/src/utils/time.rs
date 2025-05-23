@@ -7,6 +7,7 @@ use std::{
 };
 
 use chrono::ParseError;
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use std::num::ParseIntError;
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
@@ -113,6 +114,40 @@ impl TryIntoTime for &str {
     }
 }
 
+/// Used to handle automatic injection of secondary index if not explicitly provided
+pub enum InputTime {
+    Simple(i64),
+    Indexed(i64, usize),
+}
+
+pub trait TryIntoInputTime {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
+}
+
+impl TryIntoInputTime for InputTime {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(self)
+    }
+}
+
+impl TryIntoInputTime for TimeIndexEntry {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.t(), self.i()))
+    }
+}
+
+impl<T: TryIntoTime> TryIntoInputTime for T {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Simple(self.try_into_time()?))
+    }
+}
+
+impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.0.try_into_time()?, self.1))
+    }
+}
+
 pub trait IntoTimeWithFormat {
     fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError>;
 }
@@ -170,7 +205,7 @@ impl From<Duration> for IntervalSize {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval {
-    pub(crate) epoch_alignment: bool,
+    pub epoch_alignment: bool,
     pub(crate) size: IntervalSize,
 }
 

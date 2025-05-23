@@ -1,18 +1,16 @@
-use crate::{
-    core::Prop,
-    db::api::{
-        storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::internal::{
-            time_semantics::{
-                event_semantics::EventSemantics, persistent_semantics::PersistentSemantics,
-                time_semantics_ops::NodeTimeSemanticsOps,
-            },
-            EdgeTimeSemanticsOps, GraphView,
-        },
+use crate::db::api::view::internal::{
+    time_semantics::{
+        event_semantics::EventSemantics, persistent_semantics::PersistentSemantics,
+        time_semantics_ops::NodeTimeSemanticsOps,
     },
+    EdgeTimeSemanticsOps, GraphView,
 };
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, LayerIds},
+    storage::timeindex::TimeIndexEntry,
+};
+use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
 use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]

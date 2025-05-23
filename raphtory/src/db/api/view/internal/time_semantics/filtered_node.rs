@@ -1,12 +1,19 @@
-use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, ELID},
-        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-        Direction,
-    },
-    iter::{BoxedLIter, IntoDynBoxed},
+use crate::{
+    db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
+    prelude::GraphViewOps,
 };
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use either::Either;
+use itertools::Itertools;
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    Direction,
+};
+use raphtory_core::storage::timeindex::TimeIndexWindow;
+use raphtory_storage::graph::{
+    edges::edge_storage_ops::EdgeStorageOps,
+    nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
+};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -283,7 +290,7 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 }
 
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
-    fn history<'a, G: GraphViewOps<'a>>(&'a self, view: G) -> NodeHistory<'a, G> {
+    fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
         let additions = self.additions();
         NodeHistory { additions, view }
     }
@@ -291,16 +298,45 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     fn filtered_edges_iter<G: GraphViewOps<'a>>(
         self,
         view: G,
+        layer_ids: &'a LayerIds,
         dir: Direction,
-    ) -> BoxedLIter<'a, EdgeRef> {
-        let iter = self.edges_iter(view.layer_ids(), dir);
-        if view.edges_filtered() {
-            iter.filter(move |e| {
-                view.filter_edge(view.core_edge(e.pid()).as_ref(), view.layer_ids())
-            })
-            .into_dyn_boxed()
-        } else {
-            iter.into_dyn_boxed()
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
+        let iter = self.edges_iter(layer_ids, dir);
+        match view.filter_state() {
+            FilterState::Neither => FilterVariants::Neither(iter),
+            FilterState::Both => {
+                let nodes = view.core_nodes();
+                let edges = view.core_edges();
+                FilterVariants::Both(iter.filter(move |e| {
+                    view.filter_edge(edges.edge(e.pid()), view.layer_ids())
+                        && view.filter_node(nodes.node_entry(e.remote()))
+                }))
+            }
+            FilterState::Nodes => {
+                let nodes = view.core_nodes();
+                FilterVariants::Nodes(
+                    iter.filter(move |e| view.filter_node(nodes.node_entry(e.remote()))),
+                )
+            }
+            FilterState::Edges | FilterState::BothIndependent => {
+                let edges = view.core_edges();
+                FilterVariants::Edges(
+                    iter.filter(move |e| view.filter_edge(edges.edge(e.pid()), view.layer_ids())),
+                )
+            }
         }
     }
+
+    fn filtered_neighbours_iter<G: GraphViewOps<'a>>(
+        self,
+        view: G,
+        layer_ids: &'a LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = VID> + 'a {
+        self.filtered_edges_iter(view, layer_ids, dir)
+            .map(|e| e.remote())
+            .dedup()
+    }
 }
+
+impl<'a, T: NodeStorageOps<'a>> FilteredNodeStorageOps<'a> for T {}

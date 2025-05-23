@@ -1,13 +1,10 @@
-use crate::db::api::{
-    mutation::internal::InheritMutationOps,
-    view::internal::{
-        BoxableGraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
-        InheritViewOps,
-    },
+use crate::db::api::view::internal::{
+    BoxableGraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+    InheritViewOps,
 };
 use std::sync::Arc;
 
-impl<T: BoxableGraphView + ?Sized> InheritViewOps for Arc<T> {}
+impl<T: ?Sized + Send + Sync> InheritViewOps for Arc<T> {}
 
 impl<T: BoxableGraphView + ?Sized> InheritStorageOps for Arc<T> {}
 
@@ -15,12 +12,10 @@ impl<T: BoxableGraphView + ?Sized> InheritNodeHistoryFilter for Arc<T> {}
 
 impl<T: BoxableGraphView + ?Sized> InheritEdgeHistoryFilter for Arc<T> {}
 
-impl<T: ?Sized> InheritMutationOps for Arc<T> {}
-
 #[cfg(feature = "proto")]
 mod serialise {
     use crate::{
-        core::utils::errors::GraphError,
+        errors::GraphError,
         serialise::{
             incremental::{GraphWriter, InternalCache},
             GraphFolder,

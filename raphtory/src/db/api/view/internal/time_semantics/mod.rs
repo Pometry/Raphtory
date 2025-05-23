@@ -1,5 +1,7 @@
 mod base_time_semantics;
 mod event_semantics;
+pub(crate) mod filtered_edge;
+pub(crate) mod filtered_node;
 mod persistent_semantics;
 mod time_semantics;
 mod time_semantics_ops;
@@ -11,12 +13,12 @@ pub use history_filter::*;
 pub use time_semantics::TimeSemantics;
 pub use time_semantics_ops::*;
 
-use crate::{
-    core::Prop,
-    db::api::view::{internal::Base, BoxedLDIter, MaterializedGraph},
-};
+use crate::db::api::view::{BoxedLDIter, MaterializedGraph};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::{
+    core::{entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph

@@ -1,22 +1,22 @@
-use crate::{
-    core::Prop,
-    db::api::{
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::TPropOps,
-        },
-        view::internal::{
-            time_semantics::time_semantics_ops::NodeTimeSemanticsOps, EdgeTimeSemanticsOps,
-            GraphView,
-        },
+use crate::db::api::view::internal::{
+    time_semantics::{
+        filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
+        time_semantics_ops::NodeTimeSemanticsOps,
     },
+    EdgeTimeSemanticsOps, GraphView,
 };
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::LayerIds,
+    entities::{
+        properties::{prop::Prop, tprop::TPropOps},
+        LayerIds,
+    },
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+};
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::ops::Range;
 

@@ -1,7 +1,4 @@
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-use itertools::Itertools;
-#[cfg(feature = "storage")]
-use pometry_storage::timestamps::LayerAdditions;
 use raphtory_api::core::{
     entities::ELID,
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
@@ -11,6 +8,9 @@ use raphtory_core::{
     storage::timeindex::{TimeIndexWindow, TimeIndexWindowVariants},
 };
 use std::{iter, ops::Range};
+
+#[cfg(feature = "storage")]
+use {itertools::Itertools, pometry_storage::timestamps::LayerAdditions};
 
 #[derive(Clone, Debug)]
 pub enum NodeAdditions<'a> {

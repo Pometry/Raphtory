@@ -1,12 +1,11 @@
 use crate::{
-    core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop},
+    core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator,
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{properties::PropError, GID, MAX_LAYER},
+    entities::{GID, MAX_LAYER},
     storage::arc_str::ArcStr,
-    PropType,
 };
 use std::{
     fmt::Debug,
@@ -16,7 +15,7 @@ use std::{
 };
 use tracing::error;
 
-use crate::{core::PropType, prelude::GraphViewOps};
+use crate::prelude::GraphViewOps;
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
 #[cfg(feature = "arrow")]
@@ -27,6 +26,10 @@ use pometry_storage::RAError;
 use pyo3::PyErr;
 #[cfg(feature = "arrow")]
 use raphtory_api::core::entities::{GidType, VID};
+
+use raphtory_api::core::entities::properties::prop::{Prop, PropError, PropType};
+use raphtory_core::{entities::graph::tgraph::InvalidLayer, utils::time::ParseTimeError};
+use raphtory_storage::mutation::MutationError;
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -108,6 +111,8 @@ pub type GraphResult<T> = Result<T, GraphError>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error(transparent)]
+    MutationError(#[from] MutationError),
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
     #[cfg(feature = "arrow")]
@@ -209,11 +214,8 @@ pub enum GraphError {
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,
-    #[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers}")]
-    InvalidLayer {
-        invalid_layer: String,
-        valid_layers: String,
-    },
+    #[error(transparent)]
+    InvalidLayer(#[from] InvalidLayer),
     #[error("Graph does not have a default layer. Valid layers: {valid_layers}")]
     NoDefaultLayer { valid_layers: String },
     #[error("More than {MAX_LAYER} layers are not supported")]
@@ -397,14 +399,6 @@ pub enum GraphError {
 }
 
 impl GraphError {
-    pub fn invalid_layer(invalid_layer: String, valid_layers: Vec<String>) -> Self {
-        let valid_layers = valid_layers.join(", ");
-        GraphError::InvalidLayer {
-            invalid_layer,
-            valid_layers,
-        }
-    }
-
     pub fn no_default_layer<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let valid_layers = graph.unique_layers().join(", ");
         GraphError::NoDefaultLayer { valid_layers }

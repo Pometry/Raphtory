@@ -21,7 +21,7 @@ use raphtory_core::{
     },
     storage::locked_view::LockedView,
 };
-use std::iter;
+use std::{iter, sync::Arc};
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -247,3 +247,6 @@ where
         self.base().core_graph()
     }
 }
+
+impl<T: ?Sized> InheritCoreGraphOps for Arc<T> {}
+impl<'a, T: ?Sized> InheritCoreGraphOps for &'a T {}

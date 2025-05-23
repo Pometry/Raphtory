@@ -1,27 +1,28 @@
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::entities::LayerIds,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            view::{
-                internal::{
-                    EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                time_semantics::filtered_edge::FilteredEdgeStorageOps, EdgeFilterOps,
+                EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
         graph::views::filter::internal::InternalExplodedEdgeFilterOps,
     },
+    errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{
-    entities::{EID, ELID},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+use raphtory_api::{
+    core::{
+        entities::{EID, ELID},
+        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    },
+    inherit::Base,
 };
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -86,7 +87,7 @@ impl<'graph, G> Base for ExplodedEdgePropertyFilteredGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter
     for ExplodedEdgePropertyFilteredGraph<G>
 {

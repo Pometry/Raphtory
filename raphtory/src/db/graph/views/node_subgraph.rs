@@ -3,20 +3,25 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         state::Index,
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-        },
         view::internal::{
-            Base, EdgeFilterOps, EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+            EdgeFilterOps, EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
             InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
             InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -46,7 +51,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for NodeSubgraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for NodeSubgraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeSubgraph<G> {}
@@ -140,10 +145,7 @@ mod subgraph_tests {
         algorithms::{
             components::weakly_connected_components, motifs::triangle_count::triangle_count,
         },
-        db::{
-            api::mutation::internal::InternalAdditionOps,
-            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
-        },
+        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
         test_storage,
         test_utils::{build_graph, build_graph_strat},
@@ -151,6 +153,7 @@ mod subgraph_tests {
     use ahash::HashSet;
     use itertools::Itertools;
     use proptest::{proptest, sample::subsequence};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::BTreeSet;
 
     #[test]
@@ -313,20 +316,18 @@ mod subgraph_tests {
 
         mod test_nodes_filters_node_subgraph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                        deletion_graph::PersistentGraph,
+                        filter::{internal::CreateNodeFilter, model::PropertyFilterOps},
+                        test_helpers::filter_nodes_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
             use std::ops::Range;
-
-            use crate::db::graph::views::{
-                filter::internal::CreateNodeFilter, test_helpers::filter_nodes_with,
-            };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -535,19 +536,18 @@ mod subgraph_tests {
 
         mod test_edges_filters_node_subgraph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::{internal::InternalEdgeFilterOps, model::PropertyFilterOps},
+                        test_helpers::filter_edges_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
             use std::ops::Range;
-
-            use crate::db::graph::views::test_helpers::filter_edges_with;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

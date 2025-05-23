@@ -1,24 +1,20 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::nodes::node_ref::NodeStorageRef,
-            view::{
-                internal::{
-                    Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
-                },
-                Base,
+            view::internal::{
+                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
         graph::views::filter::{internal::CreateNodeFilter, model::NotFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct NodeNotFilteredGraph<G, T> {
@@ -52,7 +48,7 @@ impl<G, T> Base for NodeNotFilteredGraph<G, T> {
 impl<G, T> Static for NodeNotFilteredGraph<G, T> {}
 impl<G, T> Immutable for NodeNotFilteredGraph<G, T> {}
 
-impl<'graph, G: GraphViewOps<'graph>, T> InheritCoreOps for NodeNotFilteredGraph<G, T> {}
+impl<'graph, G: GraphViewOps<'graph>, T> InheritCoreGraphOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritStorageOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritLayerOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritListOps for NodeNotFilteredGraph<G, T> {}

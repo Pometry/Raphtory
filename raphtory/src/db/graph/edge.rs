@@ -4,24 +4,18 @@
 //! Edges are identified by a unique ID, can have a direction (Ingoing, Outgoing, or Both)
 //! and can have properties associated with them.
 //!
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::{errors::GraphError, iter::GenLockedIter, time::IntoTime},
-        PropType,
+        utils::{iter::GenLockedIter, time::IntoTime},
     },
     db::{
         api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps},
-                time_from_input, CollectProperties, TryIntoInputTime,
-            },
+            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::{
                 internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
                 BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
@@ -30,9 +24,22 @@ use crate::{
         },
         graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use itertools::Itertools;
+use raphtory_api::core::{
+    entities::properties::prop::PropType,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
+use raphtory_core::entities::graph::tgraph::InvalidLayer;
+use raphtory_storage::{
+    graph::edges::edge_storage_ops::EdgeStorageOps,
+    mutation::{
+        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+        property_addition_ops::InternalPropertyAdditionOps,
+    },
+};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -163,16 +170,17 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
 
 impl<
         G: StaticGraphViewOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + InternalDeletionOps,
+            + InternalAdditionOps<Error = GraphError>
+            + InternalPropertyAdditionOps<Error = GraphError>
+            + InternalDeletionOps<Error = GraphError>,
     > EdgeView<G, G>
 {
     pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
-            .internal_delete_existing_edge(t, self.edge.pid(), layer)
+            .internal_delete_existing_edge(t, self.edge.pid(), layer)?;
+        Ok(())
     }
 }
 
@@ -276,48 +284,45 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 }
 
-impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G, G> {
-    fn get_valid_layers(graph: &G) -> Vec<String> {
-        graph.unique_layers().map(|l| l.0.to_string()).collect()
-    }
-
+impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
-        match layer {
+        let layer_id = match layer {
             Some(name) => match self.edge.layer() {
                 Some(l_id) => self
                     .graph
                     .get_layer_id(name)
                     .filter(|&id| id == l_id)
                     .ok_or_else(|| {
-                        GraphError::invalid_layer(
-                            name.to_owned(),
-                            Self::get_valid_layers(&self.graph),
+                        InvalidLayer::new(
+                            name.into(),
+                            vec![self.graph.get_layer_name(l_id).to_string()],
                         )
-                    }),
+                    })?,
                 None => {
                     if create {
-                        Ok(self.graph.resolve_layer(layer)?.inner())
+                        self.graph.resolve_layer(layer)?.inner()
                     } else {
-                        self.graph
-                            .get_layer_id(name)
-                            .ok_or(GraphError::invalid_layer(
-                                name.to_owned(),
-                                Self::get_valid_layers(&self.graph),
-                            ))
+                        self.graph.get_layer_id(name).ok_or_else(|| {
+                            InvalidLayer::new(
+                                name.into(),
+                                self.graph.unique_layers().map_into().collect(),
+                            )
+                        })?
                     }
                 }
             },
             None => {
                 let layer = self.edge.layer();
                 match layer {
-                    Some(l_id) => Ok(l_id),
+                    Some(l_id) => l_id,
                     None => self
                         .graph
                         .get_default_layer_id()
-                        .ok_or_else(|| GraphError::no_default_layer(&self.graph)),
+                        .ok_or_else(|| GraphError::no_default_layer(&self.graph))?,
                 }
             }
-        }
+        };
+        Ok(layer_id)
     }
 
     /// Add constant properties for the edge
@@ -355,7 +360,8 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             self.edge.pid(),
             input_layer_id,
             &properties,
-        )
+        )?;
+        Ok(())
     }
 
     pub fn update_constant_properties<C: CollectProperties>(
@@ -372,7 +378,8 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             self.edge.pid(),
             input_layer_id,
             &properties,
-        )
+        )?;
+        Ok(())
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -693,10 +700,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{
-        core::IntoPropMap, db::api::view::time::TimeOps, prelude::*, test_storage,
-        test_utils::test_graph,
-    };
+    use crate::{db::api::view::time::TimeOps, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
     use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;

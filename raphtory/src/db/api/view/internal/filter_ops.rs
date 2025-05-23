@@ -1,7 +1,9 @@
-use crate::db::api::{
-    storage::graph::nodes::node_ref::NodeStorageRef,
-    view::{internal::NodeTimeSemanticsOps, BoxableGraphView},
+use crate::db::api::view::{internal::NodeTimeSemanticsOps, BoxableGraphView};
+use iter_enum::{
+    DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
+    ParallelIterator,
 };
+use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 
 pub enum FilterState {
     Neither,
@@ -9,6 +11,21 @@ pub enum FilterState {
     BothIndependent,
     Nodes,
     Edges,
+}
+
+#[derive(
+    Iterator,
+    DoubleEndedIterator,
+    ExactSizeIterator,
+    FusedIterator,
+    ParallelIterator,
+    IndexedParallelIterator,
+)]
+pub enum FilterVariants<Neither, Nodes, Edges, Both> {
+    Neither(Neither),
+    Nodes(Nodes),
+    Edges(Edges),
+    Both(Both),
 }
 
 pub trait FilterOps {

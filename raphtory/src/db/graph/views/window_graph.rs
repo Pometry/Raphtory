@@ -38,17 +38,16 @@
 //! ```
 
 use crate::{
-    core::{entities::LayerIds, Prop, PropType},
+    core::entities::LayerIds,
     db::{
         api::{
             properties::internal::{
                 InheritConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             state::Index,
-            storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
-                    Base, EdgeFilterOps, EdgeHistoryFilter, EdgeList, EdgeTimeSemanticsOps,
+                    EdgeFilterOps, EdgeHistoryFilter, EdgeList, EdgeTimeSemanticsOps,
                     GraphTimeSemanticsOps, Immutable, InheritLayerOps, InheritMaterialize,
                     InheritStorageOps, InternalNodeFilterOps, ListOps, NodeHistoryFilter, NodeList,
                     Static, TimeSemantics,
@@ -62,12 +61,19 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{EID, ELID, VID},
+        entities::{
+            properties::prop::{Prop, PropType},
+            EID, ELID, VID,
+        },
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
+    inherit::Base,
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+};
 use std::{
     fmt::{Debug, Formatter},
     iter,
@@ -162,7 +168,7 @@ impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for WindowedGraph<G> {}
 
@@ -1193,27 +1199,28 @@ mod views_test {
         mod test_nodes_filters_window_graph {
             use crate::{
                 assert_filter_results_w, assert_search_results_w,
-                core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
-                        filter::model::{
-                            ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+                        filter::{
+                            internal::CreateNodeFilter,
+                            model::{
+                                ComposableFilter, NodeFilter, NodeFilterBuilderOps,
+                                PropertyFilterOps,
+                            },
                         },
+                        test_helpers::filter_nodes_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter, TimeOps},
             };
-            use raphtory_api::core::storage::arc_str::ArcStr;
-            use std::{ops::Range, sync::Arc};
-
-            use crate::db::graph::views::{
-                filter::internal::CreateNodeFilter, test_helpers::filter_nodes_with,
+            use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
             };
+            use std::{ops::Range, sync::Arc};
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -2201,12 +2208,9 @@ mod views_test {
 
         mod test_edges_filters_window_graph {
             use crate::{
-                core::Prop,
+                assert_filter_results_w, assert_search_results_w,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::views::{
                         deletion_graph::PersistentGraph,
                         filter::{
@@ -2220,10 +2224,12 @@ mod views_test {
                 },
                 prelude::{AdditionOps, Graph, PropertyAdditionOps, PropertyFilter, TimeOps},
             };
-            use raphtory_api::core::storage::arc_str::ArcStr;
+            use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
+            };
             use std::{ops::Range, sync::Arc};
-
-            use crate::{assert_filter_results_w, assert_search_results_w};
 
             fn init_graph<
                 G: StaticGraphViewOps

@@ -1,7 +1,7 @@
 use crate::{
     core::{
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntoTime},
+        utils::time::{Interval, IntoTime},
     },
     db::api::view::{
         internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
@@ -10,6 +10,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::GraphType;
+use raphtory_core::utils::time::ParseTimeError;
 use std::{
     cmp::{max, min},
     marker::PhantomData,

@@ -2,15 +2,10 @@ use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
-        utils::errors::GraphError,
     },
     db::{
         api::{
-            mutation::internal::InternalAdditionOps,
             properties::{internal::ConstantPropertiesOps, Properties},
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            },
             view::{internal::*, *},
         },
         graph::{
@@ -20,16 +15,12 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
-                node_subgraph::NodeSubgraph,
-                valid_graph::ValidGraph,
+                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
             },
         },
     },
+    errors::GraphError,
     prelude::*,
 };
 use chrono::{DateTime, Utc};
@@ -42,13 +33,16 @@ use raphtory_api::{
     },
     GraphType,
 };
+use raphtory_storage::{
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    mutation::{addition_ops::InternalAdditionOps, MutationError},
+};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    sync::{atomic::Ordering, Arc},
-};
+use std::sync::{atomic::Ordering, Arc};
+
+use raphtory_core::utils::iter::GenLockedIter;
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 #[cfg(feature = "search")]
 use zip::ZipArchive;
 
@@ -168,12 +162,158 @@ pub trait SearchableGraphOps: Sized {
 }
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
+    // pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
+    //     self,
+    //     view: G,
+    // ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
+    //     match view.node_list() {
+    //         NodeList::List { elems } => {
+    //             return elems
+    //                 .into_iter()
+    //                 .flat_map(move |v| {
+    //                     self.clone()
+    //                         .into_node_edges_iter(v, Direction::OUT, view.clone())
+    //                 })
+    //                 .into_dyn_boxed()
+    //         }
+    //         _ => {}
+    //     }
+    //     let edges = self.owned_edges();
+    //     let nodes = self.owned_nodes();
+    //
+    //     match edges {
+    //         EdgesStorage::Mem(edges) => {
+    //             let iter = (0..edges.len()).map(EID);
+    //             let filtered = match view.filter_state() {
+    //                 FilterState::Neither => {
+    //                     FilterVariants::Neither(iter.map(move |eid| edges.get_mem(eid).out_ref()))
+    //                 }
+    //                 FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
+    //                     let e = EdgeStorageRef::Mem(edges.get_mem(e));
+    //                     (view.filter_edge(e, view.layer_ids())
+    //                         && view.filter_node(nodes.node_entry(e.src()))
+    //                         && view.filter_node(nodes.node_entry(e.dst())))
+    //                     .then(|| e.out_ref())
+    //                 })),
+    //                 FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
+    //                     let e = EdgeStorageRef::Mem(edges.get_mem(e));
+    //                     (view.filter_node(nodes.node_entry(e.src()))
+    //                         && view.filter_node(nodes.node_entry(e.dst())))
+    //                     .then(|| e.out_ref())
+    //                 })),
+    //                 FilterState::Edges | FilterState::BothIndependent => {
+    //                     FilterVariants::Edges(iter.filter_map(move |e| {
+    //                         let e = EdgeStorageRef::Mem(edges.get_mem(e));
+    //                         view.filter_edge(e, view.layer_ids()).then(|| e.out_ref())
+    //                     }))
+    //                 }
+    //             };
+    //             filtered.into_dyn_boxed()
+    //         }
+    //         #[cfg(feature = "storage")]
+    //         EdgesStorage::Disk(edges) => {
+    //             let edges_clone = edges.clone();
+    //             let iter = edges_clone.into_iter_refs(view.layer_ids().clone());
+    //             let filtered = match view.filter_state() {
+    //                 FilterState::Neither => FilterVariants::Neither(iter),
+    //                 FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
+    //                     let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
+    //                     if !view.filter_edge(edge, view.layer_ids()) {
+    //                         return None;
+    //                     }
+    //                     let src = nodes.node_entry(e.src());
+    //                     if !view.filter_node(src) {
+    //                         return None;
+    //                     }
+    //                     let dst = nodes.node_entry(e.dst());
+    //                     if !view.filter_node(dst) {
+    //                         return None;
+    //                     }
+    //                     Some(e)
+    //                 })),
+    //                 FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
+    //                     let src = nodes.node_entry(e.src());
+    //                     if !view.filter_node(src) {
+    //                         return None;
+    //                     }
+    //                     let dst = nodes.node_entry(e.dst());
+    //                     if !view.filter_node(dst) {
+    //                         return None;
+    //                     }
+    //                     Some(e)
+    //                 })),
+    //                 FilterState::Edges | FilterState::BothIndependent => {
+    //                     FilterVariants::Edges(iter.filter_map(move |e| {
+    //                         let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
+    //                         if !view.filter_edge(edge, view.layer_ids()) {
+    //                             return None;
+    //                         }
+    //                         Some(e)
+    //                     }))
+    //                 }
+    //             };
+    //             filtered.into_dyn_boxed()
+    //         }
+    //     }
+    // }
+
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        let edges = Arc::new(move || {
-            let core_graph = graph.core_graph().lock();
-            core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
-        });
+        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
+            match graph.node_list() {
+                NodeList::All { .. } => Arc::new(move || {
+                    let edges = graph.core_graph().owned_edges();
+                    let layer_ids = graph.layer_ids().clone();
+                    let graph = graph.clone();
+                    GenLockedIter::from(
+                        (edges, layer_ids, graph),
+                        move |(edges, layer_ids, graph)| {
+                            let iter = edges.iter(layer_ids);
+                            match graph.filter_state() {
+                                FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
+                                FilterState::Both => {
+                                    let nodes = graph.core_graph().core_nodes();
+                                    iter.filter_map(move |e| {
+                                        (graph.filter_edge(e, graph.layer_ids())
+                                            && graph.filter_node(nodes.node_entry(e.src()))
+                                            && graph.filter_node(nodes.node_entry(e.dst())))
+                                        .then_some(e.out_ref())
+                                    })
+                                    .into_dyn_boxed()
+                                }
+                                FilterState::Nodes => {
+                                    let nodes = graph.core_graph().core_nodes();
+                                    iter.filter_map(move |e| {
+                                        (graph.filter_node(nodes.node_entry(e.src()))
+                                            && graph.filter_node(nodes.node_entry(e.dst())))
+                                        .then_some(e.out_ref())
+                                    })
+                                    .into_dyn_boxed()
+                                }
+                                FilterState::Edges | FilterState::BothIndependent => iter
+                                    .filter_map(move |e| {
+                                        graph
+                                            .filter_edge(e, graph.layer_ids())
+                                            .then_some(e.out_ref())
+                                    })
+                                    .into_dyn_boxed(),
+                            }
+                        },
+                    )
+                    .into_dyn_boxed()
+                }),
+                NodeList::List { elems } => Arc::new(move || {
+                    let cg = graph.core_graph().lock();
+                    let graph = graph.clone();
+                    elems
+                        .clone()
+                        .into_iter()
+                        .flat_map(move |node| {
+                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
+                        })
+                        .into_dyn_boxed()
+                }),
+            };
         Edges {
             base_graph: self.clone(),
             graph: self.clone(),
@@ -212,15 +352,19 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in 0..layers.len() {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                    let new_id = g
+                        .resolve_layer(Some(&layers[id]))
+                        .map_err(MutationError::from)?
+                        .inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let new_id =
-                    g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
+                let new_id = g
+                    .resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
+                    .map_err(MutationError::from)?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
             }
@@ -228,7 +372,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                    let new_id = g
+                        .resolve_layer(Some(&layers[id]))
+                        .map_err(MutationError::from)?
+                        .inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
@@ -251,6 +398,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         g.event_counter
             .fetch_max(storage.read_event_id(), Ordering::Relaxed);
 
+        let g = GraphStorage::from(g);
+
         {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
@@ -268,13 +417,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
-                                .node_meta
+                                .node_meta()
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
                             new_node.node_store_mut().node_type = new_type_id;
                         }
-                        g.logical_to_physical.set(gid.as_ref(), new_id)?;
+                        g.set_node(gid.as_ref(), new_id)?;
 
                         for (t, rows) in node.rows() {
                             let prop_offset = new_node.t_props_log_mut().push(rows)?;
@@ -290,7 +439,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         }
                     }
                 }
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
 
             new_storage.edges.par_iter_mut().try_for_each(|mut shard| {
@@ -333,14 +482,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         }
                     }
                 }
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
                         for e in edge.explode() {
-                            let t = e.time_and_index()?;
+                            let t = e.time_and_index().expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             src_node.update_time(t, EID(eid).with_layer(l));
                         }
@@ -355,7 +504,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
                         for e in edge.explode() {
-                            let t = e.time_and_index()?;
+                            let t = e.time_and_index().expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             dst_node.update_time(t, EID(eid).with_layer(l));
                         }
@@ -391,7 +540,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     }
                 }
 
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
         }
 
@@ -581,7 +730,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {
-                let node = self.core_node_entry(node_id);
+                let node = self.core_node(node_id);
                 self.filter_node(node.as_ref())
             } else {
                 true
@@ -600,7 +749,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.nodes_filtered() {
-            let core_node = self.core_node_entry(vid);
+            let core_node = self.core_node(vid);
             if !self.filter_node(core_node.as_ref()) {
                 return None;
             }
@@ -612,7 +761,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
-        let src_node = self.core_node_entry(src);
+        let src_node = self.core_node(src);
         match self.filter_state() {
             FilterState::Neither => {
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
@@ -626,7 +775,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
                     return None;
                 }
-                if !self.filter_node(self.core_node_entry(dst).as_ref()) {
+                if !self.filter_node(self.core_node(dst).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))
@@ -636,7 +785,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node_entry(dst).as_ref()) {
+                if !self.filter_node(self.core_node(dst).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))

@@ -1,25 +1,22 @@
 use super::GraphStorage;
 use crate::{
     core::{entities::LayerIds, storage::timeindex::TimeIndexOps, utils::iter::GenLockedDIter},
-    db::api::{
-        storage::graph::{
-            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            tprop_storage_ops::TPropOps,
-        },
-        view::internal::{
-            EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
-        },
+    db::api::view::internal::{
+        EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
     },
     prelude::Prop,
 };
 use raphtory_api::{
     core::{
-        entities::{EID, VID},
+        entities::{properties::tprop::TPropOps, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
+};
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
 
@@ -171,7 +168,7 @@ impl NodeHistoryFilter for GraphStorage {
         node_id: VID,
         time: TimeIndexEntry,
     ) -> bool {
-        let nse = self.core_node_entry(node_id);
+        let nse = self.core_node(node_id);
         let x = nse.tprop(prop_id).active(time.next()..TimeIndexEntry::MAX);
         !x
     }
@@ -184,7 +181,7 @@ impl NodeHistoryFilter for GraphStorage {
         w: Range<i64>,
     ) -> bool {
         w.contains(&time.t()) && {
-            let nse = self.core_node_entry(node_id);
+            let nse = self.core_node(node_id);
             let x = nse
                 .tprop(prop_id)
                 .active(time.next()..TimeIndexEntry::start(w.end));
@@ -278,7 +275,8 @@ impl EdgeHistoryFilter for GraphStorage {
 
 #[cfg(test)]
 mod test_graph_storage {
-    use crate::{core::Prop, db::api::view::StaticGraphViewOps, prelude::AdditionOps};
+    use crate::{db::api::view::StaticGraphViewOps, prelude::AdditionOps};
+    use raphtory_api::core::entities::properties::prop::Prop;
 
     fn init_graph_for_nodes_tests<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
         let nodes = vec![

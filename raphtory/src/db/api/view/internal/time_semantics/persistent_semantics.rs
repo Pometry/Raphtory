@@ -1,17 +1,10 @@
 use crate::{
-    core::Prop,
-    db::api::{
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::TPropOps,
+    db::api::view::internal::{
+        time_semantics::{
+            event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        view::internal::{
-            time_semantics::{
-                event_semantics::EventSemantics, time_semantics_ops::NodeTimeSemanticsOps,
-            },
-            EdgeTimeSemanticsOps, GraphView,
-        },
+        EdgeTimeSemanticsOps, GraphView,
     },
     prelude::GraphViewOps,
 };
@@ -19,9 +12,16 @@ use ahash::AHashSet;
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::LayerIds,
+    entities::{
+        properties::{prop::Prop, tprop::TPropOps},
+        LayerIds,
+    },
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
     Direction,
+};
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{iter, ops::Range};
 

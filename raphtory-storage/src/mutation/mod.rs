@@ -1,15 +1,23 @@
-use crate::graph::graph::Immutable;
-use raphtory_api::core::entities::{
-    properties::prop::{InvalidBigDecimal, PropError},
-    MAX_LAYER,
+use crate::{
+    core_ops::CoreGraphOps,
+    graph::graph::Immutable,
+    mutation::{
+        addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
+        property_addition_ops::InheritPropertyAdditionOps,
+    },
+};
+use raphtory_api::{
+    core::entities::properties::prop::{InvalidBigDecimal, PropError},
+    inherit::Base,
 };
 use raphtory_core::entities::{
-    graph::logical_to_physical::InvalidNodeId,
+    graph::{logical_to_physical::InvalidNodeId, tgraph::TooManyLayers},
     properties::{
         props::{ConstPropError, TPropError},
         tprop::IllegalPropType,
     },
 };
+use std::sync::Arc;
 use thiserror::Error;
 
 pub mod addition_ops;
@@ -20,8 +28,8 @@ pub mod property_addition_ops;
 pub enum MutationError {
     #[error(transparent)]
     Immutable(#[from] Immutable),
-    #[error("More than {MAX_LAYER} layers are not supported")]
-    TooManyLayers,
+    #[error(transparent)]
+    TooManyLayers(#[from] TooManyLayers),
     #[error("Node type already set")]
     NodeTypeError,
     #[error(transparent)]
@@ -43,3 +51,11 @@ pub enum MutationError {
         dst: String,
     },
 }
+
+pub trait InheritMutationOps: CoreGraphOps + Base {}
+
+impl<G: InheritMutationOps> InheritAdditionOps for G {}
+impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
+impl<G: InheritMutationOps> InheritDeletionOps for G {}
+
+impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}

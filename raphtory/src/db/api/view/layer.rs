@@ -1,9 +1,9 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
+    errors::GraphError,
 };
 use raphtory_api::core::entities::{Layer, LayerIds, SingleLayer};
 use raphtory_storage::core_ops::CoreGraphOps;

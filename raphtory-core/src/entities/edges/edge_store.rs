@@ -18,7 +18,7 @@ use std::{
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
-    pub(crate) eid: EID,
+    pub eid: EID,
     pub src: VID,
     pub dst: VID,
 }

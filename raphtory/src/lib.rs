@@ -106,14 +106,24 @@ pub mod vectors;
 #[cfg(feature = "io")]
 pub mod io;
 
+pub mod api;
 pub mod core;
+pub mod errors;
 #[cfg(feature = "proto")]
 pub mod serialise;
+pub mod storage;
 
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
-        core::{IntoProp, Prop, PropUnwrap},
+        api::core::{
+            entities::{
+                layers::Layer,
+                properties::prop::{IntoProp, IntoPropList, IntoPropMap, Prop, PropUnwrap},
+                GID,
+            },
+            input::input_node::InputNode,
+        },
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
@@ -121,21 +131,14 @@ pub mod prelude {
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },
                 view::{
-                    EdgePropertyFilterOps,
-                    EdgeViewOps, // ExplodedEdgePropertyFilterOps,
-                    GraphViewOps,
-                    Layer,
-                    LayerOps,
-                    NodePropertyFilterOps,
-                    NodeViewOps,
-                    ResetFilter,
+                    EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
+                    GraphViewOps, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
                     TimeOps,
                 },
             },
             graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
         },
     };
-    pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 
     #[cfg(feature = "proto")]
     pub use crate::serialise::{
@@ -154,17 +157,14 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{
-        core::DECIMAL_MAX,
-        db::api::{mutation::internal::InternalAdditionOps, storage::storage::Storage},
-        prelude::*,
-    };
+    use crate::{db::api::storage::storage::Storage, prelude::*};
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*};
     use proptest_derive::Arbitrary;
-    use raphtory_api::core::PropType;
+    use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;

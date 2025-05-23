@@ -2,25 +2,27 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            view::{
-                internal::{
-                    EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
+                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
         graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
     },
     prelude::{EdgeViewOps, GraphViewOps},
 };
-use raphtory_api::core::{
-    entities::{LayerIds, ELID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, ELID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
 };
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+};
 
 #[derive(Copy, Clone, Debug)]
 pub struct ValidGraph<G> {
@@ -46,7 +48,7 @@ impl<G> Immutable for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for ValidGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ValidGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ValidGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ValidGraph<G> {}
@@ -88,19 +90,17 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::utils::errors::GraphError,
-        db::{
-            api::mutation::internal::InternalAdditionOps,
-            graph::{
-                graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
-                views::deletion_graph::PersistentGraph,
-            },
+        db::graph::{
+            graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
+            views::deletion_graph::PersistentGraph,
         },
+        errors::GraphError,
         prelude::*,
         test_utils::{build_graph, build_graph_strat},
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::ops::Range;
 
     #[test]

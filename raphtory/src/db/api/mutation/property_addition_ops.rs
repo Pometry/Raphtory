@@ -1,14 +1,12 @@
-use crate::{
-    core::utils::errors::GraphError,
-    db::api::mutation::{
-        internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        TryIntoInputTime,
-    },
+use super::{time_from_input, CollectProperties};
+use crate::{db::api::mutation::TryIntoInputTime, errors::GraphError};
+use raphtory_storage::mutation::{
+    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
 };
 
-use super::{time_from_input, CollectProperties};
-
-pub trait PropertyAdditionOps {
+pub trait PropertyAdditionOps:
+    InternalPropertyAdditionOps<Error = GraphError> + InternalAdditionOps<Error = GraphError>
+{
     fn add_properties<T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
@@ -22,7 +20,10 @@ pub trait PropertyAdditionOps {
     ) -> Result<(), GraphError>;
 }
 
-impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps for G {
+impl<
+        G: InternalPropertyAdditionOps<Error = GraphError> + InternalAdditionOps<Error = GraphError>,
+    > PropertyAdditionOps for G
+{
     fn add_properties<T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
@@ -32,14 +33,16 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
             Ok(self.resolve_graph_property(name, dtype, false)?.inner())
         })?;
-        self.internal_add_properties(ti, &properties)
+        self.internal_add_properties(ti, &properties)?;
+        Ok(())
     }
 
     fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
             Ok(self.resolve_graph_property(name, dtype, true)?.inner())
         })?;
-        self.internal_add_constant_properties(&properties)
+        self.internal_add_constant_properties(&properties)?;
+        Ok(())
     }
 
     fn update_constant_properties<PI: CollectProperties>(
@@ -49,6 +52,7 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
             Ok(self.resolve_graph_property(name, dtype, true)?.inner())
         })?;
-        self.internal_update_constant_properties(&properties)
+        self.internal_update_constant_properties(&properties)?;
+        Ok(())
     }
 }

@@ -1,26 +1,22 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::nodes::node_ref::NodeStorageRef,
-            view::{
-                internal::{
-                    Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
-                },
-                Base,
+            view::internal::{
+                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
         graph::views::filter::{
             internal::CreateNodeFilter, model::property_filter::PropertyFilter,
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
@@ -72,7 +68,7 @@ impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
 impl<G> Static for NodePropertyFilteredGraph<G> {}
 impl<G> Immutable for NodePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}

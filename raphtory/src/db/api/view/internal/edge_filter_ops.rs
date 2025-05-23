@@ -1,9 +1,10 @@
-use crate::{
-    core::entities::LayerIds,
-    db::api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::internal::Base},
-};
+use crate::core::entities::LayerIds;
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::graph::edges::edge_ref::EdgeStorageRef;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {

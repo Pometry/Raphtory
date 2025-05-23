@@ -26,6 +26,7 @@ use crate::disk::{
     },
     DiskGraphStorage,
 };
+use crate::mutation::MutationError;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum GraphStorage {
@@ -90,12 +91,12 @@ impl GraphStorage {
         }
     }
 
-    pub fn mutable(&self) -> Result<&Arc<TemporalGraph>, Immutable> {
+    pub fn mutable(&self) -> Result<&Arc<TemporalGraph>, MutationError> {
         match self {
-            GraphStorage::Mem(_) => Err(Immutable::ReadLockedImmutable),
+            GraphStorage::Mem(_) => Err(Immutable::ReadLockedImmutable)?,
             GraphStorage::Unlocked(graph) => Ok(graph),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => Err(Immutable::DiskGraphImmutable),
+            GraphStorage::Disk(_) => Err(Immutable::DiskGraphImmutable)?,
         }
     }
 

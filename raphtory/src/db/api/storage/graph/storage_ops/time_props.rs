@@ -2,16 +2,18 @@ use std::ops::Deref;
 
 use super::GraphStorage;
 use crate::{
-    core::{utils::iter::GenLockedIter, PropType},
+    core::utils::iter::GenLockedIter,
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-        storage::graph::tprop_storage_ops::TPropOps,
         view::BoxedLIter,
     },
     prelude::Prop,
 };
 use raphtory_api::{
-    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    core::{
+        entities::properties::{prop::PropType, tprop::TPropOps},
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
     iter::IntoDynBoxed,
 };
 

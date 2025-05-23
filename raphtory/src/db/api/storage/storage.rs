@@ -1,51 +1,43 @@
-#[cfg(feature = "proto")]
-use crate::db::api::storage::graph::nodes::node_storage_ops::NodeStorageOps;
-#[cfg(feature = "proto")]
-use crate::serialise::incremental::GraphWriter;
 use crate::{
-    core::{
-        entities::{
-            graph::tgraph::TemporalGraph,
-            nodes::node_ref::{AsNodeRef, NodeRef},
-        },
-        storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
-        utils::errors::GraphError,
-        Prop, PropType,
+    core::entities::{
+        graph::tgraph::TemporalGraph,
+        nodes::node_ref::{AsNodeRef, NodeRef},
     },
-    db::api::{
-        mutation::internal::{
-            InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-        },
-        storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{
-            internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-            Base, InheritViewOps,
-        },
+    db::api::view::{
+        internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+        Base, InheritViewOps,
     },
     prelude::DeletionOps,
 };
 use raphtory_api::core::{
-    entities::{GidType, EID, VID},
+    entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    path::PathBuf,
     sync::Arc,
 };
-use tracing::info;
 
 #[cfg(feature = "search")]
-use crate::{
-    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    search::graph_index::GraphIndex,
-};
+use crate::search::graph_index::GraphIndex;
 
+use crate::errors::GraphError;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps,
+    layer_ops::InheritLayerOps,
+    mutation::{
+        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+        property_addition_ops::InternalPropertyAdditionOps,
+    },
+};
 #[cfg(feature = "proto")]
-use crate::serialise::incremental::InternalCache;
-#[cfg(feature = "proto")]
-use once_cell::sync::OnceCell;
+use {
+    crate::serialise::incremental::{GraphWriter, InternalCache},
+    once_cell::sync::OnceCell,
+};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -58,6 +50,9 @@ pub struct Storage {
     pub(crate) index: OnceCell<GraphIndex>,
     // vector index
 }
+
+impl InheritLayerOps for Storage {}
+impl InheritCoreGraphOps for Storage {}
 
 impl Display for Storage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -192,44 +187,7 @@ impl InheritEdgeHistoryFilter for Storage {}
 impl InheritViewOps for Storage {}
 
 impl InternalAdditionOps for Storage {
-    #[inline]
-    fn id_type(&self) -> Option<GidType> {
-        self.graph.id_type()
-    }
-
-    #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
-        self.graph.write_lock()
-    }
-
-    #[inline]
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
-        self.graph.write_lock_nodes()
-    }
-
-    #[inline]
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
-        self.graph.write_lock_edges()
-    }
-
-    #[inline]
-    fn num_shards(&self) -> Result<usize, GraphError> {
-        self.graph.num_shards()
-    }
-
-    #[inline]
-    fn next_event_id(&self) -> Result<usize, GraphError> {
-        self.graph.next_event_id()
-    }
-
-    fn read_event_id(&self) -> usize {
-        self.graph.read_event_id()
-    }
-
-    #[inline]
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
-        self.graph.reserve_event_ids(num_ids)
-    }
+    type Error = GraphError;
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         let id = self.graph.resolve_layer(layer)?;
@@ -264,7 +222,7 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| {
             let (vid, _) = node_and_type.inner();
-            let node_entry = self.graph.node_entry(vid.inner());
+            let node_entry = self.graph.core_node(vid.inner());
             cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
         });
 
@@ -397,6 +355,7 @@ impl InternalAdditionOps for Storage {
 }
 
 impl InternalPropertyAdditionOps for Storage {
+    type Error = GraphError;
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
@@ -505,6 +464,7 @@ impl InternalPropertyAdditionOps for Storage {
 }
 
 impl InternalDeletionOps for Storage {
+    type Error = GraphError;
     fn internal_delete_edge(
         &self,
         t: TimeIndexEntry,

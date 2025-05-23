@@ -1,4 +1,4 @@
-use crate::{core::utils::errors::GraphError, prelude::GraphViewOps};
+use crate::{errors::GraphError, prelude::GraphViewOps};
 
 pub trait InternalEdgeFilterOps: Sized {
     type EdgeFiltered<'graph, G>: GraphViewOps<'graph>

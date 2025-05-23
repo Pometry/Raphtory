@@ -1,18 +1,22 @@
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Direction, PropType,
-        PropUnwrap,
-    },
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::state::{Index, NodeState},
         graph::nodes::Nodes,
     },
+    errors::GraphError,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, Prop},
 };
 use indexmap::IndexSet;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{PropType, PropUnwrap},
+        VID,
+    },
+    Direction,
+};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},

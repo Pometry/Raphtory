@@ -1,8 +1,8 @@
-use crate::{
-    core::entities::{LayerIds, VID},
-    db::api::view::internal::Base,
+use crate::core::entities::{LayerIds, VID};
+use raphtory_api::{
+    core::{entities::EID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
 };
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use std::ops::Range;
 
 pub trait NodeHistoryFilter {

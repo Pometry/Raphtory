@@ -1,5 +1,5 @@
 use super::{accumulator_id::AccId, compute_state::ComputeState, StateType};
-use crate::core::state::agg::Accumulator;
+use crate::{core::state::agg::Accumulator, db::api::view::StaticGraphViewOps};
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 

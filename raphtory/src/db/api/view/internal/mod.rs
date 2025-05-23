@@ -1,10 +1,7 @@
 mod core_deletion_ops;
-pub mod core_ops;
 mod edge_filter_ops;
 mod filter_ops;
-mod inherit;
 mod into_dynamic;
-mod layer_ops;
 mod list_ops;
 mod materialize;
 mod node_filter_ops;
@@ -28,18 +25,21 @@ use std::{
 };
 
 pub use core_deletion_ops::*;
-pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
-pub use inherit::Base;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
-pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
 pub use one_hop_filter::*;
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
+pub use raphtory_api::inherit::Base;
+pub use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    layer_ops::{InheritLayerOps, InternalLayerOps},
+};
 pub use time_semantics::*;
+
+pub trait InheritViewOps: Base + Send + Sync {}
 
 /// Marker trait to indicate that an object is a valid graph view
 pub trait BoxableGraphView:
@@ -83,8 +83,6 @@ pub trait GraphView: BoxableGraphView + Sized + Clone {}
 
 impl<T: BoxableGraphView + Sized + Clone> GraphView for T {}
 
-pub trait InheritViewOps: Base + Send + Sync {}
-
 impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
 impl<G: InheritViewOps> InheritListOps for G {}
@@ -93,11 +91,7 @@ impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 
-impl<G: InheritViewOps> InheritLayerOps for G {}
-
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
-
-impl<G: InheritViewOps> InheritCoreOps for G {}
 
 impl<G: InheritViewOps> InheritMaterialize for G {}
 
@@ -205,6 +199,10 @@ impl Base for DynamicGraph {
 impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
+
+impl InheritCoreGraphOps for DynamicGraph {}
+
+impl InheritLayerOps for DynamicGraph {}
 
 impl InheritStorageOps for DynamicGraph {}
 

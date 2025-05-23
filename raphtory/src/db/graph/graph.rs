@@ -19,11 +19,10 @@ use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
-            mutation::internal::InheritMutationOps,
-            storage::{graph::storage_ops::GraphStorage, storage::Storage},
+            storage::storage::Storage,
             view::{
                 internal::{
-                    Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
                     InheritViewOps, Static,
                 },
                 time::internal::InternalTimeOps,
@@ -32,6 +31,11 @@ use crate::{
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
     prelude::*,
+};
+use raphtory_api::inherit::Base;
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -49,6 +53,8 @@ pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
+impl InheritCoreGraphOps for Graph {}
+impl InheritLayerOps for Graph {}
 impl From<Arc<Storage>> for Graph {
     fn from(inner: Arc<Storage>) -> Self {
         Self { inner }
@@ -567,25 +573,18 @@ mod db_tests {
     use crate::serialise::StableDecode;
     use crate::{
         algorithms::components::weakly_connected_components,
-        core::{
-            utils::{
-                errors::GraphError::{self, EdgeExistsError, NodeExistsError, NodesExistError},
-                time::{error::ParseTimeError, TryIntoTime},
-            },
-            IntoPropList, Prop,
-        },
         db::{
             api::{
-                mutation::internal::InternalAdditionOps,
                 properties::internal::ConstantPropertiesOps,
                 view::{
                     internal::{EdgeFilterOps, GraphTimeSemanticsOps},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
         },
+        errors::GraphError,
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
@@ -604,7 +603,8 @@ mod db_tests {
         },
         utils::logging::global_info_logger,
     };
-    use raphtory_storage::core_ops::CoreGraphOps;
+    use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
+    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
@@ -839,7 +839,7 @@ mod db_tests {
         gg.add_node(1, "B", NO_PROPS, None).unwrap();
         let res = gg.import_nodes(vec![&g_a, &g_b], false);
         match res {
-            Err(NodesExistError(ids)) => {
+            Err(GraphError::NodesExistError(ids)) => {
                 assert_eq!(
                     ids.into_iter()
                         .map(|id| id.to_string())
@@ -919,7 +919,7 @@ mod db_tests {
         let _ = gg.add_node(1, "Y", NO_PROPS, None).unwrap();
         let res = gg.import_node_as(&g_b, "Y", false);
         match res {
-            Err(NodeExistsError(id)) => {
+            Err(GraphError::NodeExistsError(id)) => {
                 assert_eq!(id.to_string(), "Y");
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
@@ -978,7 +978,7 @@ mod db_tests {
         gg.add_node(1, "R", NO_PROPS, None).unwrap();
         let res = gg.import_nodes_as(vec![&g_a, &g_b, &g_c], vec!["P", "Q", "R"], false);
         match res {
-            Err(NodesExistError(ids)) => {
+            Err(GraphError::NodesExistError(ids)) => {
                 assert_eq!(
                     ids.into_iter()
                         .map(|id| id.to_string())
@@ -1056,7 +1056,7 @@ mod db_tests {
         gg.import_edge_as(&e_b_c, ("Y", "Z"), false).unwrap();
         let res = gg.import_edge_as(&e_a_b, ("X", "Y"), false);
         match res {
-            Err(EdgeExistsError(src_id, dst_id)) => {
+            Err(GraphError::EdgeExistsError(src_id, dst_id)) => {
                 assert_eq!(src_id.to_string(), "X");
                 assert_eq!(dst_id.to_string(), "Y");
             }
@@ -4005,7 +4005,7 @@ mod db_tests {
             .build()
             .unwrap();
         let graph = pool.install(|| Graph::new());
-        assert_eq!(graph.core_graph().internal_num_nodes(), 0);
+        assert_eq!(graph.core_graph().unfiltered_num_nodes(), 0);
     }
 
     #[test]

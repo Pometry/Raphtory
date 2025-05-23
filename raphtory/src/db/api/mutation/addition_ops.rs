@@ -2,21 +2,25 @@ use super::time_from_input;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
-        utils::{errors::GraphError, time::IntoTimeWithFormat},
-        Prop,
+        utils::time::IntoTimeWithFormat,
     },
     db::{
         api::{
-            mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+            mutation::{CollectProperties, TryIntoInputTime},
             view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
+    errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::storage::dict_mapper::MaybeNew::{Existing, New};
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::dict_mapper::MaybeNew::{Existing, New},
+};
+use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
-pub trait AdditionOps: StaticGraphViewOps {
+pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error = GraphError> {
     // TODO: Probably add vector reference here like add
     /// Add a node to the graph
     ///
@@ -110,7 +114,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     }
 }
 
-impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
+impl<G: InternalAdditionOps<Error = GraphError> + StaticGraphViewOps> AdditionOps for G {
     fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,

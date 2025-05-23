@@ -2,20 +2,26 @@ use crate::{
     core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-        },
         view::internal::{
-            Base, EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalLayerOps, InternalNodeFilterOps, Static,
+            EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
+    storage::core_ops::InheritCoreGraphOps,
 };
-use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreOps};
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+};
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
@@ -50,7 +56,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for CachedView<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
@@ -317,20 +323,18 @@ mod test {
             use crate::{
                 assert_filter_results, assert_filter_results_w, assert_search_results,
                 assert_search_results_w,
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::views::{
-                        deletion_graph::PersistentGraph, filter::model::PropertyFilterOps,
+                        deletion_graph::PersistentGraph,
+                        filter::{internal::CreateNodeFilter, model::PropertyFilterOps},
+                        test_helpers::filter_nodes_with,
                     },
                 },
                 prelude::{AdditionOps, Graph, PropertyFilter, TimeOps},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
             use std::ops::Range;
-
-            use crate::db::graph::views::{
-                filter::internal::CreateNodeFilter, test_helpers::filter_nodes_with,
-            };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let node_data = vec![
@@ -449,7 +453,6 @@ mod test {
             };
 
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::views::{
@@ -460,6 +463,7 @@ mod test {
                 },
                 prelude::{AdditionOps, Graph, PropertyFilter, TimeOps},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
             use std::ops::Range;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {

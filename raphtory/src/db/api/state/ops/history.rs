@@ -1,13 +1,13 @@
 use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
-        storage::graph::storage_ops::GraphStorage,
         view::internal::NodeTimeSemanticsOps,
     },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
+use raphtory_storage::graph::graph::GraphStorage;
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {
@@ -19,7 +19,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
-        let node = storage.node_entry(node);
+        let node = storage.core_node(node);
         semantics.node_earliest_time(node.as_ref(), &self.graph)
     }
 }
@@ -52,7 +52,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
-        let node = storage.node_entry(node);
+        let node = storage.core_node(node);
         semantics.node_latest_time(node.as_ref(), &self.graph)
     }
 }
@@ -85,7 +85,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
-        let node = storage.node_entry(node);
+        let node = storage.core_node(node);
         semantics
             .node_history(node.as_ref(), &self.graph)
             .dedup()

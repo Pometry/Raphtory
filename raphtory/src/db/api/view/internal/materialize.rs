@@ -1,47 +1,78 @@
 use crate::{
+    api::core::storage::arc_str::ArcStr,
     core::{
-        entities::{nodes::node_ref::AsNodeRef, properties::props::Meta, LayerIds, EID, VID},
+        entities::{LayerIds, EID, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
-        PropType,
     },
     db::{
         api::{
-            mutation::internal::{
-                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-            },
             properties::internal::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::graph::storage_ops::GraphStorage,
             view::internal::*,
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
+    storage::mutation::deletion_ops::InternalDeletionOps,
 };
+use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::{core::storage::dict_mapper::MaybeNew, GraphType};
+use raphtory_api::{
+    core::{entities::properties::prop::PropType, storage::dict_mapper::MaybeNew},
+    iter::BoxedLIter,
+    GraphType,
+};
+use raphtory_storage::{
+    graph::graph::GraphStorage,
+    mutation::{
+        addition_ops::InheritAdditionOps, property_addition_ops::InheritPropertyAdditionOps,
+    },
+};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
-#[enum_dispatch(CoreGraphOps)]
-#[enum_dispatch(InternalLayerOps)]
-#[enum_dispatch(ListOps)]
 #[enum_dispatch(GraphTimeSemanticsOps)]
-#[enum_dispatch(EdgeFilterOps)]
-#[enum_dispatch(InternalNodeFilterOps)]
-#[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
 #[enum_dispatch(ConstantPropertiesOps)]
-#[enum_dispatch(InternalAdditionOps)]
-#[enum_dispatch(InternalPropertyAdditionOps)]
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
 }
+
+impl Base for MaterializedGraph {
+    type Base = Arc<Storage>;
+
+    fn base(&self) -> &Self::Base {
+        match self {
+            MaterializedGraph::EventGraph(g) => &g.inner,
+            MaterializedGraph::PersistentGraph(g) => &g.0,
+        }
+    }
+}
+
+impl InheritCoreGraphOps for MaterializedGraph {}
+impl InheritLayerOps for MaterializedGraph {}
+impl InheritListOps for MaterializedGraph {}
+
+impl InheritNodeFilterOps for MaterializedGraph {}
+impl InheritEdgeFilterOps for MaterializedGraph {}
+
+impl InternalMaterialize for MaterializedGraph {
+    fn graph_type(&self) -> GraphType {
+        match self {
+            MaterializedGraph::EventGraph(_) => GraphType::EventGraph,
+            MaterializedGraph::PersistentGraph(_) => GraphType::PersistentGraph,
+        }
+    }
+}
+
+impl InheritAdditionOps for MaterializedGraph {}
+
+impl InheritPropertyAdditionOps for MaterializedGraph {}
 
 impl Debug for MaterializedGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -88,6 +119,7 @@ impl InternalStorageOps for MaterializedGraph {
 }
 
 impl InternalDeletionOps for MaterializedGraph {
+    type Error = GraphError;
     fn internal_delete_edge(
         &self,
         t: TimeIndexEntry,
@@ -96,7 +128,7 @@ impl InternalDeletionOps for MaterializedGraph {
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         match self {
-            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::EventGraph(_) => Err(GraphError::EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
         }
     }
@@ -108,7 +140,7 @@ impl InternalDeletionOps for MaterializedGraph {
         layer: usize,
     ) -> Result<(), GraphError> {
         match self {
-            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::EventGraph(_) => Err(GraphError::EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_existing_edge(t, eid, layer),
         }
     }

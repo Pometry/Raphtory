@@ -4935,6 +4935,7 @@ dependencies = [
  "rand_distr",
  "raphtory-api",
  "raphtory-core",
+ "raphtory-storage",
  "rayon",
  "regex",
  "reqwest",
@@ -5010,6 +5011,10 @@ dependencies = [
 [[package]]
 name = "raphtory-compute"
 version = "0.15.1"
+dependencies = [
+ "itertools 0.13.0",
+ "rand 0.8.5",
+]
 
 [[package]]
 name = "raphtory-core"

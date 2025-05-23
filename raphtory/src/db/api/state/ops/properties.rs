@@ -1,11 +1,12 @@
 use crate::{
     db::{
-        api::{properties::Properties, state::NodeOp, storage::graph::storage_ops::GraphStorage},
+        api::{properties::Properties, state::NodeOp},
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::VID;
+use raphtory_storage::graph::graph::GraphStorage;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]

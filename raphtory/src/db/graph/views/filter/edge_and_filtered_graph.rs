@@ -1,27 +1,26 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable, InheritMaterialize,
-                    InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                    InheritTimeSemantics, InternalLayerOps, ListOps, NodeList, Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalLayerOps, ListOps, NodeList, Static,
             },
         },
         graph::views::filter::{internal::InternalEdgeFilterOps, model::AndFilter},
     },
-    prelude::{GraphViewOps, Layer},
+    errors::GraphError,
+    prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{LayerIds, EID, ELID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, EID, ELID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
 };
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -65,7 +64,7 @@ impl<G, L, R> Base for EdgeAndFilteredGraph<G, L, R> {
 impl<G, L, R> Static for EdgeAndFilteredGraph<G, L, R> {}
 impl<G, L, R> Immutable for EdgeAndFilteredGraph<G, L, R> {}
 
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreOps for EdgeAndFilteredGraph<G, L, R> {}
+impl<'graph, G, L, R> InheritCoreGraphOps for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeFilterOps for EdgeAndFilteredGraph<G, L, R> {}
@@ -76,23 +75,12 @@ impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeHistoryFilter
 {
 }
 
-impl<G, L, R> InternalLayerOps for EdgeAndFilteredGraph<G, L, R>
+impl<G, L: Send + Sync, R: Send + Sync> InternalLayerOps for EdgeAndFilteredGraph<G, L, R>
 where
     G: InternalLayerOps,
 {
     fn layer_ids(&self) -> &LayerIds {
         &self.layer_ids
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
-        Ok(self
-            .layer_ids
-            .intersect(&self.graph.layer_ids_from_names(key)?))
-    }
-
-    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.layer_ids
-            .intersect(&self.graph.valid_layer_ids_from_names(key))
     }
 }
 

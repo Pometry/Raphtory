@@ -1,6 +1,11 @@
+use crate::{db::api::view::internal::GraphView, prelude::GraphViewOps};
+use either::Either;
 use raphtory_api::core::{
-    entities::{properties::tprop::TPropOps, LayerIds, ELID},
-    storage::timeindex::TimeIndexOps,
+    entities::{
+        properties::{prop::Prop, tprop::TPropOps},
+        LayerIds, ELID,
+    },
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_storage::graph::edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef};
 use std::ops::Range;
@@ -124,7 +129,7 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
 }
 
 pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
-    fn filtered_additions_iter<G: BoxableGraphView + Clone + 'a>(
+    fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
         layer_ids: &'a LayerIds,

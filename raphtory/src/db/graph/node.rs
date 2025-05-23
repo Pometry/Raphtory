@@ -1,16 +1,10 @@
 //! Defines the `Node` struct, which represents a node in the graph.
 
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        utils::errors::GraphError,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                time_from_input, CollectProperties, TryIntoInputTime,
-            },
+            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::internal::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
@@ -25,11 +19,10 @@ use crate::{
 };
 
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter, PropType},
+    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
         api::{
             state::NodeOp,
-            storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::NodeTimeSemanticsOps, DynamicGraph, ExplodedEdgePropertyFilterOps,
                 IntoDynamic,
@@ -37,9 +30,19 @@ use crate::{
         },
         graph::edges::Edges,
     },
+    errors::GraphError,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_api::core::{
+    entities::properties::prop::PropType,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::graph::GraphStorage,
+    mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    },
+};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -261,7 +264,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
     }
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node_entry(self.node);
+        let node = self.graph.core_node(self.node);
         let res = semantics
             .node_tprop_iter(node.as_ref(), &self.graph, id)
             .next_back()
@@ -271,7 +274,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node_entry(self.node);
+        let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
                 .node_tprop_iter(node.as_ref(), &self.graph, id)
@@ -282,7 +285,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node_entry(self.node);
+        let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
                 .node_tprop_iter(node.as_ref(), &self.graph, id)
@@ -294,7 +297,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node_entry(self.node);
+        let node = self.graph.core_node(self.node);
         semantics
             .node_tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
             .map(|(_, v)| v)
@@ -307,7 +310,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
         'graph: 'a,
     {
         let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node_entry(self.node);
+        let node = self.graph.core_node(self.node);
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
@@ -403,8 +406,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     }
 }
 
-impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps>
-    NodeView<'static, G, G>
+impl<
+        G: StaticGraphViewOps
+            + InternalPropertyAdditionOps<Error = GraphError>
+            + InternalAdditionOps<Error = GraphError>,
+    > NodeView<'static, G, G>
 {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,

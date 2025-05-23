@@ -1,27 +1,26 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, EdgeHistoryFilter, Immutable, InheritLayerOps, InheritListOps,
-                    InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, EdgeHistoryFilter, Immutable, InheritLayerOps, InheritListOps,
+                InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
         graph::views::filter::{internal::InternalEdgeFilterOps, model::OrFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{LayerIds, EID, ELID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, EID, ELID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
 };
-use raphtory_storage::core_ops::InheritCoreOps;
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -58,7 +57,7 @@ impl<G, L, R> Base for EdgeOrFilteredGraph<G, L, R> {
 impl<G, L, R> Static for EdgeOrFilteredGraph<G, L, R> {}
 impl<G, L, R> Immutable for EdgeOrFilteredGraph<G, L, R> {}
 
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreOps for EdgeOrFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreGraphOps for EdgeOrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for EdgeOrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritLayerOps for EdgeOrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritListOps for EdgeOrFilteredGraph<G, L, R> {}

@@ -6,12 +6,15 @@ use crate::{
     },
     mutation::MutationError,
 };
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{Prop, PropType},
-        GidType, EID, MAX_LAYER, VID,
+use raphtory_api::{
+    core::{
+        entities::{
+            properties::prop::{Prop, PropType},
+            GidRef, GidType, EID, VID,
+        },
+        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     },
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    inherit::Base,
 };
 use raphtory_core::{
     entities::nodes::node_ref::AsNodeRef,
@@ -20,6 +23,7 @@ use raphtory_core::{
 use std::sync::atomic::Ordering;
 
 pub trait InternalAdditionOps: CoreGraphOps {
+    type Error: From<MutationError>;
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
@@ -29,15 +33,15 @@ pub trait InternalAdditionOps: CoreGraphOps {
             GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
         }
     }
-    fn write_lock(&self) -> Result<WriteLockedGraph, MutationError> {
+    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
         Ok(WriteLockedGraph::new(self.core_graph().mutable()?))
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, MutationError> {
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
         Ok(self.core_graph().mutable()?.storage.nodes.write_lock())
     }
 
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, MutationError> {
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
         Ok(self.core_graph().mutable()?.storage.edges.write_lock())
     }
     fn num_shards(&self) -> usize {
@@ -50,7 +54,7 @@ pub trait InternalAdditionOps: CoreGraphOps {
         }
     }
     /// get the sequence id for the next event
-    fn next_event_id(&self) -> Result<usize, MutationError> {
+    fn next_event_id(&self) -> Result<usize, Self::Error> {
         Ok(self
             .core_graph()
             .mutable()?
@@ -69,7 +73,7 @@ pub trait InternalAdditionOps: CoreGraphOps {
         }
     }
 
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, MutationError> {
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
         Ok(self
             .core_graph()
             .mutable()?
@@ -78,23 +82,31 @@ pub trait InternalAdditionOps: CoreGraphOps {
     }
 
     /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, MutationError> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self
             .core_graph()
             .mutable()?
-            .edge_meta
-            .get_or_create_layer_id(layer);
-        if let MaybeNew::New(id) = id {
-            if id > MAX_LAYER {
-                return Err(MutationError::TooManyLayers);
-            }
-        }
+            .resolve_layer(layer)
+            .map_err(MutationError::from)?;
         Ok(id)
     }
 
     /// map external node id to internal id, allocating a new empty node if needed
-    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, MutationError> {
-        Ok(self.core_graph().mutable()?.resolve_node(id)?)
+    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, Self::Error> {
+        Ok(self
+            .core_graph()
+            .mutable()?
+            .resolve_node(id)
+            .map_err(MutationError::from)?)
+    }
+
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
+        Ok(self
+            .core_graph()
+            .mutable()?
+            .logical_to_physical
+            .set(gid, vid)
+            .map_err(MutationError::from)?)
     }
 
     /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
@@ -102,9 +114,9 @@ pub trait InternalAdditionOps: CoreGraphOps {
         &self,
         id: V,
         node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, MutationError> {
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
         let graph = self.core_graph().mutable()?;
-        let vid = graph.resolve_node(id)?;
+        let vid = graph.resolve_node(id).map_err(MutationError::from)?;
         let mut entry = graph.storage.get_node_mut(vid.inner());
         let mut entry_ref = entry.to_mut();
         let node_store = entry_ref.node_store_mut();
@@ -128,12 +140,13 @@ pub trait InternalAdditionOps: CoreGraphOps {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, MutationError> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         Ok(self
             .core_graph()
             .mutable()?
             .graph_meta
-            .resolve_property(prop, dtype, is_static)?)
+            .resolve_property(prop, dtype, is_static)
+            .map_err(MutationError::from)?)
     }
 
     /// map property key to internal id, allocating new property if needed and checking property type.
@@ -143,12 +156,13 @@ pub trait InternalAdditionOps: CoreGraphOps {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, MutationError> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         Ok(self
             .core_graph()
             .mutable()?
             .node_meta
-            .resolve_prop_id(prop, dtype, is_static)?)
+            .resolve_prop_id(prop, dtype, is_static)
+            .map_err(MutationError::from)?)
     }
 
     fn resolve_edge_property(
@@ -156,12 +170,13 @@ pub trait InternalAdditionOps: CoreGraphOps {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, MutationError> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         Ok(self
             .core_graph()
             .mutable()?
             .edge_meta
-            .resolve_prop_id(prop, dtype, is_static)?)
+            .resolve_prop_id(prop, dtype, is_static)
+            .map_err(MutationError::from)?)
     }
 
     /// add node update
@@ -170,7 +185,7 @@ pub trait InternalAdditionOps: CoreGraphOps {
         t: TimeIndexEntry,
         v: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), MutationError> {
+    ) -> Result<(), Self::Error> {
         let graph = self.core_graph().mutable()?;
         graph.update_time(t);
         let mut entry = graph.storage.get_node_mut(v);
@@ -180,7 +195,8 @@ pub trait InternalAdditionOps: CoreGraphOps {
             .push(props.iter().map(|(prop_id, prop)| {
                 let prop = graph.process_prop_value(prop);
                 (*prop_id, prop)
-            }))?;
+            }))
+            .map_err(MutationError::from)?;
         node.node_store_mut().update_t_prop_time(t, prop_i);
         Ok(())
     }
@@ -193,7 +209,7 @@ pub trait InternalAdditionOps: CoreGraphOps {
         dst: VID,
         props: &[(usize, Prop)],
         layer: usize,
-    ) -> Result<MaybeNew<EID>, MutationError> {
+    ) -> Result<MaybeNew<EID>, Self::Error> {
         let graph = self.core_graph().mutable()?;
         let edge = graph.link_nodes(src, dst, t, layer, false);
         edge.try_map(|mut edge| {
@@ -204,7 +220,9 @@ pub trait InternalAdditionOps: CoreGraphOps {
                 let edge_layer = edge.layer_mut(layer);
                 for (prop_id, prop) in props {
                     let prop = graph.process_prop_value(prop);
-                    edge_layer.add_prop(t, *prop_id, prop)?;
+                    edge_layer
+                        .add_prop(t, *prop_id, prop)
+                        .map_err(MutationError::from)?;
                 }
             }
             Ok(eid)
@@ -218,7 +236,7 @@ pub trait InternalAdditionOps: CoreGraphOps {
         edge: EID,
         props: &[(usize, Prop)],
         layer: usize,
-    ) -> Result<(), MutationError> {
+    ) -> Result<(), Self::Error> {
         let graph = self.core_graph().mutable()?;
         let mut edge = graph.link_edge(edge, t, layer, false);
         let mut edge = edge.as_mut();
@@ -227,11 +245,151 @@ pub trait InternalAdditionOps: CoreGraphOps {
             let edge_layer = edge.layer_mut(layer);
             for (prop_id, prop) in props {
                 let prop = graph.process_prop_value(prop);
-                edge_layer.add_prop(t, *prop_id, prop)?
+                edge_layer
+                    .add_prop(t, *prop_id, prop)
+                    .map_err(MutationError::from)?
             }
         }
         Ok(())
     }
 }
 
-impl InternalAdditionOps for GraphStorage {}
+impl InternalAdditionOps for GraphStorage {
+    type Error = MutationError;
+}
+
+pub trait InheritAdditionOps: Base + CoreGraphOps {}
+
+impl<G: InheritAdditionOps> InternalAdditionOps for G
+where
+    G::Base: InternalAdditionOps,
+{
+    type Error = <G::Base as InternalAdditionOps>::Error;
+
+    #[inline]
+    fn id_type(&self) -> Option<GidType> {
+        self.base().id_type()
+    }
+
+    #[inline]
+    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+        self.base().write_lock()
+    }
+
+    #[inline]
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+        self.base().write_lock_nodes()
+    }
+
+    #[inline]
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+        self.base().write_lock_edges()
+    }
+
+    #[inline]
+    fn num_shards(&self) -> usize {
+        self.base().num_shards()
+    }
+
+    #[inline]
+    fn next_event_id(&self) -> Result<usize, Self::Error> {
+        self.base().next_event_id()
+    }
+
+    #[inline]
+    fn read_event_id(&self) -> usize {
+        self.base().read_event_id()
+    }
+
+    #[inline]
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
+        self.base().reserve_event_ids(num_ids)
+    }
+
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        self.base().resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, Self::Error> {
+        self.base().resolve_node(id)
+    }
+
+    #[inline]
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
+        self.base().set_node(gid, vid)
+    }
+
+    #[inline]
+    fn resolve_node_and_type<V: AsNodeRef>(
+        &self,
+        id: V,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        self.base().resolve_node_and_type(id, node_type)
+    }
+
+    #[inline]
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, Self::Error> {
+        self.base().resolve_graph_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn resolve_node_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, Self::Error> {
+        self.base().resolve_node_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, Self::Error> {
+        self.base().resolve_edge_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.base().internal_add_node(t, v, props)
+    }
+
+    #[inline]
+    fn internal_add_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: &[(usize, Prop)],
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, Self::Error> {
+        self.base().internal_add_edge(t, src, dst, props, layer)
+    }
+
+    #[inline]
+    fn internal_add_edge_update(
+        &self,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: &[(usize, Prop)],
+        layer: usize,
+    ) -> Result<(), Self::Error> {
+        self.base().internal_add_edge_update(t, edge, props, layer)
+    }
+}

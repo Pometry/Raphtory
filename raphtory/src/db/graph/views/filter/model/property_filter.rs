@@ -1,22 +1,28 @@
 use crate::{
-    core::{sort_comparable_props, utils::errors::GraphError, Prop},
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            },
             view::{node::NodeViewOps, EdgeViewOps},
         },
         graph::{
             edge::EdgeView, node::NodeView, views::filter::model::filter_operator::FilterOperator,
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::meta::Meta, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::{
+        meta::Meta,
+        prop::{sort_comparable_props, Prop},
+    },
+    storage::arc_str::ArcStr,
+};
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+};
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

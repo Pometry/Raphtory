@@ -3,7 +3,6 @@ use crate::{
     db::{
         api::{
             state::{Index, LazyNodeState, NodeOp},
-            storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{FilterOps, NodeList, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
@@ -14,8 +13,10 @@ use crate::{
     },
     prelude::*,
 };
-use either::Either;
-use raphtory_storage::core_ops::is_view_compatible;
+use raphtory_storage::{
+    core_ops::is_view_compatible,
+    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
+};
 use rayon::iter::ParallelIterator;
 use std::{
     collections::HashSet,
@@ -159,21 +160,24 @@ where
         }
     }
 
+    pub fn node_list(&self) -> NodeList {
+        match self.nodes.clone() {
+            None => self.graph.node_list(),
+            Some(elems) => NodeList::List { elems },
+        }
+    }
+
     pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
         let g = self.graph.core_graph().lock();
+        let view = self.graph.clone();
         let node_types_filter = self.node_types_filter.clone();
-        match self.nodes.clone() {
-            None => Either::Left(g.into_nodes_par(
-                self.graph.clone(),
-                self.graph.node_list(),
-                node_types_filter,
-            )),
-            Some(elems) => Either::Right(g.into_nodes_par(
-                self.graph.clone(),
-                NodeList::List { elems },
-                node_types_filter,
-            )),
-        }
+        self.node_list().into_par_iter().filter(move |&vid| {
+            let node = g.core_node(vid);
+            node_types_filter
+                .as_ref()
+                .map_or(true, |type_filter| type_filter[node.node_type_id()])
+                && view.filter_node(node.as_ref())
+        })
     }
 
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH> {
@@ -189,18 +193,14 @@ where
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        match self.nodes.clone() {
-            None => g.into_nodes_iter(
-                self.graph.clone(),
-                self.graph.node_list(),
-                node_types_filter,
-            ),
-            Some(elems) => g.into_nodes_iter(
-                self.graph.clone(),
-                NodeList::List { elems },
-                node_types_filter,
-            ),
-        }
+        let view = self.graph.clone();
+        self.node_list().into_iter().filter(move |&vid| {
+            let node = g.core_node(vid);
+            node_types_filter
+                .as_ref()
+                .map_or(true, |type_filter| type_filter[node.node_type_id()])
+                && view.filter_node(node.as_ref())
+        })
     }
 
     pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {

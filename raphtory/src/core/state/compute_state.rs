@@ -2,7 +2,7 @@ use super::{
     container::{merge_2_vecs, DynArray, VecArray},
     StateType,
 };
-use crate::core::state::agg::Accumulator;
+use crate::{core::state::agg::Accumulator, db::api::view::StaticGraphViewOps};
 use std::collections::HashMap;
 
 pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {

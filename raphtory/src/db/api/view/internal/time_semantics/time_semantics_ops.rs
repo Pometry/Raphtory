@@ -1,11 +1,9 @@
-use crate::{
-    core::Prop,
-    db::api::{
-        storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::internal::GraphView,
-    },
+use crate::db::api::view::internal::GraphView;
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, LayerIds},
+    storage::timeindex::TimeIndexEntry,
 };
-use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
+use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
 use std::ops::Range;
 
 pub trait NodeTimeSemanticsOps {
