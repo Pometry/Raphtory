@@ -222,7 +222,7 @@ impl<'a> From<GidRef<'a>> for GID {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum GidRef<'a> {
     U64(u64),
     Str(&'a str),

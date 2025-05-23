@@ -1,9 +1,12 @@
 use crate::{
     arrow2::types::{NativeType, Offset},
+    core::PropUnwrap,
     db::api::storage::graph::tprop_storage_ops::TPropOps,
     prelude::Prop,
 };
+use arrow_ipc::Date;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
+use chrono::DateTime;
 use either::Either;
 use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{
@@ -11,8 +14,8 @@ use pometry_storage::{
         bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol,
         utf8_view_col::StringViewCol,
     },
-    prelude::{ArrayOps, Chunked},
-    tprops::{DiskTProp, EmptyTProp, TPropColumn},
+    prelude::{ArrayOps, BaseArrayOps, Chunked},
+    tprops::{DTTPropColumn, DiskTProp, EmptyTProp, TPropColumn},
 };
 use raphtory_api::{core::storage::timeindex::TimeIndexEntry, iter::IntoDynBoxed};
 use std::{iter, ops::Range};
@@ -172,6 +175,45 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     }
 }
 
+fn as_d_type_prop(v: Prop, zone: Option<&str>) -> Prop {
+    let v = v.into_i64().unwrap();
+    match zone {
+        Some(_) => Prop::DTime(DateTime::from_timestamp_millis(v).unwrap()),
+        None => Prop::NDTime(DateTime::from_timestamp_millis(v).unwrap().naive_utc()),
+    }
+}
+
+impl<'a> TPropOps<'a> for DTTPropColumn<'a, ChunkedPrimitiveCol<'a, i64>, TimeIndexEntry> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+        self.col()
+            .last_before(t)
+            .map(|(t, v)| (t, as_d_type_prop(v, self.zone())))
+    }
+
+    fn iter_inner(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        let DTTPropColumn { col, zone } = self;
+        let iter = col.iter_inner(range);
+        iter.map(move |(t, v)| (t, as_d_type_prop(v, zone)))
+    }
+
+    fn iter_inner_rev(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        let DTTPropColumn { col, zone } = self;
+        let iter = col.iter_inner_rev(range);
+        iter.map(move |(t, v)| (t, as_d_type_prop(v, zone)))
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        let DTTPropColumn { col, zone } = self;
+        col.at(ti).map(|v| as_d_type_prop(v, zone))
+    }
+}
+
 impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndexEntry> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         self.iter_window_inner(TimeIndexEntry::MIN..t)
@@ -285,13 +327,15 @@ macro_rules! for_all {
             DiskTProp::Str($pattern) => $result,
             DiskTProp::I32($pattern) => $result,
             DiskTProp::I64($pattern) => $result,
-            DiskTProp::I128($pattern) => $result,
+            DiskTProp::Decimal($pattern) => $result,
             DiskTProp::U8($pattern) => $result,
             DiskTProp::U16($pattern) => $result,
             DiskTProp::U32($pattern) => $result,
             DiskTProp::U64($pattern) => $result,
             DiskTProp::F32($pattern) => $result,
             DiskTProp::F64($pattern) => $result,
+            DiskTProp::DateTime($pattern) => $result,
+            DiskTProp::NDateTime($pattern) => $result,
         }
     };
 }

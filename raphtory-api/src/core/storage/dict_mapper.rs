@@ -72,6 +72,11 @@ impl<Index> MaybeNew<Index> {
             MaybeNew::Existing(_) => None,
         }
     }
+
+    #[inline]
+    pub fn is_new(&self) -> bool {
+        matches!(self, MaybeNew::New(_))
+    }
 }
 
 impl<Index> Borrow<Index> for MaybeNew<Index> {

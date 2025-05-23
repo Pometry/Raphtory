@@ -116,6 +116,7 @@ use polars_arrow::datatypes::ArrowDataType;
 #[cfg(feature = "storage")]
 fn get<'a>(disk_col: &DiskTProp<'a, TimeIndexEntry>, row: usize) -> Option<Prop> {
     use bigdecimal::BigDecimal;
+    use chrono::DateTime;
     use num_traits::FromPrimitive;
 
     match disk_col {
@@ -132,7 +133,16 @@ fn get<'a>(disk_col: &DiskTProp<'a, TimeIndexEntry>, row: usize) -> Option<Prop>
         DiskTProp::U64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::F32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
         DiskTProp::F64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::I128(tprop_column) => {
+        DiskTProp::DateTime(tprop_column) => tprop_column
+            .col()
+            .get(row)
+            .and_then(|p| Some(Prop::DTime(DateTime::from_timestamp_millis(p)?))),
+        DiskTProp::NDateTime(tprop_column) => tprop_column.col().get(row).and_then(|p| {
+            Some(Prop::NDTime(
+                DateTime::from_timestamp_millis(p)?.naive_utc(),
+            ))
+        }),
+        DiskTProp::Decimal(tprop_column) => {
             let d_type = tprop_column.data_type()?;
             match d_type {
                 ArrowDataType::Decimal(_, scale) => tprop_column.get(row).map(|p| {
