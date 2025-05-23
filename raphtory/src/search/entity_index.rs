@@ -166,6 +166,10 @@ impl EntityIndex {
             if prop_id >= &prop_index_guard.len() {
                 prop_index_guard.resize(prop_id + 1, None);
             }
+            // Resize the writers if needed
+            if *prop_id >= writers.len() {
+                writers.resize_with(*prop_id + 1, || None);
+            }
 
             // Create a new PropertyIndex if it doesn't exist
             if prop_index_guard[*prop_id].is_none() {
@@ -177,7 +181,7 @@ impl EntityIndex {
                 let property_index = new_property(schema, &prop_index_path)?;
                 let writer = property_index.index.writer(50_000_000)?;
 
-                writers.push(Some(writer));
+                writers[*prop_id] = Some(writer);
                 prop_index_guard[*prop_id] = Some(property_index);
             }
         }

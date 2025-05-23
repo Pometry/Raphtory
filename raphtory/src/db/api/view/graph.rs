@@ -145,6 +145,8 @@ pub trait SearchableGraphOps: Sized {
 
     fn create_index_in_ram(&self) -> Result<(), GraphError>;
 
+    fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
+
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
 
     fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
@@ -630,6 +632,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 }
 
+#[derive(Debug)]
 pub struct IndexSpec {
     pub(crate) node_const_props: Vec<(String, usize, PropType)>,
     pub(crate) node_temp_props: Vec<(String, usize, PropType)>,
@@ -680,9 +683,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
-    pub fn with_const_node_props(
+    pub fn with_const_node_props<S: Into<ArcStr>>(
         mut self,
-        props: impl IntoIterator<Item = ArcStr>,
+        props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
         self.node_const_props = Some(Self::extract_named_props(
             self.graph.node_meta().const_prop_meta(),
@@ -691,9 +694,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
-    pub fn with_temp_node_props(
+    pub fn with_temp_node_props<S: Into<ArcStr>>(
         mut self,
-        props: impl IntoIterator<Item = ArcStr>,
+        props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
         self.node_temp_props = Some(Self::extract_named_props(
             self.graph.node_meta().temporal_prop_meta(),
@@ -726,9 +729,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
-    pub fn with_const_edge_props(
+    pub fn with_const_edge_props<S: Into<ArcStr>>(
         mut self,
-        props: impl IntoIterator<Item = ArcStr>,
+        props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
         self.edge_const_props = Some(Self::extract_named_props(
             self.graph.edge_meta().const_prop_meta(),
@@ -737,9 +740,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
-    pub fn with_temp_edge_props(
+    pub fn with_temp_edge_props<S: Into<ArcStr>>(
         mut self,
-        props: impl IntoIterator<Item = ArcStr>,
+        props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
         self.edge_temp_props = Some(Self::extract_named_props(
             self.graph.edge_meta().temporal_prop_meta(),
@@ -758,12 +761,13 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
             .collect()
     }
 
-    fn extract_named_props(
+    fn extract_named_props<S: Into<ArcStr>>(
         meta: &PropMapper,
-        keys: impl IntoIterator<Item = ArcStr>,
+        keys: impl IntoIterator<Item = S>,
     ) -> Result<Vec<(String, usize, PropType)>, GraphError> {
         keys.into_iter()
             .map(|k| {
+                let k: ArcStr = k.into();
                 let key = k.to_string();
                 let id = meta
                     .get_id(&*k)
@@ -776,7 +780,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
             .collect()
     }
 
-    fn build(&self) -> IndexSpec {
+    pub fn build(&self) -> IndexSpec {
         IndexSpec {
             node_const_props: match &self.node_const_props {
                 Some(props) => props.clone(),
@@ -825,6 +829,14 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
             .with_all_node_props()
             .with_all_edge_props()
             .build();
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index_in_ram(index_spec)?;
+                Ok(())
+            })
+    }
+
+    fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.get_or_create_index_in_ram(index_spec)?;
