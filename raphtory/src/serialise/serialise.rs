@@ -1485,11 +1485,16 @@ mod proto_test {
                     mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                     view::{internal::InternalStorageOps, StaticGraphViewOps},
                 },
-                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+                graph::{
+                    assertions::{
+                        assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                    },
+                    views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+                },
             },
             prelude::{
                 AdditionOps, CacheOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                SearchableGraphOps, StableDecode, StableEncode,
+                PropertyFilter, SearchableGraphOps, StableDecode, StableEncode,
             },
             serialise::GraphFolder,
         };

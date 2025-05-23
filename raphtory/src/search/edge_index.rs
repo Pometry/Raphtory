@@ -8,7 +8,7 @@ use crate::{
         api::{
             properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
-            view::internal::core_ops::CoreGraphOps,
+            view::{internal::core_ops::CoreGraphOps, IndexSpec},
         },
         graph::edge::EdgeView,
     },
@@ -310,37 +310,30 @@ impl EdgeIndex {
     pub(crate) fn index_edges(
         graph: &GraphStorage,
         path: Option<&Path>,
+        index_spec: &IndexSpec,
     ) -> Result<EdgeIndex, GraphError> {
         let edge_index_path = path.as_deref().map(|p| p.join("edges"));
         let edge_index = EdgeIndex::new(&edge_index_path)?;
 
         // Initialize property indexes and get their writers
-        let const_property_keys = graph.edge_meta().const_prop_meta().get_keys().into_iter();
         let const_properties_index_path = edge_index_path
             .as_deref()
             .map(|p| p.join("const_properties"));
         let mut const_writers = edge_index
             .entity_index
             .initialize_edge_const_property_indexes(
-                graph,
-                const_property_keys,
                 &const_properties_index_path,
+                &index_spec.edge_const_props,
             )?;
 
-        let temporal_property_keys = graph
-            .edge_meta()
-            .temporal_prop_meta()
-            .get_keys()
-            .into_iter();
         let temporal_properties_index_path = edge_index_path
             .as_deref()
             .map(|p| p.join("temporal_properties"));
         let mut temporal_writers = edge_index
             .entity_index
             .initialize_edge_temporal_property_indexes(
-                graph,
-                temporal_property_keys,
                 &temporal_properties_index_path,
+                &index_spec.edge_temp_props,
             )?;
 
         let mut writer = edge_index.entity_index.index.writer(100_000_000)?;

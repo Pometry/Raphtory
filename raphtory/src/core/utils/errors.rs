@@ -385,6 +385,9 @@ pub enum GraphError {
 
     #[error("Failed to create index in ram")]
     FailedToCreateIndexInRam,
+
+    #[error("Unknown property key: {0}")]
+    UnknownProperty(String),
 }
 
 impl GraphError {
