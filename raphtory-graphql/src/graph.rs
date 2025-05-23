@@ -25,9 +25,7 @@ use raphtory::{
     },
     prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
     serialise::GraphFolder,
-    vectors::{
-        cache::VectorCache, embeddings::EmbeddingFunction, vectorised_graph::VectorisedGraph,
-    },
+    vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
 
 #[derive(Clone)]

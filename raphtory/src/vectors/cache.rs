@@ -194,7 +194,7 @@ impl VectorCache {
         Ok(embeddings)
     }
 
-    pub(crate) async fn get_single(&self, text: String) -> GraphResult<Embedding> {
+    pub async fn get_single(&self, text: String) -> GraphResult<Embedding> {
         let mut embeddings = self.get_embeddings(vec![text]).await?;
         Ok(embeddings.next().unwrap())
     }

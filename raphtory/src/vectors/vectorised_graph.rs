@@ -16,8 +16,8 @@ pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
     pub(crate) cache: VectorCache,
-    pub(crate) node_db: NodeDb,
-    pub(crate) edge_db: EdgeDb,
+    pub(super) node_db: NodeDb,
+    pub(super) edge_db: EdgeDb,
 }
 
 // This has to be here so it is shared between python and graphql // UPDATE: we are dropping support for python plugins, so might not be necessary anymore

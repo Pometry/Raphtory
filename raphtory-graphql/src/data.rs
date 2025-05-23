@@ -127,19 +127,6 @@ impl Data {
         Ok(())
     }
 
-    // pub async fn embed_query(&self, query: String) -> GraphResult<Embedding> {
-    //     let embedding_function = self
-    //         .embedding_conf
-    //         .as_ref()
-    //         .map(|conf| conf.function.clone());
-    //     let embedding = if let Some(embedding_function) = embedding_function {
-    //         embedding_function.call(vec![query]).await?.remove(0)
-    //     } else {
-    //         openai_embedding(vec![query]).await?.remove(0)
-    //     };
-    //     Ok(embedding)
-    // }
-
     fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
         let conf = self.embedding_conf.as_ref()?;
         conf.individual_templates

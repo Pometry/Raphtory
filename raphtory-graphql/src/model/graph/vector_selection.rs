@@ -1,9 +1,19 @@
+use crate::embeddings::EmbedQuery;
 use crate::model::algorithms::document::GqlDocument;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use async_graphql::Context;
+use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
+use raphtory::core::utils::errors::GraphResult;
 use raphtory::{db::api::view::MaterializedGraph, vectors::vector_selection::VectorSelection};
 
 use super::edge::Edge;
 use super::node::Node;
+use super::vectorised_graph::{IntoWindowTuple, Window};
+
+#[derive(InputObject)]
+pub(super) struct InputEdge {
+    src: String,
+    dst: String,
+}
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlVectorSelection(VectorSelection<MaterializedGraph>);
@@ -43,35 +53,60 @@ impl GqlVectorSelection {
         })
     }
 
-    // TODO: make this possible
-    // async fn add_edges(&self, edges: Vec<String>) -> Self {
-    //     self.apply_and_return(|selection| {
-    //         selection.add_edges(edges);
-    //     })
-    // }
-
-    async fn expand(&self, hops: usize) -> Self {
+    async fn add_edges(&self, edges: Vec<InputEdge>) -> Self {
+        let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
         self.apply_and_return(|selection| {
-            selection.expand(hops, None);
+            selection.add_edges(edges);
         })
     }
 
-    async fn expand_entities_by_similarity(&self, query: Vec<f32>, limit: usize) -> Self {
+    async fn expand(&self, hops: usize, window: Option<Window>) -> Self {
+        let window = window.into_window_tuple();
         self.apply_and_return(|selection| {
-            selection.expand_entities_by_similarity(&query.into(), limit, None)
+            selection.expand(hops, window);
         })
     }
 
-    async fn expand_nodes_by_similarity(&self, query: Vec<f32>, limit: usize) -> Self {
-        self.apply_and_return(|selection| {
-            selection.expand_nodes_by_similarity(&query.into(), limit, None)
-        })
+    async fn expand_entities_by_similarity(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        limit: usize,
+        window: Option<Window>,
+    ) -> GraphResult<Self> {
+        let vector = ctx.embed_query(query).await?;
+        let window = window.into_window_tuple();
+        Ok(self.apply_and_return(|selection| {
+            selection.expand_entities_by_similarity(&vector, limit, window)
+        }))
     }
 
-    async fn expand_edges_by_similarity(&self, query: Vec<f32>, limit: usize) -> Self {
-        self.apply_and_return(|selection| {
-            selection.expand_edges_by_similarity(&query.into(), limit, None)
-        })
+    async fn expand_nodes_by_similarity(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        limit: usize,
+        window: Option<Window>,
+    ) -> GraphResult<Self> {
+        let vector = ctx.embed_query(query).await?;
+        let window = window.into_window_tuple();
+        Ok(self.apply_and_return(|selection| {
+            selection.expand_nodes_by_similarity(&vector, limit, window)
+        }))
+    }
+
+    async fn expand_edges_by_similarity(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        limit: usize,
+        window: Option<Window>,
+    ) -> GraphResult<Self> {
+        let vector = ctx.embed_query(query).await?;
+        let window = window.into_window_tuple();
+        Ok(self.apply_and_return(|selection| {
+            selection.expand_edges_by_similarity(&vector, limit, window)
+        }))
     }
 }
 
