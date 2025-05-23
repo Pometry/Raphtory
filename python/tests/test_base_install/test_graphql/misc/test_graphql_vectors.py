@@ -22,7 +22,7 @@ def setup_graph(g):
 def assert_correct_documents(client):
     query = """{
     vectorisedGraph(path: "abb") {
-        entitiesBySimilarity(query: [1.0 1.0], limit: 1) {
+        entitiesBySimilarity(query: "aab", limit: 1) {
             getDocuments {
                 content
                 embedding
@@ -99,8 +99,7 @@ def test_upload_graph():
 
 
 def test_include_graph():
-    work_dir = tempfile.mkdtemp() # TODO: re-enable this
-    # work_dir = "/tmp/include-graph"
+    work_dir = tempfile.mkdtemp()
     g_path = work_dir + "/abb"
     g = Graph()
     setup_graph(g)

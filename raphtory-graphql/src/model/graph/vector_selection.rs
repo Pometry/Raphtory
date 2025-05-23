@@ -1,10 +1,10 @@
 use crate::embeddings::EmbedQuery;
-use crate::model::algorithms::document::GqlDocument;
 use async_graphql::Context;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::core::utils::errors::GraphResult;
 use raphtory::{db::api::view::MaterializedGraph, vectors::vector_selection::VectorSelection};
 
+use super::document::GqlDocument;
 use super::edge::Edge;
 use super::node::Node;
 use super::vectorised_graph::{IntoWindowTuple, Window};

@@ -201,22 +201,6 @@ impl Data {
             .collect()
     }
 
-    pub(crate) fn get_global_plugins(&self) -> QueryPlugin {
-        let graphs = self
-            .get_all_graph_folders()
-            .into_iter()
-            .filter_map(|folder| {
-                Some((
-                    folder.get_original_path_str().to_owned(),
-                    self.read_graph_from_folder(&folder).ok()?.vectors?,
-                ))
-            })
-            .collect::<HashMap<_, _>>();
-        QueryPlugin {
-            graphs: graphs.into(),
-        }
-    }
-
     fn read_graph_from_folder(
         &self,
         folder: &ExistingGraphFolder,

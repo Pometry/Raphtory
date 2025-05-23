@@ -32,7 +32,6 @@ use std::{
 };
 use zip::ZipArchive;
 
-pub mod algorithms;
 pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
@@ -134,8 +133,7 @@ impl QueryRoot {
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
-        let data = ctx.data_unchecked::<Data>();
-        data.get_global_plugins()
+        QueryPlugin::default()
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {

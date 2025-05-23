@@ -1,50 +1,8 @@
-use std::{
-    hash::{DefaultHasher, Hash, Hasher},
-    time::SystemTime,
+use std::time::SystemTime;
+
+use raphtory_benchmark::common::vectors::{
+    create_graph_for_vector_bench, vectorise_graph_for_bench,
 };
-
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use raphtory::{
-    prelude::{AdditionOps, Graph, NO_PROPS},
-    vectors::{
-        cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate,
-        vectorisable::Vectorisable, Embedding,
-    },
-};
-use tokio::runtime::Runtime;
-
-fn gen_embedding(text: &str) -> Embedding {
-    let mut hasher = DefaultHasher::new();
-    text.hash(&mut hasher);
-    let hash = hasher.finish();
-
-    let mut rng: StdRng = SeedableRng::seed_from_u64(hash);
-    (0..1024).map(|_| rng.gen()).collect()
-}
-
-async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-    Ok(texts.iter().map(|text| gen_embedding(text)).collect())
-}
-
-fn create_graph(size: usize) -> Graph {
-    let graph = Graph::new();
-    for id in 0..size {
-        graph.add_node(0, id as u64, NO_PROPS, None).unwrap();
-    }
-    graph
-}
-
-fn vectorise_graph(graph: Graph) {
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-        let cache = VectorCache::in_memory(embedding_model).await;
-        let template = DocumentTemplate {
-            node_template: Some("{{name}}".to_owned()),
-            edge_template: None,
-        };
-        graph.vectorise(cache, template, None, true).await.unwrap()
-    });
-}
 
 fn print_time(start: SystemTime, message: &str) {
     let duration = SystemTime::now().duration_since(start).unwrap().as_secs();
@@ -53,9 +11,9 @@ fn print_time(start: SystemTime, message: &str) {
 
 fn main() {
     for size in [1_000_000] {
-        let graph = create_graph(size);
+        let graph = create_graph_for_vector_bench(size);
         let start = SystemTime::now();
-        vectorise_graph(graph);
+        vectorise_graph_for_bench(graph);
         print_time(start, &format!(">>> vectorise {}k", size / 1000));
     }
 }

@@ -78,8 +78,6 @@ required-features = ["search"]
 [[bench]]
 name = "vectors"
 harness = false
-# required-features = ["vectors"]
 
 [features]
 search = ["raphtory/search"]
-vectors = ["raphtory/vectors"]

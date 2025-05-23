@@ -1,3 +1,4 @@
+mod document;
 pub(crate) mod edge;
 mod edges;
 pub(crate) mod filtering;

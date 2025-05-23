@@ -141,9 +141,7 @@ vectors = [
     "dep:minijinja-contrib",
     "dep:arroy",
     "dep:heed",
-    "dep:async-stream",
     "dep:sysinfo",
-    "dep:foyer",
     "dep:moka",
     "dep:tempfile",          # also used for the storage feature
 ]
