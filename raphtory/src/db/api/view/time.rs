@@ -304,12 +304,12 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
     ) -> Result<Self, ParseTimeError> {
         match step.size {
             IntervalSize::Discrete(v) => {
-                if (v == 0) {
+                if v == 0 {
                     return Err(ZeroSizeStep);
                 }
             }
             IntervalSize::Temporal { millis, months } => {
-                if (millis == 0 && months == 0) {
+                if millis == 0 && months == 0 {
                     return Err(ZeroSizeStep);
                 }
             }

@@ -31,8 +31,8 @@ WRITE_HEADERS = {
 
 NEW_TEST_GRAPH = """mutation { newGraph(path:"test", graphType:EVENT) }"""
 
-QUERY_NAMESPACES = """query { namespaces { path } }"""
-QUERY_ROOT = """query { root { graphs { path } } }"""
+QUERY_NAMESPACES = """query { namespaces { list{ path} } }"""
+QUERY_ROOT = """query { root { graphs { list{ path }} } }"""
 QUERY_GRAPH = """query { graph(path: "test") { path } }"""
 TEST_QUERIES = [QUERY_NAMESPACES, QUERY_GRAPH, QUERY_ROOT]
 
