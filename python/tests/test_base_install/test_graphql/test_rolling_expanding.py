@@ -216,20 +216,13 @@ def test_graph_epoch():
     correct = {
         "graph": {
             "rolling": {
-                "list": [
-                    {
-                        "start": 2,
-                        "end": 5,
-                        "earliestTime": 2,
-                        "latestTime": 4
-                    }
-                ]
+                "list": [{"start": 2, "end": 5, "earliestTime": 2, "latestTime": 4}]
             }
         }
     }
     run_graphql_test(query, correct, graph)
 
-#testing if a very large step returns nothing
+    # testing if a very large step returns nothing
     query = """
     {
   graph(path: "g") {
@@ -244,15 +237,35 @@ def test_graph_epoch():
   }
 }
     """
-    correct = {
-        "graph": {
-            "rolling": {
-                "list": []
-            }
-        }
-    }
+    correct = {"graph": {"rolling": {"list": []}}}
     run_graphql_test(query, correct, graph)
 
+    query = """
+    {
+      graph(path: "g") {
+        rolling(window: {epoch: 1}, step: {epoch:1}) {
+          count 
+        }
+      }
+    }
+        """
+    correct = {"graph": {"rolling": {"count": 5}}}
+    run_graphql_test(query, correct, graph)
+
+    query = """
+    {
+  graph(path: "g") {
+    rolling(window: {epoch: 1}, step: {epoch: 1}) {
+      page(limit: 2, offset: 2) {
+        earliestTime
+        latestTime
+      }
+    }
+  }
+}
+        """
+    correct = {"graph": {"rolling": {"page": [{"earliestTime": 5, "latestTime": 5}]}}}
+    run_graphql_test(query, correct, graph)
 
 
 def test_zero_step():
