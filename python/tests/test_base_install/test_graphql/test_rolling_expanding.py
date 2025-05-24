@@ -17,17 +17,26 @@ def create_graph_epoch(g):
     g.add_edge(2, 1, 3)
     g.add_edge(3, 1, 3)
     g.add_edge(4, 1, 3)
+    g.add_edge(5, 6, 7)
 
 
+def test_start():
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(1736) as server:
+        graph = Graph()
+        create_graph_epoch(graph)
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+        time.sleep(5000)
+
+
+# query = """
 #
-# def test_start():
-#     tmp_work_dir = tempfile.mkdtemp()
-#     with GraphServer(tmp_work_dir).start(1736) as server:
-#         graph = Graph()
-#         create_graph_epoch(graph)
-#         client = server.get_client()
-#         client.send_graph(path="g", graph=graph)
-#         time.sleep(500000)
+#     """
+#     correct = {
+#
+#     }
+#     run_graphql_test(query, correct, graph)
 
 
 def test_graph_epoch():
@@ -39,6 +48,7 @@ def test_graph_epoch():
         rolling(window: {epoch: 1}) {
           list {
             earliestTime
+            latestTime
           }
         }
       }
@@ -48,15 +58,201 @@ def test_graph_epoch():
         "graph": {
             "rolling": {
                 "list": [
-                    {"earliestTime": 1},
-                    {"earliestTime": 2},
-                    {"earliestTime": 3},
-                    {"earliestTime": 4},
+                    {"earliestTime": 1, "latestTime": 1},
+                    {"earliestTime": 2, "latestTime": 2},
+                    {"earliestTime": 3, "latestTime": 3},
+                    {"earliestTime": 4, "latestTime": 4},
+                    {"earliestTime": 5, "latestTime": 5},
                 ]
             }
         }
     }
     run_graphql_test(query, correct, graph)
+
+    query = """
+    {
+      graph(path: "g") {
+        rolling(window: {epoch: 1},step:{epoch:2}) {
+          list {
+            earliestTime
+            latestTime
+          }
+        }
+      }
+    }
+    """
+    correct = {
+        "graph": {
+            "rolling": {
+                "list": [
+                    {"earliestTime": 2, "latestTime": 2},
+                    {"earliestTime": 4, "latestTime": 4},
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+    query = """
+    {
+  graph(path: "g") {
+    window(start: 2, end: 5) {
+      rolling(window: {epoch: 2}, step: {epoch: 1}) {
+        list {
+          start
+          end
+        }
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "window": {
+                "rolling": {
+                    "list": [
+                        {"start": 2, "end": 3},
+                        {"start": 2, "end": 4},
+                        {"start": 3, "end": 5},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+    query = """
+   {
+  graph(path: "g") {
+    window(start: 2, end: 7) {
+      expanding(step: {epoch: 3}) {
+        list {
+          end
+          nodes {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "window": {
+                "expanding": {
+                    "list": [
+                        {
+                            "end": 5,
+                            "nodes": {
+                                "list": [{"name": "1"}, {"name": "2"}, {"name": "3"}]
+                            },
+                        },
+                        {
+                            "end": 7,
+                            "nodes": {
+                                "list": [
+                                    {"name": "1"},
+                                    {"name": "2"},
+                                    {"name": "3"},
+                                    {"name": "6"},
+                                    {"name": "7"},
+                                ]
+                            },
+                        },
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+    query = """
+       {
+      graph(path: "g") {
+        window(start: 2, end: 5) {
+          expanding(step: {epoch: 1}) {
+            list {
+              start
+              end
+            }
+          }
+        }
+      }
+    }
+    """
+    correct = {
+        "graph": {
+            "window": {
+                "expanding": {
+                    "list": [
+                        {"start": 2, "end": 3},
+                        {"start": 2, "end": 4},
+                        {"start": 2, "end": 5},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+    query = """
+    {
+  graph(path: "g") {
+    rolling(window: {epoch: 3}, step: {epoch: 4}) {
+      list {
+        start
+        end
+        earliestTime
+        latestTime
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "rolling": {
+                "list": [
+                    {
+                        "start": 2,
+                        "end": 5,
+                        "earliestTime": 2,
+                        "latestTime": 4
+                    }
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+#testing if a very large step returns nothing
+    query = """
+    {
+  graph(path: "g") {
+    rolling(window: {epoch: 3}, step: {epoch:1000}) {
+      list {
+        start
+        end
+        earliestTime
+        latestTime
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "rolling": {
+                "list": []
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
 
 
 def test_zero_step():

@@ -373,7 +373,16 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.end + self.step {
             let window_end = self.cursor;
+
             let window_start = self.window.map(|w| window_end - w);
+            if let Some(start) = window_start { 
+                //this is required because if we have steps > window size you can end up overstepping 
+                // the end by so much in the final window that there is no data inside
+                if start >= self.end {
+                    // this is >= because the end passed through is already +1 
+                    return None;
+                }
+            }
             let window = self.view.internal_window(window_start, Some(window_end));
             self.cursor = self.cursor + self.step;
             Some(window)
