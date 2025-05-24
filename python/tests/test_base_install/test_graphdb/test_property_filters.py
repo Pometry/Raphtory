@@ -2,6 +2,7 @@ from raphtory import Graph, PersistentGraph, Prop
 from raphtory import filter
 import pytest
 
+
 def build_graph():
     graph = Graph()
 
@@ -64,20 +65,21 @@ def test_property_filter_edges():
 
     test_cases = [
         (filter.Property("test_str") == "first", [(1, 2)]),
-        (filter.Property("test_str") != "first", [(2, 3)]),  # currently excludes edges without the property
+        (
+            filter.Property("test_str") != "first",
+            [(2, 3)],
+        ),  # currently excludes edges without the property
         (filter.Property("test_str").is_some(), [(1, 2), (2, 3)]),
         (filter.Property("test_str").is_none(), [(3, 4)]),
         (filter.Property("test_str") == "second", []),
         (filter.Property("test_str").is_in(["first", "fourth"]), [(1, 2)]),
         (filter.Property("test_str").is_not_in(["first"]), [(2, 3)]),
-
         (filter.Property("test_int") == 2, []),
         (filter.Property("test_int") != 1, [(1, 2), (3, 4)]),
         (filter.Property("test_int") > 2, [(3, 4)]),
         (filter.Property("test_int") >= 1, [(2, 3), (3, 4)]),
         (filter.Property("test_int") < 3, [(1, 2), (2, 3)]),
         (filter.Property("test_int") <= 1, [(1, 2), (2, 3)]),
-
         (filter.Property("test_bool") == True, [(2, 3)]),
     ]
 
@@ -87,7 +89,9 @@ def test_property_filter_edges():
     # edge case: temporal filtering before time 5
     filter_expr = filter.Property("test_str") == "second"
     expected_ids = [(2, 3)]
-    assert sorted(graph.before(5).filter_edges(filter_expr).edges.id) == sorted(expected_ids)
+    assert sorted(graph.before(5).filter_edges(filter_expr).edges.id) == sorted(
+        expected_ids
+    )
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
@@ -95,23 +99,26 @@ def test_filter_exploded_edges():
     graph = build_graph()
 
     test_cases = [
-       (Prop("test_str") == "first", [(1, 2)]),
-       (Prop("test_str") != "first", [(2, 3)]),  # currently excludes edges without the property
-       (Prop("test_str").is_some(), [(1, 2), (2, 3)]),
-       (Prop("test_str").is_none(), [(2, 3), (3, 4)]),
-       (Prop("test_str") == "second", [(2, 3)]),
-       (Prop("test_str").is_in({"first", "fourth"}), [(1, 2)]),
-       (Prop("test_str").is_not_in({"first"}), [(2, 3)]),
-
-       (Prop("test_int") == 2, [(3, 4)]),
-       (Prop("test_int") != 2, [(1, 2), (2, 3), (3, 4)]),
-       (Prop("test_int") > 2, [(3, 4)]),
-       (Prop("test_int") >= 2, [(3, 4)]),
-       (Prop("test_int") < 3, [(1, 2), (2, 3), (3, 4)]),
-       (Prop("test_int") <= 1, [(1, 2), (2, 3)]),
-
-       (Prop("test_bool") == True, [(2, 3)]),  # worth adding special support for this?
+        (Prop("test_str") == "first", [(1, 2)]),
+        (
+            Prop("test_str") != "first",
+            [(2, 3)],
+        ),  # currently excludes edges without the property
+        (Prop("test_str").is_some(), [(1, 2), (2, 3)]),
+        (Prop("test_str").is_none(), [(2, 3), (3, 4)]),
+        (Prop("test_str") == "second", [(2, 3)]),
+        (Prop("test_str").is_in({"first", "fourth"}), [(1, 2)]),
+        (Prop("test_str").is_not_in({"first"}), [(2, 3)]),
+        (Prop("test_int") == 2, [(3, 4)]),
+        (Prop("test_int") != 2, [(1, 2), (2, 3), (3, 4)]),
+        (Prop("test_int") > 2, [(3, 4)]),
+        (Prop("test_int") >= 2, [(3, 4)]),
+        (Prop("test_int") < 3, [(1, 2), (2, 3), (3, 4)]),
+        (Prop("test_int") <= 1, [(1, 2), (2, 3)]),
+        (Prop("test_bool") == True, [(2, 3)]),  # worth adding special support for this?
     ]
 
     for filter_expr, expected_ids in test_cases:
-       assert sorted(graph.filter_exploded_edges(filter_expr).edges.id) == sorted(expected_ids)
+        assert sorted(graph.filter_exploded_edges(filter_expr).edges.id) == sorted(
+            expected_ids
+        )

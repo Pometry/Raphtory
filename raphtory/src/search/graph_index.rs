@@ -130,6 +130,8 @@ impl GraphIndex {
 
     pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = TempDir::new_in(path)?;
+        let path = path.join("index");
+        let path = path.as_path();
         if path.is_file() {
             GraphIndex::unzip_index(path, tmp_path.path())?;
         } else {

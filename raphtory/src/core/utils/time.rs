@@ -28,6 +28,8 @@ pub mod error {
         ParseError(#[from] ParseError),
         #[error("negative interval is not supported")]
         NegativeInt,
+        #[error("0 size step is not supported")]
+        ZeroSizeStep,
         #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
         InvalidDateTimeString(String),
     }

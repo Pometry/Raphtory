@@ -1232,28 +1232,32 @@ mod graphql_test {
 
         let req = r#"
         {
-          namespace(path: "") {
-            path
-            graphs {
-              path
-              name
-              metadata {
-                nodeCount
-                edgeCount
-                properties {
-                  key
-                  value
-                }
-              }
-            }
-            children {
-              path
-            }
-            parent {
-              path
-            }
+  namespace(path: "") {
+    path
+    graphs {
+      list {
+        path
+        name
+        metadata {
+          nodeCount
+          edgeCount
+          properties {
+            key
+            value
           }
         }
+      }
+    }
+    children {
+      list {
+        path
+      }
+    }
+    parent {
+      path
+    }
+  }
+}
         "#;
 
         let req = Request::new(req);
@@ -1264,7 +1268,7 @@ mod graphql_test {
             json!({
                 "namespace": {
                     "path": "",
-                    "graphs": [
+                    "graphs": {"list":[
                         {
                             "path": "graph",
                             "name": "graph",
@@ -1279,8 +1283,8 @@ mod graphql_test {
                                 ]
                             }
                         },
-                    ],
-                    "children": [],
+                    ]},
+                    "children":{"list":[]},
                     "parent": null
                 },
             }),
@@ -1297,28 +1301,32 @@ mod graphql_test {
 
         let req = r#"
         {
-          namespace(path: "") {
-            path
-            graphs {
-              path
-              name
-              metadata {
-                nodeCount
-                edgeCount
-                properties {
-                  key
-                  value
-                }
-              }
-            }
-            children {
-              path
-            }
-            parent {
-              path
-            }
+  namespace(path: "") {
+    path
+    graphs {
+      list {
+        path
+        name
+        metadata {
+          nodeCount
+          edgeCount
+          properties {
+            key
+            value
           }
         }
+      }
+    }
+    children {
+      list {
+        path
+      }
+    }
+    parent {
+      path
+    }
+  }
+}
         "#;
 
         let req = Request::new(req);
@@ -1329,7 +1337,7 @@ mod graphql_test {
             json!({
                 "namespace": {
                     "path": "",
-                    "graphs": [
+                    "graphs": {"list":[
                         {
                             "path": "graph",
                             "name": "graph",
@@ -1358,8 +1366,8 @@ mod graphql_test {
                                 ]
                             }
                         },
-                    ],
-                    "children": [],
+                    ]},
+                    "children":{"list":[]},
                     "parent": null
                 },
             }),

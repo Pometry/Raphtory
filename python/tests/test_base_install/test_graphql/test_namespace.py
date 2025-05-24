@@ -1,8 +1,10 @@
 import tempfile
+from threading import Thread
+
 import pytest
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
-
+import time
 import json
 
 
@@ -14,6 +16,14 @@ def make_folder_structure(client):
     client.send_graph("test/first/internal/graph", g, overwrite=True)
     client.send_graph("test/second/internal/graph1", g, overwrite=True)
     client.send_graph("test/second/internal/graph2", g, overwrite=True)
+
+
+# def test_start():
+#     tmp_work_dir = tempfile.mkdtemp()
+#     with GraphServer(tmp_work_dir).start(1736) as server:
+#         client = server.get_client()
+#         make_folder_structure(client)
+#         time.sleep(500000)
 
 
 def sort_dict(d):
@@ -28,91 +38,198 @@ def sort_dict(d):
         return d
 
 
-def test_children():
+def test_namespaces_and_metagraph():
     work_dir = tempfile.mkdtemp()
 
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         make_folder_structure(client)
-
+        # tests list and page on namespaces and metagraphs
         query = """{
-                      root {
+  root {
+    path
+    graphs {
+      list {
+        path
+      }
+    }
+    children {
+      list {
+        path
+        graphs {
+          list {
+            path
+          }
+        }
+        children {
+          page(limit: 1, offset: 1) {
+            path
+            children {
+              list {
+                graphs {
+                  page(limit: 1, offset: 1) {
+                    path
+                  }
+                }
+              }
+            }
+          }
+          list {
+            path
+            graphs {
+              list {
+                path
+              }
+            }
+            children {
+              list {
+                path
+                graphs {
+                  list {
+                    path
+                  }
+                }
+                children {
+                  list {
+                    path
+                    graphs {
+                      list {
                         path
-                        graphs {
-                          path
-                        }
-                        children {
-                          path
-                          graphs {
-                            path
-                          }
-                          children {
-                            path
-                            graphs {
-                              path
-                            }
-                            children {
-                              path
-                              graphs {
-                                path
-                              }
-                              children {
-                                path
-                                graphs {
-                                  path
-                                }
-                                children {
-                                  path
-                                }
-                              }
-                            }
-                          }
-                        }
                       }
                     }
+                    children {
+                      list {
+                        path
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
             """
         result = client.query(query)
 
         correct = {
             "root": {
                 "path": "",
-                "graphs": [{"path": "graph"}],
-                "children": [
-                    {
-                        "path": "test",
-                        "graphs": [{"path": "test/graph"}],
-                        "children": [
-                            {
-                                "path": "test/first",
-                                "graphs": [],
-                                "children": [
+                "graphs": {"list": [{"path": "graph"}]},
+                "children": {
+                    "list": [
+                        {
+                            "path": "test",
+                            "graphs": {"list": [{"path": "test/graph"}]},
+                            "children": {
+                                "page": [
                                     {
-                                        "path": "test/first/internal",
-                                        "graphs": [
-                                            {"path": "test/first/internal/graph"}
-                                        ],
-                                        "children": [],
+                                        "path": "test/second",
+                                        "children": {
+                                            "list": [
+                                                {
+                                                    "graphs": {
+                                                        "page": [
+                                                            {
+                                                                "path": "test/second/internal/graph2"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        },
                                     }
                                 ],
-                            },
-                            {
-                                "path": "test/second",
-                                "graphs": [],
-                                "children": [
+                                "list": [
                                     {
-                                        "path": "test/second/internal",
-                                        "graphs": [
-                                            {"path": "test/second/internal/graph2"},
-                                            {"path": "test/second/internal/graph1"},
-                                        ],
-                                        "children": [],
-                                    }
+                                        "path": "test/first",
+                                        "graphs": {"list": []},
+                                        "children": {
+                                            "list": [
+                                                {
+                                                    "path": "test/first/internal",
+                                                    "graphs": {
+                                                        "list": [
+                                                            {
+                                                                "path": "test/first/internal/graph"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "children": {"list": []},
+                                                }
+                                            ]
+                                        },
+                                    },
+                                    {
+                                        "path": "test/second",
+                                        "graphs": {"list": []},
+                                        "children": {
+                                            "list": [
+                                                {
+                                                    "path": "test/second/internal",
+                                                    "graphs": {
+                                                        "list": [
+                                                            {
+                                                                "path": "test/second/internal/graph1"
+                                                            },
+                                                            {
+                                                                "path": "test/second/internal/graph2"
+                                                            },
+                                                        ]
+                                                    },
+                                                    "children": {"list": []},
+                                                }
+                                            ]
+                                        },
+                                    },
                                 ],
                             },
-                        ],
-                    }
-                ],
+                        }
+                    ]
+                },
             }
+        }
+
+        assert sort_dict(result) == sort_dict(correct)
+
+
+def test_counting():
+    work_dir = tempfile.mkdtemp()
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        make_folder_structure(client)
+
+        query = """
+        {
+  root {
+  	children{
+      count
+    }
+  }
+  namespaces{
+    page(limit:2 offset:2){
+      path
+      graphs{
+        count
+      }
+    }
+  }
+}
+        """
+
+        result = client.query(query)
+        correct = {
+            "root": {"children": {"count": 1}},
+            "namespaces": {
+                "page": [
+                    {"path": "test/second", "graphs": {"count": 0}},
+                    {"path": "test/second/internal", "graphs": {"count": 2}},
+                ]
+            },
         }
 
         assert sort_dict(result) == sort_dict(correct)
@@ -236,3 +353,87 @@ def test_wrong_paths():
                 "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
                 in str(excinfo.value)
             )
+
+
+def test_namespaces():
+    work_dir = tempfile.mkdtemp()
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        make_folder_structure(client)
+
+        query = """
+            {
+  namespaces {
+    list {
+      path
+      children {
+        page(limit: 5, offset: 0) {
+          path
+        }
+      }
+      graphs {
+        list {
+          name
+          path
+        }
+      }
+    }
+  }
+}"""
+        result = client.query(query)
+        correct = {
+            "namespaces": {
+                "list": [
+                    {
+                        "path": "",
+                        "children": {"page": [{"path": "test"}]},
+                        "graphs": {"list": [{"name": "graph", "path": "graph"}]},
+                    },
+                    {
+                        "path": "test",
+                        "children": {
+                            "page": [{"path": "test/first"}, {"path": "test/second"}]
+                        },
+                        "graphs": {"list": [{"name": "graph", "path": "test/graph"}]},
+                    },
+                    {
+                        "path": "test/first",
+                        "children": {"page": [{"path": "test/first/internal"}]},
+                        "graphs": {"list": []},
+                    },
+                    {
+                        "path": "test/first/internal",
+                        "children": {"page": []},
+                        "graphs": {
+                            "list": [
+                                {"name": "graph", "path": "test/first/internal/graph"}
+                            ]
+                        },
+                    },
+                    {
+                        "path": "test/second",
+                        "children": {"page": [{"path": "test/second/internal"}]},
+                        "graphs": {"list": []},
+                    },
+                    {
+                        "path": "test/second/internal",
+                        "children": {"page": []},
+                        "graphs": {
+                            "list": [
+                                {
+                                    "name": "graph1",
+                                    "path": "test/second/internal/graph1",
+                                },
+                                {
+                                    "name": "graph2",
+                                    "path": "test/second/internal/graph2",
+                                },
+                            ]
+                        },
+                    },
+                ]
+            }
+        }
+
+        assert result == correct

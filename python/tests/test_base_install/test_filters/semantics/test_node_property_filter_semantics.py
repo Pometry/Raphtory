@@ -1,6 +1,11 @@
 from raphtory import filter, Prop
 import pytest
-from filters_setup import init_nodes_graph, init_nodes_graph1, init_nodes_graph2, combined
+from filters_setup import (
+    init_nodes_graph,
+    init_nodes_graph1,
+    init_nodes_graph2,
+    combined,
+)
 from utils import with_disk_variants
 
 
@@ -43,7 +48,9 @@ def test_temporal_any_semantics_for_secondary_indexes():
     def check(graph):
         filter_expr = filter.Property("p1").temporal().any() == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = sorted(["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"])
+        expected_ids = sorted(
+            ["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+        )
         assert result_ids == expected_ids
 
     return check

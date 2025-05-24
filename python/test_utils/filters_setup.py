@@ -10,22 +10,28 @@ def combined(initializers):
         for initializer in initializers:
             graph = initializer(graph)
         return graph
+
     return func
 
 
 def init_graph(graph):
     nodes = [
-         (1, 1, {"p1": "shivam_kapoor", "p9": 5, "p10": "Paper_airplane"}, "fire_nation"),
-         (2, 2, {"p1": "prop12", "p2": 2, "p10": "Paper_ship"}, "air_nomads"),
-         (3, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
-         (3, 3, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, "fire_nation"),
-         (4, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
-         (3, 4, {"p4": "pometry"}, None),
-         (4, 4, {"p5": 12}, None),
+        (
+            1,
+            1,
+            {"p1": "shivam_kapoor", "p9": 5, "p10": "Paper_airplane"},
+            "fire_nation",
+        ),
+        (2, 2, {"p1": "prop12", "p2": 2, "p10": "Paper_ship"}, "air_nomads"),
+        (3, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
+        (3, 3, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, "fire_nation"),
+        (4, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
+        (3, 4, {"p4": "pometry"}, None),
+        (4, 4, {"p5": 12}, None),
     ]
 
     for time, id, props, node_type in nodes:
-            graph.add_node(time, str(id), props, node_type)
+        graph.add_node(time, str(id), props, node_type)
 
     edge_data = [
         (1, "1", "2", {"p1": "shivam_kapoor", "p10": "Paper_airplane"}, "fire_nation"),
@@ -41,6 +47,7 @@ def init_graph(graph):
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
+
 
 def init_nodes_graph(graph):
     nodes = [
@@ -137,6 +144,7 @@ def init_nodes_graph(graph):
 
     return graph
 
+
 # For this graph there won't be any temporal property index for property name "p1".
 def init_nodes_graph1(graph):
     nodes = [
@@ -157,17 +165,15 @@ def init_nodes_graph1(graph):
 
     return graph
 
+
 # For this graph there won't be any constant property index for property name "p1".
 def init_nodes_graph2(graph):
     nodes = [
         (1, "N1", {"p1": 1}),
-
         (2, "N2", {"p1": 1}),
         (3, "N2", {"p1": 2}),
-
         (2, "N3", {"p1": 2}),
         (3, "N3", {"p1": 1}),
-
         (2, "N4", {}),
     ]
 
@@ -259,13 +265,13 @@ def init_edges_graph1(graph):
 # For this graph there won't be any constant property index for property name "p1".
 def init_edges_graph2(graph):
     edges = [
-            (2, "N1", "N2", {"p1": 1}),
-            (2, "N2", "N3", {"p1": 1}),
-            (2, "N2", "N3", {"p1": 2}),
-            (2, "N3", "N4", {"p1": 2}),
-            (2, "N3", "N4", {"p1": 1}),
-            (2, "N4", "N5", {}),
-        ]
+        (2, "N1", "N2", {"p1": 1}),
+        (2, "N2", "N3", {"p1": 1}),
+        (2, "N2", "N3", {"p1": 2}),
+        (2, "N3", "N4", {"p1": 2}),
+        (2, "N3", "N4", {"p1": 1}),
+        (2, "N4", "N5", {}),
+    ]
 
     for time, src, dst, props in edges:
         graph.add_edge(time, src, dst, props)
