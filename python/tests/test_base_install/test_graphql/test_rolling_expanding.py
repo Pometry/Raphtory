@@ -8,6 +8,7 @@ from raphtory import Graph, PersistentGraph
 import json
 import re
 from utils import run_graphql_test, run_graphql_error_test, run_group_graphql_error_test
+from datetime import datetime
 
 
 def create_graph_epoch(g):
@@ -20,23 +21,106 @@ def create_graph_epoch(g):
     g.add_edge(5, 6, 7)
 
 
-def test_start():
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(1736) as server:
-        graph = Graph()
-        create_graph_epoch(graph)
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
-        time.sleep(5000)
+def create_graph_date(g):
+    dates = [
+        datetime(2025, 1, 1, 0, 0),
+        datetime(2025, 1, 2, 0, 0),
+        datetime(2025, 1, 3, 0, 0),
+        datetime(2025, 1, 4, 0, 0),
+        datetime(2025, 1, 5, 0, 0),
+    ]
+
+    g.add_edge(dates[0], 1, 2)
+    g.add_edge(dates[1], 1, 2)
+    g.add_edge(dates[2], 1, 2)
+    g.add_edge(dates[1], 1, 3)
+    g.add_edge(dates[2], 1, 3)
+    g.add_edge(dates[3], 1, 3)
+    g.add_edge(dates[4], 6, 7)
 
 
-# query = """
-#
-#     """
-#     correct = {
-#
-#     }
-#     run_graphql_test(query, correct, graph)
+# def test_start():
+#     tmp_work_dir = tempfile.mkdtemp()
+#     with GraphServer(tmp_work_dir).start(1736) as server:
+#         graph = Graph()
+#         create_graph_epoch(graph)
+#         client = server.get_client()
+#         client.send_graph(path="g", graph=graph)
+#         time.sleep(500000)
+
+
+def test_graph_date():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+    {
+  graph(path: "g") {
+    rolling(window: {duration:"1 day"}, step: {duration: "12 hours"}) {
+      page(limit: 5, offset: 1) {
+        nodes{
+          list{
+            name
+          }
+        }
+      }
+      count
+      list{
+        start
+        end
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {"nodes": {"list": [{"name": "1"}, {"name": "2"}, {"name": "3"}]}},
+                    {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}},
+                    {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}},
+                    {"nodes": {"list": [{"name": "6"}, {"name": "7"}]}},
+                ],
+                "count": 9,
+                "list": [
+                    {"start": 1735646400000, "end": 1735732800000},
+                    {"start": 1735689600000, "end": 1735776000000},
+                    {"start": 1735732800000, "end": 1735819200000},
+                    {"start": 1735776000000, "end": 1735862400000},
+                    {"start": 1735819200000, "end": 1735905600000},
+                    {"start": 1735862400000, "end": 1735948800000},
+                    {"start": 1735905600000, "end": 1735992000000},
+                    {"start": 1735948800000, "end": 1736035200000},
+                    {"start": 1735992000000, "end": 1736078400000},
+                ],
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+    query = """
+{
+  graph(path: "g") {
+    expanding(step: {duration: "3 days"}) {
+      list{
+        start
+        end
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "expanding": {
+                "list": [
+                    {"start": None, "end": 1735948800000},
+                    {"start": None, "end": 1736208000000},
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
 
 
 def test_graph_epoch():
@@ -265,6 +349,869 @@ def test_graph_epoch():
 }
         """
     correct = {"graph": {"rolling": {"page": [{"earliestTime": 5, "latestTime": 5}]}}}
+    run_graphql_test(query, correct, graph)
+
+
+def test_node():
+    graph = Graph()
+    create_graph_epoch(graph)
+    query = """
+{
+  graph(path: "g") {
+    node(name:"1"){
+      rolling(window:{epoch:1},step:{epoch:1}){
+        list{
+          start
+          end
+          degree
+          earliestTime
+        }
+        count
+        page(limit:3,offset:1){
+          start
+          degree
+        }
+      }
+      before(time:4){
+        expanding(step:{epoch:1}){
+        list{
+          end
+          degree
+        }
+        count
+        page(limit:1,offset:2){
+          end
+          degree
+        }
+      }
+      }
+      
+    }
+  }
+}
+        """
+    correct = {
+        "graph": {
+            "node": {
+                "rolling": {
+                    "list": [
+                        {"start": 1, "end": 2, "degree": 1, "earliestTime": 1},
+                        {"start": 2, "end": 3, "degree": 2, "earliestTime": 2},
+                        {"start": 3, "end": 4, "degree": 2, "earliestTime": 3},
+                        {"start": 4, "end": 5, "degree": 1, "earliestTime": 4},
+                        {"start": 5, "end": 6, "degree": 0, "earliestTime": None},
+                    ],
+                    "count": 5,
+                    "page": [{"start": 4, "degree": 1}, {"start": 5, "degree": 0}],
+                },
+                "before": {
+                    "expanding": {
+                        "list": [
+                            {"end": 2, "degree": 1},
+                            {"end": 3, "degree": 2},
+                            {"end": 4, "degree": 2},
+                        ],
+                        "count": 3,
+                        "page": [{"end": 4, "degree": 2}],
+                    }
+                },
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_nodes():
+    graph = Graph()
+    create_graph_epoch(graph)
+
+    query = """
+{
+  graph(path: "g") {
+    nodes {
+      rolling(window: {epoch: 1}, step: {epoch: 1}) {
+        list {
+          page(limit: 1, offset: 0) {
+            id
+            degree
+            start
+            end
+            earliestTime
+          }
+        }
+        count
+        page(limit: 3, offset: 1) {
+          page(limit: 1, offset: 0) {
+            id
+            degree
+            start
+            end
+            earliestTime
+          }
+        }
+      }
+      after(time: 1) {
+        expanding(step: {epoch: 1}) {
+          list {
+            page(limit: 1, offset: 0) {
+              id
+              degree
+              start
+              end
+              earliestTime
+              latestTime
+            }
+          }
+          count
+          page(limit: 2, offset: 1) {
+            page(limit: 1, offset: 0) {
+              id
+              degree
+              start
+              end
+              earliestTime
+              latestTime
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "nodes": {
+                "rolling": {
+                    "list": [
+                        {
+                            "page": [
+                                {
+                                    "id": "1",
+                                    "degree": 1,
+                                    "start": 1,
+                                    "end": 2,
+                                    "earliestTime": 1,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": "1",
+                                    "degree": 2,
+                                    "start": 2,
+                                    "end": 3,
+                                    "earliestTime": 2,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": "1",
+                                    "degree": 2,
+                                    "start": 3,
+                                    "end": 4,
+                                    "earliestTime": 3,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": "1",
+                                    "degree": 1,
+                                    "start": 4,
+                                    "end": 5,
+                                    "earliestTime": 4,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": "6",
+                                    "degree": 1,
+                                    "start": 5,
+                                    "end": 6,
+                                    "earliestTime": 5,
+                                }
+                            ]
+                        },
+                    ],
+                    "count": 5,
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "id": "1",
+                                    "degree": 1,
+                                    "start": 4,
+                                    "end": 5,
+                                    "earliestTime": 4,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": "6",
+                                    "degree": 1,
+                                    "start": 5,
+                                    "end": 6,
+                                    "earliestTime": 5,
+                                }
+                            ]
+                        },
+                    ],
+                },
+                "after": {
+                    "expanding": {
+                        "list": [
+                            {
+                                "page": [
+                                    {
+                                        "id": "1",
+                                        "degree": 2,
+                                        "start": None,
+                                        "end": 3,
+                                        "earliestTime": 1,
+                                        "latestTime": 2,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "1",
+                                        "degree": 2,
+                                        "start": None,
+                                        "end": 4,
+                                        "earliestTime": 1,
+                                        "latestTime": 3,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "1",
+                                        "degree": 2,
+                                        "start": None,
+                                        "end": 5,
+                                        "earliestTime": 1,
+                                        "latestTime": 4,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "1",
+                                        "degree": 2,
+                                        "start": None,
+                                        "end": 6,
+                                        "earliestTime": 1,
+                                        "latestTime": 4,
+                                    }
+                                ]
+                            },
+                        ],
+                        "count": 4,
+                        "page": [
+                            {
+                                "page": [
+                                    {
+                                        "id": "1",
+                                        "degree": 2,
+                                        "start": None,
+                                        "end": 5,
+                                        "earliestTime": 1,
+                                        "latestTime": 4,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "1",
+                                        "degree": 2,
+                                        "start": None,
+                                        "end": 6,
+                                        "earliestTime": 1,
+                                        "latestTime": 4,
+                                    }
+                                ]
+                            },
+                        ],
+                    }
+                },
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_path():
+    graph = Graph()
+    create_graph_epoch(graph)
+
+    query = """
+{
+  graph(path: "g") {
+    node(name: "1") {
+      neighbours {
+        rolling(window: {epoch: 1}, step: {epoch: 1}) {
+          list {
+            page(limit: 1, offset: 0) {
+              id
+              degree
+              start
+              end
+              earliestTime
+            }
+          }
+          count
+          page(limit: 3, offset: 1) {
+            page(limit: 1, offset: 0) {
+              id
+              degree
+              start
+              end
+              earliestTime
+            }
+          }
+        }
+        after(time: 1) {
+          expanding(step: {epoch: 1}) {
+            list {
+              page(limit: 1, offset: 0) {
+                id
+                degree
+                start
+                end
+                earliestTime
+                latestTime
+              }
+            }
+            count
+            page(limit: 2, offset: 1) {
+              page(limit: 1, offset: 0) {
+                id
+                degree
+                start
+                end
+                earliestTime
+                latestTime
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "rolling": {
+                        "list": [
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 1,
+                                        "start": 1,
+                                        "end": 2,
+                                        "earliestTime": 1,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 1,
+                                        "start": 2,
+                                        "end": 3,
+                                        "earliestTime": 2,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 1,
+                                        "start": 3,
+                                        "end": 4,
+                                        "earliestTime": 3,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 0,
+                                        "start": 4,
+                                        "end": 5,
+                                        "earliestTime": None,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 0,
+                                        "start": 5,
+                                        "end": 6,
+                                        "earliestTime": None,
+                                    }
+                                ]
+                            },
+                        ],
+                        "count": 5,
+                        "page": [
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 0,
+                                        "start": 4,
+                                        "end": 5,
+                                        "earliestTime": None,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": "2",
+                                        "degree": 0,
+                                        "start": 5,
+                                        "end": 6,
+                                        "earliestTime": None,
+                                    }
+                                ]
+                            },
+                        ],
+                    },
+                    "after": {
+                        "expanding": {
+                            "list": [
+                                {
+                                    "page": [
+                                        {
+                                            "id": "2",
+                                            "degree": 1,
+                                            "start": 2,
+                                            "end": 3,
+                                            "earliestTime": 2,
+                                            "latestTime": 2,
+                                        }
+                                    ]
+                                },
+                                {
+                                    "page": [
+                                        {
+                                            "id": "2",
+                                            "degree": 1,
+                                            "start": 2,
+                                            "end": 4,
+                                            "earliestTime": 2,
+                                            "latestTime": 3,
+                                        }
+                                    ]
+                                },
+                                {
+                                    "page": [
+                                        {
+                                            "id": "2",
+                                            "degree": 1,
+                                            "start": 2,
+                                            "end": 5,
+                                            "earliestTime": 2,
+                                            "latestTime": 3,
+                                        }
+                                    ]
+                                },
+                                {
+                                    "page": [
+                                        {
+                                            "id": "2",
+                                            "degree": 1,
+                                            "start": 2,
+                                            "end": 6,
+                                            "earliestTime": 2,
+                                            "latestTime": 3,
+                                        }
+                                    ]
+                                },
+                            ],
+                            "count": 4,
+                            "page": [
+                                {
+                                    "page": [
+                                        {
+                                            "id": "2",
+                                            "degree": 1,
+                                            "start": 2,
+                                            "end": 5,
+                                            "earliestTime": 2,
+                                            "latestTime": 3,
+                                        }
+                                    ]
+                                },
+                                {
+                                    "page": [
+                                        {
+                                            "id": "2",
+                                            "degree": 1,
+                                            "start": 2,
+                                            "end": 6,
+                                            "earliestTime": 2,
+                                            "latestTime": 3,
+                                        }
+                                    ]
+                                },
+                            ],
+                        }
+                    },
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_edge():
+    graph = Graph()
+    create_graph_epoch(graph)
+
+    query = """
+    {
+  graph(path: "g") {
+    edge(src:"1",dst:"2"){
+      rolling(window:{epoch:1},step:{epoch:1}){
+        list{
+          start
+          end
+          earliestTime
+        }
+        count
+        page(limit:3,offset:1){
+          start
+          end
+          earliestTime
+        }
+      }
+      after(time:1){
+        expanding(step:{epoch:1}){
+        list{
+          start
+          end
+          earliestTime
+          latestTime
+        }
+        count
+        page(limit:2,offset:1){
+          start
+          end
+          earliestTime
+          latestTime
+        }
+      }
+      }
+      
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "edge": {
+                "rolling": {
+                    "list": [
+                        {"start": 1, "end": 2, "earliestTime": 1},
+                        {"start": 2, "end": 3, "earliestTime": 2},
+                        {"start": 3, "end": 4, "earliestTime": 3},
+                        {"start": 4, "end": 5, "earliestTime": None},
+                        {"start": 5, "end": 6, "earliestTime": None},
+                    ],
+                    "count": 5,
+                    "page": [
+                        {"start": 4, "end": 5, "earliestTime": None},
+                        {"start": 5, "end": 6, "earliestTime": None},
+                    ],
+                },
+                "after": {
+                    "expanding": {
+                        "list": [
+                            {
+                                "start": None,
+                                "end": 3,
+                                "earliestTime": 1,
+                                "latestTime": 2,
+                            },
+                            {
+                                "start": None,
+                                "end": 4,
+                                "earliestTime": 1,
+                                "latestTime": 3,
+                            },
+                            {
+                                "start": None,
+                                "end": 5,
+                                "earliestTime": 1,
+                                "latestTime": 3,
+                            },
+                            {
+                                "start": None,
+                                "end": 6,
+                                "earliestTime": 1,
+                                "latestTime": 3,
+                            },
+                        ],
+                        "count": 4,
+                        "page": [
+                            {
+                                "start": None,
+                                "end": 5,
+                                "earliestTime": 1,
+                                "latestTime": 3,
+                            },
+                            {
+                                "start": None,
+                                "end": 6,
+                                "earliestTime": 1,
+                                "latestTime": 3,
+                            },
+                        ],
+                    }
+                },
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_edges():
+    graph = Graph()
+    create_graph_epoch(graph)
+
+    query = """
+{
+  graph(path: "g") {
+    edges {
+      rolling(window: {epoch: 1}, step: {epoch: 1}) {
+        list {
+          page(limit: 1, offset: 0) {
+            id
+            start
+            end
+            earliestTime
+          }
+        }
+        count
+        page(limit: 3, offset: 1) {
+          page(limit: 1, offset: 0) {
+            id
+            start
+            end
+            earliestTime
+          }
+        }
+      }
+      after(time: 1) {
+        expanding(step: {epoch: 1}) {
+          list {
+            page(limit: 1, offset: 0) {
+              id
+              start
+              end
+              earliestTime
+              latestTime
+            }
+          }
+          count
+          page(limit: 2, offset: 1) {
+            page(limit: 1, offset: 0) {
+              id
+              start
+              end
+              earliestTime
+              latestTime
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    """
+    correct = {
+        "graph": {
+            "edges": {
+                "rolling": {
+                    "list": [
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 1,
+                                    "end": 2,
+                                    "earliestTime": 1,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 2,
+                                    "end": 3,
+                                    "earliestTime": 2,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 3,
+                                    "end": 4,
+                                    "earliestTime": 3,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 4,
+                                    "end": 5,
+                                    "earliestTime": None,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 5,
+                                    "end": 6,
+                                    "earliestTime": None,
+                                }
+                            ]
+                        },
+                    ],
+                    "count": 5,
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 4,
+                                    "end": 5,
+                                    "earliestTime": None,
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "id": ["1", "2"],
+                                    "start": 5,
+                                    "end": 6,
+                                    "earliestTime": None,
+                                }
+                            ]
+                        },
+                    ],
+                },
+                "after": {
+                    "expanding": {
+                        "list": [
+                            {
+                                "page": [
+                                    {
+                                        "id": ["1", "2"],
+                                        "start": None,
+                                        "end": 3,
+                                        "earliestTime": 1,
+                                        "latestTime": 2,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": ["1", "2"],
+                                        "start": None,
+                                        "end": 4,
+                                        "earliestTime": 1,
+                                        "latestTime": 3,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": ["1", "2"],
+                                        "start": None,
+                                        "end": 5,
+                                        "earliestTime": 1,
+                                        "latestTime": 3,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": ["1", "2"],
+                                        "start": None,
+                                        "end": 6,
+                                        "earliestTime": 1,
+                                        "latestTime": 3,
+                                    }
+                                ]
+                            },
+                        ],
+                        "count": 4,
+                        "page": [
+                            {
+                                "page": [
+                                    {
+                                        "id": ["1", "2"],
+                                        "start": None,
+                                        "end": 5,
+                                        "earliestTime": 1,
+                                        "latestTime": 3,
+                                    }
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "id": ["1", "2"],
+                                        "start": None,
+                                        "end": 6,
+                                        "earliestTime": 1,
+                                        "latestTime": 3,
+                                    }
+                                ]
+                            },
+                        ],
+                    }
+                },
+            }
+        }
+    }
     run_graphql_test(query, correct, graph)
 
 
