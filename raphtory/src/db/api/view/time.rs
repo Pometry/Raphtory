@@ -375,11 +375,11 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
             let window_end = self.cursor;
 
             let window_start = self.window.map(|w| window_end - w);
-            if let Some(start) = window_start { 
-                //this is required because if we have steps > window size you can end up overstepping 
+            if let Some(start) = window_start {
+                //this is required because if we have steps > window size you can end up overstepping
                 // the end by so much in the final window that there is no data inside
                 if start >= self.end {
-                    // this is >= because the end passed through is already +1 
+                    // this is >= because the end passed through is already +1
                     return None;
                 }
             }
