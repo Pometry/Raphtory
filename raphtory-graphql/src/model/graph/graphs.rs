@@ -1,8 +1,7 @@
+use crate::paths::ExistingGraphFolder;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::core::utils::errors::GraphError;
-
-use crate::paths::ExistingGraphFolder;
+use raphtory::errors::GraphError;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {

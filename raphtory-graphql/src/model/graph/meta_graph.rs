@@ -1,6 +1,6 @@
 use crate::{model::graph::property::GqlProp, paths::ExistingGraphFolder};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
-use raphtory::{core::utils::errors::GraphError, serialise::metadata::GraphMetadata};
+use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
 
 #[derive(ResolvedObject)]
 pub(crate) struct MetaGraph {

@@ -5,11 +5,11 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{
         api::view::{internal::OneHopFilter, DynamicGraph},
         graph::edges::Edges,
     },
+    errors::GraphError,
     prelude::{EdgeViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::iter::IntoDynBoxed;

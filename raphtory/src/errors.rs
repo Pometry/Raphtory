@@ -1,34 +1,14 @@
 use crate::{
     core::storage::lazy_vec::IllegalSet,
-    db::graph::views::filter::model::filter_operator::FilterOperator,
+    db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{GID, MAX_LAYER},
+    entities::{
+        properties::prop::{Prop, PropError, PropType},
+        GID, MAX_LAYER,
+    },
     storage::arc_str::ArcStr,
-};
-use std::{
-    fmt::Debug,
-    io,
-    path::{PathBuf, StripPrefixError},
-    time::SystemTimeError,
-};
-use tracing::error;
-
-use crate::prelude::GraphViewOps;
-#[cfg(feature = "io")]
-use parquet::errors::ParquetError;
-#[cfg(feature = "arrow")]
-use polars_arrow::{datatypes::ArrowDataType, legacy::error};
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
-#[cfg(feature = "python")]
-use pyo3::PyErr;
-#[cfg(feature = "arrow")]
-use raphtory_api::core::entities::{GidType, VID};
-
-use raphtory_api::core::entities::properties::prop::{
-    DeserialisationError, Prop, PropError, PropType,
 };
 use raphtory_core::{
     entities::{
@@ -38,10 +18,30 @@ use raphtory_core::{
     utils::time::ParseTimeError,
 };
 use raphtory_storage::mutation::MutationError;
+use std::{
+    fmt::Debug,
+    io,
+    path::{PathBuf, StripPrefixError},
+    time::SystemTimeError,
+};
+use tracing::error;
+
+#[cfg(feature = "io")]
+use parquet::errors::ParquetError;
+
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+#[cfg(feature = "arrow")]
+use {
+    polars_arrow::{datatypes::ArrowDataType, legacy::error},
+    raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
+};
+
+#[cfg(feature = "python")]
+use pyo3::PyErr;
+
 #[cfg(feature = "search")]
-use tantivy;
-#[cfg(feature = "search")]
-use tantivy::query::QueryParserError;
+use {tantivy, tantivy::query::QueryParserError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -339,6 +339,7 @@ pub enum GraphError {
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
 
+    #[cfg(feature = "arrow")]
     #[error(transparent)]
     DeserialisationError(#[from] DeserialisationError),
 

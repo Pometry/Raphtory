@@ -6,7 +6,6 @@ use crate::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
     },
-    prelude::DeletionOps,
 };
 use raphtory_api::core::{
     entities::{EID, VID},
@@ -184,8 +183,6 @@ impl InternalStorageOps for Storage {
         Some(self)
     }
 }
-
-impl DeletionOps for Arc<Storage> {}
 
 impl InheritNodeHistoryFilter for Storage {}
 impl InheritEdgeHistoryFilter for Storage {}

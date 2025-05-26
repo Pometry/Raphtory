@@ -8,11 +8,11 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{
         api::{state::Index, view::DynamicGraph},
         graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::entities::VID;

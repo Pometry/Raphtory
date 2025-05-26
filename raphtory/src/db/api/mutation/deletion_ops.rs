@@ -11,7 +11,6 @@ use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_storage::mutation::{
     addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
 };
-use std::sync::Arc;
 
 pub trait DeletionOps:
     InternalDeletionOps<Error: Into<GraphError>>
@@ -59,4 +58,11 @@ pub trait DeletionOps:
     }
 }
 
-impl<T: DeletionOps + ?Sized> DeletionOps for Arc<T> {}
+impl<
+        T: InternalDeletionOps<Error: Into<GraphError>>
+            + InternalAdditionOps<Error: Into<GraphError>>
+            + StaticGraphViewOps
+            + Sized,
+    > DeletionOps for T
+{
+}

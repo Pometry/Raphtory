@@ -8,8 +8,10 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    errors::GraphError,
-    prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
+    errors::{into_graph_err, GraphError},
+    prelude::{
+        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+    },
 };
 use raphtory_api::core::{
     entities::GID,
@@ -196,11 +198,7 @@ pub trait ImportOps: Sized {
 }
 
 impl<
-        G: StaticGraphViewOps
-            + InternalAdditionOps<Error = GraphError>
-            + InternalDeletionOps<Error = GraphError>
-            + InternalPropertyAdditionOps<Error = GraphError>
-            + InternalMaterialize,
+        G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     > ImportOps for G
 {
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
@@ -316,11 +314,7 @@ impl<
 
 fn import_node_internal<
     'a,
-    G: StaticGraphViewOps
-        + InternalAdditionOps<Error = GraphError>
-        + InternalDeletionOps<Error = GraphError>
-        + InternalPropertyAdditionOps<Error = GraphError>
-        + InternalMaterialize,
+    G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     GHH: GraphViewOps<'a>,
     GH: GraphViewOps<'a>,
     V: AsNodeRef + Clone + Debug,
@@ -329,10 +323,7 @@ fn import_node_internal<
     node: &NodeView<'a, GHH, GH>,
     id: V,
     merge: bool,
-) -> Result<NodeView<'static, G, G>, GraphError>
-where
-    GraphError: From<<G as InternalAdditionOps>::Error>,
-{
+) -> Result<NodeView<'static, G, G>, GraphError> {
     let id = id.as_node_ref();
     if !merge {
         if let Some(existing_node) = graph.node(id) {
@@ -341,9 +332,12 @@ where
     }
 
     let node_internal = match node.node_type().as_str() {
-        None => graph.resolve_node(id)?.inner(),
+        None => graph.resolve_node(id).map_err(into_graph_err)?.inner(),
         Some(node_type) => {
-            let (node_internal, _) = graph.resolve_node_and_type(id, node_type)?.inner();
+            let (node_internal, _) = graph
+                .resolve_node_and_type(id, node_type)
+                .map_err(into_graph_err)?
+                .inner();
             node_internal.inner()
         }
     };
@@ -359,8 +353,11 @@ where
                 let prop_id = graph.resolve_node_property(key, prop.dtype(), false);
                 prop_id.map(|prop_id| (prop_id.inner(), prop))
             })
-            .collect::<Result<Vec<_>, _>>()?;
-        graph.internal_add_node(t, node_internal, &props)?;
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(into_graph_err)?;
+        graph
+            .internal_add_node(t, node_internal, &props)
+            .map_err(into_graph_err)?;
     }
 
     graph
@@ -373,11 +370,7 @@ where
 
 fn import_edge_internal<
     'a,
-    G: StaticGraphViewOps
-        + InternalAdditionOps<Error = GraphError>
-        + InternalDeletionOps<Error = GraphError>
-        + InternalPropertyAdditionOps<Error = GraphError>
-        + InternalMaterialize,
+    G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     GHH: GraphViewOps<'a>,
     GH: GraphViewOps<'a>,
     V: AsNodeRef + Clone + Debug,
@@ -387,12 +380,7 @@ fn import_edge_internal<
     src_id: V,
     dst_id: V,
     merge: bool,
-) -> Result<EdgeView<G, G>, GraphError>
-where
-    GraphError: From<<G as InternalAdditionOps>::Error>,
-    GraphError: From<<G as InternalDeletionOps>::Error>,
-    GraphError: From<<G as InternalPropertyAdditionOps>::Error>,
-{
+) -> Result<EdgeView<G, G>, GraphError> {
     let src_id = src_id.as_node_ref();
     let dst_id = dst_id.as_node_ref();
     if !merge && graph.has_edge(&src_id, &dst_id) {
@@ -406,8 +394,7 @@ where
 
     // Add edges first to ensure associated nodes are present
     for ee in edge.explode_layers() {
-        let layer_id = ee.edge.layer().expect("exploded layers");
-        let layer_name = graph.get_layer_name(layer_id);
+        let layer_name = ee.layer_name().expect("exploded layers");
 
         for ee in ee.explode() {
             graph.add_edge(
@@ -421,10 +408,15 @@ where
 
         for (t, _) in edge.deletions_hist() {
             let ti = time_from_input(graph, t.t())?;
-            let src_node = graph.resolve_node(src_id)?.inner();
-            let dst_node = graph.resolve_node(dst_id)?.inner();
-            let layer = graph.resolve_layer(Some(&layer_name))?.inner();
-            graph.internal_delete_edge(ti, src_node, dst_node, layer)?;
+            let src_node = graph.resolve_node(src_id).map_err(into_graph_err)?.inner();
+            let dst_node = graph.resolve_node(dst_id).map_err(into_graph_err)?.inner();
+            let layer = graph
+                .resolve_layer(Some(&layer_name))
+                .map_err(into_graph_err)?
+                .inner();
+            graph
+                .internal_delete_edge(ti, src_node, dst_node, layer)
+                .map_err(into_graph_err)?;
         }
 
         graph

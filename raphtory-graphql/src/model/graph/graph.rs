@@ -18,10 +18,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::{GraphError, InvalidPathReason::PathNotParsable},
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -37,6 +34,7 @@ use raphtory::{
             },
         },
     },
+    errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
 use std::{
@@ -340,7 +338,9 @@ impl GqlGraph {
             .path
             .get_original_path()
             .to_str()
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .ok_or(InvalidPathReason::PathNotParsable(
+                self.path.to_error_path(),
+            ))?
             .to_owned())
     }
 
@@ -350,7 +350,9 @@ impl GqlGraph {
             .get_original_path()
             .parent()
             .and_then(|p| p.to_str().map(|s| s.to_string()))
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .ok_or(InvalidPathReason::PathNotParsable(
+                self.path.to_error_path(),
+            ))?
             .to_owned())
     }
 

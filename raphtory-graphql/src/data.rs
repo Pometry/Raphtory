@@ -7,8 +7,8 @@ use crate::{
 use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
     db::api::view::MaterializedGraph,
+    errors::{GraphError, GraphResult, InvalidPathReason},
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
@@ -269,9 +269,10 @@ pub(crate) mod data_tests {
         data::Data,
     };
     use itertools::Itertools;
-    use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::*};
+    use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{collections::HashMap, fs, fs::File, io, path::Path};
 
+    use raphtory::errors::GraphError;
     #[cfg(feature = "storage")]
     use raphtory::{
         db::api::storage::graph::storage_ops::GraphStorage, disk_graph::DiskGraphStorage,

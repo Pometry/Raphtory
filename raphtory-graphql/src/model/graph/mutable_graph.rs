@@ -5,8 +5,8 @@ use crate::{
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::GraphError,
     db::graph::{edge::EdgeView, node::NodeView},
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;

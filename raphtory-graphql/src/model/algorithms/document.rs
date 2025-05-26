@@ -1,9 +1,8 @@
 use crate::model::graph::{edge::Edge, node::Node};
 use dynamic_graphql::{SimpleObject, Union};
 use raphtory::{
-    core::Lifespan,
     db::api::view::{IntoDynamic, StaticGraphViewOps},
-    vectors::{Document as RustDocument, DocumentEntity},
+    vectors::{Document as RustDocument, DocumentEntity, Lifespan},
 };
 
 #[derive(SimpleObject)]

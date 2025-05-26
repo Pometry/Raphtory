@@ -20,8 +20,8 @@ use dynamic_graphql::{
 #[cfg(feature = "storage")]
 use raphtory::db::api::storage::graph::storage_ops::GraphStorage;
 use raphtory::{
-    core::utils::errors::{GraphError, InvalidPathReason},
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
+    errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::InternalStableDecode,
 };

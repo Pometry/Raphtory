@@ -1,5 +1,4 @@
 use crate::{
-    core_ops::CoreGraphOps,
     graph::{graph::GraphStorage, locked::WriteLockedGraph},
     mutation::MutationError,
 };
@@ -369,7 +368,7 @@ impl InternalAdditionOps for GraphStorage {
     }
 }
 
-pub trait InheritAdditionOps: Base + CoreGraphOps {}
+pub trait InheritAdditionOps: Base {}
 
 impl<G: InheritAdditionOps> InternalAdditionOps for G
 where

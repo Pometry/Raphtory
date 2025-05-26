@@ -137,8 +137,6 @@ impl InternalMaterialize for PersistentGraph {
     }
 }
 
-impl DeletionOps for PersistentGraph {}
-
 impl InheritMutationOps for PersistentGraph {}
 
 impl InheritListOps for PersistentGraph {}

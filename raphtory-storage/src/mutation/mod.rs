@@ -52,7 +52,7 @@ pub enum MutationError {
     },
 }
 
-pub trait InheritMutationOps: CoreGraphOps + Base {}
+pub trait InheritMutationOps: Base {}
 
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}

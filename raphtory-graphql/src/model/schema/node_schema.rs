@@ -126,10 +126,11 @@ impl NodeSchema {
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
-    use raphtory::{core::utils::errors::GraphError, db::api::view::IntoDynamic, prelude::*};
+    use raphtory::{db::api::view::IntoDynamic, prelude::*};
 
     use crate::model::schema::{graph_schema::GraphSchema, node_schema::PropertySchema};
     use pretty_assertions::assert_eq;
+    use raphtory::errors::GraphError;
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {

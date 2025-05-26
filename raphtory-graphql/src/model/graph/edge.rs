@@ -3,11 +3,11 @@ use crate::model::graph::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
+    errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
 

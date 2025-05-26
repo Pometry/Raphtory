@@ -13,23 +13,12 @@ use crate::{
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
-    errors::GraphError,
     prelude::*,
-    storage::mutation::deletion_ops::InternalDeletionOps,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::{
-    core::{entities::properties::prop::PropType, storage::dict_mapper::MaybeNew},
-    iter::BoxedLIter,
-    GraphType,
-};
-use raphtory_storage::{
-    graph::graph::GraphStorage,
-    mutation::{
-        addition_ops::InheritAdditionOps, property_addition_ops::InheritPropertyAdditionOps,
-    },
-};
+use raphtory_api::{core::entities::properties::prop::PropType, iter::BoxedLIter, GraphType};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -70,9 +59,7 @@ impl InternalMaterialize for MaterializedGraph {
     }
 }
 
-impl InheritAdditionOps for MaterializedGraph {}
-
-impl InheritPropertyAdditionOps for MaterializedGraph {}
+impl InheritMutationOps for MaterializedGraph {}
 
 impl Debug for MaterializedGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -117,36 +104,6 @@ impl InternalStorageOps for MaterializedGraph {
         }
     }
 }
-
-impl InternalDeletionOps for MaterializedGraph {
-    type Error = GraphError;
-    fn internal_delete_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        match self {
-            MaterializedGraph::EventGraph(_) => Err(GraphError::EventGraphDeletionsNotSupported),
-            MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
-        }
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: TimeIndexEntry,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        match self {
-            MaterializedGraph::EventGraph(_) => Err(GraphError::EventGraphDeletionsNotSupported),
-            MaterializedGraph::PersistentGraph(g) => g.internal_delete_existing_edge(t, eid, layer),
-        }
-    }
-}
-
-impl DeletionOps for MaterializedGraph {}
 
 impl NodeHistoryFilter for MaterializedGraph {
     fn is_node_prop_update_available(
