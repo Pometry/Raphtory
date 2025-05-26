@@ -350,20 +350,25 @@ mod test {
         }
 
         mod test_nodes_filters_cached_view_graph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results,
+                            TestGraphVariants, TestVariants,
+                        },
+                        views::{
+                            cached_view::test::test_filters_cached_view::{
+                                CachedGraphTransformer, WindowedCachedGraphTransformer,
+                            },
+                            filter::model::PropertyFilterOps,
+                        },
+                    },
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
-            use crate::db::graph::assertions::{
-                assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-                TestVariants,
-            };
-            use crate::db::graph::views::cached_view::test::test_filters_cached_view::{
-                CachedGraphTransformer, WindowedCachedGraphTransformer,
-            };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let node_data = vec![
@@ -391,8 +396,6 @@ mod test {
 
                 graph
             }
-
-            use crate::prelude::NodeViewOps;
 
             #[test]
             fn test_nodes_filters() {
@@ -457,7 +460,6 @@ mod test {
         }
 
         mod test_edges_filter_cached_view_graph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps,
@@ -475,6 +477,7 @@ mod test {
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edge_data = vec![

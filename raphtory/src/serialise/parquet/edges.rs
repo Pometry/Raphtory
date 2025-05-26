@@ -1,7 +1,6 @@
 use super::*;
 use crate::{
-    core::utils::iter::GenLockedIter,
-    db::{api::storage::graph::edges::edge_storage_ops::EdgeStorageOps, graph::edge::EdgeView},
+    core::utils::iter::GenLockedIter, db::graph::edge::EdgeView, errors::GraphError,
     serialise::parquet::model::ParquetDelEdge,
 };
 use arrow_schema::{DataType, Field};
@@ -10,7 +9,10 @@ use raphtory_api::{
     core::{entities::EID, storage::timeindex::TimeIndexOps},
     iter::IntoDynBoxed,
 };
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+};
 use std::path::Path;
 
 pub(crate) fn encode_edge_tprop(

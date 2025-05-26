@@ -1,5 +1,4 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::StaticGraphViewOps,
         graph::{
@@ -14,6 +13,7 @@ use crate::{
             },
         },
     },
+    errors::GraphError,
     prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter},
     search::{
         collectors::{

@@ -2,7 +2,6 @@ use crate::{
     db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
     prelude::GraphViewOps,
 };
-use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},

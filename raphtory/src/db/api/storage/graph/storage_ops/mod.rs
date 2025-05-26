@@ -19,6 +19,8 @@ use crate::{
 use raphtory_storage::graph::graph::GraphStorage;
 
 pub mod const_props;
+#[cfg(feature = "storage")]
+mod disk_storage;
 pub mod edge_filter;
 pub mod list_ops;
 pub mod materialize;

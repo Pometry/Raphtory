@@ -2,15 +2,15 @@ use crate::{
     core::{
         entities::{EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
     },
     db::{
         api::{
             properties::internal::{ConstantPropertiesOps, TemporalPropertiesOps},
-            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
+            view::internal::filtered_edge::FilteredEdgesStorageOps,
         },
         graph::edge::EdgeView,
     },
+    errors::GraphError,
     prelude::*,
     search::{
         entity_index::EntityIndex,
@@ -19,7 +19,11 @@ use crate::{
     },
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    layer_ops::InternalLayerOps,
+};
 use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
@@ -344,14 +348,23 @@ impl EdgeIndex {
             )?;
 
         let mut writer = edge_index.entity_index.index.writer(100_000_000)?;
-        let locked_g = graph.core_graph();
-        locked_g.edges_par(&graph).try_for_each(|e_ref| {
-            {
-                let e_view = EdgeView::new(graph.clone(), e_ref);
-                edge_index.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
-            }
-            Ok::<(), GraphError>(())
-        })?;
+        let locked_edges = graph.core_edges();
+        locked_edges
+            .filtered_edges_par(&graph, graph.layer_ids())
+            .try_for_each(|e_ref| {
+                let e_ref = e_ref.out_ref();
+                {
+                    let e_view = EdgeView::new(graph.clone(), e_ref);
+                    edge_index.index_edge(
+                        graph,
+                        e_view,
+                        &writer,
+                        &const_writers,
+                        &temporal_writers,
+                    )?;
+                }
+                Ok::<(), GraphError>(())
+            })?;
 
         // Commit writers
         edge_index.entity_index.commit_writers(&mut const_writers)?;

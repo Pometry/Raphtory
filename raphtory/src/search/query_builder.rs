@@ -1,5 +1,4 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::{
         api::view::StaticGraphViewOps,
         graph::views::filter::model::{
@@ -7,6 +6,7 @@ use crate::{
             FilterValue,
         },
     },
+    errors::GraphError,
     prelude::PropertyFilter,
     search::{
         edge_index::EdgeIndex, graph_index::GraphIndex, node_index::NodeIndex,
@@ -14,6 +14,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::{collections::Bound, ops::Deref, sync::Arc, vec};
 use tantivy::{
     query::{

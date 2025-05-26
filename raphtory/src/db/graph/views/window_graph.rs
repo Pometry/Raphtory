@@ -1217,35 +1217,32 @@ mod views_test {
         mod test_nodes_filters_window_graph {
             use crate::{
                 db::{
-                    api::{
-                        view::StaticGraphViewOps,
-                    },
-                    graph::views::filter::model::{
-                        ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results,
+                            TestGraphVariants, TestVariants,
+                        },
+                        views::filter::model::{
+                            ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+                        },
                     },
                 },
                 prelude::{AdditionOps, PropertyAdditionOps, PropertyFilter},
             };
-            use raphtory_api::core::storage::arc_str::ArcStr;
-            use std::sync::Arc;
-            use raphtory_api::core::entities::properties::prop::Prop;
-            use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-            use raphtory_storage::mutation::property_addition_ops::InternalPropertyAdditionOps;
-            use crate::db::graph::assertions::{
-                assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-                TestVariants,
+            use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
             };
+            use std::sync::Arc;
 
             use crate::{
                 db::graph::views::window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
-                prelude::{GraphViewOps, NodeViewOps},
+                prelude::GraphViewOps,
             };
 
-            fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + PropertyAdditionOps,
-            >(
+            fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,
             ) -> G {
                 let nodes = vec![
@@ -3646,9 +3643,7 @@ mod views_test {
         mod test_edges_filters_window_graph {
             use crate::{
                 db::{
-                    api::{
-                        view::StaticGraphViewOps,
-                    },
+                    api::view::StaticGraphViewOps,
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
@@ -3662,18 +3657,12 @@ mod views_test {
                         },
                     },
                 },
-                prelude::{AdditionOps, PropertyAdditionOps, PropertyFilter},
+                prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, PropertyFilter},
             };
-            use raphtory_api::core::storage::arc_str::ArcStr;
+            use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
             use std::sync::Arc;
-            use raphtory_api::core::entities::properties::prop::Prop;
-            use crate::prelude::GraphViewOps;
 
-            fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + PropertyAdditionOps,
-            >(
+            fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,
             ) -> G {
                 let edges = vec![
@@ -3890,11 +3879,7 @@ mod views_test {
                 graph
             }
 
-            fn init_graph2<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + PropertyAdditionOps,
-            >(
+            fn init_graph2<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,
             ) -> G {
                 let edges = vec![(

@@ -1,8 +1,7 @@
+#[cfg(feature = "search")]
+use crate::search::graph_index::GraphIndex;
 use crate::{
-    core::entities::{
-        graph::tgraph::TemporalGraph,
-        nodes::node_ref::{AsNodeRef, NodeRef},
-    },
+    core::entities::{graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef},
     db::api::view::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
@@ -17,16 +16,23 @@ use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
+    path::PathBuf,
     sync::Arc,
 };
-
-#[cfg(feature = "search")]
-use crate::search::graph_index::GraphIndex;
+use tracing::info;
 
 use crate::errors::GraphError;
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropType},
+    GidRef,
+};
+use raphtory_core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
@@ -189,6 +195,26 @@ impl InheritViewOps for Storage {}
 impl InternalAdditionOps for Storage {
     type Error = GraphError;
 
+    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+        Ok(self.graph.write_lock()?)
+    }
+
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+        Ok(self.graph.write_lock_nodes()?)
+    }
+
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+        Ok(self.graph.write_lock_edges()?)
+    }
+
+    fn next_event_id(&self) -> Result<usize, Self::Error> {
+        Ok(self.graph.next_event_id()?)
+    }
+
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
+        Ok(self.graph.reserve_event_ids(num_ids)?)
+    }
+
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         let id = self.graph.resolve_layer(layer)?;
 
@@ -198,11 +224,11 @@ impl InternalAdditionOps for Storage {
         Ok(id)
     }
 
-    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError> {
-        match id.as_node_ref() {
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, GraphError> {
+        match id {
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
             NodeRef::External(gid) => {
-                let id = self.graph.resolve_node(gid)?;
+                let id = self.graph.resolve_node(id)?;
 
                 #[cfg(feature = "proto")]
                 self.if_cache(|cache| cache.resolve_node(id, gid));
@@ -212,9 +238,13 @@ impl InternalAdditionOps for Storage {
         }
     }
 
-    fn resolve_node_and_type<V: AsNodeRef>(
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
+        Ok(self.graph.set_node(gid, vid)?)
+    }
+
+    fn resolve_node_and_type(
         &self,
-        id: V,
+        id: NodeRef,
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
         let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;

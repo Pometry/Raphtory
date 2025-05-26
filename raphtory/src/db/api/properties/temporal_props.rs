@@ -14,7 +14,7 @@ use std::{
 };
 
 #[cfg(feature = "arrow")]
-use raphtory_api::core::entities::properties::prop::PropArrayUnwrap;
+use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: PropertiesOps> {

@@ -2,11 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             properties::Properties,
@@ -26,6 +22,7 @@ use crate::{
             views::filter::internal::InternalExplodedEdgeFilterOps,
         },
     },
+    errors::GraphError,
     python::{
         graph::{
             node::internal::OneHopFilter,
@@ -57,7 +54,11 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::arc_str::ArcStr,
+    utils::hashing::calculate_hash,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};

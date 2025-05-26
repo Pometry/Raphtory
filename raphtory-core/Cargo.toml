@@ -28,9 +28,11 @@ itertools = { workspace = true }
 once_cell = { workspace = true }
 ouroboros = { workspace = true }
 regex = "1.11.1"
+pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
 
 [features]
 arrow = ["raphtory-api/arrow"]
+python = ["dep:pyo3"]

@@ -1,15 +1,17 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
-    db::api::storage::graph::storage_ops::GraphStorage,
+    errors::GraphError,
     search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
 use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory_api::core::{
-    entities::properties::meta::{Meta, PropMapper},
+    entities::properties::{
+        meta::{Meta, PropMapper},
+        prop::{Prop, PropType},
+    },
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
-    PropType,
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{borrow::Borrow, path::PathBuf, sync::Arc};
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},

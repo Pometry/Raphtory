@@ -1,9 +1,9 @@
 use crate::{
-    core::utils::errors::GraphResult,
     db::{
         api::view::{internal::IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
+    errors::GraphResult,
     prelude::GraphViewOps,
     vectors::{
         document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,

@@ -1,5 +1,4 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
@@ -7,6 +6,7 @@ use crate::{
             edges::{Edges, NestedEdges},
         },
     },
+    errors::GraphError,
     prelude::*,
     python::{
         graph::properties::{PropertiesView, PyNestedPropsIterable},

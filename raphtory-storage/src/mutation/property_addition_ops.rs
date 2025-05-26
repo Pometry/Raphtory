@@ -1,5 +1,4 @@
 use crate::{
-    core_ops::CoreGraphOps,
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
     mutation::MutationError,
 };
@@ -13,36 +12,69 @@ use raphtory_api::{
     },
     inherit::Base,
 };
+use raphtory_core::entities::graph::tgraph::TemporalGraph;
 
-pub trait InternalPropertyAdditionOps: CoreGraphOps {
+pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error>;
+    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+    fn internal_update_constant_properties(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error>;
+    fn internal_add_constant_node_properties(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error>;
+    fn internal_update_constant_node_properties(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error>;
+    fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error>;
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error>;
+}
+
+impl InternalPropertyAdditionOps for TemporalGraph {
+    type Error = MutationError;
+    fn internal_add_properties(
+        &self,
+        t: TimeIndexEntry,
+        props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
         if !props.is_empty() {
             for (prop_id, prop) in props {
-                let prop = graph.process_prop_value(prop);
+                let prop = self.process_prop_value(prop);
                 let prop = validate_prop(prop).map_err(MutationError::from)?;
-                graph
-                    .graph_meta
+                self.graph_meta
                     .add_prop(t, *prop_id, prop)
                     .map_err(MutationError::from)?;
             }
-            graph.update_time(t);
+            self.update_time(t);
         }
         Ok(())
     }
 
     fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
         for (id, prop) in props {
-            let prop = graph.process_prop_value(prop);
+            let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
-            graph
-                .graph_meta
+            self.graph_meta
                 .add_constant_prop(*id, prop)
                 .map_err(MutationError::from)?;
         }
@@ -53,11 +85,10 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
         &self,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
         for (id, prop) in props {
-            let prop = graph.process_prop_value(prop);
+            let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
-            graph.graph_meta.update_constant_prop(*id, prop);
+            self.graph_meta.update_constant_prop(*id, prop);
         }
         Ok(())
     }
@@ -67,10 +98,9 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
-        let mut node = graph.storage.get_node_mut(vid);
+        let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
-            let prop = graph.process_prop_value(prop);
+            let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
             node.as_mut()
                 .add_constant_prop(*prop_id, prop)
@@ -84,10 +114,9 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
-        let mut node = graph.storage.get_node_mut(vid);
+        let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
-            let prop = graph.process_prop_value(prop);
+            let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
             node.as_mut()
                 .update_constant_prop(*prop_id, prop)
@@ -102,12 +131,11 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
-        let mut edge = graph.storage.get_edge_mut(eid);
+        let mut edge = self.storage.get_edge_mut(eid);
         let mut edge_mut = edge.as_mut();
         if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
             for (prop_id, prop) in props {
-                let prop = graph.process_prop_value(prop);
+                let prop = self.process_prop_value(prop);
                 let prop = validate_prop(prop).map_err(MutationError::from)?;
                 edge_layer
                     .add_constant_prop(*prop_id, prop)
@@ -115,9 +143,9 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
             }
             Ok(())
         } else {
-            let layer = graph.get_layer_name(layer).to_string();
-            let src = self.core_node(edge.as_ref().src()).id().to_string();
-            let dst = self.core_node(edge.as_ref().dst()).id().to_string();
+            let layer = self.get_layer_name(layer).to_string();
+            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
+            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
             Err(MutationError::InvalidEdgeLayer { layer, src, dst }.into())
         }
     }
@@ -128,12 +156,11 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let graph = self.core_graph().mutable()?;
-        let mut edge = graph.storage.get_edge_mut(eid);
+        let mut edge = self.storage.get_edge_mut(eid);
         let mut edge_mut = edge.as_mut();
         if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
             for (prop_id, prop) in props {
-                let prop = graph.process_prop_value(prop);
+                let prop = self.process_prop_value(prop);
                 let prop = validate_prop(prop).map_err(MutationError::from)?;
                 edge_layer
                     .update_constant_prop(*prop_id, prop)
@@ -141,9 +168,9 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
             }
             Ok(())
         } else {
-            let layer = graph.get_layer_name(layer).to_string();
-            let src = self.core_node(edge.as_ref().src()).id().to_string();
-            let dst = self.core_node(edge.as_ref().dst()).id().to_string();
+            let layer = self.get_layer_name(layer).to_string();
+            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
+            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
             Err(MutationError::InvalidEdgeLayer { layer, src, dst }.into())
         }
     }
@@ -151,9 +178,66 @@ pub trait InternalPropertyAdditionOps: CoreGraphOps {
 
 impl InternalPropertyAdditionOps for GraphStorage {
     type Error = MutationError;
+
+    fn internal_add_properties(
+        &self,
+        t: TimeIndexEntry,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.mutable()?.internal_add_properties(t, props)
+    }
+
+    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        self.mutable()?.internal_add_constant_properties(props)
+    }
+
+    fn internal_update_constant_properties(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.mutable()?.internal_update_constant_properties(props)
+    }
+
+    fn internal_add_constant_node_properties(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.mutable()?
+            .internal_add_constant_node_properties(vid, props)
+    }
+
+    fn internal_update_constant_node_properties(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.mutable()?
+            .internal_update_constant_node_properties(vid, props)
+    }
+
+    fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.mutable()?
+            .internal_add_constant_edge_properties(eid, layer, props)
+    }
+
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.mutable()?
+            .internal_update_constant_edge_properties(eid, layer, props)
+    }
 }
 
-pub trait InheritPropertyAdditionOps: Base + CoreGraphOps {}
+pub trait InheritPropertyAdditionOps: Base {}
 
 impl<G: InheritPropertyAdditionOps> InternalPropertyAdditionOps for G
 where

@@ -1,4 +1,7 @@
-use crate::{db::api::view::internal::GraphView, prelude::GraphViewOps};
+use crate::{
+    db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
+    prelude::GraphViewOps,
+};
 use either::Either;
 use raphtory_api::core::{
     entities::{
@@ -7,7 +10,12 @@ use raphtory_api::core::{
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::graph::edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef};
+use raphtory_storage::graph::edges::{
+    edge_ref::EdgeStorageRef,
+    edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+    edges::EdgesStorage,
+};
+use rayon::iter::ParallelIterator;
 use std::ops::Range;
 
 #[derive(Clone)]
@@ -240,3 +248,42 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
 }
 
 impl<'a, T: EdgeStorageOps<'a>> FilteredEdgeStorageOps<'a> for T {}
+
+pub trait FilteredEdgesStorageOps {
+    fn filtered_edges_par<'a, G: GraphView + 'a>(
+        &'a self,
+        view: G,
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + 'a;
+}
+
+impl FilteredEdgesStorageOps for EdgesStorage {
+    fn filtered_edges_par<'a, G: GraphView + 'a>(
+        &'a self,
+        view: G,
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + 'a {
+        let par_iter = self.par_iter(layer_ids);
+        match view.filter_state() {
+            FilterState::Neither => FilterVariants::Neither(par_iter),
+            FilterState::Both => {
+                let nodes = view.core_nodes();
+                FilterVariants::Both(par_iter.filter(move |&e| {
+                    view.filter_edge(e, layer_ids)
+                        && view.filter_node(nodes.node_entry(e.src()))
+                        && view.filter_node(nodes.node_entry(e.dst()))
+                }))
+            }
+            FilterState::Nodes => {
+                let nodes = view.core_nodes();
+                FilterVariants::Nodes(par_iter.filter(move |&e| {
+                    view.filter_node(nodes.node_entry(e.src()))
+                        && view.filter_node(nodes.node_entry(e.dst()))
+                }))
+            }
+            FilterState::Edges | FilterState::BothIndependent => {
+                FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e, layer_ids)))
+            }
+        }
+    }
+}

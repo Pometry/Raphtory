@@ -1,6 +1,7 @@
 use crate::{
-    core::utils::{errors::GraphError, time::IntoTime},
+    core::utils::time::IntoTime,
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
+    errors::GraphError,
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         types::wrappers::document::PyDocument,

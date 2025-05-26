@@ -1,7 +1,6 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
-        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
+        api::view::StaticGraphViewOps,
         graph::{
             edge::EdgeView,
             views::filter::{
@@ -14,6 +13,7 @@ use crate::{
             },
         },
     },
+    errors::GraphError,
     prelude::{EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, PropertyFilter},
     search::{
         collectors::{
@@ -29,6 +29,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::EID;
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,

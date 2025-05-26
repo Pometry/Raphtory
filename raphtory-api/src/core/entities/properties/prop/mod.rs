@@ -6,6 +6,9 @@ mod prop_unwrap;
 #[cfg(feature = "io")]
 mod serde;
 
+#[cfg(feature = "template")]
+mod template;
+
 pub use prop::*;
 #[cfg(feature = "arrow")]
 pub use prop_array::*;

@@ -1,10 +1,8 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
-    db::api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        view::StaticGraphViewOps,
-    },
+    db::api::view::StaticGraphViewOps,
+    errors::GraphError,
     io::arrow::{dataframe::*, df_loaders::*},
+    prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::*,
     serialise::incremental::InternalCache,
 };
@@ -15,6 +13,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},
 };
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::{collections::HashMap, ops::Deref};
 use tracing::error;
 
@@ -24,7 +23,7 @@ pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option
 
 pub(crate) fn load_nodes_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -60,7 +59,7 @@ pub(crate) fn load_nodes_from_pandas<
 
 pub(crate) fn load_edges_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -98,7 +97,7 @@ pub(crate) fn load_edges_from_pandas<
 
 pub(crate) fn load_node_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -128,7 +127,7 @@ pub(crate) fn load_node_props_from_pandas<
 
 pub(crate) fn load_edge_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -160,7 +159,7 @@ pub(crate) fn load_edge_props_from_pandas<
 
 pub fn load_edge_deletions_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,

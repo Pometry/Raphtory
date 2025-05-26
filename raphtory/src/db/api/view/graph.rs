@@ -39,8 +39,13 @@ use raphtory_storage::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::sync::{atomic::Ordering, Arc};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    sync::{atomic::Ordering, Arc},
+};
 
+use crate::db::graph::views::filter::model::{AsEdgeFilter, AsNodeFilter};
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 #[cfg(feature = "search")]
@@ -353,7 +358,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in 0..layers.len() {
                     let new_id = g
-                        .resolve_layer(Some(&layers[id]))
+                        .resolve_layer_inner(Some(&layers[id]))
                         .map_err(MutationError::from)?
                         .inner();
                     layer_map[id] = new_id;
@@ -363,7 +368,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let new_id = g
-                    .resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
+                    .resolve_layer_inner(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
                     .map_err(MutationError::from)?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
@@ -373,7 +378,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
                     let new_id = g
-                        .resolve_layer(Some(&layers[id]))
+                        .resolve_layer_inner(Some(&layers[id]))
                         .map_err(MutationError::from)?
                         .inner();
                     layer_map[id] = new_id;

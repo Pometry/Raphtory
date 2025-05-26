@@ -27,8 +27,16 @@ use pyo3::PyErr;
 #[cfg(feature = "arrow")]
 use raphtory_api::core::entities::{GidType, VID};
 
-use raphtory_api::core::entities::properties::prop::{Prop, PropError, PropType};
-use raphtory_core::{entities::graph::tgraph::InvalidLayer, utils::time::ParseTimeError};
+use raphtory_api::core::entities::properties::prop::{
+    DeserialisationError, Prop, PropError, PropType,
+};
+use raphtory_core::{
+    entities::{
+        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
+        properties::props::{ConstPropError, TPropError},
+    },
+    utils::time::ParseTimeError,
+};
 use raphtory_storage::mutation::MutationError;
 #[cfg(feature = "search")]
 use tantivy;
@@ -108,6 +116,10 @@ pub enum WriteError {
 }
 
 pub type GraphResult<T> = Result<T, GraphError>;
+
+pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
+    err.into()
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
@@ -252,6 +264,8 @@ pub enum GraphError {
         source: bincode::Error,
     },
 
+    // #[error(transparent)]
+    // DeserialisationError(#[from] DeserialisationError),
     #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -325,8 +339,8 @@ pub enum GraphError {
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
 
-    #[error("Failed to deserialise graph: {0}")]
-    DeserialisationError(String),
+    #[error(transparent)]
+    DeserialisationError(#[from] DeserialisationError),
 
     #[cfg(feature = "proto")]
     #[error("Cache is not initialised")]
@@ -396,6 +410,24 @@ pub enum GraphError {
 
     #[error("Failed to create index in ram")]
     FailedToCreateIndexInRam,
+}
+
+impl From<ConstPropError> for GraphError {
+    fn from(value: ConstPropError) -> Self {
+        Self::MutationError(value.into())
+    }
+}
+
+impl From<TPropError> for GraphError {
+    fn from(value: TPropError) -> Self {
+        Self::MutationError(value.into())
+    }
+}
+
+impl From<InvalidNodeId> for GraphError {
+    fn from(value: InvalidNodeId) -> Self {
+        Self::MutationError(value.into())
+    }
 }
 
 impl GraphError {

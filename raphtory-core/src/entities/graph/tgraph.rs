@@ -6,17 +6,14 @@ use crate::{
             tgraph_storage::GraphStorage,
             timer::{MaxCounter, MinCounter, TimeCounterTrait},
         },
-        nodes::{
-            node_ref::{AsNodeRef, NodeRef},
-            node_store::NodeStore,
-        },
+        nodes::{node_ref::NodeRef, node_store::NodeStore},
         properties::graph_meta::GraphMeta,
         LayerIds, EID, VID,
     },
     storage::{
         raw_edges::EdgeWGuard,
         timeindex::{AsTime, TimeIndexEntry},
-        PairEntryMut,
+        NodeEntry, PairEntryMut,
     },
 };
 use dashmap::DashSet;
@@ -129,18 +126,21 @@ impl TemporalGraph {
         self.edge_meta.layer_meta().len()
     }
 
-    pub fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        match id.as_gid_ref() {
-            Either::Left(id) => self.logical_to_physical.get_or_init_node(id, || {
+    pub fn resolve_node_inner(&self, id: NodeRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
+        match id {
+            NodeRef::External(id) => self.logical_to_physical.get_or_init_node(id, || {
                 let node_store = NodeStore::empty(id.into());
                 self.storage.push_node(node_store)
             }),
-            Either::Right(id) => Ok(MaybeNew::Existing(id)),
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
         }
     }
 
     /// map layer name to id and allocate a new layer if needed
-    pub fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, TooManyLayers> {
+    pub fn resolve_layer_inner(
+        &self,
+        layer: Option<&str>,
+    ) -> Result<MaybeNew<usize>, TooManyLayers> {
         let id = self.edge_meta.get_or_create_layer_id(layer);
         if let MaybeNew::New(id) = id {
             if id > MAX_LAYER {
@@ -344,5 +344,9 @@ impl TemporalGraph {
                     .clone()
             }
         }
+    }
+
+    pub fn node(&self, id: VID) -> NodeEntry {
+        self.storage.get_node(id)
     }
 }

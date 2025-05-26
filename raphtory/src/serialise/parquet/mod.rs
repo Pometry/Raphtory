@@ -1,12 +1,6 @@
 use crate::{
-    core::{arrow_dtype_from_prop_type, utils::errors::GraphError},
-    db::{
-        api::{
-            mutation::internal::InternalAdditionOps,
-            storage::{graph::storage_ops::GraphStorage, storage::Storage},
-        },
-        graph::views::deletion_graph::PersistentGraph,
-    },
+    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    errors::GraphError,
     io::parquet_loaders::{
         load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
         load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
@@ -30,10 +24,13 @@ use parquet::{
     file::properties::WriterProperties,
 };
 use raphtory_api::{
-    core::entities::{properties::meta::PropMapper, GidType},
+    core::entities::{
+        properties::{meta::PropMapper, prop::arrow_dtype_from_prop_type},
+        GidType,
+    },
     GraphType,
 };
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::{
     fs::File,
@@ -161,7 +158,7 @@ pub(crate) fn derive_schema(
     id_type: Option<GidType>,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
 ) -> Result<SchemaRef, GraphError> {
-    let fields = arrow_fields(prop_meta)?;
+    let fields = arrow_fields(prop_meta);
     let id_type = get_id_type(id_type);
 
     let make_schema = |id_type: DataType, prop_columns: Vec<Field>| {
@@ -184,7 +181,7 @@ pub(crate) fn derive_schema(
     Ok(schema)
 }
 
-fn arrow_fields(meta: &PropMapper) -> Result<Vec<Field>, GraphError> {
+fn arrow_fields(meta: &PropMapper) -> Vec<Field> {
     meta.get_keys()
         .into_iter()
         .filter_map(|name| {
@@ -193,7 +190,8 @@ fn arrow_fields(meta: &PropMapper) -> Result<Vec<Field>, GraphError> {
                 .map(move |prop_type| (name, prop_type))
         })
         .map(|(name, prop_type)| {
-            arrow_dtype_from_prop_type(&prop_type).map(|d_type| Field::new(name, d_type, true))
+            let d_type = arrow_dtype_from_prop_type(&prop_type);
+            Field::new(name, d_type, true)
         })
         .collect()
 }

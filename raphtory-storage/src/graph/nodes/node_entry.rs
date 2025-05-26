@@ -54,7 +54,7 @@ impl<'a> NodeStorageEntry<'a> {
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
             NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(*entry),
-            NodeStorageEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.get_entry()),
+            NodeStorageEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.as_ref()),
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => NodeStorageRef::Disk(*node),
         }
@@ -87,7 +87,7 @@ impl<'b> NodeStorageEntry<'b> {
         match self {
             NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
             NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.get_entry().node().const_prop_ids())
+                Box::new(e.as_ref().node().const_prop_ids())
             })),
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),
@@ -98,7 +98,7 @@ impl<'b> NodeStorageEntry<'b> {
         match self {
             NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
             NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.get_entry().temporal_prop_ids())
+                Box::new(e.as_ref().temporal_prop_ids())
             })),
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),

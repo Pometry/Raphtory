@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
+use crate::graph::variants::storage_variants2::StorageVariants2;
 
 pub enum EdgesStorage {
     Mem(Arc<LockedEdges>),
@@ -40,12 +41,34 @@ impl EdgesStorage {
         layers: &'a LayerIds,
     ) -> impl Iterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
         match self {
-            EdgesStorage::Mem(storage) => storage
-                .iter()
-                .filter(|e| e.has_layer(layers))
-                .map(EdgeStorageRef::Mem),
+            EdgesStorage::Mem(storage) => StorageVariants2::Mem(
+                storage
+                    .iter()
+                    .filter(|e| e.has_layer(layers))
+                    .map(EdgeStorageRef::Mem),
+            ),
             #[cfg(feature = "storage")]
-            EdgesStorage::Disk(storage) => storage.as_ref().iter(layers).map(EdgeStorageRef::Disk),
+            EdgesStorage::Disk(storage) => {
+                StorageVariants2::Disk(storage.as_ref().iter(layers).map(EdgeStorageRef::Disk))
+            }
+        }
+    }
+
+    pub fn par_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
+        match self {
+            EdgesStorage::Mem(storage) => StorageVariants2::Mem(
+                storage
+                    .par_iter()
+                    .filter(|e| e.has_layer(layers))
+                    .map(EdgeStorageRef::Mem),
+            ),
+            #[cfg(feature = "storage")]
+            EdgesStorage::Disk(storage) => {
+                StorageVariants2::Disk(storage.as_ref().par_iter(layers).map(EdgeStorageRef::Disk))
+            }
         }
     }
 }

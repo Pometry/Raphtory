@@ -1,5 +1,4 @@
 use crate::{
-    core::{utils::time::IntoTime, Prop, PropUnwrap},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -30,7 +29,11 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropUnwrap},
+    storage::arc_str::ArcStr,
+};
+use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {

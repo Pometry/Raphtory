@@ -499,14 +499,13 @@ mod test_composite_filters {
 
 #[cfg(test)]
 pub(crate) mod test_filters {
-    use raphtory_api::core::entities::properties::prop::IntoProp;
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-    use raphtory_storage::mutation::property_addition_ops::InternalPropertyAdditionOps;
     use crate::{
-        db::api::{
-            view::StaticGraphViewOps,
-        },
+        db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, PropertyAdditionOps},
+    };
+    use raphtory_api::core::entities::properties::prop::IntoProp;
+    use raphtory_storage::mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
 
     struct IdentityGraphTransformer;
@@ -520,43 +519,29 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_property_semantics {
-        use crate::{
-            db::{api::view::StaticGraphViewOps, graph::assertions::GraphTransformer},
-            prelude::GraphViewOps,
-        };
-
         #[cfg(test)]
         mod test_node_property_filter_semantics {
             use crate::{
-                assert_filter_results, assert_search_results,
                 db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                        },
+                        views::filter::{
+                            model::PropertyFilterOps, test_filters::IdentityGraphTransformer,
+                        },
+                    },
                 },
-                prelude::{AdditionOps, PropertyAdditionOps},
+                prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, PropertyFilter},
             };
             use raphtory_api::core::entities::properties::prop::Prop;
             use raphtory_storage::mutation::{
                 addition_ops::InternalAdditionOps,
                 property_addition_ops::InternalPropertyAdditionOps,
             };
-            use crate::{
-                db::graph::{
-                    assertions::{
-                        assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
-                    },
-                    views::filter::test_filters::IdentityGraphTransformer,
-                },
-                prelude::PropertyFilter,
-            };
-            use crate::prelude::GraphViewOps;
 
-            fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            >(
+            fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,
             ) -> G {
                 let nodes = [
@@ -883,10 +868,7 @@ pub(crate) mod test_filters {
         mod test_edge_property_filter_semantics {
             use crate::{
                 db::{
-                    api::{
-                        view::StaticGraphViewOps,
-                    },
-                    graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, PropertyAdditionOps},
             };
@@ -896,16 +878,19 @@ pub(crate) mod test_filters {
                 property_addition_ops::InternalPropertyAdditionOps,
             };
 
-            use crate::db::graph::{
-                assertions::{
-                    assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
-                    TestVariants,
+            use crate::{
+                db::graph::{
+                    assertions::{
+                        assert_filter_edges_results, assert_search_edges_results,
+                        TestGraphVariants, TestVariants,
+                    },
+                    views::filter::{
+                        model::property_filter::PropertyFilter,
+                        test_filters::IdentityGraphTransformer,
+                    },
                 },
-                views::filter::{
-                    model::property_filter::PropertyFilter, test_filters::IdentityGraphTransformer,
-                },
+                prelude::GraphViewOps,
             };
-            use crate::prelude::GraphViewOps;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -1263,10 +1248,7 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::{
-        assertions::GraphTransformer,
-        views::filter::internal::{InternalEdgeFilterOps},
-    };
+    use crate::db::graph::assertions::GraphTransformer;
 
     fn init_nodes_graph<
         G: StaticGraphViewOps
@@ -1421,8 +1403,8 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_property_filter {
-        use crate::{
-            db::graph::views::filter::{model::PropertyFilterOps, test_filters::init_nodes_graph},
+        use crate::db::graph::views::filter::{
+            model::PropertyFilterOps, test_filters::init_nodes_graph,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -1867,19 +1849,17 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_edge_property_filter {
-        use raphtory_api::core::entities::properties::prop::Prop;
-        use crate::{
-            db::graph::{
-                assertions::{
-                    assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
-                    TestVariants,
-                },
-                views::filter::{
-                    model::{property_filter::PropertyFilter, ComposableFilter, PropertyFilterOps},
-                    test_filters::{init_edges_graph, IdentityGraphTransformer},
-                },
+        use crate::db::graph::{
+            assertions::{
+                assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
+                TestVariants,
+            },
+            views::filter::{
+                model::{property_filter::PropertyFilter, ComposableFilter, PropertyFilterOps},
+                test_filters::{init_edges_graph, IdentityGraphTransformer},
             },
         };
+        use raphtory_api::core::entities::properties::prop::Prop;
 
         #[test]
         fn test_filter_edges_for_property_eq() {

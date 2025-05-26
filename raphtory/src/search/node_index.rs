@@ -2,15 +2,12 @@ use crate::{
     core::{
         entities::{nodes::node_ref::NodeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
     },
     db::{
-        api::{
-            properties::internal::{ConstantPropertiesOps, TemporalPropertiesOps},
-            storage::graph::storage_ops::GraphStorage,
-        },
+        api::properties::internal::{ConstantPropertiesOps, TemporalPropertiesOps},
         graph::node::NodeView,
     },
+    errors::GraphError,
     prelude::*,
     search::{
         entity_index::EntityIndex,
@@ -19,6 +16,7 @@ use crate::{
     },
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
     fmt::{Debug, Formatter},

@@ -2,9 +2,9 @@ use crate::{
     core::entities::properties::prop::{Prop, PropType},
     iter::{BoxedLIter, IntoDynBoxed},
 };
-use arrow_array::{Array, ArrayRef, PrimitiveArray, RecordBatch};
+use arrow_array::{Array, ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch};
 use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
-use arrow_schema::{ArrowError, Field, Schema};
+use arrow_schema::{ArrowError, DataType, Field, Schema};
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
@@ -19,7 +19,7 @@ pub enum PropArray {
     Array(ArrayRef),
 }
 
-#[derive(Error)]
+#[derive(Error, Debug)]
 pub enum DeserialisationError {
     #[error("Failed to deserialize ArrayRef")]
     DeserialisationError,
@@ -52,12 +52,12 @@ impl PropArray {
         }
     }
 
-    pub fn dtype(&self) -> PropType {
-        match self {
-            PropArray::Empty => PropType::Empty,
-            PropArray::Array(a) => PropType::from(a.data_type()),
-        }
-    }
+    // pub fn dtype(&self) -> PropType {
+    //     match self {
+    //         PropArray::Empty => PropType::Empty,
+    //         PropArray::Array(a) => PropType::from(a.data_type()),
+    //     }
+    // }
 
     pub fn to_vec_u8(&self) -> Vec<u8> {
         // assuming we can allocate this can't fail
@@ -210,58 +210,48 @@ impl PartialEq for PropArray {
 impl Prop {
     pub fn from_arr<TT: ArrowPrimitiveType>(vals: Vec<TT::Native>) -> Self
     where
-        arrow_array::PrimitiveArray<TT>: From<Vec<TT::Native>>,
+        PrimitiveArray<TT>: From<Vec<TT::Native>>,
     {
-        let array = arrow_array::PrimitiveArray::<TT>::from(vals);
+        let array = PrimitiveArray::<TT>::from(vals);
         Prop::Array(PropArray::Array(Arc::new(array)))
     }
 }
 
-pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, GraphError> {
+pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
     match prop_type {
-        PropType::Str => Ok(DataType::LargeUtf8),
-        PropType::U8 => Ok(DataType::UInt8),
-        PropType::U16 => Ok(DataType::UInt16),
-        PropType::I32 => Ok(DataType::Int32),
-        PropType::I64 => Ok(DataType::Int64),
-        PropType::U32 => Ok(DataType::UInt32),
-        PropType::U64 => Ok(DataType::UInt64),
-        PropType::F32 => Ok(DataType::Float32),
-        PropType::F64 => Ok(DataType::Float64),
-        PropType::Bool => Ok(DataType::Boolean),
-        PropType::NDTime => Ok(DataType::Timestamp(
-            arrow_schema::TimeUnit::Millisecond,
-            None,
-        )),
-        PropType::DTime => Ok(DataType::Timestamp(
-            arrow_schema::TimeUnit::Millisecond,
-            Some("UTC".into()),
-        )),
-        PropType::Array(d_type) => Ok(DataType::List(
-            Field::new("data", arrow_dtype_from_prop_type(&d_type)?, true).into(),
-        )),
+        PropType::Str => DataType::LargeUtf8,
+        PropType::U8 => DataType::UInt8,
+        PropType::U16 => DataType::UInt16,
+        PropType::I32 => DataType::Int32,
+        PropType::I64 => DataType::Int64,
+        PropType::U32 => DataType::UInt32,
+        PropType::U64 => DataType::UInt64,
+        PropType::F32 => DataType::Float32,
+        PropType::F64 => DataType::Float64,
+        PropType::Bool => DataType::Boolean,
+        PropType::NDTime => DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, None),
+        PropType::DTime => {
+            DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, Some("UTC".into()))
+        }
+        PropType::Array(d_type) => {
+            DataType::List(Field::new("data", arrow_dtype_from_prop_type(&d_type), true).into())
+        }
 
-        PropType::List(d_type) => Ok(DataType::List(
-            Field::new("data", arrow_dtype_from_prop_type(&d_type)?, true).into(),
-        )),
+        PropType::List(d_type) => {
+            DataType::List(Field::new("data", arrow_dtype_from_prop_type(&d_type), true).into())
+        }
         PropType::Map(d_type) => {
             let fields = d_type
                 .iter()
-                .map(|(k, v)| {
-                    Ok::<_, GraphError>(Field::new(
-                        k.to_string(),
-                        arrow_dtype_from_prop_type(v)?,
-                        true,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(DataType::Struct(fields.into()))
+                .map(|(k, v)| Field::new(k.to_string(), arrow_dtype_from_prop_type(v), true))
+                .collect::<Vec<_>>();
+            DataType::Struct(fields.into())
         }
-        // 38 comes from herehttps://arrow.apache.org/docs/python/generated/pyarrow.decimal128.html
-        PropType::Decimal { scale } => Ok(DataType::Decimal128(38, (*scale).try_into().unwrap())),
+        // 38 comes from here: https://arrow.apache.org/docs/python/generated/pyarrow.decimal128.html
+        PropType::Decimal { scale } => DataType::Decimal128(38, (*scale).try_into().unwrap()),
         PropType::Empty => {
             // this is odd, we'll just pick one and hope for the best
-            Ok(DataType::Null)
+            DataType::Null
         }
     }
 }
@@ -289,7 +279,7 @@ pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
     }
 }
 
-pub trait PropArrayUnwrap {
+pub trait PropArrayUnwrap: Sized {
     fn into_array(self) -> Option<ArrayRef>;
     fn unwrap_array(self) -> ArrayRef {
         self.into_array().unwrap()

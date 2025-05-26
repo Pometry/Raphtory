@@ -847,7 +847,7 @@ pub struct NodeEntry<'a> {
 
 impl NodeEntry<'_> {
     #[inline]
-    pub fn get_entry(&self) -> NodePtr<'_> {
+    pub fn as_ref(&self) -> NodePtr<'_> {
         NodePtr::new(&self.guard[self.offset], &self.guard.t_props_log)
     }
 }
@@ -1095,7 +1095,7 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(entry.get_entry().node().vid, VID(i));
+            assert_eq!(entry.as_ref().node().vid, VID(i));
         }
 
         let items_iter = storage.read_lock().into_iter();
@@ -1141,7 +1141,7 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(*entry.get_entry().node().global_id.to_str(), i.to_string());
+            assert_eq!(*entry.as_ref().node().global_id.to_str(), i.to_string());
         }
     }
 

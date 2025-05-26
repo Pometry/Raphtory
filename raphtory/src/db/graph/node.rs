@@ -30,19 +30,13 @@ use crate::{
         },
         graph::edges::Edges,
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::graph::GraphStorage,
-    mutation::{
-        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-    },
-};
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -406,25 +400,27 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     }
 }
 
-impl<
-        G: StaticGraphViewOps
-            + InternalPropertyAdditionOps<Error = GraphError>
-            + InternalAdditionOps<Error = GraphError>,
-    > NodeView<'static, G, G>
-{
+impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         properties: C,
     ) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
+            Ok(self
+                .graph
+                .resolve_node_property(name, dtype, true)
+                .map_err(into_graph_err)?
+                .inner())
         })?;
         self.graph
             .internal_add_constant_node_properties(self.node, &properties)
+            .map_err(into_graph_err)
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        self.graph.resolve_node_and_type(self.node, new_type)?;
+        self.graph
+            .resolve_node_and_type(NodeRef::Internal(self.node), new_type)
+            .map_err(into_graph_err)?;
         Ok(())
     }
 
@@ -433,10 +429,15 @@ impl<
         props: C,
     ) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
+            Ok(self
+                .graph
+                .resolve_node_property(name, dtype, true)
+                .map_err(into_graph_err)?
+                .inner())
         })?;
         self.graph
             .internal_update_constant_node_properties(self.node, &properties)
+            .map_err(into_graph_err)
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -448,10 +449,13 @@ impl<
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_node_property(name, dtype, false)?
+                .resolve_node_property(name, dtype, false)
+                .map_err(into_graph_err)?
                 .inner())
         })?;
-        self.graph.internal_add_node(t, self.node, &properties)
+        self.graph
+            .internal_add_node(t, self.node, &properties)
+            .map_err(into_graph_err)
     }
 }
 

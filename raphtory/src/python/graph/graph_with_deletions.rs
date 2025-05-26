@@ -12,11 +12,11 @@ use super::{
 #[cfg(feature = "storage")]
 use crate::disk_graph::DiskGraphStorage;
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::{
         api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
@@ -26,7 +26,10 @@ use crate::{
     serialise::StableEncode,
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::arc_str::ArcStr,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,

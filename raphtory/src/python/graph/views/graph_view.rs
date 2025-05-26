@@ -1,6 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -32,6 +31,7 @@ use crate::{
             },
         },
     },
+    errors::GraphError,
     prelude::*,
     python::{
         graph::{edge::PyEdge, node::PyNode},

@@ -239,10 +239,9 @@ mod tests_node_type_filtered_subgraph {
                     },
                 },
             },
-            prelude::{AdditionOps, LayerOps, NodeViewOps, TimeOps},
+            prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
         };
         use std::ops::Range;
-        use crate::prelude::GraphViewOps;
 
         fn get_all_node_types<G: StaticGraphViewOps>(graph: &G) -> Vec<String> {
             graph
@@ -313,13 +312,13 @@ mod tests_node_type_filtered_subgraph {
         }
 
         mod test_nodes_filters_node_type_filtered_subgraph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
                 prelude::AdditionOps,
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -475,13 +474,13 @@ mod tests_node_type_filtered_subgraph {
         }
 
         mod test_edges_filters_node_type_filtered_subgraph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, NO_PROPS},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

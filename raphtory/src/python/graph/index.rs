@@ -1,9 +1,9 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, node::NodeView},
     },
+    errors::GraphError,
     prelude::SearchableGraphOps,
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };

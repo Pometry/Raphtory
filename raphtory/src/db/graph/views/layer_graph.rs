@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{LayerIds, Multiple},
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
@@ -18,10 +18,7 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
 };
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -252,7 +249,7 @@ mod test_layers {
                     views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
                 },
             },
-            prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+            prelude::{LayerOps, TimeOps},
         };
         use std::ops::Range;
 
@@ -278,13 +275,13 @@ mod test_layers {
         }
 
         mod test_nodes_filters_layer_graph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             use crate::db::graph::{
                 assertions::{
@@ -556,7 +553,6 @@ mod test_layers {
         }
 
         mod test_edges_filters_layer_graph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps,
@@ -574,6 +570,7 @@ mod test_layers {
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

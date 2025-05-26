@@ -1,13 +1,14 @@
 use crate::graph::{
     edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
     graph::GraphStorage,
+    locked::LockedGraph,
     nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
 };
 use raphtory_api::{
     core::{
         entities::{
             properties::{meta::Meta, prop::Prop},
-            LayerIds, EID, GID, VID,
+            GidType, LayerIds, EID, GID, VID,
         },
         storage::arc_str::ArcStr,
     },
@@ -21,7 +22,10 @@ use raphtory_core::{
     },
     storage::locked_view::LockedView,
 };
-use std::{iter, sync::Arc};
+use std::{
+    iter,
+    sync::{atomic::Ordering, Arc},
+};
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -30,6 +34,37 @@ pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> boo
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 pub trait CoreGraphOps: Send + Sync {
+    fn id_type(&self) -> Option<GidType> {
+        match self.core_graph() {
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.logical_to_physical.dtype()
+            }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
+        }
+    }
+
+    fn num_shards(&self) -> usize {
+        match self.core_graph() {
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.storage.num_shards()
+            }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => 1,
+        }
+    }
+
+    /// get the current sequence id without incrementing the counter
+    fn read_event_id(&self) -> usize {
+        match self.core_graph() {
+            GraphStorage::Unlocked(graph) | GraphStorage::Mem(LockedGraph { graph, .. }) => {
+                graph.event_counter.load(Ordering::Relaxed)
+            }
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
+        }
+    }
+
     /// get the number of nodes in the main graph
     #[inline]
     fn unfiltered_num_nodes(&self) -> usize {

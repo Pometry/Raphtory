@@ -24,7 +24,7 @@ use crate::{
         },
         graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
     prelude::*,
 };
 use itertools::Itertools;
@@ -300,7 +300,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
                     })?,
                 None => {
                     if create {
-                        self.graph.resolve_layer(layer)?.inner()
+                        self.graph
+                            .resolve_layer(layer)
+                            .map_err(into_graph_err)?
+                            .inner()
                     } else {
                         self.graph.get_layer_id(name).ok_or_else(|| {
                             InvalidLayer::new(
@@ -353,14 +356,16 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
             });
         }
         let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
+            Ok(self
+                .graph
+                .resolve_edge_property(name, dtype, true)
+                .map_err(into_graph_err)?
+                .inner())
         })?;
 
-        self.graph.internal_add_constant_edge_properties(
-            self.edge.pid(),
-            input_layer_id,
-            &properties,
-        )?;
+        self.graph
+            .internal_add_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
+            .map_err(into_graph_err)?;
         Ok(())
     }
 
@@ -369,16 +374,18 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_layer(layer, false)?;
+        let input_layer_id = self.resolve_layer(layer, false).map_err(into_graph_err)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
+            Ok(self
+                .graph
+                .resolve_edge_property(name, dtype, true)
+                .map_err(into_graph_err)?
+                .inner())
         })?;
 
-        self.graph.internal_update_constant_edge_properties(
-            self.edge.pid(),
-            input_layer_id,
-            &properties,
-        )?;
+        self.graph
+            .internal_update_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
+            .map_err(into_graph_err)?;
         Ok(())
     }
 
@@ -393,12 +400,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_edge_property(name, dtype, false)?
+                .resolve_edge_property(name, dtype, false)
+                .map_err(into_graph_err)?
                 .inner())
         })?;
 
         self.graph
-            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)?;
+            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)
+            .map_err(into_graph_err)?;
         Ok(())
     }
 }

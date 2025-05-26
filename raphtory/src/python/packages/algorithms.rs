@@ -56,11 +56,11 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::utils::errors::GraphError,
     db::{
         api::{state::NodeState, view::internal::DynamicGraph},
         graph::{node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::Graph,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},

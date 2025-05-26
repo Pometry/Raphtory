@@ -277,18 +277,11 @@ mod subgraph_tests {
             db::{
                 api::view::StaticGraphViewOps,
                 graph::{
-                    assertions::{ApplyFilter, GraphTransformer, TestGraphVariants},
-                    views::{
-                        filter::{
-                            internal::{InternalEdgeFilterOps},
-                            model::{AsEdgeFilter, AsNodeFilter},
-                        },
-                        node_subgraph::NodeSubgraph,
-                        window_graph::WindowedGraph,
-                    },
+                    assertions::{GraphTransformer, TestGraphVariants},
+                    views::{node_subgraph::NodeSubgraph, window_graph::WindowedGraph},
                 },
             },
-            prelude::{AdditionOps, GraphViewOps, NodeViewOps, TimeOps},
+            prelude::{GraphViewOps, NodeViewOps, TimeOps},
         };
         use std::ops::Range;
 
@@ -320,7 +313,6 @@ mod subgraph_tests {
         }
 
         mod test_nodes_filters_node_subgraph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps,
@@ -337,8 +329,9 @@ mod subgraph_tests {
                         },
                     },
                 },
-                prelude::{AdditionOps, NodeViewOps, PropertyFilter},
+                prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -484,7 +477,6 @@ mod subgraph_tests {
         }
 
         mod test_edges_filters_node_subgraph {
-            use raphtory_api::core::entities::properties::prop::Prop;
             use crate::{
                 db::{
                     api::view::StaticGraphViewOps,
@@ -502,6 +494,7 @@ mod subgraph_tests {
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

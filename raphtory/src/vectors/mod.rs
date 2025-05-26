@@ -1,12 +1,17 @@
-use crate::{
-    core::{DocumentInput, Lifespan},
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, node::NodeView},
-    },
+use crate::db::{
+    api::view::StaticGraphViewOps,
+    graph::{edge::EdgeView, node::NodeView},
 };
 use futures_util::future::BoxFuture;
-use std::{error, future::Future, ops::Deref, sync::Arc};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::{
+    error, fmt,
+    fmt::{Display, Formatter},
+    future::Future,
+    ops::Deref,
+    sync::Arc,
+};
 
 pub mod datetimeformat;
 mod document_ref;
@@ -37,6 +42,43 @@ pub struct Document<G: StaticGraphViewOps> {
     pub content: String,
     pub embedding: Embedding,
     pub life: Lifespan,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, Default)]
+pub enum Lifespan {
+    Interval {
+        start: i64,
+        end: i64,
+    },
+    Event {
+        time: i64,
+    },
+    #[default]
+    Inherited,
+}
+
+/// struct containing all the necessary information to allow Raphtory creating a document and
+/// storing it
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash, Default)]
+pub struct DocumentInput {
+    pub content: String,
+    pub life: Lifespan,
+}
+
+impl Display for DocumentInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.content)
+    }
+}
+
+impl From<Lifespan> for Value {
+    fn from(lifespan: Lifespan) -> Self {
+        match lifespan {
+            Lifespan::Interval { start, end } => json!({ "start": start, "end": end }),
+            Lifespan::Event { time } => json!({ "time": time }),
+            Lifespan::Inherited => Value::String("inherited".to_string()),
+        }
+    }
 }
 
 impl Lifespan {
@@ -91,12 +133,12 @@ impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
 mod vector_tests {
     use super::*;
     use crate::{
-        core::Prop,
         prelude::{AdditionOps, Graph, GraphViewOps},
         vectors::{embeddings::openai_embedding, vectorisable::Vectorisable},
     };
     use dotenv::dotenv;
     use itertools::Itertools;
+    use raphtory_api::core::entities::properties::prop::Prop;
     use std::fs::remove_file;
     use template::DocumentTemplate;
     use tokio;

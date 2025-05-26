@@ -5,11 +5,11 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     algorithms::components::LargestConnectedComponent,
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
+    errors::GraphError,
     io::parquet_loaders::*,
     prelude::*,
     python::{

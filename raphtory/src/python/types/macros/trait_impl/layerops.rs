@@ -28,7 +28,7 @@ macro_rules! impl_layerops {
             fn layer(
                 &self,
                 name: &str,
-            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
+            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::errors::GraphError> {
                 self.$field.layers(name)
             }
 
@@ -43,7 +43,7 @@ macro_rules! impl_layerops {
             fn exclude_layer(
                 &self,
                 name: &str,
-            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
+            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::errors::GraphError> {
                 self.$field.exclude_layers(name)
             }
 
@@ -85,7 +85,7 @@ macro_rules! impl_layerops {
             fn layers(
                 &self,
                 names: Vec<String>,
-            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
+            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::errors::GraphError> {
                 self.$field.layers(names)
             }
 
@@ -100,7 +100,7 @@ macro_rules! impl_layerops {
             fn exclude_layers(
                 &self,
                 names: Vec<String>,
-            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
+            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::errors::GraphError> {
                 self.$field.exclude_layers(names)
             }
 

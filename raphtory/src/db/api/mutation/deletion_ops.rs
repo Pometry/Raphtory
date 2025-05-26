@@ -5,7 +5,7 @@ use crate::{
         api::{mutation::TryIntoInputTime, view::StaticGraphViewOps},
         graph::edge::EdgeView,
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_storage::mutation::{
@@ -14,10 +14,10 @@ use raphtory_storage::mutation::{
 use std::sync::Arc;
 
 pub trait DeletionOps:
-    InternalDeletionOps + InternalAdditionOps + StaticGraphViewOps + Sized
-where
-    GraphError: From<<Self as InternalAdditionOps>::Error>,
-    GraphError: From<<Self as InternalDeletionOps>::Error>,
+    InternalDeletionOps<Error: Into<GraphError>>
+    + InternalAdditionOps<Error: Into<GraphError>>
+    + StaticGraphViewOps
+    + Sized
 {
     fn delete_edge<V: AsNodeRef, T: TryIntoInputTime>(
         &self,
@@ -26,12 +26,19 @@ where
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let ti = time_from_input(self, t)?;
-        let src_id = self.resolve_node(src)?.inner();
-        let dst_id = self.resolve_node(dst)?.inner();
-        let layer = self.resolve_layer(layer)?.inner();
+        let ti = time_from_input(self, t).map_err(into_graph_err)?;
+        let src_id = self
+            .resolve_node(src.as_node_ref())
+            .map_err(into_graph_err)?
+            .inner();
+        let dst_id = self
+            .resolve_node(dst.as_node_ref())
+            .map_err(into_graph_err)?
+            .inner();
+        let layer = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
         let eid = self
-            .internal_delete_edge(ti, src_id, dst_id, layer)?
+            .internal_delete_edge(ti, src_id, dst_id, layer)
+            .map_err(into_graph_err)?
             .inner();
         Ok(EdgeView::new(
             self.clone(),
@@ -52,9 +59,4 @@ where
     }
 }
 
-impl<T: DeletionOps + ?Sized> DeletionOps for Arc<T>
-where
-    GraphError: From<<Self as InternalAdditionOps>::Error>,
-    GraphError: From<<Self as InternalDeletionOps>::Error>,
-{
-}
+impl<T: DeletionOps + ?Sized> DeletionOps for Arc<T> {}

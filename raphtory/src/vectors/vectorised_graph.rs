@@ -1,7 +1,13 @@
+use super::{
+    similarity_search_utils::score_document_groups_by_highest,
+    vector_selection::VectorSelection,
+    vectorisable::{vectorise_edge, vectorise_graph, vectorise_node},
+    Document,
+};
 use crate::{
-    // core::entities::nodes::node_ref::AsNodeRef,
-    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
+    errors::GraphResult,
     prelude::*,
     vectors::{
         document_ref::DocumentRef,
@@ -16,13 +22,6 @@ use async_trait::async_trait;
 use itertools::{chain, Itertools};
 use parking_lot::RwLock;
 use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
-
-use super::{
-    similarity_search_utils::score_document_groups_by_highest,
-    vector_selection::VectorSelection,
-    vectorisable::{vectorise_edge, vectorise_graph, vectorise_node},
-    Document,
-};
 
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,

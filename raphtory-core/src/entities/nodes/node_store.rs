@@ -467,7 +467,7 @@ impl<'a> NodeEntry<'a> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from(self, |node| node.get_entry().node().neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.as_ref().node().neighbours(layers, dir))
     }
 
     pub fn into_edges(
@@ -475,9 +475,7 @@ impl<'a> NodeEntry<'a> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| {
-            node.get_entry().node().edge_tuples(layers, dir)
-        })
+        GenLockedIter::from(self, |node| node.as_ref().node().edge_tuples(layers, dir))
     }
 }
 

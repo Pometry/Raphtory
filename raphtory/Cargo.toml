@@ -137,6 +137,7 @@ vectors = [
     "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
+    "raphtory-api/template"
 ]
 
 # Enables generating the pyo3 python bindings
@@ -153,6 +154,7 @@ python = [
     "polars-arrow?/compute",
     "pyo3-arrow",
     "raphtory-api/python",
+    "raphtory-core/python",
     "kdam/notebook",
 ]
 # storage
@@ -169,6 +171,8 @@ arrow = [
     "dep:polars-arrow",
     "dep:polars-parquet",
     "polars-parquet?/compression",
+    "raphtory-api/arrow",
+    "raphtory-core/arrow"
 ]
 
 proto = [

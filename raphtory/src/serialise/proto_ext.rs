@@ -3,7 +3,7 @@ use super::proto::{
     prop_type::{Array as ArrayType, Scalar as ScalarType},
 };
 use crate::{
-    core::{prop_array::PropArray, utils::errors::GraphError, Prop, PropType},
+    errors::GraphError,
     serialise::proto::{
         self,
         graph_update::{
@@ -21,13 +21,19 @@ use crate::{
 };
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use raphtory_api::core::{
-    entities::{GidRef, EID, VID},
+    entities::{
+        properties::prop::{Prop, PropType},
+        GidRef, EID, VID,
+    },
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, TimeIndexEntry},
     },
 };
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
+
+#[cfg(feature = "arrow")]
+use raphtory_api::core::entities::properties::prop::PropArray;
 
 fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
     let val = match p_type {

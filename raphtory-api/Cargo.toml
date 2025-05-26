@@ -27,6 +27,7 @@ lock_api = { workspace = true }
 parking_lot = { workspace = true }
 polars-arrow = { workspace = true, optional = true }
 pyo3 = { workspace = true, optional = true }
+pyo3-arrow = { workspace = true, optional = true }
 rayon = { workspace = true }
 rand = { workspace = true }
 quickcheck_macros = { workspace = true }
@@ -40,6 +41,8 @@ arrow-ipc = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }
 itertools = { workspace = true }
 iter-enum = { workspace = true }
+minijinja = { workspace = true, optional = true }
+display-error-chain = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
@@ -50,7 +53,7 @@ quickcheck_macros.workspace = true
 default = []
 # Enables generating the pyo3 python bindings
 python = [
-    "dep:pyo3",
+    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
 ]
 
 storage = [
@@ -59,6 +62,7 @@ storage = [
 
 proto = []
 vectors = []
+template = ["dep:minijinja"]
 arrow = ["dep:arrow-array", "dep:arrow-ipc", "dep:arrow-schema"]
 search = []
 io = ["dep:serde_json"]

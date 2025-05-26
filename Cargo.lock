@@ -4966,14 +4966,17 @@ dependencies = [
  "bytemuck",
  "chrono",
  "dashmap",
+ "display-error-chain",
  "iter-enum",
  "itertools 0.13.0",
  "lock_api",
+ "minijinja",
  "num-traits",
  "parking_lot",
  "polars-arrow",
  "proptest",
  "pyo3",
+ "pyo3-arrow",
  "quickcheck",
  "quickcheck_macros",
  "rand 0.8.5",
@@ -5009,14 +5012,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raphtory-compute"
-version = "0.15.1"
-dependencies = [
- "itertools 0.13.0",
- "rand 0.8.5",
-]
-
-[[package]]
 name = "raphtory-core"
 version = "0.15.1"
 dependencies = [
@@ -5031,6 +5026,7 @@ dependencies = [
  "ouroboros",
  "parking_lot",
  "proptest",
+ "pyo3",
  "raphtory-api",
  "rayon",
  "regex",
@@ -5069,14 +5065,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "raphtory-filter"
-version = "0.15.1"
-dependencies = [
- "raphtory-api",
- "raphtory-storage",
 ]
 
 [[package]]
