@@ -840,10 +840,7 @@ mod views_test {
             g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        let g = g
-            .persist_as_disk_graph(test_dir.path())
-            .unwrap()
-            .into_graph();
+        let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
         let end = edges.get(rand_end_index).expect("end index in range").0;

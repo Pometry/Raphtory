@@ -87,9 +87,6 @@ pub mod algorithms;
 pub mod db;
 pub mod graphgen;
 
-#[cfg(feature = "storage")]
-pub mod disk_graph;
-
 #[cfg(all(feature = "python", not(doctest)))]
 // no doctests in python as the docstrings are python not rust format
 pub mod python;
@@ -140,6 +137,12 @@ pub mod prelude {
         },
     };
 
+    #[cfg(feature = "storage")]
+    pub use {
+        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
+        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
+    };
+
     #[cfg(feature = "proto")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
@@ -185,10 +188,7 @@ mod test_utils {
     #[cfg(feature = "storage")]
     pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = graph
-            .persist_as_disk_graph(test_dir.path())
-            .unwrap()
-            .into_graph();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
         test(&disk_graph)
     }
 

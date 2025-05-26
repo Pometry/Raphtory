@@ -24,14 +24,11 @@ use datafusion::{
     },
 };
 use futures::{Stream, StreamExt};
-use pometry_storage::graph_fragment::TempColGraphFragment;
-use raphtory::{
-    core::{entities::VID, Direction},
-    disk_graph::{
-        prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
-        DiskGraphStorage,
-    },
+use pometry_storage::{
+    graph_fragment::TempColGraphFragment,
+    prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
 };
+use raphtory::{api::core::Direction, core::entities::VID, prelude::DiskGraphStorage};
 use std::{
     any::Any,
     collections::HashSet,

@@ -16,17 +16,12 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
-
-#[cfg(feature = "storage")]
-use raphtory::db::api::storage::graph::storage_ops::GraphStorage;
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::InternalStableDecode,
 };
-#[cfg(feature = "storage")]
-use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -34,6 +29,10 @@ use std::{
     sync::Arc,
 };
 use zip::ZipArchive;
+
+#[cfg(feature = "storage")]
+use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::graph::graph::GraphStorage;
 
 pub mod algorithms;
 pub(crate) mod graph;

@@ -13,7 +13,10 @@ use crate::{
     },
 };
 #[cfg(feature = "storage")]
-use tempfile::TempDir;
+use {
+    crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
+    raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
+};
 
 pub enum TestGraphVariants {
     Graph,
@@ -224,11 +227,8 @@ fn assert_results(
             TestGraphVariants::EventDiskGraph => {
                 #[cfg(feature = "storage")]
                 {
-                    use crate::disk_graph::DiskGraphStorage;
                     let tmp = TempDir::new().unwrap();
-                    let graph = DiskGraphStorage::from_graph(&graph, &tmp)
-                        .unwrap()
-                        .into_graph();
+                    let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
                     let graph = transform.apply(graph);
                     let result = apply.apply(graph);
                     assert_eq!(expected, result);
@@ -237,7 +237,6 @@ fn assert_results(
             TestGraphVariants::PersistentDiskGraph => {
                 #[cfg(feature = "storage")]
                 {
-                    use crate::disk_graph::DiskGraphStorage;
                     let tmp = TempDir::new().unwrap();
                     let graph = DiskGraphStorage::from_graph(&graph, &tmp)
                         .unwrap()

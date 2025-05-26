@@ -23,11 +23,8 @@ use datafusion::{
     },
 };
 use futures::Stream;
-use pometry_storage::properties::ConstProps;
-use raphtory::{
-    core::entities::VID,
-    disk_graph::{prelude::*, DiskGraphStorage},
-};
+use pometry_storage::{prelude::Chunked, properties::ConstProps};
+use raphtory::{core::entities::VID, prelude::DiskGraphStorage};
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
 // FIXME: review this file, some of the assuptions and mapping between partitions and chunk sizes are not correct

@@ -935,13 +935,8 @@ mod tests {
         };
 
         use crate::{
-            db::{
-                api::storage::graph::storage_ops::GraphStorage, graph::graph::assert_graph_equal,
-            },
-            disk_graph::DiskGraphStorage,
-            io::parquet_loaders::load_edges_from_parquet,
-            prelude::Graph,
-            test_utils::build_edge_list,
+            db::graph::graph::assert_graph_equal, io::parquet_loaders::load_edges_from_parquet,
+            prelude::Graph, test_utils::build_edge_list,
         };
         use polars_arrow::{
             array::{PrimitiveArray, Utf8Array},
@@ -952,6 +947,7 @@ mod tests {
         use pometry_storage::{graph::TemporalGraph, load::ExternalEdgeList};
         use prop::sample::SizeRange;
         use proptest::prelude::*;
+        use raphtory_storage::{disk::DiskGraphStorage, graph::graph::GraphStorage};
         use tempfile::TempDir;
 
         fn build_edge_list_df(

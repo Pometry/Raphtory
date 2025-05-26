@@ -269,20 +269,15 @@ pub(crate) mod data_tests {
         data::Data,
     };
     use itertools::Itertools;
-    use raphtory::{db::api::view::MaterializedGraph, prelude::*};
+    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
     use std::{collections::HashMap, fs, fs::File, io, path::Path};
 
-    use raphtory::errors::GraphError;
     #[cfg(feature = "storage")]
-    use raphtory::{
-        db::api::storage::graph::storage_ops::GraphStorage, disk_graph::DiskGraphStorage,
+    use {
+        raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage},
+        std::path::PathBuf,
+        std::{thread, time::Duration},
     };
-    #[cfg(feature = "storage")]
-    use raphtory_storage::core_ops::CoreGraphOps;
-    #[cfg(feature = "storage")]
-    use std::path::PathBuf;
-    #[cfg(feature = "storage")]
-    use std::{thread, time::Duration};
 
     #[cfg(feature = "storage")]
     fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {

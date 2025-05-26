@@ -26,7 +26,7 @@ use datafusion::{
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
-use raphtory::disk_graph::DiskGraphStorage;
+use raphtory::prelude::DiskGraphStorage;
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
 #[derive(Debug)]

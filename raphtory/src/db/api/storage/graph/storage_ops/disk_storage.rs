@@ -1,19 +1,75 @@
-use raphtory_api::core::{
-    entities::{properties::prop::IntoProp, EID, VID},
-    storage::timeindex::TimeIndexEntry,
+use crate::{
+    db::{
+        api::view::internal::GraphTimeSemanticsOps, graph::views::deletion_graph::PersistentGraph,
+    },
+    errors::GraphError,
+    prelude::{Graph, GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use itertools::Itertools;
+use polars_arrow::array::Array;
+use pometry_storage::interop::GraphLike;
+use raphtory_api::{
+    core::{
+        entities::{properties::tprop::TPropOps, LayerIds, EID, GID, VID},
+        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+        Direction,
+    },
+    iter::IntoDynBoxed,
+};
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
+    disk::{graph_impl::prop_conversion::arrow_array_from_props, DiskGraphStorage},
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
 };
-use std::path::Path;
+use std::{path::Path, sync::Arc};
+
+impl From<DiskGraphStorage> for Graph {
+    fn from(value: DiskGraphStorage) -> Self {
+        Graph::from_internal_graph(GraphStorage::Disk(Arc::new(value)))
+    }
+}
+
+impl From<DiskGraphStorage> for PersistentGraph {
+    fn from(value: DiskGraphStorage) -> Self {
+        PersistentGraph::from_internal_graph(GraphStorage::Disk(Arc::new(value)))
+    }
+}
+
+pub trait IntoGraph {
+    fn into_graph(self) -> Graph;
+
+    fn into_persistent_graph(self) -> PersistentGraph;
+}
+
+impl IntoGraph for DiskGraphStorage {
+    fn into_graph(self) -> Graph {
+        self.into()
+    }
+
+    fn into_persistent_graph(self) -> PersistentGraph {
+        self.into()
+    }
+}
 
 impl Graph {
+    pub fn persist_as_disk_graph(&self, graph_dir: impl AsRef<Path>) -> Result<Graph, GraphError> {
+        Ok(Graph::from(DiskGraphStorage::from_graph(self, graph_dir)?))
+    }
+}
+
+impl PersistentGraph {
     pub fn persist_as_disk_graph(
         &self,
         graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraphStorage, GraphError> {
-        DiskGraphStorage::from_graph(self, graph_dir)
+    ) -> Result<PersistentGraph, GraphError> {
+        Ok(PersistentGraph::from(DiskGraphStorage::from_graph(
+            &self.event_graph(),
+            graph_dir,
+        )?))
     }
 }
 
@@ -62,23 +118,23 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn out_degree(&self, vid: VID, layer: usize) -> usize {
-        self.core_node_entry(vid.0.into())
+        self.core_node(vid.0.into())
             .degree(&LayerIds::One(layer), Direction::OUT)
     }
 
     fn in_degree(&self, vid: VID, layer: usize) -> usize {
-        self.core_node_entry(vid.0.into())
+        self.core_node(vid.0.into())
             .degree(&LayerIds::One(layer), Direction::IN)
     }
 
     fn in_edges<B>(&self, vid: VID, layer: usize, map: impl Fn(VID, EID) -> B) -> Vec<B> {
-        let node = self.core_node_entry(vid.0.into());
+        let node = self.core_node(vid.0.into());
         node.edges_iter(&LayerIds::One(layer), Direction::IN)
             .map(|edge| map(edge.src(), edge.pid()))
             .collect()
     }
     fn out_edges(&self, vid: VID, layer: usize) -> Vec<(VID, VID, EID)> {
-        let node = self.core_node_entry(vid.0.into());
+        let node = self.core_node(vid.0.into());
         let edges = node
             .edges_iter(&LayerIds::One(layer), Direction::OUT)
             .map(|edge| {
@@ -102,9 +158,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn find_name(&self, vid: VID) -> Option<String> {
-        self.core_node_entry(vid.0.into())
-            .name()
-            .map(|s| s.to_string())
+        self.core_node(vid.0.into()).name().map(|s| s.to_string())
     }
 
     fn prop_as_arrow<S: AsRef<str>>(
@@ -144,7 +198,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = (VID, EID)> + '_ {
-        self.core_node_entry(vid)
+        self.core_node(vid)
             .into_edges_iter(&LayerIds::All, Direction::OUT)
             .map(|e_ref| (e_ref.dst(), e_ref.pid()))
     }
@@ -152,27 +206,29 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
 #[cfg(test)]
 mod test {
-    use std::{
-        path::{Path, PathBuf},
-        sync::Arc,
-    };
-
+    use bigdecimal::BigDecimal;
     use itertools::Itertools;
+    use polars_arrow::array::Utf8Array;
     use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+        sync::Arc,
+    };
     use tempfile::TempDir;
 
-    use super::{DiskGraphStorage, ParquetLayerCols};
+    use super::{DiskGraphStorage, IntoGraph};
     use crate::{
         db::{
             api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
             graph::graph::assert_graph_equal,
         },
-        disk_graph::Time,
         prelude::*,
     };
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
-    use raphtory_api::core::entities::{properties::prop::Prop, VID};
+    use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory_storage::disk::{ParquetLayerCols, Time};
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
         let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
@@ -239,10 +295,7 @@ mod test {
         let g = Graph::new();
         g.add_node(0, 0, NO_PROPS, None).unwrap();
         // g.add_node(1, 1, [("test", "test")], None).unwrap();
-        let disk_g = g
-            .persist_as_disk_graph(test_dir.path())
-            .unwrap()
-            .into_graph();
+        let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
         assert_eq!(disk_g.node(0).unwrap().earliest_time(), Some(0));
         assert_graph_equal(&g, &disk_g);
     }
@@ -454,9 +507,7 @@ mod test {
         ])
         .unwrap();
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraphStorage::from_graph(&mem_graph, test_dir.path())
-            .unwrap()
-            .into_graph();
+        let disk_graph = mem_graph.persist_as_disk_graph(test_dir.path()).unwrap();
         assert_eq!(disk_graph.count_nodes(), 1);
         let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
@@ -476,9 +527,9 @@ mod test {
 
         drop(disk_graph);
 
-        let disk_graph = DiskGraphStorage::load_from_dir(test_dir.path())
+        let disk_graph: Graph = DiskGraphStorage::load_from_dir(test_dir.path())
             .unwrap()
-            .into_graph();
+            .into();
         let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
@@ -521,9 +572,7 @@ mod test {
         v.add_constant_properties([("static prop", 123)]).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraphStorage::from_graph(&g, test_dir.path())
-            .unwrap()
-            .into_graph();
+        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
 
         let actual = disk_graph
             .at(2)
@@ -551,10 +600,7 @@ mod test {
         let v = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v.add_constant_properties([("test", "test")]).unwrap();
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = g
-            .persist_as_disk_graph(test_dir.path())
-            .unwrap()
-            .into_graph();
+        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
         assert_eq!(
             disk_graph
                 .node(1)
@@ -827,24 +873,12 @@ mod test {
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        let graph = disk_graph.inner;
+        assert_graph_equal(&disk_graph, &graph);
 
-        let all_exploded: Vec<_> = graph.exploded_edges().collect();
-        let expected: Vec<_> = vec![
-            (VID(0), VID(1), 0),
-            (VID(0), VID(1), 1),
-            (VID(0), VID(1), 2),
-            (VID(1), VID(2), 3),
-        ];
-        assert_eq!(all_exploded, expected);
-
-        let reloaded_graph = TemporalGraph::new(graph.graph_dir()).unwrap();
-
-        check_graph_sanity(
-            &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
-            &[0, 1, 2],
-            &reloaded_graph,
-        );
+        let reloaded_graph = DiskGraphStorage::load_from_dir(graph_dir.path())
+            .unwrap()
+            .into_graph();
+        assert_graph_equal(&reloaded_graph, &graph);
     }
 
     #[test]
@@ -852,7 +886,7 @@ mod test {
         let graph_dir = TempDir::new().unwrap();
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        let mut dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        let mut dg = DiskGraphStorage::from_graph(&graph, graph_dir.path()).unwrap();
         dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
             .unwrap();
         assert_eq!(
@@ -870,7 +904,7 @@ mod test {
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let dg = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
         assert_eq!(
-            dg.into_graph().nodes().node_type().collect_vec(),
+            dg.nodes().node_type().collect_vec(),
             [Some("1".into()), Some("2".into())]
         );
         let dg = DiskGraphStorage::load_from_dir(graph_dir.path()).unwrap();
@@ -880,56 +914,17 @@ mod test {
         );
     }
     mod addition_bounds {
-        use itertools::Itertools;
-        use proptest::{prelude::*, sample::size_range};
-        use tempfile::TempDir;
-
-        use raphtory_api::core::entities::VID;
-
-        use super::{
-            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS,
+        use super::{AdditionOps, Graph};
+        use crate::{
+            db::{
+                api::storage::graph::storage_ops::disk_storage::IntoGraph,
+                graph::graph::assert_graph_equal,
+            },
+            test_utils::{build_edge_list, build_graph_from_edge_list},
         };
-
-        fn compare_raphtory_graph(edges: Vec<(u64, u64, i64)>, chunk_size: usize) {
-            let nodes = edges
-                .iter()
-                .flat_map(|(src, dst, _)| [*src, *dst])
-                .sorted()
-                .dedup()
-                .collect::<Vec<_>>();
-
-            let rg = Graph::new();
-
-            for (src, dst, time) in &edges {
-                rg.add_edge(*time, *src, *dst, NO_PROPS, None)
-                    .expect("failed to add edge");
-            }
-
-            let test_dir = TempDir::new().unwrap();
-            let graph = edges_sanity_check_build_graph(
-                test_dir.path(),
-                &edges,
-                edges.len() as u64,
-                chunk_size,
-                chunk_size,
-            )
-            .unwrap();
-
-            for (v_id, node) in nodes.into_iter().enumerate() {
-                let node = rg.node(node).expect("failed to get node id");
-                let expected = node.history();
-                let node = graph.node(VID(v_id), 0);
-                let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
-                assert_eq!(actual, expected);
-            }
-        }
-
-        #[test]
-        fn node_additions_bounds_to_arrays() {
-            let edges = vec![(0, 0, -2), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 0, 2)];
-
-            compare_raphtory_graph(edges, 2);
-        }
+        use proptest::prelude::*;
+        use raphtory_storage::disk::DiskGraphStorage;
+        use tempfile::TempDir;
 
         #[test]
         fn test_load_from_graph_missing_edge() {
@@ -937,35 +932,20 @@ mod test {
             g.add_edge(0, 1, 2, [("test", "test1")], Some("1")).unwrap();
             g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
             let test_dir = TempDir::new().unwrap();
-            let _ = g.persist_as_disk_graph(test_dir.path()).unwrap();
+            let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+            assert_graph_equal(&disk_g, &g);
         }
 
         #[test]
-        fn one_edge_bounds_chunk_remainder() {
-            let edges = vec![(0u64, 1, 0)];
-            compare_raphtory_graph(edges, 3);
-        }
-
-        #[test]
-        fn same_edge_twice() {
-            let edges = vec![(0, 1, 0), (0, 1, 1)];
-            compare_raphtory_graph(edges, 3);
-        }
-
-        proptest! {
-            #[test]
-            fn node_addition_bounds_test(
-                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=100).lift()).prop_map(|v| {
-                    let mut v: Vec<(u64, u64, i64)> = v.into_iter().flat_map(|(src, dst, times)| {
-                        let src = src as u64;
-                        let dst = dst as u64;
-                        times.into_iter().map(move |t| (src, dst, t))}).collect();
-                    v.sort();
-                    v}).prop_filter("edge list mut have one edge at least",|edges| !edges.is_empty()),
-                chunk_size in 1..300usize,
-            ) {
-                compare_raphtory_graph(edges, chunk_size);
-            }
+        fn disk_graph_persist_proptest() {
+            proptest!(|(edges in build_edge_list(100, 10))| {
+                let g = build_graph_from_edge_list(&edges);
+                let test_dir = TempDir::new().unwrap();
+                let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+                assert_graph_equal(&disk_g, &g);
+                let reloaded_disk_g = DiskGraphStorage::load_from_dir(test_dir.path()).unwrap().into_graph();
+                assert_graph_equal(&reloaded_disk_g, &g);
+            } )
         }
     }
 
@@ -1037,13 +1017,16 @@ mod storage_tests {
     use proptest::prelude::*;
     use tempfile::TempDir;
 
-    use raphtory_api::core::storage::arc_str::OptionAsStr;
-
     use crate::{
-        core::Prop,
-        db::{api::mutation::internal::InternalAdditionOps, graph::graph::assert_graph_equal},
+        db::{
+            api::storage::graph::storage_ops::disk_storage::IntoGraph,
+            graph::graph::assert_graph_equal,
+        },
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use raphtory_core::entities::nodes::node_ref::AsNodeRef;
+    use raphtory_storage::{disk::DiskGraphStorage, mutation::addition_ops::InternalAdditionOps};
 
     #[test]
     fn test_merge() {
@@ -1082,8 +1065,8 @@ mod storage_tests {
         let g2_dir = TempDir::new().unwrap();
         let gm_dir = TempDir::new().unwrap();
 
-        let g1_a = g1.persist_as_disk_graph(&g1_dir).unwrap();
-        let g2_a = g2.persist_as_disk_graph(&g2_dir).unwrap();
+        let g1_a = DiskGraphStorage::from_graph(&g1, g1_dir.path()).unwrap();
+        let g2_a = DiskGraphStorage::from_graph(&g2, g2_dir.path()).unwrap();
 
         let gm = g1_a
             .merge_by_sorted_gids(&g2_a, &gm_dir)
@@ -1153,7 +1136,7 @@ mod storage_tests {
             .flat_map(|(_, src, dst)| [*src, *dst])
             .collect();
         for n in nodes {
-            g.resolve_node(n).unwrap();
+            g.resolve_node(n.as_node_ref()).unwrap();
         }
         for (t, src, dst) in edges {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
@@ -1173,8 +1156,8 @@ mod storage_tests {
         let right_dir = TempDir::new().unwrap();
         let merged_dir = TempDir::new().unwrap();
 
-        let left_g_disk = left_g.persist_as_disk_graph(&left_dir).unwrap();
-        let right_g_disk = right_g.persist_as_disk_graph(&right_dir).unwrap();
+        let left_g_disk = DiskGraphStorage::from_graph(&left_g, left_dir.path()).unwrap();
+        let right_g_disk = DiskGraphStorage::from_graph(&left_g, right_dir.path()).unwrap();
 
         let merged_g_disk = left_g_disk
             .merge_by_sorted_gids(&right_g_disk, &merged_dir)

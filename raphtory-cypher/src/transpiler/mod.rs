@@ -1,25 +1,19 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-
 use crate::parser::ast::*;
-
 use arrow_schema::{Fields, Schema};
-
 use itertools::Itertools;
 use raphtory::{
-    core::{
-        entities::{edges::edge_ref::Dir, VID},
-        Direction,
-    },
+    api::core::Direction,
+    core::entities::{edges::edge_ref::Dir, VID},
     db::{api::properties::internal::ConstantPropertiesOps, graph::node::NodeView},
-    disk_graph::DiskGraphStorage,
     prelude::*,
 };
 use sqlparser::ast::{
     self as sql_ast, DuplicateTreatment, FunctionArgumentList, GroupByExpr, OrderByExpr, SetExpr,
     TableAlias, WildcardAdditionalOptions, With,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
 };
 
 mod exprs;
@@ -1186,8 +1180,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        disk_graph::DiskGraphStorage,
-        prelude::NO_PROPS,
+        prelude::{DiskGraphStorage, NO_PROPS},
     };
     use tempfile::tempdir;
 

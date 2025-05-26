@@ -45,7 +45,7 @@ pub struct ParquetLayerCols<'a> {
 
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
-    pub(crate) inner: Arc<TemporalGraph>,
+    pub inner: Arc<TemporalGraph>,
     graph_props: Arc<GraphMeta>,
 }
 
@@ -365,21 +365,15 @@ impl DiskGraphStorage {
 
 #[cfg(test)]
 mod test {
-    use std::{
-        path::{Path, PathBuf},
-        str::FromStr,
-    };
-
-    use crate::disk::{DiskGraphStorage, ParquetLayerCols};
-    use bigdecimal::BigDecimal;
     use itertools::Itertools;
     use polars_arrow::{
-        array::{PrimitiveArray, StructArray, Utf8Array},
+        array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType, ArrowSchema, Field},
     };
     use pometry_storage::{graph::TemporalGraph, RAError};
     use proptest::{prelude::*, sample::size_range};
-    use raphtory_api::core::entities::{properties::prop::Prop, EID, VID};
+    use raphtory_api::core::entities::{EID, VID};
+    use std::path::Path;
     use tempfile::TempDir;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
@@ -450,7 +444,7 @@ mod test {
         )
     }
 
-    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TemporalGraph) {
+    pub fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TemporalGraph) {
         let actual_num_verts = nodes.len();
         let g_num_verts = graph.num_nodes();
         assert_eq!(actual_num_verts, g_num_verts);
@@ -513,6 +507,22 @@ mod test {
 
             assert_eq!(nodes[src_id], src);
             assert_eq!(nodes[dst_id], dst);
+        }
+
+        let mut expected_node_additions = edges
+            .iter()
+            .flat_map(|(src, dst, t)| [(*src, *t), (*dst, *t)])
+            .into_group_map();
+        for v in expected_node_additions.values_mut() {
+            v.sort();
+            v.dedup();
+        }
+
+        for (v_id, node) in nodes.into_iter().enumerate() {
+            let expected = expected_node_additions.get(node).unwrap();
+            let node = graph.node(VID(v_id), 0);
+            let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
+            assert_eq!(&actual, expected);
         }
     }
 
@@ -612,6 +622,25 @@ mod test {
     #[test]
     fn edges_sanity_chunk_2() {
         edges_sanity_check_inner(vec![(4, 3, 2), (4, 5, 0)], 2, 2, 2)
+    }
+
+    #[test]
+    fn one_edge_bounds_chunk_remainder() {
+        let edges = vec![(0u64, 1, 0)];
+        edges_sanity_check_inner(edges, 1, 3, 3);
+    }
+
+    #[test]
+    fn same_edge_twice() {
+        let edges = vec![(0, 1, 0), (0, 1, 1)];
+        edges_sanity_check_inner(edges, 2, 3, 3);
+    }
+
+    #[test]
+    fn node_additions_bounds_to_arrays() {
+        let edges = vec![(0, 0, -2), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 0, 2)];
+        let len = edges.len();
+        edges_sanity_check_inner(edges, len as u64, 2, 2);
     }
 
     #[test]

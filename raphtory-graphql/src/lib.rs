@@ -23,11 +23,7 @@ mod graphql_test {
     };
     use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
-    use serde_json::Value;
-
     use dynamic_graphql::{Request, Variables};
-    #[cfg(feature = "storage")]
-    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
             api::view::{IntoDynamic, MaterializedGraph},
@@ -37,7 +33,7 @@ mod graphql_test {
         serialise::GraphFolder,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
         fs,

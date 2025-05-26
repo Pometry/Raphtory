@@ -14,5 +14,3 @@ pub use prop::*;
 pub use prop_array::*;
 pub use prop_type::*;
 pub use prop_unwrap::*;
-#[cfg(feature = "io")]
-pub use serde::*;

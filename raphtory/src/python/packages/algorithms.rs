@@ -162,7 +162,7 @@ pub fn strongly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
-    connected_components_rs(graph.graph.as_ref())
+    connected_components_rs(graph.0.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.

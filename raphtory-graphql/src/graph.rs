@@ -1,9 +1,5 @@
-use std::sync::Arc;
-
 use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
-#[cfg(feature = "storage")]
-use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -16,17 +12,20 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
+    prelude::{CacheOps, EdgeViewOps, IntoGraph, NodeViewOps, SearchableGraphOps},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
     vectors::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
+#[cfg(feature = "storage")]
+use raphtory_storage::disk::DiskGraphStorage;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
 };
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
