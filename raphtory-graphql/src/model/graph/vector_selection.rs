@@ -34,37 +34,36 @@ impl GqlVectorSelection {
         self.0.edges().into_iter().map(|e| e.into()).collect()
     }
 
-    async fn get_documents(&self) -> Vec<GqlDocument> {
-        self.0
-            .get_documents_with_scores()
-            .into_iter()
+    async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
+        let docs = self.0.get_documents_with_scores()?.into_iter();
+        Ok(docs
             .map(|(doc, score)| GqlDocument {
                 content: doc.content,
                 entity: doc.entity.into(),
                 embedding: doc.embedding.to_vec(),
                 score,
             })
-            .collect()
+            .collect())
     }
 
     async fn add_nodes(&self, nodes: Vec<String>) -> Self {
-        self.apply_and_return(|selection| {
-            selection.add_nodes(nodes);
-        })
+        let mut selection = self.cloned();
+        selection.add_nodes(nodes);
+        selection.into()
     }
 
     async fn add_edges(&self, edges: Vec<InputEdge>) -> Self {
         let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
-        self.apply_and_return(|selection| {
-            selection.add_edges(edges);
-        })
+        let mut selection = self.cloned();
+        selection.add_edges(edges);
+        selection.into()
     }
 
     async fn expand(&self, hops: usize, window: Option<Window>) -> Self {
         let window = window.into_window_tuple();
-        self.apply_and_return(|selection| {
-            selection.expand(hops, window);
-        })
+        let mut selection = self.cloned();
+        selection.expand(hops, window);
+        selection.into()
     }
 
     async fn expand_entities_by_similarity(
@@ -76,9 +75,9 @@ impl GqlVectorSelection {
     ) -> GraphResult<Self> {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
-        Ok(self.apply_and_return(|selection| {
-            selection.expand_entities_by_similarity(&vector, limit, window)
-        }))
+        let mut selection = self.cloned();
+        selection.expand_entities_by_similarity(&vector, limit, window)?;
+        Ok(selection.into())
     }
 
     async fn expand_nodes_by_similarity(
@@ -90,9 +89,9 @@ impl GqlVectorSelection {
     ) -> GraphResult<Self> {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
-        Ok(self.apply_and_return(|selection| {
-            selection.expand_nodes_by_similarity(&vector, limit, window)
-        }))
+        let mut selection = self.cloned();
+        selection.expand_nodes_by_similarity(&vector, limit, window)?;
+        Ok(selection.into())
     }
 
     async fn expand_edges_by_similarity(
@@ -104,19 +103,14 @@ impl GqlVectorSelection {
     ) -> GraphResult<Self> {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
-        Ok(self.apply_and_return(|selection| {
-            selection.expand_edges_by_similarity(&vector, limit, window)
-        }))
+        let mut selection = self.cloned();
+        selection.expand_edges_by_similarity(&vector, limit, window)?;
+        Ok(selection.into())
     }
 }
 
 impl GqlVectorSelection {
-    fn apply_and_return(
-        &self,
-        mutation: impl FnOnce(&mut VectorSelection<MaterializedGraph>),
-    ) -> Self {
-        let mut selection: VectorSelection<MaterializedGraph> = self.0.clone();
-        mutation(&mut selection);
-        selection.into()
+    fn cloned(&self) -> VectorSelection<MaterializedGraph> {
+        self.0.clone()
     }
 }

@@ -48,8 +48,8 @@ impl GqlVectorisedGraph {
         window: Option<Window>,
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
-        let window = window.into_window_tuple();
-        Ok(self.0.entities_by_similarity(&vector, limit, window).into())
+        let w = window.into_window_tuple();
+        Ok(self.0.entities_by_similarity(&vector, limit, w)?.into())
     }
 
     async fn nodes_by_similarity(
@@ -60,8 +60,8 @@ impl GqlVectorisedGraph {
         window: Option<Window>,
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
-        let window = window.into_window_tuple();
-        Ok(self.0.nodes_by_similarity(&vector, limit, window).into())
+        let w = window.into_window_tuple();
+        Ok(self.0.nodes_by_similarity(&vector, limit, w)?.into())
     }
 
     async fn edges_by_similarity(
@@ -72,7 +72,7 @@ impl GqlVectorisedGraph {
         window: Option<Window>,
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
-        let window = window.into_window_tuple();
-        Ok(self.0.edges_by_similarity(&vector, limit, None).into())
+        let w = window.into_window_tuple();
+        Ok(self.0.edges_by_similarity(&vector, limit, w)?.into())
     }
 }

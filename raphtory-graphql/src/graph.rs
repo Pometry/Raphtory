@@ -86,7 +86,7 @@ impl GraphWithVectors {
         };
 
         let vectors =
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache);
+            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok();
 
         println!("Graph loaded = {}", folder.get_original_path_str());
 

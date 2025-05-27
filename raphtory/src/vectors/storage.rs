@@ -4,7 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
+use crate::{
+    core::utils::errors::{GraphError, GraphResult},
+    db::api::view::StaticGraphViewOps,
+};
 
 use super::{
     cache::VectorCache,
@@ -27,15 +30,15 @@ impl VectorMeta {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> Option<Self> {
+    pub fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> GraphResult<Self> {
         // TODO: return Result instead of Option
-        let meta_string = std::fs::read_to_string(meta_path(path)).ok()?;
-        let meta: VectorMeta = serde_json::from_str(&meta_string).ok()?;
+        let meta_string = std::fs::read_to_string(meta_path(path))?;
+        let meta: VectorMeta = serde_json::from_str(&meta_string)?;
 
-        let node_db = NodeDb::from_path(&node_vectors_path(path));
-        let edge_db = EdgeDb::from_path(&edge_vectors_path(path));
+        let node_db = NodeDb::from_path(&node_vectors_path(path))?;
+        let edge_db = EdgeDb::from_path(&edge_vectors_path(path))?;
 
-        Some(VectorisedGraph {
+        Ok(VectorisedGraph {
             template: meta.template,
             source_graph: graph,
             cache,

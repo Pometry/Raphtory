@@ -41,7 +41,7 @@ impl VectorStore {
 
         let env = unsafe {
             EnvOpenOptions::new()
-                .map_size(max_size) // 1 GB
+                .map_size(max_size)
                 .open(&path)
                 .unwrap()
         };
@@ -111,7 +111,7 @@ impl VectorCache {
     pub fn in_memory(function: impl EmbeddingFunction + 'static) -> Self {
         Self {
             store: VectorStore::in_memory().into(),
-            cache: Cache::new(1000),
+            cache: Cache::new(10),
             function: Arc::new(function),
         }
     }
@@ -154,7 +154,7 @@ impl VectorCache {
             value: vector,
         };
         self.store.insert(hash, entry);
-        self.cache.insert(hash, ()); // FIXME: not worth keeping the string, better have the cache being u64 -> ()
+        self.cache.insert(hash, ());
     }
 
     pub(super) async fn get_embeddings(

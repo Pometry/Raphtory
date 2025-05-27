@@ -15,7 +15,7 @@ use crate::{
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
-        vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
+        vectorised_graph::VectorisedGraph,
         Document, DocumentEntity, Embedding,
     },
 };
@@ -26,6 +26,8 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
+
+type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -47,11 +49,9 @@ impl PyQuery {
         match self {
             Self::Raw(query) => {
                 let cache = graph.cache.clone();
-                dbg!();
                 let result = Ok(execute_async_task(move || async move {
                     cache.get_single(query).await
                 })?);
-                dbg!();
                 result
             }
             Self::Computed(embedding) => Ok(embedding),
@@ -241,7 +241,7 @@ impl PyVectorisedGraph {
         let embedding = query.into_embedding(&self.0)?;
         Ok(self
             .0
-            .entities_by_similarity(&embedding, limit, translate_window(window)))
+            .entities_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
     /// Search the top scoring nodes according to `query` with no more than `limit` nodes
@@ -263,7 +263,7 @@ impl PyVectorisedGraph {
         let embedding = query.into_embedding(&self.0)?;
         Ok(self
             .0
-            .nodes_by_similarity(&embedding, limit, translate_window(window)))
+            .nodes_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
     /// Search the top scoring edges according to `query` with no more than `limit` edges
@@ -285,7 +285,7 @@ impl PyVectorisedGraph {
         let embedding = query.into_embedding(&self.0)?;
         Ok(self
             .0
-            .edges_by_similarity(&embedding, limit, translate_window(window)))
+            .edges_by_similarity(&embedding, limit, translate_window(window))?)
     }
 }
 
@@ -324,17 +324,16 @@ impl PyVectorSelection {
     ///
     /// Returns:
     ///     list[Document]: list of documents in the current selection
-    fn get_documents(&self) -> Vec<Document<DynamicGraph>> {
-        // TODO: review if I can simplify this
-        self.0.get_documents()
+    fn get_documents(&self) -> PyResult<Vec<Document<DynamicGraph>>> {
+        Ok(self.0.get_documents()?)
     }
 
     /// Return the documents alongside their scores present in the current selection
     ///
     /// Returns:
     ///     list[Tuple[Document, float]]: list of documents and scores
-    fn get_documents_with_scores(&self) -> Vec<(Document<DynamicGraph>, f32)> {
-        self.0.get_documents_with_scores()
+    fn get_documents_with_scores(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
+        Ok(self.0.get_documents_with_scores()?)
     }
 
     /// Add all the documents associated with the `nodes` to the current selection

@@ -18,7 +18,6 @@ def setup_graph(g):
     g.add_edge(1, "aab", "bbb")
 
 
-# FIXME: need to be able to provide a string here again
 def assert_correct_documents(client):
     query = """{
     vectorisedGraph(path: "abb") {

@@ -56,7 +56,6 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u32, doc)));
         let node_path = path.map(node_vectors_path);
         let node_vectors = compute_embeddings(node_docs, &cache);
-        // futures_util::pin_mut!(node_vectors);
         let node_db = NodeDb::from_vectors(node_vectors, node_path).await?;
 
         if verbose {
@@ -70,7 +69,6 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         });
         let edge_path = path.map(edge_vectors_path);
         let edge_vectors = compute_embeddings(edge_docs, &cache);
-        // futures_util::pin_mut!(edge_vectors);
         let edge_db = EdgeDb::from_vectors(edge_vectors, edge_path).await?;
 
         if let Some(path) = path {

@@ -20,9 +20,6 @@ pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(super) edge_db: EdgeDb,
 }
 
-// This has to be here so it is shared between python and graphql // UPDATE: we are dropping support for python plugins, so might not be necessary anymore
-pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
-
 impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
     pub fn into_dynamic(self) -> VectorisedGraph<DynamicGraph> {
         VectorisedGraph {
@@ -41,7 +38,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
             let id = node.node.index();
             if let Some(doc) = self.template.node(node) {
                 let vector = self.cache.get_single(doc).await?;
-                self.node_db.0.insert_vector(id, &vector);
+                self.node_db.insert_vector(id, &vector)?;
             }
         }
         Ok(())
@@ -52,7 +49,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
             let id = edge.edge.pid().0;
             if let Some(doc) = self.template.edge(edge) {
                 let vector = self.cache.get_single(doc).await?;
-                self.edge_db.0.insert_vector(id, &vector);
+                self.edge_db.insert_vector(id, &vector)?;
             }
         }
         Ok(())
@@ -77,12 +74,12 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G> {
+    ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let nodes = self.node_db.top_k(query, limit, view.clone(), None); // TODO: avoid this clone
-        let edges = self.edge_db.top_k(query, limit, view, None);
+        let nodes = self.node_db.top_k(query, limit, view.clone(), None)?;
+        let edges = self.edge_db.top_k(query, limit, view, None)?;
         let docs = find_top_k(nodes.chain(edges), limit).collect();
-        VectorSelection::new(self.clone(), docs)
+        Ok(VectorSelection::new(self.clone(), docs))
     }
 
     /// Search the top scoring nodes according to `query` with no more than `limit` nodes
@@ -99,10 +96,10 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G> {
+    ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.node_db.top_k(query, limit, view, None);
-        VectorSelection::new(self.clone(), docs.collect())
+        let docs = self.node_db.top_k(query, limit, view, None)?;
+        Ok(VectorSelection::new(self.clone(), docs.collect()))
     }
 
     /// Search the top scoring edges according to `query` with no more than `limit` edges
@@ -119,9 +116,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G> {
+    ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.edge_db.top_k(query, limit, view, None);
-        VectorSelection::new(self.clone(), docs.collect())
+        let docs = self.edge_db.top_k(query, limit, view, None)?;
+        Ok(VectorSelection::new(self.clone(), docs.collect()))
     }
 }
