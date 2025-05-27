@@ -27,10 +27,16 @@ pub enum TPropError {
 
 #[derive(Error, Debug)]
 pub enum ConstPropError {
-    #[error(transparent)]
-    IllegalSet(#[from] IllegalSet<Option<Prop>>),
-    #[error("attempted to change value of constant property, old: {old}, new: {new}")]
+    #[error("Attempted to change value of constant property, old: {old}, new: {new}")]
     IllegalUpdate { old: Prop, new: Prop },
+}
+
+impl From<IllegalSet<Option<Prop>>> for ConstPropError {
+    fn from(value: IllegalSet<Option<Prop>>) -> Self {
+        let old = value.previous_value.unwrap_or(Prop::str("NONE"));
+        let new = value.new_value.unwrap_or(Prop::str("NONE"));
+        ConstPropError::IllegalUpdate { old, new }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
-#[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
+#[error("Cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
 pub struct IllegalSet<A: Debug> {
     pub index: usize,
     pub previous_value: A,
