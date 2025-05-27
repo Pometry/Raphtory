@@ -1,4 +1,4 @@
-use crate::model::graph::{edge::GqlEdge, namespace::Namespace};
+use crate::model::graph::namespace::Namespace;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use tokio::task::spawn_blocking;
 

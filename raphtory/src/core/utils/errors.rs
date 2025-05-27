@@ -388,9 +388,6 @@ pub enum GraphError {
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
-
-    #[error("You must provide either a window_str or window_int")]
-    NoIntervalProvided,
 }
 
 impl GraphError {

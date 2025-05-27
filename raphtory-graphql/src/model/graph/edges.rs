@@ -170,92 +170,82 @@ impl GqlEdges {
 
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
-        spawn(async move {
-            for view in views {
-                let mut count = 0;
-                if let Some(_) = view.default_layer {
-                    count += 1;
-                    return_view = return_view.default_layer().await;
-                }
-                if let Some(layers) = view.layers {
-                    count += 1;
-                    return_view = return_view.layers(layers).await;
-                }
-                if let Some(layers) = view.exclude_layers {
-                    count += 1;
-                    return_view = return_view.exclude_layers(layers).await;
-                }
-                if let Some(layer) = view.layer {
-                    count += 1;
-                    return_view = return_view.layer(layer).await;
-                }
-                if let Some(layer) = view.exclude_layer {
-                    count += 1;
-                    return_view = return_view.exclude_layer(layer).await;
-                }
-                if let Some(window) = view.window {
-                    count += 1;
-                    return_view = return_view.window(window.start, window.end).await;
-                }
-                if let Some(time) = view.at {
-                    count += 1;
-                    return_view = return_view.at(time).await;
-                }
-                if let Some(_) = view.latest {
-                    count += 1;
-                    return_view = return_view.latest().await;
-                }
-                if let Some(time) = view.snapshot_at {
-                    count += 1;
-                    return_view = return_view.snapshot_at(time).await;
-                }
-                if let Some(_) = view.snapshot_latest {
-                    count += 1;
-                    return_view = return_view.snapshot_latest().await;
-                }
-                if let Some(time) = view.before {
-                    count += 1;
-                    return_view = return_view.before(time).await;
-                }
-                if let Some(time) = view.after {
-                    count += 1;
-                    return_view = return_view.after(time).await;
-                }
-                if let Some(window) = view.shrink_window {
-                    count += 1;
-                    return_view = return_view.shrink_window(window.start, window.end).await;
-                }
-                if let Some(time) = view.shrink_start {
-                    count += 1;
-                    return_view = return_view.shrink_start(time).await;
-                }
-                if let Some(time) = view.shrink_end {
-                    count += 1;
-                    return_view = return_view.shrink_end(time).await;
-                }
-                if count > 1 {
-                    return Err(GraphError::TooManyViewsSet);
-                }
+        for view in views {
+            let mut count = 0;
+            if let Some(_) = view.default_layer {
+                count += 1;
+                return_view = return_view.default_layer().await;
             }
+            if let Some(layers) = view.layers {
+                count += 1;
+                return_view = return_view.layers(layers).await;
+            }
+            if let Some(layers) = view.exclude_layers {
+                count += 1;
+                return_view = return_view.exclude_layers(layers).await;
+            }
+            if let Some(layer) = view.layer {
+                count += 1;
+                return_view = return_view.layer(layer).await;
+            }
+            if let Some(layer) = view.exclude_layer {
+                count += 1;
+                return_view = return_view.exclude_layer(layer).await;
+            }
+            if let Some(window) = view.window {
+                count += 1;
+                return_view = return_view.window(window.start, window.end).await;
+            }
+            if let Some(time) = view.at {
+                count += 1;
+                return_view = return_view.at(time).await;
+            }
+            if let Some(_) = view.latest {
+                count += 1;
+                return_view = return_view.latest().await;
+            }
+            if let Some(time) = view.snapshot_at {
+                count += 1;
+                return_view = return_view.snapshot_at(time).await;
+            }
+            if let Some(_) = view.snapshot_latest {
+                count += 1;
+                return_view = return_view.snapshot_latest().await;
+            }
+            if let Some(time) = view.before {
+                count += 1;
+                return_view = return_view.before(time).await;
+            }
+            if let Some(time) = view.after {
+                count += 1;
+                return_view = return_view.after(time).await;
+            }
+            if let Some(window) = view.shrink_window {
+                count += 1;
+                return_view = return_view.shrink_window(window.start, window.end).await;
+            }
+            if let Some(time) = view.shrink_start {
+                count += 1;
+                return_view = return_view.shrink_start(time).await;
+            }
+            if let Some(time) = view.shrink_end {
+                count += 1;
+                return_view = return_view.shrink_end(time).await;
+            }
+            if count > 1 {
+                return Err(GraphError::TooManyViewsSet);
+            }
+        }
 
-            Ok(return_view)
-        })
-        .await
-        .unwrap()
+        Ok(return_view)
     }
 
     async fn explode(&self) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.explode()))
-            .await
-            .unwrap()
+        self.update(self.ee.explode())
     }
 
     async fn explode_layers(&self) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.explode_layers()))
-            .await
-            .unwrap()
+        self.update(self.ee.explode_layers())
     }
 
     async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
@@ -326,13 +316,11 @@ impl GqlEdges {
     ////////////////////////
 
     async fn start(&self) -> Option<i64> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ee.start()).await.unwrap()
+        self.ee.start()
     }
 
     async fn end(&self) -> Option<i64> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ee.end()).await.unwrap()
+        self.ee.end()
     }
 
     /////////////////

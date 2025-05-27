@@ -1,10 +1,7 @@
 import tempfile
-from threading import Thread
-
 import pytest
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
-import time
 import json
 
 
@@ -16,14 +13,6 @@ def make_folder_structure(client):
     client.send_graph("test/first/internal/graph", g, overwrite=True)
     client.send_graph("test/second/internal/graph1", g, overwrite=True)
     client.send_graph("test/second/internal/graph2", g, overwrite=True)
-
-
-# def test_start():
-#     tmp_work_dir = tempfile.mkdtemp()
-#     with GraphServer(tmp_work_dir).start(1736) as server:
-#         client = server.get_client()
-#         make_folder_structure(client)
-#         time.sleep(500000)
 
 
 def sort_dict(d):

@@ -58,17 +58,11 @@ impl GqlPathFromNode {
     }
 
     async fn layer(&self, name: String) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.nn.valid_layers(name)))
-            .await
-            .unwrap()
+        self.update(self.nn.valid_layers(name))
     }
 
     async fn exclude_layer(&self, name: String) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.nn.exclude_valid_layers(name)))
-            .await
-            .unwrap()
+        self.update(self.nn.exclude_valid_layers(name))
     }
 
     async fn rolling(

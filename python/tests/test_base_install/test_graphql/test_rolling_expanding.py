@@ -1,12 +1,4 @@
-import tempfile
-import time
-
-import pytest
-
-from raphtory.graphql import GraphServer
-from raphtory import Graph, PersistentGraph
-import json
-import re
+from raphtory import Graph
 from utils import run_graphql_test, run_graphql_error_test, run_group_graphql_error_test
 from datetime import datetime
 
@@ -37,16 +29,6 @@ def create_graph_date(g):
     g.add_edge(dates[2], 1, 3)
     g.add_edge(dates[3], 1, 3)
     g.add_edge(dates[4], 6, 7)
-
-
-# def test_start():
-#     tmp_work_dir = tempfile.mkdtemp()
-#     with GraphServer(tmp_work_dir).start(1736) as server:
-#         graph = Graph()
-#         create_graph_epoch(graph)
-#         client = server.get_client()
-#         client.send_graph(path="g", graph=graph)
-#         time.sleep(500000)
 
 
 def test_graph_date():

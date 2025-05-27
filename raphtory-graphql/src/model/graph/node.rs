@@ -43,25 +43,18 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 #[ResolvedObjectFields]
 impl GqlNode {
     async fn id(&self) -> String {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.id().to_string())
-            .await
-            .unwrap()
+        self.vv.id().to_string()
     }
 
     pub async fn name(&self) -> String {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.name()).await.unwrap()
+        self.vv.name()
     }
 
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
     async fn default_layer(&self) -> GqlNode {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.default_layer().into())
-            .await
-            .unwrap()
+        self.vv.default_layer().into()
     }
     async fn layers(&self, names: Vec<String>) -> GqlNode {
         let self_clone = self.clone();
@@ -78,17 +71,11 @@ impl GqlNode {
     }
 
     async fn layer(&self, name: String) -> GqlNode {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.valid_layers(name).into())
-            .await
-            .unwrap()
+        self.vv.valid_layers(name).into()
     }
 
     async fn exclude_layer(&self, name: String) -> GqlNode {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.exclude_valid_layers(name).into())
-            .await
-            .unwrap()
+        self.vv.exclude_valid_layers(name).into()
     }
 
     async fn rolling(
@@ -187,78 +174,74 @@ impl GqlNode {
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
         let mut return_view: GqlNode = self.vv.clone().into();
-        spawn(async move {
-            for view in views {
-                let mut count = 0;
-                if let Some(_) = view.default_layer {
-                    count += 1;
-                    return_view = return_view.default_layer().await;
-                }
-                if let Some(layers) = view.layers {
-                    count += 1;
-                    return_view = return_view.layers(layers).await;
-                }
-                if let Some(layers) = view.exclude_layers {
-                    count += 1;
-                    return_view = return_view.exclude_layers(layers).await;
-                }
-                if let Some(layer) = view.layer {
-                    count += 1;
-                    return_view = return_view.layer(layer).await;
-                }
-                if let Some(layer) = view.exclude_layer {
-                    count += 1;
-                    return_view = return_view.exclude_layer(layer).await;
-                }
-                if let Some(window) = view.window {
-                    count += 1;
-                    return_view = return_view.window(window.start, window.end).await;
-                }
-                if let Some(time) = view.at {
-                    count += 1;
-                    return_view = return_view.at(time).await;
-                }
-                if let Some(_) = view.latest {
-                    count += 1;
-                    return_view = return_view.latest().await;
-                }
-                if let Some(time) = view.snapshot_at {
-                    count += 1;
-                    return_view = return_view.snapshot_at(time).await;
-                }
-                if let Some(_) = view.snapshot_latest {
-                    count += 1;
-                    return_view = return_view.snapshot_latest().await;
-                }
-                if let Some(time) = view.before {
-                    count += 1;
-                    return_view = return_view.before(time).await;
-                }
-                if let Some(time) = view.after {
-                    count += 1;
-                    return_view = return_view.after(time).await;
-                }
-                if let Some(window) = view.shrink_window {
-                    count += 1;
-                    return_view = return_view.shrink_window(window.start, window.end).await;
-                }
-                if let Some(time) = view.shrink_start {
-                    count += 1;
-                    return_view = return_view.shrink_start(time).await;
-                }
-                if let Some(time) = view.shrink_end {
-                    count += 1;
-                    return_view = return_view.shrink_end(time).await;
-                }
-
-                if count > 1 {
-                    return Err(GraphError::TooManyViewsSet);
-                }
+        for view in views {
+            let mut count = 0;
+            if let Some(_) = view.default_layer {
+                count += 1;
+                return_view = return_view.default_layer().await;
             }
-            Ok(return_view)
-        })
-        .await
-        .unwrap()
+            if let Some(layers) = view.layers {
+                count += 1;
+                return_view = return_view.layers(layers).await;
+            }
+            if let Some(layers) = view.exclude_layers {
+                count += 1;
+                return_view = return_view.exclude_layers(layers).await;
+            }
+            if let Some(layer) = view.layer {
+                count += 1;
+                return_view = return_view.layer(layer).await;
+            }
+            if let Some(layer) = view.exclude_layer {
+                count += 1;
+                return_view = return_view.exclude_layer(layer).await;
+            }
+            if let Some(window) = view.window {
+                count += 1;
+                return_view = return_view.window(window.start, window.end).await;
+            }
+            if let Some(time) = view.at {
+                count += 1;
+                return_view = return_view.at(time).await;
+            }
+            if let Some(_) = view.latest {
+                count += 1;
+                return_view = return_view.latest().await;
+            }
+            if let Some(time) = view.snapshot_at {
+                count += 1;
+                return_view = return_view.snapshot_at(time).await;
+            }
+            if let Some(_) = view.snapshot_latest {
+                count += 1;
+                return_view = return_view.snapshot_latest().await;
+            }
+            if let Some(time) = view.before {
+                count += 1;
+                return_view = return_view.before(time).await;
+            }
+            if let Some(time) = view.after {
+                count += 1;
+                return_view = return_view.after(time).await;
+            }
+            if let Some(window) = view.shrink_window {
+                count += 1;
+                return_view = return_view.shrink_window(window.start, window.end).await;
+            }
+            if let Some(time) = view.shrink_start {
+                count += 1;
+                return_view = return_view.shrink_start(time).await;
+            }
+            if let Some(time) = view.shrink_end {
+                count += 1;
+                return_view = return_view.shrink_end(time).await;
+            }
+
+            if count > 1 {
+                return Err(GraphError::TooManyViewsSet);
+            }
+        }
+        Ok(return_view)
     }
 
     ////////////////////////
@@ -320,13 +303,10 @@ impl GqlNode {
     ////////////////////////
 
     pub async fn node_type(&self) -> Option<String> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match self_clone.vv.node_type() {
+        match self.vv.node_type() {
             None => None,
             str => str.map(|s| (*s).to_string()),
-        })
-        .await
-        .unwrap()
+        }
     }
 
     async fn properties(&self) -> GqlProperties {
@@ -378,44 +358,26 @@ impl GqlNode {
     }
 
     async fn edges(&self) -> GqlEdges {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlEdges::new(self_clone.vv.edges()))
-            .await
-            .unwrap()
+        GqlEdges::new(self.vv.edges())
     }
 
     async fn out_edges(&self) -> GqlEdges {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlEdges::new(self_clone.vv.out_edges()))
-            .await
-            .unwrap()
+        GqlEdges::new(self.vv.out_edges())
     }
 
     async fn in_edges(&self) -> GqlEdges {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlEdges::new(self_clone.vv.in_edges()))
-            .await
-            .unwrap()
+        GqlEdges::new(self.vv.in_edges())
     }
 
     async fn neighbours<'a>(&self) -> GqlPathFromNode {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlPathFromNode::new(self_clone.vv.neighbours()))
-            .await
-            .unwrap()
+        GqlPathFromNode::new(self.vv.neighbours())
     }
 
     async fn in_neighbours<'a>(&self) -> GqlPathFromNode {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlPathFromNode::new(self_clone.vv.in_neighbours()))
-            .await
-            .unwrap()
+        GqlPathFromNode::new(self.vv.in_neighbours())
     }
 
     async fn out_neighbours(&self) -> GqlPathFromNode {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlPathFromNode::new(self_clone.vv.out_neighbours()))
-            .await
-            .unwrap()
+        GqlPathFromNode::new(self.vv.out_neighbours())
     }
 }

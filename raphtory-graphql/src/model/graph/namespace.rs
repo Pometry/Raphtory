@@ -5,6 +5,7 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+use raphtory::core::utils::errors::InvalidPathReason;
 use std::path::PathBuf;
 use tokio::task::spawn_blocking;
 use walkdir::WalkDir;
@@ -38,7 +39,7 @@ impl Namespace {
             .collect()
     }
 
-    pub(crate) fn get_all_children(&self) -> Vec<Namespace> {
+    pub(crate) fn get_all_namespaces(&self) -> Vec<Namespace> {
         let base_path = self.base_dir.clone();
         WalkDir::new(&self.current_dir)
             .into_iter()
@@ -78,17 +79,14 @@ impl Namespace {
         .await
         .unwrap()
     }
-    async fn path(&self) -> Option<String> {
+    async fn path(&self) -> Result<String, InvalidPathReason> {
         let self_clone = self.clone();
         spawn_blocking(move || {
-            match get_relative_path(
+            get_relative_path(
                 self_clone.base_dir.clone(),
                 self_clone.current_dir.as_path(),
                 true,
-            ) {
-                Ok(v) => Some(v.to_string()),
-                Err(e) => Some(e.to_string()), //should never happen - but makes it much easier to work out what went wrong if it does
-            }
+            )
         })
         .await
         .unwrap()

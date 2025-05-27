@@ -210,10 +210,7 @@ impl GqlPropertyTuple {
     }
 
     async fn value(&self) -> GqlPropertyOutputVal {
-        let self_clone = self.clone();
-        spawn_blocking(move || GqlPropertyOutputVal(self_clone.prop.clone()))
-            .await
-            .unwrap()
+        GqlPropertyOutputVal(self.prop.clone())
     }
 }
 

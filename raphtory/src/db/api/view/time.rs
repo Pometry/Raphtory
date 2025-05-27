@@ -1,10 +1,7 @@
 use crate::{
     core::{
         storage::timeindex::AsTime,
-        utils::time::{
-            error::{ParseTimeError, ParseTimeError::ZeroSizeStep},
-            Interval, IntervalSize, IntoTime,
-        },
+        utils::time::{error::ParseTimeError, Interval, IntervalSize, IntoTime},
     },
     db::api::view::{
         internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
@@ -305,12 +302,12 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
         match step.size {
             IntervalSize::Discrete(v) => {
                 if v == 0 {
-                    return Err(ZeroSizeStep);
+                    return Err(ParseTimeError::ZeroSizeStep);
                 }
             }
             IntervalSize::Temporal { millis, months } => {
                 if millis == 0 && months == 0 {
-                    return Err(ZeroSizeStep);
+                    return Err(ParseTimeError::ZeroSizeStep);
                 }
             }
         };
@@ -395,7 +392,7 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
 #[cfg(test)]
 mod time_tests {
     use crate::{
-        core::utils::time::TryIntoTime,
+        core::utils::time::{error::ParseTimeError, TryIntoTime},
         db::{
             api::{
                 mutation::AdditionOps,
@@ -407,6 +404,7 @@ mod time_tests {
         test_storage,
     };
     use itertools::Itertools;
+    use std::num::ParseIntError;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
@@ -554,6 +552,68 @@ mod time_tests {
         //     ),
         // ];
         // assert_bounds(windows, expected);
+    }
+
+    #[test]
+    fn test_errors() {
+        let start = "2020-06-06 00:00:00".try_into_time().unwrap();
+        let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
+        let graph = graph_with_timeline(start, end);
+        match graph.rolling("1 day", Some("0 days")) {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+        match graph.rolling(1, Some(0)) {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+        match graph.expanding("0 day") {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+        match graph.expanding(0) {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+
+        match graph.expanding("0fead day") {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert!(matches!(e, ParseTimeError::ParseInt { .. }))
+            }
+        }
+
+        match graph.expanding("0 dadasasdy") {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert!(matches!(e, ParseTimeError::InvalidUnit { .. }))
+            }
+        }
+
+        assert_eq!(
+            graph.rolling("1 day", Some("1000 days")).unwrap().count(),
+            0
+        )
     }
 
     #[test]

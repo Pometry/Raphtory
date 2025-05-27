@@ -109,7 +109,7 @@ impl QueryRoot {
     async fn namespaces<'a>(ctx: &Context<'a>) -> Namespaces {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        Namespaces::new(root.get_all_children())
+        Namespaces::new(root.get_all_namespaces())
     }
     async fn namespace<'a>(
         ctx: &Context<'a>,
