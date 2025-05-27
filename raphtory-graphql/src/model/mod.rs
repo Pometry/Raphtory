@@ -31,8 +31,7 @@ use std::{
 use zip::ZipArchive;
 
 #[cfg(feature = "storage")]
-use raphtory_storage::core_ops::CoreGraphOps;
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
 pub mod algorithms;
 pub(crate) mod graph;

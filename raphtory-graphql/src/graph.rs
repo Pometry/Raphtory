@@ -12,20 +12,21 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IntoGraph, NodeViewOps, SearchableGraphOps},
+    prelude::{CacheOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
     vectors::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
-#[cfg(feature = "storage")]
-use raphtory_storage::disk::DiskGraphStorage;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
 };
 use std::sync::Arc;
+
+#[cfg(feature = "storage")]
+use {raphtory::prelude::IntoGraph, raphtory_storage::disk::DiskGraphStorage};
 
 #[derive(Clone)]
 pub struct GraphWithVectors {

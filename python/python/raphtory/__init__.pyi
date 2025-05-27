@@ -113,6 +113,14 @@ class GraphView(object):
     def create_index(self):
         """Create graph index"""
 
+    def create_index_in_ram(self):
+        """
+        Creates a graph index in memory (RAM).
+
+        This is primarily intended for use in tests and should not be used in production environments,
+        as the index will not be persisted to disk.
+        """
+
     def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
@@ -6029,7 +6037,15 @@ class Prop(object):
     def __new__(cls, name: str) -> Prop:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def any(self, values: set[PropValue]) -> PropertyFilter:
+    def contains(self, value) -> PropertyFilter:
+        """
+        Create a filter that keeps entities that contains the property
+
+        Returns:
+            PropertyFilter: the property filter
+        """
+
+    def is_in(self, values: set[PropValue]) -> PropertyFilter:
         """
         Create a filter that keeps entities if their property value is in the set
 
@@ -6048,6 +6064,18 @@ class Prop(object):
             PropertyFilter: the property filter
         """
 
+    def is_not_in(self, values: set[PropValue]) -> PropertyFilter:
+        """
+        Create a filter that keeps entities if their property value is not in the set or
+        if they don't have the property
+
+        Arguments:
+            values (set[PropValue]): the set of values to exclude
+
+        Returns:
+            PropertyFilter: the property filter
+        """
+
     def is_some(self) -> PropertyFilter:
         """
         Create a filter that only keeps entities if they have the property
@@ -6056,13 +6084,9 @@ class Prop(object):
             PropertyFilter: the property filter
         """
 
-    def not_any(self, values: set[PropValue]) -> PropertyFilter:
+    def not_contains(self, value) -> PropertyFilter:
         """
-        Create a filter that keeps entities if their property value is not in the set or
-        if they don't have the property
-
-        Arguments:
-            values (set[PropValue]): the set of values to exclude
+        Create a filter that keeps entities that do not contain the property
 
         Returns:
             PropertyFilter: the property filter
