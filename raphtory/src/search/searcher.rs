@@ -73,6 +73,8 @@ mod search_tests {
 
     #[cfg(test)]
     mod test_index_spec {
+        #[cfg(feature = "search")]
+        use crate::prelude::SearchableGraphOps;
         use crate::{
             core::utils::errors::GraphError,
             db::{
@@ -81,9 +83,8 @@ mod search_tests {
                     AsEdgeFilter, AsNodeFilter, ComposableFilter, PropertyFilterOps,
                 },
             },
-            prelude::{
-                AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, SearchableGraphOps,
-            },
+            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter, StableDecode},
+            serialise::StableEncode,
         };
         use raphtory_api::core::PropType;
 
@@ -328,10 +329,37 @@ mod search_tests {
         }
 
         #[test]
-        fn test_get_index_spec_updated_index() {}
+        fn test_get_index_spec_updated_index() {
+            // let graph = init_graph(Graph::new());
+            // graph.create_index().unwrap();
+            // graph.encode("/tmp/graphs/master").unwrap()
+        }
 
         #[test]
-        fn test_get_index_spec_loaded_index() {}
+        fn test_get_index_spec_loaded_index() {
+            let graph = init_graph(Graph::new());
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_node_props(vec!["y"])
+                .unwrap()
+                .with_temp_node_props(vec!["p2"])
+                .unwrap()
+                .with_const_edge_props(vec!["e_y"])
+                .unwrap()
+                .with_temp_edge_props(vec!["e_p2"])
+                .unwrap()
+                .build();
+
+            graph.create_index_with_spec(index_spec.clone()).unwrap();
+            let tmp_graph_dir = tempfile::tempdir().unwrap();
+            let path = tmp_graph_dir.path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+
+            assert_eq!(index_spec, index_spec2);
+        }
 
         #[test]
         fn test_get_index_spec_loaded_index_zip() {}

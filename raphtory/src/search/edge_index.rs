@@ -16,10 +16,10 @@ use crate::{
     search::{
         entity_index::EntityIndex,
         fields::{DESTINATION, DESTINATION_TOKENIZED, EDGE_ID, SOURCE, SOURCE_TOKENIZED},
-        TOKENIZER,
+        resolve_props, TOKENIZER,
     },
 };
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
@@ -115,6 +115,22 @@ impl EdgeIndex {
             dst_field,
             dst_tokenized_field,
         })
+    }
+
+    pub(crate) fn resolve_const_props(
+        &self,
+        graph: &GraphStorage,
+    ) -> Vec<(String, usize, PropType)> {
+        let props = self.entity_index.const_property_indexes.read();
+        resolve_props(graph.edge_meta().const_prop_meta(), &props)
+    }
+
+    pub(crate) fn resolve_temp_props(
+        &self,
+        graph: &GraphStorage,
+    ) -> Vec<(String, usize, PropType)> {
+        let props = self.entity_index.temporal_property_indexes.read();
+        resolve_props(graph.edge_meta().temporal_prop_meta(), &props)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {

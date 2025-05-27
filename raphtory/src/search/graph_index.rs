@@ -11,7 +11,10 @@ use crate::{
         searcher::Searcher,
     },
 };
-use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
+use itertools::Itertools;
+use raphtory_api::core::{
+    entities::properties::props::PropMapper, storage::dict_mapper::MaybeNew, PropType,
+};
 use std::{
     ffi::OsStr,
     fmt::{Debug, Formatter},
@@ -131,7 +134,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
+    pub fn load_from_path(graph: &GraphStorage, path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = TempDir::new_in(path)?;
         if path.is_file() {
             GraphIndex::unzip_index(path, tmp_path.path())?;
@@ -144,14 +147,14 @@ impl GraphIndex {
         let path = Some(Arc::new(tmp_path));
 
         Ok(GraphIndex {
-            node_index,
-            edge_index,
+            node_index: node_index.clone(),
+            edge_index: edge_index.clone(),
             path,
             index_spec: IndexSpec {
-                node_const_props: vec![],
-                node_temp_props: vec![],
-                edge_const_props: vec![],
-                edge_temp_props: vec![],
+                node_const_props: node_index.resolve_const_props(graph),
+                node_temp_props: node_index.resolve_temp_props(graph),
+                edge_const_props: edge_index.resolve_const_props(graph),
+                edge_temp_props: edge_index.resolve_temp_props(graph),
             },
         })
     }

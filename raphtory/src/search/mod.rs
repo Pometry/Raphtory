@@ -1,4 +1,5 @@
-use crate::core::utils::errors::GraphError;
+use crate::{core::utils::errors::GraphError, search::property_index::PropertyIndex};
+use raphtory_api::core::{entities::properties::props::PropMapper, PropType};
 use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,
@@ -77,4 +78,21 @@ pub(crate) fn new_index(
     register_default_tokenizers(&index);
 
     Ok((index, reader))
+}
+
+fn resolve_props(
+    meta: &PropMapper,
+    props: &Vec<Option<PropertyIndex>>,
+) -> Vec<(String, usize, PropType)> {
+    props
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, opt)| {
+            opt.as_ref().map(|_| {
+                let name = meta.get_name(idx).to_string();
+                let d_type = meta.get_dtype(idx).unwrap();
+                (name, idx, d_type)
+            })
+        })
+        .collect()
 }

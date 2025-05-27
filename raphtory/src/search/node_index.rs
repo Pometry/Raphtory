@@ -18,10 +18,13 @@ use crate::{
     search::{
         entity_index::EntityIndex,
         fields::{NODE_ID, NODE_NAME, NODE_NAME_TOKENIZED, NODE_TYPE, NODE_TYPE_TOKENIZED},
-        TOKENIZER,
+        resolve_props, TOKENIZER,
     },
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+    PropType,
+};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
     fmt::{Debug, Formatter},
@@ -127,6 +130,22 @@ impl NodeIndex {
             node_type_field,
             node_type_tokenized_field,
         })
+    }
+
+    pub(crate) fn resolve_const_props(
+        &self,
+        graph: &GraphStorage,
+    ) -> Vec<(String, usize, PropType)> {
+        let props = self.entity_index.const_property_indexes.read();
+        resolve_props(graph.node_meta().const_prop_meta(), &props)
+    }
+
+    pub(crate) fn resolve_temp_props(
+        &self,
+        graph: &GraphStorage,
+    ) -> Vec<(String, usize, PropType)> {
+        let props = self.entity_index.temporal_property_indexes.read();
+        resolve_props(graph.node_meta().temporal_prop_meta(), &props)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {

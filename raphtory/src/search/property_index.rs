@@ -137,8 +137,17 @@ impl PropertyIndex {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
-                let prop_index = Self::load_from_path(&path, is_edge)?;
-                result.push(Some(prop_index));
+                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                    if let Ok(prop_id) = file_name.parse::<usize>() {
+                        let prop_index = Self::load_from_path(&path, is_edge)?;
+
+                        if result.len() <= prop_id {
+                            result.resize(prop_id + 1, None);
+                        }
+
+                        result[prop_id] = Some(prop_index);
+                    }
+                }
             }
         }
 
