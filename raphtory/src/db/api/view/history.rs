@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
-use crate::db::api::properties::internal::TemporalPropertiesOps;
+use crate::db::api::properties::internal::{PropertiesOps, TemporalPropertiesOps};
 use crate::db::api::view::internal::{InternalLayerOps, TimeSemantics};
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use crate::db::graph::edge::EdgeView;
@@ -15,6 +15,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use arrow_ipc::Time;
 use raphtory_api::core::entities::VID;
+use crate::db::api::properties::TemporalProperties;
 // TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -80,6 +81,14 @@ impl<T: InternalHistoryOps> History<T> {
 
     pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter_rev()
+    }
+
+    pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
+        self.0.iter().collect_vec()
+    }
+
+    pub fn collect_timestamps(&self) -> Vec<i64> {
+        self.0.iter().map(|x| x.t()).collect_vec()
     }
 
     pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {

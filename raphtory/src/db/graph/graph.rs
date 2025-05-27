@@ -707,15 +707,15 @@ mod db_tests {
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
 
-        assert_eq!(g_b.history(), vec![1]);
+        assert_eq!(g_b.history().collect_timestamps(), vec![1]);
         let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
         let res = gg.import_node(&g_a, false).unwrap();
         assert_eq!(res.name(), "A");
-        assert_eq!(res.history(), vec![0]);
+        assert_eq!(res.history().collect_timestamps(), vec![0]);
         let res = gg.import_node(&g_b, false).unwrap();
         assert_eq!(res.name(), "B");
-        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.history().collect_timestamps(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(
             res.properties().constant().get("con").unwrap(),
@@ -801,7 +801,7 @@ mod db_tests {
         let gg = Graph::new();
         let res = gg.import_node_as(&g_a, "X", false).unwrap();
         assert_eq!(res.name(), "X");
-        assert_eq!(res.history(), vec![0]);
+        assert_eq!(res.history().collect_timestamps(), vec![0]);
 
         let _ = gg.add_node(1, "Y", NO_PROPS, None).unwrap();
         let res = gg.import_node_as(&g_b, "Y", false);
@@ -819,7 +819,7 @@ mod db_tests {
         let y = gg.node("Y").unwrap();
 
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().collect_timestamps(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -838,11 +838,11 @@ mod db_tests {
 
         let res = gg.import_node_as(&g_a, "X", false).unwrap();
         assert_eq!(res.name(), "X");
-        assert_eq!(res.history(), vec![0]);
+        assert_eq!(res.history().collect_timestamps(), vec![0]);
 
         let res = gg.import_node_as(&g_b, "Y", true).unwrap();
         assert_eq!(res.name(), "Y");
-        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.history().collect_timestamps(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(
             res.properties().constant().get("con").unwrap(),
@@ -881,7 +881,7 @@ mod db_tests {
         assert_eq!(nodes, vec!["Q", "R"]); // Nodes up until first failure are imported
         let y = gg.node("Q").unwrap();
         assert_eq!(y.name(), "Q");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().collect_timestamps(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -905,7 +905,7 @@ mod db_tests {
         assert_eq!(nodes, vec!["P", "Q"]);
         let y = gg.node("Q").unwrap();
         assert_eq!(y.name(), "Q");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().collect_timestamps(), vec![1]);
         assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(y.properties().constant().get("con").unwrap(), Prop::I64(11));
     }
@@ -955,10 +955,10 @@ mod db_tests {
         assert_eq!(nodes, vec!["X", "Y", "Z"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![1]);
+        assert_eq!(x.history().collect_timestamps(), vec![1]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1, 2]);
+        assert_eq!(y.history().collect_timestamps(), vec![1, 2]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
 
@@ -1000,10 +1000,10 @@ mod db_tests {
         assert_eq!(nodes, vec!["X", "Y"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![2, 3]);
+        assert_eq!(x.history().collect_timestamps(), vec![2, 3]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![2, 3]);
+        assert_eq!(y.history().collect_timestamps(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -1050,12 +1050,12 @@ mod db_tests {
         assert_eq!(nodes, vec!["Y", "Z"]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().collect_timestamps(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
         let x = gg.node("Z").unwrap();
         assert_eq!(x.name(), "Z");
-        assert_eq!(x.history(), vec![1]);
+        assert_eq!(x.history().collect_timestamps(), vec![1]);
 
         assert!(gg.edge("X", "Y").is_none());
 
@@ -1103,10 +1103,10 @@ mod db_tests {
         assert_eq!(nodes, vec!["X", "Y"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![2, 3]);
+        assert_eq!(x.history().collect_timestamps(), vec![2, 3]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![2, 3]);
+        assert_eq!(y.history().collect_timestamps(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -2237,13 +2237,13 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
+            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history().collect_timestamps();
 
             assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
+            let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history().collect_timestamps();
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
         });
     }
@@ -2260,13 +2260,13 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_one = graph.node(1).unwrap().history();
+            let times_of_one = graph.node(1).unwrap().history().collect_timestamps();
 
             assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_one = view.node(1).unwrap().history();
+            let windowed_times_of_one = view.node(1).unwrap().history().collect_timestamps();
             assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         });
     }

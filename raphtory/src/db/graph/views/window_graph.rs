@@ -1388,9 +1388,9 @@ mod views_test {
 
             let windowed_history = vec![0i64, 1];
 
-            assert_eq!(v.history(), full_history_1);
+            assert_eq!(v.history().collect_timestamps(), full_history_1);
 
-            assert_eq!(v.window(0, 2).history(), windowed_history);
+            assert_eq!(v.window(0, 2).history().collect_timestamps(), windowed_history);
             assert_eq!(e.history(), full_history_1);
             assert_eq!(e.window(0, 2).history(), windowed_history);
 

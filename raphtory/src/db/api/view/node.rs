@@ -246,7 +246,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
         }
-        .map(|h| h.into_iter().map(|t| t.dt()).collect());
+        .map(|h| h.iter().map(|t| t.dt()).collect());
         self.map(op)
     }
 
@@ -254,7 +254,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
         }
-        .map(|h| !h.is_empty());
+        .map(|h| h.iter().next() != None);
         self.map(op)
     }
 
