@@ -532,18 +532,22 @@ impl GqlGraph {
     }
 
     /// Export all nodes and edges from this graph view to another existing graph
-    /// TODO: parallelise -- can't set to 'static
     async fn export_to<'a>(
         &self,
         ctx: &Context<'a>,
         path: String,
     ) -> Result<bool, Arc<GraphError>> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref())?.0;
-        other_g.import_nodes(self.graph.nodes(), true)?;
-        other_g.import_edges(self.graph.edges(), true)?;
-        other_g.write_updates()?;
-        Ok(true)
+        let other_g = data.get_graph_async(path.as_ref()).await?.0;
+        let g = self.graph.clone();
+        spawn_blocking(move || {
+            other_g.import_nodes(g.nodes(), true)?;
+            other_g.import_edges(g.edges(), true)?;
+            other_g.write_updates()?;
+            Ok(true)
+        })
+        .await
+        .unwrap()
     }
 
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
