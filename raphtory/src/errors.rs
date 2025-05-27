@@ -3,12 +3,9 @@ use crate::{
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{Prop, PropError, PropType},
-        GID, MAX_LAYER,
-    },
-    storage::arc_str::ArcStr,
+use raphtory_api::core::entities::{
+    properties::prop::{PropError, PropType},
+    GID,
 };
 use raphtory_core::{
     entities::{
@@ -163,37 +160,14 @@ pub enum GraphError {
     FailedToRemoveExistingGraphIndex(PathBuf),
     #[error("Failed to move graph index")]
     FailedToMoveGraphIndex,
-    #[error("Disk Graph is immutable")]
-    ImmutableDiskGraph,
-    #[error("Event Graph doesn't support deletions")]
-    EventGraphDeletionsNotSupported,
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
     #[error("Graph not found {0}")]
     GraphNotFound(PathBuf),
     #[error("Graph already exists by name = {0}")]
     GraphNameAlreadyExists(PathBuf),
-    #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
-    IllegalGraphAccess,
-    #[error("Incorrect property given.")]
-    IncorrectPropertyType,
-    #[error("Failed to mutate graph")]
-    FailedToMutateGraph {
-        #[from]
-        source: MutateGraphError,
-    },
-    #[error("Failed to mutate graph property")]
-    FailedToMutateGraphProperty { source: MutateGraphError },
-
-    #[error("PropertyType Error: {0}")]
-    PropertyTypeError(#[from] PropError),
-
     #[error("{reason}")]
     InvalidProperty { reason: String },
-
-    #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
-    ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },
-
     #[error("Failed to parse time string")]
     ParseTime {
         #[from]
@@ -224,14 +198,10 @@ pub enum GraphError {
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
     // wasm
-    #[error("Node is not String or Number")]
-    NodeIdNotStringOrNumber,
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
     #[error("Graph does not have a default layer. Valid layers: {valid_layers}")]
     NoDefaultLayer { valid_layers: String },
-    #[error("More than {MAX_LAYER} layers are not supported")]
-    TooManyLayers,
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,
@@ -263,9 +233,6 @@ pub enum GraphError {
         #[from]
         source: bincode::Error,
     },
-
-    // #[error(transparent)]
-    // DeserialisationError(#[from] DeserialisationError),
     #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -425,6 +392,12 @@ impl From<TPropError> for GraphError {
     }
 }
 
+impl From<PropError> for GraphError {
+    fn from(value: PropError) -> Self {
+        Self::MutationError(value.into())
+    }
+}
+
 impl From<InvalidNodeId> for GraphError {
     fn from(value: InvalidNodeId) -> Self {
         Self::MutationError(value.into())
@@ -448,26 +421,4 @@ impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
         io::Error::new(io::ErrorKind::Other, error)
     }
-}
-
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum MutateGraphError {
-    #[error("Create node '{node_id}' first before adding static properties to it")]
-    NodeNotFoundError { node_id: u64 },
-    #[error("Unable to find layer '{layer_name}' to add property to")]
-    LayerNotFoundError { layer_name: String },
-    #[error("Tried to change constant graph property {name}, old value: {old_value}, new value: {new_value}")]
-    IllegalGraphPropertyChange {
-        name: String,
-        old_value: Prop,
-        new_value: Prop,
-    },
-    #[error("Create edge '{0}' -> '{1}' first before adding static properties to it")]
-    MissingEdge(u64, u64), // src, dst
-    #[error("Cannot add properties to edge view with no layers")]
-    NoLayersError,
-    #[error("Cannot add properties to edge view with more than one layer")]
-    AmbiguousLayersError,
-    #[error("Invalid Node id {0:?}")]
-    InvalidNodeId(GID),
 }
