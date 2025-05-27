@@ -228,12 +228,6 @@ pub enum GraphError {
     #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]
     HeedError(#[from] heed::Error),
-    // #[cfg(feature = "vectors")]
-    // #[error("bincode operation failed")]
-    // BincodeError {
-    //     #[from]
-    //     source: bincode::Error,
-    // },
     #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),

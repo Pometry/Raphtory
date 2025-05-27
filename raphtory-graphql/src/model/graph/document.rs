@@ -5,17 +5,6 @@ use raphtory::{
     vectors::DocumentEntity,
 };
 
-#[derive(SimpleObject)]
-struct Graph {
-    name: String, // TODO: maybe return the graph as well here
-}
-
-impl From<String> for Graph {
-    fn from(value: String) -> Self {
-        Self { name: value }
-    }
-}
-
 #[derive(Union)]
 pub(crate) enum GqlDocumentEntity {
     Node(Node),

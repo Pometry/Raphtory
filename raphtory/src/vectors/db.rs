@@ -88,9 +88,6 @@ impl EntityDb for EdgeDb {
     }
 }
 
-// FIXME: remove unwraps in here
-// TODO: rename this to GraphVectorSearch
-// TODO: merge this and VectorDb !!!!!!!!!!!!!!!!!???????
 pub(super) trait EntityDb: Sized {
     fn from_vector_db(db: VectorDb) -> Self;
     fn get_db(&self) -> &VectorDb;
@@ -170,11 +167,10 @@ pub(crate) struct VectorDb {
     // FIXME: save index value in here !!!!!!!!!!!!!!!!!!!
     pub(crate) vectors: ArroyDatabase<Cosine>, // TODO: review is this safe to clone? does it point to the same thing?
     pub(crate) env: heed::Env,
-    pub(crate) _tempdir: Option<Arc<TempDir>>, // do I really need, is the file open not enough
+    pub(crate) _tempdir: Option<Arc<TempDir>>, // do I really need this, is the file open not enough
     pub(crate) dimensions: OnceLock<usize>,
 }
 
-// TODO: merge this with the above
 impl VectorDb {
     pub(super) fn insert_vector(&self, id: usize, embedding: &Embedding) -> GraphResult<()> {
         let mut wtxn = self.env.write_txn()?;
