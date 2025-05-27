@@ -101,7 +101,7 @@ def test_add_constant_properties():
 
         with pytest.raises(Exception) as excinfo:
             rg.edge("ben", "hamza").add_constant_properties({"prop_float": 3.0})
-        assert "Tried to mutate constant property prop_float" in str(excinfo.value)
+        assert "Attempted to change value of constant property" in str(excinfo.value)
 
 
 def test_update_constant_properties():
@@ -134,9 +134,9 @@ def test_delete():
         rg = client.remote_graph("path/to/event_graph")
 
         edge = rg.add_edge(1, "ben", "hamza")
-        with pytest.raises(Exception) as excinfo:
-            edge.delete(2)
-        assert "Event Graph doesn't support deletions" in str(excinfo.value)
+        edge.delete(2)
+        g = client.receive_graph("path/to/event_graph")
+        assert g.edge("ben", "hamza").deletions() == [2]
 
         client.new_graph("path/to/persistent_graph", "PERSISTENT")
         rg = client.remote_graph("path/to/persistent_graph")

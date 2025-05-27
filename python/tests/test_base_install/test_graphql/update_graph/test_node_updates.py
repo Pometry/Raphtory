@@ -86,7 +86,7 @@ def test_add_constant_properties():
 
         with pytest.raises(Exception) as excinfo:
             rg.node("ben").add_constant_properties({"prop_float": 3.0})
-        assert "Tried to mutate constant property prop_float" in str(excinfo.value)
+        assert "Attempted to change value of constant property" in str(excinfo.value)
 
 
 def test_update_constant_properties():
