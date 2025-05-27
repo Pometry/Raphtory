@@ -306,6 +306,35 @@ mod search_tests {
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
+
+        #[test]
+        fn test_get_index_spec_newly_created_index() {
+            let graph = init_graph(Graph::new());
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_node_props(vec!["x"])
+                .unwrap()
+                .with_all_temp_node_props()
+                .with_all_edge_props()
+                .build();
+
+            graph
+                .create_index_in_ram_with_spec(index_spec.clone())
+                .unwrap();
+
+            let index_spec2 = graph.get_index_spec().unwrap();
+
+            assert_eq!(index_spec, index_spec2);
+        }
+
+        #[test]
+        fn test_get_index_spec_updated_index() {}
+
+        #[test]
+        fn test_get_index_spec_loaded_index() {}
+
+        #[test]
+        fn test_get_index_spec_loaded_index_zip() {}
     }
 
     #[cfg(test)]

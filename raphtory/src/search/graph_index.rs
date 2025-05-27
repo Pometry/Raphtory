@@ -31,6 +31,7 @@ pub struct GraphIndex {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
     pub path: Option<Arc<TempDir>>, // If path is None, index is created in-memory
+    pub index_spec: IndexSpec,
 }
 
 impl Debug for GraphIndex {
@@ -38,6 +39,8 @@ impl Debug for GraphIndex {
         f.debug_struct("GraphIndex")
             .field("node_index", &self.node_index)
             .field("edge_index", &self.edge_index)
+            .field("path", &self.path.as_ref().map(|p| p.path()))
+            .field("index_spec", &self.index_spec)
             .finish()
     }
 }
@@ -144,6 +147,12 @@ impl GraphIndex {
             node_index,
             edge_index,
             path,
+            index_spec: IndexSpec {
+                node_const_props: vec![],
+                node_temp_props: vec![],
+                edge_const_props: vec![],
+                edge_temp_props: vec![],
+            },
         })
     }
 
@@ -176,6 +185,7 @@ impl GraphIndex {
             node_index,
             edge_index,
             path: dir,
+            index_spec,
         })
     }
 

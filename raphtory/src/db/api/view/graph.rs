@@ -139,6 +139,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
 #[cfg(feature = "search")]
 pub trait SearchableGraphOps: Sized {
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
+
     fn create_index(&self) -> Result<(), GraphError>;
 
     fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
@@ -632,7 +634,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IndexSpec {
     pub(crate) node_const_props: Vec<(String, usize, PropType)>,
     pub(crate) node_temp_props: Vec<(String, usize, PropType)>,
@@ -805,6 +807,13 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
 
 #[cfg(feature = "search")]
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_index_spec()
+            })
+    }
+
     fn create_index(&self) -> Result<(), GraphError> {
         let index_spec = IndexSpecBuilder::new(self.clone())
             .with_all_node_props()

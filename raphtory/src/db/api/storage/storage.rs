@@ -21,17 +21,20 @@ use crate::{
     },
 };
 
-use crate::db::api::{
-    storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::{
-        internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-        IndexSpec,
-    },
-};
 #[cfg(feature = "search")]
 use crate::search::graph_index::GraphIndex;
 #[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
+use crate::{
+    db::api::{
+        storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+        view::{
+            internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+            IndexSpec,
+        },
+    },
+    prelude::SearchableGraphOps,
+};
 #[cfg(feature = "proto")]
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
@@ -143,6 +146,13 @@ impl Storage {
 
 #[cfg(feature = "search")]
 impl Storage {
+    pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
+        self.index
+            .get()
+            .map(|i| i.index_spec.clone())
+            .ok_or(GraphError::GraphIndexIsMissing)
+    }
+
     pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
         self.index.get_or_try_init(|| {
             let index = GraphIndex::load_from_path(&path)?;
