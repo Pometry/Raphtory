@@ -23,28 +23,16 @@ impl MetaGraph {
             .unwrap()
     }
     async fn path(&self) -> String {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.folder.get_original_path_str().to_owned())
-            .await
-            .unwrap()
+        self.folder.get_original_path_str().to_owned()
     }
     async fn created(&self) -> Result<i64, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.folder.created())
-            .await
-            .unwrap()
+        self.folder.created_async().await
     }
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.folder.last_opened())
-            .await
-            .unwrap()
+        self.folder.last_opened_async().await
     }
     async fn last_updated(&self) -> Result<i64, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.folder.last_updated())
-            .await
-            .unwrap()
+        self.folder.last_updated_async().await
     }
     async fn metadata(&self) -> Result<GqlGraphMetadata, GraphError> {
         let self_clone = self.clone();

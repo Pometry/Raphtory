@@ -387,6 +387,28 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
             None
         }
     }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSet<'graph, T> {
+    //unfortunately because Interval can change size, there is no nice divide option
+    fn len(&self) -> usize {
+        let mut cursor = self.cursor;
+        let mut count = 0;
+        while cursor < self.end + self.step {
+            let window_start = self.window.map(|w| cursor - w);
+            if let Some(start) = window_start {
+                if start >= self.end {
+                    break;
+                }
+            }
+            count += 1;
+            cursor = cursor + self.step;
+        }
+        count
+    }
 }
 
 #[cfg(test)]

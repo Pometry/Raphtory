@@ -259,24 +259,15 @@ impl GqlGraph {
     ////////////////////////
 
     async fn created(&self) -> Result<i64, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.path.created())
-            .await
-            .unwrap()
+        self.path.created_async().await
     }
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.path.last_opened())
-            .await
-            .unwrap()
+        self.path.created_async().await
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.path.last_updated())
-            .await
-            .unwrap()
+        self.path.last_updated_async().await
     }
 
     async fn earliest_time(&self) -> Option<i64> {
@@ -442,17 +433,12 @@ impl GqlGraph {
     }
 
     async fn path(&self) -> Result<String, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            Ok(self_clone
-                .path
-                .get_original_path()
-                .to_str()
-                .ok_or(PathNotParsable(self_clone.path.to_error_path()))?
-                .to_owned())
-        })
-        .await
-        .unwrap()
+        Ok(self
+            .path
+            .get_original_path()
+            .to_str()
+            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .to_owned())
     }
 
     async fn namespace(&self) -> Result<String, GraphError> {

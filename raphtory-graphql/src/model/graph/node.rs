@@ -18,7 +18,7 @@ use raphtory::{
     },
     prelude::NodeStateOps,
 };
-use tokio::{spawn, task::spawn_blocking};
+use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]

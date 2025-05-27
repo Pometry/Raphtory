@@ -20,7 +20,7 @@ use raphtory::{
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
-use tokio::{spawn, task::spawn_blocking};
+use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]

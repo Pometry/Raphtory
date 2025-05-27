@@ -20,7 +20,7 @@ use raphtory::{
 };
 use raphtory_api::core::entities::VID;
 use std::cmp::Ordering;
-use tokio::{spawn, task::spawn_blocking};
+use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Nodes")]
