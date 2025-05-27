@@ -268,6 +268,27 @@ impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for E
     }
 }
 
+impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalProperties<P> {
+    // FIXME: This probably isn't great, also we're defining iter() twice but I'm not getting an error
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.histories().into_iter().map(|x| TimeIndexEntry::from(x.1.0)).into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        let mut x = InternalHistoryOps::iter(self).collect::<Vec<TimeIndexEntry>>();
+        x.reverse();
+        x.into_iter().into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        InternalHistoryOps::iter(self).next()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        InternalHistoryOps::iter_rev(self).next()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
