@@ -1157,7 +1157,7 @@ mod storage_tests {
         let merged_dir = TempDir::new().unwrap();
 
         let left_g_disk = DiskGraphStorage::from_graph(&left_g, left_dir.path()).unwrap();
-        let right_g_disk = DiskGraphStorage::from_graph(&left_g, right_dir.path()).unwrap();
+        let right_g_disk = DiskGraphStorage::from_graph(&right_g, right_dir.path()).unwrap();
 
         let merged_g_disk = left_g_disk
             .merge_by_sorted_gids(&right_g_disk, &merged_dir)

@@ -162,6 +162,7 @@ storage = [
     "arrow",
     "pometry-storage/storage",
     "raphtory-api/storage",
+    "raphtory-storage/storage",
     "dep:memmap2",
     "dep:tempfile",
     "polars-arrow?/io_ipc",

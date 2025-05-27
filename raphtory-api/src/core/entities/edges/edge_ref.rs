@@ -129,4 +129,11 @@ impl EdgeRef {
         e_ref.layer_id = Some(layer);
         e_ref
     }
+
+    #[inline]
+    pub fn unexplode(mut self) -> Self {
+        self.layer_id = None;
+        self.time = None;
+        self
+    }
 }

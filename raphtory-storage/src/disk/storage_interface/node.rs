@@ -300,12 +300,13 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'a {
-        //FIXME: something is capturing the &LayerIds lifetime when using impl Iterator
-        Box::new(match dir {
+        match dir {
             Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),
             Direction::IN => DirectionVariants::In(self.in_edges(layers)),
             Direction::BOTH => DirectionVariants::Both(self.edges(layers)),
-        })
+        }
+        .map(|e| e.unexplode())
+        .dedup_by(|l, r| l.pid() == r.pid())
     }
 
     fn node_type_id(self) -> usize {
