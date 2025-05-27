@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use crate::db::api::view::history::*;
+use crate::db::graph::node::NodeView;
 use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
@@ -8,8 +9,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
-use crate::db::api::view::history::*;
-use crate::db::graph::node::NodeView;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 // TODO: Change this definitely

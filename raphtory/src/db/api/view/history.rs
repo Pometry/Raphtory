@@ -3,19 +3,19 @@
 
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use crate::db::api::properties::internal::{PropertiesOps, TemporalPropertiesOps};
+use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
 use crate::db::api::view::internal::{InternalLayerOps, TimeSemantics};
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use crate::db::graph::edge::EdgeView;
 use crate::db::graph::node::NodeView;
 use crate::prelude::*;
+use arrow_ipc::Time;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use raphtory_api::core::entities::VID;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::Arc;
-use arrow_ipc::Time;
-use raphtory_api::core::entities::VID;
-use crate::db::api::properties::TemporalProperties;
 // TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -34,7 +34,7 @@ impl<T: InternalHistoryOps> History<T> {
     pub fn new(item: T) -> Self {
         Self(item)
     }
-    
+
     // see if there's a way to get secondary temporal information (two entries for the same time value)
 }
 
@@ -268,10 +268,12 @@ impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for E
     }
 }
 
-impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalProperties<P> {
+impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
     // FIXME: This probably isn't great, also we're defining iter() twice but I'm not getting an error
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.histories().into_iter().map(|x| TimeIndexEntry::from(x.1.0)).into_dyn_boxed()
+        self.history()
+            .map(|x| TimeIndexEntry::from(x))
+            .into_dyn_boxed()
     }
 
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {

@@ -2237,13 +2237,21 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history().collect_timestamps();
+            let times_of_farquaad = graph
+                .node("Lord Farquaad")
+                .unwrap()
+                .history()
+                .collect_timestamps();
 
             assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history().collect_timestamps();
+            let windowed_times_of_farquaad = view
+                .node("Lord Farquaad")
+                .unwrap()
+                .history()
+                .collect_timestamps();
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
         });
     }

@@ -31,7 +31,8 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn dtype(&self) -> PropType {
         self.props.dtype(self.id)
     }
-    pub fn history(&self) -> BoxedLIter<i64> {  // TODO: Change this to history object?
+    pub fn history(&self) -> BoxedLIter<i64> {
+        // TODO: Change this to history object?
         self.props.temporal_history_iter(self.id)
     }
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
@@ -47,7 +48,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
 
     pub fn histories(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.iter()
-    }   // TODO: What about histories?
+    } // TODO: What about histories?
 
     pub fn histories_date_time(&self) -> Option<impl Iterator<Item = (DateTime<Utc>, Prop)>> {
         let hist = self.history_date_time()?;

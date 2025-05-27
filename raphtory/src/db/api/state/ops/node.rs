@@ -25,8 +25,7 @@ pub trait NodeOp: Send + Sync {
 pub trait NodeOpFilter<'graph>: NodeOp + 'graph {
     type Graph: GraphViewOps<'graph>;
     // type Filtered<G: GraphViewOps<'graph>>: NodeOp< Output = Self::Output>
-    type Filtered<G: GraphViewOps<'graph>>: NodeOp/*< Output = Self::Output>*/
-        + NodeOpFilter<'graph, Graph = G>
+    type Filtered<G: GraphViewOps<'graph>>: NodeOp /*< Output = Self::Output>*/ + NodeOpFilter<'graph, Graph = G>
         + 'graph;
 
     fn graph(&self) -> &Self::Graph;
@@ -143,7 +142,7 @@ impl<'graph, Op: NodeOpFilter<'graph>, V: Clone + Send + Sync + 'graph> NodeOpFi
     }
 
     fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G>
-    // where
+// where
     //     Op::Filtered<G>: NodeOp<Output = Op::Output>,    // doesn't work
     {
         let op = self.op.filtered(graph);
