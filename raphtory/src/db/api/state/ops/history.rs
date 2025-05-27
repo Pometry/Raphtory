@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
@@ -8,7 +9,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 use crate::db::api::view::history::*;
-type HistoryObject = crate::db::api::view::history::History<Box<dyn InternalHistoryOps>>;
+use crate::db::graph::node::NodeView;
 
 #[derive(Debug, Clone)]
 // TODO: Change this definitely
@@ -74,22 +75,22 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
 }
 
 #[derive(Debug, Clone)]
-pub struct History<G> {
+pub struct HistoryOp<G> {
     pub(crate) graph: G,
+    // _marker: std::marker::PhantomData<&'graph ()>,
 }
 
-//TODO: Start with this, return history object
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
-    type Output = HistoryObject;
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<G> {
+    type Output = History<NodeView<G>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        history_from_node_boxed(self.graph.clone(), node)
+        History::new(NodeView::new_internal(self.graph.clone(), node))
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<G> {
     type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = History<GH>;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<GH>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -99,7 +100,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
-        History {
+        HistoryOp {
             graph: filtered_graph,
         }
     }

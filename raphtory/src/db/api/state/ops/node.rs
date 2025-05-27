@@ -24,7 +24,8 @@ pub trait NodeOp: Send + Sync {
 // Cannot use OneHopFilter because there is no way to specify the bound on Output
 pub trait NodeOpFilter<'graph>: NodeOp + 'graph {
     type Graph: GraphViewOps<'graph>;
-    type Filtered<G: GraphViewOps<'graph>>: NodeOp<Output = Self::Output>
+    // type Filtered<G: GraphViewOps<'graph>>: NodeOp< Output = Self::Output>
+    type Filtered<G: GraphViewOps<'graph>>: NodeOp/*< Output = Self::Output>*/
         + NodeOpFilter<'graph, Graph = G>
         + 'graph;
 
@@ -134,12 +135,17 @@ impl<'graph, Op: NodeOpFilter<'graph>, V: Clone + Send + Sync + 'graph> NodeOpFi
 {
     type Graph = Op::Graph;
     type Filtered<G: GraphViewOps<'graph>> = Map<Op::Filtered<G>, V>;
+    // where
+    //     Op::Filtered<G>: NodeOp<Output = Op::Output>;    // doesn't work
 
     fn graph(&self) -> &Self::Graph {
         self.op.graph()
     }
 
-    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G> {
+    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G>
+    // where
+    //     Op::Filtered<G>: NodeOp<Output = Op::Output>,    // doesn't work
+    {
         let op = self.op.filtered(graph);
         Map { op, map: self.map }
     }

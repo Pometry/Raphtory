@@ -87,15 +87,15 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
-    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
+    fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
+    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
 
     //Returns true if the node has any updates within the current window, otherwise false
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>>;
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -233,8 +233,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
-        let op = ops::History {
+    fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>> {
+        let op = ops::HistoryOp {
             graph: self.graph().clone(),
         };
         self.map(op)
@@ -242,16 +242,16 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
-        let op = ops::History {
+    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
+        let op = ops::HistoryOp {
             graph: self.graph().clone(),
         }
         .map(|h| h.into_iter().map(|t| t.dt()).collect());
         self.map(op)
     }
 
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
-        let op = ops::History {
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, bool>> {
+        let op = ops::HistoryOp {
             graph: self.graph().clone(),
         }
         .map(|h| !h.is_empty());

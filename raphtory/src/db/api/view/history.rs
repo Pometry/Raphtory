@@ -25,34 +25,6 @@ pub trait InternalHistoryOps: Send + Sync {
     fn latest_time(&self) -> Option<TimeIndexEntry>;
 }
 
-// Wasn't able to implement InternalHistoryOps for Iterator type because it gets consumed and I can't clone it
-// Instead, I created a new struct type which holds a node VID and a graph
-#[derive(Debug, Clone)]
-pub struct NodeHistory<'graph, G: GraphViewOps<'graph>> {
-    pub(crate) graph: G,
-    node: VID
-}
-impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for NodeHistory<'graph, G> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.graph.node_history(self.node)
-    }
-
-    // Implementation is not efficient, only for testing purposes
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = self.graph.node_history(self.node).collect_vec();
-        x.reverse();
-        x.into_iter().into_dyn_boxed()
-    }
-
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter().next()
-    }
-
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter_rev().next()
-    }
-}
-
 // FIXME: Doesn't support deletions of edges yet
 #[derive(Debug, Clone)]
 pub struct History<T>(pub T);
@@ -62,25 +34,7 @@ impl<T: InternalHistoryOps> History<T> {
         Self(item)
     }
     
-    // pub fn from_node_boxed<'graph, G: GraphViewOps<'graph>>(graph: &'graph G, node: VID) -> Self {
-    //     History::new(Box::new(NodeHistory{graph, node}))
-    // }
-    
     // see if there's a way to get secondary temporal information (two entries for the same time value)
-}
-
-// impl History<()> {
-//     pub fn from_node<'graph, G: GraphViewOps<'graph>>(graph: &'graph G, node: VID) -> History<NodeHistory<'graph, G>> {
-//         History::new(NodeHistory{graph, node})
-//     }
-// }
-
-pub fn history_from_node<'graph, G: GraphViewOps<'graph>>(graph: G, node: VID) -> History<NodeHistory<'graph, G>> {
-    History::new(NodeHistory{graph, node})
-}
-
-pub fn history_from_node_boxed<'graph, G: GraphViewOps<'graph>>(graph: G, node: VID) -> History<Box<dyn InternalHistoryOps>> {
-    History::new(Box::new(NodeHistory{graph, node}))
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
