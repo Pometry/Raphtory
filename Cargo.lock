@@ -4846,7 +4846,6 @@ version = "0.15.1"
 dependencies = [
  "ahash",
  "arrow-array",
- "arrow-ipc",
  "arrow-json",
  "arrow-schema",
  "async-openai",
@@ -4871,13 +4870,11 @@ dependencies = [
  "iter-enum",
  "itertools 0.13.0",
  "kdam",
- "lock_api",
  "memmap2 0.9.5",
  "minijinja",
  "minijinja-contrib",
  "neo4rs",
  "num",
- "num-bigint",
  "num-integer",
  "num-traits",
  "numpy",
@@ -4948,7 +4945,6 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-arrow",
- "quickcheck",
  "quickcheck_macros",
  "rand 0.8.5",
  "rayon",
@@ -5035,7 +5031,6 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

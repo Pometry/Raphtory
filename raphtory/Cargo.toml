@@ -19,7 +19,6 @@ raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
 raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
 raphtory-storage = { path = "../raphtory-storage", version = "0.15.1" }
 iter-enum = { workspace = true, features = ["rayon"] }
-arrow-ipc = { workspace = true }
 arrow-array = { workspace = true, features = ["chrono-tz"] }
 arrow-schema = { workspace = true }
 hashbrown = { workspace = true }
@@ -27,7 +26,6 @@ chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 num-integer = { workspace = true }
-num-bigint = { workspace = true }
 parking_lot = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -39,7 +37,6 @@ bigdecimal = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-lock_api = { workspace = true }
 dashmap = { workspace = true }
 enum_dispatch = { workspace = true }
 ordered-float = { workspace = true }

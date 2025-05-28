@@ -87,7 +87,6 @@ flate2 = "1.0.28"
 regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
-num-bigint = "0.4.6"
 rand_distr = "0.4.3"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
@@ -157,7 +156,6 @@ arrow-json = { version = "=53.2.0" }
 arrow-buffer = { version = "=53.2.0" }
 arrow-schema = { version = "=53.2.0" }
 arrow-array = { version = "=53.2.0" }
-arrow-data = { version = "=53.2.0" }
 arrow-ipc = { version = "=53.2.0" }
 moka = { version = "0.12.7", features = ["sync"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
