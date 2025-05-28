@@ -34,6 +34,11 @@ split-debuginfo = "unpacked"
 inherits = "release"
 debug = true
 
+[profile.no_debug]
+inherits = "dev"
+debug = false
+incremental = false
+
 [profile.test-ci]
 inherits = "test"
 debug = 0

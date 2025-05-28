@@ -59,6 +59,9 @@ build-python-public: deactivate-storage
 debug-python-public: deactivate-storage
 	cd python && maturin develop --profile=debug
 
+build-python-rtd:
+	cd python && maturin develop --profile=no_debug
+
 debug-stubs: debug-python stubs
 
 build-python: activate-storage
