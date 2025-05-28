@@ -14,6 +14,15 @@ B = TypeVar("B")
 PORT = 1737
 
 
+def sort_dict_recursive(d) -> dict:
+    if isinstance(d, dict):
+        return {key: sort_dict_recursive(d[key]) for key in sorted(d)}
+    elif isinstance(d, list):
+        return [sort_dict_recursive(v) for v in d]
+    else:
+        return d
+
+
 if "DISK_TEST_MARK" in os.environ:
 
     def with_disk_graph(func):
@@ -114,6 +123,8 @@ def run_graphql_test(query, expected_output, graph):
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
+        print(sort_dict_recursive(response_dict))
+        print(sort_dict_recursive(expected_output))
         assert response_dict == expected_output
 
 
