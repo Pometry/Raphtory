@@ -13,9 +13,9 @@ pub trait TemporalPropertyViewOps {
         self.temporal_values(id).last().cloned()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64>;
+    fn temporal_history(&self, id: usize) -> Vec<i64>;  // TODO: Change this to Vec<TimeIndexEntry> and fix all the errors that come
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> { // TODO: Change too
         Box::new(self.temporal_history(id).into_iter())
     }
 

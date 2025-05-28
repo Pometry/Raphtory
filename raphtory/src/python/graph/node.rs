@@ -245,7 +245,7 @@ impl PyNode {
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.node.history();
+        let history = self.node.history().collect_timestamps();
         history.into_pyarray(py)
     }
 
@@ -758,7 +758,7 @@ impl PyNodes {
                     prop_time_dict,
                     row_header,
                     start_point,
-                    history,
+                    history.collect_timestamps(),
                 )
             })
             .collect();
@@ -868,9 +868,10 @@ impl PyPathFromGraph {
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    // TODO: Change return type to the history object
     fn history(&self) -> NestedI64VecIterable {
         let path = self.path.clone();
-        (move || path.history()).into()
+        (move || path.history().map(|x| x.map(|x| x.collect_timestamps()))).into()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
