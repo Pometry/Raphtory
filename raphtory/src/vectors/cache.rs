@@ -33,33 +33,28 @@ impl VectorStore {
     fn in_memory() -> Self {
         Self::Mem(Default::default())
     }
-    fn on_disk(path: &Path) -> Self {
+    fn on_disk(path: &Path) -> GraphResult<Self> {
         let _ = std::fs::create_dir_all(path);
         let page_size = 16384;
         let max_size =
             (MAX_DISK_ITEMS * (MAX_VECTOR_DIM * 4 + MAX_TEXT_LENGTH)) / page_size * page_size;
 
-        let env = unsafe {
-            EnvOpenOptions::new()
-                .map_size(max_size)
-                .open(&path)
-                .unwrap()
-        };
+        let env = unsafe { EnvOpenOptions::new().map_size(max_size).open(&path) }?;
         let mut wtxn = env.write_txn().unwrap();
-        let db: VectorDb = env.create_database(&mut wtxn, None).unwrap();
-        wtxn.commit().unwrap();
-        Self::Disk { env, db }
+        let db: VectorDb = env.create_database(&mut wtxn, None)?;
+        wtxn.commit()?;
+        Ok(Self::Disk { env, db })
     }
 
-    fn get_disk_keys(&self) -> Vec<u64> {
+    fn get_disk_keys(&self) -> GraphResult<Vec<u64>> {
         match self {
-            VectorStore::Mem(_) => vec![],
+            VectorStore::Mem(_) => Ok(vec![]),
             VectorStore::Disk { env, db } => {
-                let rtxn = env.read_txn().unwrap();
-                db.iter(&rtxn)
-                    .unwrap()
-                    .filter_map(|result| Some(result.ok()?.0))
-                    .collect()
+                let rtxn = env.read_txn()?;
+                let iter = db.iter(&rtxn)?;
+                let result: Result<Vec<u64>, heed::Error> =
+                    iter.map(|result| result.map(|(id, _)| id)).collect();
+                Ok(result?) // TODO: simplify this?, use into inside of the map?
             }
         }
     }
@@ -68,8 +63,8 @@ impl VectorStore {
         match self {
             VectorStore::Mem(store) => store.read().get(key).cloned(),
             VectorStore::Disk { env, db } => {
-                let rtxn = env.read_txn().unwrap();
-                db.get(&rtxn, key).unwrap()
+                let rtxn = env.read_txn().ok()?;
+                db.get(&rtxn, key).ok()?
             }
         }
     }
@@ -80,9 +75,10 @@ impl VectorStore {
                 store.write().insert(key, value);
             }
             VectorStore::Disk { env, db } => {
-                let mut wtxn = env.write_txn().unwrap();
-                db.put(&mut wtxn, &key, &value).unwrap();
-                wtxn.commit().unwrap();
+                if let Ok(mut wtxn) = env.write_txn() {
+                    let _ = db.put(&mut wtxn, &key, &value);
+                    let _ = wtxn.commit();
+                }
             }
         }
     }
@@ -93,8 +89,12 @@ impl VectorStore {
                 store.write().remove(key);
             }
             VectorStore::Disk { env, db } => {
-                let mut wtxn = env.write_txn().unwrap();
-                db.delete(&mut wtxn, key).unwrap();
+                // this is a bit dangerous, because if delete ops fail and insert ops succeed,
+                // the cache might explode in size, but that is very unlikely to happen
+                if let Ok(mut wtxn) = env.write_txn() {
+                    let _ = db.delete(&mut wtxn, key);
+                    let _ = wtxn.commit();
+                }
             }
         }
     }
@@ -116,8 +116,8 @@ impl VectorCache {
         }
     }
 
-    pub fn on_disk(path: &Path, function: impl EmbeddingFunction + 'static) -> Self {
-        let store: Arc<_> = VectorStore::on_disk(path).into();
+    pub fn on_disk(path: &Path, function: impl EmbeddingFunction + 'static) -> GraphResult<Self> {
+        let store: Arc<_> = VectorStore::on_disk(path)?.into();
         let cloned = store.clone();
 
         let cache: Cache<u64, ()> = Cache::builder()
@@ -125,15 +125,15 @@ impl VectorCache {
             .eviction_listener(move |key: Arc<u64>, _value: (), _cause| cloned.remove(key.as_ref()))
             .build();
 
-        for key in store.get_disk_keys() {
+        for key in store.get_disk_keys()? {
             cache.insert(key, ());
         }
 
-        Self {
+        Ok(Self {
             store,
             cache,
             function: Arc::new(function),
-        }
+        })
     }
 
     fn get(&self, text: &str) -> Option<Embedding> {
@@ -247,7 +247,7 @@ mod cache_tests {
         test_abstract_cache(VectorCache::in_memory(placeholder_embedding)).await;
         let path = PathBuf::from("/tmp/raphtory-cache-tests-test-cache");
         remove_dir_all(&path).unwrap();
-        test_abstract_cache(VectorCache::on_disk(&path, placeholder_embedding)).await;
+        test_abstract_cache(VectorCache::on_disk(&path, placeholder_embedding).unwrap()).await;
     }
 
     #[tokio::test]
@@ -257,11 +257,11 @@ mod cache_tests {
         remove_dir_all(&path).unwrap();
 
         {
-            let cache = VectorCache::on_disk(&path, placeholder_embedding);
+            let cache = VectorCache::on_disk(&path, placeholder_embedding).unwrap();
             cache.insert("a".to_owned(), vector.clone());
         } // here the heed env gets closed
 
-        let loaded_from_disk = VectorCache::on_disk(&path, placeholder_embedding);
+        let loaded_from_disk = VectorCache::on_disk(&path, placeholder_embedding).unwrap();
         assert_eq!(loaded_from_disk.get("a"), Some(vector))
     }
 }
