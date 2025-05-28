@@ -97,7 +97,6 @@ impl Data {
         path: &str,
         graph: MaterializedGraph,
     ) -> Result<(), GraphError> {
-        // TODO: try to organize this, too many things going on
         // TODO: replace ValidGraphFolder with ValidNonExistingGraphFolder !!!!!!!!!
         // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
         // we can write to it and its guaranteed to me atomic
@@ -106,7 +105,6 @@ impl Data {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
                 fs::create_dir_all(folder.get_base_path())?;
-                // let graph_folder: GraphFolder = path.into();
                 graph.cache(folder.clone())?;
                 let vectors = self.vectorise(graph.clone(), &folder).await;
                 let graph = GraphWithVectors::new(graph, vectors);

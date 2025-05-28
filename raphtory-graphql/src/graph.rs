@@ -30,7 +30,7 @@ use raphtory::{
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: OnceCell<GraphFolder>, // TODO: not ideal this is pub
+    pub(crate) folder: OnceCell<GraphFolder>,
 }
 
 impl GraphWithVectors {

@@ -31,7 +31,6 @@ impl VectorMeta {
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> GraphResult<Self> {
-        // TODO: return Result instead of Option
         let meta_string = std::fs::read_to_string(meta_path(path))?;
         let meta: VectorMeta = serde_json::from_str(&meta_string)?;
 

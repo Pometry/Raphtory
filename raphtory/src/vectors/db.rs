@@ -21,7 +21,7 @@ use super::{
     Embedding,
 };
 
-const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB // TODO: review !!!!!!!!!!!!
+const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB
 
 #[derive(Clone)]
 pub(super) struct NodeDb(pub(super) VectorDb);
@@ -233,7 +233,7 @@ impl VectorDb {
         futures_util::pin_mut!(vectors);
         let first_vector = vectors.next().await;
         let dimensions = if let Some(Ok((first_id, first_vector))) = first_vector {
-            let dimensions = first_vector.len(); // TODO: if vectors is empty, simply don't write anything!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            let dimensions = first_vector.len();
             let writer = Writer::<Cosine>::new(db, 0, dimensions);
 
             writer.add_item(&mut wtxn, first_id, &first_vector)?;

@@ -72,7 +72,6 @@ impl EntityRef {
     }
 }
 
-// TODO: use this above
 pub(super) trait IntoDbId {
     fn into_db_id(self) -> u32;
 }
