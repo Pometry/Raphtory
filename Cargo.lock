@@ -4945,6 +4945,7 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-arrow",
+ "quickcheck",
  "quickcheck_macros",
  "rand 0.8.5",
  "rayon",
