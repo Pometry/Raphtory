@@ -36,26 +36,64 @@ impl ExpansionPath {
     }
 }
 
+#[derive(Debug, Clone)]
+struct Selected(Vec<(EntityRef, f32)>);
+
+impl From<Vec<(EntityRef, f32)>> for Selected {
+    fn from(value: Vec<(EntityRef, f32)>) -> Self {
+        Self(value)
+    }
+}
+
+impl Selected {
+    fn extend(&mut self, extension: impl IntoIterator<Item = (EntityRef, f32)>) {
+        self.extend_with_limit(extension, usize::MAX);
+    }
+
+    fn extend_with_limit(
+        &mut self,
+        extension: impl IntoIterator<Item = (EntityRef, f32)>,
+        limit: usize,
+    ) {
+        let selection_set: HashSet<EntityRef> =
+            HashSet::from_iter(self.0.iter().map(|(doc, _)| doc.clone()));
+        let new_docs = extension
+            .into_iter()
+            .unique_by(|(entity, _)| *entity)
+            .filter(|(entity, _)| !selection_set.contains(entity))
+            .take(limit);
+        self.0.extend(new_docs);
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &(EntityRef, f32)> {
+        self.0.iter()
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
 
 #[derive(Clone)]
 pub struct VectorSelection<G: StaticGraphViewOps> {
     pub(crate) graph: VectorisedGraph<G>,
-    selected: Vec<(EntityRef, f32)>, // FIXME: this is a bit error prone, might contain duplicates
+    selected: Selected, // FIXME: this is a bit error prone, might contain duplicates
 }
 
 impl<G: StaticGraphViewOps> VectorSelection<G> {
     pub(crate) fn empty(graph: VectorisedGraph<G>) -> Self {
         Self {
             graph,
-            selected: vec![],
+            selected: vec![].into(),
         }
     }
 
     pub(super) fn new(graph: VectorisedGraph<G>, docs: Vec<(EntityRef, f32)>) -> Self {
         Self {
             graph,
-            selected: docs,
+            selected: docs.into(),
         }
     }
 
@@ -64,7 +102,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let g = &self.graph.source_graph;
         self.selected
             .iter()
-            .map(|(id, _)| id.as_node_view(g).unwrap())
+            .filter_map(|(id, _)| id.as_node_view(g))
             .collect()
     }
 
@@ -73,7 +111,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let g = &self.graph.source_graph;
         self.selected
             .iter()
-            .map(|(id, _)| id.as_edge_view(g).unwrap())
+            .filter_map(|(id, _)| id.as_edge_view(g))
             .collect()
     }
 
@@ -105,7 +143,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let new_docs = nodes
             .into_iter()
             .filter_map(|id| Some(self.graph.source_graph.node(id)?.into()));
-        self.selected.extend(new_docs.map(|doc| (doc, 0.0))); // FIXME: can add duplicated, use the extend associated function
+        self.selected.extend(new_docs.map(|doc| (doc, 0.0)));
     }
 
     /// Add all `edges` to the current selection
@@ -120,7 +158,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .into_iter()
             .filter_map(|(src, dst)| Some(self.graph.source_graph.edge(src, dst)?.into()));
         // self.extend_selection_with_refs(new_docs);
-        self.selected.extend(new_docs.map(|doc| (doc, 0.0))); // FIXME: can add duplicated, use the extend associated function
+        self.selected.extend(new_docs.map(|doc| (doc, 0.0)));
     }
 
     /// Append all the documents in `selection` to the current selection
@@ -131,7 +169,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// # Returns
     ///   The selection with the new documents
     pub fn append(&mut self, selection: &Self) -> &Self {
-        self.selected.extend(selection.selected.clone()); // FIXME: this is not checking if the graph is the same
+        self.selected.extend(selection.selected.iter().cloned());
         self
     }
 
@@ -149,7 +187,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let nodes = self.get_nodes_in_context(window, false);
         let edges = self.get_edges_in_context(window, false);
         let docs = nodes.into_iter().chain(edges).map(|entity| (entity, 0.0));
-        self.extend_selection(docs, usize::MAX);
+        self.selected.extend(docs);
         if hops > 1 {
             self.expand(hops - 1, window);
         }
@@ -245,7 +283,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         };
 
         let docs = find_top_k(nodes.chain(edges), limit).collect::<Vec<_>>(); // collect to remove lifetime
-        self.extend_selection(docs, limit);
+        self.selected.extend_with_limit(docs, limit);
 
         let increment = self.selected.len() - initial_size;
         if increment > 0 && increment < limit {
@@ -303,23 +341,6 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
                 embedding: self.graph.edge_db.get_id(entity.id())?.unwrap(),
             }),
         }
-    }
-
-    /// this function assumes that extension might contain duplicates and might contain elements
-    /// already present in selection, and returns a sequence with no repetitions and preserving the
-    /// elements in selection in the same indexes
-    fn extend_selection<I>(&mut self, extension: I, limit: usize)
-    where
-        I: IntoIterator<Item = (EntityRef, f32)>,
-    {
-        let selection_set: HashSet<EntityRef> =
-            HashSet::from_iter(self.selected.iter().map(|(doc, _)| doc.clone()));
-        let new_docs = extension
-            .into_iter()
-            .unique_by(|(entity, _)| *entity)
-            .filter(|(entity, _)| !selection_set.contains(entity))
-            .take(limit);
-        self.selected.extend(new_docs);
     }
 }
 

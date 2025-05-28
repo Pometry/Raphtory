@@ -105,7 +105,7 @@ mod vector_tests {
             .await
             .unwrap()
             .remove(0);
-        let mut selection = vectors.documents_by_similarity(&embedding, 10, None);
+        let mut selection = vectors.entities_by_similarity(&embedding, 10, None);
         selection.expand_documents_by_similarity(&embedding, 10, None);
         selection.expand(2, None);
         let docs = selection.get_documents();

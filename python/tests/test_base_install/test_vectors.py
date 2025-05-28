@@ -56,6 +56,16 @@ def create_graph() -> VectorisedGraph:
 def test_selection():
     vg = create_graph()
 
+    ################################
+    selection = vg.empty_selection()
+    nodes_to_select = ["node1", "node2"]
+    edges_to_select = [("node1", "node2"), ("node1", "node3")]
+    selection = vg.empty_selection()
+    selection.add_nodes(nodes_to_select)
+    selection.add_edges(edges_to_select)
+    nodes = selection.nodes()
+    ###########################
+
     assert len(vg.empty_selection().get_documents()) == 0
     assert len(vg.empty_selection().get_documents_with_scores()) == 0
 
