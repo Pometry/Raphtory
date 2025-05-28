@@ -172,7 +172,7 @@ pub enum GraphError {
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
     ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },
 
-    #[error("Failed to parse time string")]
+    #[error("Failed to parse time string: {source}")]
     ParseTime {
         #[from]
         source: ParseTimeError,
@@ -385,6 +385,9 @@ pub enum GraphError {
 
     #[error("Failed to create index in ram")]
     FailedToCreateIndexInRam,
+
+    #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
+    MismatchedIntervalTypes,
 }
 
 impl GraphError {

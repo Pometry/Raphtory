@@ -1,4 +1,4 @@
-use crate::model::graph::{edge::Edge, node::Node};
+use crate::model::graph::{edge::GqlEdge, node::GqlNode};
 use dynamic_graphql::{SimpleObject, Union};
 use raphtory::{
     core::Lifespan,
@@ -7,31 +7,32 @@ use raphtory::{
 };
 
 #[derive(SimpleObject)]
-struct Graph {
+struct DocumentGraph {
     name: String, // TODO: maybe return the graph as well here
 }
 
-impl From<String> for Graph {
+impl From<String> for DocumentGraph {
     fn from(value: String) -> Self {
         Self { name: value }
     }
 }
 
 #[derive(Union)]
+#[graphql(name = "DocumentEntity")]
 enum GqlDocumentEntity {
-    Node(Node),
-    Edge(Edge),
-    Graph(Graph),
+    DocNode(GqlNode),
+    DocEdge(GqlEdge),
+    DocGraph(DocumentGraph),
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
     fn from(value: DocumentEntity<G>) -> Self {
         match value {
-            DocumentEntity::Graph { name, .. } => Self::Graph(Graph {
+            DocumentEntity::Graph { name, .. } => Self::DocGraph(DocumentGraph {
                 name: name.unwrap(),
             }),
-            DocumentEntity::Node(node) => Self::Node(Node::from(node)),
-            DocumentEntity::Edge(edge) => Self::Edge(Edge::from(edge)),
+            DocumentEntity::Node(node) => Self::DocNode(GqlNode::from(node)),
+            DocumentEntity::Edge(edge) => Self::DocEdge(GqlEdge::from(edge)),
         }
     }
 }
