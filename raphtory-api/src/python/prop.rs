@@ -1,4 +1,4 @@
-use crate::core::entities::properties::prop::{Prop, PropArray};
+use crate::core::entities::properties::prop::Prop;
 use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
@@ -7,8 +7,10 @@ use pyo3::{
     types::{PyBool, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
-use pyo3_arrow::PyArray;
 use std::{ops::Deref, str::FromStr, sync::Arc};
+
+#[cfg(feature = "arrow")]
+use {crate::core::entities::properties::prop::PropArray, pyo3_arrow::PyArray};
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
@@ -32,6 +34,7 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
+            #[cfg(feature = "arrow")]
             Prop::Array(blob) => {
                 if let Some(arr_ref) = blob.into_array_ref() {
                     pyo3_arrow::PyArray::from_array_ref(arr_ref)

@@ -35,4 +35,4 @@ proptest = { workspace = true }
 
 [features]
 arrow = ["raphtory-api/arrow"]
-python = ["dep:pyo3"]
+python = ["dep:pyo3", "raphtory-api/python"]
