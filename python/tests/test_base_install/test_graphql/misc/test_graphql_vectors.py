@@ -25,7 +25,7 @@ def assert_correct_documents(client):
         globalSearch(query: "aab", limit: 1) {
             entity {
                 __typename
-                ... on Graph {
+                ... on DocumentGraph {
                     name
                 }
             }
@@ -61,7 +61,7 @@ def assert_correct_documents(client):
         "plugins": {
             "globalSearch": [
                 {
-                    "entity": {"__typename": "Graph", "name": "abb"},
+                    "entity": {"__typename": "DocumentGraph", "name": "abb"},
                     "content": "abb",
                     "embedding": [1.0, 2.0],
                 },
