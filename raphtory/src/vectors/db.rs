@@ -79,8 +79,8 @@ impl EntityDb for EdgeDb {
     }
 
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool {
-        let (src, dst) = entity.as_edge_gids(view).unwrap(); // TODO: remove this?
-        view.has_edge(src, dst) // FIXME: there should be a quicker way!!!!!!!!!!!!!!!!!!!
+        let (src, dst) = entity.as_edge_gids(view).unwrap();
+        view.has_edge(src, dst) // TODO: there should be a quicker way of chking of some edge exist by pid
     }
 
     fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u32> {
@@ -125,9 +125,7 @@ pub(super) trait EntityDb: Sized {
                     })
                     .map(|entity| entity.id()),
             )),
-            (view, None) => Some(Box::new(
-                Self::all_valid_entities(view.unwrap()), // FIXME: unwrap here doesnt make sense
-            )),
+            (Some(view), None) => Some(Box::new(Self::all_valid_entities(view))),
         };
         self.top_k_with_candidates(query, k, candidates)
     }
@@ -140,20 +138,19 @@ pub(super) trait EntityDb: Sized {
     ) -> GraphResult<impl Iterator<Item = (EntityRef, f32)>> {
         let db = self.get_db();
         let rtxn = db.env.read_txn()?;
-        // FIXME: if the db has no edges, I get a MissingMetadata here. Handle that properly,
-        // Maybe the edge db should not exist at all if there are no edge embeddings
-        // because there might be some errors other than MissingMetadata
-        let vectors = if let Ok(reader) = Reader::open(&rtxn, 0, db.vectors) {
-            let mut query_builder = reader.nns(k);
-            let candidates = candidates.map(|filter| roaring::RoaringBitmap::from_iter(filter));
-            let query_builder = if let Some(filter) = &candidates {
-                query_builder.candidates(filter)
-            } else {
-                &query_builder
-            };
-            query_builder.by_vector(&rtxn, query.as_ref())?
-        } else {
-            vec![]
+        let vectors = match Reader::open(&rtxn, 0, db.vectors) {
+            Ok(reader) => {
+                let mut query_builder = reader.nns(k);
+                let candidates = candidates.map(|filter| roaring::RoaringBitmap::from_iter(filter));
+                let query_builder = if let Some(filter) = &candidates {
+                    query_builder.candidates(filter)
+                } else {
+                    &query_builder
+                };
+                query_builder.by_vector(&rtxn, query.as_ref())?
+            }
+            Err(arroy::Error::MissingMetadata(_)) => vec![], // this just means the db is empty
+            Err(error) => return Err(error.into()),
         };
         Ok(vectors
             .into_iter()
@@ -164,10 +161,9 @@ pub(super) trait EntityDb: Sized {
 
 #[derive(Clone)]
 pub(crate) struct VectorDb {
-    // FIXME: save index value in here !!!!!!!!!!!!!!!!!!!
-    pub(crate) vectors: ArroyDatabase<Cosine>, // TODO: review is this safe to clone? does it point to the same thing?
+    pub(crate) vectors: ArroyDatabase<Cosine>,
     pub(crate) env: heed::Env,
-    pub(crate) _tempdir: Option<Arc<TempDir>>, // do I really need this, is the file open not enough
+    pub(crate) _tempdir: Option<Arc<TempDir>>, // do we really need this, is the file open not enough
     pub(crate) dimensions: OnceLock<usize>,
 }
 
@@ -203,7 +199,6 @@ impl VectorDb {
             .ok()
             .and_then(|reader| reader.iter(&rtxn).ok()?.next()?.ok());
         let dimensions = if let Some((_, vector)) = first_vector {
-            // FIXME: maybe there should not be any db at all if this is the case?
             vector.len().into()
         } else {
             OnceLock::new()

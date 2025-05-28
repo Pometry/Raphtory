@@ -419,7 +419,7 @@ impl PyVectorSelection {
         let embedding = query.into_embedding(&self_.0.graph)?;
         self_
             .0
-            .expand_entities_by_similarity(&embedding, limit, translate_window(window));
+            .expand_entities_by_similarity(&embedding, limit, translate_window(window))?;
         Ok(())
     }
 
@@ -444,7 +444,7 @@ impl PyVectorSelection {
         let embedding = query.into_embedding(&self_.0.graph)?;
         self_
             .0
-            .expand_nodes_by_similarity(&embedding, limit, translate_window(window));
+            .expand_nodes_by_similarity(&embedding, limit, translate_window(window))?;
         Ok(())
     }
 
@@ -469,7 +469,7 @@ impl PyVectorSelection {
         let embedding = query.into_embedding(&self_.0.graph)?;
         self_
             .0
-            .expand_edges_by_similarity(&embedding, limit, translate_window(window));
+            .expand_edges_by_similarity(&embedding, limit, translate_window(window))?;
         Ok(())
     }
 }

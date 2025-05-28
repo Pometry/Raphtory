@@ -1,7 +1,6 @@
 use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
-    model::plugins::query_plugin::QueryPlugin,
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
 use itertools::Itertools;

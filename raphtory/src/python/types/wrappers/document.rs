@@ -1,12 +1,9 @@
 use crate::{
     db::api::view::DynamicGraph,
-    python::{
-        graph::views::graph_view::PyGraphView,
-        types::repr::{Repr, StructReprBuilder},
-    },
+    python::types::repr::{Repr, StructReprBuilder},
     vectors::{Document, DocumentEntity, Embedding},
 };
-use pyo3::{prelude::*, types::PyNone, IntoPyObjectExt};
+use pyo3::{prelude::*, IntoPyObjectExt};
 
 /// A Document
 ///

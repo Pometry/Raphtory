@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
 #[cfg(feature = "storage")]

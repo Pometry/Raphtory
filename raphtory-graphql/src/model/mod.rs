@@ -132,7 +132,7 @@ impl QueryRoot {
         Ok(GqlGraphs::new(paths))
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
+    async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
 
