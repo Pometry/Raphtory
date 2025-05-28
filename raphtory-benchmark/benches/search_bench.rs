@@ -5,7 +5,6 @@ use rand::{
     thread_rng, Rng,
 };
 use raphtory::{
-    core::Prop,
     db::{
         api::{
             properties::internal::{
@@ -28,9 +27,9 @@ use raphtory::{
         NodeViewOps, PropUnwrap, PropertyFilter,
     },
     serialise::StableDecode,
+    storage::core_ops::CoreGraphOps,
 };
-use raphtory_api::core::PropType;
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use rayon::prelude::*;
 use std::{iter, sync::Arc, time::Instant};
 
