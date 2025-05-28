@@ -3,8 +3,8 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
-            namespace::Namespace, vectorised_graph::GqlVectorisedGraph,
+            graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
+            vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -16,6 +16,7 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
+use crate::model::graph::namespaces::Namespaces;
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
@@ -65,6 +66,7 @@ pub enum GqlGraphError {
 }
 
 #[derive(Enum)]
+#[graphql(name = "GraphType")]
 pub enum GqlGraphType {
     Persistent,
     Event,
@@ -104,10 +106,10 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<Namespace> {
+    async fn namespaces<'a>(ctx: &Context<'a>) -> Namespaces {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        root.get_all_children()
+        Namespaces::new(root.get_all_namespaces())
     }
     async fn namespace<'a>(
         ctx: &Context<'a>,
@@ -125,13 +127,6 @@ impl QueryRoot {
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
-    }
-
-    //To deprecate I think
-    async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
-        let data = ctx.data_unchecked::<Data>();
-        let paths = data.get_all_graph_folders();
-        Ok(GqlGraphs::new(paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {

@@ -25,6 +25,8 @@ pub enum ParseTimeError {
     ParseError(#[from] ParseError),
     #[error("negative interval is not supported")]
     NegativeInt,
+    #[error("0 size step is not supported")]
+    ZeroSizeStep,
     #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
     InvalidDateTimeString(String),
 }
@@ -161,7 +163,7 @@ impl IntoTimeWithFormat for &str {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum IntervalSize {
+pub enum IntervalSize {
     Discrete(u64),
     Temporal { millis: u64, months: u32 },
 }
@@ -206,7 +208,7 @@ impl From<Duration> for IntervalSize {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval {
     pub epoch_alignment: bool,
-    pub(crate) size: IntervalSize,
+    pub size: IntervalSize,
 }
 
 impl Default for Interval {

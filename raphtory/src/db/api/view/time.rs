@@ -10,7 +10,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::GraphType;
-use raphtory_core::utils::time::ParseTimeError;
+use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -251,10 +251,9 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         match (self.timeline_start(), self.timeline_end()) {
             (Some(start), Some(end)) => {
                 let step: Interval = step.try_into()?;
-
-                Ok(WindowSet::new(parent, start, end, step, None))
+                WindowSet::new(parent, start, end, step, None)
             }
-            _ => Ok(WindowSet::empty(parent)),
+            _ => WindowSet::empty(parent),
         }
     }
 
@@ -276,9 +275,9 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                Ok(WindowSet::new(parent, start, end, step, Some(window)))
+                WindowSet::new(parent, start, end, step, Some(window))
             }
-            _ => Ok(WindowSet::empty(parent)),
+            _ => WindowSet::empty(parent),
         }
     }
 }
@@ -294,19 +293,37 @@ pub struct WindowSet<'graph, T> {
 }
 
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
-    fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
+    fn new(
+        view: T,
+        start: i64,
+        end: i64,
+        step: Interval,
+        window: Option<Interval>,
+    ) -> Result<Self, ParseTimeError> {
+        match step.size {
+            IntervalSize::Discrete(v) => {
+                if v == 0 {
+                    return Err(ParseTimeError::ZeroSizeStep);
+                }
+            }
+            IntervalSize::Temporal { millis, months } => {
+                if millis == 0 && months == 0 {
+                    return Err(ParseTimeError::ZeroSizeStep);
+                }
+            }
+        };
         let cursor_start = start + step;
-        Self {
+        Ok(Self {
             view,
             cursor: cursor_start,
             end,
             step,
             window,
             _marker: PhantomData,
-        }
+        })
     }
 
-    fn empty(view: T) -> Self {
+    fn empty(view: T) -> Result<Self, ParseTimeError> {
         // timeline_start is greater than end, so no windows to return, even with end inclusive
         WindowSet::new(view, 1, 0, Default::default(), None)
     }
@@ -354,13 +371,44 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.end + self.step {
             let window_end = self.cursor;
+
             let window_start = self.window.map(|w| window_end - w);
+            if let Some(start) = window_start {
+                //this is required because if we have steps > window size you can end up overstepping
+                // the end by so much in the final window that there is no data inside
+                if start >= self.end {
+                    // this is >= because the end passed through is already +1
+                    return None;
+                }
+            }
             let window = self.view.internal_window(window_start, Some(window_end));
             self.cursor = self.cursor + self.step;
             Some(window)
         } else {
             None
         }
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSet<'graph, T> {
+    //unfortunately because Interval can change size, there is no nice divide option
+    fn len(&self) -> usize {
+        let mut cursor = self.cursor;
+        let mut count = 0;
+        while cursor < self.end + self.step {
+            let window_start = self.window.map(|w| cursor - w);
+            if let Some(start) = window_start {
+                if start >= self.end {
+                    break;
+                }
+            }
+            count += 1;
+            cursor = cursor + self.step;
+        }
+        count
     }
 }
 
@@ -382,6 +430,7 @@ mod time_tests {
         test_storage,
     };
     use itertools::Itertools;
+    use raphtory_core::utils::time::ParseTimeError;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
@@ -529,6 +578,68 @@ mod time_tests {
         //     ),
         // ];
         // assert_bounds(windows, expected);
+    }
+
+    #[test]
+    fn test_errors() {
+        let start = "2020-06-06 00:00:00".try_into_time().unwrap();
+        let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
+        let graph = graph_with_timeline(start, end);
+        match graph.rolling("1 day", Some("0 days")) {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+        match graph.rolling(1, Some(0)) {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+        match graph.expanding("0 day") {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+        match graph.expanding(0) {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert_eq!(e, ParseTimeError::ZeroSizeStep)
+            }
+        }
+
+        match graph.expanding("0fead day") {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert!(matches!(e, ParseTimeError::ParseInt { .. }))
+            }
+        }
+
+        match graph.expanding("0 dadasasdy") {
+            Ok(_) => {
+                panic!("Expected error, but got Ok")
+            }
+            Err(e) => {
+                assert!(matches!(e, ParseTimeError::InvalidUnit { .. }))
+            }
+        }
+
+        assert_eq!(
+            graph.rolling("1 day", Some("1000 days")).unwrap().count(),
+            0
+        )
     }
 
     #[test]

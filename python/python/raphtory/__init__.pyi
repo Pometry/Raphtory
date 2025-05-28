@@ -265,18 +265,6 @@ class GraphView(object):
             GraphView: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> GraphView:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            GraphView: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> GraphView:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -2331,18 +2319,6 @@ class Node(object):
             Node: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> Node:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Node: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> Node:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -2873,18 +2849,6 @@ class Nodes(object):
             Nodes: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> Nodes:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Nodes: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> Nodes:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -3395,18 +3359,6 @@ class PathFromNode(object):
             PathFromNode: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> PathFromNode:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            PathFromNode: The filtered view
-        """
-
     def filter_nodes(self, filter: PropertyFilter) -> PathFromNode:
         """
         Return a filtered view that only includes nodes that satisfy the filter
@@ -3834,18 +3786,6 @@ class PathFromGraph(object):
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            PathFromGraph: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: PropertyFilter) -> PathFromGraph:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
                                      filter using `Prop`.
 
         Returns:

@@ -21,6 +21,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::task::spawn_blocking;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -92,6 +93,23 @@ impl Data {
         self.cache
             .try_get_with(path.into(), || self.read_graph_from_folder(&graph_folder))
             .map(|graph| (graph, graph_folder))
+    }
+
+    pub async fn get_graph_async(
+        &self,
+        path: &str,
+    ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
+        let data = self.clone();
+        let graph_folder = ExistingGraphFolder::try_from(data.work_dir.clone(), path)?;
+        let path = path.into();
+        // TODO: we should use the async cache apis
+        spawn_blocking(move || {
+            data.cache
+                .try_get_with(path, || data.read_graph_from_folder(&graph_folder))
+                .map(|graph| (graph, graph_folder))
+        })
+        .await
+        .unwrap()
     }
 
     pub async fn insert_graph(

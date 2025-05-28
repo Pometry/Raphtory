@@ -1,5 +1,11 @@
 use crate::model::{
-    graph::{edge::Edge, filtering::EdgesViewCollection},
+    graph::{
+        edge::GqlEdge,
+        filtering::EdgesViewCollection,
+        windowset::GqlEdgesWindowSet,
+        WindowDuration,
+        WindowDuration::{Duration, Epoch},
+    },
     sorting::{EdgeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -14,8 +20,10 @@ use raphtory::{
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
+use tokio::task::spawn_blocking;
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Edges")]
 pub(crate) struct GqlEdges {
     pub(crate) ee: Edges<'static, DynamicGraph>,
 }
@@ -31,8 +39,8 @@ impl GqlEdges {
         Self { ee: edges.into() }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Edge> + '_> {
-        let iter = self.ee.iter().map(Edge::from_ref);
+    fn iter(&self) -> Box<dyn Iterator<Item = GqlEdge> + '_> {
+        let iter = self.ee.iter().map(GqlEdge::from_ref);
         Box::new(iter)
     }
 }
@@ -47,19 +55,79 @@ impl GqlEdges {
         self.update(self.ee.default_layer())
     }
     async fn layers(&self, names: Vec<String>) -> Self {
-        self.update(self.ee.valid_layers(names))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.ee.valid_layers(names)))
+            .await
+            .unwrap()
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
-        self.update(self.ee.exclude_valid_layers(names))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.ee.exclude_valid_layers(names)))
+            .await
+            .unwrap()
     }
 
     async fn layer(&self, name: String) -> Self {
-        self.update(self.ee.valid_layers(name))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.ee.valid_layers(name)))
+            .await
+            .unwrap()
     }
 
     async fn exclude_layer(&self, name: String) -> Self {
-        self.update(self.ee.exclude_valid_layers(name))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.ee.exclude_valid_layers(name)))
+            .await
+            .unwrap()
+    }
+
+    async fn rolling(
+        &self,
+        window: WindowDuration,
+        step: Option<WindowDuration>,
+    ) -> Result<GqlEdgesWindowSet, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match window {
+            Duration(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(step_duration) => Ok(GqlEdgesWindowSet::new(
+                        self_clone
+                            .ee
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
+                },
+                None => Ok(GqlEdgesWindowSet::new(
+                    self_clone.ee.rolling(window_duration, None)?,
+                )),
+            },
+            Epoch(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
+                    Epoch(step_duration) => Ok(GqlEdgesWindowSet::new(
+                        self_clone
+                            .ee
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                },
+                None => Ok(GqlEdgesWindowSet::new(
+                    self_clone.ee.rolling(window_duration, None)?,
+                )),
+            },
+        })
+        .await
+        .unwrap()
+    }
+
+    async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match step {
+            Duration(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
+            Epoch(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
+        })
+        .await
+        .unwrap()
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
@@ -102,7 +170,6 @@ impl GqlEdges {
 
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
-
         for view in views {
             let mut count = 0;
             if let Some(_) = view.default_layer {
@@ -182,60 +249,66 @@ impl GqlEdges {
     }
 
     async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
-        let sorted: Arc<[_]> = self
-            .ee
-            .iter()
-            .sorted_by(|first_edge, second_edge| {
-                sort_bys
-                    .clone()
-                    .into_iter()
-                    .fold(Ordering::Equal, |current_ordering, sort_by| {
-                        current_ordering.then_with(|| {
-                            let ordering = if sort_by.src == Some(true) {
-                                first_edge.src().id().partial_cmp(&second_edge.src().id())
-                            } else if sort_by.dst == Some(true) {
-                                first_edge.dst().id().partial_cmp(&second_edge.dst().id())
-                            } else if let Some(sort_by_time) = sort_by.time {
-                                let (first_time, second_time) = match sort_by_time {
-                                    SortByTime::Latest => {
-                                        (first_edge.latest_time(), second_edge.latest_time())
-                                    }
-                                    SortByTime::Earliest => {
-                                        (first_edge.earliest_time(), second_edge.earliest_time())
-                                    }
-                                };
-                                first_time.partial_cmp(&second_time)
-                            } else if let Some(sort_by_property) = sort_by.property {
-                                let first_prop_maybe =
-                                    first_edge.properties().get(&*sort_by_property);
-                                let second_prop_maybe =
-                                    second_edge.properties().get(&*sort_by_property);
-                                first_prop_maybe.partial_cmp(&second_prop_maybe)
-                            } else {
-                                None
-                            };
-                            if let Some(ordering) = ordering {
-                                if sort_by.reverse == Some(true) {
-                                    ordering.reverse()
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let sorted: Arc<[_]> = self_clone
+                .ee
+                .iter()
+                .sorted_by(|first_edge, second_edge| {
+                    sort_bys.clone().into_iter().fold(
+                        Ordering::Equal,
+                        |current_ordering, sort_by| {
+                            current_ordering.then_with(|| {
+                                let ordering = if sort_by.src == Some(true) {
+                                    first_edge.src().id().partial_cmp(&second_edge.src().id())
+                                } else if sort_by.dst == Some(true) {
+                                    first_edge.dst().id().partial_cmp(&second_edge.dst().id())
+                                } else if let Some(sort_by_time) = sort_by.time {
+                                    let (first_time, second_time) = match sort_by_time {
+                                        SortByTime::Latest => {
+                                            (first_edge.latest_time(), second_edge.latest_time())
+                                        }
+                                        SortByTime::Earliest => (
+                                            first_edge.earliest_time(),
+                                            second_edge.earliest_time(),
+                                        ),
+                                    };
+                                    first_time.partial_cmp(&second_time)
+                                } else if let Some(sort_by_property) = sort_by.property {
+                                    let first_prop_maybe =
+                                        first_edge.properties().get(&*sort_by_property);
+                                    let second_prop_maybe =
+                                        second_edge.properties().get(&*sort_by_property);
+                                    first_prop_maybe.partial_cmp(&second_prop_maybe)
                                 } else {
-                                    ordering
+                                    None
+                                };
+                                if let Some(ordering) = ordering {
+                                    if sort_by.reverse == Some(true) {
+                                        ordering.reverse()
+                                    } else {
+                                        ordering
+                                    }
+                                } else {
+                                    Ordering::Equal
                                 }
-                            } else {
-                                Ordering::Equal
-                            }
-                        })
-                    })
-            })
-            .map(|edge_view| edge_view.edge)
-            .collect();
-        self.update(Edges::new(
-            self.ee.current_filter().clone(),
-            self.ee.base_graph().clone(),
-            Arc::new(move || {
-                let sorted = sorted.clone();
-                (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
-            }),
-        ))
+                            })
+                        },
+                    )
+                })
+                .map(|edge_view| edge_view.edge)
+                .collect();
+            self_clone.update(Edges::new(
+                self_clone.ee.current_filter().clone(),
+                self_clone.ee.base_graph().clone(),
+                Arc::new(move || {
+                    let sorted = sorted.clone();
+                    (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
+                }),
+            ))
+        })
+        .await
+        .unwrap()
     }
 
     ////////////////////////
@@ -255,15 +328,26 @@ impl GqlEdges {
     /////////////////
 
     async fn count(&self) -> usize {
-        self.iter().count()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.iter().count())
+            .await
+            .unwrap()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Edge> {
-        let start = offset * limit;
-        self.iter().skip(start).take(limit).collect()
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let start = offset * limit;
+            self_clone.iter().skip(start).take(limit).collect()
+        })
+        .await
+        .unwrap()
     }
 
-    async fn list(&self) -> Vec<Edge> {
-        self.iter().collect()
+    async fn list(&self) -> Vec<GqlEdge> {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.iter().collect())
+            .await
+            .unwrap()
     }
 }

@@ -161,7 +161,7 @@ impl<P: PropertiesOps> IntoIterator for &TemporalPropertyView<P> {
         hist.into_iter().zip(vals)
     }
 }
-
+#[derive(Clone)]
 pub struct TemporalProperties<P: PropertiesOps + Clone> {
     pub(crate) props: P,
 }

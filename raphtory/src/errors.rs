@@ -122,22 +122,27 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 pub enum GraphError {
     #[error(transparent)]
     MutationError(#[from] MutationError),
+
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
+
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
+
     #[error("Arrow-rs error: {0}")]
     ArrowRs(#[from] arrow_schema::ArrowError),
 
     #[cfg(feature = "io")]
     #[error("Arrow-rs parquet error: {0}")]
     ParquetError(#[from] ParquetError),
+
     #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]
         source: InvalidPathReason,
     },
+
     #[cfg(feature = "arrow")]
     #[error("{source}")]
     LoadError {
@@ -146,29 +151,41 @@ pub enum GraphError {
     },
     #[error("Disk graph not found")]
     DiskGraphNotFound,
+
     #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
     IndexMissing,
+
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
+
     #[error("Failed to create index.")]
     FailedToCreateIndex,
+
     #[error("Failed to persist index.")]
     FailedToPersistIndex,
+
     #[error("Graph index is missing")]
     GraphIndexIsMissing,
+
     #[error("Failed to remove existing graph index: {0}")]
     FailedToRemoveExistingGraphIndex(PathBuf),
+
     #[error("Failed to move graph index")]
     FailedToMoveGraphIndex,
+
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
+
     #[error("Graph not found {0}")]
     GraphNotFound(PathBuf),
+
     #[error("Graph already exists by name = {0}")]
     GraphNameAlreadyExists(PathBuf),
+
     #[error("{reason}")]
     InvalidProperty { reason: String },
-    #[error("Failed to parse time string")]
+
+    #[error("Failed to parse time string: {source}")]
     ParseTime {
         #[from]
         source: ParseTimeError,
@@ -200,8 +217,10 @@ pub enum GraphError {
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
+
     #[error("Graph does not have a default layer. Valid layers: {valid_layers}")]
     NoDefaultLayer { valid_layers: String },
+
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,
@@ -320,14 +339,19 @@ pub enum GraphError {
     #[cfg(feature = "python")]
     #[error("Python error occurred: {0}")]
     PythonError(#[from] PyErr),
+
     #[error("An error with Tdqm occurred")]
     TqdmError,
+
     #[error("An error when parsing Jinja query templates: {0}")]
     JinjaError(String),
+
     #[error("An error when parsing the data to json: {0}")]
     SerdeError(#[from] serde_json::Error),
+
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
+
     #[error("Property filtering not implemented on PersistentGraph yet")]
     PropertyFilteringNotImplemented,
 
@@ -378,6 +402,9 @@ pub enum GraphError {
 
     #[error("Failed to create index in ram")]
     FailedToCreateIndexInRam,
+
+    #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
+    MismatchedIntervalTypes,
 }
 
 impl From<ConstPropError> for GraphError {

@@ -15,6 +15,7 @@ use raphtory_api::core::{
 use rustc_hash::FxHashMap;
 use serde_json::Number;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+use tokio::task::spawn_blocking;
 
 #[derive(InputObject, Clone, Debug, Default)]
 pub struct ObjectEntry {
@@ -75,11 +76,12 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
 }
 
 #[derive(Clone, Debug, Scalar)]
-pub struct GqlPropOutputVal(pub Prop);
+#[graphql(name = "PropertyOutput")]
+pub struct GqlPropertyOutputVal(pub Prop);
 
-impl ScalarValue for GqlPropOutputVal {
-    fn from_value(value: GqlValue) -> Result<GqlPropOutputVal, Error> {
-        Ok(GqlPropOutputVal(gql_to_prop(value)?))
+impl ScalarValue for GqlPropertyOutputVal {
+    fn from_value(value: GqlValue) -> Result<GqlPropertyOutputVal, Error> {
+        Ok(GqlPropertyOutputVal(gql_to_prop(value)?))
     }
 
     fn to_value(&self) -> GqlValue {
@@ -145,25 +147,26 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
 }
 
 #[derive(Clone, ResolvedObject)]
-pub(crate) struct GqlProp {
+#[graphql(name = "Property")]
+pub(crate) struct GqlProperty {
     key: String,
     prop: Prop,
 }
 
-impl GqlProp {
+impl GqlProperty {
     pub(crate) fn new(key: String, prop: Prop) -> Self {
         Self { key, prop }
     }
 }
 
-impl From<(String, Prop)> for GqlProp {
+impl From<(String, Prop)> for GqlProperty {
     fn from(value: (String, Prop)) -> Self {
-        GqlProp::new(value.0, value.1)
+        GqlProperty::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlProp {
+impl GqlProperty {
     async fn key(&self) -> String {
         self.key.clone()
     }
@@ -172,100 +175,130 @@ impl GqlProp {
         self.prop.to_string()
     }
 
-    async fn value(&self) -> GqlPropOutputVal {
-        GqlPropOutputVal(self.prop.clone())
+    async fn value(&self) -> GqlPropertyOutputVal {
+        GqlPropertyOutputVal(self.prop.clone())
     }
 }
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlPropTuple {
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "PropertyTuple")]
+pub(crate) struct GqlPropertyTuple {
     time: i64,
     prop: Prop,
 }
 
-impl GqlPropTuple {
+impl GqlPropertyTuple {
     pub(crate) fn new(time: i64, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
 
-impl From<(i64, Prop)> for GqlPropTuple {
+impl From<(i64, Prop)> for GqlPropertyTuple {
     fn from(value: (i64, Prop)) -> Self {
-        GqlPropTuple::new(value.0, value.1)
+        GqlPropertyTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlPropTuple {
+impl GqlPropertyTuple {
     async fn time(&self) -> i64 {
         self.time
     }
 
     async fn as_string(&self) -> String {
-        self.prop.to_string()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.prop.to_string())
+            .await
+            .unwrap()
     }
 
-    async fn value(&self) -> GqlPropOutputVal {
-        GqlPropOutputVal(self.prop.clone())
+    async fn value(&self) -> GqlPropertyOutputVal {
+        GqlPropertyOutputVal(self.prop.clone())
     }
 }
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlTemporalProp {
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "TemporalProperty")]
+pub(crate) struct GqlTemporalProperty {
     key: String,
     prop: TemporalPropertyView<DynProps>,
 }
-impl GqlTemporalProp {
+impl GqlTemporalProperty {
     pub(crate) fn new(key: String, prop: TemporalPropertyView<DynProps>) -> Self {
         Self { key, prop }
     }
 }
-impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProp {
+impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
     fn from(value: (String, TemporalPropertyView<DynProps>)) -> Self {
-        GqlTemporalProp::new(value.0, value.1)
+        GqlTemporalProperty::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlTemporalProp {
+impl GqlTemporalProperty {
     async fn key(&self) -> String {
         self.key.clone()
     }
 
     async fn history(&self) -> Vec<i64> {
-        self.prop.history().collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.prop.history().collect())
+            .await
+            .unwrap()
     }
 
     async fn values(&self) -> Vec<String> {
-        self.prop.values().map(|x| x.to_string()).collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.prop.values().map(|x| x.to_string()).collect())
+            .await
+            .unwrap()
     }
 
     async fn at(&self, t: i64) -> Option<String> {
-        self.prop.at(t).map(|x| x.to_string())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.prop.at(t).map(|x| x.to_string()))
+            .await
+            .unwrap()
     }
 
     async fn latest(&self) -> Option<String> {
-        self.prop.latest().map(|x| x.to_string())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.prop.latest().map(|x| x.to_string()))
+            .await
+            .unwrap()
     }
 
     async fn unique(&self) -> Vec<String> {
-        self.prop
-            .unique()
-            .into_iter()
-            .map(|x| x.to_string())
-            .collect_vec()
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            self_clone
+                .prop
+                .unique()
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect_vec()
+        })
+        .await
+        .unwrap()
     }
 
-    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropTuple> {
-        self.prop
-            .ordered_dedupe(latest_time)
-            .into_iter()
-            .map(|(k, p)| (k, p).into())
-            .collect()
+    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropertyTuple> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            self_clone
+                .prop
+                .ordered_dedupe(latest_time)
+                .into_iter()
+                .map(|(k, p)| (k, p).into())
+                .collect()
+        })
+        .await
+        .unwrap()
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Properties")]
 pub(crate) struct GqlProperties {
     props: DynProperties,
 }
@@ -284,7 +317,8 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "TemporalProperties")]
 pub(crate) struct GqlTemporalProperties {
     props: DynTemporalProperties,
 }
@@ -299,7 +333,8 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "ConstantProperties")]
 pub(crate) struct GqlConstantProperties {
     props: DynConstProperties,
 }
@@ -316,21 +351,36 @@ impl From<DynConstProperties> for GqlConstantProperties {
 
 #[ResolvedObjectFields]
 impl GqlProperties {
-    async fn get(&self, key: &str) -> Option<GqlProp> {
-        self.props.get(key).map(|p| (key.to_string(), p).into())
+    async fn get(&self, key: String) -> Option<GqlProperty> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            self_clone
+                .props
+                .get(key.as_str())
+                .map(|p| (key.to_string(), p).into())
+        })
+        .await
+        .unwrap()
     }
 
-    async fn contains(&self, key: &str) -> bool {
-        self.props.contains(key)
+    async fn contains(&self, key: String) -> bool {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.props.contains(key.as_str()))
+            .await
+            .unwrap()
     }
 
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().map(|k| k.into()).collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.props.keys().map(|k| k.into()).collect())
+            .await
+            .unwrap()
     }
 
-    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
-        match keys {
-            Some(keys) => self
+    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match keys {
+            Some(keys) => self_clone
                 .props
                 .iter()
                 .filter_map(|(k, p)| {
@@ -342,40 +392,57 @@ impl GqlProperties {
                     }
                 })
                 .collect(),
-            None => self
+            None => self_clone
                 .props
                 .iter()
                 .filter_map(|(k, p)| p.map(|prop| (k.to_string(), prop).into()))
                 .collect(),
-        }
+        })
+        .await
+        .unwrap()
     }
 
     async fn temporal(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
 
-    pub(crate) async fn constant(&self) -> GqlConstantProperties {
+    async fn constant(&self) -> GqlConstantProperties {
         self.props.constant().into()
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlConstantProperties {
-    async fn get(&self, key: &str) -> Option<GqlProp> {
-        self.props.get(key).map(|p| (key.to_string(), p).into())
+    async fn get(&self, key: String) -> Option<GqlProperty> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            self_clone
+                .props
+                .get(key.as_str())
+                .map(|p| (key.to_string(), p).into())
+        })
+        .await
+        .unwrap()
     }
 
-    async fn contains(&self, key: &str) -> bool {
-        self.props.contains(key)
+    async fn contains(&self, key: String) -> bool {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.props.contains(key.as_str()))
+            .await
+            .unwrap()
     }
 
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().map(|k| k.clone().into()).collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.props.keys().map(|k| k.clone().into()).collect())
+            .await
+            .unwrap()
     }
 
-    pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
-        match keys {
-            Some(keys) => self
+    pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match keys {
+            Some(keys) => self_clone
                 .props
                 .iter()
                 .filter_map(|(k, p)| {
@@ -387,32 +454,49 @@ impl GqlConstantProperties {
                     }
                 })
                 .collect(),
-            None => self
+            None => self_clone
                 .props
                 .iter()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
-        }
+        })
+        .await
+        .unwrap()
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperties {
-    async fn get(&self, key: &str) -> Option<GqlTemporalProp> {
-        self.props.get(key).map(|p| (key.to_string(), p).into())
+    async fn get(&self, key: String) -> Option<GqlTemporalProperty> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            self_clone
+                .props
+                .get(key.as_str())
+                .map(|p| (key.to_string(), p).into())
+        })
+        .await
+        .unwrap()
     }
 
-    async fn contains(&self, key: &str) -> bool {
-        self.props.contains(key)
+    async fn contains(&self, key: String) -> bool {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.props.contains(key.as_str()))
+            .await
+            .unwrap()
     }
 
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().map(|k| k.into()).collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.props.keys().map(|k| k.into()).collect())
+            .await
+            .unwrap()
     }
 
-    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProp> {
-        match keys {
-            Some(keys) => self
+    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProperty> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match keys {
+            Some(keys) => self_clone
                 .props
                 .iter()
                 .filter_map(|(k, p)| {
@@ -424,11 +508,13 @@ impl GqlTemporalProperties {
                     }
                 })
                 .collect(),
-            None => self
+            None => self_clone
                 .props
                 .iter()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
-        }
+        })
+        .await
+        .unwrap()
     }
 }

@@ -858,7 +858,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
                 } else {
                     let index_path = path.join("index");
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.get_or_create_index(Some(index_path.clone()))?;
+                        storage.get_or_create_index(Some(path.clone()))?;
                     }
                 }
 
