@@ -323,13 +323,18 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edges(
+    pub(crate) fn index_edges<F>(
         graph: &GraphStorage,
         path: Option<&Path>,
         index_spec: &IndexSpec,
-    ) -> Result<EdgeIndex, GraphError> {
+        index_provider: F,
+    ) -> Result<EdgeIndex, GraphError>
+    where
+        F: FnOnce(Option<PathBuf>) -> Result<EdgeIndex, GraphError>,
+    {
         let edge_index_path = path.as_deref().map(|p| p.join("edges"));
-        let edge_index = EdgeIndex::new(&edge_index_path)?;
+
+        let mut edge_index = index_provider(edge_index_path.clone())?;
 
         // Initialize property indexes and get their writers
         let const_properties_index_path = edge_index_path

@@ -161,17 +161,11 @@ impl Storage {
         &self,
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
-        let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
         if let Some(index) = self.index.get() {
-            let existing_index_spec = index.index_spec.read();
-            if let Some(diff_index_spec) =
-                IndexSpec::diff_index_spec(&existing_index_spec, &index_spec)
-            {
-                // println!("diff_index_spec: {:?}", diff_index_spec);
-                index.update(&self.graph, false, cached_graph_path, diff_index_spec)?;
-            }
+            index.update(&self.graph, index_spec.clone())?;
         };
         self.index.get_or_try_init(|| {
+            let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
             let index = GraphIndex::create(&self.graph, false, cached_graph_path, index_spec)?;
             Ok(index)
         })

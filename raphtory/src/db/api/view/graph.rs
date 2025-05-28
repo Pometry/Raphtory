@@ -644,10 +644,7 @@ pub struct IndexSpec {
 }
 
 impl IndexSpec {
-    pub(crate) fn diff_index_spec(
-        existing: &IndexSpec,
-        requested: &IndexSpec,
-    ) -> Option<IndexSpec> {
+    pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
         fn diff_props(
             existing: &[(String, usize, PropType)],
             requested: &[(String, usize, PropType)],
@@ -681,6 +678,33 @@ impl IndexSpec {
                 edge_const_props,
                 edge_temp_props,
             })
+        }
+    }
+
+    pub(crate) fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
+        fn union_props(
+            a: &[(String, usize, PropType)],
+            b: &[(String, usize, PropType)],
+        ) -> Vec<(String, usize, PropType)> {
+            let mut combined = Vec::new();
+
+            for (name, id, typ) in a.iter().chain(b.iter()) {
+                if !combined
+                    .iter()
+                    .any(|(n, i, t)| n == name && i == id && t == typ)
+                {
+                    combined.push((name.clone(), *id, typ.clone()));
+                }
+            }
+
+            combined
+        }
+
+        IndexSpec {
+            node_const_props: union_props(&existing.node_const_props, &other.node_const_props),
+            node_temp_props: union_props(&existing.node_temp_props, &other.node_temp_props),
+            edge_const_props: union_props(&existing.edge_const_props, &other.edge_const_props),
+            edge_temp_props: union_props(&existing.edge_temp_props, &other.edge_temp_props),
         }
     }
 }

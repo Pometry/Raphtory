@@ -179,10 +179,10 @@ impl GraphIndex {
         };
 
         let path = dir.as_ref().map(|p| p.path());
-        let node_index = NodeIndex::index_nodes(graph, path, &index_spec)?;
+        let node_index = NodeIndex::index_nodes(graph, path, &index_spec, |p| NodeIndex::new(&p))?;
         // node_index.print()?;
 
-        let edge_index = EdgeIndex::index_edges(graph, path, &index_spec)?;
+        let edge_index = EdgeIndex::index_edges(graph, path, &index_spec, |p| EdgeIndex::new(&p))?;
         // edge_index.print()?;
 
         Ok(GraphIndex {
@@ -193,38 +193,24 @@ impl GraphIndex {
         })
     }
 
-    pub fn update(
-        &self,
-        graph: &GraphStorage,
-        create_in_ram: bool,
-        cached_graph_path: Option<&Path>,
-        index_spec: IndexSpec,
-    ) -> Result<Self, GraphError> {
-        let dir = if !create_in_ram {
-            let temp_dir = match cached_graph_path {
-                // Creates index in a temp dir within cache graph dir.
-                // The intention is to avoid creating index in a tmp dir that could be on another file system.
-                Some(path) => TempDir::new_in(path)?,
-                None => TempDir::new()?,
-            };
-            Some(Arc::new(temp_dir))
-        } else {
-            None
-        };
+    pub fn update(&self, graph: &GraphStorage, index_spec: IndexSpec) -> Result<(), GraphError> {
+        let mut existing_spec = self.index_spec.write();
 
-        let path = dir.as_ref().map(|p| p.path());
-        let node_index = NodeIndex::index_nodes(graph, path, &index_spec)?;
-        // node_index.print()?;
+        if let Some(diff_spec) = IndexSpec::diff(&*existing_spec, &index_spec) {
+            let path = self.path.as_ref().map(|p| p.path());
 
-        let edge_index = EdgeIndex::index_edges(graph, path, &index_spec)?;
-        // edge_index.print()?;
+            let _node_index =
+                NodeIndex::index_nodes(graph, path, &diff_spec, |_p| Ok(self.node_index.clone()))?;
+            // _node_index.print()?;
 
-        Ok(GraphIndex {
-            node_index,
-            edge_index,
-            path: dir,
-            index_spec: Arc::new(RwLock::new(index_spec)),
-        })
+            let _edge_index =
+                EdgeIndex::index_edges(graph, path, &diff_spec, |_p| Ok(self.edge_index.clone()))?;
+            // _edge_index.print()?;
+
+            *existing_spec = IndexSpec::union(&*existing_spec, &diff_spec);
+        }
+
+        Ok(())
     }
 
     pub fn searcher(&self) -> Searcher {

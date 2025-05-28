@@ -304,13 +304,17 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_nodes(
+    pub(crate) fn index_nodes<F>(
         graph: &GraphStorage,
         path: Option<&Path>,
         index_spec: &IndexSpec,
-    ) -> Result<NodeIndex, GraphError> {
+        index_provider: F,
+    ) -> Result<NodeIndex, GraphError>
+    where
+        F: FnOnce(Option<PathBuf>) -> Result<NodeIndex, GraphError>,
+    {
         let node_index_path = path.as_deref().map(|p| p.join("nodes"));
-        let node_index = NodeIndex::new(&node_index_path)?;
+        let mut node_index = index_provider(node_index_path.clone())?;
 
         // Initialize property indexes and get their writers
         let const_properties_index_path = node_index_path
