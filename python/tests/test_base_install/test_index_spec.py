@@ -142,4 +142,3 @@ def test_get_index_spec():
     assert "p1" in node_temp_names or "p2" in node_temp_names
     assert "e_x" in edge_const_names or "e_y" in edge_const_names
     assert "e_p1" in edge_temp_names or "e_p2" in edge_temp_names
-    

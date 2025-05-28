@@ -146,10 +146,12 @@ impl Storage {
 #[cfg(feature = "search")]
 impl Storage {
     pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
-        self.index
-            .get()
-            .map(|i| i.index_spec.clone())
-            .ok_or(GraphError::GraphIndexIsMissing)
+        let index = self.index.get().ok_or(GraphError::GraphIndexIsMissing)?;
+        if let Ok(spec) = index.index_spec.read() {
+            Ok(spec.clone())
+        } else {
+            Err(GraphError::GraphIndexIsMissing)
+        }
     }
 
     pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {

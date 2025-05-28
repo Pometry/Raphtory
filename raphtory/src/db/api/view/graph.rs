@@ -635,7 +635,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct IndexSpec {
     pub(crate) node_const_props: Vec<(String, usize, PropType)>,
     pub(crate) node_temp_props: Vec<(String, usize, PropType)>,

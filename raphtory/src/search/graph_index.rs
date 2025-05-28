@@ -21,8 +21,9 @@ use std::{
     fs,
     fs::File,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc},
 };
+use parking_lot::RwLock;
 use tantivy::schema::{FAST, INDEXED, STORED};
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -34,7 +35,7 @@ pub struct GraphIndex {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
     pub path: Option<Arc<TempDir>>, // If path is None, index is created in-memory
-    pub index_spec: IndexSpec,
+    pub index_spec: Arc<RwLock<IndexSpec>>,
 }
 
 impl Debug for GraphIndex {
@@ -146,16 +147,18 @@ impl GraphIndex {
         let edge_index = EdgeIndex::load_from_path(&tmp_path.path().join("edges"))?;
         let path = Some(Arc::new(tmp_path));
 
+        let index_spec = IndexSpec {
+            node_const_props: node_index.resolve_const_props(graph),
+            node_temp_props: node_index.resolve_temp_props(graph),
+            edge_const_props: edge_index.resolve_const_props(graph),
+            edge_temp_props: edge_index.resolve_temp_props(graph),
+        };
+
         Ok(GraphIndex {
             node_index: node_index.clone(),
             edge_index: edge_index.clone(),
             path,
-            index_spec: IndexSpec {
-                node_const_props: node_index.resolve_const_props(graph),
-                node_temp_props: node_index.resolve_temp_props(graph),
-                edge_const_props: edge_index.resolve_const_props(graph),
-                edge_temp_props: edge_index.resolve_temp_props(graph),
-            },
+            index_spec: Arc::new(RwLock::new(index_spec)),
         })
     }
 
@@ -188,7 +191,7 @@ impl GraphIndex {
             node_index,
             edge_index,
             path: dir,
-            index_spec,
+            index_spec: Arc::new(RwLock::new(index_spec)),
         })
     }
 
