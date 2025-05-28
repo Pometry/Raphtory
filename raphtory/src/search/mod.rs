@@ -611,9 +611,27 @@ mod test_index {
 
         #[test]
         fn test_get_index_spec_updated_index() {
-            // let graph = init_graph(Graph::new());
-            // graph.create_index().unwrap();
-            // graph.encode("/tmp/graphs/master").unwrap()
+            let graph = init_graph(Graph::new());
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_edge_props(vec!["e_y"])
+                .unwrap()
+                .build();
+            graph.create_index_with_spec(index_spec.clone()).unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_node_props(vec!["y"])
+                .unwrap()
+                .with_temp_node_props(vec!["p2"])
+                .unwrap()
+                .with_const_edge_props(vec!["e_y"])
+                .unwrap()
+                .build();
+            graph.create_index_with_spec(index_spec.clone()).unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
         }
 
         #[test]
