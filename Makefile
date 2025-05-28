@@ -60,7 +60,7 @@ debug-python-public: deactivate-storage
 	cd python && maturin develop --profile=debug
 
 build-python-rtd:
-	cd python && maturin develop --profile=no_debug
+	cd python && maturin build --profile=no_debug && pip install ../target/wheels/*.whl
 
 debug-stubs: debug-python stubs
 
