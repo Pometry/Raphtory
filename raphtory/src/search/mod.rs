@@ -618,8 +618,13 @@ mod test_index {
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
+
             let index_spec2 = graph.get_index_spec().unwrap();
             assert_eq!(index_spec, index_spec2);
+            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            assert_eq!(results, vec!["raphtory"]);
+            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_const_node_props(vec!["y"])
@@ -630,8 +635,57 @@ mod test_index {
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
+
             let index_spec2 = graph.get_index_spec().unwrap();
             assert_eq!(index_spec, index_spec2);
+            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            assert_eq!(results, vec!["raphtory"]);
+            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            assert_eq!(results, vec!["raphtory->pometry"]);
+        }
+
+        #[test]
+        fn test_get_index_spec_updated_index_persisted_and_loaded() {
+            let graph = init_graph(Graph::new());
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_edge_props(vec!["e_y"])
+                .unwrap()
+                .build();
+            graph.create_index_with_spec(index_spec.clone()).unwrap();
+
+            let tmp_graph_dir = tempfile::tempdir().unwrap();
+            let path = tmp_graph_dir.path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+            let graph = Graph::decode(path.clone()).unwrap();
+
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            assert_eq!(results, vec!["raphtory"]);
+            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            assert_eq!(results, vec!["raphtory->pometry"]);
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_node_props(vec!["y"])
+                .unwrap()
+                .with_temp_node_props(vec!["p2"])
+                .unwrap()
+                .with_const_edge_props(vec!["e_y"])
+                .unwrap()
+                .build();
+            graph.create_index_with_spec(index_spec.clone()).unwrap();
+            let tmp_graph_dir = tempfile::tempdir().unwrap();
+            let path = tmp_graph_dir.path().to_path_buf();
+            graph.encode(path.clone()).unwrap();
+            let graph = Graph::decode(path).unwrap();
+
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            assert_eq!(results, vec!["raphtory"]);
+            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
         #[test]
