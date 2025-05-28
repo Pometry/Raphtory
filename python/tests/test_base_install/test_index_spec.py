@@ -117,3 +117,29 @@ def test_mixed_node_and_edge_props_index_spec():
     f1 = filter.Property("e_p1") < 5.0
     f2 = filter.Property("e_y") == False
     assert sorted(search_edges(graph, f1 | f2)) == sorted(["pometry->raphtory", "raphtory->pometry"])
+
+
+def test_get_index_spec():
+    graph = init_graph(Graph())
+    spec = (
+        IndexSpecBuilder(graph)
+        .with_const_node_props(["x"])
+        .with_all_temp_node_props()
+        .with_all_edge_props()
+        .build()
+    )
+
+    graph.create_index_in_ram_with_spec(spec)
+
+    returned_spec = graph.get_index_spec()
+
+    node_const_names = {name for (name, _, _) in returned_spec.node_const_props}
+    node_temp_names = {name for (name, _, _) in returned_spec.node_temp_props}
+    edge_const_names = {name for (name, _, _) in returned_spec.edge_const_props}
+    edge_temp_names = {name for (name, _, _) in returned_spec.edge_temp_props}
+
+    assert "x" in node_const_names
+    assert "p1" in node_temp_names or "p2" in node_temp_names
+    assert "e_x" in edge_const_names or "e_y" in edge_const_names
+    assert "e_p1" in edge_temp_names or "e_p2" in edge_temp_names
+    

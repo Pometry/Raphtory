@@ -8,11 +8,71 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };
 use pyo3::prelude::*;
+use raphtory_api::core::PropType;
 
 #[pyclass(name = "IndexSpec", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyIndexSpec {
     pub(crate) spec: IndexSpec,
+}
+
+#[pymethods]
+impl PyIndexSpec {
+    fn __repr__(&self) -> PyResult<String> {
+        let fmt_props = |props: &Vec<(String, usize, PropType)>| {
+            props
+                .iter()
+                .map(|(name, id, typ)| format!("('{}', {}, '{:?}')", name, id, typ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let repr = format!(
+            "IndexSpec(\n  node_const_props=[{}],\n  node_temp_props=[{}],\n  edge_const_props=[{}],\n  edge_temp_props=[{}]\n)",
+            fmt_props(&self.spec.node_const_props),
+            fmt_props(&self.spec.node_temp_props),
+            fmt_props(&self.spec.edge_const_props),
+            fmt_props(&self.spec.edge_temp_props),
+        );
+
+        Ok(repr)
+    }
+
+    #[getter]
+    fn node_const_props(&self) -> Vec<(String, usize, String)> {
+        self.spec
+            .node_const_props
+            .iter()
+            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
+            .collect()
+    }
+
+    #[getter]
+    fn node_temp_props(&self) -> Vec<(String, usize, String)> {
+        self.spec
+            .node_temp_props
+            .iter()
+            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
+            .collect()
+    }
+
+    #[getter]
+    fn edge_const_props(&self) -> Vec<(String, usize, String)> {
+        self.spec
+            .edge_const_props
+            .iter()
+            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
+            .collect()
+    }
+
+    #[getter]
+    fn edge_temp_props(&self) -> Vec<(String, usize, String)> {
+        self.spec
+            .edge_temp_props
+            .iter()
+            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
+            .collect()
+    }
 }
 
 #[pyclass(name = "IndexSpecBuilder", module = "raphtory")]
@@ -99,6 +159,12 @@ impl PyIndexSpecBuilder {
 
 #[pymethods]
 impl PyGraphView {
+    /// Get index spec
+    fn get_index_spec(&self) -> Result<PyIndexSpec, GraphError> {
+        let spec = self.graph.get_index_spec()?;
+        Ok(PyIndexSpec { spec })
+    }
+
     /// Create graph index
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
