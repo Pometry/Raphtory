@@ -9,11 +9,15 @@ use crate::{
 use indexmap::IndexSet;
 use num_traits::AsPrimitive;
 use rayon::prelude::*;
-use std::{borrow::Borrow, hash::Hash, iter::Sum};
+use std::{borrow::Borrow, fmt::Debug, hash::Hash, iter::Sum};
 
 pub trait NodeStateOps<'graph>:
-    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)>
-    + Send
+    IntoIterator<
+        Item = (
+            NodeView<'graph, Self::BaseGraph, Self::Graph>,
+            Self::OwnedValue,
+        ),
+    > + Send
     + Sync
     + 'graph
 {
@@ -45,7 +49,7 @@ pub trait NodeStateOps<'graph>:
         &'a self,
     ) -> impl Iterator<
         Item = (
-            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
             Self::Value<'a>,
         ),
     > + 'a
@@ -58,7 +62,7 @@ pub trait NodeStateOps<'graph>:
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
             Self::Value<'a>,
         ),
     >
@@ -206,7 +210,10 @@ pub trait NodeStateOps<'graph>:
         values.into_iter().nth(median_index)
     }
 
-    fn group_by<V: Hash + Eq + Send + Sync + Clone, F: Fn(&Self::OwnedValue) -> V + Sync>(
+    fn group_by<
+        V: Hash + Eq + Send + Sync + Clone + Debug,
+        F: Fn(&Self::OwnedValue) -> V + Sync,
+    >(
         &self,
         group_fn: F,
     ) -> NodeGroups<V, Self::Graph> {

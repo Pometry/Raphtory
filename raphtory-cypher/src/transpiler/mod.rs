@@ -1,25 +1,19 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-
 use crate::parser::ast::*;
-
 use arrow_schema::{Fields, Schema};
-
 use itertools::Itertools;
 use raphtory::{
-    core::{
-        entities::{edges::edge_ref::Dir, VID},
-        Direction,
-    },
-    db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
-    disk_graph::DiskGraphStorage,
+    api::core::Direction,
+    core::entities::{edges::edge_ref::Dir, VID},
+    db::{api::properties::internal::ConstantPropertiesOps, graph::node::NodeView},
     prelude::*,
 };
 use sqlparser::ast::{
     self as sql_ast, DuplicateTreatment, FunctionArgumentList, GroupByExpr, OrderByExpr, SetExpr,
     TableAlias, WildcardAdditionalOptions, With,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
 };
 
 mod exprs;
@@ -582,7 +576,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
             .expect("edge not found")];
 
         let mut last_edge_dir = first_edge.direction;
-        let mut last_edge: Option<NodeView<Graph>> = None;
+        let mut last_edge: Option<NodeView<'static, Graph>> = None;
 
         let mut additional_filters = vec![];
 
@@ -1186,8 +1180,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        disk_graph::DiskGraphStorage,
-        prelude::NO_PROPS,
+        prelude::{DiskGraphStorage, NO_PROPS},
     };
     use tempfile::tempdir;
 
@@ -1320,7 +1313,7 @@ mod test {
              UNION ALL \
              SELECT id, layer_id, src, dst, time FROM L2) \
              SELECT COUNT(e.id) FROM e",
-            ["L1", "L2"],
+            ["_default", "L1", "L2"],
         )
     }
 
@@ -1367,7 +1360,7 @@ mod test {
              SELECT id, layer_id, src, dst, time FROM L1 \
              UNION ALL SELECT id, layer_id, src, dst, time FROM L2) \
              SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
-            ["L1", "L2"],
+            ["_default", "L1", "L2"],
         );
     }
 
@@ -1688,6 +1681,6 @@ mod test {
     }
 
     fn check_cypher_to_sql(query: &str, expected: &str) {
-        check_cypher_to_sql_layers::<[String; 0]>(query, expected, [])
+        check_cypher_to_sql_layers(query, expected, ["_default"])
     }
 }

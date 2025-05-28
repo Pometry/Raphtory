@@ -24,14 +24,11 @@ use datafusion::{
     },
 };
 use futures::{Stream, StreamExt};
-use pometry_storage::graph_fragment::TempColGraphFragment;
-use raphtory::{
-    core::{entities::VID, Direction},
-    disk_graph::{
-        prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
-        DiskGraphStorage,
-    },
+use pometry_storage::{
+    graph_fragment::TempColGraphFragment,
+    prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
 };
+use raphtory::{api::core::Direction, core::entities::VID, prelude::DiskGraphStorage};
 use std::{
     any::Any,
     collections::HashSet,
@@ -238,7 +235,7 @@ where
 {
     let col = layer
         .edges_storage()
-        .temporal_props()
+        .temporal_props()?
         .values()
         .primitive_col::<T::Native>(p_id)?;
     for r in indices {
@@ -257,7 +254,10 @@ fn load_into_utf8_builder_2<I: OffsetSizeTrait + Offset>(
     p_id: usize,
     indices: &[Range<usize>],
 ) -> Option<()> {
-    let array = layer.edges_storage().temporal_props().utf8_col::<I>(p_id)?;
+    let array = layer
+        .edges_storage()
+        .temporal_props()?
+        .utf8_col::<I>(p_id)?;
     let col = array.values();
     for r in indices {
         for i in r.clone() {

@@ -238,7 +238,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and minimum value or `None` if empty")]
-            fn min_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
+            fn min_item(&self) -> Option<(NodeView<'static, DynamicGraph>, $value)> {
                 self.inner
                     .min_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
@@ -256,7 +256,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and maximum value or `None` if empty")]
-            fn max_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
+            fn max_item(&self) -> Option<(NodeView<'static, DynamicGraph>, $value)> {
                 self.inner
                     .max_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
@@ -282,7 +282,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The median value or `None` if empty")]
-            fn median_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
+            fn median_item(&self) -> Option<(NodeView<'static, DynamicGraph>, $value)> {
                 self.inner
                     .median_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))

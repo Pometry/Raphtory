@@ -7,7 +7,6 @@ use dynamic_graphql::{
     Enum, InputObject,
 };
 use raphtory::{
-    core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter,
         filter_operator::FilterOperator,
@@ -15,7 +14,9 @@ use raphtory::{
         property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef, Temporal},
         Filter, FilterValue,
     },
+    errors::GraphError,
 };
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::{
     borrow::Cow,
     fmt,

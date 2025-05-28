@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, LoadError},
-        IntoPropList, PropType,
-    },
+    errors::{GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
@@ -16,7 +13,10 @@ use polars_arrow::{
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::properties::prop::{IntoPropList, PropType},
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 

@@ -2,18 +2,10 @@ use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
-        utils::errors::GraphError,
     },
     db::{
         api::{
-            mutation::internal::InternalAdditionOps,
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView},
-                Properties,
-            },
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            },
+            properties::{internal::ConstantPropertiesOps, Properties},
             view::{internal::*, *},
         },
         graph::{
@@ -23,15 +15,13 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
-                node_subgraph::NodeSubgraph,
+                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
             },
         },
     },
+    errors::GraphError,
+    prelude::*,
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::{
@@ -41,6 +31,11 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
+    GraphType,
+};
+use raphtory_storage::{
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    mutation::{addition_ops::InternalAdditionOps, MutationError},
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -49,6 +44,10 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
+
+use crate::db::graph::views::filter::model::{AsEdgeFilter, AsNodeFilter};
+use raphtory_core::utils::iter::GenLockedIter;
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 #[cfg(feature = "search")]
 use zip::ZipArchive;
 
@@ -75,6 +74,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
 
     fn cache_view(&self) -> CachedView<Self>;
+
+    fn valid(&self) -> Result<ValidGraph<Self>, GraphError>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
@@ -123,7 +124,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
 
     /// Get an edge `(src, dst)`.
     fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
@@ -153,7 +154,7 @@ pub trait SearchableGraphOps: Sized {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+    ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
     fn search_edges<F: AsEdgeFilter>(
         &self,
@@ -165,13 +166,159 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
-impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
+    // pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
+    //     self,
+    //     view: G,
+    // ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
+    //     match view.node_list() {
+    //         NodeList::List { elems } => {
+    //             return elems
+    //                 .into_iter()
+    //                 .flat_map(move |v| {
+    //                     self.clone()
+    //                         .into_node_edges_iter(v, Direction::OUT, view.clone())
+    //                 })
+    //                 .into_dyn_boxed()
+    //         }
+    //         _ => {}
+    //     }
+    //     let edges = self.owned_edges();
+    //     let nodes = self.owned_nodes();
+    //
+    //     match edges {
+    //         EdgesStorage::Mem(edges) => {
+    //             let iter = (0..edges.len()).map(EID);
+    //             let filtered = match view.filter_state() {
+    //                 FilterState::Neither => {
+    //                     FilterVariants::Neither(iter.map(move |eid| edges.get_mem(eid).out_ref()))
+    //                 }
+    //                 FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
+    //                     let e = EdgeStorageRef::Mem(edges.get_mem(e));
+    //                     (view.filter_edge(e, view.layer_ids())
+    //                         && view.filter_node(nodes.node_entry(e.src()))
+    //                         && view.filter_node(nodes.node_entry(e.dst())))
+    //                     .then(|| e.out_ref())
+    //                 })),
+    //                 FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
+    //                     let e = EdgeStorageRef::Mem(edges.get_mem(e));
+    //                     (view.filter_node(nodes.node_entry(e.src()))
+    //                         && view.filter_node(nodes.node_entry(e.dst())))
+    //                     .then(|| e.out_ref())
+    //                 })),
+    //                 FilterState::Edges | FilterState::BothIndependent => {
+    //                     FilterVariants::Edges(iter.filter_map(move |e| {
+    //                         let e = EdgeStorageRef::Mem(edges.get_mem(e));
+    //                         view.filter_edge(e, view.layer_ids()).then(|| e.out_ref())
+    //                     }))
+    //                 }
+    //             };
+    //             filtered.into_dyn_boxed()
+    //         }
+    //         #[cfg(feature = "storage")]
+    //         EdgesStorage::Disk(edges) => {
+    //             let edges_clone = edges.clone();
+    //             let iter = edges_clone.into_iter_refs(view.layer_ids().clone());
+    //             let filtered = match view.filter_state() {
+    //                 FilterState::Neither => FilterVariants::Neither(iter),
+    //                 FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
+    //                     let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
+    //                     if !view.filter_edge(edge, view.layer_ids()) {
+    //                         return None;
+    //                     }
+    //                     let src = nodes.node_entry(e.src());
+    //                     if !view.filter_node(src) {
+    //                         return None;
+    //                     }
+    //                     let dst = nodes.node_entry(e.dst());
+    //                     if !view.filter_node(dst) {
+    //                         return None;
+    //                     }
+    //                     Some(e)
+    //                 })),
+    //                 FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
+    //                     let src = nodes.node_entry(e.src());
+    //                     if !view.filter_node(src) {
+    //                         return None;
+    //                     }
+    //                     let dst = nodes.node_entry(e.dst());
+    //                     if !view.filter_node(dst) {
+    //                         return None;
+    //                     }
+    //                     Some(e)
+    //                 })),
+    //                 FilterState::Edges | FilterState::BothIndependent => {
+    //                     FilterVariants::Edges(iter.filter_map(move |e| {
+    //                         let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
+    //                         if !view.filter_edge(edge, view.layer_ids()) {
+    //                             return None;
+    //                         }
+    //                         Some(e)
+    //                     }))
+    //                 }
+    //             };
+    //             filtered.into_dyn_boxed()
+    //         }
+    //     }
+    // }
+
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        let edges = Arc::new(move || {
-            let core_graph = graph.core_graph().lock();
-            core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
-        });
+        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
+            match graph.node_list() {
+                NodeList::All { .. } => Arc::new(move || {
+                    let edges = graph.core_graph().owned_edges();
+                    let layer_ids = graph.layer_ids().clone();
+                    let graph = graph.clone();
+                    GenLockedIter::from(
+                        (edges, layer_ids, graph),
+                        move |(edges, layer_ids, graph)| {
+                            let iter = edges.iter(layer_ids);
+                            match graph.filter_state() {
+                                FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
+                                FilterState::Both => {
+                                    let nodes = graph.core_graph().core_nodes();
+                                    iter.filter_map(move |e| {
+                                        (graph.filter_edge(e, graph.layer_ids())
+                                            && graph.filter_node(nodes.node_entry(e.src()))
+                                            && graph.filter_node(nodes.node_entry(e.dst())))
+                                        .then_some(e.out_ref())
+                                    })
+                                    .into_dyn_boxed()
+                                }
+                                FilterState::Nodes => {
+                                    let nodes = graph.core_graph().core_nodes();
+                                    iter.filter_map(move |e| {
+                                        (graph.filter_node(nodes.node_entry(e.src()))
+                                            && graph.filter_node(nodes.node_entry(e.dst())))
+                                        .then_some(e.out_ref())
+                                    })
+                                    .into_dyn_boxed()
+                                }
+                                FilterState::Edges | FilterState::BothIndependent => iter
+                                    .filter_map(move |e| {
+                                        graph
+                                            .filter_edge(e, graph.layer_ids())
+                                            .then_some(e.out_ref())
+                                    })
+                                    .into_dyn_boxed(),
+                            }
+                        },
+                    )
+                    .into_dyn_boxed()
+                }),
+                NodeList::List { elems } => Arc::new(move || {
+                    let cg = graph.core_graph().lock();
+                    let graph = graph.clone();
+                    elems
+                        .clone()
+                        .into_iter()
+                        .flat_map(move |node| {
+                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
+                        })
+                        .into_dyn_boxed()
+                }),
+            };
         Edges {
             base_graph: self.clone(),
             graph: self.clone(),
@@ -203,33 +350,38 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
-                return Ok(self.new_base_graph(g.into()));
+                // no layers to map
+                vec![]
             }
             LayerIds::All => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in 1..layers.len() {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                for id in 0..layers.len() {
+                    let new_id = g
+                        .resolve_layer_inner(Some(&layers[id]))
+                        .map_err(MutationError::from)?
+                        .inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                if *l_id > 0 {
-                    let new_id =
-                        g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
-                    layer_map[*l_id] = new_id.inner();
-                }
+                let new_id = g
+                    .resolve_layer_inner(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
+                    .map_err(MutationError::from)?;
+                layer_map[*l_id] = new_id.inner();
                 layer_map
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids.0[0] == 0 { &ids.0[1..] } else { &ids.0 };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
-                    layer_map[*id] = new_id;
+                    let new_id = g
+                        .resolve_layer_inner(Some(&layers[id]))
+                        .map_err(MutationError::from)?
+                        .inner();
+                    layer_map[id] = new_id;
                 }
                 layer_map
             }
@@ -251,6 +403,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         g.event_counter
             .fetch_max(storage.read_event_id(), Ordering::Relaxed);
 
+        let g = GraphStorage::from(g);
+
         {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
@@ -268,13 +422,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
-                                .node_meta
+                                .node_meta()
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
                             new_node.node_store_mut().node_type = new_type_id;
                         }
-                        g.logical_to_physical.set(gid.as_ref(), new_id)?;
+                        g.set_node(gid.as_ref(), new_id)?;
 
                         for (t, rows) in node.rows() {
                             let prop_offset = new_node.t_props_log_mut().push(rows)?;
@@ -290,7 +444,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         }
                     }
                 }
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
 
             new_storage.edges.par_iter_mut().try_for_each(|mut shard| {
@@ -301,18 +455,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         edge_store.dst = node_map[edge.edge.dst().index()];
                         edge_store.eid = EID(eid);
                         for edge in edge.explode_layers() {
-                            let old_layer = LayerIds::All.constrain_from_edge(edge.edge);
                             let layer = layer_map[edge.edge.layer().unwrap()];
                             let additions = new_edge.additions_mut(layer);
                             for edge in edge.explode() {
                                 let t = edge.edge.time().unwrap();
                                 additions.insert(t);
                             }
-                            for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in
-                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
-                                {
-                                    new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
+                            for t_prop in edge.properties().temporal().values() {
+                                let prop_id = t_prop.id();
+                                for (t, prop_value) in t_prop.iter_indexed() {
+                                    new_edge.layer_mut(layer).add_prop(t, prop_id, prop_value)?;
                                 }
                             }
                             for c_prop in edge.const_prop_ids() {
@@ -322,66 +474,78 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                         .add_constant_prop(c_prop, prop_value)?;
                                 }
                             }
-                            if self.include_deletions() {
-                                let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
-                                if deletion_history.peek().is_some() {
-                                    let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
-                                    for t in deletion_history {
-                                        edge_deletions.insert(t);
-                                    }
-                                }
-                            }
+                        }
+
+                        let time_semantics = self.edge_time_semantics();
+                        let edge_entry = self.core_edge(edge.edge.pid());
+                        for (t, layer) in time_semantics.edge_deletion_history(
+                            edge_entry.as_ref(),
+                            self,
+                            self.layer_ids(),
+                        ) {
+                            new_edge.deletions_mut(layer_map[layer]).insert(t);
                         }
                     }
                 }
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
-                            src_node.update_time(t, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            src_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             src_node.add_edge(
                                 node_map[edge.edge.dst().index()],
                                 Direction::OUT,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
-                            dst_node.update_time(t, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            dst_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             dst_node.add_edge(
                                 node_map[edge.edge.src().index()],
                                 Direction::IN,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
                     }
 
-                    if self.include_deletions() {
-                        for t in self.edge_deletion_history(edge.edge, self.layer_ids()) {
-                            if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
-                            {
-                                src_node.update_time(t, edge.edge.pid());
-                            }
-                            if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()])
-                            {
-                                dst_node.update_time(t, edge.edge.pid());
-                            }
+                    let edge_time_semantics = self.edge_time_semantics();
+                    let edge_entry = self.core_edge(edge.edge.pid());
+                    for (t, layer) in edge_time_semantics.edge_deletion_history(
+                        edge_entry.as_ref(),
+                        self,
+                        self.layer_ids(),
+                    ) {
+                        if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
+                            src_node.update_time(
+                                t,
+                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                            );
+                        }
+                        if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
+                            dst_node.update_time(
+                                t,
+                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
+                            );
                         }
                     }
                 }
 
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
         }
 
@@ -394,6 +558,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn cache_view(&self) -> CachedView<G> {
         CachedView::new(self.clone())
+    }
+
+    fn valid(&self) -> Result<ValidGraph<Self>, GraphError> {
+        match self.graph_type() {
+            GraphType::EventGraph => Err(GraphError::EventGraphNoValidView),
+            GraphType::PersistentGraph => Ok(ValidGraph::new(self.clone())),
+        }
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
@@ -429,34 +600,45 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     #[inline]
     fn earliest_time(&self) -> Option<i64> {
-        self.earliest_time_global()
+        match self.filter_state() {
+            FilterState::Neither => self.earliest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history().next())
+                .min()
+                .into_iter()
+                .chain(
+                    self.nodes()
+                        .earliest_time()
+                        .par_iter_values()
+                        .flatten()
+                        .min(),
+                )
+                .min(),
+        }
     }
 
     #[inline]
     fn latest_time(&self) -> Option<i64> {
-        self.latest_time_global()
+        match self.filter_state() {
+            FilterState::Neither => self.latest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history_rev().next())
+                .max()
+                .into_iter()
+                .chain(self.nodes().latest_time().par_iter_values().flatten().max())
+                .max(),
+        }
     }
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        if !self.node_list_trusted() {
-            let node_list = self.node_list();
-            let core_nodes = self.core_nodes();
-            let layer_ids = self.layer_ids();
-            match node_list {
-                NodeList::All { .. } => core_nodes
-                    .as_ref()
-                    .par_iter()
-                    .filter(move |v| self.filter_node(*v, layer_ids))
-                    .count(),
-                NodeList::List { elems } => elems
-                    .par_iter()
-                    .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
-                    .count(),
-            }
-        } else {
-            self.node_list().len()
-        }
+        (&self).nodes().len()
     }
 
     #[inline]
@@ -477,8 +659,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(self.layer_ids())
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
                     .count()
             }
@@ -489,8 +671,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .as_ref()
                     .par_iter(self.layer_ids())
                     .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                        self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
                     .count()
             }
@@ -508,11 +690,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn count_temporal_edges(&self) -> usize {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
+        let edge_time_semantics = self.edge_time_semantics();
         match self.filter_state() {
             FilterState::Neither => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
-                .map(move |edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
             FilterState::Both => {
                 let nodes = self.core_nodes();
@@ -521,10 +704,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(layer_ids)
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| edge_time_semantics.edge_exploded_count(e.as_ref(), self))
                     .sum()
             }
             FilterState::Nodes => {
@@ -533,17 +716,17 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .as_ref()
                     .par_iter(layer_ids)
                     .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                        self.filter_node(nodes.node_entry(e.src()))
+                            && self.filter_node(nodes.node_entry(e.dst()))
                     })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                     .sum()
             }
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
         }
     }
@@ -552,8 +735,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {
-                let node = self.core_node_entry(node_id);
-                self.filter_node(node.as_ref(), self.layer_ids())
+                let node = self.core_node(node_id);
+                self.filter_node(node.as_ref())
             } else {
                 true
             }
@@ -567,12 +750,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.nodes_filtered() {
-            let core_node = self.core_node_entry(vid);
-            if !self.filter_node(core_node.as_ref(), self.layer_ids()) {
+            let core_node = self.core_node(vid);
+            if !self.filter_node(core_node.as_ref()) {
                 return None;
             }
         }
@@ -583,31 +766,31 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
-        let src_node = self.core_node_entry(src);
+        let src_node = self.core_node(src);
         match self.filter_state() {
             FilterState::Neither => {
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
                 Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Both => {
-                if !self.filter_node(src_node.as_ref(), self.layer_ids()) {
+                if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
                 if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
                     return None;
                 }
-                if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
+                if !self.filter_node(self.core_node(dst).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Nodes => {
-                if !self.filter_node(src_node.as_ref(), self.layer_ids()) {
+                if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
+                if !self.filter_node(self.core_node(dst).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))
@@ -628,7 +811,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 }
 
 #[cfg(feature = "search")]
-impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
+impl<G: StaticGraphViewOps> SearchableGraphOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
@@ -705,7 +888,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let index = self
             .get_storage()
             .and_then(|s| s.get_index())
@@ -732,9 +915,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     }
 }
 
-pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
+pub trait StaticGraphViewOps: GraphView + 'static {}
 
-impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
+impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
     type BaseGraph = G;
@@ -1278,13 +1461,14 @@ mod test_exploded_edges {
 #[cfg(test)]
 mod test_materialize {
     use crate::{
-        db::{api::view::internal::CoreGraphOps, graph::graph::assert_graph_equal},
+        db::graph::graph::assert_graph_equal,
         prelude::*,
         test_storage,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use raphtory_storage::core_ops::CoreGraphOps;
     use std::ops::Range;
 
     #[test]

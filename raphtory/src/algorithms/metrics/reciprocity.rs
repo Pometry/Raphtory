@@ -59,7 +59,7 @@ use std::collections::HashSet;
 /// Gets the unique edge counts excluding cycles for a node. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
 fn get_reciprocal_edge_count<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    v: &NodeView<G, GH>,
+    v: &NodeView<'graph, G, GH>,
 ) -> (usize, usize, usize) {
     let id = v.node;
     let out_neighbours: HashSet<_> = v

@@ -9,8 +9,7 @@ use crate::{
             GidRef,
         },
         storage::timeindex::AsTime,
-        utils::time::{Interval, IntoTime, TryIntoTime},
-        Prop, PropUnwrap,
+        utils::time::{IntoTime, TryIntoTime},
     },
     db::api::view::*,
     python::graph::node::PyNode,
@@ -24,7 +23,10 @@ use pyo3::{
     types::PyDateTime,
     BoundObject,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropUnwrap},
+    VID,
+};
 use serde::Serialize;
 use std::{future::Future, thread};
 
@@ -158,22 +160,6 @@ impl PyTime {
 impl IntoTime for PyTime {
     fn into_time(self) -> i64 {
         self.parsing_result
-    }
-}
-
-impl<'source> FromPyObject<'source> for Interval {
-    fn extract_bound(interval: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(string) = interval.extract::<String>() {
-            return Ok(string.try_into()?);
-        };
-
-        if let Ok(number) = interval.extract::<u64>() {
-            return Ok(number.try_into()?);
-        };
-
-        Err(PyTypeError::new_err(format!(
-            "interval '{interval}' must be a str or an unsigned integer"
-        )))
     }
 }
 

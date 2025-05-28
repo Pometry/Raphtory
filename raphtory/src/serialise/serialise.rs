@@ -2,22 +2,12 @@ use super::{proto_ext::PropTypeExt, GraphFolder};
 #[cfg(feature = "search")]
 use crate::prelude::SearchableGraphOps;
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, LayerIds},
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, LayerIds},
     db::{
-        api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-                storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
-            },
-            view::{internal::CoreGraphOps, MaterializedGraph, StaticGraphViewOps},
-        },
+        api::view::{MaterializedGraph, StaticGraphViewOps},
         graph::views::deletion_graph::PersistentGraph,
     },
+    errors::GraphError,
     prelude::Graph,
     serialise::{
         proto::{self, graph_update::*, new_meta::*, new_node::Gid},
@@ -27,12 +17,29 @@ use crate::{
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{properties::props::PropMapper, GidRef, EID, VID},
-    storage::timeindex::TimeIndexEntry,
-    unify_types, Direction, PropType,
+    entities::{
+        properties::{
+            meta::PropMapper,
+            prop::{unify_types, Prop, PropType},
+            tprop::TPropOps,
+        },
+        GidRef, EID, VID,
+    },
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    Direction,
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
+    mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    },
 };
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::{iter, ops::Deref, sync::Arc};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -122,6 +129,7 @@ impl StableEncode for GraphStorage {
             .temporal_props()
             .map(|(key, values)| {
                 values
+                    .deref()
                     .iter()
                     .map(move |(t, v)| (t, (key, v)))
                     .collect::<Vec<_>>()
@@ -451,10 +459,10 @@ impl InternalStableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -462,10 +470,10 @@ impl InternalStableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -681,7 +689,7 @@ mod proto_test {
     use super::*;
     use crate::{
         db::{
-            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            api::{mutation::DeletionOps, properties::internal::ConstantPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
@@ -1479,29 +1487,25 @@ mod proto_test {
     #[cfg(feature = "search")]
     mod test_index_io {
         use crate::{
-            core::{utils::errors::GraphError, Prop},
             db::{
-                api::{
-                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                    view::{internal::InternalStorageOps, StaticGraphViewOps},
-                },
+                api::view::{internal::InternalStorageOps, StaticGraphViewOps},
                 graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
+            errors::GraphError,
             prelude::{
                 AdditionOps, CacheOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
                 SearchableGraphOps, StableDecode, StableEncode,
             },
             serialise::GraphFolder,
         };
-        use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
+        use raphtory_api::core::{
+            entities::properties::prop::Prop, storage::arc_str::ArcStr,
+            utils::logging::global_info_logger,
+        };
 
         fn init_graph<G>(graph: G) -> G
         where
-            G: StaticGraphViewOps
-                + AdditionOps
-                + InternalAdditionOps
-                + InternalPropertyAdditionOps
-                + PropertyAdditionOps,
+            G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps,
         {
             graph
                 .add_node(

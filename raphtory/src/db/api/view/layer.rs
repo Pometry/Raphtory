@@ -1,12 +1,12 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
+    errors::GraphError,
 };
-use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
-use std::sync::Arc;
+use raphtory_api::core::entities::{Layer, LayerIds, SingleLayer};
+use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {
@@ -14,8 +14,7 @@ pub trait LayerOps<'graph> {
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.layers(Layer::Default)
-            .expect("Default layer not found")
+        self.valid_layers(Layer::Default)
     }
 
     /// Return a graph containing the layers in `names`. Errors if one or more of the layers do not exists.
@@ -30,7 +29,7 @@ pub trait LayerOps<'graph> {
     fn exclude_valid_layers<L: Into<Layer>>(&self, layers: L) -> Self::LayeredViewType;
 
     /// Check if `name` is a valid layer name
-    fn has_layer(&self, name: &str) -> bool;
+    fn has_layer<L: SingleLayer>(&self, name: L) -> bool;
 
     /// Return a graph containing the layers in `names`. Any layers that do not exist are ignored.
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType;
@@ -40,7 +39,17 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::FilteredGraph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
+        let layers = match self.current_filter().get_default_layer_id() {
+            None => LayerIds::None,
+            Some(layer) => {
+                if self.current_filter().layer_ids().contains(&layer) {
+                    LayerIds::One(layer)
+                } else {
+                    LayerIds::None
+                }
+            }
+        };
+        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), layers))
     }
 
     fn layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
@@ -76,7 +85,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         ))
     }
 
-    fn has_layer(&self, name: &str) -> bool {
+    fn has_layer<L: SingleLayer>(&self, name: L) -> bool {
         !self
             .current_filter()
             .valid_layer_ids_from_names(name.into())
@@ -87,75 +96,6 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         let layers = names.into();
         let ids = self.current_filter().valid_layer_ids_from_names(layers);
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Layer {
-    All,
-    None,
-    Default,
-    One(ArcStr),
-    Multiple(Arc<[ArcStr]>),
-}
-
-trait SingleLayer {
-    fn name(self) -> ArcStr;
-}
-
-impl<T: SingleLayer> From<T> for Layer {
-    fn from(value: T) -> Self {
-        Layer::One(value.name())
-    }
-}
-
-impl SingleLayer for ArcStr {
-    fn name(self) -> ArcStr {
-        self
-    }
-}
-
-impl SingleLayer for String {
-    fn name(self) -> ArcStr {
-        self.into()
-    }
-}
-
-impl<'a, T: ToOwned<Owned = String> + ?Sized> SingleLayer for &'a T {
-    fn name(self) -> ArcStr {
-        self.to_owned().into()
-    }
-}
-
-impl<T: SingleLayer> From<Vec<T>> for Layer {
-    fn from(names: Vec<T>) -> Self {
-        match names.len() {
-            0 => Layer::None,
-            1 => Layer::One(names.into_iter().next().unwrap().name()),
-            _ => Layer::Multiple(
-                names
-                    .into_iter()
-                    .map(|s| s.name())
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        }
-    }
-}
-
-impl<T: SingleLayer, const N: usize> From<[T; N]> for Layer {
-    fn from(names: [T; N]) -> Self {
-        match N {
-            0 => Layer::None,
-            1 => Layer::One(names.into_iter().next().unwrap().name()),
-            _ => Layer::Multiple(
-                names
-                    .into_iter()
-                    .map(|s| s.name())
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        }
     }
 }
 

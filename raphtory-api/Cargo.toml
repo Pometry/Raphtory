@@ -16,6 +16,8 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
+bigdecimal = { workspace = true }
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
 chrono.workspace = true
@@ -25,6 +27,7 @@ lock_api = { workspace = true }
 parking_lot = { workspace = true }
 polars-arrow = { workspace = true, optional = true }
 pyo3 = { workspace = true, optional = true }
+pyo3-arrow = { workspace = true, optional = true }
 rayon = { workspace = true }
 rand = { workspace = true }
 quickcheck_macros = { workspace = true }
@@ -33,6 +36,14 @@ twox-hash.workspace = true
 tracing-subscriber = { workspace = true }
 tracing = { workspace = true }
 sorted_vector_map = { workspace = true }
+arrow-array = { workspace = true, optional = true }
+arrow-ipc = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
+itertools = { workspace = true }
+iter-enum = { workspace = true }
+minijinja = { workspace = true, optional = true }
+display-error-chain = { workspace = true, optional = true }
+
 [dev-dependencies]
 proptest.workspace = true
 quickcheck.workspace = true
@@ -42,9 +53,16 @@ quickcheck_macros.workspace = true
 default = []
 # Enables generating the pyo3 python bindings
 python = [
-    "dep:pyo3",
+    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
 ]
 
 storage = [
     "dep:polars-arrow",
 ]
+
+proto = []
+vectors = []
+template = ["dep:minijinja"]
+arrow = ["dep:arrow-array", "dep:arrow-ipc", "dep:arrow-schema"]
+search = []
+io = ["dep:serde_json"]

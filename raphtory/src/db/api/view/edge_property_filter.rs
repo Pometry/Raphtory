@@ -1,9 +1,9 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::{InternalMaterialize, OneHopFilter},
         graph::views::filter::internal::InternalEdgeFilterOps,
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use raphtory_api::GraphType;

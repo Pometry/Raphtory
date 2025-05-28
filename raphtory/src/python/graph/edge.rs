@@ -5,7 +5,6 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -16,6 +15,7 @@ use crate::{
         },
         graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
     python::{types::repr::Repr, utils::PyTime},
 };

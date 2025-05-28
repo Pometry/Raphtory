@@ -1,11 +1,10 @@
 use crate::{
-    core::Lifespan,
     db::api::view::DynamicGraph,
     python::{
         graph::views::graph_view::PyGraphView,
         types::repr::{Repr, StructReprBuilder},
     },
-    vectors::{Document, DocumentEntity, Embedding},
+    vectors::{Document, DocumentEntity, Embedding, Lifespan},
 };
 use pyo3::{prelude::*, types::PyNone, IntoPyObjectExt};
 

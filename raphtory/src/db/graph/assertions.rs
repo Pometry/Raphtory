@@ -4,7 +4,7 @@ use crate::{
     db::{
         api::view::StaticGraphViewOps,
         graph::views::filter::{
-            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
+            internal::{CreateNodeFilter, InternalEdgeFilterOps},
             model::{AsEdgeFilter, AsNodeFilter},
         },
     },
@@ -13,7 +13,10 @@ use crate::{
     },
 };
 #[cfg(feature = "storage")]
-use tempfile::TempDir;
+use {
+    crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
+    raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
+};
 
 pub enum TestGraphVariants {
     Graph,
@@ -54,9 +57,9 @@ pub trait ApplyFilter {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
 }
 
-pub struct FilterNodes<F: AsNodeFilter + InternalNodeFilterOps + Clone>(F);
+pub struct FilterNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
 
-impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for FilterNodes<F> {
+impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .filter_nodes(self.0.clone())
@@ -70,9 +73,9 @@ impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for FilterNode
     }
 }
 
-pub struct SearchNodes<F: AsNodeFilter + InternalNodeFilterOps + Clone>(F);
+pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
 
-impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for SearchNodes<F> {
+impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
@@ -133,7 +136,7 @@ impl<F: AsEdgeFilter + InternalEdgeFilterOps + Clone> ApplyFilter for SearchEdge
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + InternalNodeFilterOps + Clone,
+    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -149,7 +152,7 @@ pub fn assert_filter_nodes_results(
 pub fn assert_search_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + InternalNodeFilterOps + Clone,
+    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -224,11 +227,8 @@ fn assert_results(
             TestGraphVariants::EventDiskGraph => {
                 #[cfg(feature = "storage")]
                 {
-                    use crate::disk_graph::DiskGraphStorage;
                     let tmp = TempDir::new().unwrap();
-                    let graph = DiskGraphStorage::from_graph(&graph, &tmp)
-                        .unwrap()
-                        .into_graph();
+                    let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
                     let graph = transform.apply(graph);
                     let result = apply.apply(graph);
                     assert_eq!(expected, result);
@@ -237,7 +237,6 @@ fn assert_results(
             TestGraphVariants::PersistentDiskGraph => {
                 #[cfg(feature = "storage")]
                 {
-                    use crate::disk_graph::DiskGraphStorage;
                     let tmp = TempDir::new().unwrap();
                     let graph = DiskGraphStorage::from_graph(&graph, &tmp)
                         .unwrap()

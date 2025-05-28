@@ -26,7 +26,7 @@ use datafusion::{
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
-use raphtory::disk_graph::DiskGraphStorage;
+use raphtory::prelude::DiskGraphStorage;
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
 #[derive(Debug)]
@@ -197,8 +197,7 @@ fn produce_record_batch(
         .map(|c| c.clone())
         .collect::<Vec<_>>();
     let temporal_props_chunks = edges
-        .temporal_props()
-        .values()
+        .temporal_prop_values()
         .sliced(start_offset..end_offset)
         .iter_chunks()
         .map(|c| c.clone())

@@ -11,11 +11,11 @@ use crate::model::graph::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
-    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::node::NodeView,
     },
+    errors::GraphError,
     prelude::NodeStateOps,
 };
 use tokio::task::spawn_blocking;
@@ -23,19 +23,19 @@ use tokio::task::spawn_blocking;
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
 pub struct GqlNode {
-    pub(crate) vv: NodeView<DynamicGraph>,
+    pub(crate) vv: NodeView<'static, DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<G, GH>> for GqlNode
+    From<NodeView<'static, G, GH>> for GqlNode
 {
-    fn from(value: NodeView<G, GH>) -> Self {
+    fn from(value: NodeView<'static, G, GH>) -> Self {
         Self {
-            vv: NodeView {
-                base_graph: value.base_graph.into_dynamic(),
-                graph: value.graph.into_dynamic(),
-                node: value.node,
-            },
+            vv: NodeView::new_one_hop_filtered(
+                value.base_graph.into_dynamic(),
+                value.graph.into_dynamic(),
+                value.node,
+            ),
         }
     }
 }
@@ -92,7 +92,7 @@ impl GqlNode {
                             .vv
                             .rolling(window_duration, Some(step_duration))?,
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlNodeWindowSet::new(
                     self_clone.vv.rolling(window_duration, None)?,
@@ -100,7 +100,7 @@ impl GqlNode {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlNodeWindowSet::new(
                         self_clone
                             .vv

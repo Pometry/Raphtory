@@ -66,11 +66,13 @@ impl GqlGraphWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NodeWindowSet")]
 pub(crate) struct GqlNodeWindowSet {
-    pub(crate) ws: WindowSet<'static, NodeView<DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, NodeView<'static, DynamicGraph, DynamicGraph>>,
 }
 
 impl GqlNodeWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, NodeView<DynamicGraph, DynamicGraph>>) -> Self {
+    pub(crate) fn new(
+        ws: WindowSet<'static, NodeView<'static, DynamicGraph, DynamicGraph>>,
+    ) -> Self {
         Self { ws }
     }
 }

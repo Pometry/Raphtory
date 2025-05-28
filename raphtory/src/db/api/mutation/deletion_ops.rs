@@ -1,24 +1,22 @@
 use super::time_from_input;
 use crate::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        utils::{errors::GraphError, time::IntoTimeWithFormat},
-    },
+    core::{entities::nodes::node_ref::AsNodeRef, utils::time::IntoTimeWithFormat},
     db::{
-        api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalDeletionOps},
-                TryIntoInputTime,
-            },
-            view::StaticGraphViewOps,
-        },
+        api::{mutation::TryIntoInputTime, view::StaticGraphViewOps},
         graph::edge::EdgeView,
     },
+    errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_storage::mutation::{
+    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+};
 
 pub trait DeletionOps:
-    InternalDeletionOps + InternalAdditionOps + StaticGraphViewOps + Sized
+    InternalDeletionOps<Error: Into<GraphError>>
+    + InternalAdditionOps<Error: Into<GraphError>>
+    + StaticGraphViewOps
+    + Sized
 {
     fn delete_edge<V: AsNodeRef, T: TryIntoInputTime>(
         &self,
@@ -27,12 +25,19 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let ti = time_from_input(self, t)?;
-        let src_id = self.resolve_node(src)?.inner();
-        let dst_id = self.resolve_node(dst)?.inner();
-        let layer = self.resolve_layer(layer)?.inner();
+        let ti = time_from_input(self, t).map_err(into_graph_err)?;
+        let src_id = self
+            .resolve_node(src.as_node_ref())
+            .map_err(into_graph_err)?
+            .inner();
+        let dst_id = self
+            .resolve_node(dst.as_node_ref())
+            .map_err(into_graph_err)?
+            .inner();
+        let layer = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
         let eid = self
-            .internal_delete_edge(ti, src_id, dst_id, layer)?
+            .internal_delete_edge(ti, src_id, dst_id, layer)
+            .map_err(into_graph_err)?
             .inner();
         Ok(EdgeView::new(
             self.clone(),
@@ -51,4 +56,13 @@ pub trait DeletionOps:
         let time: i64 = t.parse_time(fmt)?;
         self.delete_edge(time, src, dst, layer)
     }
+}
+
+impl<
+        T: InternalDeletionOps<Error: Into<GraphError>>
+            + InternalAdditionOps<Error: Into<GraphError>>
+            + StaticGraphViewOps
+            + Sized,
+    > DeletionOps for T
+{
 }

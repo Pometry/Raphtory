@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::errors::{GraphError, LoadError},
+    errors::{GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use itertools::Itertools;

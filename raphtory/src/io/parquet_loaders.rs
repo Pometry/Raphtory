@@ -1,26 +1,16 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, InvalidPathReason::PathDoesNotExist},
-        Prop,
-    },
-    db::api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        view::StaticGraphViewOps,
-    },
+    db::api::view::StaticGraphViewOps,
+    errors::InvalidPathReason::PathDoesNotExist,
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::DeletionOps,
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-#[cfg(feature = "storage")]
-use polars_arrow::array::StructArray;
-use polars_arrow::datatypes::{ArrowDataType, ArrowSchema, Field};
+use polars_arrow::datatypes::ArrowSchema;
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
 use std::{
     collections::HashMap,
     fs,
@@ -28,8 +18,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::{
+    errors::GraphError,
+    prelude::{AdditionOps, PropertyAdditionOps},
+};
+#[cfg(feature = "storage")]
+use polars_arrow::{
+    array::StructArray,
+    datatypes::{ArrowDataType, Field},
+};
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+use raphtory_api::core::entities::properties::prop::Prop;
+
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -69,7 +72,7 @@ pub fn load_nodes_from_parquet<
 }
 
 pub fn load_edges_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,
@@ -113,7 +116,7 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -150,7 +153,7 @@ pub fn load_node_props_from_parquet<
 }
 
 pub fn load_edge_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -188,7 +191,7 @@ pub fn load_edge_props_from_parquet<
 }
 
 pub fn load_edge_deletions_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -212,9 +215,7 @@ pub fn load_edge_deletions_from_parquet<
     Ok(())
 }
 
-pub fn load_graph_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
->(
+pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     parquet_path: &Path,
     time: &str,

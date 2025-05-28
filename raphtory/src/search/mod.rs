@@ -1,4 +1,4 @@
-use crate::core::utils::errors::GraphError;
+use crate::errors::GraphError;
 use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,

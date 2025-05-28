@@ -136,9 +136,8 @@ pub fn netflow_one_path_node<G: StaticGraphViewOps>(
 mod one_path_test {
     use super::*;
     use raphtory_core::{
-        core::Prop,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
+        prelude::{Prop, NO_PROPS},
     };
 
     #[test]

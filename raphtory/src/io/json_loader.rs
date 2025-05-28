@@ -1,4 +1,4 @@
-use crate::core::utils::errors::GraphError;
+use crate::errors::GraphError;
 use bzip2::read::BzDecoder;
 use flate2; // 1.0
 use flate2::read::GzDecoder;

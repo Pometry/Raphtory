@@ -1,23 +1,17 @@
 use crate::{
-    core::Prop,
-    db::{
-        api::storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-        },
-        graph::views::filter::{
-            internal::InternalNodeFilterOps,
-            model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-                filter_operator::FilterOperator,
-                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-                property_filter::{PropertyFilter, PropertyRef, Temporal},
-            },
+    db::graph::views::filter::{
+        internal::CreateNodeFilter,
+        model::{
+            edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+            filter_operator::FilterOperator,
+            node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+            property_filter::{PropertyFilter, PropertyRef, Temporal},
         },
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 pub mod edge_filter;
@@ -131,26 +125,6 @@ impl Filter {
 
     pub fn matches(&self, node_value: Option<&str>) -> bool {
         self.operator.apply(&self.field_value, node_value)
-    }
-
-    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        node_types_filter: &Arc<[bool]>,
-        layer_ids: &LayerIds,
-        node: NodeStorageRef,
-    ) -> bool {
-        match self.field_name.as_str() {
-            "node_name" => self.matches(Some(&node.id().to_str())),
-            "node_type" => {
-                node_types_filter
-                    .get(node.node_type_id())
-                    .copied()
-                    .unwrap_or(false)
-                    && graph.filter_node(node, layer_ids)
-            }
-            _ => false,
-        }
     }
 
     pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
@@ -449,6 +423,12 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
 pub struct PropertyFilterBuilder(pub String);
 
 impl PropertyFilterBuilder {
+    pub fn new(prop: impl Into<String>) -> Self {
+        Self(prop.into())
+    }
+}
+
+impl PropertyFilterBuilder {
     pub fn constant(self) -> ConstPropertyFilterBuilder {
         ConstPropertyFilterBuilder(self.0)
     }
@@ -511,7 +491,7 @@ impl PropertyFilter {
 }
 
 pub trait InternalNodeFilterBuilderOps: Send + Sync {
-    type NodeFilterType: From<Filter> + InternalNodeFilterOps + AsNodeFilter + Clone + 'static;
+    type NodeFilterType: From<Filter> + CreateNodeFilter + AsNodeFilter + Clone + 'static;
 
     fn field_name(&self) -> &'static str;
 }

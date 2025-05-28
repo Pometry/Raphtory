@@ -6,7 +6,6 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,
@@ -19,6 +18,7 @@ use crate::{
     },
     prelude::{GraphViewOps, ResetFilter},
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdges<'graph, 'a, G, GH, CS: Clone, S> {

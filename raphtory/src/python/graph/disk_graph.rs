@@ -6,16 +6,22 @@ use crate::{
         array::StructArray,
         datatypes::{ArrowDataType as DataType, Field},
     },
-    core::utils::errors::GraphError,
-    db::graph::views::deletion_graph::PersistentGraph,
-    disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
+    db::{
+        api::storage::graph::storage_ops::disk_storage::IntoGraph,
+        graph::views::deletion_graph::PersistentGraph,
+    },
+    errors::GraphError,
     io::parquet_loaders::read_struct_arrays,
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
 use itertools::Itertools;
-use pometry_storage::graph::{load_node_const_properties, TemporalGraph};
+use pometry_storage::{
+    graph::{load_node_const_properties, TemporalGraph},
+    RAError,
+};
 use pyo3::{exceptions::PyRuntimeError, prelude::*, pybacked::PyBackedStr, types::PyDict};
+use raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols};
 use std::{
     ops::Deref,
     path::{Path, PathBuf},
@@ -24,45 +30,26 @@ use std::{
 
 #[derive(Clone)]
 #[pyclass(name = "DiskGraphStorage", frozen, module = "raphtory")]
-pub struct PyDiskGraph {
-    pub graph: DiskGraphStorage,
-}
+pub struct PyDiskGraph(pub DiskGraphStorage);
 
 impl<G> AsRef<G> for PyDiskGraph
 where
     DiskGraphStorage: AsRef<G>,
 {
     fn as_ref(&self) -> &G {
-        self.graph.as_ref()
+        self.0.as_ref()
     }
 }
 
 impl From<DiskGraphStorage> for PyDiskGraph {
     fn from(value: DiskGraphStorage) -> Self {
-        Self { graph: value }
+        Self(value)
     }
 }
 
 impl From<PyDiskGraph> for DiskGraphStorage {
     fn from(value: PyDiskGraph) -> Self {
-        value.graph
-    }
-}
-
-impl<'py> IntoPyObject<'py> for DiskGraphStorage {
-    type Target = PyDiskGraph;
-    type Output = Bound<'py, Self::Target>;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyDiskGraph::from(self).into_pyobject(py)
-    }
-}
-
-impl<'source> FromPyObject<'source> for DiskGraphStorage {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let py_graph = ob.downcast::<PyDiskGraph>()?.get();
-        Ok(py_graph.graph.clone())
+        value.0
     }
 }
 
@@ -131,27 +118,27 @@ impl PyGraph {
     ///     graph_dir (str | PathLike): folder where the graph will be saved
     ///
     /// Returns:
-    ///     DiskGraphStorage: the persisted disk graph storage
-    pub fn persist_as_disk_graph(
-        &self,
-        graph_dir: PathBuf,
-    ) -> Result<DiskGraphStorage, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
+    ///     DiskGraphStorage: the persisted graph storage
+    pub fn persist_as_disk_graph(&self, graph_dir: PathBuf) -> Result<PyDiskGraph, GraphError> {
+        Ok(PyDiskGraph(DiskGraphStorage::from_graph(
+            &self.graph,
+            &graph_dir,
+        )?))
     }
 }
 
 #[pymethods]
 impl PyDiskGraph {
     pub fn graph_dir(&self) -> &Path {
-        self.graph.graph_dir()
+        self.0.graph_dir()
     }
 
     pub fn to_events(&self) -> Graph {
-        self.graph.clone().into_graph()
+        self.0.clone().into_graph()
     }
 
     pub fn to_persistent(&self) -> PersistentGraph {
-        self.graph.clone().into_persistent_graph()
+        self.0.clone().into_persistent_graph()
     }
 
     #[staticmethod]
@@ -162,7 +149,7 @@ impl PyDiskGraph {
         time_col: &str,
         src_col: &str,
         dst_col: &str,
-    ) -> Result<DiskGraphStorage, GraphError> {
+    ) -> Result<PyDiskGraph, GraphError> {
         let cols_to_check = vec![src_col, dst_col, time_col];
 
         let df_columns: Vec<String> = edge_df.getattr("columns")?.extract()?;
@@ -213,17 +200,19 @@ impl PyDiskGraph {
             dst_index,
         )?;
 
-        Ok(graph)
+        Ok(PyDiskGraph(graph))
     }
 
     #[staticmethod]
-    fn load_from_dir(graph_dir: PathBuf) -> Result<DiskGraphStorage, GraphError> {
-        DiskGraphStorage::load_from_dir(&graph_dir).map_err(|err| {
-            GraphError::LoadFailure(format!(
-                "Failed to load graph {err:?} from dir {}",
-                graph_dir.display()
-            ))
-        })
+    fn load_from_dir(graph_dir: PathBuf) -> Result<PyDiskGraph, GraphError> {
+        DiskGraphStorage::load_from_dir(&graph_dir)
+            .map_err(|err| {
+                GraphError::LoadFailure(format!(
+                    "Failed to load graph {err:?} from dir {}",
+                    graph_dir.display()
+                ))
+            })
+            .map(PyDiskGraph)
     }
 
     #[staticmethod]
@@ -239,7 +228,7 @@ impl PyDiskGraph {
         num_threads: usize,
         node_type_col: Option<&str>,
         node_id_col: Option<&str>,
-    ) -> Result<DiskGraphStorage, GraphError> {
+    ) -> Result<PyDiskGraph, GraphError> {
         let layer_cols = layer_parquet_cols
             .iter()
             .map(|layer| layer.as_deref())
@@ -257,6 +246,7 @@ impl PyDiskGraph {
         .map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph from parquet files: {err:?}"))
         })
+        .map(PyDiskGraph)
     }
 
     #[pyo3(signature = (location, col_names=None, chunk_size=None))]
@@ -265,7 +255,7 @@ impl PyDiskGraph {
         location: PathBuf,
         col_names: Option<Vec<PyBackedStr>>,
         chunk_size: Option<usize>,
-    ) -> Result<DiskGraphStorage, GraphError> {
+    ) -> Result<PyDiskGraph, GraphError> {
         let col_names = convert_py_prop_args(col_names.as_deref());
         let chunks = read_struct_arrays(&location, col_names.as_deref())?;
         let _ =
@@ -279,13 +269,18 @@ impl PyDiskGraph {
         location: PathBuf,
         col_name: &str,
         chunk_size: Option<usize>,
-    ) -> Result<Self, GraphError> {
+    ) -> Result<PyDiskGraph, GraphError> {
         let mut cloned = self.clone();
-        cloned.graph.load_node_types_from_parquets(
-            location,
-            col_name,
-            chunk_size.unwrap_or(1_000_000),
-        )?;
+        let chunks = read_struct_arrays(&location, Some(&[col_name]))?.map(|chunk| match chunk {
+            Ok(chunk) => {
+                let (_, cols, _) = chunk.into_data();
+                cols.into_iter().next().ok_or(RAError::EmptyChunk)
+            }
+            Err(err) => Err(err),
+        });
+        cloned
+            .0
+            .load_node_types_from_arrays(chunks, chunk_size.unwrap_or(1_000_000))?;
         Ok(cloned)
     }
 
@@ -294,10 +289,10 @@ impl PyDiskGraph {
         &self,
         location: &str,
         chunk_size: usize,
-    ) -> Result<DiskGraphStorage, GraphError> {
+    ) -> Result<PyDiskGraph, GraphError> {
         let path = PathBuf::from_str(location).unwrap();
         let chunks = read_struct_arrays(&path, None)?;
-        let mut graph = TemporalGraph::new(self.graph.inner().graph_dir())?;
+        let mut graph = TemporalGraph::new(self.0.inner().graph_dir())?;
         graph.load_temporal_node_props_from_chunks(chunks, chunk_size, false)?;
         Self::load_from_dir(self.graph_dir().to_path_buf())
     }
@@ -308,19 +303,21 @@ impl PyDiskGraph {
         &self,
         other: &Self,
         graph_dir: PathBuf,
-    ) -> Result<DiskGraphStorage, GraphError> {
-        self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
+    ) -> Result<PyDiskGraph, GraphError> {
+        Ok(PyDiskGraph(
+            self.0.merge_by_sorted_gids(&other.0, graph_dir)?,
+        ))
     }
 
     fn __repr__(&self) -> String {
         StructReprBuilder::new("DiskGraph")
-            .add_field("number_of_nodes", self.graph.inner.num_nodes())
+            .add_field("number_of_nodes", self.0.inner.num_nodes())
             .add_field(
                 "number_of_temporal_edges",
-                self.graph.inner.count_temporal_edges(),
+                self.0.inner.count_temporal_edges(),
             )
-            .add_field("earliest_time", self.graph.inner.earliest())
-            .add_field("latest_time", self.graph.inner.latest())
+            .add_field("earliest_time", self.0.inner.earliest())
+            .add_field("latest_time", self.0.inner.latest())
             .finish()
     }
 }

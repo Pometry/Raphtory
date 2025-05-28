@@ -178,31 +178,30 @@ def assert_expected_edge_properties(g):
 
 def assert_expected_edge_properties_test_layer(g):
     assert g.edges.properties.constant.get("type").collect() == [
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
+        "Edge",
+        "Edge",
+        "Edge",
+        "Edge",
+        "Edge",
     ]
     assert g.edges.properties.constant.get("tag").collect() == [
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
     ]
     assert g.edges.properties.constant.get("tag").collect() == [
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
     ]
 
 
 def assert_expected_layers(g):
     assert set(g.unique_layers) == {
-        "_default",
         "layer 1",
         "layer 2",
         "layer 3",
@@ -229,7 +228,7 @@ def assert_expected_layers(g):
 
 
 def assert_expected_test_layer(g):
-    assert g.unique_layers == ["_default", "test_layer"]
+    assert g.unique_layers == ["test_layer"]
     assert sorted(g.layers(["test_layer"]).edges.src.id) == [1, 2, 3, 4, 5]
 
 
@@ -546,7 +545,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     g = Graph()
     g.load_edges_from_parquet(
@@ -566,7 +565,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
     assert dict(
         zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
     ) == {
@@ -590,7 +589,6 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -617,7 +615,6 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -679,7 +676,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     g = PersistentGraph()
     g.load_edges_from_parquet(
@@ -699,7 +696,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
     assert dict(
         zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
     ) == {
@@ -721,7 +718,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     # CHECK IF JUST LAYER_COL WORKS
     g = PersistentGraph()
@@ -736,7 +733,6 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -763,7 +759,6 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -790,7 +785,6 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",

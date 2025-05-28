@@ -14,6 +14,15 @@ B = TypeVar("B")
 PORT = 1737
 
 
+def sort_dict_recursive(d) -> dict:
+    if isinstance(d, dict):
+        return {key: sort_dict_recursive(d[key]) for key in sorted(d)}
+    elif isinstance(d, list):
+        return [sort_dict_recursive(v) for v in d]
+    else:
+        return d
+
+
 if "DISK_TEST_MARK" in os.environ:
 
     def with_disk_graph(func):
@@ -114,6 +123,8 @@ def run_graphql_test(query, expected_output, graph):
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
+        print(sort_dict_recursive(response_dict))
+        print(sort_dict_recursive(expected_output))
         assert response_dict == expected_output
 
 
@@ -150,3 +161,9 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
             assert (
                 error_message == expected_error_message
             ), f"Expected '{expected_error_message}', but got '{error_message}'"
+
+
+def assert_set_eq(left, right):
+    """Check if two lists are the same set and same length"""
+    assert len(left) == len(right)
+    assert set(left) == set(right)

@@ -1,5 +1,5 @@
 use raphtory::{
-    core::utils::errors::{GraphError, InvalidPathReason, InvalidPathReason::*},
+    errors::{GraphError, InvalidPathReason},
     serialise::GraphFolder,
 };
 use std::{
@@ -47,19 +47,24 @@ impl ExistingGraphFolder {
 
     pub(crate) fn get_graph_name(&self) -> Result<String, GraphError> {
         let path = &self.get_base_path();
-        let last_component: Component = path
-            .components()
-            .last()
-            .ok_or_else(|| GraphError::from(PathNotParsable(self.to_error_path())))?;
+        let last_component: Component = path.components().last().ok_or_else(|| {
+            GraphError::from(InvalidPathReason::PathNotParsable(self.to_error_path()))
+        })?;
         match last_component {
-            Component::Normal(value) => value
-                .to_str()
-                .map(|s| s.to_string())
-                .ok_or(GraphError::from(PathNotParsable(self.to_error_path()))),
+            Component::Normal(value) => {
+                value
+                    .to_str()
+                    .map(|s| s.to_string())
+                    .ok_or(GraphError::from(InvalidPathReason::PathNotParsable(
+                        self.to_error_path(),
+                    )))
+            }
             Component::Prefix(_)
             | Component::RootDir
             | Component::CurDir
-            | Component::ParentDir => Err(GraphError::from(PathNotParsable(self.to_error_path()))),
+            | Component::ParentDir => Err(GraphError::from(InvalidPathReason::PathNotParsable(
+                self.to_error_path(),
+            ))),
         }
     }
 }
@@ -92,10 +97,10 @@ pub(crate) fn valid_path(
     let user_facing_path = PathBuf::from(relative_path);
 
     if relative_path.contains(r"//") {
-        return Err(DoubleForwardSlash(user_facing_path));
+        return Err(InvalidPathReason::DoubleForwardSlash(user_facing_path));
     }
     if relative_path.contains(r"\") {
-        return Err(BackslashError(user_facing_path));
+        return Err(InvalidPathReason::BackslashError(user_facing_path));
     }
 
     let mut full_path = base_path.clone();
@@ -103,23 +108,27 @@ pub(crate) fn valid_path(
     // tries to access a parent dir or is a symlink which could break out of the working dir
     for component in user_facing_path.components() {
         match component {
-            Component::Prefix(_) => return Err(RootNotAllowed(user_facing_path)),
-            Component::RootDir => return Err(RootNotAllowed(user_facing_path)),
-            Component::CurDir => return Err(CurDirNotAllowed(user_facing_path)),
-            Component::ParentDir => return Err(ParentDirNotAllowed(user_facing_path)),
+            Component::Prefix(_) => {
+                return Err(InvalidPathReason::RootNotAllowed(user_facing_path))
+            }
+            Component::RootDir => return Err(InvalidPathReason::RootNotAllowed(user_facing_path)),
+            Component::CurDir => return Err(InvalidPathReason::CurDirNotAllowed(user_facing_path)),
+            Component::ParentDir => {
+                return Err(InvalidPathReason::ParentDirNotAllowed(user_facing_path))
+            }
             Component::Normal(component) => {
                 // check if some intermediate path is already a graph
                 if full_path.join(".raph").exists() {
-                    return Err(ParentIsGraph(user_facing_path));
+                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
                 }
                 full_path.push(component);
                 //check if the path with the component is a graph
                 if namespace && full_path.join(".raph").exists() {
-                    return Err(ParentIsGraph(user_facing_path));
+                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
                 }
                 //check for symlinks
                 if full_path.is_symlink() {
-                    return Err(SymlinkNotAllowed(user_facing_path));
+                    return Err(InvalidPathReason::SymlinkNotAllowed(user_facing_path));
                 }
             }
         }

@@ -6,7 +6,8 @@ use pyo3::{
     types::{PyDict, PyList, PyNone},
     IntoPyObjectExt,
 };
-use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
+use raphtory::db::api::view::MaterializedGraph;
+use raphtory_api::python::error::adapt_err_value;
 use serde_json::{Map, Number, Value as JsonValue};
 
 pub mod client;

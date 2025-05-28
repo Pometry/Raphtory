@@ -1,22 +1,22 @@
+use criterion::{criterion_group, criterion_main};
+
 #[cfg(feature = "storage")]
 pub mod arrow_bench {
-
-    use crate::common::bench;
-    use criterion::{
-        black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode,
-    };
+    use criterion::{black_box, BenchmarkId, Criterion, SamplingMode};
     use raphtory::{
         algorithms::{
             centrality::pagerank::unweighted_page_rank,
             components::weakly_connected_components,
             metrics::clustering_coefficient::{
-                clustering_coefficient, local_clustering_coefficient::local_clustering_coefficient,
+                global_clustering_coefficient::global_clustering_coefficient,
+                local_clustering_coefficient::local_clustering_coefficient,
             },
             motifs::local_triangle_count::local_triangle_count,
         },
         graphgen::random_attachment::random_attachment,
         prelude::*,
     };
+    use raphtory_benchmark::common::bench;
     use rayon::prelude::*;
     use tempfile::TempDir;
 
@@ -105,7 +105,7 @@ pub mod arrow_bench {
             &graph,
             |b, graph| {
                 b.iter(|| {
-                    let result = clustering_coefficient(graph);
+                    let result = global_clustering_coefficient(graph);
                     black_box(result);
                 });
             },
@@ -165,13 +165,17 @@ pub mod arrow_bench {
 }
 
 #[cfg(feature = "storage")]
+pub use arrow_bench::*;
+
+#[cfg(feature = "storage")]
 criterion_group!(
     benches,
-    arrow_bench.local_triangle_count_analysis,
-    arrow_bench.local_clustering_coefficient_analysis,
-    arrow_bench.graphgen_large_clustering_coeff,
-    arrow_bench.graphgen_large_pagerank,
-    arrow_bench.graphgen_large_concomp,
+    local_triangle_count_analysis,
+    local_clustering_coefficient_analysis,
+    graphgen_large_clustering_coeff,
+    graphgen_large_pagerank,
+    graphgen_large_concomp,
 );
+
 #[cfg(feature = "storage")]
 criterion_main!(benches);

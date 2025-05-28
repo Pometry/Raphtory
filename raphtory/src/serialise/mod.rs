@@ -14,7 +14,7 @@ mod proto {
 #[cfg(feature = "search")]
 use crate::prelude::SearchableGraphOps;
 use crate::{
-    core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::GraphViewOps,
+    db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;

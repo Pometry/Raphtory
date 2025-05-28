@@ -60,7 +60,7 @@ def test_same_time_op():
     exploded_2 = G2.edges.explode()
     assert list(zip(exploded_1.earliest_time, exploded_1.latest_time)) == [(1, 1)]
     assert list(zip(exploded_2.earliest_time, exploded_2.latest_time)) == [
-        (1, 9223372036854775807),
+        (1, 1),
     ]
     # added then deleted means edge does not exist at 1
     assert G1.at(1).count_temporal_edges() == 0
@@ -88,10 +88,12 @@ def test_at_boundaries():
     assert G.at(4).count_nodes() == 2
     assert G.at(4).count_edges() == 1
 
-    assert G.at(5).count_nodes() == 2
+    assert (
+        G.at(5).count_nodes() == 0
+    )  # nodes are deleted as they were only brought in by the edge
     assert G.at(5).count_edges() == 0
 
-    assert G.at(6).count_nodes() == 2
+    assert G.at(6).count_nodes() == 0
     assert G.at(6).count_edges() == 0
 
 
@@ -140,13 +142,13 @@ def test_after_boundaries():
     assert G.after(3).count_nodes() == 2
     assert G.after(3).count_edges() == 1
 
-    assert G.after(4).count_nodes() == 2
+    assert G.after(4).count_nodes() == 0
     assert G.after(4).count_edges() == 0
 
-    assert G.after(5).count_nodes() == 2
+    assert G.after(5).count_nodes() == 0
     assert G.after(5).count_edges() == 0
 
-    assert G.after(6).count_nodes() == 2
+    assert G.after(6).count_nodes() == 0
     assert G.after(6).count_edges() == 0
 
 
@@ -164,13 +166,13 @@ def test_window_boundaries():
     assert G.window(3, 4).count_nodes() == 2
     assert G.window(3, 4).count_edges() == 1
 
-    assert G.window(5, 8).count_nodes() == 2
+    assert G.window(5, 8).count_nodes() == 0
     assert G.window(5, 8).count_edges() == 0
 
     assert G.window(1, 8).count_nodes() == 2
     assert G.window(1, 8).count_edges() == 1
 
-    assert G.window(6, 10).count_nodes() == 2
+    assert G.window(6, 10).count_nodes() == 0
     assert G.window(6, 10).count_edges() == 0
 
 

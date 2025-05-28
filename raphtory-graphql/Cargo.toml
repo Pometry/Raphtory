@@ -19,6 +19,7 @@ raphtory = { path = "../raphtory", version = "0.15.1", features = [
     "io",
 ] }
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
+raphtory-storage = { path = "../raphtory-storage", version = "0.15.1" }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
 spki = { workspace = true }

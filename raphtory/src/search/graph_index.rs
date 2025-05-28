@@ -2,16 +2,16 @@ use crate::{
     core::{
         entities::{EID, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError,
     },
-    db::api::storage::graph::storage_ops::GraphStorage,
+    errors::GraphError,
     prelude::*,
     search::{
         edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex,
         searcher::Searcher,
     },
 };
-use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
+use raphtory_api::core::{entities::properties::prop::PropType, storage::dict_mapper::MaybeNew};
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
     fmt::{Debug, Formatter},

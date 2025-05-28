@@ -20,7 +20,7 @@
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
-        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::IntoDynBoxed},
+        api::view::IntoDynBoxed,
         graph::{edge::EdgeView, edges::Edges, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, Prop, PropUnwrap},
@@ -31,6 +31,7 @@ use crate::db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps};
 
 use hashbrown::HashMap;
 use raphtory_api::core::entities::{EID, VID};
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{
     cmp::max,
     fmt::{Debug, Display, Formatter},
@@ -1502,7 +1503,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         false
     }
 
-    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<&'a G>>
+    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<'a, &'a G>>
     where
         'graph: 'a,
     {
@@ -1522,7 +1523,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             self.graph.core_edge(*eid).out_ref(),
         ))
     }
-    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<&'a G>>
+    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<'a, &'a G>>
     where
         'graph: 'a,
     {

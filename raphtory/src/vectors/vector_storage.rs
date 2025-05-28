@@ -7,12 +7,11 @@ use std::{
     sync::Arc,
 };
 
-use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
-
 use super::{
     document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
     template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction,
 };
+use crate::{db::api::view::StaticGraphViewOps, errors::GraphError};
 
 #[derive(Serialize, Deserialize)]
 struct VectorStorage {

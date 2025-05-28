@@ -1,6 +1,5 @@
 use crate::{
-    core::utils::errors::GraphError,
-    db::api::storage::graph::storage_ops::GraphStorage,
+    errors::GraphError,
     prelude::{GraphViewOps, Prop},
     serialise::parquet::{
         model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
@@ -11,6 +10,7 @@ use arrow_schema::{DataType, Field};
 use itertools::Itertools;
 use parquet::format::KeyValue;
 use raphtory_api::{core::storage::arc_str::ArcStr, GraphType};
+use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
 

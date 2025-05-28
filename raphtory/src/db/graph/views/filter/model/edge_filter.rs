@@ -1,5 +1,4 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
@@ -7,6 +6,7 @@ use crate::{
             model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};

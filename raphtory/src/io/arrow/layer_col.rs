@@ -1,7 +1,7 @@
 use crate::{
-    core::utils::errors::{GraphError, LoadError},
-    db::api::mutation::internal::InternalAdditionOps,
+    errors::{into_graph_err, GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
+    prelude::AdditionOps,
 };
 use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
 use rayon::{
@@ -102,11 +102,11 @@ impl<'a> LayerCol<'a> {
 
     pub fn resolve(
         self,
-        graph: &(impl InternalAdditionOps + Send + Sync),
+        graph: &(impl AdditionOps + Send + Sync),
     ) -> Result<Vec<usize>, GraphError> {
         match self {
             LayerCol::Name { name, len } => {
-                let layer = graph.resolve_layer(name)?.inner();
+                let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner();
                 Ok(vec![layer; len])
             }
             col => {
@@ -114,7 +114,7 @@ impl<'a> LayerCol<'a> {
                 let mut res = vec![0usize; iter.len()];
                 iter.zip(res.par_iter_mut())
                     .try_for_each(|(layer, entry)| {
-                        let layer = graph.resolve_layer(layer)?.inner();
+                        let layer = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
                         *entry = layer;
                         Ok::<(), GraphError>(())
                     })?;

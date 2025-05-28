@@ -1,34 +1,32 @@
-use std::sync::Arc;
-
 use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
-#[cfg(feature = "storage")]
-use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        utils::errors::{GraphError, GraphResult},
-    },
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{
-            mutation::internal::InheritMutationOps,
-            storage::graph::storage_ops::GraphStorage,
-            view::{
-                internal::{
-                    CoreGraphOps, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
-                    InheritStorageOps, Static,
-                },
-                Base, InheritViewOps, MaterializedGraph,
+        api::view::{
+            internal::{
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
             },
+            Base, InheritViewOps, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
+    errors::{GraphError, GraphResult},
+    prelude::{CacheOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
     serialise::GraphFolder,
+    storage::core_ops::CoreGraphOps,
     vectors::{
         embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps,
+};
+use std::sync::Arc;
+
+#[cfg(feature = "storage")]
+use {raphtory::prelude::IntoGraph, raphtory_storage::disk::DiskGraphStorage};
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -169,6 +167,10 @@ impl Static for GraphWithVectors {}
 
 impl InheritViewOps for GraphWithVectors {}
 
+impl InheritCoreGraphOps for GraphWithVectors {}
+
+impl InheritLayerOps for GraphWithVectors {}
+
 impl InheritNodeHistoryFilter for GraphWithVectors {}
 
 impl InheritEdgeHistoryFilter for GraphWithVectors {}
@@ -177,13 +179,11 @@ impl InheritMutationOps for GraphWithVectors {}
 
 impl InheritStorageOps for GraphWithVectors {}
 
-impl DeletionOps for GraphWithVectors {}
-
 pub(crate) trait UpdateEmbeddings {
     async fn update_embeddings(&self) -> GraphResult<()>;
 }
 
-impl UpdateEmbeddings for NodeView<GraphWithVectors> {
+impl UpdateEmbeddings for NodeView<'static, GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph.update_node_embeddings(self.name()).await
     }
