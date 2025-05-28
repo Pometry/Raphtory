@@ -643,6 +643,48 @@ pub struct IndexSpec {
     pub(crate) edge_temp_props: Vec<(String, usize, PropType)>,
 }
 
+impl IndexSpec {
+    pub(crate) fn diff_index_spec(
+        existing: &IndexSpec,
+        requested: &IndexSpec,
+    ) -> Option<IndexSpec> {
+        fn diff_props(
+            existing: &[(String, usize, PropType)],
+            requested: &[(String, usize, PropType)],
+        ) -> Vec<(String, usize, PropType)> {
+            requested
+                .iter()
+                .filter(|(name, id, typ)| {
+                    !existing
+                        .iter()
+                        .any(|(n, i, t)| n == name && i == id && t == typ)
+                })
+                .cloned()
+                .collect()
+        }
+
+        let node_const_props = diff_props(&existing.node_const_props, &requested.node_const_props);
+        let node_temp_props = diff_props(&existing.node_temp_props, &requested.node_temp_props);
+        let edge_const_props = diff_props(&existing.edge_const_props, &requested.edge_const_props);
+        let edge_temp_props = diff_props(&existing.edge_temp_props, &requested.edge_temp_props);
+
+        if node_const_props.is_empty()
+            && node_temp_props.is_empty()
+            && edge_const_props.is_empty()
+            && edge_temp_props.is_empty()
+        {
+            None
+        } else {
+            Some(IndexSpec {
+                node_const_props,
+                node_temp_props,
+                edge_const_props,
+                edge_temp_props,
+            })
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
     graph: G,

@@ -147,11 +147,7 @@ impl Storage {
 impl Storage {
     pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
         let index = self.index.get().ok_or(GraphError::GraphIndexIsMissing)?;
-        if let Ok(spec) = index.index_spec.read() {
-            Ok(spec.clone())
-        } else {
-            Err(GraphError::GraphIndexIsMissing)
-        }
+        Ok(index.index_spec.read().clone())
     }
 
     pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
@@ -165,9 +161,19 @@ impl Storage {
         &self,
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
+        let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+        if let Some(index) = self.index.get() {
+            let existing_index_spec = index.index_spec.read();
+            if let Some(diff_index_spec) =
+                IndexSpec::diff_index_spec(&existing_index_spec, &index_spec)
+            {
+                // println!("diff_index_spec: {:?}", diff_index_spec);
+                index.update(&self.graph, false, cached_graph_path, diff_index_spec)?;
+            }
+        };
         self.index.get_or_try_init(|| {
-            let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-            GraphIndex::create_from_graph(&self.graph, false, cache_path, index_spec)
+            let index = GraphIndex::create(&self.graph, false, cached_graph_path, index_spec)?;
+            Ok(index)
         })
     }
 
@@ -176,12 +182,7 @@ impl Storage {
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
         let index = self.index.get_or_try_init(|| {
-            Ok::<_, GraphError>(GraphIndex::create_from_graph(
-                &self.graph,
-                true,
-                None,
-                index_spec,
-            )?)
+            Ok::<_, GraphError>(GraphIndex::create(&self.graph, true, None, index_spec)?)
         })?;
         if index.path.is_some() {
             Err(GraphError::FailedToCreateIndexInRam)

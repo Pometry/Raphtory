@@ -12,18 +12,16 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::properties::props::PropMapper, storage::dict_mapper::MaybeNew, PropType,
-};
+use parking_lot::RwLock;
+use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use std::{
     ffi::OsStr,
     fmt::{Debug, Formatter},
     fs,
     fs::File,
     path::{Path, PathBuf},
-    sync::{Arc},
+    sync::Arc,
 };
-use parking_lot::RwLock;
 use tantivy::schema::{FAST, INDEXED, STORED};
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -162,14 +160,48 @@ impl GraphIndex {
         })
     }
 
-    pub fn create_from_graph(
+    pub fn create(
         graph: &GraphStorage,
         create_in_ram: bool,
-        cache_path: Option<&Path>,
+        cached_graph_path: Option<&Path>,
         index_spec: IndexSpec,
     ) -> Result<Self, GraphError> {
         let dir = if !create_in_ram {
-            let temp_dir = match cache_path {
+            let temp_dir = match cached_graph_path {
+                // Creates index in a temp dir within cache graph dir.
+                // The intention is to avoid creating index in a tmp dir that could be on another file system.
+                Some(path) => TempDir::new_in(path)?,
+                None => TempDir::new()?,
+            };
+            Some(Arc::new(temp_dir))
+        } else {
+            None
+        };
+
+        let path = dir.as_ref().map(|p| p.path());
+        let node_index = NodeIndex::index_nodes(graph, path, &index_spec)?;
+        // node_index.print()?;
+
+        let edge_index = EdgeIndex::index_edges(graph, path, &index_spec)?;
+        // edge_index.print()?;
+
+        Ok(GraphIndex {
+            node_index,
+            edge_index,
+            path: dir,
+            index_spec: Arc::new(RwLock::new(index_spec)),
+        })
+    }
+
+    pub fn update(
+        &self,
+        graph: &GraphStorage,
+        create_in_ram: bool,
+        cached_graph_path: Option<&Path>,
+        index_spec: IndexSpec,
+    ) -> Result<Self, GraphError> {
+        let dir = if !create_in_ram {
+            let temp_dir = match cached_graph_path {
                 // Creates index in a temp dir within cache graph dir.
                 // The intention is to avoid creating index in a tmp dir that could be on another file system.
                 Some(path) => TempDir::new_in(path)?,
