@@ -362,8 +362,8 @@ mod test_index {
                 },
             },
             prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter,
-                StableDecode,
+                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+                PropertyFilter, StableDecode,
             },
             serialise::{GraphFolder, StableEncode},
         };
@@ -736,6 +736,49 @@ mod test_index {
             let graph = Graph::decode(path).unwrap();
             let index_spec2 = graph.get_index_spec().unwrap();
 
+            assert_eq!(index_spec, index_spec2);
+        }
+
+        #[test]
+        fn test_no_new_prop_index_created_via_update_apis() {
+            let graph = init_graph(Graph::new());
+
+            let index_spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_node_props(vec!["y"])
+                .unwrap()
+                .with_temp_node_props(vec!["p2"])
+                .unwrap()
+                .build();
+            graph.create_index_with_spec(index_spec.clone()).unwrap();
+
+            let node = graph
+                .add_node(1, "shivam", [("p1", 100u64)], Some("fire_nation"))
+                .unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+
+            node.add_constant_properties([("z", true)]).unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+
+            node.update_constant_properties([("z", false)]).unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+
+            let edge = graph
+                .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], Some("fire_nation"))
+                .unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+
+            edge.add_constant_properties([("z", true)], Some("fire_nation"))
+                .unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
+            assert_eq!(index_spec, index_spec2);
+
+            edge.update_constant_properties([("z", false)], Some("fire_nation"))
+                .unwrap();
+            let index_spec2 = graph.get_index_spec().unwrap();
             assert_eq!(index_spec, index_spec2);
         }
     }
