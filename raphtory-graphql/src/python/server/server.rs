@@ -72,7 +72,7 @@ impl PyGraphServer {
         let server = take_server_ownership(slf)?;
         let cache = PathBuf::from(cache);
         let rt = tokio::runtime::Runtime::new().unwrap();
-        Ok(rt.block_on(server.set_embeddings(embedding, &cache, global_template)))
+        Ok(rt.block_on(server.set_embeddings(embedding, &cache, global_template))?)
     }
 }
 

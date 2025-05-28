@@ -21,8 +21,9 @@ use poem::{
     middleware::{Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
-use raphtory::vectors::{
-    cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate,
+use raphtory::{
+    core::utils::errors::GraphResult,
+    vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
 };
 use serde_json::json;
 use std::{
@@ -110,13 +111,13 @@ impl GraphServer {
         cache: &Path,
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
-    ) -> Self {
+    ) -> GraphResult<Self> {
         self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::on_disk(cache, embedding),
+            cache: VectorCache::on_disk(cache, embedding)?, // TODO: better do this lazily, actually do it when running the server
             global_template,
             individual_templates: Default::default(),
         });
-        self
+        Ok(self)
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -387,6 +388,7 @@ mod server_tests {
         let handler = server
             .set_embeddings(failing_embedding, &cache, Some(template))
             .await
+            .unwrap()
             .start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
