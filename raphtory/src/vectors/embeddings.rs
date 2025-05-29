@@ -1,14 +1,11 @@
-use std::ops::Deref;
-use std::pin::Pin;
-use std::{future::Future, sync::Arc};
+use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
 
 use crate::{core::utils::errors::GraphResult, vectors::Embedding};
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
-use futures_util::future::BoxFuture;
-use futures_util::{Stream, StreamExt};
+use futures_util::{future::BoxFuture, Stream, StreamExt};
 use tracing::info;
 
 use super::cache::VectorCache;

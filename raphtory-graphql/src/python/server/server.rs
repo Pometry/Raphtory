@@ -13,8 +13,7 @@ use pyo3::{
 use raphtory::{
     python::packages::vectors::TemplateConfig,
     vectors::{
-        embeddings::openai_embedding,
-        embeddings::EmbeddingFunction,
+        embeddings::{openai_embedding, EmbeddingFunction},
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
     },
 };

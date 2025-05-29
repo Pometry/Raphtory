@@ -4,9 +4,9 @@ use crate::{
     vectors::{template::DocumentTemplate, utils::find_top_k, Embedding},
 };
 
-use super::{cache::VectorCache, db::EntityDb};
 use super::{
-    db::{EdgeDb, NodeDb},
+    cache::VectorCache,
+    db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
 };

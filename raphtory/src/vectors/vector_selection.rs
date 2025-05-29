@@ -11,8 +11,8 @@ use crate::{
     prelude::{EdgeViewOps, NodeViewOps, *},
 };
 
-use super::db::EntityDb;
 use super::{
+    db::EntityDb,
     entity_ref::EntityRef,
     utils::{apply_window, find_top_k},
     vectorised_graph::VectorisedGraph,
