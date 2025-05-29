@@ -39,7 +39,7 @@ mod vector_tests {
     use super::{embeddings::EmbeddingResult, *};
     use crate::{
         core::Prop,
-        prelude::{AdditionOps, Graph},
+        prelude::*,
         vectors::{cache::VectorCache, embeddings::openai_embedding, vectorisable::Vectorisable},
     };
     use itertools::Itertools;
@@ -78,7 +78,7 @@ mod vector_tests {
         g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         let path = PathBuf::from("/tmp/raphtory/very/deep/path/embedding-cache-test");
-        let _ = remove_dir_all(path);
+        let _ = remove_dir_all(&path);
 
         // the following creates the embeddings, and store them on the cache
         {
@@ -98,17 +98,20 @@ mod vector_tests {
     async fn test_empty_graph() {
         let template = custom_template();
         let g = Graph::new();
-        let cache = Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into();
         let cache = VectorCache::in_memory(fake_embedding);
         let vectors = g.vectorise(cache, template, None, false).await.unwrap();
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()])
             .await
             .unwrap()
             .remove(0);
-        let mut selection = vectors.entities_by_similarity(&embedding, 10, None);
-        selection.expand_documents_by_similarity(&embedding, 10, None);
+        let mut selection = vectors
+            .entities_by_similarity(&embedding, 10, None)
+            .unwrap();
+        selection
+            .expand_entities_by_similarity(&embedding, 10, None)
+            .unwrap();
         selection.expand(2, None);
-        let docs = selection.get_documents();
+        let docs = selection.get_documents().unwrap();
         assert!(docs.is_empty())
     }
 
@@ -183,13 +186,18 @@ mod vector_tests {
 
         dotenv::dotenv().ok();
         let cache = VectorCache::in_memory(openai_embedding);
-        let vectors = g.vectorise(cache, template, None, false).await.unwrap();
+        let vectors = g
+            .vectorise(cache.clone(), template, None, false)
+            .await
+            .unwrap();
 
         let query = "Find a magician".to_owned();
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
-            .get_documents();
+            .unwrap()
+            .get_documents()
+            .unwrap();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content.contains("Gandalf is a wizard"));
 
@@ -197,7 +205,9 @@ mod vector_tests {
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
-            .get_documents();
+            .unwrap()
+            .get_documents()
+            .unwrap();
         assert!(docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
@@ -205,14 +215,18 @@ mod vector_tests {
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
-            .get_documents();
+            .unwrap()
+            .get_documents()
+            .unwrap();
         assert!(!docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let query = "Has anyone appeared with anyone else?".to_owned();
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .edges_by_similarity(&embedding, 1, None)
-            .get_documents();
+            .unwrap()
+            .get_documents()
+            .unwrap();
         assert!(docs[0].content.contains("Frodo appeared with Gandalf"));
     }
 }
