@@ -346,6 +346,7 @@ mod server_tests {
         vectors::{embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
+    use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
 
@@ -384,9 +385,9 @@ mod server_tests {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
-        let cache = Path::new("/tmp/cache-for-test_server_start_with_failing_embedding");
+        let cache_dir = tempdir().unwrap();
         let handler = server
-            .set_embeddings(failing_embedding, &cache, Some(template))
+            .set_embeddings(failing_embedding, cache_dir.path(), Some(template))
             .await
             .unwrap()
             .start_with_port(0);

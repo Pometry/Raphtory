@@ -179,7 +179,7 @@ impl VectorCache {
             })
             .collect();
         let mut fresh_vectors: VecDeque<_> = if misses.len() > 0 {
-            self.function.call(misses).await.unwrap().into()
+            self.function.call(misses).await?.into()
         } else {
             vec![].into()
         };
