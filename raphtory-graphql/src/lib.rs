@@ -1,6 +1,7 @@
 pub use crate::server::GraphServer;
 mod auth;
 pub mod data;
+mod embeddings;
 mod graph;
 pub mod model;
 pub mod observability;

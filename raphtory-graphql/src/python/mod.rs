@@ -10,7 +10,6 @@ use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_er
 use serde_json::{Map, Number, Value as JsonValue};
 
 pub mod client;
-pub mod global_plugins;
 pub mod pymodule;
 pub mod server;
 

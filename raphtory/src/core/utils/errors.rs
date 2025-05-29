@@ -233,14 +233,12 @@ pub enum GraphError {
         #[from]
         source: zip::result::ZipError,
     },
-
     #[cfg(feature = "vectors")]
-    #[error("bincode operation failed")]
-    BincodeError {
-        #[from]
-        source: bincode::Error,
-    },
-
+    #[error("Arroy error: {0}")]
+    ArroyError(#[from] arroy::Error),
+    #[cfg(feature = "vectors")]
+    #[error("Heed error: {0}")]
+    HeedError(#[from] heed::Error),
     #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -272,6 +270,10 @@ pub enum GraphError {
         #[from]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[cfg(feature = "vectors")]
+    #[error("The path {0} does not contain a vector DB")]
+    VectorDbDoesntExist(String),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
