@@ -67,7 +67,7 @@ impl GraphWithVectors {
         match self.graph.core_graph() {
             GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => {}
+            GraphStorage::Disk(_) => Ok(()),
         }
     }
 
