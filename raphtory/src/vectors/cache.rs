@@ -208,7 +208,7 @@ fn hash(text: &str) -> u64 {
 
 #[cfg(test)]
 mod cache_tests {
-    use std::{fs::remove_dir_all, path::PathBuf};
+    use tempfile::tempdir;
 
     use crate::vectors::{embeddings::EmbeddingResult, Embedding};
 
@@ -245,23 +245,21 @@ mod cache_tests {
     #[tokio::test]
     async fn test_cache() {
         test_abstract_cache(VectorCache::in_memory(placeholder_embedding)).await;
-        let path = PathBuf::from("/tmp/raphtory-cache-tests-test-cache");
-        remove_dir_all(&path).unwrap();
-        test_abstract_cache(VectorCache::on_disk(&path, placeholder_embedding).unwrap()).await;
+        let dir = tempdir().unwrap();
+        test_abstract_cache(VectorCache::on_disk(dir.path(), placeholder_embedding).unwrap()).await;
     }
 
     #[tokio::test]
     async fn test_on_disk_cache() {
         let vector: Embedding = [1.0].into();
-        let path = PathBuf::from("/tmp/raphtory-cache-tests-test-on-disk-cache");
-        remove_dir_all(&path).unwrap();
+        let dir = tempdir().unwrap();
 
         {
-            let cache = VectorCache::on_disk(&path, placeholder_embedding).unwrap();
+            let cache = VectorCache::on_disk(dir.path(), placeholder_embedding).unwrap();
             cache.insert("a".to_owned(), vector.clone());
         } // here the heed env gets closed
 
-        let loaded_from_disk = VectorCache::on_disk(&path, placeholder_embedding).unwrap();
+        let loaded_from_disk = VectorCache::on_disk(dir.path(), placeholder_embedding).unwrap();
         assert_eq!(loaded_from_disk.get("a"), Some(vector))
     }
 }
