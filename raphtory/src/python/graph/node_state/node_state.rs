@@ -503,18 +503,18 @@ impl_lazy_node_state_ord!(IdView<ops::Id>, "NodeStateGID", "GID");
 impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
 
 impl_lazy_node_state_ord!(
-    EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
+    EarliestTimeView<ops::EarliestTimestamp<DynamicGraph>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
-impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
+impl_one_hop!(EarliestTimeView<ops::EarliestTimestamp>, "EarliestTimeView");
 impl_node_state_group_by_ops!(EarliestTimeView, Option<i64>);
 impl_lazy_node_state_ord!(
-    LatestTimeView<ops::LatestTime<DynamicGraph>>,
+    LatestTimeView<ops::LatestTimestamp<DynamicGraph>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
-impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
+impl_one_hop!(LatestTimeView<ops::LatestTimestamp>, "LatestTimeView");
 impl_node_state_group_by_ops!(LatestTimeView, Option<i64>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
@@ -528,7 +528,7 @@ impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
 
-type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>;
+type EarliestDateTime<G> = ops::Map<ops::EarliestTimestamp<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
     EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
@@ -540,9 +540,9 @@ impl_one_hop!(
 );
 impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
 
-type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
+type LatestDateTime<G> = ops::Map<ops::LatestTimestamp<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
-    LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>,
+    LatestDateTimeView<ops::Map<ops::LatestTimestamp<DynamicGraph>, Option<DateTime<Utc>>>>,
     "NodeStateOptionDateTime",
     "Optional[datetime]"
 );

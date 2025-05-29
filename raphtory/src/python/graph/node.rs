@@ -584,7 +584,8 @@ impl PyNodes {
     #[getter]
     fn earliest_time(
         &self,
-    ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> LazyNodeState<'static, ops::EarliestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph>
+    {
         self.nodes.earliest_time()
     }
 
@@ -597,7 +598,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::EarliestTimestamp<DynamicGraph>, Option<DateTime<Utc>>>,
         DynamicGraph,
     > {
         self.nodes.earliest_date_time()
@@ -608,7 +609,9 @@ impl PyNodes {
     /// Returns:
     ///     LatestTimeView: a view of the latest active times
     #[getter]
-    fn latest_time(&self) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph> {
+    fn latest_time(
+        &self,
+    ) -> LazyNodeState<'static, ops::LatestTimestamp<DynamicGraph>, DynamicGraph> {
         self.nodes.latest_time()
     }
 
@@ -621,7 +624,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::LatestTimestamp<DynamicGraph>, Option<DateTime<Utc>>>,
         DynamicGraph,
     > {
         self.nodes.latest_date_time()

@@ -368,20 +368,22 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G>
 }
 
 impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         if self.window_is_empty() {
             return None;
         }
         self.graph
             .node_earliest_time_window(v, self.start_bound(), self.end_bound())
+            .map(|t| TimeIndexEntry::from(t))
     }
 
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
+    fn node_latest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         if self.window_is_empty() {
             return None;
         }
         self.graph
             .node_latest_time_window(v, self.start_bound(), self.end_bound())
+            .map(|t| TimeIndexEntry::from(t))
     }
 
     fn view_start(&self) -> Option<i64> {

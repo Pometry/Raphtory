@@ -73,18 +73,18 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn node_type(&self) -> Self::ValueType<ops::Type>;
     fn node_type_id(&self) -> Self::ValueType<ops::TypeId>;
     /// Get the timestamp for the earliest activity of the node
-    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>>;
+    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTimestamp<Self::Graph>>;
 
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>>;
+    ) -> Self::ValueType<ops::Map<ops::EarliestTimestamp<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Get the timestamp for the latest activity of the node
-    fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
+    fn latest_time(&self) -> Self::ValueType<ops::LatestTimestamp<Self::Graph>>;
 
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>>;
+    ) -> Self::ValueType<ops::Map<ops::LatestTimestamp<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>>;
@@ -196,8 +196,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(ops::TypeId)
     }
     #[inline]
-    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>> {
-        let op = ops::EarliestTime {
+    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTimestamp<Self::Graph>> {
+        let op = ops::EarliestTimestamp {
             graph: self.graph().clone(),
         };
         self.map(op)
@@ -205,8 +205,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>> {
-        let op = ops::EarliestTime {
+    ) -> Self::ValueType<ops::Map<ops::EarliestTimestamp<Self::Graph>, Option<DateTime<Utc>>>> {
+        let op = ops::EarliestTimestamp {
             graph: self.graph().clone(),
         }
         .map(|t| t.and_then(|t| t.dt()));
@@ -214,8 +214,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>> {
-        let op = ops::LatestTime {
+    fn latest_time(&self) -> Self::ValueType<ops::LatestTimestamp<Self::Graph>> {
+        let op = ops::LatestTimestamp {
             graph: self.graph().clone(),
         };
         self.map(op)
@@ -224,8 +224,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>> {
-        let op = ops::LatestTime {
+    ) -> Self::ValueType<ops::Map<ops::LatestTimestamp<Self::Graph>, Option<DateTime<Utc>>>> {
+        let op = ops::LatestTimestamp {
             graph: self.graph().clone(),
         }
         .map(|t| t.and_then(|t| t.dt()));

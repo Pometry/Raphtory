@@ -24,6 +24,7 @@ use crate::{
     },
     prelude::*,
 };
+use chrono::Utc;
 use itertools::Itertools;
 use raphtory_api::{
     core::entities::EID,
@@ -211,12 +212,14 @@ impl InheritEdgeFilterOps for PersistentGraph {}
 impl InheritNodeFilterOps for PersistentGraph {}
 
 impl TimeSemantics for PersistentGraph {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         self.0.node_earliest_time(v)
     }
 
-    fn node_latest_time(&self, _v: VID) -> Option<i64> {
-        Some(i64::MAX)
+    fn node_latest_time(&self, _v: VID) -> Option<TimeIndexEntry> {
+        Some(TimeIndexEntry::from(
+            chrono::DateTime::<Utc>::MAX_UTC.timestamp_millis(),
+        ))
     }
 
     fn view_start(&self) -> Option<i64> {

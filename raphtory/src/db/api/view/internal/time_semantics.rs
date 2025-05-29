@@ -16,10 +16,10 @@ use std::ops::Range;
 #[enum_dispatch]
 pub trait TimeSemantics {
     /// Return the earliest time for a node
-    fn node_earliest_time(&self, v: VID) -> Option<i64>; // TODO: Should I change these and see what it breaks, to then fix it?
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry>; // TODO: Should I change these and see what it breaks, to then fix it?
 
     /// Return the latest time for a node
-    fn node_latest_time(&self, v: VID) -> Option<i64>;
+    fn node_latest_time(&self, v: VID) -> Option<TimeIndexEntry>;
 
     /// Returns the start of the current view or `None` if unbounded
     fn view_start(&self) -> Option<i64>;
@@ -523,12 +523,12 @@ pub trait DelegateTimeSemantics {
 
 impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     #[inline]
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         self.graph().node_earliest_time(v)
     }
 
     #[inline]
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
+    fn node_latest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         self.graph().node_latest_time(v)
     }
 
