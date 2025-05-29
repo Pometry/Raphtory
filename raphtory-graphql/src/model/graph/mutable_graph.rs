@@ -302,7 +302,7 @@ impl GqlMutableGraph {
         spawn_blocking(move || {
             self_clone
                 .graph
-                .add_properties(t, as_properties(properties)?);
+                .add_properties(t, as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })
@@ -319,7 +319,7 @@ impl GqlMutableGraph {
         spawn_blocking(move || {
             self_clone
                 .graph
-                .add_constant_properties(as_properties(properties)?);
+                .add_constant_properties(as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })
@@ -336,7 +336,7 @@ impl GqlMutableGraph {
         spawn_blocking(move || {
             self_clone
                 .graph
-                .update_constant_properties(as_properties(properties)?);
+                .update_constant_properties(as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })

@@ -216,7 +216,6 @@ def test_default_template():
 
     vg = g.vectorise(constant_embedding)
 
-    node_docs = vg.entities_by_similarity(query="whatever", limit=10).get_documents()
     node_docs = vg.nodes_by_similarity(query="whatever", limit=10).get_documents()
     assert len(node_docs) == 1
     assert node_docs[0].content == "Node node1 has the following properties:\n"

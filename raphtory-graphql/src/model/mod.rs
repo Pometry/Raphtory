@@ -39,6 +39,15 @@ pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
 
+/// a thin wrapper around spawn_blocking that unwraps the join handle
+pub(crate) async fn blocking<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    tokio::task::spawn_blocking(f).await.unwrap()
+}
+
 #[derive(Debug)]
 pub struct MissingGraph;
 

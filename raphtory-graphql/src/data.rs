@@ -220,11 +220,7 @@ impl Data {
         &self,
         folder: &ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let cache = self
-            .embedding_conf
-            .as_ref()
-            .map(|conf| conf.cache.clone())
-            .unwrap_or_else(|| VectorCache::in_memory(openai_embedding)); // TODO: review, this is weird...
+        let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
         GraphWithVectors::read_from_folder(folder, cache, self.create_index)
     }
 }

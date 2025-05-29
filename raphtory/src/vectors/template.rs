@@ -140,13 +140,14 @@ impl DocumentTemplate {
         let template = self.node_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);
-        match template.render(NodeTemplateContext::from(node)) {
+        match template.render(NodeTemplateContext::from(node.clone())) {
             Ok(mut document) => {
                 truncate(&mut document);
                 Some(document)
             }
             Err(error) => {
-                error!("Template render failed for a node, skipping: {error}");
+                let node = node.name();
+                error!("Template render failed for a node {node}, skipping: {error}");
                 None
             }
         }
@@ -160,13 +161,15 @@ impl DocumentTemplate {
         let template = self.edge_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);
-        match template.render(EdgeTemplateContext::from(edge)) {
+        match template.render(EdgeTemplateContext::from(edge.clone())) {
             Ok(mut document) => {
                 truncate(&mut document);
                 Some(document)
             }
             Err(error) => {
-                error!("Template render failed for an edge, skipping: {error}");
+                let src = edge.src().name();
+                let dst = edge.dst().name();
+                error!("Template render failed for edge {src}->{dst}, skipping: {error}");
                 None
             }
         }

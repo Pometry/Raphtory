@@ -314,7 +314,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         jump: bool,
     ) -> HashSet<EntityRef> {
         let iter = self.selected.iter();
-        iter.flat_map(|(e, _)| e.get_neighbour_nodes(v, jump))
+        iter.flat_map(|(e, _)| e.get_adjacent_nodes(v, jump))
             .collect()
     }
 
@@ -324,7 +324,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         jump: bool,
     ) -> HashSet<EntityRef> {
         let iter = self.selected.iter();
-        iter.flat_map(|(e, _)| e.get_neighbour_edges(v, jump))
+        iter.flat_map(|(e, _)| e.get_adjacent_edges(v, jump))
             .collect()
     }
 
@@ -346,7 +346,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
 // TODO: I could make get_neighbour_nodes rely on get_neighbour_edges and viceversa, reusing some code
 impl EntityRef {
-    fn get_neighbour_nodes<G: StaticGraphViewOps>(
+    fn get_adjacent_nodes<G: StaticGraphViewOps>(
         &self,
         view: &G,
         jump: bool,
@@ -367,7 +367,7 @@ impl EntityRef {
         nodes.map(|node| node.into())
     }
 
-    fn get_neighbour_edges<G: StaticGraphViewOps>(
+    fn get_adjacent_edges<G: StaticGraphViewOps>(
         &self,
         view: &G,
         jump: bool,

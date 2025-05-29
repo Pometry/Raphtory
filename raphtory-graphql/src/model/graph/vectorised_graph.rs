@@ -5,7 +5,7 @@ use raphtory::{
     vectors::vectorised_graph::VectorisedGraph,
 };
 
-use crate::embeddings::EmbedQuery;
+use crate::{embeddings::EmbedQuery, model::blocking};
 
 use super::vector_selection::GqlVectorSelection;
 
@@ -50,7 +50,8 @@ impl GqlVectorisedGraph {
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
-        Ok(self.0.entities_by_similarity(&vector, limit, w)?.into())
+        let cloned = self.0.clone();
+        blocking(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
     }
 
     async fn nodes_by_similarity(
@@ -62,7 +63,8 @@ impl GqlVectorisedGraph {
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
-        Ok(self.0.nodes_by_similarity(&vector, limit, w)?.into())
+        let cloned = self.0.clone();
+        blocking(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
     }
 
     async fn edges_by_similarity(
@@ -74,6 +76,7 @@ impl GqlVectorisedGraph {
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
-        Ok(self.0.edges_by_similarity(&vector, limit, w)?.into())
+        let cloned = self.0.clone();
+        blocking(move || Ok(cloned.edges_by_similarity(&vector, limit, w)?.into())).await
     }
 }
