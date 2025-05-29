@@ -88,7 +88,7 @@ impl<T: InternalHistoryOps> History<T> {
     }
 
     pub fn collect_timestamps(&self) -> Vec<i64> {
-        self.0.iter().map(|x| x.t()).collect_vec()
+        self.0.iter().map(|x| x.t()).dedup().collect_vec()
     }
 
     pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {

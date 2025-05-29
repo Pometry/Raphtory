@@ -16,7 +16,7 @@ use std::ops::Range;
 #[enum_dispatch]
 pub trait TimeSemantics {
     /// Return the earliest time for a node
-    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry>; // TODO: Should I change these and see what it breaks, to then fix it?
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry>;
 
     /// Return the latest time for a node
     fn node_latest_time(&self, v: VID) -> Option<TimeIndexEntry>;

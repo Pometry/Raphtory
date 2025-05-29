@@ -217,9 +217,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_latest_time(&self, _v: VID) -> Option<TimeIndexEntry> {
-        Some(TimeIndexEntry::from(
-            chrono::DateTime::<Utc>::MAX_UTC.timestamp_millis(),
-        ))
+        Some(TimeIndexEntry::from(i64::MAX))
     }
 
     fn view_start(&self) -> Option<i64> {
