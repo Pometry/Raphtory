@@ -1,14 +1,10 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{storage::graph::storage_ops::GraphStorage, view::IndexSpec},
     search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
-use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory_api::core::{
-    entities::properties::props::{Meta, PropMapper},
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
-    PropType,
+    entities::properties::props::Meta, storage::timeindex::TimeIndexEntry, PropType,
 };
 use std::{borrow::Borrow, path::PathBuf, sync::Arc};
 use tantivy::{
@@ -65,52 +61,6 @@ impl EntityIndex {
 
     pub(crate) fn load_edges_index_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         EntityIndex::load_from_path(path, true)
-    }
-
-    pub(crate) fn create_property_index(
-        &self,
-        prop_id: MaybeNew<usize>,
-        prop_name: &str,
-        prop_type: &PropType,
-        is_static: bool,
-        add_const_schema_fields: fn(&mut SchemaBuilder),
-        add_temporal_schema_fields: fn(&mut SchemaBuilder),
-        new_property: fn(Schema, path: &Option<PathBuf>) -> Result<PropertyIndex, GraphError>,
-        path: &Option<PathBuf>,
-    ) -> Result<(), GraphError> {
-        prop_id
-            .if_new(|prop_id| {
-                let mut prop_index_guard = if is_static {
-                    self.const_property_indexes.write()
-                } else {
-                    self.temporal_property_indexes.write()
-                };
-
-                // Resize the vector if needed
-                if prop_id >= prop_index_guard.len() {
-                    prop_index_guard.resize(prop_id + 1, None);
-                }
-
-                let mut schema_builder =
-                    PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
-
-                let path = if is_static {
-                    add_const_schema_fields(&mut schema_builder);
-                    path.as_deref().map(|p| p.join("const_properties"))
-                } else {
-                    add_temporal_schema_fields(&mut schema_builder);
-                    path.as_deref().map(|p| p.join("temporal_properties"))
-                };
-
-                let schema = schema_builder.build();
-                let prop_index_path = path.map(|p| p.join(prop_id.to_string()));
-                let property_index = new_property(schema, &prop_index_path)?;
-                prop_index_guard[prop_id] = Some(property_index);
-
-                Ok::<_, GraphError>(())
-            })
-            .transpose()?;
-        Ok(())
     }
 
     fn get_property_writers(

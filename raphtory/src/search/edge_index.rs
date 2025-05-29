@@ -1,12 +1,7 @@
 use crate::{
-    core::{
-        entities::{EID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
-    },
+    core::{entities::EID, storage::timeindex::TimeIndexEntry, utils::errors::GraphError},
     db::{
         api::{
-            properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
             storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
             view::{internal::core_ops::CoreGraphOps, IndexSpec},
         },
@@ -334,7 +329,7 @@ impl EdgeIndex {
     {
         let edge_index_path = path.as_deref().map(|p| p.join("edges"));
 
-        let mut edge_index = index_provider(edge_index_path.clone())?;
+        let edge_index = index_provider(edge_index_path.clone())?;
 
         // Initialize property indexes and get their writers
         let const_properties_index_path = edge_index_path
@@ -387,17 +382,10 @@ impl EdgeIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let edge = graph
-            .edge(src, dst)
-            .expect("Edge for internal id should exist.")
-            .at(t.t());
-
-        let temporal_prop_ids = edge.temporal_prop_ids();
+        let temporal_prop_ids = props.iter().map(|(id, _)| *id);
         let mut temporal_writers = self
             .entity_index
             .get_temporal_property_writers(temporal_prop_ids)?;
@@ -413,6 +401,7 @@ impl EdgeIndex {
             props,
         )?;
 
+        self.entity_index.reload_temporal_property_indexes()?;
         self.entity_index.reader.reload()?;
 
         Ok(())
@@ -420,18 +409,11 @@ impl EdgeIndex {
 
     pub(crate) fn add_edge_constant_properties(
         &self,
-        graph: &GraphStorage,
         edge_id: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let src = graph.core_edge(edge_id).src();
-        let dst = graph.core_edge(edge_id).dst();
-        let edge = graph
-            .edge(src, dst)
-            .expect("Edge for internal id should exist.");
-
-        let const_property_ids = edge.const_prop_ids();
+        let const_property_ids = props.iter().map(|(id, _)| *id);
         let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;
@@ -445,18 +427,11 @@ impl EdgeIndex {
 
     pub(crate) fn update_edge_constant_properties(
         &self,
-        graph: &GraphStorage,
         edge_id: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let src = graph.core_edge(edge_id).src();
-        let dst = graph.core_edge(edge_id).dst();
-        let edge = graph
-            .edge(src, dst)
-            .expect("Edge for internal id should exist.");
-
-        let const_property_ids = edge.const_prop_ids();
+        let const_property_ids = props.iter().map(|(id, _)| *id);
         let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;

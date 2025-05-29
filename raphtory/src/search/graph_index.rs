@@ -6,14 +6,10 @@ use crate::{
     },
     db::api::{storage::graph::storage_ops::GraphStorage, view::IndexSpec},
     prelude::*,
-    search::{
-        edge_index::EdgeIndex, fields, node_index::NodeIndex, property_index::PropertyIndex,
-        searcher::Searcher,
-    },
+    search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
 };
-use itertools::Itertools;
 use parking_lot::RwLock;
-use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use std::{
     collections::HashSet,
     ffi::OsStr,
@@ -23,7 +19,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tantivy::schema::{FAST, INDEXED, STORED};
 use tempfile::TempDir;
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -136,7 +131,7 @@ impl GraphIndex {
 
     pub fn load_from_path(graph: &GraphStorage, path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = TempDir::new_in(path)?;
-        let path = path.join("index");
+        // let path = path.join("index");
         let path = path.as_path();
         if path.is_file() {
             GraphIndex::unzip_index(path, tmp_path.path())?;
@@ -323,12 +318,12 @@ impl GraphIndex {
         };
         let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.node_index
-            .add_node_update(graph, t, v, &filtered_props)
+            .add_node_update(graph, t, v, &filtered_props)?;
+        Ok(())
     }
 
     pub(crate) fn add_node_constant_properties(
         &self,
-        graph: &GraphStorage,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -338,12 +333,12 @@ impl GraphIndex {
         };
         let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.node_index
-            .add_node_constant_properties(graph, node_id, &filtered_props)
+            .add_node_constant_properties(node_id, &filtered_props)?;
+        Ok(())
     }
 
     pub(crate) fn update_node_constant_properties(
         &self,
-        graph: &GraphStorage,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -353,7 +348,7 @@ impl GraphIndex {
         };
         let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.node_index
-            .update_node_constant_properties(graph, node_id, &filtered_props)
+            .update_node_constant_properties(node_id, &filtered_props)
     }
 
     pub(crate) fn add_edge_update(
@@ -361,8 +356,6 @@ impl GraphIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -372,12 +365,11 @@ impl GraphIndex {
         };
         let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.edge_index
-            .add_edge_update(graph, edge_id, t, src, dst, layer, &filtered_props)
+            .add_edge_update(graph, edge_id, t, layer, &filtered_props)
     }
 
     pub(crate) fn add_edge_constant_properties(
         &self,
-        graph: &GraphStorage,
         edge_id: EID,
         layer: usize,
         props: &[(usize, Prop)],
@@ -388,12 +380,11 @@ impl GraphIndex {
         };
         let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.edge_index
-            .add_edge_constant_properties(graph, edge_id, layer, &filtered_props)
+            .add_edge_constant_properties(edge_id, layer, &filtered_props)
     }
 
     pub(crate) fn update_edge_constant_properties(
         &self,
-        graph: &GraphStorage,
         edge_id: EID,
         layer: usize,
         props: &[(usize, Prop)],
@@ -404,61 +395,7 @@ impl GraphIndex {
         };
         let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.edge_index
-            .update_edge_constant_properties(graph, edge_id, layer, &filtered_props)
-    }
-
-    pub(crate) fn create_edge_property_index(
-        &self,
-        prop_id: MaybeNew<usize>,
-        prop_name: &str,
-        prop_type: &PropType,
-        is_static: bool, // Const or Temporal Property
-    ) -> Result<(), GraphError> {
-        let edge_index_path = self.path.as_deref().map(|p| p.path().join("edges"));
-        self.edge_index.entity_index.create_property_index(
-            prop_id,
-            prop_name,
-            prop_type,
-            is_static,
-            |schema| {
-                schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
-            },
-            |schema| {
-                schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
-            },
-            PropertyIndex::new_edge_property,
-            &edge_index_path,
-        )
-    }
-
-    pub(crate) fn create_node_property_index(
-        &self,
-        prop_id: MaybeNew<usize>,
-        prop_name: &str,
-        prop_type: &PropType,
-        is_static: bool, // Const or Temporal Property
-    ) -> Result<(), GraphError> {
-        let node_index_path = self.path.as_deref().map(|p| p.path().join("nodes"));
-        self.node_index.entity_index.create_property_index(
-            prop_id,
-            prop_name,
-            prop_type,
-            is_static,
-            |schema| {
-                schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
-            },
-            |schema| {
-                schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
-            },
-            PropertyIndex::new_node_property,
-            &node_index_path,
-        )
+            .update_edge_constant_properties(edge_id, layer, &filtered_props)
     }
 }
 
@@ -468,6 +405,9 @@ mod graph_index_test {
         db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
     };
+
+    #[cfg(feature = "search")]
+    use crate::db::graph::assertions::{search_edges, search_nodes};
 
     fn init_nodes_graph(graph: Graph) -> Graph {
         graph
@@ -487,16 +427,12 @@ mod graph_index_test {
 
     fn init_edges_graph(graph: Graph) -> Graph {
         graph
-            .add_edge(1, 1, 2, [("p1", 1), ("p2", 2)], Some("fire_nation"))
+            .add_edge(1, 1, 2, [("p1", 1), ("p2", 2)], None)
             .unwrap();
+        graph.add_edge(2, 1, 2, [("p6", 6)], None).unwrap();
+        graph.add_edge(2, 2, 3, [("p4", 5)], None).unwrap();
         graph
-            .add_edge(2, 1, 2, [("p6", 6)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_edge(2, 2, 3, [("p4", 5)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_edge(3, 3, 4, [("p2", 4), ("p3", 3)], Some("water_tribe"))
+            .add_edge(3, 3, 4, [("p2", 4), ("p3", 3)], None)
             .unwrap();
         graph
     }
@@ -544,9 +480,7 @@ mod graph_index_test {
             .unwrap();
 
         let filter = PropertyFilter::property("x").constant().eq(1u64);
-        let res = graph.search_nodes(filter, 20, 0).unwrap();
-        let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
-        assert_eq!(res, vec!["1"]);
+        assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
 
         graph
             .node(1)
@@ -554,9 +488,7 @@ mod graph_index_test {
             .update_constant_properties([("x", 2u64)])
             .unwrap();
         let filter = PropertyFilter::property("x").constant().eq(1u64);
-        let res = graph.search_nodes(filter, 20, 0).unwrap();
-        let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
-        assert_eq!(res, Vec::<&str>::new());
+        assert_eq!(search_nodes(&graph, filter.clone()), Vec::<&str>::new());
 
         graph
             .node(1)
@@ -564,9 +496,7 @@ mod graph_index_test {
             .update_constant_properties([("x", 2u64)])
             .unwrap();
         let filter = PropertyFilter::property("x").constant().eq(2u64);
-        let res = graph.search_nodes(filter, 20, 0).unwrap();
-        let res = res.iter().map(|n| n.name()).collect::<Vec<_>>();
-        assert_eq!(res, vec!["1"]);
+        assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
     }
 
     #[test]
@@ -577,41 +507,26 @@ mod graph_index_test {
         graph
             .edge(1, 2)
             .unwrap()
-            .add_constant_properties([("x", 1u64)], Some("fire_nation"))
+            .add_constant_properties([("x", 1u64)], None)
             .unwrap();
 
         let filter = PropertyFilter::property("x").constant().eq(1u64);
-        let res = graph.search_edges(filter, 20, 0).unwrap();
-        let res = res
-            .iter()
-            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
-        assert_eq!(res, vec!["1->2"]);
+        assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
 
         graph
             .edge(1, 2)
             .unwrap()
-            .update_constant_properties([("x", 2u64)], Some("fire_nation"))
+            .update_constant_properties([("x", 2u64)], None)
             .unwrap();
         let filter = PropertyFilter::property("x").constant().eq(1u64);
-        let res = graph.search_edges(filter, 20, 0).unwrap();
-        let res = res
-            .iter()
-            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
-        assert_eq!(res, Vec::<&str>::new());
+        assert_eq!(search_edges(&graph, filter.clone()), Vec::<&str>::new());
 
         graph
             .edge(1, 2)
             .unwrap()
-            .update_constant_properties([("x", 2u64)], Some("fire_nation"))
+            .update_constant_properties([("x", 2u64)], None)
             .unwrap();
         let filter = PropertyFilter::property("x").constant().eq(2u64);
-        let res = graph.search_edges(filter, 20, 0).unwrap();
-        let res = res
-            .iter()
-            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
-        assert_eq!(res, vec!["1->2"]);
+        assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
     }
 }

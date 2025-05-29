@@ -6,11 +6,8 @@ use crate::{
     },
     db::{
         api::{
-            properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
-            },
-            storage::graph::storage_ops::GraphStorage,
-            view::IndexSpec,
+            properties::internal::TemporalPropertiesRowView,
+            storage::graph::storage_ops::GraphStorage, view::IndexSpec,
         },
         graph::node::NodeView,
     },
@@ -314,7 +311,7 @@ impl NodeIndex {
         F: FnOnce(Option<PathBuf>) -> Result<NodeIndex, GraphError>,
     {
         let node_index_path = path.as_deref().map(|p| p.join("nodes"));
-        let mut node_index = index_provider(node_index_path.clone())?;
+        let node_index = index_provider(node_index_path.clone())?;
 
         // Initialize property indexes and get their writers
         let const_properties_index_path = node_index_path
@@ -376,7 +373,7 @@ impl NodeIndex {
             .expect("Node for internal id should exist.")
             .at(t.t());
 
-        let temporal_property_ids = node.temporal_prop_ids();
+        let temporal_property_ids = props.iter().map(|(id, _)| *id);
         let mut temporal_writers = self
             .entity_index
             .get_temporal_property_writers(temporal_property_ids)?;
@@ -392,6 +389,7 @@ impl NodeIndex {
             props,
         )?;
 
+        self.entity_index.reload_temporal_property_indexes()?;
         self.entity_index.reader.reload()?;
 
         Ok(())
@@ -399,15 +397,10 @@ impl NodeIndex {
 
     pub(crate) fn add_node_constant_properties(
         &self,
-        graph: &GraphStorage,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node = graph
-            .node(VID(node_id.as_u64() as usize))
-            .expect("Node for internal id should exist.");
-
-        let const_property_ids = node.const_prop_ids();
+        let const_property_ids = props.iter().map(|(id, _)| *id);
         let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;
@@ -421,15 +414,10 @@ impl NodeIndex {
 
     pub(crate) fn update_node_constant_properties(
         &self,
-        graph: &GraphStorage,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node = graph
-            .node(VID(node_id.as_u64() as usize))
-            .expect("Node for internal id should exist.");
-
-        let const_property_ids = node.const_prop_ids();
+        let const_property_ids = props.iter().map(|(id, _)| *id);
         let mut const_writers = self
             .entity_index
             .get_const_property_writers(const_property_ids)?;

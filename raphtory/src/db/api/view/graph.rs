@@ -13,7 +13,6 @@ use crate::{
             },
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-                storage_ops::GraphStorage,
             },
             view::{internal::*, *},
         },
@@ -35,7 +34,6 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
