@@ -121,12 +121,18 @@ pub mod prelude {
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },
                 view::{
-                    EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
-                    GraphViewOps, Layer, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
+                    EdgePropertyFilterOps,
+                    EdgeViewOps, // ExplodedEdgePropertyFilterOps,
+                    GraphViewOps,
+                    Layer,
+                    LayerOps,
+                    NodePropertyFilterOps,
+                    NodeViewOps,
+                    ResetFilter,
                     TimeOps,
                 },
             },
-            graph::{graph::Graph, views::property_filter::PropertyFilter},
+            graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
         },
     };
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
@@ -548,10 +554,6 @@ mod test_utils {
                 .map(|node| (Just(node), any::<Option<String>>(), any::<Option<i64>>()))
                 .collect_vec()
         })
-    }
-
-    pub(crate) fn build_window() -> impl Strategy<Value = (i64, i64)> {
-        (i64::MIN..i64::MAX, i64::MIN..i64::MAX)
     }
 
     pub(crate) fn build_graph_from_edge_list<'a>(

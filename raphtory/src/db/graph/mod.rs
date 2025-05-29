@@ -1,6 +1,7 @@
 use raphtory_api::core::storage::dict_mapper::DictMapper;
 use std::sync::Arc;
 
+pub mod assertions;
 pub mod edge;
 pub mod edges;
 pub mod graph;
@@ -9,9 +10,9 @@ pub mod nodes;
 pub mod path;
 pub mod views;
 
-pub(crate) fn create_node_type_filter(
+pub(crate) fn create_node_type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
     dict_mapper: &DictMapper,
-    node_types: &[impl AsRef<str>],
+    node_types: I,
 ) -> Arc<[bool]> {
     let len = dict_mapper.len();
     let mut bool_arr = vec![false; len];

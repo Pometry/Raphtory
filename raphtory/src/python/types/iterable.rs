@@ -7,6 +7,7 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::Arc,
+    vec::IntoIter,
 };
 
 pub struct Iterable<I: Send + Sync, PyI: for<'py> IntoPyObject<'py> + From<I> + Repr> {
@@ -131,9 +132,24 @@ impl<T> Deref for FromIterable<T> {
     }
 }
 
+impl<T> From<FromIterable<T>> for Vec<T> {
+    fn from(v: FromIterable<T>) -> Self {
+        v.0
+    }
+}
+
 impl<T> DerefMut for FromIterable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<T> IntoIterator for FromIterable<T> {
+    type Item = T;
+    type IntoIter = IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

@@ -17,19 +17,23 @@ use crate::{
             view::{internal::*, *},
         },
         graph::{
+            create_node_type_filter,
             edge::EdgeView,
             edges::Edges,
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, property_filter::FilterExpr,
+                cached_view::CachedView,
+                filter::{
+                    model::{AsEdgeFilter, AsNodeFilter},
+                    node_type_filtered_graph::NodeTypeFilteredGraph,
+                },
+                node_subgraph::NodeSubgraph,
             },
         },
     },
 };
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -41,9 +45,12 @@ use raphtory_api::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
-    borrow::Borrow,
+    fs::File,
+    path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
+#[cfg(feature = "search")]
+use zip::ZipArchive;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -69,10 +76,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     fn cache_view(&self) -> CachedView<Self>;
 
-    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         nodes_types: I,
-    ) -> TypeFilteredSubgraph<Self>;
+    ) -> NodeTypeFilteredGraph<Self>;
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
         &self,
@@ -133,16 +140,24 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn create_index(&self) -> Result<(), GraphError>;
 
-    fn search_nodes(
+    fn create_index_in_ram(&self) -> Result<(), GraphError>;
+
+    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
+
+    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
+
+    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError>;
+
+    fn search_nodes<F: AsNodeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError>;
 
-    fn search_edges(
+    fn search_edges<F: AsEdgeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError>;
@@ -381,16 +396,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         CachedView::new(self.clone())
     }
 
-    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
-        nodes_types: I,
-    ) -> TypeFilteredSubgraph<Self> {
-        let meta = self.node_meta().node_type_meta();
-        let r = nodes_types
-            .into_iter()
-            .flat_map(|nt| meta.get_id(nt.borrow()))
-            .collect_vec();
-        TypeFilteredSubgraph::new(self.clone(), r)
+        node_types: I,
+    ) -> NodeTypeFilteredGraph<Self> {
+        let node_types_filter =
+            create_node_type_filter(self.node_meta().node_type_meta(), node_types);
+        NodeTypeFilteredGraph::new(self.clone(), node_types_filter)
     }
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
@@ -437,7 +449,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter()
                     .filter(move |v| self.filter_node(*v, layer_ids))
                     .count(),
-                NodeList::List { nodes } => nodes
+                NodeList::List { elems } => elems
                     .par_iter()
                     .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
                     .count(),
@@ -619,15 +631,78 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::FailedToCreateIndex), |storage| {
-                storage.get_or_create_index()?;
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index(None)?;
                 Ok(())
             })
     }
 
-    fn search_nodes(
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index_in_ram()?;
+                Ok(())
+            })
+    }
+
+    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
+        fn has_index<P: AsRef<Path>>(zip_path: P) -> Result<bool, GraphError> {
+            let file = File::open(&zip_path)?;
+            let mut archive = ZipArchive::new(file)?;
+
+            for i in 0..archive.len() {
+                let entry = archive.by_index(i)?;
+                let entry_path = Path::new(entry.name());
+
+                if let Some(first_component) = entry_path.components().next() {
+                    if first_component.as_os_str() == "index" {
+                        return Ok(true);
+                    }
+                }
+            }
+
+            Ok(false)
+        }
+
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                if path.is_file() {
+                    if has_index(path)? {
+                        storage.get_or_create_index(Some(path.clone()))?;
+                    } else {
+                        return Ok(()); // Skip if no index in zip
+                    }
+                } else {
+                    let index_path = path.join("index");
+                    if index_path.exists() && index_path.read_dir()?.next().is_some() {
+                        storage.get_or_create_index(Some(path.clone()))?;
+                    }
+                }
+
+                Ok(())
+            })
+    }
+
+    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+        let path = path.join("index");
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.persist_index_to_disk(&path)?;
+                Ok(())
+            })
+    }
+
+    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.persist_index_to_disk_zip(&path)?;
+                Ok(())
+            })
+    }
+
+    fn search_nodes<F: AsNodeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<Self>>, GraphError> {
@@ -638,9 +713,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         index.searcher().search_nodes(self, filter, limit, offset)
     }
 
-    fn search_edges(
+    fn search_edges<F: AsEdgeFilter>(
         &self,
-        filter: FilterExpr,
+        filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {

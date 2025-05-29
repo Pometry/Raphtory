@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            storage::graph::edges::edge_ref::EdgeStorageRef,
             view::{
                 internal::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
@@ -13,12 +13,12 @@ use crate::{
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::property_filter::internal::InternalEdgeFilterOps},
+        graph::views::filter::internal::InternalEdgeFilterOps,
     },
-    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
+    prelude::GraphViewOps,
 };
 
-use crate::db::api::view::internal::InheritStorageOps;
+use crate::db::{api::view::internal::InheritStorageOps, graph::views::filter::PropertyFilter};
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -51,16 +51,13 @@ impl InternalEdgeFilterOps for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_ids(graph.edge_meta())?;
-        let c_prop_id = self.resolve_constant_prop_ids(graph.edge_meta())?;
+        let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
+        let c_prop_id = self.resolve_constant_prop_id(graph.edge_meta())?;
         Ok(EdgePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))
     }
 }
-
-impl<G> Static for EdgePropertyFilteredGraph<G> {}
-impl<G> Immutable for EdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
     type Base = G;
@@ -70,10 +67,11 @@ impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
     }
 }
 
+impl<G> Static for EdgePropertyFilteredGraph<G> {}
+impl<G> Immutable for EdgePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for EdgePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgePropertyFilteredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for EdgePropertyFilteredGraph<G> {}
@@ -84,30 +82,21 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgePropertyF
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGraph<G> {
+    #[inline]
     fn edges_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
     }
 
+    #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_edge(edge, layer_ids) {
-            let props = EdgeView::new(&self.graph, edge.out_ref()).properties();
-            let prop_value = self
-                .t_prop_id
-                .and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                })
-                .or_else(|| {
-                    self.c_prop_id
-                        .and_then(|prop_id| props.constant().get_by_id(prop_id))
-                });
-            self.filter.matches(prop_value.as_ref())
+            self.filter
+                .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge)
         } else {
             false
         }

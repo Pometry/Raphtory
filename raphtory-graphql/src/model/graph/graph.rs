@@ -2,12 +2,15 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            edge::Edge,
+            edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{EdgeFilter, FilterCondition, GraphViewCollection, NodeFilter, Operator},
-            node::Node,
+            filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
+            node::GqlNode,
             nodes::GqlNodes,
             property::GqlProperties,
+            windowset::GqlGraphWindowSet,
+            WindowDuration,
+            WindowDuration::{Duration, Epoch},
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
@@ -20,7 +23,9 @@ use itertools::Itertools;
 use raphtory::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::{GraphError, InvalidPathReason::PathNotParsable},
+        utils::errors::{
+            GraphError, GraphError::MismatchedIntervalTypes, InvalidPathReason::PathNotParsable,
+        },
     },
     db::{
         api::{
@@ -30,13 +35,24 @@ use raphtory::{
                 TimeOps,
             },
         },
-        graph::{node::NodeView, views::property_filter::PropertyRef},
+        graph::{
+            node::NodeView,
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+            },
+        },
     },
     prelude::*,
 };
-use std::{collections::HashSet, convert::Into, sync::Arc};
+use std::{
+    collections::HashSet,
+    convert::{Into, TryInto},
+    sync::Arc,
+};
+use tokio::{spawn, task::spawn_blocking};
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Graph")]
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
@@ -80,7 +96,10 @@ impl GqlGraph {
     ////////////////////////
 
     async fn unique_layers(&self) -> Vec<String> {
-        self.graph.unique_layers().map_into().collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.unique_layers().map_into().collect())
+            .await
+            .unwrap()
     }
 
     async fn default_layer(&self) -> GqlGraph {
@@ -88,11 +107,17 @@ impl GqlGraph {
     }
 
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
-        self.apply(|g| g.valid_layers(names.clone()))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.apply(|g| g.valid_layers(names.clone())))
+            .await
+            .unwrap()
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
-        self.apply(|g| g.exclude_valid_layers(names.clone()))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.apply(|g| g.exclude_valid_layers(names.clone())))
+            .await
+            .unwrap()
     }
 
     async fn layer(&self, name: String) -> GqlGraph {
@@ -104,30 +129,88 @@ impl GqlGraph {
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        self.apply(|g| g.subgraph(nodes.clone()))
-    }
-
-    async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        self.apply(|g| g.subgraph(nodes.clone()))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.apply(|g| g.subgraph(nodes.clone())))
+            .await
+            .unwrap()
     }
 
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
-        self.apply(|g| g.subgraph_node_types(node_types.clone()))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.apply(|g| g.subgraph_node_types(node_types.clone())))
+            .await
+            .unwrap()
     }
 
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        self.apply(|g| g.exclude_nodes(nodes.clone()))
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
+            self_clone.apply(|g| g.exclude_nodes(nodes.clone()))
+        })
+        .await
+        .unwrap()
     }
 
-    async fn exclude_nodes_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        self.apply(|g| g.exclude_nodes(nodes.clone()))
+    async fn rolling(
+        &self,
+        window: WindowDuration,
+        step: Option<WindowDuration>,
+    ) -> Result<GqlGraphWindowSet, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match window {
+            Duration(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(step_duration) => Ok(GqlGraphWindowSet::new(
+                        self_clone
+                            .graph
+                            .rolling(window_duration, Some(step_duration))?,
+                        self_clone.path.clone(),
+                    )),
+                    Epoch(_) => Err(MismatchedIntervalTypes),
+                },
+                None => Ok(GqlGraphWindowSet::new(
+                    self_clone.graph.rolling(window_duration, None)?,
+                    self_clone.path.clone(),
+                )),
+            },
+            Epoch(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Epoch(step_duration) => Ok(GqlGraphWindowSet::new(
+                        self_clone
+                            .graph
+                            .rolling(window_duration, Some(step_duration))?,
+                        self_clone.path.clone(),
+                    )),
+                },
+                None => Ok(GqlGraphWindowSet::new(
+                    self_clone.graph.rolling(window_duration, None)?,
+                    self_clone.path.clone(),
+                )),
+            },
+        })
+        .await
+        .unwrap()
+    }
+
+    async fn expanding(&self, step: WindowDuration) -> Result<GqlGraphWindowSet, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match step {
+            Duration(step) => Ok(GqlGraphWindowSet::new(
+                self_clone.graph.expanding(step)?,
+                self_clone.path.clone(),
+            )),
+            Epoch(step) => Ok(GqlGraphWindowSet::new(
+                self_clone.graph.expanding(step)?,
+                self_clone.path.clone(),
+            )),
+        })
+        .await
+        .unwrap()
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
-
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         self.apply(|g| g.window(start, end))
     }
@@ -137,7 +220,10 @@ impl GqlGraph {
     }
 
     async fn latest(&self) -> GqlGraph {
-        self.apply(|g| g.latest())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.apply(|g| g.latest()))
+            .await
+            .unwrap()
     }
 
     async fn snapshot_at(&self, time: i64) -> GqlGraph {
@@ -173,23 +259,29 @@ impl GqlGraph {
     ////////////////////////
 
     async fn created(&self) -> Result<i64, GraphError> {
-        self.path.created()
+        self.path.created_async().await
     }
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.last_opened()
+        self.path.created_async().await
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.path.last_updated()
+        self.path.last_updated_async().await
     }
 
     async fn earliest_time(&self) -> Option<i64> {
-        self.graph.earliest_time()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.earliest_time())
+            .await
+            .unwrap()
     }
 
     async fn latest_time(&self) -> Option<i64> {
-        self.graph.latest_time()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.latest_time())
+            .await
+            .unwrap()
     }
 
     async fn start(&self) -> Option<i64> {
@@ -201,28 +293,38 @@ impl GqlGraph {
     }
 
     async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
-        let include_negative = include_negative.unwrap_or(true);
-        let all_edges = self
-            .graph
-            .edges()
-            .earliest_time()
-            .into_iter()
-            .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
-            .min();
-        all_edges
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let include_negative = include_negative.unwrap_or(true);
+            let all_edges = self_clone
+                .graph
+                .edges()
+                .earliest_time()
+                .into_iter()
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
+                .min();
+            all_edges
+        })
+        .await
+        .unwrap()
     }
 
     async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
-        let include_negative = include_negative.unwrap_or(true);
-        let all_edges = self
-            .graph
-            .edges()
-            .latest_time()
-            .into_iter()
-            .filter_map(|edge_time| edge_time.filter(|&time| (include_negative || time >= 0)))
-            .max();
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let include_negative = include_negative.unwrap_or(true);
+            let all_edges = self_clone
+                .graph
+                .edges()
+                .latest_time()
+                .into_iter()
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
+                .max();
 
-        all_edges
+            all_edges
+        })
+        .await
+        .unwrap()
     }
 
     ////////////////////////
@@ -230,15 +332,24 @@ impl GqlGraph {
     ////////////////////////
 
     async fn count_edges(&self) -> usize {
-        self.graph.count_edges()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.count_edges())
+            .await
+            .unwrap()
     }
 
     async fn count_temporal_edges(&self) -> usize {
-        self.graph.count_temporal_edges()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.count_temporal_edges())
+            .await
+            .unwrap()
     }
 
     async fn count_nodes(&self) -> usize {
-        self.graph.count_nodes()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.count_nodes())
+            .await
+            .unwrap()
     }
 
     ////////////////////////
@@ -246,61 +357,53 @@ impl GqlGraph {
     ////////////////////////
 
     async fn has_node(&self, name: String) -> bool {
-        self.graph.has_node(name)
-    }
-
-    async fn has_node_id(&self, id: u64) -> bool {
-        self.graph.has_node(id)
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.has_node(name))
+            .await
+            .unwrap()
     }
 
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
-        match layer {
-            Some(name) => self
+        let self_clone = self.clone();
+        spawn_blocking(move || match layer {
+            Some(name) => self_clone
                 .graph
                 .layers(name)
                 .map(|l| l.has_edge(src, dst))
                 .unwrap_or(false),
-            None => self.graph.has_edge(src, dst),
-        }
-    }
-
-    async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
-        match layer {
-            Some(name) => self
-                .graph
-                .layers(name)
-                .map(|l| l.has_edge(src, dst))
-                .unwrap_or(false),
-            None => self.graph.has_edge(src, dst),
-        }
+            None => self_clone.graph.has_edge(src, dst),
+        })
+        .await
+        .unwrap()
     }
 
     ////////////////////////
     //////// GETTERS ///////
     ////////////////////////
 
-    async fn node(&self, name: String) -> Option<Node> {
-        self.graph.node(name).map(|v| v.into())
-    }
-
-    async fn node_id(&self, id: u64) -> Option<Node> {
-        self.graph.node(id).map(|v| v.into())
+    async fn node(&self, name: String) -> Option<GqlNode> {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.node(name).map(|v| v.into()))
+            .await
+            .unwrap()
     }
 
     /// query (optionally a subset of) the nodes in the graph
     async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
-        match ids {
-            None => GqlNodes::new(self.graph.nodes()),
-            Some(ids) => GqlNodes::new(self.graph.nodes().id_filter(ids)),
-        }
+        let self_clone = self.clone();
+        spawn_blocking(move || match ids {
+            None => GqlNodes::new(self_clone.graph.nodes()),
+            Some(ids) => GqlNodes::new(self_clone.graph.nodes().id_filter(ids)),
+        })
+        .await
+        .unwrap()
     }
 
-    pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
-        self.graph.edge(src, dst).map(|e| e.into())
-    }
-
-    pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
-        self.graph.edge(src, dst).map(|e| e.into())
+    async fn edge(&self, src: String, dst: String) -> Option<GqlEdge> {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.graph.edge(src, dst).map(|e| e.into()))
+            .await
+            .unwrap()
     }
 
     async fn edges<'a>(&self) -> GqlEdges {
@@ -323,7 +426,10 @@ impl GqlGraph {
     //if someone write non-utf characters as a filename
 
     async fn name(&self) -> Result<String, GraphError> {
-        self.path.get_graph_name()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.path.get_graph_name())
+            .await
+            .unwrap()
     }
 
     async fn path(&self) -> Result<String, GraphError> {
@@ -336,382 +442,110 @@ impl GqlGraph {
     }
 
     async fn namespace(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .parent()
-            .and_then(|p| p.to_str().map(|s| s.to_string()))
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
-            .to_owned())
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            Ok(self_clone
+                .path
+                .get_original_path()
+                .parent()
+                .and_then(|p| p.to_str().map(|s| s.to_string()))
+                .ok_or(PathNotParsable(self_clone.path.to_error_path()))?
+                .to_owned())
+        })
+        .await
+        .unwrap()
     }
 
     async fn schema(&self) -> GraphSchema {
-        GraphSchema::new(&self.graph)
+        let self_clone = self.clone();
+        spawn_blocking(move || GraphSchema::new(&self_clone.graph))
+            .await
+            .unwrap()
     }
 
     async fn algorithms(&self) -> GraphAlgorithmPlugin {
         self.graph.clone().into()
     }
 
-    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
-        if selected_nodes.is_empty() {
-            return vec![];
-        }
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<GqlNode> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            if selected_nodes.is_empty() {
+                return vec![];
+            }
 
-        let neighbours: Vec<HashSet<NodeView<DynamicGraph>>> = selected_nodes
-            .iter()
-            .filter_map(|n| self.graph.node(n))
-            .map(|n| {
-                n.neighbours()
-                    .collect()
-                    .iter()
-                    .map(|vv| vv.clone())
-                    .collect::<HashSet<NodeView<DynamicGraph>>>()
-            })
-            .collect();
+            let neighbours: Vec<HashSet<NodeView<DynamicGraph>>> = selected_nodes
+                .iter()
+                .filter_map(|n| self_clone.graph.node(n))
+                .map(|n| {
+                    n.neighbours()
+                        .collect()
+                        .iter()
+                        .map(|vv| vv.clone())
+                        .collect::<HashSet<NodeView<DynamicGraph>>>()
+                })
+                .collect();
 
-        let intersection = neighbours.iter().fold(None, |acc, n| match acc {
-            None => Some(n.clone()),
-            Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
-        });
-        match intersection {
-            Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
-            None => vec![],
-        }
+            let intersection = neighbours.iter().fold(None, |acc, n| match acc {
+                None => Some(n.clone()),
+                Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
+            });
+            match intersection {
+                Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
+                None => vec![],
+            }
+        })
+        .await
+        .unwrap()
     }
 
     /// Export all nodes and edges from this graph view to another existing graph
     async fn export_to<'a>(
-        &'a self,
+        &self,
         ctx: &Context<'a>,
         path: String,
     ) -> Result<bool, Arc<GraphError>> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref())?.0;
-        other_g.import_nodes(self.graph.nodes(), true)?;
-        other_g.import_edges(self.graph.edges(), true)?;
-        other_g.write_updates()?;
-        Ok(true)
+        let other_g = data.get_graph_async(path.as_ref()).await?.0;
+        let g = self.graph.clone();
+        spawn_blocking(move || {
+            other_g.import_nodes(g.nodes(), true)?;
+            other_g.import_edges(g.edges(), true)?;
+            other_g.write_updates()?;
+            Ok(true)
+        })
+        .await
+        .unwrap()
     }
 
-    async fn node_filter(
-        &self,
-        property: String,
-        condition: FilterCondition,
-    ) -> Result<Self, GraphError> {
-        let prop_ref = PropertyRef::Property(property);
-        match condition.operator {
-            Operator::Equal => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::eq(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "Equal".into(),
-                    ))
-                }
-            }
-            Operator::NotEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::ne(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "NotEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::ge(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::LessThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::le(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::gt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThan".into(),
-                    ))
-                }
-            }
-            Operator::LessThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::lt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThan".into(),
-                    ))
-                }
-            }
-            Operator::IsNone => {
-                let filtered_graph = self
-                    .graph
-                    .filter_nodes(PropertyFilter::is_none(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::IsSome => {
-                let filtered_graph = self
-                    .graph
-                    .filter_nodes(PropertyFilter::is_some(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::includes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "Any".into(),
-                    ))
-                }
-            }
-            Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_nodes(PropertyFilter::excludes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "NotAny".into(),
-                    ))
-                }
-            }
-        }
+    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            filter.validate()?;
+            let filter: CompositeNodeFilter = filter.try_into()?;
+            let filtered_graph = self_clone.graph.filter_nodes(filter)?;
+            Ok(GqlGraph::new(
+                self_clone.path.clone(),
+                filtered_graph.into_dynamic(),
+            ))
+        })
+        .await
+        .unwrap()
     }
 
-    async fn edge_filter(
-        &self,
-        property: String,
-        condition: FilterCondition,
-    ) -> Result<Self, GraphError> {
-        let prop_ref = PropertyRef::Property(property);
-        match condition.operator {
-            Operator::Equal => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::eq(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "Equal".into(),
-                    ))
-                }
-            }
-            Operator::NotEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::ne(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "NotEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::ge(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::LessThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::le(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::gt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThan".into(),
-                    ))
-                }
-            }
-            Operator::LessThan => {
-                if let Some(v) = condition.value {
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::lt(prop_ref.clone(), Prop::try_from(v)?))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThan".into(),
-                    ))
-                }
-            }
-            Operator::IsNone => {
-                let filtered_graph = self
-                    .graph
-                    .filter_edges(PropertyFilter::is_none(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::IsSome => {
-                let filtered_graph = self
-                    .graph
-                    .filter_edges(PropertyFilter::is_some(prop_ref.clone()))?;
-                Ok(GqlGraph::new(
-                    self.path.clone(),
-                    filtered_graph.into_dynamic(),
-                ))
-            }
-            Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::includes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "Any".into(),
-                    ))
-                }
-            }
-            Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_graph = self
-                        .graph
-                        .filter_edges(PropertyFilter::excludes(prop_ref.clone(), prop_values))?;
-                    Ok(GqlGraph::new(
-                        self.path.clone(),
-                        filtered_graph.into_dynamic(),
-                    ))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "NotAny".into(),
-                    ))
-                }
-            }
-        }
+    async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            filter.validate()?;
+            let filter: CompositeEdgeFilter = filter.try_into()?;
+            let filtered_graph = self_clone.graph.filter_edges(filter)?;
+            Ok(GqlGraph::new(
+                self_clone.path.clone(),
+                filtered_graph.into_dynamic(),
+            ))
+        })
+        .await
+        .unwrap()
     }
 
     ////////////////////////
@@ -722,17 +556,25 @@ impl GqlGraph {
         filter: NodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<Node>, GraphError> {
-        self.execute_search(|| {
-            Ok(self
-                .graph
-                .search_nodes(filter.try_into()?, limit, offset)
-                .into_iter()
-                .flatten()
-                .map(|vv| vv.into())
-                .collect())
+    ) -> Result<Vec<GqlNode>, GraphError> {
+        let self_clone = self.clone();
+        spawn(async move {
+            filter.validate()?;
+            let f: CompositeNodeFilter = filter.try_into()?;
+            self_clone
+                .execute_search(|| {
+                    Ok(self_clone
+                        .graph
+                        .search_nodes(f, limit, offset)
+                        .into_iter()
+                        .flatten()
+                        .map(|vv| vv.into())
+                        .collect())
+                })
+                .await
         })
         .await
+        .unwrap()
     }
 
     async fn search_edges(
@@ -740,22 +582,29 @@ impl GqlGraph {
         filter: EdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<Edge>, GraphError> {
-        self.execute_search(|| {
-            Ok(self
-                .graph
-                .search_edges(filter.try_into()?, limit, offset)
-                .into_iter()
-                .flatten()
-                .map(|vv| vv.into())
-                .collect())
+    ) -> Result<Vec<GqlEdge>, GraphError> {
+        let self_clone = self.clone();
+        spawn(async move {
+            filter.validate()?;
+            let f: CompositeEdgeFilter = filter.try_into()?;
+            self_clone
+                .execute_search(|| {
+                    Ok(self_clone
+                        .graph
+                        .search_edges(f, limit, offset)
+                        .into_iter()
+                        .flatten()
+                        .map(|vv| vv.into())
+                        .collect())
+                })
+                .await
         })
         .await
+        .unwrap()
     }
 
     async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
         let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());
-
         for view in views {
             let mut count = 0;
             if let Some(_) = view.default_layer {
@@ -782,10 +631,6 @@ impl GqlGraph {
                 count += 1;
                 return_view = return_view.subgraph(nodes).await;
             }
-            if let Some(nodes) = view.subgraph_id {
-                count += 1;
-                return_view = return_view.subgraph_id(nodes).await;
-            }
             if let Some(types) = view.subgraph_node_types {
                 count += 1;
                 return_view = return_view.subgraph_node_types(types).await;
@@ -793,10 +638,6 @@ impl GqlGraph {
             if let Some(nodes) = view.exclude_nodes {
                 count += 1;
                 return_view = return_view.exclude_nodes(nodes).await;
-            }
-            if let Some(nodes) = view.exclude_nodes_id {
-                count += 1;
-                return_view = return_view.exclude_nodes_id(nodes).await;
             }
             if let Some(window) = view.window {
                 count += 1;
@@ -840,15 +681,11 @@ impl GqlGraph {
             }
             if let Some(node_filter) = view.node_filter {
                 count += 1;
-                return_view = return_view
-                    .node_filter(node_filter.property, node_filter.condition)
-                    .await?;
+                return_view = return_view.node_filter(node_filter).await?;
             }
             if let Some(edge_filter) = view.edge_filter {
                 count += 1;
-                return_view = return_view
-                    .edge_filter(edge_filter.property, edge_filter.condition)
-                    .await?;
+                return_view = return_view.edge_filter(edge_filter).await?;
             }
 
             if count > 1 {

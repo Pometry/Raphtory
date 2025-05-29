@@ -312,7 +312,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
 
 pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
     match arrow_dtype {
-        DataType::LargeUtf8 | DataType::Utf8 => PropType::Str,
+        DataType::LargeUtf8 | DataType::Utf8 | DataType::Utf8View => PropType::Str,
         DataType::UInt8 => PropType::U8,
         DataType::UInt16 => PropType::U16,
         DataType::Int32 => PropType::I32,

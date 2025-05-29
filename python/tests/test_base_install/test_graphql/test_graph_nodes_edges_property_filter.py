@@ -120,13 +120,15 @@ def test_graph_node_property_filter_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          property: "prop5", 
-          condition: {
-            operator: EQUAL, 
-            value: { list: [ {i64: 1}, {i64: 2}, {i64: 3} ] }
+       nodeFilter(
+        filter: {
+            property: {
+                name: "prop5"
+                operator: EQUAL
+                value: { list: [ {i64: 1}, {i64: 2}, {i64: 3} ] }
           }
-        ) {
+        }
+      ) {
           nodes {
             list {
               name
@@ -146,9 +148,11 @@ def test_graph_node_property_filter_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop5", 
-          condition: {
-            operator: EQUAL
+          filter: {
+              property: {
+                  name: "prop5"
+                  operator: EQUAL
+            }
           }
         ) {
           nodes {
@@ -170,10 +174,12 @@ def test_graph_node_property_filter_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop5", 
-          condition: {
-            operator: EQUAL, 
-            value: { i64: 1 }
+          filter: {
+              property: {
+                  name: "prop5"
+                  operator: EQUAL
+                  value: { i64: 1 }
+            }
           }
         ) {
           nodes {
@@ -195,10 +201,12 @@ def test_graph_node_property_filter_not_equal(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop4", 
-          condition: {
-            operator: NOT_EQUAL, 
-            value: { bool: true }
+          filter: {
+              property: {
+                  name: "prop4"
+                  operator: NOT_EQUAL
+                  value: { bool: true }
+            }
           }
         ) {
           nodes {
@@ -222,10 +230,12 @@ def test_graph_node_property_filter_not_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop4", 
-          condition: {
-            operator: NOT_EQUAL
-          }
+            filter: {
+                property: {
+                    name: "prop4"
+                    operator: NOT_EQUAL
+              }
+            }
         ) {
           nodes {
             list {
@@ -246,11 +256,13 @@ def test_graph_node_property_filter_not_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop4", 
-          condition: {
-            operator: NOT_EQUAL, 
-            value: { i64: 1 }
-          }
+            filter: {
+                property: {
+                    name: "prop4"
+                    operator: NOT_EQUAL
+                    value:  { i64: 1 }
+              }
+            }
         ) {
           nodes {
             list {
@@ -271,10 +283,12 @@ def test_graph_node_property_filter_greater_than_or_equal(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL, 
-            value: { i64: 60 }
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: GREATER_THAN_OR_EQUAL
+                  value:  { i64: 60 }
+            }
           }
         ) {
           nodes {
@@ -296,9 +310,11 @@ def test_graph_node_property_filter_greater_than_or_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: GREATER_THAN_OR_EQUAL
+            }
           }
         ) {
           nodes {
@@ -320,12 +336,14 @@ def test_graph_node_property_filter_greater_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL, 
-            value: { bool: true }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: GREATER_THAN_OR_EQUAL
+                    value: { bool: true }
+              }
+            }
+          ) {
           nodes {
             list {
               name
@@ -345,10 +363,12 @@ def test_graph_node_property_filter_less_than_or_equal(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: LESS_THAN_OR_EQUAL, 
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: LESS_THAN_OR_EQUAL
+                  value: { i64: 30 }
+            }
           }
         ) {
           nodes {
@@ -376,9 +396,11 @@ def test_graph_node_property_filter_less_than_or_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: LESS_THAN_OR_EQUAL
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: LESS_THAN_OR_EQUAL
+            }
           }
         ) {
           nodes {
@@ -399,13 +421,15 @@ def test_graph_node_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: LESS_THAN_OR_EQUAL, 
-            value: { str: "shivam" }
-          }
-        ) {
+          nodeFilter(
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: LESS_THAN_OR_EQUAL
+                    value: { str: "shivam" }
+              }
+            }
+          ) {
           nodes {
             list {
               name
@@ -425,10 +449,12 @@ def test_graph_node_property_filter_greater_than(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: GREATER_THAN, 
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: GREATER_THAN
+                  value: { i64: 30 }
+            }
           }
         ) {
           nodes {
@@ -450,10 +476,12 @@ def test_graph_node_property_filter_greater_than_no_value_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: GREATER_THAN
-          }
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: GREATER_THAN
+              }
+            }
         ) {
           nodes {
             list {
@@ -474,12 +502,14 @@ def test_graph_node_property_filter_greater_than_type_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: GREATER_THAN, 
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: GREATER_THAN
+                  value: { str: "shivam" }
+            }
           }
-        ) {
+         ) {
           nodes {
             list {
               name
@@ -499,11 +529,13 @@ def test_graph_node_property_filter_less_than(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: LESS_THAN, 
-            value: { i64: 30 }
-          }
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: LESS_THAN
+                    value: { i64: 30 }
+              }
+            }
         ) {
           nodes {
             list {
@@ -526,9 +558,11 @@ def test_graph_node_property_filter_less_than_no_value_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: LESS_THAN
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: LESS_THAN
+            }
           }
         ) {
           nodes {
@@ -550,12 +584,14 @@ def test_graph_node_property_filter_less_than_type_error(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: LESS_THAN, 
-            value: { str: "shivam" }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: LESS_THAN
+                    value: { str: "shivam" }
+              }
+            }
+          ) {
           nodes {
             list {
               name
@@ -575,9 +611,11 @@ def test_graph_node_property_filter_is_none(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop5", 
-          condition: {
-            operator: IS_NONE
+          filter: {
+              property: {
+                  name: "prop5"
+                  operator: IS_NONE
+            }
           }
         ) {
           nodes {
@@ -600,12 +638,14 @@ def test_graph_node_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          property: "prop5", 
-          condition: {
-            operator: IS_SOME
-          }
-        ) {
+          nodeFilter(
+            filter: {
+                property: {
+                    name: "prop5"
+                    operator: IS_SOME
+              }
+            }
+          ) {
           nodes {
             list {
               name
@@ -622,15 +662,17 @@ def test_graph_node_property_filter_is_some(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_any(graph):
+def test_graph_node_property_filter_is_in(graph):
     query = """
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: ANY,
-            value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: IS_IN
+                  value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
+            }
           }
         ) {
           nodes {
@@ -649,18 +691,20 @@ def test_graph_node_property_filter_any(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_node_property_filter_any_empty_list(graph):
+def test_node_property_filter_is_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
-          nodeFilter(
-            property: "prop1", 
-            condition: {
-              operator: ANY, 
-              value: { list: [] }
-            }
-          ) {
+            nodeFilter(
+              filter: {
+                  property: {
+                      name: "prop1"
+                      operator: IS_IN
+                      value: { list: []}
+                }
+              }
+            ) {
             list {
               name
             }
@@ -674,14 +718,44 @@ def test_node_property_filter_any_empty_list(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_any_no_value_error(graph):
+def test_graph_node_property_filter_is_in_no_value(graph):
     query = """
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: ANY,
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: IS_IN
+                    value: { list: []}
+              }
+            }
+          ) {
+          nodes {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": []}}}}
+    run_graphql_test(query, expected_output, graph())
+
+
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_graph_node_property_filter_is_in_type_error(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodeFilter(
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: IS_IN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           nodes {
@@ -693,47 +767,24 @@ def test_graph_node_property_filter_any_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
+    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_any_type_error(graph):
+def test_graph_node_property_filter_is_not_in_any(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: ANY, 
-            value: { str: "shivam" }
-          }
-        ) {
-          nodes {
-            list {
-              name
+          nodeFilter(
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: IS_NOT_IN
+                    value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
+              }
             }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Expected a list for Any operator"
-    run_graphql_error_test(query, expected_error_message, graph())
-
-
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_not_any(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: NOT_ANY,
-            value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
-          }
-        ) {
+          ) {
           nodes {
             list {
               name
@@ -750,16 +801,18 @@ def test_graph_node_property_filter_not_any(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_node_property_filter_not_any_empty_list(graph):
+def test_node_property_filter_not_is_not_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
-          nodeFilter(
-            property: "prop1", 
-            condition: {
-              operator: NOT_ANY, 
-              value: { list: [] }
+         nodeFilter(
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: IS_NOT_IN
+                    value: { list: []}
+              }
             }
           ) {
             list {
@@ -783,14 +836,16 @@ def test_node_property_filter_not_any_empty_list(graph):
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_not_any_no_value_error(graph):
+def test_graph_node_property_filter_is_not_in_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
         nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: NOT_ANY,
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: IS_NOT_IN
+            }
           }
         ) {
           nodes {
@@ -802,20 +857,52 @@ def test_graph_node_property_filter_not_any_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
+    expected_error_message = "Expected a value for IsNotIn operator"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_node_property_filter_not_any_type_error(graph):
+def test_graph_node_property_filter_is_not_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          property: "prop1", 
-          condition: {
-            operator: NOT_ANY, 
-            value: { str: "shivam" }
+          nodeFilter(
+            filter: {
+                property: {
+                    name: "prop1"
+                    operator: IS_NOT_IN
+                    value: { str: "shivam" }
+              }
+            }
+          ) {
+          nodes {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
+    run_graphql_error_test(query, expected_error_message, graph())
+
+
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_graph_node_not_property_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodeFilter (
+          filter: {
+            not: 
+              {
+                property: {
+                  name: "prop5"
+                  operator: EQUAL
+                  value: { list: [ {i64: 1}, {i64: 2} ] }
+              	}
+              }
           }
         ) {
           nodes {
@@ -827,8 +914,16 @@ def test_graph_node_property_filter_not_any_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
-    run_graphql_error_test(query, expected_error_message, graph())
+    expected_output = {
+        "graph": {
+            "nodeFilter": {
+                "nodes": {
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph())
 
 
 # Edge property filter is not supported yet for PersistentGraph
@@ -838,10 +933,12 @@ def test_graph_edge_property_filter_equal(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5", 
-          condition: {
-            operator: EQUAL,
-            value: { list: [{i64: 1},{i64: 2},{i64: 3}]}
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: EQUAL
+                  value: { list: [{i64: 1},{i64: 2},{i64: 3}]}
+            }
           }
         ) {
           edges {
@@ -868,13 +965,15 @@ def test_graph_edge_property_filter_equal_persistent_graph():
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          property: "eprop5", 
-          condition: {
-            operator: EQUAL,
-            value: { list: [{i64: 1},{i64: 2},{i64: 3}]}
-          }
-        ) {
+          edgeFilter(
+            filter: {
+                property: {
+                    name: "eprop5"
+                    operator: EQUAL
+                    value: { list: [{i64: 1},{i64: 2},{i64: 3}]}
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -895,9 +994,11 @@ def test_graph_edge_property_filter_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: EQUAL
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: EQUAL
+            }
           }
         ) {
           edges {
@@ -921,12 +1022,14 @@ def test_graph_edge_property_filter_equal_type_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: EQUAL,
-            value: { i64: 1 }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop5"
+                    operator: EQUAL
+                    value: { i64: 1 }
+              }
+            }
+          ) {
           nodes {
             list {
               name
@@ -945,10 +1048,12 @@ def test_graph_edge_property_filter_equal_type_error_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: EQUAL,
-            value: { i64: 1 }
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: EQUAL
+                  value: { i64: 1 }
+            }
           }
         ) {
           nodes {
@@ -971,12 +1076,14 @@ def test_graph_edge_property_filter_not_equal(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop4",
-          condition: {
-            operator: NOT_EQUAL,
-            value: { bool: true }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop4"
+                    operator: NOT_EQUAL
+                    value: { bool: true }
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -1001,11 +1108,13 @@ def test_graph_edge_property_filter_not_equal_persistent_graph():
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          property: "eprop4",
-          condition: {
-            operator: NOT_EQUAL,
-            value: { bool: true }
+         edgeFilter(
+          filter: {
+              property: {
+                  name: "eprop4"
+                  operator: NOT_EQUAL
+                  value: { bool: true }
+            }
           }
         ) {
           edges {
@@ -1028,11 +1137,13 @@ def test_graph_edge_property_filter_not_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop4",
-          condition: {
-            operator: NOT_EQUAL
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop4"
+                    operator: NOT_EQUAL
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -1054,10 +1165,12 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop4",
-          condition: {
-            operator: NOT_EQUAL,
-            value: { i64: 1 }
+          filter: {
+              property: {
+                  name: "eprop4"
+                  operator: NOT_EQUAL
+                  value: { i64: 1 }
+            }
           }
         ) {
           edges {
@@ -1079,12 +1192,14 @@ def test_graph_edge_property_filter_not_equal_type_error_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop4",
-          condition: {
-            operator: NOT_EQUAL,
-            value: { i64: 1 }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop4"
+                    operator: NOT_EQUAL
+                    value: { i64: 1 }
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -1106,10 +1221,12 @@ def test_graph_edge_property_filter_greater_than_or_equal(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL,
-            value: { i64: 60 }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN_OR_EQUAL
+                  value: { i64: 60 }
+            }
           }
         ) {
           edges {
@@ -1137,12 +1254,14 @@ def test_graph_edge_property_filter_greater_than_or_equal_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL,
-            value: { i64: 60 }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop1"
+                    operator: GREATER_THAN_OR_EQUAL
+                    value: { i64: 60 }
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -1163,9 +1282,11 @@ def test_graph_edge_property_filter_greater_than_or_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN_OR_EQUAL
+            }
           }
         ) {
           edges {
@@ -1189,12 +1310,14 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL,
-            value: { bool: true }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop1"
+                    operator: GREATER_THAN_OR_EQUAL
+                    value: { bool: true }
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -1214,10 +1337,12 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error_persistent_
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN_OR_EQUAL,
-            value: { bool: true }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN_OR_EQUAL
+                  value: { bool: true }
+            }
           }
         ) {
           edges {
@@ -1241,12 +1366,14 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN_OR_EQUAL,
-            value: { i64: 30 }
-          }
-        ) {
+            filter: {
+                property: {
+                    name: "eprop1"
+                    operator: LESS_THAN_OR_EQUAL
+                    value: { i64: 30 }
+              }
+            }
+          ) {
           edges {
             list {
               src{name}
@@ -1277,10 +1404,12 @@ def test_graph_edge_property_filter_less_than_or_equal_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN_OR_EQUAL,
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN_OR_EQUAL
+                  value: { i64: 30 }
+            }
           }
         ) {
           edges {
@@ -1303,9 +1432,11 @@ def test_graph_edge_property_filter_less_than_or_equal_no_value_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN_OR_EQUAL
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN_OR_EQUAL
+            }
           }
         ) {
           edges {
@@ -1329,10 +1460,12 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN_OR_EQUAL,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN_OR_EQUAL
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1354,10 +1487,12 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error_persistent_gra
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN_OR_EQUAL,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN_OR_EQUAL
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1381,10 +1516,12 @@ def test_graph_edge_property_filter_greater_than(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN,
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN
+                  value: { i64: 30 }
+            }
           }
         ) {
           edges {
@@ -1412,10 +1549,12 @@ def test_graph_edge_property_filter_greater_than_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN,
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN
+                  value: { i64: 30 }
+            }
           }
         ) {
           edges {
@@ -1438,9 +1577,11 @@ def test_graph_edge_property_filter_greater_than_no_value_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN
+            }
           }
         ) {
           edges {
@@ -1464,10 +1605,12 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1489,10 +1632,12 @@ def test_graph_edge_property_filter_greater_than_type_error_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: GREATER_THAN,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: GREATER_THAN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1516,10 +1661,12 @@ def test_graph_edge_property_filter_less_than(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN,
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN
+                  value: { i64: 30 }
+            }
           }
         ) {
           edges {
@@ -1547,10 +1694,12 @@ def test_graph_edge_property_filter_less_than_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN,
-            value: { i64: 30 }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN
+                  value: { i64: 30 }
+            }
           }
         ) {
           edges {
@@ -1573,9 +1722,11 @@ def test_graph_edge_property_filter_less_than_no_value_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN
+            }
           }
         ) {
           edges {
@@ -1599,10 +1750,12 @@ def test_graph_edge_property_filter_less_than_type_error(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1624,10 +1777,12 @@ def test_graph_edge_property_filter_less_than_type_error_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: LESS_THAN,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: LESS_THAN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1651,9 +1806,11 @@ def test_graph_edge_property_filter_is_none(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: IS_NONE
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: IS_NONE
+            }
           }
         ) {
           edges {
@@ -1675,9 +1832,11 @@ def test_graph_edge_property_filter_is_none_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: IS_NONE
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: IS_NONE
+            }
           }
         ) {
           edges {
@@ -1701,9 +1860,11 @@ def test_graph_edge_property_filter_is_some(graph):
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: IS_SOME
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: IS_SOME
+            }
           }
         ) {
           edges {
@@ -1737,9 +1898,11 @@ def test_graph_edge_property_filter_is_some_persistent_graph():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop5",
-          condition: {
-            operator: IS_SOME
+          filter: {
+              property: {
+                  name: "eprop5"
+                  operator: IS_SOME
+            }
           }
         ) {
           edges {
@@ -1758,15 +1921,17 @@ def test_graph_edge_property_filter_is_some_persistent_graph():
 
 # Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [Graph])
-def test_graph_edge_property_filter_any(graph):
+def test_graph_edge_property_filter_is_in(graph):
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: ANY,
-            value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_IN
+                  value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+            }
           }
         ) {
           edges {
@@ -1794,15 +1959,17 @@ def test_graph_edge_property_filter_any(graph):
     run_graphql_test(query, expected_output, graph())
 
 
-def test_graph_edge_property_filter_any_persistent_graph():
+def test_graph_edge_property_filter_is_in_persistent_graph():
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: ANY,
-            value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_IN
+                  value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+            }
           }
         ) {
           edges {
@@ -1821,15 +1988,17 @@ def test_graph_edge_property_filter_any_persistent_graph():
 
 # Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [Graph])
-def test_graph_edge_property_filter_any_empty_list(graph):
+def test_graph_edge_property_filter_is_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: ANY,
-            value: { list: [] }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_IN
+                  value: { list: []}
+            }
           }
         ) {
           edges {
@@ -1846,15 +2015,17 @@ def test_graph_edge_property_filter_any_empty_list(graph):
     run_graphql_test(query, expected_output, graph())
 
 
-def test_graph_edge_property_filter_any_empty_list_persistent_graph():
+def test_graph_edge_property_filter_is_in_empty_list_persistent_graph():
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: ANY,
-            value: { list: [] }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_IN
+                  value: { list: []}
+            }
           }
         ) {
           edges {
@@ -1872,14 +2043,16 @@ def test_graph_edge_property_filter_any_empty_list_persistent_graph():
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_property_filter_any_no_value_error(graph):
+def test_graph_edge_property_filter_is_in_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "prop1",
-          condition: {
-            operator: ANY,
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: IS_IN
+            }
           }
         ) {
           edges {
@@ -1892,20 +2065,21 @@ def test_graph_edge_property_filter_any_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
+    expected_error_message = "Expected a value for IsIn operator"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_property_filter_any_type_error(graph):
+def test_graph_edge_property_filter_is_in_type_error():
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "prop1",
-          condition: {
-            operator: ANY,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_IN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -1918,21 +2092,50 @@ def test_graph_edge_property_filter_any_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for Any operator"
-    run_graphql_error_test(query, expected_error_message, graph())
+    expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
+    run_graphql_error_test(query, expected_error_message, Graph())
+
+
+def test_graph_edge_property_filter_is_in_type_error_persistent_graph():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter(
+          filter: {
+              property: {
+                  name: "prop1"
+                  operator: IS_IN
+                  value: { str: "shivam" }
+            }
+          }
+        ) {
+          edges {
+            list {
+              src{name}
+              dst{name}
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_error_message = "Property filtering not implemented on PersistentGraph yet"
+    run_graphql_error_test(query, expected_error_message, PersistentGraph())
 
 
 # Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [Graph])
-def test_graph_edge_property_filter_not_any(graph):
+def test_graph_edge_property_filter_is_not_in(graph):
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: NOT_ANY,
-            value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+            }
           }
         ) {
           edges {
@@ -1955,15 +2158,17 @@ def test_graph_edge_property_filter_not_any(graph):
     run_graphql_test(query, expected_output, graph())
 
 
-def test_graph_edge_property_filter_not_any_persistent_graph():
+def test_graph_edge_property_filter_is_not_in_persistent_graph():
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: NOT_ANY,
-            value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
+            }
           }
         ) {
           edges {
@@ -1982,15 +2187,17 @@ def test_graph_edge_property_filter_not_any_persistent_graph():
 
 # Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [Graph])
-def test_graph_edge_property_filter_not_any_empty_list(graph):
+def test_graph_edge_property_filter_is_not_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: NOT_ANY,
-            value: { list: [] }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { list: []}
+            }
           }
         ) {
           edges {
@@ -2019,15 +2226,17 @@ def test_graph_edge_property_filter_not_any_empty_list(graph):
     run_graphql_test(query, expected_output, graph())
 
 
-def test_graph_edge_property_filter_not_any_empty_list_persistent_graph():
+def test_graph_edge_property_filter_is_not_in_empty_list_persistent_graph():
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: NOT_ANY,
-            value: { list: [] }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { list: []}
+            }
           }
         ) {
           edges {
@@ -2045,14 +2254,16 @@ def test_graph_edge_property_filter_not_any_empty_list_persistent_graph():
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_property_filter_not_any_no_value_error(graph):
+def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: NOT_ANY,
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+            }
           }
         ) {
           edges {
@@ -2065,20 +2276,21 @@ def test_graph_edge_property_filter_not_any_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
+    expected_error_message = "Expected a value for IsNotIn operator"
     run_graphql_error_test(query, expected_error_message, graph())
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
-def test_graph_edge_property_filter_not_any_type_error(graph):
+def test_graph_edge_property_filter_is_not_in_type_error():
     query = """
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop1",
-          condition: {
-            operator: NOT_ANY,
-            value: { str: "shivam" }
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { str: "shivam" }
+            }
           }
         ) {
           edges {
@@ -2091,5 +2303,74 @@ def test_graph_edge_property_filter_not_any_type_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a list for NotAny operator"
-    run_graphql_error_test(query, expected_error_message, graph())
+    expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
+    run_graphql_error_test(query, expected_error_message, Graph())
+
+
+def test_graph_edge_property_filter_is_not_in_type_error_persistent_graph():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter(
+          filter: {
+              property: {
+                  name: "eprop1"
+                  operator: IS_NOT_IN
+                  value: { str: "shivam" }
+            }
+          }
+        ) {
+          edges {
+            list {
+              src{name}
+              dst{name}
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_error_message = "Property filtering not implemented on PersistentGraph yet"
+    run_graphql_error_test(query, expected_error_message, PersistentGraph())
+
+
+def test_graph_edge_not_property_filter():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter (
+          filter: {
+            not: 
+              {
+                property: {
+                  name: "eprop5"
+                  operator: EQUAL
+                  value: { list: [{i64: 1},{i64: 2}]}
+              	}
+              }
+          }
+        ) {
+          edges {
+              list {
+                src{name}
+                dst{name}
+              }
+            }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edgeFilter": {
+                "edges": {
+                    "list": [
+                        {"dst": {"name": "d"}, "src": {"name": "a"}},
+                        {"dst": {"name": "d"}, "src": {"name": "b"}},
+                        {"dst": {"name": "d"}, "src": {"name": "c"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, Graph())

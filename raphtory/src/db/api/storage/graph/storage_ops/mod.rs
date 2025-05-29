@@ -326,9 +326,9 @@ impl GraphStorage {
                     .par_iter()
                     .filter(|node| view.filter_node(*node, layer_ids))
                     .count(),
-                NodeList::List { nodes } => {
+                NodeList::List { elems } => {
                     let nodes_storage = self.nodes();
-                    nodes
+                    elems
                         .par_iter()
                         .filter(|&vid| view.filter_node(nodes_storage.node(vid), layer_ids))
                         .count()
@@ -431,8 +431,8 @@ impl GraphStorage {
         view: G,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
         match view.node_list() {
-            NodeList::List { nodes } => {
-                return nodes
+            NodeList::List { elems } => {
+                return elems
                     .into_iter()
                     .flat_map(move |v| {
                         self.clone()

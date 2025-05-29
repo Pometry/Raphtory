@@ -26,6 +26,7 @@ impl IntoWindowTuple for Option<Window> {
 }
 
 #[derive(ResolvedObject)]
+#[graphql(name = "VectorisedGraph")]
 pub(crate) struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
 
 impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
