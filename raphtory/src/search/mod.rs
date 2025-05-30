@@ -714,6 +714,30 @@ mod test_index {
 
         #[test]
         fn test_no_new_node_prop_index_created_via_update_apis() {
+            run_node_index_test(|graph, index_spec| {
+                graph.create_index_with_spec(index_spec.clone())
+            });
+
+            run_node_index_test(|graph, index_spec| {
+                graph.create_index_in_ram_with_spec(index_spec.clone())
+            });
+        }
+
+        #[test]
+        fn test_no_new_edge_prop_index_created_via_update_apis() {
+            run_edge_index_test(|graph, index_spec| {
+                graph.create_index_with_spec(index_spec.clone())
+            });
+
+            run_edge_index_test(|graph, index_spec| {
+                graph.create_index_in_ram_with_spec(index_spec.clone())
+            });
+        }
+
+        fn run_node_index_test<F>(create_index_fn: F)
+        where
+            F: Fn(&Graph, IndexSpec) -> Result<(), GraphError>,
+        {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -722,7 +746,7 @@ mod test_index {
                 .with_temp_node_props(vec!["p1"])
                 .unwrap()
                 .build();
-            graph.create_index_with_spec(index_spec.clone()).unwrap();
+            create_index_fn(&graph, index_spec.clone()).unwrap();
 
             let filter = PropertyFilter::property("p2").temporal().latest().eq(50u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["pometry"]);
@@ -731,6 +755,7 @@ mod test_index {
                 .add_node(1, "shivam", [("p1", 100u64)], Some("fire_nation"))
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
+
             let filter = PropertyFilter::property("p1")
                 .temporal()
                 .latest()
@@ -748,8 +773,10 @@ mod test_index {
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
         }
 
-        #[test]
-        fn test_no_new_edge_prop_index_created_via_update_apis() {
+        fn run_edge_index_test<F>(create_index_fn: F)
+        where
+            F: Fn(&Graph, IndexSpec) -> Result<(), GraphError>,
+        {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -758,13 +785,12 @@ mod test_index {
                 .with_temp_node_props(vec!["p2"])
                 .unwrap()
                 .build();
-            graph.create_index_with_spec(index_spec.clone()).unwrap();
+            create_index_fn(&graph, index_spec.clone()).unwrap();
 
             let edge = graph
                 .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-
             let filter = PropertyFilter::property("p1")
                 .temporal()
                 .latest()
@@ -772,9 +798,6 @@ mod test_index {
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.add_constant_properties([("z", true)], None).unwrap();
-            let edge2 = graph.edge("shivam", "kapoor").unwrap();
-            let prop = edge2.properties().constant().get("z").unwrap();
-
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let filter = PropertyFilter::property("z").constant().eq(true);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);

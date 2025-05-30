@@ -440,7 +440,7 @@ impl EdgeIndex {
         self.entity_index.delete_const_properties_index_docs(
             edge_id.as_u64(),
             &mut const_writers,
-            const_property_ids
+            const_property_ids,
         )?;
 
         // Reindex the edge's constant properties

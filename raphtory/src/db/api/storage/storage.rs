@@ -170,13 +170,18 @@ impl Storage {
         &self,
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
-        let index = self.index.get_or_try_init(|| {
-            Ok::<_, GraphError>(GraphIndex::create(&self.graph, true, None, index_spec)?)
-        })?;
-        if index.path.is_some() {
-            Err(GraphError::FailedToCreateIndexInRam)
+        if let Some(index) = self.index.get() {
+            if index.path.is_some() {
+                Err(GraphError::FailedToCreateIndexInRam)
+            } else {
+                index.update(&self.graph, index_spec.clone())?;
+                Ok(index)
+            }
         } else {
-            Ok(index)
+            self.index.get_or_try_init(|| {
+                let index = GraphIndex::create(&self.graph, true, None, index_spec)?;
+                Ok(index)
+            })
         }
     }
 

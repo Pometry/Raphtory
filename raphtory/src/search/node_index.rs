@@ -426,7 +426,7 @@ impl NodeIndex {
         self.entity_index.delete_const_properties_index_docs(
             node_id.as_u64(),
             &mut const_writers,
-            const_property_ids
+            const_property_ids,
         )?;
 
         // Reindex the node's constant properties

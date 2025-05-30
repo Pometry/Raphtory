@@ -239,8 +239,8 @@ impl EntityIndex {
         for (prop_id, prop_value) in props {
             if let Some(Some(writer)) = writers.get(prop_id) {
                 if let Some(index) = &indexes[prop_id] {
-                    let prop_doc = index
-                        .create_node_const_property_document(node_id, prop_value.borrow())?;
+                    let prop_doc =
+                        index.create_node_const_property_document(node_id, prop_value.borrow())?;
                     writer.add_document(prop_doc)?;
                 }
             }
