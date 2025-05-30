@@ -811,3 +811,50 @@ def test_graph_node_not_property_filter(graph):
         }
     }
     run_graphql_test(query, expected_output, graph())
+
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_graph_node_type_and_property_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(filter: {
+            and: [{
+              node: {
+              field: NODE_TYPE,
+              operator: IS_IN,
+              value:  {
+                list: [
+                  {str: "fire_nation"},
+                  {str: "water_tribe"}
+                ]
+              }
+              }
+            },{
+              property: {
+                name: "prop2",
+                operator: GREATER_THAN,
+                value: { f64:1 }
+              }
+            }]
+          }) {
+            count
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+          "nodes": {
+            "nodeFilter": {
+              "count": 3,
+              "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}]
+            }
+          }
+        }
+    }
+    run_graphql_test(query, expected_output, graph())

@@ -298,40 +298,44 @@ def create_test_graph(g):
     g.add_node(
         1,
         "a",
-        properties={
+        {
             "prop1": 60,
             "prop2": 31.3,
             "prop3": "abc123",
             "prop4": True,
             "prop5": [1, 2, 3],
-        }
+        },
+        "fire_nation"
     )
     g.add_node(
         1,
         "b",
-        properties={"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False}
+        {"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False},
+        "fire_nation"
     )
     g.add_node(
         1,
         "c",
-        properties={
+        {
             "prop1": 20,
             "prop2": 31.3,
             "prop3": "abc333",
             "prop4": True,
             "prop5": [5, 6, 7],
-        }
+        },
+        "water_tribe"
     )
     g.add_node(
         1,
         "d",
-        properties={"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False}
+        {"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False},
+        "air_nomads"
     )
     g.add_edge(
         2,
         "a",
         "d",
-        properties={
+        {
             "eprop1": 60,
             "eprop2": 0.4,
             "eprop3": "xyz123",
@@ -343,7 +347,7 @@ def create_test_graph(g):
         2,
         "b",
         "d",
-        properties={
+        {
             "eprop1": 10,
             "eprop2": 1.7,
             "eprop3": "xyz123",
@@ -355,7 +359,7 @@ def create_test_graph(g):
         2,
         "c",
         "d",
-        properties={
+        {
             "eprop1": 30,
             "eprop2": 6.4,
             "eprop3": "xyz123",
