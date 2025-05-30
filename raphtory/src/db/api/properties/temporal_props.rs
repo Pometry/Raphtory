@@ -5,7 +5,7 @@ use crate::{
 use arrow_array::ArrayRef;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeError};
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
@@ -35,7 +35,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         // TODO: Change this to history object?
         self.props.temporal_history_iter(self.id)
     }
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.props.temporal_history_date_time(self.id)
     }
     pub fn values(&self) -> BoxedLIter<Prop> {
@@ -50,10 +50,12 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         self.iter()
     } // TODO: What about histories?
 
-    pub fn histories_date_time(&self) -> Option<impl Iterator<Item = (DateTime<Utc>, Prop)>> {
+    pub fn histories_date_time(
+        &self,
+    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, TimeError> {
         let hist = self.history_date_time()?;
         let vals = self.values().collect::<Vec<_>>();
-        Some(hist.into_iter().zip(vals))
+        Ok(hist.into_iter().zip(vals))
     }
 
     pub fn at(&self, t: i64) -> Option<Prop> {

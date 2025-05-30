@@ -3,15 +3,42 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
 
+/// Error type for timestamp to chrono::DateTime<Utc> conversion operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TimeError {
+    /// The timestamp value is out of range for chrono::DateTime<Utc> conversion
+    OutOfRange(i64),
+    /// The related time information was not found
+    NotFound(String),
+}
+
+impl fmt::Display for TimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let min = DateTime::<Utc>::MIN_UTC.timestamp_millis();
+        let max = DateTime::<Utc>::MAX_UTC.timestamp_millis();
+        match self {
+            TimeError::OutOfRange(timestamp) => {
+                write!(f, "Timestamp {} is out of range for DateTime conversion. Valid range is from {} to {}", timestamp, min, max)
+            }
+            TimeError::NotFound(information) => {
+                write!(f, "{} was not found", information)
+            }
+        }
+    }
+}
+
+impl std::error::Error for TimeError {}
+
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub struct TimeIndexEntry(pub i64, pub usize);
 
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn t(&self) -> i64;
 
-    fn dt(&self) -> Option<DateTime<Utc>> {
+    /// Converts the timestamp into a UTC DateTime. Returns TimestampError on out-of-range timestamps.
+    fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         let t = self.t();
-        DateTime::from_timestamp_millis(t)
+        DateTime::from_timestamp_millis(t).ok_or(TimeError::OutOfRange(t))
     }
 
     fn range(w: Range<i64>) -> Range<Self>;

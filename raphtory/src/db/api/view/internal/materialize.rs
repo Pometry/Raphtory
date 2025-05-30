@@ -39,7 +39,7 @@ use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
         entities::GidType,
-        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+        storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeError},
     },
     GraphType,
 };

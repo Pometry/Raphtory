@@ -1,26 +1,22 @@
-use crate::db::api::view::history::*;
-use crate::db::api::view::TimeIndex;
-use crate::db::graph::node::NodeView;
 use crate::{
-    db::api::{
-        state::{ops::NodeOpFilter, NodeOp},
-        storage::graph::storage_ops::GraphStorage,
+    db::{
+        api::{
+            state::{ops::NodeOpFilter, NodeOp},
+            storage::graph::storage_ops::GraphStorage,
+            view::history::History,
+        },
+        graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
-use chrono::Utc;
-use itertools::Itertools;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-// TODO: Change this definitely
-pub struct EarliestTimestamp<G> {
+pub struct EarliestTime<G> {
     pub(crate) graph: G,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTimestamp<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
     type Output = Option<i64>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
@@ -28,9 +24,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTimestamp<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EarliestTimestamp<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EarliestTime<G> {
     type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = EarliestTimestamp<GH>;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = EarliestTime<GH>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -40,50 +36,18 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EarliestTimestamp
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
-        EarliestTimestamp {
+        EarliestTime {
             graph: filtered_graph,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-// TODO: Change this definitely
-pub struct EarliestDateTime<G> {
+pub struct LatestTime<G> {
     pub(crate) graph: G,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestDateTime<G> {
-    type Output = Option<chrono::DateTime<Utc>>;
-
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_earliest_time(node).map(|t| t.dt())?
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EarliestDateTime<G> {
-    type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = EarliestDateTime<GH>;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
-
-    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
-        &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
-        EarliestDateTime {
-            graph: filtered_graph,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LatestTimestamp<G> {
-    pub(crate) graph: G,
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTimestamp<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
     type Output = Option<i64>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
@@ -91,9 +55,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTimestamp<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTimestamp<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
     type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = LatestTimestamp<GH>;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = LatestTime<GH>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -103,38 +67,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTimestamp<G
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
-        LatestTimestamp {
-            graph: filtered_graph,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LatestDateTime<G> {
-    pub(crate) graph: G,
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestDateTime<G> {
-    type Output = Option<chrono::DateTime<Utc>>;
-
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_latest_time(node).map(|t| t.dt())?
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestDateTime<G> {
-    type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = LatestDateTime<GH>;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
-
-    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
-        &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
-        LatestDateTime {
+        LatestTime {
             graph: filtered_graph,
         }
     }

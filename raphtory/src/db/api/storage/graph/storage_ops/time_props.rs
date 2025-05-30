@@ -12,7 +12,7 @@ use crate::{
 };
 use raphtory_api::core::storage::{
     arc_str::ArcStr,
-    timeindex::{AsTime, TimeIndexEntry},
+    timeindex::{AsTime, TimeError, TimeIndexEntry},
 };
 
 impl TemporalPropertyViewOps for GraphStorage {
@@ -52,10 +52,21 @@ impl TemporalPropertyViewOps for GraphStorage {
         })
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<chrono::DateTime<chrono::Utc>>> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .and_then(|prop| prop.iter_t().map(|(t, _)| t.dt()).collect())
+    fn temporal_history_date_time(
+        &self,
+        id: usize,
+    ) -> Result<Vec<chrono::DateTime<chrono::Utc>>, TimeError> {
+        match self.graph_meta().get_temporal_prop(id) {
+            Some(tprop) => tprop
+                .iter_t()
+                .map(|(t, _)| t.dt())
+                .collect::<Result<Vec<_>, TimeError>>(),
+            None => {
+                let err_string =
+                    format!("History for property {}", self.get_temporal_prop_name(id));
+                Err(TimeError::NotFound(err_string))
+            }
+        }
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {

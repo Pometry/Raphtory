@@ -583,9 +583,9 @@ mod db_tests {
 
             assert!(graph.start().is_none());
             assert!(graph.end().is_none());
-            assert!(graph.earliest_date_time().is_none());
+            assert!(graph.earliest_date_time().is_err());
             assert_eq!(graph.earliest_time(), None);
-            assert!(graph.end_date_time().is_none());
+            assert!(graph.end_date_time().is_err());
             assert!(graph.timeline_end().is_none());
 
             assert!(graph.is_empty());
@@ -603,7 +603,7 @@ mod db_tests {
             assert!(graph.latest_time_global().is_none());
             assert!(graph.latest_time_window(1, 2).is_none());
             assert!(graph.latest_time().is_none());
-            assert!(graph.latest_date_time().is_none());
+            assert!(graph.latest_date_time().is_err());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.earliest_time_global().is_none());
         });

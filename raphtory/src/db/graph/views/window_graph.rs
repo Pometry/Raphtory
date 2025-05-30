@@ -53,8 +53,8 @@ use crate::{
             view::{
                 internal::{
                     Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable,
-                    InheritCoreOps, InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps,
-                    NodeHistoryFilter, NodeList, Static, TimeSemantics,
+                    InheritCoreOps, InheritLayerOps, InheritMaterialize, InheritStorageOps,
+                    ListOps, NodeFilterOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -64,6 +64,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::timeindex::TimeError;
 use raphtory_api::{
     core::{
         entities::EID,
@@ -76,8 +77,6 @@ use std::{
     iter,
     ops::Range,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]
@@ -326,14 +325,14 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
         if self.window_is_empty() {
-            return Some(vec![]);
+            return Ok(vec![]);
         }
         self.temporal_prop_vec(id)
             .into_iter()
             .map(|(t, _)| t.dt())
-            .collect()
+            .collect::<Result<Vec<_>, TimeError>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
