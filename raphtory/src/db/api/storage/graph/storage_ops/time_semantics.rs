@@ -30,12 +30,18 @@ use raphtory_api::core::{
 use rayon::iter::ParallelIterator;
 
 impl TimeSemantics for GraphStorage {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.node_entry(v).additions().first_t()
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry> {
+        self.node_entry(v)
+            .additions()
+            .first_t()
+            .map(|t| TimeIndexEntry::from(t))
     }
 
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.node_entry(v).additions().last_t()
+    fn node_latest_time(&self, v: VID) -> Option<TimeIndexEntry> {
+        self.node_entry(v)
+            .additions()
+            .last_t()
+            .map(|t| TimeIndexEntry::from(t))
     }
 
     fn view_start(&self) -> Option<i64> {

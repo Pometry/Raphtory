@@ -1,8 +1,5 @@
 use std::iter;
 
-use chrono::{DateTime, Utc};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -17,6 +14,11 @@ use crate::{
         },
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+};
+use chrono::{DateTime, Utc};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::ArcStr, timeindex::TimeError},
 };
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
@@ -68,13 +70,13 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn history_counts(&self) -> Self::ValueType<usize>;
 
     /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
-    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
+    fn history_date_time(&self) -> Self::ValueType<Result<Vec<DateTime<Utc>>, TimeError>>;
 
     /// List the deletion timestamps for the edge
     fn deletions(&self) -> Self::ValueType<Vec<i64>>;
 
     /// List the deletion timestamps for the edge as NaiveDateTime objects if parseable
-    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
+    fn deletions_date_time(&self) -> Self::ValueType<Result<Vec<DateTime<Utc>>, TimeError>>;
 
     /// Check that the latest status of the edge is valid (i.e., not deleted)
     fn is_valid(&self) -> Self::ValueType<bool>;
@@ -111,9 +113,9 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+    fn earliest_date_time(&self) -> Self::ValueType<Result<DateTime<Utc>, TimeError>>;
 
-    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+    fn latest_date_time(&self) -> Self::ValueType<Result<DateTime<Utc>, TimeError>>;
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
@@ -121,7 +123,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
-    fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+    fn date_time(&self) -> Self::ValueType<Result<DateTime<Utc>, TimeError>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
@@ -154,8 +156,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| g.edge_exploded_count(g.core_edge(e.pid()).as_ref(), g.layer_ids()))
     }
 
-    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(move |g, e| g.edge_history(e, g.layer_ids()).map(|t| t.dt()).collect())
+    fn history_date_time(&self) -> Self::ValueType<Result<Vec<DateTime<Utc>>, TimeError>> {
+        self.map(move |g, e| {
+            g.edge_history(e, g.layer_ids())
+                .map(|t| t.dt())
+                .collect::<Result<Vec<_>, TimeError>>()
+        })
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
@@ -166,12 +172,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
+    fn deletions_date_time(&self) -> Self::ValueType<Result<Vec<DateTime<Utc>>, TimeError>> {
         self.map(|g, e| {
             g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
                 .into_iter()
                 .map(|t| t.dt())
-                .collect()
+                .collect::<Result<Vec<_>, TimeError>>()
         })
     }
 
@@ -245,18 +251,22 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e)))
     }
 
-    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        self.map(|g, e| {
-            g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e))?
-                .dt()
-        })
+    fn earliest_date_time(&self) -> Self::ValueType<Result<DateTime<Utc>, TimeError>> {
+        self.map(
+            |g, e| match g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e)) {
+                Some(t) => t.dt(),
+                None => Err(TimeError::NotFound("Earliest activity".to_string())),
+            },
+        )
     }
 
-    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        self.map(|g, e| {
-            g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))?
-                .dt()
-        })
+    fn latest_date_time(&self) -> Self::ValueType<Result<DateTime<Utc>, TimeError>> {
+        self.map(
+            |g, e| match g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e)) {
+                Some(t) => t.dt(),
+                None => Err(TimeError::NotFound("Latest activity".to_string())),
+            },
+        )
     }
 
     /// Gets the latest time an edge was updated
@@ -269,8 +279,14 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|_, e| e.time_t().ok_or_else(|| GraphError::TimeAPIError))
     }
 
-    fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        self.map(|_, e| e.time_t()?.dt())
+    // could not match the error type of time() because dt() returns a different error type
+    fn date_time(&self) -> Self::ValueType<Result<DateTime<Utc>, TimeError>> {
+        self.map(|_, e| match e.time_t() {
+            Some(t) => t.dt(),
+            None => Err(TimeError::NotFound(
+                "Time information for the edge".to_string(),
+            )),
+        })
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer

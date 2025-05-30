@@ -4,7 +4,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::storage::{
+    arc_str::ArcStr,
+    timeindex::{TimeError, TimeIndexEntry},
+};
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
@@ -13,17 +16,18 @@ pub trait TemporalPropertyViewOps {
         self.temporal_values(id).last().cloned()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64>;
+    fn temporal_history(&self, id: usize) -> Vec<i64>; // TODO: Change this to Vec<TimeIndexEntry> and fix all the errors that come
 
     fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        // TODO: Change too
         Box::new(self.temporal_history(id).into_iter())
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.temporal_history(id)
             .iter()
             .map(|t| t.dt())
-            .collect::<Option<Vec<_>>>()
+            .collect::<Result<Vec<_>, TimeError>>()
     }
     fn temporal_values(&self, id: usize) -> Vec<Prop>;
 
@@ -106,7 +110,7 @@ where
         self.base().temporal_history(id)
     }
     #[inline]
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.base().temporal_history_date_time(id)
     }
 

@@ -556,14 +556,14 @@ impl_node_state_ord!(
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 impl_lazy_node_state_ord!(
-    HistoryView<ops::History<DynamicGraph>>,
+    HistoryView<ops::HistoryOp<DynamicGraph>>,
     "NodeStateListI64",
     "list[int]"
 );
-impl_one_hop!(HistoryView<ops::History>, "HistoryView");
+impl_one_hop!(HistoryView<ops::HistoryOp>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
-type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
+type HistoryDateTime<G> = ops::Map<ops::HistoryOp<G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
     "NodeStateOptionListDateTime",

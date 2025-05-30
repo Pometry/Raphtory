@@ -33,7 +33,10 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::storage::{
+    arc_str::ArcStr,
+    timeindex::{TimeError, TimeIndexEntry},
+};
 use std::{
     fmt,
     fmt::Debug,
@@ -249,12 +252,12 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
         )
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.graph
             .temporal_node_prop_hist(self.node, id)
             .into_iter()
             .map(|(t, _)| t.dt())
-            .collect()
+            .collect::<Result<Vec<_>, TimeError>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

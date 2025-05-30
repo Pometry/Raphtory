@@ -180,7 +180,7 @@ impl PyTemporalProperties {
 }
 
 /// A view of a temporal property
-#[pyclass(name = "TemporalProp", module = "raphtory", frozen)]
+#[pyclass(name = "TemporalProperty", module = "raphtory", frozen)]
 pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
@@ -224,6 +224,7 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
     pub fn history(&self) -> NumpyArray {
+        // TODO: Change this to history object?
         self.prop.history().collect::<Vec<_>>().into()
     }
 
