@@ -294,17 +294,6 @@ impl GraphIndex {
         Ok(())
     }
 
-    fn filter_props_by_ids(
-        props: &[(usize, Prop)],
-        allowed_ids: &HashSet<usize>,
-    ) -> Vec<(usize, Prop)> {
-        props
-            .iter()
-            .filter(|(id, _)| allowed_ids.contains(id))
-            .cloned()
-            .collect()
-    }
-
     pub(crate) fn add_node_update(
         &self,
         graph: &GraphStorage,
@@ -312,13 +301,7 @@ impl GraphIndex {
         v: MaybeNew<VID>,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let allowed_ids = {
-            let spec = self.index_spec.read();
-            spec.node_temp_props.iter().map(|(_, id, _)| *id).collect()
-        };
-        let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
-        self.node_index
-            .add_node_update(graph, t, v, &filtered_props)?;
+        self.node_index.add_node_update(graph, t, v, props)?;
         Ok(())
     }
 
@@ -327,13 +310,8 @@ impl GraphIndex {
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let allowed_ids = {
-            let spec = self.index_spec.read();
-            spec.node_const_props.iter().map(|(_, id, _)| *id).collect()
-        };
-        let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.node_index
-            .add_node_constant_properties(node_id, &filtered_props)?;
+            .add_node_constant_properties(node_id, props)?;
         Ok(())
     }
 
@@ -342,13 +320,8 @@ impl GraphIndex {
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let allowed_ids = {
-            let spec = self.index_spec.read();
-            spec.node_const_props.iter().map(|(_, id, _)| *id).collect()
-        };
-        let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.node_index
-            .update_node_constant_properties(node_id, &filtered_props)
+            .update_node_constant_properties(node_id, props)
     }
 
     pub(crate) fn add_edge_update(
@@ -359,13 +332,8 @@ impl GraphIndex {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let allowed_ids = {
-            let spec = self.index_spec.read();
-            spec.edge_temp_props.iter().map(|(_, id, _)| *id).collect()
-        };
-        let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.edge_index
-            .add_edge_update(graph, edge_id, t, layer, &filtered_props)
+            .add_edge_update(graph, edge_id, t, layer, props)
     }
 
     pub(crate) fn add_edge_constant_properties(
@@ -374,13 +342,8 @@ impl GraphIndex {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let allowed_ids = {
-            let spec = self.index_spec.read();
-            spec.edge_const_props.iter().map(|(_, id, _)| *id).collect()
-        };
-        let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.edge_index
-            .add_edge_constant_properties(edge_id, layer, &filtered_props)
+            .add_edge_constant_properties(edge_id, layer, props)
     }
 
     pub(crate) fn update_edge_constant_properties(
@@ -389,13 +352,8 @@ impl GraphIndex {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let allowed_ids = {
-            let spec = self.index_spec.read();
-            spec.edge_const_props.iter().map(|(_, id, _)| *id).collect()
-        };
-        let filtered_props = Self::filter_props_by_ids(props, &allowed_ids);
         self.edge_index
-            .update_edge_constant_properties(edge_id, layer, &filtered_props)
+            .update_edge_constant_properties(edge_id, layer, props)
     }
 }
 

@@ -2,7 +2,8 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
-use parking_lot::RwLock;
+use lock_api::RwLockReadGuard;
+use parking_lot::{RawRwLock, RwLock};
 use raphtory_api::core::{
     entities::properties::props::Meta, storage::timeindex::TimeIndexEntry, PropType,
 };
@@ -65,10 +66,17 @@ impl EntityIndex {
 
     fn get_property_writers(
         &self,
-        prop_ids: impl Iterator<Item = usize>,
+        props: &[(usize, Prop)],
         property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
         let indexes = property_indexes.read();
+
+        // Filter prop_ids for which there is a property index
+        let prop_ids = props
+            .iter()
+            .map(|(id, _)| *id)
+            .filter(|id| indexes.get(*id).map_or(false, |entry| entry.is_some()))
+            .collect::<Vec<usize>>();
 
         let mut writers = Vec::new();
         writers.resize_with(indexes.len(), || None);
@@ -85,16 +93,16 @@ impl EntityIndex {
 
     pub(crate) fn get_const_property_writers(
         &self,
-        prop_ids: impl Iterator<Item = usize>,
+        props: &[(usize, Prop)],
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.get_property_writers(prop_ids, &self.const_property_indexes)
+        self.get_property_writers(props, &self.const_property_indexes)
     }
 
     pub(crate) fn get_temporal_property_writers(
         &self,
-        prop_ids: impl Iterator<Item = usize>,
+        props: &[(usize, Prop)],
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.get_property_writers(prop_ids, &self.temporal_property_indexes)
+        self.get_property_writers(props, &self.temporal_property_indexes)
     }
 
     // We initialize the property indexes per property as and when we discover a new property while processing each node and edge update.
@@ -209,14 +217,26 @@ impl EntityIndex {
         )
     }
 
+    // Filter props for which there already is a property index
+    fn filtered_props(
+        props: &[(usize, Prop)],
+        indexes: &RwLockReadGuard<RawRwLock, Vec<Option<PropertyIndex>>>,
+    ) -> Vec<(usize, Prop)> {
+        props
+            .iter()
+            .cloned()
+            .filter(|(id, _)| indexes.get(*id).map_or(false, |entry| entry.is_some()))
+            .collect()
+    }
+
     pub(crate) fn delete_const_properties_index_docs(
         &self,
         entity_id: u64,
         writers: &mut [Option<IndexWriter>],
-        props: impl Iterator<Item = usize>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.const_property_indexes.read();
-        for prop_id in props {
+        for (prop_id, _) in Self::filtered_props(props, &indexes) {
             if let Some(Some(writer)) = writers.get(prop_id) {
                 if let Some(index) = &indexes[prop_id] {
                     let term = Term::from_field_u64(index.entity_id_field, entity_id);
@@ -224,7 +244,6 @@ impl EntityIndex {
                 }
             }
         }
-
         self.commit_writers(writers)?;
         Ok(())
     }
@@ -233,10 +252,10 @@ impl EntityIndex {
         &self,
         node_id: u64,
         writers: &[Option<IndexWriter>],
-        props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.const_property_indexes.read();
-        for (prop_id, prop_value) in props {
+        for (prop_id, prop_value) in Self::filtered_props(props, &indexes) {
             if let Some(Some(writer)) = writers.get(prop_id) {
                 if let Some(index) = &indexes[prop_id] {
                     let prop_doc =
@@ -245,7 +264,6 @@ impl EntityIndex {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -254,10 +272,10 @@ impl EntityIndex {
         time: TimeIndexEntry,
         node_id: u64,
         writers: &[Option<IndexWriter>],
-        props: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.temporal_property_indexes.read();
-        for (prop_id, prop) in props {
+        for (prop_id, prop) in Self::filtered_props(props, &indexes) {
             if let Some(Some(writer)) = writers.get(prop_id) {
                 if let Some(index) = &indexes[prop_id] {
                     let prop_doc = index.create_node_temporal_property_document(
@@ -269,7 +287,6 @@ impl EntityIndex {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -278,10 +295,10 @@ impl EntityIndex {
         edge_id: u64,
         layer_id: usize,
         writers: &[Option<IndexWriter>],
-        props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.const_property_indexes.read();
-        for (prop_id, prop_value) in props {
+        for (prop_id, prop_value) in Self::filtered_props(props, &indexes) {
             if let Some(Some(writer)) = writers.get(prop_id) {
                 if let Some(index) = &indexes[prop_id] {
                     let prop_doc = index.create_edge_const_property_document(
@@ -293,7 +310,6 @@ impl EntityIndex {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -303,10 +319,10 @@ impl EntityIndex {
         edge_id: u64,
         layer_id: usize,
         writers: &[Option<IndexWriter>],
-        props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.temporal_property_indexes.read();
-        for (prop_id, prop) in props {
+        for (prop_id, prop) in Self::filtered_props(props, &indexes) {
             if let Some(Some(writer)) = writers.get(prop_id) {
                 if let Some(index) = &indexes[prop_id] {
                     let prop_doc = index.create_edge_temporal_property_document(
@@ -319,7 +335,6 @@ impl EntityIndex {
                 }
             }
         }
-
         Ok(())
     }
 

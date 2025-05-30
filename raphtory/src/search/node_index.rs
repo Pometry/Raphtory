@@ -222,17 +222,13 @@ impl NodeIndex {
     fn index_node_c(
         &self,
         node_id: VID,
-        const_writers: &mut [Option<IndexWriter>],
-        const_props: &[(usize, Prop)],
+        writers: &mut [Option<IndexWriter>],
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let node_id = node_id.as_u64();
-        self.entity_index.index_node_const_properties(
-            node_id,
-            const_writers,
-            const_props.iter().map(|(id, prop)| (*id, prop)),
-        )?;
-
-        self.entity_index.commit_writers(const_writers)
+        self.entity_index
+            .index_node_const_properties(node_id, writers, props)?;
+        self.entity_index.commit_writers(writers)
     }
 
     fn index_node_t(
@@ -243,15 +239,11 @@ impl NodeIndex {
         node_type: Option<ArcStr>,
         writer: &mut IndexWriter,
         temporal_writers: &mut [Option<IndexWriter>],
-        temporal_props: &[(usize, Prop)],
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let vid_u64 = node_id.inner().as_u64();
-        self.entity_index.index_node_temporal_properties(
-            time,
-            vid_u64,
-            temporal_writers,
-            temporal_props.iter().map(|(id, prop)| (*id, prop)),
-        )?;
+        self.entity_index
+            .index_node_temporal_properties(time, vid_u64, temporal_writers, props)?;
 
         // Check if the node document is already in the index,
         // if it does skip adding a new doc for same node
@@ -283,7 +275,11 @@ impl NodeIndex {
         self.entity_index.index_node_const_properties(
             node_id,
             const_writers,
-            node.properties().constant().iter_id(),
+            &*node
+                .properties()
+                .constant()
+                .iter_id()
+                .collect::<Vec<(usize, Prop)>>(),
         )?;
 
         for (t, temporal_properties) in node.rows() {
@@ -291,7 +287,7 @@ impl NodeIndex {
                 t,
                 node_id,
                 temporal_writers,
-                temporal_properties,
+                &*temporal_properties,
             )?;
         }
 
@@ -373,10 +369,7 @@ impl NodeIndex {
             .expect("Node for internal id should exist.")
             .at(t.t());
 
-        let temporal_property_ids = props.iter().map(|(id, _)| *id);
-        let mut temporal_writers = self
-            .entity_index
-            .get_temporal_property_writers(temporal_property_ids)?;
+        let mut temporal_writers = self.entity_index.get_temporal_property_writers(props)?;
 
         let mut writer = self.entity_index.index.writer(100_000_000)?;
         self.index_node_t(
@@ -400,10 +393,7 @@ impl NodeIndex {
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let const_property_ids = props.iter().map(|(id, _)| *id);
-        let mut const_writers = self
-            .entity_index
-            .get_const_property_writers(const_property_ids)?;
+        let mut const_writers = self.entity_index.get_const_property_writers(props)?;
 
         self.index_node_c(node_id, &mut const_writers, props)?;
 
@@ -417,16 +407,13 @@ impl NodeIndex {
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let const_property_ids = props.iter().map(|(id, _)| *id);
-        let mut const_writers = self
-            .entity_index
-            .get_const_property_writers(const_property_ids.clone())?;
+        let mut const_writers = self.entity_index.get_const_property_writers(props)?;
 
         // Delete existing constant property document
         self.entity_index.delete_const_properties_index_docs(
             node_id.as_u64(),
             &mut const_writers,
-            const_property_ids,
+            props,
         )?;
 
         // Reindex the node's constant properties
