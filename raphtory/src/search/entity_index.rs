@@ -68,12 +68,12 @@ impl EntityIndex {
         prop_ids: impl Iterator<Item = usize>,
         property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        let prop_index_guard = property_indexes.read();
+        let indexes = property_indexes.read();
 
         let mut writers = Vec::new();
-        writers.resize_with(prop_index_guard.len(), || None);
+        writers.resize_with(indexes.len(), || None);
         for id in prop_ids {
-            let writer = prop_index_guard[id]
+            let writer = indexes[id]
                 .as_ref()
                 .map(|index| index.index.writer(50_000_000))
                 .transpose()?;
@@ -108,13 +108,13 @@ impl EntityIndex {
         path: &Option<PathBuf>,
         props: &Vec<(String, usize, PropType)>,
     ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        let mut prop_index_guard = property_indexes.write();
+        let mut indexes = property_indexes.write();
         let mut writers: Vec<Option<IndexWriter>> = Vec::new();
 
         for (prop_name, prop_id, prop_type) in props {
             // Resize the vector if needed
-            if prop_id >= &prop_index_guard.len() {
-                prop_index_guard.resize(prop_id + 1, None);
+            if prop_id >= &indexes.len() {
+                indexes.resize(prop_id + 1, None);
             }
             // Resize the writers if needed
             if *prop_id >= writers.len() {
@@ -122,7 +122,7 @@ impl EntityIndex {
             }
 
             // Create a new PropertyIndex if it doesn't exist
-            if prop_index_guard[*prop_id].is_none() {
+            if indexes[*prop_id].is_none() {
                 let mut schema_builder =
                     PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
                 add_schema_fields(&mut schema_builder);
@@ -132,7 +132,7 @@ impl EntityIndex {
                 let writer = property_index.index.writer(50_000_000)?;
 
                 writers[*prop_id] = Some(writer);
-                prop_index_guard[*prop_id] = Some(property_index);
+                indexes[*prop_id] = Some(property_index);
             }
         }
 
@@ -213,14 +213,14 @@ impl EntityIndex {
         &self,
         entity_id: u64,
         writers: &mut [Option<IndexWriter>],
-        props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+        props: impl Iterator<Item = usize>,
     ) -> Result<(), GraphError> {
-        let property_indexes = self.const_property_indexes.read();
-        for (prop_id, _prop_value) in props {
-            if let Some(Some(prop_writer)) = writers.get(prop_id) {
-                if let Some(property_index) = &property_indexes[prop_id] {
-                    let term = Term::from_field_u64(property_index.entity_id_field, entity_id);
-                    prop_writer.delete_term(term);
+        let indexes = self.const_property_indexes.read();
+        for prop_id in props {
+            if let Some(Some(writer)) = writers.get(prop_id) {
+                if let Some(index) = &indexes[prop_id] {
+                    let term = Term::from_field_u64(index.entity_id_field, entity_id);
+                    writer.delete_term(term);
                 }
             }
         }
@@ -235,13 +235,13 @@ impl EntityIndex {
         writers: &[Option<IndexWriter>],
         props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Result<(), GraphError> {
-        let property_indexes = self.const_property_indexes.read();
+        let indexes = self.const_property_indexes.read();
         for (prop_id, prop_value) in props {
-            if let Some(Some(prop_writer)) = writers.get(prop_id) {
-                if let Some(property_index) = &property_indexes[prop_id] {
-                    let prop_doc = property_index
+            if let Some(Some(writer)) = writers.get(prop_id) {
+                if let Some(index) = &indexes[prop_id] {
+                    let prop_doc = index
                         .create_node_const_property_document(node_id, prop_value.borrow())?;
-                    prop_writer.add_document(prop_doc)?;
+                    writer.add_document(prop_doc)?;
                 }
             }
         }
@@ -256,16 +256,16 @@ impl EntityIndex {
         writers: &[Option<IndexWriter>],
         props: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Result<(), GraphError> {
-        let property_indexes = self.temporal_property_indexes.read();
+        let indexes = self.temporal_property_indexes.read();
         for (prop_id, prop) in props {
-            if let Some(Some(prop_writer)) = writers.get(prop_id) {
-                if let Some(property_index) = &property_indexes[prop_id] {
-                    let prop_doc = property_index.create_node_temporal_property_document(
+            if let Some(Some(writer)) = writers.get(prop_id) {
+                if let Some(index) = &indexes[prop_id] {
+                    let prop_doc = index.create_node_temporal_property_document(
                         time,
                         node_id,
                         prop.borrow(),
                     )?;
-                    prop_writer.add_document(prop_doc)?;
+                    writer.add_document(prop_doc)?;
                 }
             }
         }
@@ -280,16 +280,16 @@ impl EntityIndex {
         writers: &[Option<IndexWriter>],
         props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Result<(), GraphError> {
-        let property_indexes = self.const_property_indexes.read();
+        let indexes = self.const_property_indexes.read();
         for (prop_id, prop_value) in props {
-            if let Some(Some(prop_writer)) = writers.get(prop_id) {
-                if let Some(property_index) = &property_indexes[prop_id] {
-                    let prop_doc = property_index.create_edge_const_property_document(
+            if let Some(Some(writer)) = writers.get(prop_id) {
+                if let Some(index) = &indexes[prop_id] {
+                    let prop_doc = index.create_edge_const_property_document(
                         edge_id,
                         layer_id,
                         prop_value.borrow(),
                     )?;
-                    prop_writer.add_document(prop_doc)?;
+                    writer.add_document(prop_doc)?;
                 }
             }
         }
@@ -305,17 +305,17 @@ impl EntityIndex {
         writers: &[Option<IndexWriter>],
         props: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Result<(), GraphError> {
-        let property_indexes = self.temporal_property_indexes.read();
+        let indexes = self.temporal_property_indexes.read();
         for (prop_id, prop) in props {
-            if let Some(Some(prop_writer)) = writers.get(prop_id) {
-                if let Some(property_index) = &property_indexes[prop_id] {
-                    let prop_doc = property_index.create_edge_temporal_property_document(
+            if let Some(Some(writer)) = writers.get(prop_id) {
+                if let Some(index) = &indexes[prop_id] {
+                    let prop_doc = index.create_edge_temporal_property_document(
                         time,
                         edge_id,
                         layer_id,
                         prop.borrow(),
                     )?;
-                    prop_writer.add_document(prop_doc)?;
+                    writer.add_document(prop_doc)?;
                 }
             }
         }
@@ -365,26 +365,26 @@ impl EntityIndex {
         &self,
         writers: &mut [Option<IndexWriter>],
     ) -> Result<(), GraphError> {
-        for writer_option in writers {
-            if let Some(const_writer) = writer_option {
-                const_writer.commit()?;
+        for writer in writers {
+            if let Some(writer) = writer {
+                writer.commit()?;
             }
         }
         Ok(())
     }
 
     pub(crate) fn reload_const_property_indexes(&self) -> Result<(), GraphError> {
-        let const_indexes = self.const_property_indexes.read();
-        for property_index_option in const_indexes.iter().flatten() {
-            property_index_option.reader.reload()?;
+        let indexes = self.const_property_indexes.read();
+        for index in indexes.iter().flatten() {
+            index.reader.reload()?;
         }
         Ok(())
     }
 
     pub(crate) fn reload_temporal_property_indexes(&self) -> Result<(), GraphError> {
-        let temporal_indexes = self.temporal_property_indexes.read();
-        for property_index_option in temporal_indexes.iter().flatten() {
-            property_index_option.reader.reload()?;
+        let indexes = self.temporal_property_indexes.read();
+        for index in indexes.iter().flatten() {
+            index.reader.reload()?;
         }
         Ok(())
     }

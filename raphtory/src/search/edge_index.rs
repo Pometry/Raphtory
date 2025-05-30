@@ -434,13 +434,13 @@ impl EdgeIndex {
         let const_property_ids = props.iter().map(|(id, _)| *id);
         let mut const_writers = self
             .entity_index
-            .get_const_property_writers(const_property_ids)?;
+            .get_const_property_writers(const_property_ids.clone())?;
 
         // Delete existing constant property document
         self.entity_index.delete_const_properties_index_docs(
             edge_id.as_u64(),
             &mut const_writers,
-            props.iter().map(|(id, prop)| (*id, prop)),
+            const_property_ids
         )?;
 
         // Reindex the edge's constant properties
