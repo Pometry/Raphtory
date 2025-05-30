@@ -37,9 +37,9 @@ use chrono::{DateTime, Utc};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::EID,
+        entities::{properties::props::PropMapper, EID},
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-        Direction,
+        Direction, PropType,
     },
 };
 use rayon::prelude::*;
@@ -138,9 +138,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
 #[cfg(feature = "search")]
 pub trait SearchableGraphOps: Sized {
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
+
     fn create_index(&self) -> Result<(), GraphError>;
 
+    fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
+
     fn create_index_in_ram(&self) -> Result<(), GraphError>;
+
+    fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
 
     fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
 
@@ -627,20 +633,288 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct IndexSpec {
+    pub(crate) node_const_props: Vec<(String, usize, PropType)>,
+    pub(crate) node_temp_props: Vec<(String, usize, PropType)>,
+    pub(crate) edge_const_props: Vec<(String, usize, PropType)>,
+    pub(crate) edge_temp_props: Vec<(String, usize, PropType)>,
+}
+
+impl IndexSpec {
+    pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
+        fn diff_props(
+            existing: &[(String, usize, PropType)],
+            requested: &[(String, usize, PropType)],
+        ) -> Vec<(String, usize, PropType)> {
+            requested
+                .iter()
+                .filter(|(name, id, typ)| {
+                    !existing
+                        .iter()
+                        .any(|(n, i, t)| n == name && i == id && t == typ)
+                })
+                .cloned()
+                .collect()
+        }
+
+        let node_const_props = diff_props(&existing.node_const_props, &requested.node_const_props);
+        let node_temp_props = diff_props(&existing.node_temp_props, &requested.node_temp_props);
+        let edge_const_props = diff_props(&existing.edge_const_props, &requested.edge_const_props);
+        let edge_temp_props = diff_props(&existing.edge_temp_props, &requested.edge_temp_props);
+
+        if node_const_props.is_empty()
+            && node_temp_props.is_empty()
+            && edge_const_props.is_empty()
+            && edge_temp_props.is_empty()
+        {
+            None
+        } else {
+            Some(IndexSpec {
+                node_const_props,
+                node_temp_props,
+                edge_const_props,
+                edge_temp_props,
+            })
+        }
+    }
+
+    pub(crate) fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
+        fn union_props(
+            a: &[(String, usize, PropType)],
+            b: &[(String, usize, PropType)],
+        ) -> Vec<(String, usize, PropType)> {
+            let mut combined = Vec::new();
+
+            for (name, id, typ) in a.iter().chain(b.iter()) {
+                if !combined
+                    .iter()
+                    .any(|(n, i, t)| n == name && i == id && t == typ)
+                {
+                    combined.push((name.clone(), *id, typ.clone()));
+                }
+            }
+
+            combined
+        }
+
+        IndexSpec {
+            node_const_props: union_props(&existing.node_const_props, &other.node_const_props),
+            node_temp_props: union_props(&existing.node_temp_props, &other.node_temp_props),
+            edge_const_props: union_props(&existing.edge_const_props, &other.edge_const_props),
+            edge_temp_props: union_props(&existing.edge_temp_props, &other.edge_temp_props),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
+    graph: G,
+    node_const_props: Option<Vec<(String, usize, PropType)>>,
+    node_temp_props: Option<Vec<(String, usize, PropType)>>,
+    edge_const_props: Option<Vec<(String, usize, PropType)>>,
+    edge_temp_props: Option<Vec<(String, usize, PropType)>>,
+}
+
+impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
+    pub fn new(graph: G) -> Self {
+        Self {
+            graph,
+            node_const_props: None,
+            node_temp_props: None,
+            edge_const_props: None,
+            edge_temp_props: None,
+        }
+    }
+
+    pub fn with_all_node_props(mut self) -> Self {
+        self.node_const_props = Some(Self::extract_props(
+            self.graph.node_meta().const_prop_meta(),
+        ));
+        self.node_temp_props = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_const_node_props(mut self) -> Self {
+        self.node_const_props = Some(Self::extract_props(
+            self.graph.node_meta().const_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_temp_node_props(mut self) -> Self {
+        self.node_temp_props = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_const_node_props<S: Into<ArcStr>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.node_const_props = Some(Self::extract_named_props(
+            self.graph.node_meta().const_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_temp_node_props<S: Into<ArcStr>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.node_temp_props = Some(Self::extract_named_props(
+            self.graph.node_meta().temporal_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_all_edge_props(mut self) -> Self {
+        self.edge_const_props = Some(Self::extract_props(
+            self.graph.edge_meta().const_prop_meta(),
+        ));
+        self.edge_temp_props = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_edge_const_props(mut self) -> Self {
+        self.edge_const_props = Some(Self::extract_props(
+            self.graph.edge_meta().const_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_temp_edge_props(mut self) -> Self {
+        self.edge_temp_props = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_const_edge_props<S: Into<ArcStr>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.edge_const_props = Some(Self::extract_named_props(
+            self.graph.edge_meta().const_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_temp_edge_props<S: Into<ArcStr>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.edge_temp_props = Some(Self::extract_named_props(
+            self.graph.edge_meta().temporal_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    fn extract_props(meta: &PropMapper) -> Vec<(String, usize, PropType)> {
+        meta.get_keys()
+            .into_iter()
+            .filter_map(|k| {
+                meta.get_id(&*k)
+                    .and_then(|id| meta.get_dtype(id).map(|d_type| (k.to_string(), id, d_type)))
+            })
+            .collect()
+    }
+
+    fn extract_named_props<S: Into<ArcStr>>(
+        meta: &PropMapper,
+        keys: impl IntoIterator<Item = S>,
+    ) -> Result<Vec<(String, usize, PropType)>, GraphError> {
+        keys.into_iter()
+            .map(|k| {
+                let k: ArcStr = k.into();
+                let key = k.to_string();
+                let id = meta
+                    .get_id(&*k)
+                    .ok_or_else(|| GraphError::UnknownProperty(key.clone()))?;
+                let d_type = meta
+                    .get_dtype(id)
+                    .ok_or_else(|| GraphError::UnknownProperty(key.clone()))?;
+                Ok((key, id, d_type))
+            })
+            .collect()
+    }
+
+    pub fn build(&self) -> IndexSpec {
+        IndexSpec {
+            node_const_props: match &self.node_const_props {
+                Some(props) => props.clone(),
+                None => Vec::new(),
+            },
+            node_temp_props: match &self.node_temp_props {
+                Some(props) => props.clone(),
+                None => Vec::new(),
+            },
+            edge_const_props: match &self.edge_const_props {
+                Some(props) => props.clone(),
+                None => Vec::new(),
+            },
+            edge_temp_props: match &self.edge_temp_props {
+                Some(props) => props.clone(),
+                None => Vec::new(),
+            },
+        }
+    }
+}
+
 #[cfg(feature = "search")]
 impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
-    fn create_index(&self) -> Result<(), GraphError> {
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index(None)?;
+                storage.get_index_spec()
+            })
+    }
+
+    fn create_index(&self) -> Result<(), GraphError> {
+        let index_spec = IndexSpecBuilder::new(self.clone())
+            .with_all_node_props()
+            .with_all_edge_props()
+            .build();
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index(index_spec)?;
+                Ok(())
+            })
+    }
+
+    fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index(index_spec)?;
                 Ok(())
             })
     }
 
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        let index_spec = IndexSpecBuilder::new(self.clone())
+            .with_all_node_props()
+            .with_all_edge_props()
+            .build();
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index_in_ram()?;
+                storage.get_or_create_index_in_ram(index_spec)?;
+                Ok(())
+            })
+    }
+
+    fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.get_or_create_index_in_ram(index_spec)?;
                 Ok(())
             })
     }
@@ -668,14 +942,14 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 if path.is_file() {
                     if has_index(path)? {
-                        storage.get_or_create_index(Some(path.clone()))?;
+                        storage.get_or_load_index(path.clone())?;
                     } else {
                         return Ok(()); // Skip if no index in zip
                     }
                 } else {
                     let index_path = path.join("index");
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.get_or_create_index(Some(path.clone()))?;
+                        storage.get_or_load_index(index_path.clone())?;
                     }
                 }
 

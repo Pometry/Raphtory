@@ -107,7 +107,7 @@ impl<'a> NodeFilterExecutor<'a> {
         match query {
             Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
             // Fallback to raphtory apis
-            None => Self::raph_filter_nodes(graph, filter, offset, limit),
+            None => Self::raph_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -156,7 +156,7 @@ impl<'a> NodeFilterExecutor<'a> {
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
-            Err(GraphError::PropertyNotFound(prop_name.to_string()))
+            Self::raph_filter_nodes(graph, filter, limit, offset)
         }
     }
 
@@ -188,7 +188,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 collector_fn,
             )
         } else {
-            Err(GraphError::PropertyNotFound(prop_name.to_string()))
+            Self::raph_filter_nodes(graph, filter, limit, offset)
         }
     }
 
@@ -267,7 +267,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 offset,
                 LatestNodePropertyFilterCollector::new,
             ),
-            _ => Err(GraphError::PropertyNotFound(prop_name.to_string())),
+            _ => Self::raph_filter_nodes(graph, filter, limit, offset),
         }
     }
 

@@ -250,3 +250,27 @@ fn assert_results(
         }
     }
 }
+
+#[cfg(feature = "search")]
+pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
+    let mut results = graph
+        .search_nodes(filter, 10, 0)
+        .expect("Failed to search for nodes")
+        .into_iter()
+        .map(|v| v.name())
+        .collect::<Vec<_>>();
+    results.sort();
+    results
+}
+
+#[cfg(feature = "search")]
+pub fn search_edges(graph: &Graph, filter: impl AsEdgeFilter) -> Vec<String> {
+    let mut results = graph
+        .search_edges(filter, 10, 0)
+        .expect("Failed to search for nodes")
+        .into_iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect::<Vec<_>>();
+    results.sort();
+    results
+}
