@@ -135,6 +135,24 @@ def run_graphql_error_test(query, expected_error_message, graph):
         ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
+def run_graphql_error_test(query, expected_error_message, graph):
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+
+        with pytest.raises(Exception) as excinfo:
+            client.query(query)
+
+        full_error_message = str(excinfo.value)
+        match = re.search(r'"message":"(.*?)"', full_error_message)
+        error_message = match.group(1) if match else ""
+
+        assert (
+            error_message == expected_error_message
+        ), f"Expected '{expected_error_message}', but got '{error_message}'"
+
+
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:

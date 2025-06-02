@@ -369,35 +369,3 @@ def create_test_graph(g):
     )
     return g
 
-
-def run_graphql_test(query, expected_output, graph):
-    create_test_graph(graph)
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
-
-        response = client.query(query)
-
-        # Convert response to a dictionary if needed and compare
-        response_dict = json.loads(response) if isinstance(response, str) else response
-        assert response_dict == expected_output
-
-
-def run_graphql_error_test(query, expected_error_message, graph):
-    create_test_graph(graph)
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
-        client = server.get_client()
-        client.send_graph(path="g", graph=graph)
-
-        with pytest.raises(Exception) as excinfo:
-            client.query(query)
-
-        full_error_message = str(excinfo.value)
-        match = re.search(r'"message":"(.*?)"', full_error_message)
-        error_message = match.group(1) if match else ""
-
-        assert (
-            error_message == expected_error_message
-        ), f"Expected '{expected_error_message}', but got '{error_message}'"
