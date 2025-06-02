@@ -61,6 +61,11 @@ impl Meta {
         self.meta_prop_temporal.row_size()
     }
 
+    #[inline]
+    pub fn const_est_row_size(&self) -> usize {
+        self.meta_prop_constant.row_size()
+    }
+
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default");
