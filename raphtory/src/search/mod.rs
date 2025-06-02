@@ -1,6 +1,5 @@
 use crate::{core::utils::errors::GraphError, search::property_index::PropertyIndex};
-use raphtory_api::core::{entities::properties::props::PropMapper, PropType};
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{collections::HashSet, fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -80,20 +79,11 @@ pub(crate) fn new_index(
     Ok((index, reader))
 }
 
-fn resolve_props(
-    meta: &PropMapper,
-    props: &Vec<Option<PropertyIndex>>,
-) -> Vec<(String, usize, PropType)> {
+fn resolve_props(props: &Vec<Option<PropertyIndex>>) -> HashSet<usize> {
     props
         .iter()
         .enumerate()
-        .filter_map(|(idx, opt)| {
-            opt.as_ref().map(|_| {
-                let name = meta.get_name(idx).to_string();
-                let d_type = meta.get_dtype(idx).unwrap();
-                (name, idx, d_type)
-            })
-        })
+        .filter_map(|(idx, opt)| opt.as_ref().map(|_| idx))
         .collect()
 }
 
@@ -356,12 +346,10 @@ mod test_index {
         use crate::{
             core::utils::errors::GraphError,
             db::{
-                api::view::{IndexSpec, IndexSpecBuilder},
+                api::view::{internal::CoreGraphOps, IndexSpec, IndexSpecBuilder},
                 graph::{
                     assertions::{search_edges, search_nodes},
-                    views::filter::model::{
-                        AsEdgeFilter, AsNodeFilter, ComposableFilter, PropertyFilterOps,
-                    },
+                    views::filter::model::{ComposableFilter, PropertyFilterOps},
                 },
             },
             prelude::{
@@ -370,7 +358,9 @@ mod test_index {
             },
             serialise::{GraphFolder, StableEncode},
         };
-        use raphtory_api::core::PropType;
+        use ahash::HashSet;
+        use itertools::Itertools;
+        use raphtory_api::core::{entities::properties::props::PropMapper, PropType};
 
         fn init_graph(mut graph: Graph) -> Graph {
             let nodes = vec![
@@ -422,16 +412,37 @@ mod test_index {
             graph
         }
 
-        fn props(index_spec: &IndexSpec) -> Vec<Vec<String>> {
-            let extract_names = |props: &Vec<(String, usize, PropType)>| {
-                props.iter().map(|(name, _, _)| name.clone()).collect()
+        fn props(graph: &Graph, index_spec: &IndexSpec) -> Vec<Vec<String>> {
+            let node_const_prop_meta = graph.node_meta().const_prop_meta();
+            let node_temp_prop_meta = graph.node_meta().temporal_prop_meta();
+            let edge_const_prop_meta = graph.edge_meta().const_prop_meta();
+            let edge_temp_prop_meta = graph.edge_meta().temporal_prop_meta();
+            let extract_names = |props: &std::collections::HashSet<usize>, meta: &PropMapper| {
+                let mut names: Vec<String> = props
+                    .iter()
+                    .map(|prop_id| meta.get_name(*prop_id).to_string())
+                    .collect();
+                names.sort();
+                names
             };
 
             vec![
-                extract_names(&index_spec.node_const_props),
-                extract_names(&index_spec.node_temp_props),
-                extract_names(&index_spec.edge_const_props),
-                extract_names(&index_spec.edge_temp_props),
+                extract_names(
+                    &index_spec.node_const_props,
+                    graph.node_meta().const_prop_meta(),
+                ),
+                extract_names(
+                    &index_spec.node_temp_props,
+                    graph.node_meta().temporal_prop_meta(),
+                ),
+                extract_names(
+                    &index_spec.edge_const_props,
+                    graph.edge_meta().const_prop_meta(),
+                ),
+                extract_names(
+                    &index_spec.edge_temp_props,
+                    graph.edge_meta().temporal_prop_meta(),
+                ),
             ]
         }
 
@@ -443,7 +454,7 @@ mod test_index {
                 .with_all_edge_props()
                 .build();
             assert_eq!(
-                props(&index_spec),
+                props(&graph, &index_spec),
                 vec![
                     vec!["x", "y"],
                     vec!["p1", "p2"],
@@ -480,7 +491,7 @@ mod test_index {
                 .unwrap()
                 .build();
             assert_eq!(
-                props(&index_spec),
+                props(&graph, &index_spec),
                 vec![vec!["y"], vec!["p1"], vec!["e_y"], vec!["e_p1"]]
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
@@ -546,7 +557,7 @@ mod test_index {
                 .with_all_edge_props()
                 .build();
             assert_eq!(
-                props(&index_spec),
+                props(&graph, &index_spec),
                 vec![
                     vec!["x"],
                     vec!["p1", "p2"],

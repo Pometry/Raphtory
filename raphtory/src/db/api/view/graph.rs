@@ -45,7 +45,9 @@ use raphtory_api::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
+    collections::HashSet,
     fs::File,
+    hash::Hash,
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
@@ -635,27 +637,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct IndexSpec {
-    pub(crate) node_const_props: Vec<(String, usize, PropType)>,
-    pub(crate) node_temp_props: Vec<(String, usize, PropType)>,
-    pub(crate) edge_const_props: Vec<(String, usize, PropType)>,
-    pub(crate) edge_temp_props: Vec<(String, usize, PropType)>,
+    pub(crate) node_const_props: HashSet<usize>,
+    pub(crate) node_temp_props: HashSet<usize>,
+    pub(crate) edge_const_props: HashSet<usize>,
+    pub(crate) edge_temp_props: HashSet<usize>,
 }
 
 impl IndexSpec {
     pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
-        fn diff_props(
-            existing: &[(String, usize, PropType)],
-            requested: &[(String, usize, PropType)],
-        ) -> Vec<(String, usize, PropType)> {
-            requested
-                .iter()
-                .filter(|(name, id, typ)| {
-                    !existing
-                        .iter()
-                        .any(|(n, i, t)| n == name && i == id && t == typ)
-                })
-                .cloned()
-                .collect()
+        fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
+            requested.difference(existing).copied().collect()
         }
 
         let node_const_props = diff_props(&existing.node_const_props, &requested.node_const_props);
@@ -680,22 +671,8 @@ impl IndexSpec {
     }
 
     pub(crate) fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
-        fn union_props(
-            a: &[(String, usize, PropType)],
-            b: &[(String, usize, PropType)],
-        ) -> Vec<(String, usize, PropType)> {
-            let mut combined = Vec::new();
-
-            for (name, id, typ) in a.iter().chain(b.iter()) {
-                if !combined
-                    .iter()
-                    .any(|(n, i, t)| n == name && i == id && t == typ)
-                {
-                    combined.push((name.clone(), *id, typ.clone()));
-                }
-            }
-
-            combined
+        fn union_props(a: &HashSet<usize>, b: &HashSet<usize>) -> HashSet<usize> {
+            a.union(b).copied().collect()
         }
 
         IndexSpec {
@@ -710,10 +687,10 @@ impl IndexSpec {
 #[derive(Clone)]
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
     graph: G,
-    node_const_props: Option<Vec<(String, usize, PropType)>>,
-    node_temp_props: Option<Vec<(String, usize, PropType)>>,
-    edge_const_props: Option<Vec<(String, usize, PropType)>>,
-    edge_temp_props: Option<Vec<(String, usize, PropType)>>,
+    node_const_props: Option<HashSet<usize>>,
+    node_temp_props: Option<HashSet<usize>>,
+    edge_const_props: Option<HashSet<usize>>,
+    edge_temp_props: Option<HashSet<usize>>,
 }
 
 impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
@@ -819,12 +796,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
-    fn extract_props(meta: &PropMapper) -> Vec<(String, usize, PropType)> {
+    fn extract_props(meta: &PropMapper) -> HashSet<usize> {
         meta.get_keys()
             .into_iter()
             .filter_map(|k| {
                 meta.get_id(&*k)
-                    .and_then(|id| meta.get_dtype(id).map(|d_type| (k.to_string(), id, d_type)))
+                    .and_then(|id| meta.get_dtype(id).map(|d_type| id))
             })
             .collect()
     }
@@ -832,7 +809,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
     fn extract_named_props<S: Into<ArcStr>>(
         meta: &PropMapper,
         keys: impl IntoIterator<Item = S>,
-    ) -> Result<Vec<(String, usize, PropType)>, GraphError> {
+    ) -> Result<HashSet<usize>, GraphError> {
         keys.into_iter()
             .map(|k| {
                 let k: ArcStr = k.into();
@@ -843,7 +820,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
                 let d_type = meta
                     .get_dtype(id)
                     .ok_or_else(|| GraphError::PropertyMissingError(key.clone()))?;
-                Ok((key, id, d_type))
+                Ok(id)
             })
             .collect()
     }
@@ -852,19 +829,19 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         IndexSpec {
             node_const_props: match &self.node_const_props {
                 Some(props) => props.clone(),
-                None => Vec::new(),
+                None => HashSet::new(),
             },
             node_temp_props: match &self.node_temp_props {
                 Some(props) => props.clone(),
-                None => Vec::new(),
+                None => HashSet::new(),
             },
             edge_const_props: match &self.edge_const_props {
                 Some(props) => props.clone(),
-                None => Vec::new(),
+                None => HashSet::new(),
             },
             edge_temp_props: match &self.edge_temp_props {
                 Some(props) => props.clone(),
-                None => Vec::new(),
+                None => HashSet::new(),
             },
         }
     }

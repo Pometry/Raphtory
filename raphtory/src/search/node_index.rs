@@ -24,6 +24,7 @@ use raphtory_api::core::{
 };
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
+    collections::HashSet,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
@@ -129,20 +130,14 @@ impl NodeIndex {
         })
     }
 
-    pub(crate) fn resolve_const_props(
-        &self,
-        graph: &GraphStorage,
-    ) -> Vec<(String, usize, PropType)> {
+    pub(crate) fn resolve_const_props(&self) -> HashSet<usize> {
         let props = self.entity_index.const_property_indexes.read();
-        resolve_props(graph.node_meta().const_prop_meta(), &props)
+        resolve_props(&props)
     }
 
-    pub(crate) fn resolve_temp_props(
-        &self,
-        graph: &GraphStorage,
-    ) -> Vec<(String, usize, PropType)> {
+    pub(crate) fn resolve_temp_props(&self) -> HashSet<usize> {
         let props = self.entity_index.temporal_property_indexes.read();
-        resolve_props(graph.node_meta().temporal_prop_meta(), &props)
+        resolve_props(&props)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
@@ -316,6 +311,7 @@ impl NodeIndex {
         let mut const_writers = node_index
             .entity_index
             .initialize_node_const_property_indexes(
+                graph.node_meta().const_prop_meta(),
                 &const_properties_index_path,
                 &index_spec.node_const_props,
             )?;
@@ -326,6 +322,7 @@ impl NodeIndex {
         let mut temporal_writers = node_index
             .entity_index
             .initialize_node_temporal_property_indexes(
+                graph.node_meta().temporal_prop_meta(),
                 &temporal_properties_index_path,
                 &index_spec.node_temp_props,
             )?;

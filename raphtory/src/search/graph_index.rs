@@ -11,7 +11,6 @@ use crate::{
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use std::{
-    collections::HashSet,
     ffi::OsStr,
     fmt::{Debug, Formatter},
     fs,
@@ -144,10 +143,10 @@ impl GraphIndex {
         let path = Some(Arc::new(tmp_path));
 
         let index_spec = IndexSpec {
-            node_const_props: node_index.resolve_const_props(graph),
-            node_temp_props: node_index.resolve_temp_props(graph),
-            edge_const_props: edge_index.resolve_const_props(graph),
-            edge_temp_props: edge_index.resolve_temp_props(graph),
+            node_const_props: node_index.resolve_const_props(),
+            node_temp_props: node_index.resolve_temp_props(),
+            edge_const_props: edge_index.resolve_const_props(),
+            edge_temp_props: edge_index.resolve_temp_props(),
         };
 
         Ok(GraphIndex {

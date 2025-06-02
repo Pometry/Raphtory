@@ -17,6 +17,7 @@ use crate::{
 use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
 use rayon::prelude::ParallelIterator;
 use std::{
+    collections::HashSet,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
@@ -112,20 +113,14 @@ impl EdgeIndex {
         })
     }
 
-    pub(crate) fn resolve_const_props(
-        &self,
-        graph: &GraphStorage,
-    ) -> Vec<(String, usize, PropType)> {
+    pub(crate) fn resolve_const_props(&self) -> HashSet<usize> {
         let props = self.entity_index.const_property_indexes.read();
-        resolve_props(graph.edge_meta().const_prop_meta(), &props)
+        resolve_props(&props)
     }
 
-    pub(crate) fn resolve_temp_props(
-        &self,
-        graph: &GraphStorage,
-    ) -> Vec<(String, usize, PropType)> {
+    pub(crate) fn resolve_temp_props(&self) -> HashSet<usize> {
         let props = self.entity_index.temporal_property_indexes.read();
-        resolve_props(graph.edge_meta().temporal_prop_meta(), &props)
+        resolve_props(&props)
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
@@ -337,6 +332,7 @@ impl EdgeIndex {
         let mut const_writers = edge_index
             .entity_index
             .initialize_edge_const_property_indexes(
+                graph.edge_meta().const_prop_meta(),
                 &const_properties_index_path,
                 &index_spec.edge_const_props,
             )?;
@@ -347,6 +343,7 @@ impl EdgeIndex {
         let mut temporal_writers = edge_index
             .entity_index
             .initialize_edge_temporal_property_indexes(
+                graph.edge_meta().temporal_prop_meta(),
                 &temporal_properties_index_path,
                 &index_spec.edge_temp_props,
             )?;
