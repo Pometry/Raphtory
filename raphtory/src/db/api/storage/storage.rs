@@ -156,33 +156,29 @@ impl Storage {
         &self,
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
-        if let Some(index) = self.index.get() {
-            index.update(&self.graph, index_spec.clone())?;
-        };
-        self.index.get_or_try_init(|| {
+        let index = self.index.get_or_try_init(|| {
             let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-            let index = GraphIndex::create(&self.graph, false, cached_graph_path, index_spec)?;
-            Ok(index)
-        })
+            GraphIndex::create(&self.graph, false, cached_graph_path, IndexSpec::default())
+        })?;
+        index.update(&self.graph, index_spec.clone())?;
+        Ok(index)
     }
 
     pub(crate) fn get_or_create_index_in_ram(
         &self,
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
-        if let Some(index) = self.index.get() {
-            if index.path.is_some() {
-                Err(GraphError::FailedToCreateIndexInRam)
-            } else {
-                index.update(&self.graph, index_spec.clone())?;
-                Ok(index)
-            }
-        } else {
-            self.index.get_or_try_init(|| {
-                let index = GraphIndex::create(&self.graph, true, None, index_spec)?;
-                Ok(index)
-            })
+        let index = self.index.get_or_try_init(|| {
+            GraphIndex::create(&self.graph, true, None, IndexSpec::default())
+        })?;
+
+        if index.path.is_some() {
+            return Err(GraphError::FailedToCreateIndexInRam);
         }
+
+        index.update(&self.graph, index_spec)?;
+
+        Ok(index)
     }
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
