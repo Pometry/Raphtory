@@ -926,7 +926,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
                 } else {
                     let index_path = path.join("index");
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.get_or_load_index(index_path.clone())?;
+                        storage.get_or_load_index(path.clone())?;
                     }
                 }
 

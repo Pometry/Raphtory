@@ -312,35 +312,22 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edges<F>(
+    pub(crate) fn index_edges(
+        &self,
         graph: &GraphStorage,
-        path: Option<&Path>,
+        path: Option<PathBuf>,
         index_spec: &IndexSpec,
-        index_provider: F,
-    ) -> Result<EdgeIndex, GraphError>
-    where
-        F: FnOnce(Option<PathBuf>) -> Result<EdgeIndex, GraphError>,
-    {
-        let edge_index_path = path.as_deref().map(|p| p.join("edges"));
-
-        let edge_index = index_provider(edge_index_path.clone())?;
-
+    ) -> Result<EdgeIndex, GraphError> {
         // Initialize property indexes and get their writers
-        let const_properties_index_path = edge_index_path
-            .as_deref()
-            .map(|p| p.join("const_properties"));
-        let mut const_writers = edge_index
-            .entity_index
-            .initialize_edge_const_property_indexes(
-                graph.edge_meta().const_prop_meta(),
-                &const_properties_index_path,
-                &index_spec.edge_const_props,
-            )?;
+        let const_properties_index_path = path.as_deref().map(|p| p.join("const_properties"));
+        let mut const_writers = self.entity_index.initialize_edge_const_property_indexes(
+            graph.edge_meta().const_prop_meta(),
+            &const_properties_index_path,
+            &index_spec.edge_const_props,
+        )?;
 
-        let temporal_properties_index_path = edge_index_path
-            .as_deref()
-            .map(|p| p.join("temporal_properties"));
-        let mut temporal_writers = edge_index
+        let temporal_properties_index_path = path.as_deref().map(|p| p.join("temporal_properties"));
+        let mut temporal_writers = self
             .entity_index
             .initialize_edge_temporal_property_indexes(
                 graph.edge_meta().temporal_prop_meta(),
@@ -348,29 +335,27 @@ impl EdgeIndex {
                 &index_spec.edge_temp_props,
             )?;
 
-        let mut writer = edge_index.entity_index.index.writer(100_000_000)?;
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
         let locked_g = graph.core_graph();
         locked_g.edges_par(&graph).try_for_each(|e_ref| {
             {
                 let e_view = EdgeView::new(graph.clone(), e_ref);
-                edge_index.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
+                self.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
             }
             Ok::<(), GraphError>(())
         })?;
 
         // Commit writers
-        edge_index.entity_index.commit_writers(&mut const_writers)?;
-        edge_index
-            .entity_index
-            .commit_writers(&mut temporal_writers)?;
+        self.entity_index.commit_writers(&mut const_writers)?;
+        self.entity_index.commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
         // Reload readers
-        edge_index.entity_index.reload_const_property_indexes()?;
-        edge_index.entity_index.reload_temporal_property_indexes()?;
-        edge_index.entity_index.reader.reload()?;
+        self.entity_index.reload_const_property_indexes()?;
+        self.entity_index.reload_temporal_property_indexes()?;
+        self.entity_index.reader.reload()?;
 
-        Ok(edge_index)
+        Ok(self.clone())
     }
 
     pub(crate) fn add_edge_update(

@@ -292,34 +292,22 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_nodes<F>(
+    pub(crate) fn index_nodes(
+        &self,
         graph: &GraphStorage,
-        path: Option<&Path>,
+        path: Option<PathBuf>,
         index_spec: &IndexSpec,
-        index_provider: F,
-    ) -> Result<NodeIndex, GraphError>
-    where
-        F: FnOnce(Option<PathBuf>) -> Result<NodeIndex, GraphError>,
-    {
-        let node_index_path = path.as_deref().map(|p| p.join("nodes"));
-        let node_index = index_provider(node_index_path.clone())?;
-
+    ) -> Result<NodeIndex, GraphError> {
         // Initialize property indexes and get their writers
-        let const_properties_index_path = node_index_path
-            .as_deref()
-            .map(|p| p.join("const_properties"));
-        let mut const_writers = node_index
-            .entity_index
-            .initialize_node_const_property_indexes(
-                graph.node_meta().const_prop_meta(),
-                &const_properties_index_path,
-                &index_spec.node_const_props,
-            )?;
+        let const_properties_index_path = path.as_deref().map(|p| p.join("const_properties"));
+        let mut const_writers = self.entity_index.initialize_node_const_property_indexes(
+            graph.node_meta().const_prop_meta(),
+            &const_properties_index_path,
+            &index_spec.node_const_props,
+        )?;
 
-        let temporal_properties_index_path = node_index_path
-            .as_deref()
-            .map(|p| p.join("temporal_properties"));
-        let mut temporal_writers = node_index
+        let temporal_properties_index_path = path.as_deref().map(|p| p.join("temporal_properties"));
+        let mut temporal_writers = self
             .entity_index
             .initialize_node_temporal_property_indexes(
                 graph.node_meta().temporal_prop_meta(),
@@ -328,30 +316,28 @@ impl NodeIndex {
             )?;
 
         // Index nodes in parallel
-        let mut writer = node_index.entity_index.index.writer(100_000_000)?;
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
         let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             for v_id in v_ids {
                 if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
-                    node_index.index_node(node, &writer, &const_writers, &temporal_writers)?;
+                    self.index_node(node, &writer, &const_writers, &temporal_writers)?;
                 }
             }
             Ok::<(), GraphError>(())
         })?;
 
         // Commit writers
-        node_index.entity_index.commit_writers(&mut const_writers)?;
-        node_index
-            .entity_index
-            .commit_writers(&mut temporal_writers)?;
+        self.entity_index.commit_writers(&mut const_writers)?;
+        self.entity_index.commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
         // Reload readers
-        node_index.entity_index.reload_const_property_indexes()?;
-        node_index.entity_index.reload_temporal_property_indexes()?;
-        node_index.entity_index.reader.reload()?;
+        self.entity_index.reload_const_property_indexes()?;
+        self.entity_index.reload_temporal_property_indexes()?;
+        self.entity_index.reader.reload()?;
 
-        Ok(node_index)
+        Ok(self.clone())
     }
 
     pub(crate) fn add_node_update(

@@ -130,7 +130,7 @@ impl GraphIndex {
 
     pub fn load_from_path(graph: &GraphStorage, path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = TempDir::new_in(path)?;
-        // let path = path.join("index");
+        let path = path.join("index");
         let path = path.as_path();
         if path.is_file() {
             GraphIndex::unzip_index(path, tmp_path.path())?;
@@ -157,6 +157,14 @@ impl GraphIndex {
         })
     }
 
+    fn get_node_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
+        path.as_ref().map(|d| d.path().join("nodes"))
+    }
+
+    fn get_edge_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
+        path.as_ref().map(|d| d.path().join("edges"))
+    }
+
     pub fn create(
         graph: &GraphStorage,
         create_in_ram: bool,
@@ -175,11 +183,14 @@ impl GraphIndex {
             None
         };
 
-        let path = dir.as_ref().map(|p| p.path());
-        let node_index = NodeIndex::index_nodes(graph, path, &index_spec, |p| NodeIndex::new(&p))?;
+        let path = GraphIndex::get_node_index_path(&dir);
+        let node_index = NodeIndex::new(&path)?;
+        node_index.index_nodes(graph, path, &index_spec)?;
         // node_index.print()?;
 
-        let edge_index = EdgeIndex::index_edges(graph, path, &index_spec, |p| EdgeIndex::new(&p))?;
+        let path = GraphIndex::get_edge_index_path(&dir);
+        let edge_index = EdgeIndex::new(&path)?;
+        edge_index.index_edges(graph, path, &index_spec)?;
         // edge_index.print()?;
 
         Ok(GraphIndex {
@@ -194,15 +205,13 @@ impl GraphIndex {
         let mut existing_spec = self.index_spec.write();
 
         if let Some(diff_spec) = IndexSpec::diff(&*existing_spec, &index_spec) {
-            let path = self.path.as_ref().map(|p| p.path());
+            let path = GraphIndex::get_node_index_path(&self.path);
+            let node_index = self.node_index.index_nodes(graph, path, &diff_spec)?;
+            // node_index.print()?;
 
-            let _node_index =
-                NodeIndex::index_nodes(graph, path, &diff_spec, |_p| Ok(self.node_index.clone()))?;
-            // _node_index.print()?;
-
-            let _edge_index =
-                EdgeIndex::index_edges(graph, path, &diff_spec, |_p| Ok(self.edge_index.clone()))?;
-            // _edge_index.print()?;
+            let path = GraphIndex::get_edge_index_path(&self.path);
+            let edge_index = self.edge_index.index_edges(graph, path, &diff_spec)?;
+            // self.edge_index.print()?;
 
             *existing_spec = IndexSpec::union(&*existing_spec, &diff_spec);
         }
