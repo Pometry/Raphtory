@@ -117,6 +117,7 @@ def run_graphql_test(query, expected_output, graph):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:
         client = server.get_client()
+        print(graph.edges)
         client.send_graph(path="g", graph=graph)
 
         response = client.query(query)
