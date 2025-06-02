@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod vectors;
+
 use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };

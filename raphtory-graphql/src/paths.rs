@@ -139,28 +139,43 @@ impl ValidGraphFolder {
         })
     }
 
-    pub(crate) fn created(&self) -> Result<i64, GraphError> {
+    pub fn created(&self) -> Result<i64, GraphError> {
         fs::metadata(self.get_graph_path())?.created()?.to_millis()
     }
 
-    pub(crate) fn last_opened(&self) -> Result<i64, GraphError> {
+    pub fn last_opened(&self) -> Result<i64, GraphError> {
         fs::metadata(self.get_graph_path())?.accessed()?.to_millis()
     }
 
-    pub(crate) fn last_updated(&self) -> Result<i64, GraphError> {
+    pub fn last_updated(&self) -> Result<i64, GraphError> {
         fs::metadata(self.get_graph_path())?.modified()?.to_millis()
     }
 
-    pub(crate) fn get_original_path_str(&self) -> &str {
+    pub async fn created_async(&self) -> Result<i64, GraphError> {
+        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
+        metadata.created()?.to_millis()
+    }
+
+    pub async fn last_opened_async(&self) -> Result<i64, GraphError> {
+        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
+        metadata.accessed()?.to_millis()
+    }
+
+    pub async fn last_updated_async(&self) -> Result<i64, GraphError> {
+        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
+        metadata.modified()?.to_millis()
+    }
+
+    pub fn get_original_path_str(&self) -> &str {
         &self.original_path
     }
 
-    pub(crate) fn get_original_path(&self) -> &Path {
+    pub fn get_original_path(&self) -> &Path {
         &Path::new(&self.original_path)
     }
 
     /// This returns the PathBuf used to build multiple GraphError types
-    pub(crate) fn to_error_path(&self) -> PathBuf {
+    pub fn to_error_path(&self) -> PathBuf {
         self.original_path.to_owned().into()
     }
 }

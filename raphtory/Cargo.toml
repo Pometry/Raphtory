@@ -16,11 +16,11 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
-arrow-ipc = {workspace = true}
-arrow-array = {workspace = true, features = ["chrono-tz"]}
-arrow-schema = {workspace = true}
-arrow-buffer = {workspace = true}
-arrow-data ={ workspace = true }
+arrow-ipc = { workspace = true }
+arrow-array = { workspace = true, features = ["chrono-tz"] }
+arrow-schema = { workspace = true }
+arrow-buffer = { workspace = true }
+arrow-data = { workspace = true }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -71,6 +71,10 @@ async-openai = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
+arroy = { workspace = true, optional = true }
+heed = { workspace = true, optional = true }
+sysinfo = { workspace = true, optional = true }
+moka = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -84,13 +88,15 @@ arrow-json = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
-pyo3-arrow = {workspace = true, optional = true}
+pyo3-arrow = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 roaring = { workspace = true }
 fake = { workspace = true }
 strsim = { workspace = true }
+walkdir = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -98,8 +104,8 @@ pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }             # for vector testing
-dotenv = { workspace = true }            # for vector testing
+tokio = { workspace = true }                             # for vector testing
+dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 polars-core = { workspace = true, features = ["fmt"] }
@@ -113,7 +119,6 @@ prost-build = { workspace = true, optional = true }
 default = []
 # Enables the graph loader io module
 io = [
-    "dep:zip",
     "dep:neo4rs",
     "dep:bzip2",
     "dep:flate2",
@@ -126,7 +131,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "proto"]
+search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
 # vectors
 vectors = [
     "dep:futures-util",
@@ -135,6 +140,11 @@ vectors = [
     "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
+    "dep:arroy",
+    "dep:heed",
+    "dep:sysinfo",
+    "dep:moka",
+    "dep:tempfile",          # also used for the storage feature
 ]
 
 # Enables generating the pyo3 python bindings
@@ -172,9 +182,9 @@ arrow = [
 proto = [
     "dep:prost",
     "dep:prost-types",
+    "dep:zip",
     "dep:prost-build",
     "dep:memmap2",
-    "dep:zip",
     "arrow",
     "io",
 ]

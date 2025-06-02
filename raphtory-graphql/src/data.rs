@@ -1,18 +1,17 @@
 use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
-    model::plugins::query_plugin::QueryPlugin,
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
 use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphResult, InvalidPathReason},
+    core::utils::errors::{GraphError, InvalidPathReason},
     db::api::view::MaterializedGraph,
+    prelude::CacheOps,
     vectors::{
-        embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
-        EmbeddingFunction,
+        cache::VectorCache, embeddings::openai_embedding, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
@@ -21,13 +20,13 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::task::spawn_blocking;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
 #[derive(Clone)]
 pub struct EmbeddingConf {
-    pub(crate) function: Arc<dyn EmbeddingFunction>,
-    pub(crate) cache: Arc<Option<EmbeddingCache>>, // FIXME: no need for this to be Option
+    pub(crate) cache: VectorCache,
     pub(crate) global_template: Option<DocumentTemplate>,
     pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
 }
@@ -94,21 +93,27 @@ impl Data {
             .map(|graph| (graph, graph_folder))
     }
 
+    pub async fn get_graph_async(
+        &self,
+        path: &str,
+    ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
+        let data = self.clone();
+        let graph_folder = ExistingGraphFolder::try_from(data.work_dir.clone(), path)?;
+        let path = path.into();
+        // TODO: we should use the async cache apis
+        spawn_blocking(move || {
+            data.cache
+                .try_get_with(path, || data.read_graph_from_folder(&graph_folder))
+                .map(|graph| (graph, graph_folder))
+        })
+        .await
+        .unwrap()
+    }
+
     pub async fn insert_graph(
         &self,
         path: &str,
         graph: MaterializedGraph,
-    ) -> Result<(), GraphError> {
-        let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
-        let vectors = self.vectorise(graph.clone(), &folder).await;
-        let graph = GraphWithVectors::new(graph, vectors);
-        self.insert_graph_with_vectors(path, graph)
-    }
-
-    pub fn insert_graph_with_vectors(
-        &self,
-        path: &str,
-        graph: GraphWithVectors,
     ) -> Result<(), GraphError> {
         // TODO: replace ValidGraphFolder with ValidNonExistingGraphFolder !!!!!!!!!
         // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
@@ -118,7 +123,12 @@ impl Data {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
                 fs::create_dir_all(folder.get_base_path())?;
-                graph.cache(folder)?;
+                graph.cache(folder.clone())?;
+                let vectors = self.vectorise(graph.clone(), &folder).await;
+                let graph = GraphWithVectors::new(graph, vectors);
+                graph
+                    .folder
+                    .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
                 self.cache.insert(path.into(), graph);
                 Ok(())
             }
@@ -130,19 +140,6 @@ impl Data {
         fs::remove_dir_all(graph_folder.get_base_path())?;
         self.cache.remove(&PathBuf::from(path));
         Ok(())
-    }
-
-    pub async fn embed_query(&self, query: String) -> GraphResult<Embedding> {
-        let embedding_function = self
-            .embedding_conf
-            .as_ref()
-            .map(|conf| conf.function.clone());
-        let embedding = if let Some(embedding_function) = embedding_function {
-            embedding_function.call(vec![query]).await?.remove(0)
-        } else {
-            openai_embedding(vec![query]).await?.remove(0)
-        };
-        Ok(embedding)
     }
 
     fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
@@ -161,11 +158,9 @@ impl Data {
         let conf = self.embedding_conf.as_ref()?;
         let vectors = graph
             .vectorise(
-                Box::new(conf.function.clone()),
                 conf.cache.clone(),
-                true, // overwrite
                 template.clone(),
-                Some(folder.get_original_path_str().to_owned()),
+                Some(&folder.get_vectors_path()),
                 true, // verbose
             )
             .await;
@@ -188,24 +183,19 @@ impl Data {
         self.vectorise_with_template(graph, folder, template).await
     }
 
-    async fn vectorise_folder(
-        &self,
-        folder: &ExistingGraphFolder,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
+    async fn vectorise_folder(&self, folder: &ExistingGraphFolder) -> Option<()> {
         // it's important that we check if there is a valid template set for this graph path
         // before actually loading the graph, otherwise we are loading the graph for no reason
         let template = self.resolve_template(folder.get_original_path())?;
         let graph = self.read_graph_from_folder(folder).ok()?.graph;
-        self.vectorise_with_template(graph, folder, template).await
+        self.vectorise_with_template(graph, folder, template).await;
+        Some(())
     }
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
         for folder in self.get_all_graph_folders() {
             if !folder.get_vectors_path().exists() {
-                let vectors = self.vectorise_folder(&folder).await;
-                if let Some(vectors) = vectors {
-                    vectors.write_to_path(&folder.get_vectors_path())?;
-                }
+                self.vectorise_folder(&folder).await;
             }
         }
         Ok(())
@@ -226,38 +216,12 @@ impl Data {
             .collect()
     }
 
-    pub(crate) fn get_global_plugins(&self) -> QueryPlugin {
-        let graphs = self
-            .get_all_graph_folders()
-            .into_iter()
-            .filter_map(|folder| {
-                Some((
-                    folder.get_original_path_str().to_owned(),
-                    self.read_graph_from_folder(&folder).ok()?.vectors?,
-                ))
-            })
-            .collect::<HashMap<_, _>>();
-        QueryPlugin {
-            graphs: graphs.into(),
-        }
-    }
-
     fn read_graph_from_folder(
         &self,
         folder: &ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let embedding = self
-            .embedding_conf
-            .as_ref()
-            .map(|conf| conf.function.clone())
-            .unwrap_or(Arc::new(openai_embedding));
-        let cache = self
-            .embedding_conf
-            .as_ref()
-            .map(|conf| conf.cache.clone())
-            .unwrap_or(Arc::new(None));
-
-        GraphWithVectors::read_from_folder(folder, embedding, cache, self.create_index)
+        let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
+        GraphWithVectors::read_from_folder(folder, cache, self.create_index)
     }
 }
 

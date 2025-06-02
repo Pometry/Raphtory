@@ -3,8 +3,8 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
-            namespace::Namespace, vectorised_graph::GqlVectorisedGraph,
+            graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
+            vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -17,12 +17,14 @@ use dynamic_graphql::{
     Result, Upload,
 };
 
+use crate::model::graph::namespaces::Namespaces;
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
     core::utils::errors::{GraphError, InvalidPathReason},
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
+    serialise::InternalStableDecode,
 };
 use std::{
     error::Error,
@@ -32,11 +34,19 @@ use std::{
 };
 use zip::ZipArchive;
 
-pub mod algorithms;
 pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+/// a thin wrapper around spawn_blocking that unwraps the join handle
+pub(crate) async fn blocking<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    tokio::task::spawn_blocking(f).await.unwrap()
+}
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -64,6 +74,7 @@ pub enum GqlGraphError {
 }
 
 #[derive(Enum)]
+#[graphql(name = "GraphType")]
 pub enum GqlGraphType {
     Persistent,
     Event,
@@ -103,10 +114,10 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn namespaces<'a>(ctx: &Context<'a>) -> Vec<Namespace> {
+    async fn namespaces<'a>(ctx: &Context<'a>) -> Namespaces {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        root.get_all_children()
+        Namespaces::new(root.get_all_namespaces())
     }
     async fn namespace<'a>(
         ctx: &Context<'a>,
@@ -126,16 +137,8 @@ impl QueryRoot {
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
 
-    //To deprecate I think
-    async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
-        let data = ctx.data_unchecked::<Data>();
-        let paths = data.get_all_graph_folders();
-        Ok(GqlGraphs::new(paths))
-    }
-
-    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
-        let data = ctx.data_unchecked::<Data>();
-        data.get_global_plugins()
+    async fn plugins<'a>() -> QueryPlugin {
+        QueryPlugin::default()
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {

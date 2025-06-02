@@ -1,4 +1,5 @@
 name: Run Rust test
+permissions: { }
 on:
   workflow_call:
     inputs:

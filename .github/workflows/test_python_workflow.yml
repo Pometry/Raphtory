@@ -1,4 +1,5 @@
 name: Run Python test
+permissions: { }
 on:
   workflow_call:
     inputs:
@@ -29,8 +30,6 @@ jobs:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
-    env:
-      DISK_TEST_MARK: 1
     steps:
       - uses: actions/checkout@v3
         name: Checkout
@@ -45,10 +44,6 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: webfactory/ssh-agent@v0.7.0
-        name: Load raphtory-disk_graph key
-        with:
-          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
@@ -58,20 +53,13 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
-      - name: Activate pometry-storage in Cargo.toml
-        run: make pull-storage
       - name: Install Python dependencies
         run: |
-          python -m pip install pytest tox nbmake
+          python -m pip install pytest tox
           python -m pip install -e examples/netflow
       - name: Run Python tests
-        env:
-          MATURIN_PEP517_ARGS: "--features=storage"
         run: |
           cd python && tox run
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Test example notebook
-        working-directory: examples/python/socio-patterns
-        run: pytest --nbmake example.ipynb

@@ -11,24 +11,23 @@ use raphtory::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{
-                internal::{CoreGraphOps, InternalStorageOps},
-                SearchableGraphOps,
-            },
+            view::{internal::CoreGraphOps, SearchableGraphOps},
         },
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::property_filter::{
-                resolve_as_property_filter, EdgeFilter, EdgeFilterOps, FilterExpr, FilterOperator,
-                FilterOperator::*, NodeFilter, NodeFilterOps, PropertyFilterOps,
+            views::filter::model::{
+                filter_operator::{FilterOperator, FilterOperator::*},
+                ComposableFilter, EdgeFilter, EdgeFilterOps, NodeFilter, NodeFilterBuilderOps,
+                PropertyFilterOps,
             },
         },
     },
     prelude::{
         EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps,
-        NodeViewOps, PropUnwrap, PropertyFilter, StableDecode,
+        NodeViewOps, PropUnwrap, PropertyFilter,
     },
+    serialise::StableDecode,
 };
 use raphtory_api::core::PropType;
 use rayon::prelude::*;
@@ -43,7 +42,7 @@ static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
     println!("Edges count = {}", graph.count_edges());
 
     let start = Instant::now();
-    let _ = graph.create_index().unwrap();
+    let _ = graph.create_index_in_ram().unwrap();
     let duration = start.elapsed();
     println!("Time taken to initialize graph and indexes: {:?}", duration);
 
@@ -202,7 +201,7 @@ fn convert_to_property_filter(
     prop_value: Prop,
     filter_op: FilterOperator,
     sampled_values: Option<Vec<Prop>>,
-) -> Option<FilterExpr> {
+) -> Option<PropertyFilter> {
     let mut rng = thread_rng();
 
     match prop_value.dtype() {
@@ -220,9 +219,9 @@ fn convert_to_property_filter(
                         Eq => Some(PropertyFilter::property(prop_name).eq(sub_str)),
                         Ne => Some(PropertyFilter::property(prop_name).ne(sub_str)),
                         In => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
                         NotIn => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 } else {
@@ -230,9 +229,9 @@ fn convert_to_property_filter(
                         Eq => Some(PropertyFilter::property(prop_name).eq(full_str)),
                         Ne => Some(PropertyFilter::property(prop_name).ne(full_str)),
                         In => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).includes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
                         NotIn => sampled_values
-                            .map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+                            .map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 }
@@ -249,8 +248,8 @@ fn convert_to_property_filter(
             Le => Some(PropertyFilter::property(prop_name).le(v)),
             Gt => Some(PropertyFilter::property(prop_name).gt(v)),
             Ge => Some(PropertyFilter::property(prop_name).ge(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::I64 => prop_value.into_i64().and_then(|v| match filter_op {
@@ -260,8 +259,8 @@ fn convert_to_property_filter(
             Le => Some(PropertyFilter::property(prop_name).le(v)),
             Gt => Some(PropertyFilter::property(prop_name).gt(v)),
             Ge => Some(PropertyFilter::property(prop_name).ge(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::F64 => prop_value.into_f64().and_then(|v| match filter_op {
@@ -271,15 +270,15 @@ fn convert_to_property_filter(
             Le => Some(PropertyFilter::property(prop_name).le(v)),
             Gt => Some(PropertyFilter::property(prop_name).gt(v)),
             Ge => Some(PropertyFilter::property(prop_name).ge(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::Bool => prop_value.into_bool().and_then(|v| match filter_op {
             Eq => Some(PropertyFilter::property(prop_name).eq(v)),
             Ne => Some(PropertyFilter::property(prop_name).ne(v)),
-            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).includes(vals)),
-            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).excludes(vals)),
+            In => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_in(vals)),
+            NotIn => sampled_values.map(|vals| PropertyFilter::property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
 
@@ -321,7 +320,7 @@ fn pick_node_property_filter(
     props: &[(String, usize)],
     is_const: bool,
     filter_op: FilterOperator,
-) -> Option<FilterExpr> {
+) -> Option<PropertyFilter> {
     let mut rng = thread_rng();
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
@@ -341,7 +340,10 @@ fn pick_node_property_filter(
     }
 }
 
-fn get_random_node_property_filters(graph: &Graph, filter_op: FilterOperator) -> Vec<FilterExpr> {
+fn get_random_node_property_filters(
+    graph: &Graph,
+    filter_op: FilterOperator,
+) -> Vec<PropertyFilter> {
     let mut rng = thread_rng();
     let node_names = get_random_node_names(graph);
 
@@ -428,7 +430,7 @@ fn pick_edge_property_filter(
     props: &[(String, usize)],
     is_const: bool,
     filter_op: FilterOperator,
-) -> Option<FilterExpr> {
+) -> Option<PropertyFilter> {
     let mut rng = thread_rng();
 
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
@@ -449,7 +451,10 @@ fn pick_edge_property_filter(
     }
 }
 
-fn get_random_edge_property_filters(graph: &Graph, filter_op: FilterOperator) -> Vec<FilterExpr> {
+fn get_random_edge_property_filters(
+    graph: &Graph,
+    filter_op: FilterOperator,
+) -> Vec<PropertyFilter> {
     let mut rng = thread_rng();
     let edges = get_random_edges_by_src_dst_names(graph);
 
@@ -533,9 +538,8 @@ fn bench_search_nodes_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap(),
             |random_filter| {
-                let prop_filter = resolve_as_property_filter(random_filter).unwrap();
                 graph
-                    .filter_nodes(prop_filter)
+                    .filter_nodes(random_filter)
                     .unwrap()
                     .nodes()
                     .into_iter()
@@ -604,9 +608,8 @@ fn bench_search_edges_by_property_filter<F>(
         b.iter_batched(
             || iter.next().unwrap().clone(),
             |random_filter| {
-                let prop_filter = resolve_as_property_filter(random_filter).unwrap();
                 graph
-                    .filter_edges(prop_filter)
+                    .filter_edges(random_filter)
                     .unwrap()
                     .edges()
                     .into_iter()
@@ -657,7 +660,7 @@ fn bench_search_nodes_by_name(c: &mut Criterion) {
             || {
                 let mut iter = node_names.iter().cloned().cycle();
                 let random_name = iter.next().unwrap();
-                NodeFilter::node_name().eq(random_name)
+                NodeFilter::name().eq(random_name)
             },
             |random_filter| {
                 graph.search_nodes(random_filter, 5, 0).unwrap();
@@ -779,8 +782,9 @@ fn bench_search_edges_by_src_dst(c: &mut Criterion) {
                 let random_src_name = random_name.0;
                 let random_dst_name = random_name.1;
                 EdgeFilter::src()
+                    .name()
                     .eq(random_src_name)
-                    .and(EdgeFilter::dst().eq(random_dst_name))
+                    .and(EdgeFilter::dst().name().eq(random_dst_name))
             },
             |random_filter| {
                 graph.search_edges(random_filter, 5, 0).unwrap();

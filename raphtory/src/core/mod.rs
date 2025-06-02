@@ -57,33 +57,6 @@ pub mod utils;
 use crate::core::prop_array::PropArray;
 pub use raphtory_api::core::*;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, Default)]
-pub enum Lifespan {
-    Interval {
-        start: i64,
-        end: i64,
-    },
-    Event {
-        time: i64,
-    },
-    #[default]
-    Inherited,
-}
-
-/// struct containing all the necessary information to allow Raphtory creating a document and
-/// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash, Default)]
-pub struct DocumentInput {
-    pub content: String,
-    pub life: Lifespan,
-}
-
-impl Display for DocumentInput {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.content)
-    }
-}
-
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {
@@ -339,7 +312,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> Result<DataType, Grap
 
 pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
     match arrow_dtype {
-        DataType::LargeUtf8 | DataType::Utf8 => PropType::Str,
+        DataType::LargeUtf8 | DataType::Utf8 | DataType::Utf8View => PropType::Str,
         DataType::UInt8 => PropType::U8,
         DataType::UInt16 => PropType::U16,
         DataType::Int32 => PropType::I32,
@@ -890,16 +863,6 @@ impl From<Prop> for Value {
             Prop::NDTime(value) => Value::String(value.to_string()),
             Prop::DTime(value) => Value::String(value.to_string()),
             _ => Value::Null,
-        }
-    }
-}
-
-impl From<Lifespan> for Value {
-    fn from(lifespan: Lifespan) -> Self {
-        match lifespan {
-            Lifespan::Interval { start, end } => json!({ "start": start, "end": end }),
-            Lifespan::Event { time } => json!({ "time": time }),
-            Lifespan::Inherited => Value::String("inherited".to_string()),
         }
     }
 }

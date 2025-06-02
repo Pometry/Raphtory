@@ -1,39 +1,23 @@
 use crate::{
     config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
-    model::{
-        algorithms::document::Document as GqlDocument,
-        plugins::{entry_point::EntryPoint, query_plugin::QueryPlugin},
-    },
-    python::{
-        adapt_graphql_value,
-        global_plugins::PyGlobalPlugins,
-        server::{
-            running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
-        },
+    python::server::{
+        running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
     },
     GraphServer,
 };
-use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef};
-use dynamic_graphql::internal::{Registry, TypeName};
-use itertools::intersperse;
 use pyo3::{
     exceptions::{PyAttributeError, PyException, PyValueError},
     prelude::*,
-    types::{IntoPyDict, PyFunction, PyList},
-    IntoPyObjectExt,
+    types::PyFunction,
 };
 use raphtory::{
-    db::api::view::DynamicGraph,
-    python::{packages::vectors::TemplateConfig, types::wrappers::document::PyDocument},
+    python::packages::vectors::TemplateConfig,
     vectors::{
-        embeddings::openai_embedding,
-        template::{
-            DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_GRAPH_TEMPLATE, DEFAULT_NODE_TEMPLATE,
-        },
-        Document, EmbeddingFunction,
+        embeddings::{openai_embedding, EmbeddingFunction},
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
     },
 };
-use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
+use std::{path::PathBuf, sync::Arc, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -60,16 +44,11 @@ impl<'py> IntoPyObject<'py> for GraphServer {
     }
 }
 
-fn template_from_python(
-    graphs: TemplateConfig,
-    nodes: TemplateConfig,
-    edges: TemplateConfig,
-) -> Option<DocumentTemplate> {
-    if graphs.is_disabled() && nodes.is_disabled() && edges.is_disabled() {
+fn template_from_python(nodes: TemplateConfig, edges: TemplateConfig) -> Option<DocumentTemplate> {
+    if nodes.is_disabled() && edges.is_disabled() {
         None
     } else {
         Some(DocumentTemplate {
-            graph_template: graphs.get_template_or(DEFAULT_GRAPH_TEMPLATE),
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         })
@@ -85,85 +64,14 @@ impl PyGraphServer {
         slf: PyRefMut<Self>,
         cache: String,
         embedding: F,
-        graphs: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
-        let global_template = template_from_python(graphs, nodes, edges);
+        let global_template = template_from_python(nodes, edges);
         let server = take_server_ownership(slf)?;
         let cache = PathBuf::from(cache);
-        Ok(server.set_embeddings(embedding, &cache, global_template))
-    }
-
-    fn with_generic_document_search_function<
-        'a,
-        E: EntryPoint<'a> + 'static,
-        F: Fn(&E, Python) -> PyObject + Send + Sync + 'static,
-    >(
-        slf: PyRefMut<Self>,
-        name: String,
-        input: HashMap<String, String>,
-        function: Py<PyFunction>,
-        adapter: F,
-    ) -> PyResult<GraphServer> {
-        let input_mapper = HashMap::from([
-            ("str", TypeRef::named_nn(TypeRef::STRING)),
-            ("int", TypeRef::named_nn(TypeRef::INT)),
-            ("float", TypeRef::named_nn(TypeRef::FLOAT)),
-        ]);
-
-        let input_values = input
-            .into_iter()
-            .map(|(name, type_name)| {
-                let type_ref = input_mapper.get(&type_name.as_str()).cloned();
-                type_ref
-                    .map(|type_ref| InputValue::new(name, type_ref))
-                    .ok_or_else(|| {
-                        let valid_types = input_mapper.keys().map(|key| key.to_owned());
-                        let valid_types_string: String = intersperse(valid_types, ", ").collect();
-                        let msg = format!("types in input have to be one of: {valid_types_string}");
-                        PyAttributeError::new_err(msg)
-                    })
-            })
-            .collect::<PyResult<Vec<InputValue>>>()?;
-
-        // FIXME: this should return a result!
-        let register_function = |name: &str, registry: Registry, parent: Object| {
-            let registry = registry.register::<GqlDocument>();
-            let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
-            let mut field = Field::new(name, output_type, move |ctx| {
-                let documents: Vec<Document<DynamicGraph>> = Python::with_gil(|py| {
-                    let entry_point = adapter(ctx.parent_value.downcast_ref().unwrap(), py);
-                    let kw_args: HashMap<&str, PyObject> = ctx
-                        .args
-                        .iter()
-                        .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
-                        .collect();
-                    let py_kw_args = kw_args.into_py_dict(py).unwrap();
-                    let result = function
-                        .call(py, (entry_point,), Some(&py_kw_args))
-                        .unwrap();
-                    let list = result.downcast_bound::<PyList>(py).unwrap();
-                    let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
-                    py_documents.map(|doc| doc.into()).collect()
-                });
-
-                let gql_documents = documents
-                    .into_iter()
-                    .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
-
-                FieldFuture::Value(Some(FieldValue::list(gql_documents)))
-            });
-            for input_value in input_values {
-                field = field.argument(input_value);
-            }
-            let parent = parent.field(field);
-            (registry, parent)
-        };
-        E::lock_plugins().insert(name, Box::new(register_function));
-
-        let new_server = take_server_ownership(slf)?;
-        Ok(new_server)
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        Ok(rt.block_on(server.set_embeddings(embedding, &cache, global_template))?)
     }
 }
 
@@ -236,31 +144,27 @@ impl PyGraphServer {
     /// Arguments:
     ///   cache (str):  the directory to use as cache for the embeddings.
     ///   embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///    GraphServer: A new server object with embeddings setup.
     #[pyo3(
-        signature = (cache, embedding = None, graphs = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+        signature = (cache, embedding = None, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
     fn set_embeddings(
         slf: PyRefMut<Self>,
         cache: String,
         embedding: Option<Py<PyFunction>>,
-        graphs: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
         match embedding {
             Some(embedding) => {
                 let embedding: Arc<dyn EmbeddingFunction> = Arc::new(embedding);
-                Self::set_generic_embeddings(slf, cache, embedding, graphs, nodes, edges)
+                Self::set_generic_embeddings(slf, cache, embedding, nodes, edges)
             }
-            None => {
-                Self::set_generic_embeddings(slf, cache, openai_embedding, graphs, nodes, edges)
-            }
+            None => Self::set_generic_embeddings(slf, cache, openai_embedding, nodes, edges),
         }
     }
 
@@ -268,57 +172,26 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///   graph_names (list[str]): the names of the graphs to vectorise. All by default.
-    ///   graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
-        signature = (graph_names, graphs = TemplateConfig::Bool(true), nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+        signature = (graph_names, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
     fn with_vectorised_graphs(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
-        graphs: TemplateConfig,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {
-        let template =
-            template_from_python(graphs, nodes, edges).ok_or(PyAttributeError::new_err(
-                "some of graph_template, node_template, edge_template has to be set",
-            ))?;
+        let template = template_from_python(nodes, edges).ok_or(PyAttributeError::new_err(
+            "node_template and/or edge_template has to be set",
+        ))?;
         let server = take_server_ownership(slf)?;
         Ok(server.with_vectorised_graphs(graph_names, template))
-    }
-
-    /// Register a function in the GraphQL schema for document search among all the graphs.
-    ///
-    /// The function needs to take a `GraphqlGraphs` object as the first argument followed by a
-    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-    /// They have to be specified using the `input` parameter as a dict where the keys are the
-    /// names of the parameters and the values are the types, expressed as strings.
-    ///
-    /// Arguments:
-    ///   name (str): the name of the function in the GraphQL schema.
-    ///   input (dict[str, str]):  the keyword arguments expected by the function.
-    ///   function (Callable): the function to run.
-    ///
-    /// Returns:
-    ///    GraphServer: A new server object with the function registered
-    pub fn with_global_search_function(
-        slf: PyRefMut<Self>,
-        name: String,
-        input: HashMap<String, String>,
-        function: Py<PyFunction>,
-    ) -> PyResult<GraphServer> {
-        let adapter = |entry_point: &QueryPlugin, py: Python| {
-            PyGlobalPlugins(entry_point.clone())
-                .into_py_any(py)
-                .unwrap()
-        };
-        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
     /// Start the server and return a handle to it.
@@ -340,31 +213,28 @@ impl PyGraphServer {
         timeout_ms: u64,
     ) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
-        let server = take_server_ownership(slf)?;
-
         let cloned_sender = sender.clone();
 
+        let server = take_server_ownership(slf)?;
+
         let join_handle = thread::spawn(move || {
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(async move {
-                    let handler = server.start_with_port(port);
-                    let running_server = handler.await?;
-                    let tokio_sender = running_server._get_sender().clone();
-                    tokio::task::spawn_blocking(move || {
-                        match receiver.recv().expect("Failed to wait for cancellation") {
-                            BridgeCommand::StopServer => tokio_sender
-                                .blocking_send(())
-                                .expect("Failed to send cancellation signal"),
-                            BridgeCommand::StopListening => (),
-                        }
-                    });
-                    let result = running_server.wait().await;
-                    _ = cloned_sender.send(BridgeCommand::StopListening);
-                    result
-                })
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                let handler = server.start_with_port(port);
+                let running_server = handler.await?;
+                let tokio_sender = running_server._get_sender().clone();
+                tokio::task::spawn_blocking(move || {
+                    match receiver.recv().expect("Failed to wait for cancellation") {
+                        BridgeCommand::StopServer => tokio_sender
+                            .blocking_send(())
+                            .expect("Failed to send cancellation signal"),
+                        BridgeCommand::StopListening => (),
+                    }
+                });
+                let result = running_server.wait().await;
+                _ = cloned_sender.send(BridgeCommand::StopListening);
+                result
+            })
         });
 
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;

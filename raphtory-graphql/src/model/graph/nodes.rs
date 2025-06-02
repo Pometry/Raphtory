@@ -1,24 +1,29 @@
 use crate::model::{
     graph::{
-        filtering::{FilterCondition, NodesViewCollection, Operator},
-        node::Node,
+        filtering::{NodeFilter, NodesViewCollection},
+        node::GqlNode,
+        windowset::GqlNodesWindowSet,
+        WindowDuration,
+        WindowDuration::{Duration, Epoch},
     },
     sorting::{NodeSortBy, SortByTime},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::{state::Index, view::DynamicGraph},
-        graph::{nodes::Nodes, views::property_filter::PropertyRef},
+        graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
     },
     prelude::*,
 };
 use raphtory_api::core::entities::VID;
 use std::cmp::Ordering;
+use tokio::task::spawn_blocking;
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Nodes")]
 pub(crate) struct GqlNodes {
     pub(crate) nn: Nodes<'static, DynamicGraph>,
 }
@@ -34,8 +39,8 @@ impl GqlNodes {
         Self { nn: nodes.into() }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
-        let iter = self.nn.iter_owned().map(Node::from);
+    fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
+        let iter = self.nn.iter_owned().map(GqlNode::from);
         Box::new(iter)
     }
 }
@@ -54,7 +59,10 @@ impl GqlNodes {
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
-        self.update(self.nn.exclude_valid_layers(names))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.exclude_valid_layers(names)))
+            .await
+            .unwrap()
     }
 
     async fn layer(&self, name: String) -> Self {
@@ -63,6 +71,54 @@ impl GqlNodes {
 
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.nn.exclude_valid_layers(name))
+    }
+
+    async fn rolling(
+        &self,
+        window: WindowDuration,
+        step: Option<WindowDuration>,
+    ) -> Result<GqlNodesWindowSet, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match window {
+            Duration(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(step_duration) => Ok(GqlNodesWindowSet::new(
+                        self_clone
+                            .nn
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                    Epoch(_) => Err(MismatchedIntervalTypes),
+                },
+                None => Ok(GqlNodesWindowSet::new(
+                    self_clone.nn.rolling(window_duration, None)?,
+                )),
+            },
+            Epoch(window_duration) => match step {
+                Some(step) => match step {
+                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Epoch(step_duration) => Ok(GqlNodesWindowSet::new(
+                        self_clone
+                            .nn
+                            .rolling(window_duration, Some(step_duration))?,
+                    )),
+                },
+                None => Ok(GqlNodesWindowSet::new(
+                    self_clone.nn.rolling(window_duration, None)?,
+                )),
+            },
+        })
+        .await
+        .unwrap()
+    }
+
+    async fn expanding(&self, step: WindowDuration) -> Result<GqlNodesWindowSet, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || match step {
+            Duration(step) => Ok(GqlNodesWindowSet::new(self_clone.nn.expanding(step)?)),
+            Epoch(step) => Ok(GqlNodesWindowSet::new(self_clone.nn.expanding(step)?)),
+        })
+        .await
+        .unwrap()
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
@@ -74,7 +130,10 @@ impl GqlNodes {
     }
 
     async fn latest(&self) -> Self {
-        self.update(self.nn.latest())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.latest()))
+            .await
+            .unwrap()
     }
 
     async fn snapshot_at(&self, time: i64) -> Self {
@@ -82,7 +141,10 @@ impl GqlNodes {
     }
 
     async fn snapshot_latest(&self) -> Self {
-        self.update(self.nn.snapshot_latest())
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.snapshot_latest()))
+            .await
+            .unwrap()
     }
 
     async fn before(&self, time: i64) -> Self {
@@ -106,149 +168,26 @@ impl GqlNodes {
     }
 
     async fn type_filter(&self, node_types: Vec<String>) -> Self {
-        self.update(self.nn.type_filter(&node_types))
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.update(self_clone.nn.type_filter(&node_types)))
+            .await
+            .unwrap()
     }
 
-    async fn node_filter(
-        &self,
-        property: String,
-        condition: FilterCondition,
-    ) -> Result<Self, GraphError> {
-        match condition.operator {
-            Operator::Equal => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::eq(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "Equal".into(),
-                    ))
-                }
-            }
-            Operator::NotEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ne(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "NotEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::ge(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::LessThanOrEqual => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::le(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThanOrEqual".into(),
-                    ))
-                }
-            }
-            Operator::GreaterThan => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::gt(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "GreaterThan".into(),
-                    ))
-                }
-            }
-            Operator::LessThan => {
-                if let Some(v) = condition.value {
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::lt(
-                        PropertyRef::Property(property),
-                        Prop::try_from(v)?,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "value".into(),
-                        "LessThan".into(),
-                    ))
-                }
-            }
-            Operator::IsNone => {
-                let filtered_nodes = self
-                    .nn
-                    .filter_nodes(PropertyFilter::is_none(PropertyRef::Property(property)))?;
-                Ok(self.update(filtered_nodes))
-            }
-            Operator::IsSome => {
-                let filtered_nodes = self
-                    .nn
-                    .filter_nodes(PropertyFilter::is_some(PropertyRef::Property(property)))?;
-                Ok(self.update(filtered_nodes))
-            }
-            Operator::Any => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::includes(
-                        PropertyRef::Property(property),
-                        prop_values,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "Any".into(),
-                    ))
-                }
-            }
-            Operator::NotAny => {
-                if let Some(Prop::List(list)) = condition.value.and_then(|v| Prop::try_from(v).ok())
-                {
-                    let prop_values: Vec<Prop> = list.iter().cloned().collect();
-                    let filtered_nodes = self.nn.filter_nodes(PropertyFilter::excludes(
-                        PropertyRef::Property(property),
-                        prop_values,
-                    ))?;
-                    Ok(self.update(filtered_nodes))
-                } else {
-                    Err(GraphError::ExpectedValueForOperator(
-                        "list".into(),
-                        "NotAny".into(),
-                    ))
-                }
-            }
-        }
+    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            filter.validate()?;
+            let filter: CompositeNodeFilter = filter.try_into()?;
+            let filtered_nodes = self_clone.nn.filter_nodes(filter)?;
+            Ok(self_clone.update(filtered_nodes.into_dyn()))
+        })
+        .await
+        .unwrap()
     }
 
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
         let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
-
         for view in views {
             let mut count = 0;
             if let Some(_) = view.default_layer {
@@ -317,9 +256,7 @@ impl GqlNodes {
             }
             if let Some(node_filter) = view.node_filter {
                 count += 1;
-                return_view = return_view
-                    .node_filter(node_filter.property, node_filter.condition)
-                    .await?;
+                return_view = return_view.node_filter(node_filter).await?;
             }
 
             if count > 1 {
@@ -335,50 +272,56 @@ impl GqlNodes {
     /////////////////
 
     async fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> Self {
-        let sorted: Index<VID> = self
-            .nn
-            .iter()
-            .sorted_by(|first_node, second_node| {
-                sort_bys
-                    .iter()
-                    .fold(Ordering::Equal, |current_ordering, sort_by| {
-                        current_ordering.then_with(|| {
-                            let ordering = if sort_by.id == Some(true) {
-                                first_node.id().partial_cmp(&second_node.id())
-                            } else if let Some(sort_by_time) = sort_by.time.as_ref() {
-                                let (first_time, second_time) = match sort_by_time {
-                                    SortByTime::Latest => {
-                                        (first_node.latest_time(), second_node.latest_time())
-                                    }
-                                    SortByTime::Earliest => {
-                                        (first_node.earliest_time(), second_node.earliest_time())
-                                    }
-                                };
-                                first_time.partial_cmp(&second_time)
-                            } else if let Some(sort_by_property) = sort_by.property.as_ref() {
-                                let first_prop_maybe =
-                                    first_node.properties().get(sort_by_property);
-                                let second_prop_maybe =
-                                    second_node.properties().get(sort_by_property);
-                                first_prop_maybe.partial_cmp(&second_prop_maybe)
-                            } else {
-                                None
-                            };
-                            if let Some(ordering) = ordering {
-                                if sort_by.reverse == Some(true) {
-                                    ordering.reverse()
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let sorted: Index<VID> = self_clone
+                .nn
+                .iter()
+                .sorted_by(|first_node, second_node| {
+                    sort_bys
+                        .iter()
+                        .fold(Ordering::Equal, |current_ordering, sort_by| {
+                            current_ordering.then_with(|| {
+                                let ordering = if sort_by.id == Some(true) {
+                                    first_node.id().partial_cmp(&second_node.id())
+                                } else if let Some(sort_by_time) = sort_by.time.as_ref() {
+                                    let (first_time, second_time) = match sort_by_time {
+                                        SortByTime::Latest => {
+                                            (first_node.latest_time(), second_node.latest_time())
+                                        }
+                                        SortByTime::Earliest => (
+                                            first_node.earliest_time(),
+                                            second_node.earliest_time(),
+                                        ),
+                                    };
+                                    first_time.partial_cmp(&second_time)
+                                } else if let Some(sort_by_property) = sort_by.property.as_ref() {
+                                    let first_prop_maybe =
+                                        first_node.properties().get(sort_by_property);
+                                    let second_prop_maybe =
+                                        second_node.properties().get(sort_by_property);
+                                    first_prop_maybe.partial_cmp(&second_prop_maybe)
                                 } else {
-                                    ordering
+                                    None
+                                };
+                                if let Some(ordering) = ordering {
+                                    if sort_by.reverse == Some(true) {
+                                        ordering.reverse()
+                                    } else {
+                                        ordering
+                                    }
+                                } else {
+                                    Ordering::Equal
                                 }
-                            } else {
-                                Ordering::Equal
-                            }
+                            })
                         })
-                    })
-            })
-            .map(|node_view| node_view.node)
-            .collect();
-        GqlNodes::new(self.nn.indexed(sorted))
+                })
+                .map(|node_view| node_view.node)
+                .collect();
+            GqlNodes::new(self_clone.nn.indexed(sorted))
+        })
+        .await
+        .unwrap()
     }
 
     ////////////////////////
@@ -398,19 +341,33 @@ impl GqlNodes {
     /////////////////
 
     async fn count(&self) -> usize {
-        self.iter().count()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.iter().count())
+            .await
+            .unwrap()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Node> {
-        let start = offset * limit;
-        self.iter().skip(start).take(limit).collect()
+    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            let start = offset * limit;
+            self_clone.iter().skip(start).take(limit).collect()
+        })
+        .await
+        .unwrap()
     }
 
-    async fn list(&self) -> Vec<Node> {
-        self.iter().collect()
+    async fn list(&self) -> Vec<GqlNode> {
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.iter().collect())
+            .await
+            .unwrap()
     }
 
     async fn ids(&self) -> Vec<String> {
-        self.nn.name().collect()
+        let self_clone = self.clone();
+        spawn_blocking(move || self_clone.nn.name().collect())
+            .await
+            .unwrap()
     }
 }
