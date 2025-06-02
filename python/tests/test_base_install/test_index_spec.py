@@ -133,10 +133,10 @@ def test_get_index_spec():
 
     returned_spec = graph.get_index_spec()
 
-    node_const_names = {name for (name, _, _) in returned_spec.node_const_props}
-    node_temp_names = {name for (name, _, _) in returned_spec.node_temp_props}
-    edge_const_names = {name for (name, _, _) in returned_spec.edge_const_props}
-    edge_temp_names = {name for (name, _, _) in returned_spec.edge_temp_props}
+    node_const_names = {name for name in returned_spec.node_const_props}
+    node_temp_names = {name for name in returned_spec.node_temp_props}
+    edge_const_names = {name for name in returned_spec.edge_const_props}
+    edge_temp_names = {name for name in returned_spec.edge_temp_props}
 
     assert "x" in node_const_names
     assert "p1" in node_temp_names or "p2" in node_temp_names

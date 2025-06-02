@@ -686,7 +686,7 @@ impl IndexSpec {
 
 #[derive(Clone)]
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
-    graph: G,
+    pub graph: G,
     node_const_props: Option<HashSet<usize>>,
     node_temp_props: Option<HashSet<usize>>,
     edge_const_props: Option<HashSet<usize>>,

@@ -1,77 +1,92 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::{internal::DynamicGraph, IndexSpec, IndexSpecBuilder},
+        api::view::{
+            internal::{CoreGraphOps, DynamicGraph},
+            IndexSpec, IndexSpecBuilder,
+        },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::SearchableGraphOps,
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };
 use pyo3::prelude::*;
-use raphtory_api::core::PropType;
+use raphtory_api::core::entities::properties::props::PropMapper;
+use std::collections::HashSet;
 
 #[pyclass(name = "IndexSpec", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyIndexSpec {
+    pub(crate) graph: DynamicGraph,
     pub(crate) spec: IndexSpec,
 }
 
 #[pymethods]
 impl PyIndexSpec {
     fn __repr__(&self) -> PyResult<String> {
-        let fmt_props = |props: &Vec<(String, usize, PropType)>| {
-            props
-                .iter()
-                .map(|(name, id, typ)| format!("('{}', {}, '{:?}')", name, id, typ))
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-
         let repr = format!(
             "IndexSpec(\n  node_const_props=[{}],\n  node_temp_props=[{}],\n  edge_const_props=[{}],\n  edge_temp_props=[{}]\n)",
-            fmt_props(&self.spec.node_const_props),
-            fmt_props(&self.spec.node_temp_props),
-            fmt_props(&self.spec.edge_const_props),
-            fmt_props(&self.spec.edge_temp_props),
+            self.prop_repr(&self.spec.node_const_props, self.node_const_meta()),
+            self.prop_repr(&self.spec.node_temp_props, self.node_temp_meta()),
+            self.prop_repr(&self.spec.edge_const_props, self.edge_const_meta()),
+            self.prop_repr(&self.spec.edge_temp_props, self.edge_temp_meta()),
         );
-
         Ok(repr)
     }
 
     #[getter]
-    fn node_const_props(&self) -> Vec<(String, usize, String)> {
-        self.spec
-            .node_const_props
-            .iter()
-            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
-            .collect()
+    fn node_const_props(&self) -> Vec<String> {
+        self.prop_names(&self.spec.node_const_props, self.node_const_meta())
     }
 
     #[getter]
-    fn node_temp_props(&self) -> Vec<(String, usize, String)> {
-        self.spec
-            .node_temp_props
-            .iter()
-            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
-            .collect()
+    fn node_temp_props(&self) -> Vec<String> {
+        self.prop_names(&self.spec.node_temp_props, self.node_temp_meta())
     }
 
     #[getter]
-    fn edge_const_props(&self) -> Vec<(String, usize, String)> {
-        self.spec
-            .edge_const_props
-            .iter()
-            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
-            .collect()
+    fn edge_const_props(&self) -> Vec<String> {
+        self.prop_names(&self.spec.edge_const_props, self.edge_const_meta())
     }
 
     #[getter]
-    fn edge_temp_props(&self) -> Vec<(String, usize, String)> {
-        self.spec
-            .edge_temp_props
+    fn edge_temp_props(&self) -> Vec<String> {
+        self.prop_names(&self.spec.edge_temp_props, self.edge_temp_meta())
+    }
+}
+
+impl PyIndexSpec {
+    fn prop_names(&self, prop_ids: &HashSet<usize>, meta: &PropMapper) -> Vec<String> {
+        let mut names: Vec<String> = prop_ids
             .iter()
-            .map(|(name, id, typ)| (name.clone(), *id, format!("{:?}", typ)))
-            .collect()
+            .map(|id| meta.get_name(*id).to_string())
+            .collect();
+        names.sort();
+        names
+    }
+
+    fn prop_repr(&self, prop_ids: &HashSet<usize>, meta: &PropMapper) -> String {
+        self.prop_names(prop_ids, meta)
+            .into_iter()
+            .map(|name| format!("('{}')", name))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    fn node_const_meta(&self) -> &PropMapper {
+        self.graph.node_meta().const_prop_meta()
+    }
+
+    fn node_temp_meta(&self) -> &PropMapper {
+        self.graph.node_meta().temporal_prop_meta()
+    }
+
+    fn edge_const_meta(&self) -> &PropMapper {
+        self.graph.edge_meta().const_prop_meta()
+    }
+
+    fn edge_temp_meta(&self) -> &PropMapper {
+        self.graph.edge_meta().temporal_prop_meta()
     }
 }
 
@@ -152,6 +167,7 @@ impl PyIndexSpecBuilder {
 
     pub fn build(&self) -> PyIndexSpec {
         PyIndexSpec {
+            graph: self.builder.graph.clone(),
             spec: self.builder.build(),
         }
     }
@@ -162,7 +178,10 @@ impl PyGraphView {
     /// Get index spec
     fn get_index_spec(&self) -> Result<PyIndexSpec, GraphError> {
         let spec = self.graph.get_index_spec()?;
-        Ok(PyIndexSpec { spec })
+        Ok(PyIndexSpec {
+            graph: self.graph.clone(),
+            spec,
+        })
     }
 
     /// Create graph index
