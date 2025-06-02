@@ -1024,6 +1024,7 @@ pub(crate) mod test_filters {
 
             #[test]
             #[ignore]
+            // TODO: Enable test once issue is fixed: https://github.com/Pometry/Raphtory/issues/2109
             fn test_constant_semantics2() {
                 fn filter_edges(graph: &Graph, filter: impl InternalEdgeFilterOps) -> Vec<String> {
                     let mut results = graph
