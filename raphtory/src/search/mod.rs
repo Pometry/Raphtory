@@ -507,7 +507,7 @@ mod test_index {
             let graph = init_graph(Graph::new());
             let result = IndexSpecBuilder::new(graph.clone()).with_const_node_props(["xyz"]);
 
-            assert!(matches!(result, Err(GraphError::UnknownProperty(p)) if p == "xyz"));
+            assert!(matches!(result, Err(GraphError::PropertyMissingError(p)) if p == "xyz"));
         }
 
         #[test]

@@ -839,10 +839,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
                 let key = k.to_string();
                 let id = meta
                     .get_id(&*k)
-                    .ok_or_else(|| GraphError::UnknownProperty(key.clone()))?;
+                    .ok_or_else(|| GraphError::PropertyMissingError(key.clone()))?;
                 let d_type = meta
                     .get_dtype(id)
-                    .ok_or_else(|| GraphError::UnknownProperty(key.clone()))?;
+                    .ok_or_else(|| GraphError::PropertyMissingError(key.clone()))?;
                 Ok((key, id, d_type))
             })
             .collect()
