@@ -239,6 +239,7 @@ pub enum GraphError {
     #[error("IO operation failed: {0}")]
     IOErrorMsg(String),
 
+    #[cfg(feature = "vectors")]
     #[error("Arroy error: {0}")]
     ArroyError(#[from] arroy::Error),
 
