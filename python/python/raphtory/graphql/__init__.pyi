@@ -19,52 +19,6 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-class GraphqlGraphs(object):
-    """
-    A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
-    graph documents
-    """
-
-    def get(self, name: str) -> Optional[VectorisedGraph]:
-        """
-        Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist
-
-        Arguments:
-            name (str): the name of the graph
-        Returns:
-            Optional[VectorisedGraph]: the graph if it exists
-        """
-
-    def search_graph_documents(
-        self, query: str, limit: int, window: Optional[Tuple[TimeInput, TimeInput]]
-    ) -> list[Document]:
-        """
-        Return the top documents with the smallest cosine distance to `query`
-
-        Arguments:
-          query (str): the text or the embedding to score against
-          limit (int): the maximum number of documents to return
-          window (Tuple[TimeInput, TimeInput], optional): the window where documents need to belong to in order to be considered
-
-        Returns:
-          list[Document]: A list of documents
-        """
-
-    def search_graph_documents_with_scores(
-        self, query: str, limit: int, window: Optional[Tuple[TimeInput, TimeInput]]
-    ) -> list[Tuple[Document, float]]:
-        """
-        Same as `search_graph_documents` but it also returns the scores alongside the documents
-
-        Arguments:
-          query (str): the text or the embedding to score against
-          limit (int): the maximum number of documents to return
-          window (Tuple[TimeInput, TimeInput], optional): the window where documents need to belong to in order to be considered
-
-        Returns:
-          list[Tuple[Document, float]]: A list of documents and their scores
-        """
-
 class GraphServer(object):
     """
     A class for defining and running a Raphtory GraphQL server
@@ -113,7 +67,6 @@ class GraphServer(object):
         self,
         cache: str,
         embedding: Optional[Callable] = None,
-        graphs: bool | str = True,
         nodes: bool | str = True,
         edges: bool | str = True,
     ) -> GraphServer:
@@ -123,7 +76,6 @@ class GraphServer(object):
         Arguments:
           cache (str):  the directory to use as cache for the embeddings.
           embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-          graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
@@ -152,39 +104,14 @@ class GraphServer(object):
             GraphServer: The server with indexing disabled
         """
 
-    def with_global_search_function(
-        self, name: str, input: dict[str, str], function: Callable
-    ) -> GraphServer:
-        """
-        Register a function in the GraphQL schema for document search among all the graphs.
-
-        The function needs to take a `GraphqlGraphs` object as the first argument followed by a
-        pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-        They have to be specified using the `input` parameter as a dict where the keys are the
-        names of the parameters and the values are the types, expressed as strings.
-
-        Arguments:
-          name (str): the name of the function in the GraphQL schema.
-          input (dict[str, str]):  the keyword arguments expected by the function.
-          function (Callable): the function to run.
-
-        Returns:
-           GraphServer: A new server object with the function registered
-        """
-
     def with_vectorised_graphs(
-        self,
-        graph_names: list[str],
-        graphs: bool | str = True,
-        nodes: bool | str = True,
-        edges: bool | str = True,
+        self, graph_names: list[str], nodes: bool | str = True, edges: bool | str = True
     ) -> GraphServer:
         """
         Vectorise a subset of the graphs of the server.
 
         Arguments:
           graph_names (list[str]): the names of the graphs to vectorise. All by default.
-          graphs (bool | str): if graphs have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 

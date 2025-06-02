@@ -654,12 +654,8 @@ class GraphView(object):
     def vectorise(
         self,
         embedding: Callable[[list], list],
-        cache: Optional[str] = None,
-        overwrite_cache: bool = False,
-        graph: bool | str = True,
         nodes: bool | str = True,
         edges: bool | str = True,
-        graph_name: Optional[str] = None,
         verbose: bool = False,
     ) -> VectorisedGraph:
         """
@@ -667,12 +663,8 @@ class GraphView(object):
 
         Args:
           embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-          cache (str, optional): the file to be used as a cache to avoid calling the embedding function
-          overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings. Defaults to False.
-          graph (bool | str): if the graph has to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-          graph_name (str, optional): the name of the graph
           verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
 
         Returns:
