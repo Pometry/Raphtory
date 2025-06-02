@@ -69,6 +69,10 @@ async-openai = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
+arroy = { workspace = true, optional = true }
+heed = { workspace = true, optional = true }
+sysinfo = { workspace = true, optional = true }
+moka = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -97,8 +101,8 @@ pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }             # for vector testing
-dotenv = { workspace = true }            # for vector testing
+tokio = { workspace = true }                             # for vector testing
+dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 proptest-derive = { workspace = true }
@@ -134,7 +138,12 @@ vectors = [
     "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
-    "raphtory-api/template"
+    "raphtory-api/template",
+    "dep:arroy",
+    "dep:heed",
+    "dep:sysinfo",
+    "dep:moka",
+    "dep:tempfile", # also used for the storage feature
 ]
 
 # Enables generating the pyo3 python bindings

@@ -7,7 +7,11 @@ edition = "2021"
 
 [dependencies]
 criterion = { workspace = true }
-raphtory = { path = "../raphtory", features = ["io", "proto"], version = "0.15.1" }
+raphtory = { path = "../raphtory", features = [
+    "io",
+    "proto",
+    "vectors",
+], version = "0.15.1" }
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
@@ -20,6 +24,11 @@ itertools = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
+tokio = { workspace = true }
+
+[[bin]]
+name = "vectorise"
+path = "bin/vectorise.rs"
 
 [[bench]]
 name = "tgraph_benchmarks"
@@ -66,6 +75,10 @@ required-features = ["storage"]
 name = "search_bench"
 harness = false
 required-features = ["search"]
+
+[[bench]]
+name = "vectors"
+harness = false
 
 [features]
 search = ["raphtory/search"]

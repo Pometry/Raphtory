@@ -1,5 +1,6 @@
 use dynamic_graphql::OneOfInput;
 
+mod document;
 pub(crate) mod edge;
 mod edges;
 pub(crate) mod filtering;
@@ -13,6 +14,7 @@ pub(crate) mod node;
 mod nodes;
 mod path_from_node;
 pub(crate) mod property;
+pub(crate) mod vector_selection;
 pub(crate) mod vectorised_graph;
 mod windowset;
 

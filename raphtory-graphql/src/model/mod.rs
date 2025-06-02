@@ -33,11 +33,19 @@ use zip::ZipArchive;
 #[cfg(feature = "storage")]
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
-pub mod algorithms;
 pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+/// a thin wrapper around spawn_blocking that unwraps the join handle
+pub(crate) async fn blocking<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    tokio::task::spawn_blocking(f).await.unwrap()
+}
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -128,9 +136,8 @@ impl QueryRoot {
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
-        let data = ctx.data_unchecked::<Data>();
-        data.get_global_plugins()
+    async fn plugins<'a>() -> QueryPlugin {
+        QueryPlugin::default()
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {

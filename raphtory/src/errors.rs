@@ -239,6 +239,17 @@ pub enum GraphError {
     #[error("IO operation failed: {0}")]
     IOErrorMsg(String),
 
+    #[error("Arroy error: {0}")]
+    ArroyError(#[from] arroy::Error),
+
+    #[cfg(feature = "vectors")]
+    #[error("Heed error: {0}")]
+    HeedError(#[from] heed::Error),
+
+    #[cfg(feature = "vectors")]
+    #[error("The path {0} does not contain a vector DB")]
+    VectorDbDoesntExist(String),
+
     #[cfg(feature = "proto")]
     #[error("zip operation failed")]
     ZipError {
@@ -246,12 +257,6 @@ pub enum GraphError {
         source: zip::result::ZipError,
     },
 
-    #[cfg(feature = "vectors")]
-    #[error("bincode operation failed")]
-    BincodeError {
-        #[from]
-        source: bincode::Error,
-    },
     #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
