@@ -636,4 +636,11 @@ mod test_raph_social {
         let g_from_proto = Graph::decode("test_data/graphs/test_graph_0_15").unwrap();
         assert_graph_equal(&g_from_proto, &g_expected);
     }
+
+    #[test]
+    fn test_proto_decode_0_14() {
+        let g_expected = load_graph("test_data/csv").unwrap();
+        let g_from_proto = Graph::decode("test_data/graphs/test_graph_0_14").unwrap();
+        assert_graph_equal(&g_from_proto, &g_expected);
+    }
 }
