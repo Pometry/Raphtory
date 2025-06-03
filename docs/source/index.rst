@@ -17,5 +17,6 @@ methods.
    :maxdepth: 5
 
    reference/index
+   user_guide/index
 
 
