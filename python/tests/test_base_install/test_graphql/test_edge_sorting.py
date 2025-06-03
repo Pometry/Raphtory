@@ -67,8 +67,7 @@ def create_test_graph(g):
     return g
 
 
-EVENT_GRAPH = create_test_graph(Graph(num_shards=3))
-
+EVENT_GRAPH = create_test_graph(Graph())
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
 
 

@@ -41,12 +41,12 @@ impl EdgesStorage {
         layers: &'a LayerIds,
     ) -> impl Iterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
         match self {
-            EdgesStorage::Mem(storage) => StorageVariants2::Mem(
-                storage
-                    .iter()
-                    .filter(|e| e.has_layer(layers))
-                    .map(EdgeStorageRef::Mem),
-            ),
+            EdgesStorage::Mem(storage) => {
+                StorageVariants2::Mem((0..storage.len()).map(EID).filter_map(|e| {
+                    let edge = storage.get_mem(e);
+                    edge.has_layer(layers).then_some(EdgeStorageRef::Mem(edge))
+                }))
+            }
             #[cfg(feature = "storage")]
             EdgesStorage::Disk(storage) => {
                 StorageVariants2::Disk(storage.as_ref().iter(layers).map(EdgeStorageRef::Disk))
