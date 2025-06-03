@@ -487,8 +487,16 @@ impl StableDecode for TemporalGraph {
                                     }
 
                                     if props.is_empty() {
-                                        node.node_store_mut()
-                                            .update_t_prop_time(update.time(), None);
+                                        let node_store = node.node_store_mut();
+                                        if node_store
+                                            .timestamps()
+                                            .props_ts
+                                            .at(&update.time())
+                                            .is_none()
+                                        {
+                                            node.node_store_mut()
+                                                .update_t_prop_time(update.time(), None);
+                                        }
                                     } else {
                                         let prop_offset = node.t_props_log_mut().push(props)?;
                                         node.node_store_mut()

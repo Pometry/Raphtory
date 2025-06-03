@@ -254,9 +254,7 @@ where
     );
 }
 
-pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dyn Error>> {
-    fs::create_dir_all(output_dir)?;
-
+pub fn load_graph(data_dir: &str) -> Result<Graph, Box<dyn Error>> {
     let csv_paths = [
         ("people", "people.csv"),
         ("forums", "forums.csv"),
@@ -273,6 +271,23 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
     let g = Graph::new();
 
     // Load nodes
+    load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
+        g.add_node(
+            DateTime::from_timestamp(post.creation_date, 0).unwrap(),
+            post.id.clone(),
+            [
+                ("content", Prop::Str(ArcStr::from(post.content))),
+                ("length", Prop::U64(post.length)),
+                ("location_ip", Prop::Str(ArcStr::from(post.location_ip))),
+                ("browser_used", Prop::Str(ArcStr::from(post.browser_used))),
+            ],
+            Some("post"),
+        )
+        .expect("Failed to add node")
+        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
+        .expect("Failed to add node static property");
+    });
+
     load_nodes(&g, &csv_paths["people"], |person: Person, g| {
         g.add_node(
             DateTime::from_timestamp(person.creation_date, 0).unwrap(),
@@ -299,23 +314,6 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
         )
         .expect("Failed to add node")
         .add_constant_properties([("title", Prop::Str(ArcStr::from(forum.title)))])
-        .expect("Failed to add node static property");
-    });
-
-    load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
-        g.add_node(
-            DateTime::from_timestamp(post.creation_date, 0).unwrap(),
-            post.id.clone(),
-            [
-                ("content", Prop::Str(ArcStr::from(post.content))),
-                ("length", Prop::U64(post.length)),
-                ("location_ip", Prop::Str(ArcStr::from(post.location_ip))),
-                ("browser_used", Prop::Str(ArcStr::from(post.browser_used))),
-            ],
-            Some("post"),
-        )
-        .expect("Failed to add node")
-        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
         .expect("Failed to add node static property");
     });
 
@@ -383,9 +381,13 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
         )
         .expect("Failed to add edge");
     });
+    Ok(g)
+}
 
+pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dyn Error>> {
+    fs::create_dir_all(output_dir)?;
+    let g = load_graph(data_dir)?;
     g.encode(output_dir).expect("Failed to save graph");
-
     Ok(g)
 }
 
@@ -589,12 +591,28 @@ pub fn generate_data_load_graph_save(
 #[cfg(test)]
 mod test_raph_social {
     use crate::graph_gen::raph_social::{
-        generate_data_load_graph_save, generate_data_write_to_csv, load_graph_save,
+        generate_data_load_graph_save, generate_data_write_to_csv, load_graph, load_graph_save,
+    };
+    use raphtory::{
+        db::graph::graph::assert_graph_equal,
+        prelude::{Graph, StableDecode},
     };
 
     #[test]
     fn test_generate_data_write_to_csv() {
         generate_data_write_to_csv("output", 3000, 500, 70000, 100_000).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn generate_small_test_data() {
+        generate_data_write_to_csv("test_data/csv", 10, 10, 10, 10).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn save_small_test_protobuf() {
+        load_graph_save("test_data/csv", "test_data/graphs/test_graph_0_15").unwrap();
     }
 
     #[test]
@@ -610,5 +628,19 @@ mod test_raph_social {
     fn test_generate_data_load_graph_save() {
         generate_data_load_graph_save("/tmp/graphs/raph_social/rf0.1", 3000, 500, 70000, 100_000)
             .unwrap();
+    }
+
+    #[test]
+    fn test_proto_decode_0_15() {
+        let g_expected = load_graph("test_data/csv").unwrap();
+        let g_from_proto = Graph::decode("test_data/graphs/test_graph_0_15").unwrap();
+        assert_graph_equal(&g_from_proto, &g_expected);
+    }
+
+    #[test]
+    fn test_proto_decode_0_14() {
+        let g_expected = load_graph("test_data/csv").unwrap();
+        let g_from_proto = Graph::decode("test_data/graphs/test_graph_0_14").unwrap();
+        assert_graph_equal(&g_from_proto, &g_expected);
     }
 }

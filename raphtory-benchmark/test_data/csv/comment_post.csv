@@ -1,0 +1,11 @@
+creation_date,comment_id,post_id,is_edited,upvotes,reply_count
+1206166378829,comment_1,post_6,false,66,19
+1533776924678,comment_2,post_7,false,121,2
+1388679953824,comment_3,post_9,false,53,19
+979136309111,comment_4,post_5,true,91,7
+1282417157108,comment_5,post_5,false,46,4
+1429636442115,comment_6,post_8,false,142,12
+1190276649276,comment_7,post_8,false,18,9
+1360045915590,comment_8,post_1,true,8,11
+1052516602075,comment_9,post_4,false,191,18
+1444588218277,comment_10,post_5,false,37,16
