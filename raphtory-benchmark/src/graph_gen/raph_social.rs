@@ -270,8 +270,6 @@ pub fn load_graph(data_dir: &str) -> Result<Graph, Box<dyn Error>> {
 
     let g = Graph::new();
 
-
-
     // Load nodes
     load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
         g.add_node(
@@ -285,9 +283,9 @@ pub fn load_graph(data_dir: &str) -> Result<Graph, Box<dyn Error>> {
             ],
             Some("post"),
         )
-            .expect("Failed to add node")
-            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
-            .expect("Failed to add node static property");
+        .expect("Failed to add node")
+        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
+        .expect("Failed to add node static property");
     });
 
     load_nodes(&g, &csv_paths["people"], |person: Person, g| {
@@ -318,8 +316,6 @@ pub fn load_graph(data_dir: &str) -> Result<Graph, Box<dyn Error>> {
         .add_constant_properties([("title", Prop::Str(ArcStr::from(forum.title)))])
         .expect("Failed to add node static property");
     });
-
-
 
     load_nodes(&g, &csv_paths["comments"], |comment: Comment, g| {
         g.add_node(
