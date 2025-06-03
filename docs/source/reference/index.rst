@@ -24,3 +24,4 @@ methods.
     :hidden:
 
     types
+    user_guide
