@@ -270,7 +270,26 @@ pub fn load_graph(data_dir: &str) -> Result<Graph, Box<dyn Error>> {
 
     let g = Graph::new();
 
+
+
     // Load nodes
+    load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
+        g.add_node(
+            DateTime::from_timestamp(post.creation_date, 0).unwrap(),
+            post.id.clone(),
+            [
+                ("content", Prop::Str(ArcStr::from(post.content))),
+                ("length", Prop::U64(post.length)),
+                ("location_ip", Prop::Str(ArcStr::from(post.location_ip))),
+                ("browser_used", Prop::Str(ArcStr::from(post.browser_used))),
+            ],
+            Some("post"),
+        )
+            .expect("Failed to add node")
+            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
+            .expect("Failed to add node static property");
+    });
+
     load_nodes(&g, &csv_paths["people"], |person: Person, g| {
         g.add_node(
             DateTime::from_timestamp(person.creation_date, 0).unwrap(),
@@ -300,22 +319,7 @@ pub fn load_graph(data_dir: &str) -> Result<Graph, Box<dyn Error>> {
         .expect("Failed to add node static property");
     });
 
-    load_nodes(&g, &csv_paths["posts"], |post: Post, g| {
-        g.add_node(
-            DateTime::from_timestamp(post.creation_date, 0).unwrap(),
-            post.id.clone(),
-            [
-                ("content", Prop::Str(ArcStr::from(post.content))),
-                ("length", Prop::U64(post.length)),
-                ("location_ip", Prop::Str(ArcStr::from(post.location_ip))),
-                ("browser_used", Prop::Str(ArcStr::from(post.browser_used))),
-            ],
-            Some("post"),
-        )
-        .expect("Failed to add node")
-        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
-        .expect("Failed to add node static property");
-    });
+
 
     load_nodes(&g, &csv_paths["comments"], |comment: Comment, g| {
         g.add_node(
