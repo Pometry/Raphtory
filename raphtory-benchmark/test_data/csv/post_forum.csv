@@ -1,0 +1,11 @@
+creation_date,post_id,forum_id,is_featured,likes_count,comments_count
+1608163710001,post_1,forum_7,false,59,156
+1546500802886,post_2,forum_7,false,75,25
+1533542891995,post_3,forum_5,false,295,10
+1572085128421,post_4,forum_9,false,163,14
+1260494019637,post_5,forum_1,false,121,4
+1226792562957,post_6,forum_9,true,93,102
+1095521787454,post_7,forum_9,true,258,156
+1547344065969,post_8,forum_9,true,340,179
+1468626322035,post_9,forum_7,false,485,147
+1555716754816,post_10,forum_1,false,132,184
