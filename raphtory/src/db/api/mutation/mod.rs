@@ -1,3 +1,4 @@
+use self::internal::InternalAdditionOps;
 use crate::{
     core::{
         utils::{
@@ -8,20 +9,22 @@ use crate::{
     },
     prelude::Prop,
 };
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
 mod addition_ops;
 mod deletion_ops;
 mod import_ops;
+#[cfg(feature = "search")]
+pub mod index_ops;
 pub mod internal;
 mod property_addition_ops;
 
 pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;
+#[cfg(feature = "search")]
+pub use index_ops::IndexMutationOps;
 pub use property_addition_ops::PropertyAdditionOps;
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
-
-use self::internal::InternalAdditionOps;
 
 /// Used to handle automatic injection of secondary index if not explicitly provided
 pub enum InputTime {

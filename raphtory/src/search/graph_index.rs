@@ -374,6 +374,7 @@ mod graph_index_test {
 
     #[cfg(feature = "search")]
     use crate::db::graph::assertions::{search_edges, search_nodes};
+    use crate::prelude::IndexMutationOps;
 
     fn init_nodes_graph(graph: Graph) -> Graph {
         graph

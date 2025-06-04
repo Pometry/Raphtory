@@ -81,7 +81,7 @@ mod search_tests {
                     AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
                 },
             },
-            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
         };
 
         fn fuzzy_search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
@@ -166,7 +166,9 @@ mod search_tests {
                     AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
                 },
             },
-            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{
+                AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter,
+            },
         };
 
         fn fuzzy_search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {

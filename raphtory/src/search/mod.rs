@@ -106,8 +106,9 @@ mod test_index {
                 },
             },
             prelude::{
-                AdditionOps, CacheOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                PropertyFilter, SearchableGraphOps, StableDecode, StableEncode,
+                AdditionOps, CacheOps, Graph, GraphViewOps, IndexMutationOps, NodeViewOps,
+                PropertyAdditionOps, PropertyFilter, SearchableGraphOps, StableDecode,
+                StableEncode,
             },
             serialise::GraphFolder,
         };
@@ -353,8 +354,8 @@ mod test_index {
                 },
             },
             prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                PropertyFilter, StableDecode,
+                AdditionOps, EdgeViewOps, Graph, GraphViewOps, IndexMutationOps, NodeViewOps,
+                PropertyAdditionOps, PropertyFilter, StableDecode,
             },
             serialise::{GraphFolder, StableEncode},
         };

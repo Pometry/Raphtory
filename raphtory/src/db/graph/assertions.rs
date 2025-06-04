@@ -1,5 +1,7 @@
 #[cfg(feature = "search")]
 pub use crate::db::api::view::SearchableGraphOps;
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
@@ -76,8 +78,6 @@ impl<F: AsNodeFilter + InternalNodeFilterOps + Clone> ApplyFilter for SearchNode
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
-            graph.create_index_in_ram().unwrap();
-
             let mut results = graph
                 .search_nodes(self.0.clone(), 20, 0)
                 .unwrap()
@@ -114,8 +114,6 @@ impl<F: AsEdgeFilter + InternalEdgeFilterOps + Clone> ApplyFilter for SearchEdge
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
-            graph.create_index_in_ram().unwrap();
-
             let mut results = graph
                 .search_edges(self.0.clone(), 20, 0)
                 .unwrap()
@@ -139,6 +137,7 @@ pub fn assert_filter_nodes_results(
 ) {
     assert_results(
         init_graph,
+        |graph: &Graph| (),
         transform,
         expected,
         variants.into(),
@@ -157,6 +156,7 @@ pub fn assert_search_nodes_results(
     {
         assert_results(
             init_graph,
+            |graph: &Graph| graph.create_index_in_ram().unwrap(),
             transform,
             expected,
             variants.into(),
@@ -174,6 +174,7 @@ pub fn assert_filter_edges_results(
 ) {
     assert_results(
         init_graph,
+        |graph: &Graph| (),
         transform,
         expected,
         variants.into(),
@@ -192,6 +193,7 @@ pub fn assert_search_edges_results(
     {
         assert_results(
             init_graph,
+            |graph: &Graph| graph.create_index_in_ram().unwrap(),
             transform,
             expected,
             variants.into(),
@@ -202,6 +204,7 @@ pub fn assert_search_edges_results(
 
 fn assert_results(
     init_graph: impl FnOnce(Graph) -> Graph,
+    pre_transform: impl Fn(&Graph) -> (),
     transform: impl GraphTransformer,
     expected: &[&str],
     variants: Vec<TestGraphVariants>,
@@ -211,11 +214,13 @@ fn assert_results(
     for v in variants {
         match v {
             TestGraphVariants::Graph => {
+                pre_transform(&graph);
                 let graph = transform.apply(graph.clone());
                 let result = apply.apply(graph);
                 assert_eq!(expected, result);
             }
             TestGraphVariants::PersistentGraph => {
+                pre_transform(&graph);
                 let base = graph.persistent_graph();
                 let graph = transform.apply(base);
                 let result = apply.apply(graph);
@@ -229,6 +234,7 @@ fn assert_results(
                     let graph = DiskGraphStorage::from_graph(&graph, &tmp)
                         .unwrap()
                         .into_graph();
+                    pre_transform(&graph);
                     let graph = transform.apply(graph);
                     let result = apply.apply(graph);
                     assert_eq!(expected, result);
@@ -239,9 +245,10 @@ fn assert_results(
                 {
                     use crate::disk_graph::DiskGraphStorage;
                     let tmp = TempDir::new().unwrap();
-                    let graph = DiskGraphStorage::from_graph(&graph, &tmp)
-                        .unwrap()
-                        .into_persistent_graph();
+                    let graph = DiskGraphStorage::from_graph(&graph, &tmp).unwrap();
+                    let graph = graph.into_graph();
+                    pre_transform(&graph);
+                    let graph = graph.persistent_graph();
                     let graph = transform.apply(graph);
                     let result = apply.apply(graph);
                     assert_eq!(expected, result);

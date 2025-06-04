@@ -18,7 +18,7 @@ use crate::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::Graph,
+    prelude::{AdditionOps, Graph, IndexMutationOps},
     serialise::{
         proto::{self, graph_update::*, new_meta::*, new_node::Gid},
         proto_ext,
@@ -43,7 +43,7 @@ macro_rules! zip_tprop_updates {
     };
 }
 
-pub trait StableEncode: StaticGraphViewOps {
+pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     fn encode_to_proto(&self) -> proto::Graph;
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
@@ -55,7 +55,7 @@ pub trait StableEncode: StaticGraphViewOps {
     }
 }
 
-pub trait StableDecode: InternalStableDecode + StaticGraphViewOps {
+pub trait StableDecode: InternalStableDecode + StaticGraphViewOps + AdditionOps {
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
         let folder = path.into();
         let graph = Self::decode_from_path(&folder)?;
@@ -67,7 +67,7 @@ pub trait StableDecode: InternalStableDecode + StaticGraphViewOps {
     }
 }
 
-impl<T: InternalStableDecode + StaticGraphViewOps> StableDecode for T {}
+impl<T: InternalStableDecode + StaticGraphViewOps + AdditionOps> StableDecode for T {}
 
 pub trait InternalStableDecode: Sized {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError>;
