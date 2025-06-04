@@ -142,3 +142,39 @@ def test_get_index_spec():
     assert "p1" in node_temp_names or "p2" in node_temp_names
     assert "e_x" in edge_const_names or "e_y" in edge_const_names
     assert "e_p1" in edge_temp_names or "e_p2" in edge_temp_names
+
+
+def test_const_prop_fallback_when_const_prop_indexed():
+    graph = init_graph(Graph())
+    spec = (
+        IndexSpecBuilder(graph)
+        .with_const_node_props(["x"])
+        .with_const_edge_props(["e_y"])
+        .build()
+    )
+
+    graph.create_index_in_ram_with_spec(spec)
+
+    f1 = filter.Property("x") == True
+    assert sorted(search_nodes(graph, f1)) == sorted(["pometry"])
+
+    f1 = filter.Property("e_y") == False
+    assert sorted(search_edges(graph, f1)) == sorted(["raphtory->pometry"])
+
+
+def test_const_prop_fallback_when_const_prop_not_indexed():
+    graph = init_graph(Graph())
+    spec = (
+        IndexSpecBuilder(graph)
+        .with_all_temp_node_props()
+        .with_temp_edge_props()
+        .build()
+    )
+
+    graph.create_index_in_ram_with_spec(spec)
+
+    f1 = filter.Property("x") == True
+    assert sorted(search_nodes(graph, f1)) == sorted(["pometry"])
+
+    f1 = filter.Property("e_y") == False
+    assert sorted(search_edges(graph, f1)) == sorted(["raphtory->pometry"])
