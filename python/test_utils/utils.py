@@ -117,16 +117,14 @@ def run_graphql_test(query, expected_output, graph):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:
         client = server.get_client()
-        print(graph.edges)
         client.send_graph(path="g", graph=graph)
-
         response = client.query(query)
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
-        print(sort_dict_recursive(response_dict))
-        print(sort_dict_recursive(expected_output))
-        assert response_dict == expected_output
+        assert (
+            response_dict == expected_output
+        ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
