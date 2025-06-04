@@ -299,17 +299,11 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         spawn_blocking(move || {
             self_clone
                 .graph
-                .add_properties(t, as_properties(properties)?)
-        })
-        .await
-        .unwrap()?;
-        self.update_graph_embeddings().await;
-        spawn_blocking(move || {
-            self_clone_2.graph.write_updates()?;
+                .add_properties(t, as_properties(properties)?)?;
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -322,17 +316,11 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         spawn_blocking(move || {
             self_clone
                 .graph
-                .add_constant_properties(as_properties(properties)?)
-        })
-        .await
-        .unwrap()?;
-        self.update_graph_embeddings().await;
-        spawn_blocking(move || {
-            self_clone_2.graph.write_updates()?;
+                .add_constant_properties(as_properties(properties)?)?;
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -345,17 +333,11 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         spawn_blocking(move || {
             self_clone
                 .graph
-                .update_constant_properties(as_properties(properties)?)
-        })
-        .await
-        .unwrap()?;
-        self.update_graph_embeddings().await;
-        spawn_blocking(move || {
-            self_clone_2.graph.write_updates()?;
+                .update_constant_properties(as_properties(properties)?)?;
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -364,13 +346,6 @@ impl GqlMutableGraph {
 }
 
 impl GqlMutableGraph {
-    async fn update_graph_embeddings(&self) {
-        let _ = self
-            .graph
-            .update_graph_embeddings(Some(self.path.get_original_path_str().to_owned()))
-            .await;
-    }
-
     fn get_node_view(&self, name: String) -> Result<NodeView<GraphWithVectors>, GraphError> {
         self.graph
             .node(name.clone())

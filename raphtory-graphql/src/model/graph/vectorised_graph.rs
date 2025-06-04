@@ -1,24 +1,82 @@
-use crate::model::plugins::vector_algorithm_plugin::VectorAlgorithmPlugin;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
+use async_graphql::Context;
+use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
+use raphtory::{
+    core::utils::errors::GraphResult, db::api::view::MaterializedGraph,
+    vectors::vectorised_graph::VectorisedGraph,
+};
+
+use crate::{embeddings::EmbedQuery, model::blocking};
+
+use super::vector_selection::GqlVectorSelection;
+
+#[derive(InputObject)]
+pub(super) struct Window {
+    start: i64,
+    end: i64,
+}
+
+pub(super) trait IntoWindowTuple {
+    fn into_window_tuple(self) -> Option<(i64, i64)>;
+}
+
+impl IntoWindowTuple for Option<Window> {
+    fn into_window_tuple(self) -> Option<(i64, i64)> {
+        self.map(|window| (window.start, window.end))
+    }
+}
 
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorisedGraph")]
-pub(crate) struct GqlVectorisedGraph {
-    graph: VectorisedGraph<MaterializedGraph>,
-}
+pub(crate) struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
 
 impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
     fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
-        Self {
-            graph: value.clone(),
-        }
+        Self(value.clone())
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlVectorisedGraph {
-    async fn algorithms(&self) -> VectorAlgorithmPlugin {
-        self.graph.clone().into()
+    async fn empty_selection(&self) -> GqlVectorSelection {
+        self.0.empty_selection().into()
+    }
+
+    async fn entities_by_similarity(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        limit: usize,
+        window: Option<Window>,
+    ) -> GraphResult<GqlVectorSelection> {
+        let vector = ctx.embed_query(query).await?;
+        let w = window.into_window_tuple();
+        let cloned = self.0.clone();
+        blocking(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
+    }
+
+    async fn nodes_by_similarity(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        limit: usize,
+        window: Option<Window>,
+    ) -> GraphResult<GqlVectorSelection> {
+        let vector = ctx.embed_query(query).await?;
+        let w = window.into_window_tuple();
+        let cloned = self.0.clone();
+        blocking(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
+    }
+
+    async fn edges_by_similarity(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        limit: usize,
+        window: Option<Window>,
+    ) -> GraphResult<GqlVectorSelection> {
+        let vector = ctx.embed_query(query).await?;
+        let w = window.into_window_tuple();
+        let cloned = self.0.clone();
+        blocking(move || Ok(cloned.edges_by_similarity(&vector, limit, w)?.into())).await
     }
 }

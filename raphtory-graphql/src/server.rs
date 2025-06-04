@@ -21,12 +21,14 @@ use poem::{
     middleware::{Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
-use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
+use raphtory::{
+    core::utils::errors::GraphResult,
+    vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
+};
 use serde_json::json;
 use std::{
-    fs,
+    fs::create_dir_all,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use thiserror::Error;
 use tokio::{
@@ -89,7 +91,7 @@ impl GraphServer {
         config_path: Option<PathBuf>,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
-            fs::create_dir_all(&work_dir)?;
+            create_dir_all(&work_dir)?;
         }
         let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
@@ -103,21 +105,19 @@ impl GraphServer {
         self
     }
 
-    pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
+    pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
         embedding: F,
-        cache: &Path, // TODO: maybe now that we are storing vectors we could bin the cache!!!
+        cache: &Path,
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
-    ) -> Self {
-        let cache = Some(PathBuf::from(cache).into()).into();
+    ) -> GraphResult<Self> {
         self.data.embedding_conf = Some(EmbeddingConf {
-            function: Arc::new(embedding),
-            cache,
+            cache: VectorCache::on_disk(cache, embedding)?, // TODO: better do this lazily, actually do it when running the server
             global_template,
             individual_templates: Default::default(),
         });
-        self
+        Ok(self)
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -343,9 +343,10 @@ mod server_tests {
     use chrono::prelude::*;
     use raphtory::{
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{template::DocumentTemplate, Embedding, EmbeddingResult},
+        vectors::{embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
+    use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
 
@@ -384,9 +385,11 @@ mod server_tests {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
-        let cache = Path::new("/tmp/graph-cache");
+        let cache_dir = tempdir().unwrap();
         let handler = server
-            .set_embeddings(failing_embedding, cache, Some(template))
+            .set_embeddings(failing_embedding, cache_dir.path(), Some(template))
+            .await
+            .unwrap()
             .start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
