@@ -1,8 +1,9 @@
-use std::ops::Deref;
-
 use super::GraphStorage;
 use crate::{
-    core::{utils::iter::GenLockedIter, PropType},
+    core::{
+        utils::{errors::GraphError, iter::GenLockedIter},
+        PropType
+    },
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
         storage::graph::tprop_storage_ops::TPropOps,
@@ -10,10 +11,12 @@ use crate::{
     },
     prelude::Prop,
 };
+use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::{
     arc_str::ArcStr,
-    timeindex::{AsTime, TimeError, TimeIndexEntry},
+    timeindex::{AsTime, TimeIndexEntry},
 };
+use std::ops::Deref;
 
 impl TemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
@@ -55,17 +58,13 @@ impl TemporalPropertyViewOps for GraphStorage {
     fn temporal_history_date_time(
         &self,
         id: usize,
-    ) -> Result<Vec<chrono::DateTime<chrono::Utc>>, TimeError> {
+    ) -> Result<Vec<DateTime<Utc>>, GraphError> {
         match self.graph_meta().get_temporal_prop(id) {
             Some(tprop) => tprop
                 .iter_t()
-                .map(|(t, _)| t.dt())
-                .collect::<Result<Vec<_>, TimeError>>(),
-            None => {
-                let err_string =
-                    format!("History for property {}", self.get_temporal_prop_name(id));
-                Err(TimeError::NotFound(err_string))
-            }
+                .map(|(t, _)| t.dt().map_err(GraphError::from))
+                .collect::<Result<Vec<_>, GraphError>>(),
+            None => Ok(Vec::new())
         }
     }
 

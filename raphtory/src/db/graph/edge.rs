@@ -34,7 +34,7 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeError};
+use raphtory_api::core::storage::{arc_str::ArcStr};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -384,12 +384,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.graph
             .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
             .into_iter()
-            .map(|(t, _)| t.dt())
-            .collect::<Result<Vec<_>, TimeError>>()
+            .map(|(t, _)| t.dt().map_err(GraphError::from))
+            .collect::<Result<Vec<_>, GraphError>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

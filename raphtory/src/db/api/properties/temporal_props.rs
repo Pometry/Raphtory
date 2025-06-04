@@ -5,13 +5,14 @@ use crate::{
 use arrow_array::ArrayRef;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeError};
+use raphtory_api::core::storage::{arc_str::ArcStr};
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
     iter::Zip,
     sync::Arc,
 };
+use crate::core::utils::errors::GraphError;
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: PropertiesOps> {
@@ -35,7 +36,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         // TODO: Change this to history object?
         self.props.temporal_history_iter(self.id)
     }
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.props.temporal_history_date_time(self.id)
     }
     pub fn values(&self) -> BoxedLIter<Prop> {
@@ -52,7 +53,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
 
     pub fn histories_date_time(
         &self,
-    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, TimeError> {
+    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, GraphError> {
         let hist = self.history_date_time()?;
         let vals = self.values().collect::<Vec<_>>();
         Ok(hist.into_iter().zip(vals))

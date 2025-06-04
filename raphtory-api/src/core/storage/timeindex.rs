@@ -8,8 +8,6 @@ use std::{fmt, ops::Range};
 pub enum TimeError {
     /// The timestamp value is out of range for chrono::DateTime<Utc> conversion
     OutOfRange(i64),
-    /// The related time information was not found
-    NotFound(String),
 }
 
 impl fmt::Display for TimeError {
@@ -18,10 +16,7 @@ impl fmt::Display for TimeError {
         let max = DateTime::<Utc>::MAX_UTC.timestamp_millis();
         match self {
             TimeError::OutOfRange(timestamp) => {
-                write!(f, "Timestamp {} is out of range for DateTime conversion. Valid range is from {} to {}", timestamp, min, max)
-            }
-            TimeError::NotFound(information) => {
-                write!(f, "{} was not found", information)
+                write!(f, "Timestamp '{}' is out of range for DateTime conversion. Valid range is from {} to {}", timestamp, min, max)
             }
         }
     }

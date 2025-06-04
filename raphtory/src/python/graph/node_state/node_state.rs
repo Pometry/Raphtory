@@ -1,6 +1,8 @@
 use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        utils::errors::GraphError},
     db::{
         api::{
             state::{

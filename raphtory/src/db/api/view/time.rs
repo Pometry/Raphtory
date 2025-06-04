@@ -1,7 +1,10 @@
 use crate::{
     core::{
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntervalSize, IntoTime},
+        utils::{
+            errors::GraphError,
+            time::{error::ParseTimeError, Interval, IntervalSize, IntoTime}
+        },
     },
     db::api::view::{
         internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
@@ -9,7 +12,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::{core::storage::timeindex::TimeError, GraphType};
+use raphtory_api::{GraphType};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -91,12 +94,12 @@ pub trait TimeOps<'graph>:
     /// Return the timestamp of the start of the view or None if the view start is unbounded.
     fn start(&self) -> Option<i64>;
 
-    fn start_date_time(&self) -> Result<DateTime<Utc>, TimeError>;
+    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError>;
 
     /// Return the timestamp of the view or None if the view end is unbounded.
     fn end(&self) -> Option<i64>;
 
-    fn end_date_time(&self) -> Result<DateTime<Utc>, TimeError>;
+    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError>;
 
     /// set the start of the window to the larger of `start` and `self.start()`
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
@@ -171,17 +174,17 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         self.current_filter().view_end()
     }
 
-    fn start_date_time(&self) -> Result<DateTime<Utc>, TimeError> {
+    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         match self.start() {
-            Some(start_time) => start_time.dt(),
-            None => Err(TimeError::NotFound("Start time".to_string())),
+            Some(start_time) => start_time.dt().map(|dt| Some(dt)).map_err(GraphError::from),
+            None => Ok(None),
         }
     }
 
-    fn end_date_time(&self) -> Result<DateTime<Utc>, TimeError> {
+    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         match self.end() {
-            Some(end_time) => end_time.dt(),
-            None => Err(TimeError::NotFound("End time".to_string())),
+            Some(end_time) => end_time.dt().map(|dt| Some(dt)).map_err(GraphError::from),
+            None => Ok(None),
         }
     }
 

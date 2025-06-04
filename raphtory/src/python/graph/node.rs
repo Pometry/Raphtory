@@ -59,6 +59,7 @@ use python::{
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
+use raphtory_api::core::storage::timeindex::TimeError;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
@@ -176,8 +177,8 @@ impl PyNode {
     /// Returns:
     ///     datetime: The earliest datetime that the node exists as a Datetime.
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.node.earliest_date_time()
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+        self.node.earliest_date_time().map_err(GraphError::from)
     }
 
     /// Returns the latest time that the node exists.
@@ -194,8 +195,8 @@ impl PyNode {
     /// Returns:
     ///     datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.node.latest_date_time()
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+        self.node.latest_date_time().map_err(GraphError::from)
     }
 
     /// The properties of the node
@@ -254,8 +255,8 @@ impl PyNode {
     /// Returns:
     ///     List[datetime]: A list of timestamps of the event history of node.
     ///
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.node.history_date_time()
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+        self.node.history_date_time().map_err(GraphError::from)
     }
 
     /// Check if the node is active, i.e., it's history is not empty
@@ -597,7 +598,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.earliest_date_time()
@@ -621,7 +622,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.latest_date_time()
@@ -654,7 +655,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::HistoryOp<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
+        ops::Map<ops::HistoryOp<DynamicGraph>, Result<Vec<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.history_date_time()

@@ -32,6 +32,7 @@ use pyo3::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
+use crate::core::utils::errors::GraphError;
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
     fn from(value: P) -> Self {
@@ -128,11 +129,15 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
-    fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
+    fn histories_date_time(&self) -> Result<HashMap<ArcStr, Vec<(DateTime<Utc>, Prop)>>, GraphError> {
         self.props
             .iter()
-            .map(|(k, v)| (k, v.histories_date_time().map(|h| h.collect())))
-            .collect()
+            .map(|(k, v)| {
+                let histories = v.histories_date_time()
+                    .map(|h| h.collect())?;
+                Ok((k, histories))
+            })
+            .collect::<Result<HashMap<_, _>, GraphError>>()
     }
 
     /// __getitem__(key: str) -> TemporalProp
@@ -229,7 +234,7 @@ impl PyTemporalProp {
     }
 
     /// Get the timestamps at which the property was updated
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.prop.history_date_time()
     }
 
@@ -254,8 +259,8 @@ impl PyTemporalProp {
     }
 
     /// List update timestamps and corresponding property values
-    pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
-        Some(self.prop.histories_date_time()?.collect())
+    pub fn items_date_time(&self) -> Result<Vec<(DateTime<Utc>, Prop)>, GraphError> {
+        Ok(self.prop.histories_date_time()?.collect())
     }
 
     /// Iterate over `items`

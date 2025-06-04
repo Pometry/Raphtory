@@ -1,6 +1,7 @@
-use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use crate::core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry};
 use chrono::{DateTime, Utc};
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
+use pyo3::exceptions::PyException;
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     type Target = PyRaphtoryTime;
@@ -21,7 +22,7 @@ pub struct PyRaphtoryTime {
 #[pymethods]
 impl PyRaphtoryTime {
     /// Get the datetime representation of the time
-    pub fn dt(&self) -> Option<DateTime<Utc>> {
+    pub fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         self.time.dt()
     }
 
@@ -46,5 +47,11 @@ impl PyRaphtoryTime {
 impl From<TimeIndexEntry> for PyRaphtoryTime {
     fn from(time: TimeIndexEntry) -> Self {
         Self { time }
+    }
+}
+
+impl From<TimeError> for PyErr {
+    fn from(err: TimeError) -> Self {
+        PyException::new_err(err.to_string())
     }
 }

@@ -78,14 +78,14 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Result<DateTime<Utc>, TimeError>>>;
+    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>>;
 
     /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
 
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Result<DateTime<Utc>, TimeError>>>;
+    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>>;
@@ -203,17 +203,18 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         };
         self.map(op)
     }
+    // could not change TimeError to GraphError because it doesn't implement Clone
     #[inline]
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Result<DateTime<Utc>, TimeError>>>
+    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>>
     {
         let op = ops::EarliestTime {
             graph: self.graph().clone(),
         }
         .map(|t| match t {
-            Some(time) => time.dt(),
-            None => Err(TimeError::NotFound("Earliest time for node".to_string())),
+            Some(time) => time.dt().map(|dt| Some(dt)),
+            None => Ok(None)
         });
         self.map(op)
     }
@@ -229,14 +230,14 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Result<DateTime<Utc>, TimeError>>>
+    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>>
     {
         let op = ops::LatestTime {
             graph: self.graph().clone(),
         }
         .map(|t| match t {
-            Some(time) => time.dt(),
-            None => Err(TimeError::NotFound("Latest time for node".to_string())),
+            Some(time) => time.dt().map(|dt| Some(dt)),
+            None => Ok(None)
         });
         self.map(op)
     }

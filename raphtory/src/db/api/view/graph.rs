@@ -95,20 +95,20 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn earliest_time(&self) -> Option<i64>;
 
     /// UTC DateTime of earliest activity in the graph
-    fn earliest_date_time(&self) -> Result<DateTime<Utc>, TimeError> {
+    fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         match self.earliest_time() {
-            Some(earliest_time) => earliest_time.dt(),
-            None => Err(TimeError::NotFound("Earliest activity".to_string())),
+            Some(earliest_time) => earliest_time.dt().map(|dt| Some(dt)).map_err(GraphError::from),
+            None => Ok(None)
         }
     }
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
 
     /// UTC DateTime of latest activity in the graph
-    fn latest_date_time(&self) -> Result<DateTime<Utc>, TimeError> {
+    fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         match self.latest_time() {
-            Some(latest_time) => latest_time.dt(),
-            None => Err(TimeError::NotFound("Latest activity".to_string())),
+            Some(latest_time) => latest_time.dt().map(|dt| Some(dt)).map_err(GraphError::from),
+            None => Ok(None)
         }
     }
     /// Return the number of nodes in the graph.
