@@ -137,7 +137,7 @@ pub fn assert_filter_nodes_results(
 ) {
     assert_results(
         init_graph,
-        |graph: &Graph| (),
+        |_graph: &Graph| (),
         transform,
         expected,
         variants.into(),
@@ -174,7 +174,7 @@ pub fn assert_filter_edges_results(
 ) {
     assert_results(
         init_graph,
-        |graph: &Graph| (),
+        |_graph: &Graph| (),
         transform,
         expected,
         variants.into(),

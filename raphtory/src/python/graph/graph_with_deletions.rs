@@ -21,9 +21,9 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     io::parquet_loaders::*,
-    prelude::{DeletionOps, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps, IndexMutationOps},
     python::{
-        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        graph::{edge::PyEdge, index::PyIndexSpec, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
     },
     serialise::StableEncode,
@@ -981,5 +981,32 @@ impl PyPersistentGraph {
             layer,
             layer_col,
         )
+    }
+
+    /// Create graph index
+    fn create_index(&self) -> Result<(), GraphError> {
+        self.graph.create_index()
+    }
+
+    /// Create graph index with the provided index spec.
+    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
+        self.graph.create_index_with_spec(py_spec.spec.clone())
+    }
+
+    /// Creates a graph index in memory (RAM).
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.graph.create_index_in_ram()
+    }
+
+    /// Creates a graph index in memory (RAM) with the provided index spec.
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
+        self.graph
+            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 }

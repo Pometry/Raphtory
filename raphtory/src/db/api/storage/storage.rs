@@ -147,7 +147,7 @@ impl Storage {
 
     pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
         self.index.get_or_try_init(|| {
-            let index = GraphIndex::load_from_path(&self.graph, &path)?;
+            let index = GraphIndex::load_from_path(&path)?;
             Ok(index)
         })
     }

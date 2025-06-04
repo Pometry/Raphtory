@@ -1,6 +1,4 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
-#[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},

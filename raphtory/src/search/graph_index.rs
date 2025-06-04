@@ -128,7 +128,7 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub fn load_from_path(graph: &GraphStorage, path: &PathBuf) -> Result<Self, GraphError> {
+    pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
         let tmp_path = TempDir::new_in(path)?;
         let path = path.join("index");
         let path = path.as_path();
@@ -206,11 +206,11 @@ impl GraphIndex {
 
         if let Some(diff_spec) = IndexSpec::diff(&*existing_spec, &index_spec) {
             let path = GraphIndex::get_node_index_path(&self.path);
-            let node_index = self.node_index.index_nodes(graph, path, &diff_spec)?;
-            // node_index.print()?;
+            self.node_index.index_nodes(graph, path, &diff_spec)?;
+            // self.node_index.print()?;
 
             let path = GraphIndex::get_edge_index_path(&self.path);
-            let edge_index = self.edge_index.index_edges(graph, path, &diff_spec)?;
+            self.edge_index.index_edges(graph, path, &diff_spec)?;
             // self.edge_index.print()?;
 
             *existing_spec = IndexSpec::union(&*existing_spec, &diff_spec);

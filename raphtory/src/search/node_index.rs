@@ -18,15 +18,12 @@ use crate::{
         resolve_props, TOKENIZER,
     },
 };
-use raphtory_api::core::{
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
-    PropType,
-};
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
     collections::HashSet,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use tantivy::{
     collector::TopDocs,

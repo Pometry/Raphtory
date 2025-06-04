@@ -14,12 +14,12 @@ use crate::{
         resolve_props, TOKENIZER,
     },
 };
-use raphtory_api::core::{storage::dict_mapper::MaybeNew, PropType};
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::ParallelIterator;
 use std::{
     collections::HashSet,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use tantivy::{
     collector::TopDocs,

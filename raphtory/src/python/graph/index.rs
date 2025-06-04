@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::view::{
             internal::{CoreGraphOps, DynamicGraph},
-            IndexSpec, IndexSpecBuilder,
+            IndexSpec, IndexSpecBuilder, IntoDynamic, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -93,15 +93,15 @@ impl PyIndexSpec {
 #[pyclass(name = "IndexSpecBuilder", module = "raphtory")]
 #[derive(Clone)]
 pub struct PyIndexSpecBuilder {
-    builder: IndexSpecBuilder<DynamicGraph>,
+    builder: IndexSpecBuilder<MaterializedGraph>,
 }
 
 #[pymethods]
 impl PyIndexSpecBuilder {
     #[new]
-    pub fn new(graph: PyGraphView) -> Self {
+    pub fn new(graph: MaterializedGraph) -> Self {
         Self {
-            builder: IndexSpecBuilder::new(graph.graph.clone()),
+            builder: IndexSpecBuilder::new(graph),
         }
     }
 
@@ -167,7 +167,7 @@ impl PyIndexSpecBuilder {
 
     pub fn build(&self) -> PyIndexSpec {
         PyIndexSpec {
-            graph: self.builder.graph.clone(),
+            graph: self.builder.graph.clone().into_dynamic(),
             spec: self.builder.build(),
         }
     }
@@ -182,33 +182,6 @@ impl PyGraphView {
             graph: self.graph.clone(),
             spec,
         })
-    }
-
-    /// Create graph index
-    fn create_index(&self) -> Result<(), GraphError> {
-        self.graph.create_index()
-    }
-
-    /// Create graph index with the provided index spec.
-    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph.create_index_with_spec(py_spec.spec.clone())
-    }
-
-    /// Creates a graph index in memory (RAM).
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    fn create_index_in_ram(&self) -> Result<(), GraphError> {
-        self.graph.create_index_in_ram()
-    }
-
-    /// Creates a graph index in memory (RAM) with the provided index spec.
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph
-            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 
     /// Searches for nodes which match the given filter expression. This uses Tantivy's exact search.

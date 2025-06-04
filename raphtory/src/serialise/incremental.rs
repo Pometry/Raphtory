@@ -1,8 +1,6 @@
 use super::GraphFolder;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
-#[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
 use crate::{
     core::{
         utils::errors::{GraphError, WriteError},

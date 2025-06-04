@@ -39,20 +39,15 @@ use raphtory_api::{
     core::{
         entities::{properties::props::PropMapper, EID},
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-        Direction, PropType,
+        Direction,
     },
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     collections::HashSet,
-    fs::File,
-    hash::Hash,
-    path::{Path, PathBuf},
     sync::{atomic::Ordering, Arc},
 };
-#[cfg(feature = "search")]
-use zip::ZipArchive;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -787,7 +782,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
             .into_iter()
             .filter_map(|k| {
                 meta.get_id(&*k)
-                    .and_then(|id| meta.get_dtype(id).map(|d_type| id))
+                    .and_then(|id| meta.get_dtype(id).map(|_| id))
             })
             .collect()
     }
@@ -802,9 +797,6 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
                 let key = k.to_string();
                 let id = meta
                     .get_id(&*k)
-                    .ok_or_else(|| GraphError::PropertyMissingError(key.clone()))?;
-                let d_type = meta
-                    .get_dtype(id)
                     .ok_or_else(|| GraphError::PropertyMissingError(key.clone()))?;
                 Ok(id)
             })

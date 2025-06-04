@@ -11,8 +11,6 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
-#[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
 use crate::{
     core::utils::errors::GraphError,
     db::api::view::MaterializedGraph,
