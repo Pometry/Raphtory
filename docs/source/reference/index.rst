@@ -19,9 +19,21 @@ methods.
    * - :py:mod:`raphtory.typing`
      - Type aliases used in the documentation
 
+.. rubric:: User guide
+
 .. toctree::
+    :caption: API Reference
     :maxdepth: 2
     :hidden:
 
     types
+
+.. toctree::
+    :caption: User Guide
+    :maxdepth: 2
+    :hidden:
+
     user_guide
+
+.. toctree:: data-science
+   :recursive:
