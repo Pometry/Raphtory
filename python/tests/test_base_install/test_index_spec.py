@@ -167,7 +167,7 @@ def test_const_prop_fallback_when_const_prop_not_indexed():
     spec = (
         IndexSpecBuilder(graph)
         .with_all_temp_node_props()
-        .with_temp_edge_props()
+        .with_all_temp_edge_props()
         .build()
     )
 

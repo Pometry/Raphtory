@@ -186,12 +186,10 @@ impl GraphIndex {
         let path = GraphIndex::get_node_index_path(&dir);
         let node_index = NodeIndex::new(&path)?;
         node_index.index_nodes(graph, path, &index_spec)?;
-        // node_index.print()?;
 
         let path = GraphIndex::get_edge_index_path(&dir);
         let edge_index = EdgeIndex::new(&path)?;
         edge_index.index_edges(graph, path, &index_spec)?;
-        // edge_index.print()?;
 
         Ok(GraphIndex {
             node_index,

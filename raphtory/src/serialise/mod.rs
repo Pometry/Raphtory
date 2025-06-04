@@ -11,10 +11,10 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
 use crate::{
-    core::utils::errors::GraphError,
-    db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, IndexMutationOps},
+    core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;

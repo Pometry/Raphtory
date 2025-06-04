@@ -1,4 +1,6 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, LayerIds},
@@ -16,7 +18,7 @@ use crate::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{AdditionOps, Graph, IndexMutationOps},
+    prelude::{AdditionOps, Graph},
     serialise::{
         proto::{self, graph_update::*, new_meta::*, new_node::Gid},
         proto_ext,
