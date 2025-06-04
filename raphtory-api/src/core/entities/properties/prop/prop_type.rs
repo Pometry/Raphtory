@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt,
@@ -119,30 +120,61 @@ impl PropType {
 }
 
 #[cfg(feature = "storage")]
-use polars_arrow::datatypes::ArrowDataType as DataType;
-use serde::{Deserialize, Serialize};
+mod storage {
+    use crate::core::entities::properties::prop::PropType;
+    use polars_arrow::datatypes::ArrowDataType as PolarsDataType;
 
-#[cfg(feature = "storage")]
-impl From<&DataType> for PropType {
-    fn from(value: &DataType) -> Self {
-        match value {
-            DataType::Utf8 => PropType::Str,
-            DataType::LargeUtf8 => PropType::Str,
-            DataType::Utf8View => PropType::Str,
-            DataType::UInt8 => PropType::U8,
-            DataType::UInt16 => PropType::U16,
-            DataType::Int32 => PropType::I32,
-            DataType::Int64 => PropType::I64,
-            DataType::UInt32 => PropType::U32,
-            DataType::UInt64 => PropType::U64,
-            DataType::Float32 => PropType::F32,
-            DataType::Float64 => PropType::F64,
-            DataType::Decimal(_, scale) => PropType::Decimal {
-                scale: *scale as i64,
-            },
-            DataType::Boolean => PropType::Bool,
+    impl From<&PolarsDataType> for PropType {
+        fn from(value: &PolarsDataType) -> Self {
+            match value {
+                PolarsDataType::Utf8 => PropType::Str,
+                PolarsDataType::LargeUtf8 => PropType::Str,
+                PolarsDataType::Utf8View => PropType::Str,
+                PolarsDataType::UInt8 => PropType::U8,
+                PolarsDataType::UInt16 => PropType::U16,
+                PolarsDataType::Int32 => PropType::I32,
+                PolarsDataType::Int64 => PropType::I64,
+                PolarsDataType::UInt32 => PropType::U32,
+                PolarsDataType::UInt64 => PropType::U64,
+                PolarsDataType::Float32 => PropType::F32,
+                PolarsDataType::Float64 => PropType::F64,
+                PolarsDataType::Decimal(_, scale) => PropType::Decimal {
+                    scale: *scale as i64,
+                },
+                PolarsDataType::Boolean => PropType::Bool,
 
-            _ => PropType::Empty,
+                _ => PropType::Empty,
+            }
+        }
+    }
+}
+
+#[cfg(feature = "arrow")]
+mod arrow {
+    use crate::core::entities::properties::prop::PropType;
+    use arrow_schema::DataType;
+
+    impl From<&DataType> for PropType {
+        fn from(value: &DataType) -> Self {
+            match value {
+                DataType::Utf8 => PropType::Str,
+                DataType::LargeUtf8 => PropType::Str,
+                DataType::Utf8View => PropType::Str,
+                DataType::UInt8 => PropType::U8,
+                DataType::UInt16 => PropType::U16,
+                DataType::Int32 => PropType::I32,
+                DataType::Int64 => PropType::I64,
+                DataType::UInt32 => PropType::U32,
+                DataType::UInt64 => PropType::U64,
+                DataType::Float32 => PropType::F32,
+                DataType::Float64 => PropType::F64,
+                DataType::Decimal128(_, scale) => PropType::Decimal {
+                    scale: *scale as i64,
+                },
+                DataType::Boolean => PropType::Bool,
+
+                _ => PropType::Empty,
+            }
         }
     }
 }

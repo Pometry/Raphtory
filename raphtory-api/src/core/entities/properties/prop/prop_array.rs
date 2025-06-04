@@ -59,12 +59,12 @@ impl PropArray {
         }
     }
 
-    // pub fn dtype(&self) -> PropType {
-    //     match self {
-    //         PropArray::Empty => PropType::Empty,
-    //         PropArray::Array(a) => PropType::from(a.data_type()),
-    //     }
-    // }
+    pub fn dtype(&self) -> PropType {
+        match self {
+            PropArray::Empty => PropType::Empty,
+            PropArray::Array(a) => PropType::from(a.data_type()),
+        }
+    }
 
     pub fn to_vec_u8(&self) -> Vec<u8> {
         // assuming we can allocate this can't fail
