@@ -230,7 +230,7 @@ impl GraphIndex {
 
         let mut zip = ZipWriter::new_append(file)?;
 
-        for entry in WalkDir::new(&source_path.path())
+        for entry in WalkDir::new(source_path.path())
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
@@ -430,13 +430,13 @@ mod graph_index_test {
 
         assert_eq!(graph.count_nodes(), 3);
 
-        let _ = graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram().unwrap();
     }
 
     #[test]
     fn test_if_adding_nodes_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
-        let _ = graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let graph = init_nodes_graph(graph);
 
@@ -447,7 +447,7 @@ mod graph_index_test {
     fn test_if_adding_edges_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
         // Creates graph index
-        let _ = graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let graph = init_edges_graph(graph);
 

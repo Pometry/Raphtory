@@ -102,7 +102,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         TimeIndexRef::Ref(&TimeIndex::Empty)
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
         self.graph()
             .localize_edge_prop_id(layer_id, prop_id)
             .map(|prop_id| {

@@ -96,7 +96,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, &layer_ids)
+        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, layer_ids)
     }
 }
 

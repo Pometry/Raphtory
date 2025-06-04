@@ -105,7 +105,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
 
     pub fn unique(&self) -> Vec<Prop> {
-        let unique_props: HashSet<_> = self.values().into_iter().collect();
+        let unique_props: HashSet<_> = self.values().collect();
         unique_props.into_iter().collect()
     }
 

@@ -172,7 +172,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.props.iter() {
-            state.serialize_entry(&self.cols[*name], &ParquetProp(&prop))?;
+            state.serialize_entry(&self.cols[*name], &ParquetProp(prop))?;
         }
 
         state.end()

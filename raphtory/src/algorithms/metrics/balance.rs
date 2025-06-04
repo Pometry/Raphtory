@@ -46,7 +46,6 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .flat_map(|prop| {
                 prop.temporal().get(name).map(|val| {
                     val.values()
-                        .into_iter()
                         .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
@@ -58,7 +57,6 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .flat_map(|prop| {
                 prop.temporal().get(name).map(|val| {
                     val.values()
-                        .into_iter()
                         .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })

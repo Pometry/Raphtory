@@ -311,7 +311,7 @@ impl PyGraphView {
                     }
                 })
             })
-            .map(|n| PyNode::from(n))
+            .map(PyNode::from)
             .collect::<Vec<_>>();
 
         out
@@ -362,7 +362,7 @@ impl PyGraphView {
                     }
                 })
             })
-            .map(|e| PyEdge::from(e))
+            .map(PyEdge::from)
             .collect::<Vec<_>>();
 
         out

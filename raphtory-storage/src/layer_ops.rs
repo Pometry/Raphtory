@@ -57,4 +57,4 @@ where
 }
 
 impl<T: ?Sized> InheritLayerOps for Arc<T> {}
-impl<'a, T: ?Sized> InheritLayerOps for &'a T {}
+impl<T: ?Sized> InheritLayerOps for &T {}

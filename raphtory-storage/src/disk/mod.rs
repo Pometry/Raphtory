@@ -105,7 +105,7 @@ impl DiskGraphStorage {
             Layer::One(name) => self
                 .inner
                 .find_layer_id(&name)
-                .map(|id| LayerIds::One(id))
+                .map(LayerIds::One)
                 .unwrap_or(LayerIds::None),
             Layer::None => LayerIds::None,
             Layer::Multiple(names) => {
@@ -518,7 +518,7 @@ mod test {
             v.dedup();
         }
 
-        for (v_id, node) in nodes.into_iter().enumerate() {
+        for (v_id, node) in nodes.iter().enumerate() {
             let expected = expected_node_additions.get(node).unwrap();
             let node = graph.node(VID(v_id), 0);
             let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();

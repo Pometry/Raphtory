@@ -53,13 +53,13 @@ impl<T: Default> MaskedCol<T> {
     pub fn get(&self, index: usize) -> Option<&T> {
         self.mask
             .get(index)
-            .and_then(|&is_some| (is_some).then(|| &self.ts[index]))
+            .and_then(|&is_some| is_some.then(|| &self.ts[index]))
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         self.mask
             .get(index)
-            .and_then(|&is_some| (is_some).then(|| &mut self.ts[index]))
+            .and_then(|&is_some| is_some.then(|| &mut self.ts[index]))
     }
 
     pub fn len(&self) -> usize {
@@ -71,7 +71,7 @@ impl<T: Default> MaskedCol<T> {
         self.ts
             .iter()
             .zip(&self.mask[0..ts_len])
-            .map(|(t, &is_some)| is_some.then(|| t))
+            .map(|(t, &is_some)| is_some.then_some(t))
             .chain(self.mask[ts_len..].iter().map(|_| None))
     }
 }
@@ -138,10 +138,7 @@ impl<T> TupleCol<T> {
     where
         T: Default,
     {
-        (0..self.size).map(move |id| {
-            self.get_mut(id)
-                .map(|t| std::mem::replace(t, Default::default()))
-        })
+        (0..self.size).map(move |id| self.get_mut(id).map(|t| std::mem::take(t)))
     }
 }
 
@@ -240,8 +237,7 @@ where
     }
 
     pub(crate) fn from(id: usize, value: A) -> Self {
-        let mut inner = Vec::with_capacity(1);
-        inner.push((id, value));
+        let inner = vec![(id, value)];
         LazyVec::LazyVec1(A::default(), TupleCol::from(inner))
     }
 
@@ -289,9 +285,9 @@ where
         match self {
             LazyVec::LazyVec1(default, tuples) => tuples
                 .get(id)
-                .or_else(|| (id < self.len()).then(|| default)),
+                .or_else(|| (id < self.len()).then_some(default)),
             LazyVec::LazyVecN(default, vec) => {
-                vec.get(id).or_else(|| (id < self.len()).then(|| default))
+                vec.get(id).or_else(|| (id < self.len()).then_some(default))
             }
             _ => None,
         }
@@ -351,10 +347,7 @@ mod lazy_vec_tests {
     fn check_lazy_vec(lazy_vec: &LazyVec<u32>, v: Vec<Option<u32>>) {
         assert_eq!(lazy_vec.len(), v.len());
         for (i, value) in v.iter().enumerate() {
-            assert_eq!(
-                lazy_vec.get(i),
-                Some(value.clone().unwrap_or_default()).as_ref()
-            );
+            assert_eq!(lazy_vec.get(i), Some(value.unwrap_or_default()).as_ref());
         }
 
         for (actual, expected) in lazy_vec.iter().zip(v.iter()) {

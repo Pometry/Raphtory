@@ -70,11 +70,8 @@ pub(crate) fn load_nodes_from_df<
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
 
-    let node_type_index = if let Some(node_type_col) = node_type_col {
-        Some(df_view.get_index(node_type_col.as_ref()))
-    } else {
-        None
-    };
+    let node_type_index =
+        node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
     let node_type_index = node_type_index.transpose()?;
 
     let node_id_index = df_view.get_index(node_id)?;
@@ -278,13 +275,13 @@ pub(crate) fn load_edges_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let prop_cols = combine_properties(&properties, &properties_indices, &df, |key, dtype| {
+        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
             graph
                 .resolve_edge_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
         let const_prop_cols = combine_properties(
-            &constant_properties,
+            constant_properties,
             &constant_properties_indices,
             &df,
             |key, dtype| {
@@ -480,7 +477,6 @@ pub(crate) fn load_edges_from_df<
 }
 
 pub(crate) fn load_edge_deletions_from_df<
-    'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
@@ -494,11 +490,7 @@ pub(crate) fn load_edge_deletions_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let layer_index = if let Some(layer_col) = layer_col {
-        Some(df_view.get_index(layer_col.as_ref()))
-    } else {
-        None
-    };
+    let layer_index = layer_col.map(|layer_col| df_view.get_index(layer_col.as_ref()));
     let layer_index = layer_index.transpose()?;
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
@@ -550,11 +542,8 @@ pub(crate) fn load_node_props_from_df<
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
 
-    let node_type_index = if let Some(node_type_col) = node_type_col {
-        Some(df_view.get_index(node_type_col.as_ref()))
-    } else {
-        None
-    };
+    let node_type_index =
+        node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
     let node_type_index = node_type_index.transpose()?;
 
     let node_id_index = df_view.get_index(node_id)?;
@@ -714,7 +703,7 @@ pub(crate) fn load_edges_props_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let const_prop_cols = combine_properties(
-            &constant_properties,
+            constant_properties,
             &constant_properties_indices,
             &df,
             |key, dtype| {
@@ -1067,7 +1056,7 @@ mod tests {
             root_dir: &Path,
         ) -> Vec<ExternalEdgeList<'a, PathBuf>> {
             let mut paths = vec![];
-            for (name, df) in layers.into_iter() {
+            for (name, df) in layers.iter() {
                 let layer_dir = root_dir.join(name);
                 std::fs::create_dir_all(&layer_dir).unwrap();
                 let layer_path = layer_dir.join("edges.parquet");

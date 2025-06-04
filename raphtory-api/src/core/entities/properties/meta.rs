@@ -220,7 +220,7 @@ impl PropMapper {
         let dtype_read = self.dtypes.read_recursive();
         if let Some(old_type) = dtype_read.get(id) {
             let mut unified = false;
-            if let Ok(_) = unify_types(&dtype, old_type, &mut unified) {
+            if unify_types(&dtype, old_type, &mut unified).is_ok() {
                 if !unified {
                     // means the types were equal, no change needed
                     return Ok(wrapped_id);

@@ -183,8 +183,7 @@ impl NodeStore {
     }
 
     pub fn empty(global_id: GID) -> Self {
-        let mut layers = Vec::with_capacity(1);
-        layers.push(Adj::Solo);
+        let layers = vec![Adj::Solo];
         Self {
             global_id,
             vid: VID(0),
@@ -439,9 +438,7 @@ impl ArcNodeEntry {
     }
 
     pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |node| {
-            node.get_entry().node().neighbours(layers, dir).into()
-        })
+        GenLockedIter::from(self, |node| node.get_entry().node().neighbours(layers, dir))
     }
 
     pub fn into_layers(self) -> LockedLayers {

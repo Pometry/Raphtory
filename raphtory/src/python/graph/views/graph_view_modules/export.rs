@@ -229,10 +229,7 @@ impl PyGraphView {
                     let prop_hist = e.properties().temporal().histories();
                     let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
                     for (key, value) in prop_hist {
-                        prop_hist_map
-                            .entry(key)
-                            .or_insert_with(Vec::new)
-                            .push(value);
+                        prop_hist_map.entry(key).or_default().push(value);
                     }
                     let output: Vec<(ArcStr, Vec<(i64, Prop)>)> =
                         prop_hist_map.into_iter().collect();

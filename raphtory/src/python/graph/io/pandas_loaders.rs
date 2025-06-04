@@ -48,8 +48,8 @@ pub(crate) fn load_nodes_from_pandas<
         df_view,
         time,
         id,
-        &properties,
-        &constant_properties,
+        properties,
+        constant_properties,
         shared_constant_properties,
         node_type,
         node_type_col,
@@ -217,7 +217,7 @@ pub(crate) fn process_pandas_py_df<'a>(
     let rb = table
         .call_method("to_batches", (), Some(&kwargs))?
         .extract::<Vec<Bound<PyAny>>>()?;
-    let names: Vec<String> = if let Some(batch0) = rb.get(0) {
+    let names: Vec<String> = if let Some(batch0) = rb.first() {
         let schema = batch0.getattr("schema")?;
         schema.getattr("names")?.extract::<Vec<String>>()?
     } else {
@@ -231,10 +231,8 @@ pub(crate) fn process_pandas_py_df<'a>(
     let chunks = rb.into_iter().map(move |rb| {
         let chunk = (0..names_len)
             .map(|i| {
-                let array = rb
-                    .call_method1("column", (i,))
-                    .map_err(|e| GraphError::from(e))?;
-                let arr = array_to_rust(&array).map_err(|e| GraphError::from(e))?;
+                let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
+                let arr = array_to_rust(&array).map_err(GraphError::from)?;
                 Ok::<Box<dyn Array>, GraphError>(arr)
             })
             .collect::<Result<Vec<_>, GraphError>>()?;

@@ -156,15 +156,10 @@ impl Prop {
                     .reduce(|a, b| unify_types(&a?, &b?, &mut false))
                     .transpose()
                     .map(|e| e.unwrap_or(PropType::Empty))
-                    .expect(&format!("Cannot unify types for list {:?}", list));
+                    .unwrap_or_else(|e| panic!("Cannot unify types for list {:?}: {e:?}", list));
                 PropType::List(Box::new(list_type))
             }
-            Prop::Map(map) => PropType::Map(
-                map.iter()
-                    .map(|(k, prop)| (k.to_string(), prop.dtype()))
-                    .sorted_by(|(k1, _), (k2, _)| k1.cmp(k2))
-                    .collect(),
-            ),
+            Prop::Map(map) => PropType::map(map.iter().map(|(k, v)| (k, v.dtype()))),
             Prop::NDTime(_) => PropType::NDTime,
             #[cfg(feature = "arrow")]
             Prop::Array(arr) => {
@@ -238,7 +233,7 @@ impl Prop {
 impl Display for Prop {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Prop::Str(value) => write!(f, "{}", value.0.to_string()),
+            Prop::Str(value) => write!(f, "{}", value),
             Prop::U8(value) => write!(f, "{}", value),
             Prop::U16(value) => write!(f, "{}", value),
             Prop::I32(value) => write!(f, "{}", value),

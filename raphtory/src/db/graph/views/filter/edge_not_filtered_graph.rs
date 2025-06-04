@@ -89,6 +89,6 @@ impl<'graph, G: GraphViewOps<'graph>, T: EdgeFilterOps> EdgeFilterOps
 
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids) && !self.filter.filter_edge(edge.clone(), layer_ids)
+        self.graph.filter_edge(edge, layer_ids) && !self.filter.filter_edge(edge, layer_ids)
     }
 }

@@ -93,7 +93,7 @@ pub struct WindowedGraph<G> {
 
 impl<G> Static for WindowedGraph<G> {}
 
-impl<'graph, G: Debug + 'graph> Debug for WindowedGraph<G> {
+impl<G: Debug> Debug for WindowedGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -934,7 +934,7 @@ mod views_test {
     fn windowed_graph_node_ids() {
         let vs = vec![(1, 1, 2), (3, 3, 4), (5, 5, 6), (7, 7, 1)];
 
-        let args = vec![(i64::MIN, 8), (i64::MIN, 2), (i64::MIN, 4), (3, 6)];
+        let args = [(i64::MIN, 8), (i64::MIN, 2), (i64::MIN, 4), (3, 6)];
 
         let expected = vec![
             vec![1, 2, 3, 4, 5, 6, 7],

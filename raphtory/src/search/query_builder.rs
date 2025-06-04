@@ -1,10 +1,6 @@
 use crate::{
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::views::filter::model::{
-            filter_operator::FilterOperator, property_filter::PropertyFilterValue, Filter,
-            FilterValue,
-        },
+    db::graph::views::filter::model::{
+        filter_operator::FilterOperator, property_filter::PropertyFilterValue, Filter, FilterValue,
     },
     errors::GraphError,
     prelude::PropertyFilter,
@@ -37,7 +33,7 @@ impl<'a> QueryBuilder<'a> {
         Self { index }
     }
 
-    pub(crate) fn build_property_query<G: StaticGraphViewOps>(
+    pub(crate) fn build_property_query(
         &self,
         property_index: &Arc<PropertyIndex>,
         filter: &PropertyFilter,
@@ -102,9 +98,9 @@ impl<'a> QueryBuilder<'a> {
             PropertyFilterValue::Set(prop_values) => {
                 let terms: Result<Vec<Term>, GraphError> = prop_values
                     .deref()
-                    .into_iter()
+                    .iter()
                     .map(|value| {
-                        create_property_exact_tantivy_term(property_index, prop_name, &value)
+                        create_property_exact_tantivy_term(property_index, prop_name, value)
                     })
                     .collect();
                 let terms = terms?;
@@ -162,8 +158,8 @@ impl<'a> QueryBuilder<'a> {
             FilterValue::Set(node_values) => {
                 let terms: Result<Vec<Term>, GraphError> = node_values
                     .deref()
-                    .into_iter()
-                    .map(|value| create_node_exact_tantivy_term(node_index, field_name, &value))
+                    .iter()
+                    .map(|value| create_node_exact_tantivy_term(node_index, field_name, value))
                     .collect();
                 let terms = terms?;
                 match operator {
@@ -215,8 +211,8 @@ impl<'a> QueryBuilder<'a> {
             FilterValue::Set(edge_values) => {
                 let terms: Result<Vec<Term>, GraphError> = edge_values
                     .deref()
-                    .into_iter()
-                    .map(|value| create_edge_exact_tantivy_term(edge_index, field_name, &value))
+                    .iter()
+                    .map(|value| create_edge_exact_tantivy_term(edge_index, field_name, value))
                     .collect();
                 let terms = terms?;
                 match operator {
@@ -255,7 +251,7 @@ pub fn get_str_field_tokens(
         tokens.push(token.text.clone());
     }
 
-    if tokens.len() < 1 {
+    if tokens.is_empty() {
         return Err(GraphError::NoTokensFound);
     }
 
@@ -288,7 +284,7 @@ fn create_property_tokenized_tantivy_terms(
         Prop::Str(value) => {
             let prop_field = property_index.get_tokenized_prop_field(prop_name)?;
             let schema = property_index.index.schema();
-            let field_entry = schema.get_field_entry(prop_field.clone());
+            let field_entry = schema.get_field_entry(prop_field);
             let field_type = field_entry.field_type();
             let tokens =
                 get_str_field_tokens(property_index.index.tokenizers(), field_type, value)?;
@@ -348,9 +344,9 @@ fn create_node_tokenized_tantivy_terms(
     let schema = &index.schema();
     let tokenizer_manager = index.tokenizers();
     let field = node_index.get_tokenized_node_field(field_name)?;
-    let field_entry = schema.get_field_entry(field.clone());
+    let field_entry = schema.get_field_entry(field);
     let field_type = field_entry.field_type();
-    let tokens = get_str_field_tokens(tokenizer_manager, &field_type, field_value)?;
+    let tokens = get_str_field_tokens(tokenizer_manager, field_type, field_value)?;
     create_terms_from_tokens(field, tokens)
 }
 
@@ -372,9 +368,9 @@ fn create_edge_tokenized_tantivy_terms(
     let schema = &index.schema();
     let tokenizer_manager = index.tokenizers();
     let field = edge_index.get_tokenized_edge_field(field_name)?;
-    let field_entry = schema.get_field_entry(field.clone());
+    let field_entry = schema.get_field_entry(field);
     let field_type = field_entry.field_type();
-    let tokens = get_str_field_tokens(tokenizer_manager, &field_type, field_value)?;
+    let tokens = get_str_field_tokens(tokenizer_manager, field_type, field_value)?;
     create_terms_from_tokens(field, tokens)
 }
 

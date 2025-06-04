@@ -16,7 +16,7 @@ use crate::{
 };
 use either::Either;
 use itertools::Itertools;
-use std::{collections::HashSet, usize};
+use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
 enum ExpansionPath {
@@ -55,7 +55,7 @@ impl Selected {
         limit: usize,
     ) {
         let selection_set: HashSet<EntityRef> =
-            HashSet::from_iter(self.0.iter().map(|(doc, _)| doc.clone()));
+            HashSet::from_iter(self.0.iter().map(|(doc, _)| *doc));
         let new_docs = extension
             .into_iter()
             .unique_by(|(entity, _)| *entity)

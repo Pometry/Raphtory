@@ -31,7 +31,7 @@ pub struct EdgePropertyFilteredGraph<G> {
     filter: PropertyFilter,
 }
 
-impl<'graph, G> EdgePropertyFilteredGraph<G> {
+impl<G> EdgePropertyFilteredGraph<G> {
     pub(crate) fn new(
         graph: G,
         t_prop_id: Option<usize>,
@@ -62,7 +62,7 @@ impl InternalEdgeFilterOps for PropertyFilter {
     }
 }
 
-impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
+impl<G> Base for EdgePropertyFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {

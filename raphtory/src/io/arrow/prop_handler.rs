@@ -124,33 +124,21 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
         }
         DataType::List(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
-            arr.iter()
-                .flatten()
-                .map(|elem| arr_as_prop(elem))
-                .into_prop_list()
+            arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::FixedSizeList(_, _) => {
             let arr = arr.as_any().downcast_ref::<FixedSizeListArray>().unwrap();
-            arr.iter()
-                .flatten()
-                .map(|elem| arr_as_prop(elem))
-                .into_prop_list()
+            arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::LargeList(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
-            arr.iter()
-                .flatten()
-                .map(|elem| arr_as_prop(elem))
-                .into_prop_list()
+            arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::Timestamp(TimeUnit::Millisecond, Some(_)) => {
             let arr = arr
                 .as_any()
                 .downcast_ref::<PrimitiveArray<i64>>()
-                .expect(&format!(
-                    "Expected TimestampMillisecondArray, got {:?}",
-                    arr
-                ));
+                .unwrap_or_else(|| panic!("Expected TimestampMillisecondArray, got {:?}", arr));
             arr.iter()
                 .flatten()
                 .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(*elem).unwrap()))
@@ -160,10 +148,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
             let arr = arr
                 .as_any()
                 .downcast_ref::<PrimitiveArray<i64>>()
-                .expect(&format!(
-                    "Expected TimestampMillisecondArray, got {:?}",
-                    arr
-                ));
+                .unwrap_or_else(|| panic!("Expected TimestampMillisecondArray, got {:?}", arr));
             arr.iter()
                 .flatten()
                 .map(|elem| {
@@ -175,7 +160,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
             let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
             let cols = arr
                 .values()
-                .into_iter()
+                .iter()
                 .map(|arr| lift_property_col(arr.as_ref()))
                 .collect::<Vec<_>>();
 

@@ -71,14 +71,14 @@ impl<'source> FromPyObject<'source> for Prop {
             let py_str = &ob.str()?;
             let rs_str = &py_str.to_cow()?;
 
-            return Ok(BigDecimal::from_str(&rs_str)
+            return BigDecimal::from_str(rs_str)
                 .map_err(|_| {
                     PyTypeError::new_err(format!("Could not convert {} to Decimal", rs_str))
                 })
                 .and_then(|bd| {
                     Prop::try_from_bd(bd)
                         .map_err(|_| PyTypeError::new_err(format!("Decimal too large {}", rs_str)))
-                })?);
+                });
         }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::F64(v));

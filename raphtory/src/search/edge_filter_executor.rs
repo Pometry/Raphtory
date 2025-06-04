@@ -70,7 +70,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
-    fn execute_filter_property_query<G: StaticGraphViewOps, C>(
+    fn execute_filter_property_query<G, C>(
         &self,
         graph: &G,
         query: Box<dyn Query>,
@@ -104,7 +104,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let query = self.query_builder.build_property_query::<G>(&pi, filter)?;
+        let query = self.query_builder.build_property_query(pi, filter)?;
         match query {
             Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
             // Fallback to raphtory apis
@@ -125,7 +125,7 @@ impl<'a> EdgeFilterExecutor<'a> {
     where
         C: Collector<Fruit = HashSet<u64>>,
     {
-        let query = self.query_builder.build_property_query::<G>(&pi, filter)?;
+        let query = self.query_builder.build_property_query(pi, filter)?;
         match query {
             Some(query) => self.execute_filter_property_query(
                 graph,
@@ -438,7 +438,7 @@ impl<'a> EdgeFilterExecutor<'a> {
             match searcher.doc::<TantivyDocument>(*doc_address) {
                 Ok(doc) => {
                     let schema = searcher.schema();
-                    println!("Score: {}, Document: {}", score, doc.to_json(&schema));
+                    println!("Score: {}, Document: {}", score, doc.to_json(schema));
                 }
                 Err(e) => {
                     println!("Failed to retrieve document: {:?}", e);

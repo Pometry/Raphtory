@@ -174,9 +174,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         }
 
         let edges = match direction {
-            Direction::OUT => g.node(node_vid.clone()).unwrap().out_edges(),
-            Direction::IN => g.node(node_vid.clone()).unwrap().in_edges(),
-            Direction::BOTH => g.node(node_vid.clone()).unwrap().edges(),
+            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
+            Direction::IN => g.node(node_vid).unwrap().in_edges(),
+            Direction::BOTH => g.node(node_vid).unwrap().edges(),
         };
 
         // Replace this loop with your actual logic to iterate over the outgoing edges

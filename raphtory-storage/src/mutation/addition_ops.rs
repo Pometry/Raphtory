@@ -118,14 +118,11 @@ impl InternalAdditionOps for TemporalGraph {
 
     /// map external node id to internal id, allocating a new empty node if needed
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        Ok(self.resolve_node_inner(id).map_err(MutationError::from)?)
+        Ok(self.resolve_node_inner(id)?)
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self
-            .logical_to_physical
-            .set(gid, vid)
-            .map_err(MutationError::from)?)
+        Ok(self.logical_to_physical.set(gid, vid)?)
     }
 
     /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
@@ -134,7 +131,7 @@ impl InternalAdditionOps for TemporalGraph {
         id: NodeRef,
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let vid = self.resolve_node(id).map_err(MutationError::from)?;
+        let vid = self.resolve_node(id)?;
         let mut entry = self.storage.get_node_mut(vid.inner());
         let mut entry_ref = entry.to_mut();
         let node_store = entry_ref.node_store_mut();
@@ -159,10 +156,7 @@ impl InternalAdditionOps for TemporalGraph {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error> {
-        Ok(self
-            .graph_meta
-            .resolve_property(prop, dtype, is_static)
-            .map_err(MutationError::from)?)
+        Ok(self.graph_meta.resolve_property(prop, dtype, is_static)?)
     }
 
     /// map property key to internal id, allocating new property if needed and checking property type.
@@ -173,10 +167,7 @@ impl InternalAdditionOps for TemporalGraph {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error> {
-        Ok(self
-            .node_meta
-            .resolve_prop_id(prop, dtype, is_static)
-            .map_err(MutationError::from)?)
+        Ok(self.node_meta.resolve_prop_id(prop, dtype, is_static)?)
     }
 
     fn resolve_edge_property(
@@ -185,10 +176,7 @@ impl InternalAdditionOps for TemporalGraph {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error> {
-        Ok(self
-            .edge_meta
-            .resolve_prop_id(prop, dtype, is_static)
-            .map_err(MutationError::from)?)
+        Ok(self.edge_meta.resolve_prop_id(prop, dtype, is_static)?)
     }
 
     /// add node update

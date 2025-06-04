@@ -180,7 +180,7 @@ impl EdgeIndex {
             .get_field(format!("{field_name}_tokenized").as_ref())
     }
 
-    fn create_document<'a>(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
+    fn create_document(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.edge_id_field, edge_id);
         document.add_text(self.src_field, src.clone());
@@ -315,7 +315,7 @@ impl EdgeIndex {
         graph: &GraphStorage,
         path: Option<&Path>,
     ) -> Result<EdgeIndex, GraphError> {
-        let edge_index_path = path.as_deref().map(|p| p.join("edges"));
+        let edge_index_path = path.map(|p| p.join("edges"));
         let edge_index = EdgeIndex::new(&edge_index_path)?;
 
         // Initialize property indexes and get their writers

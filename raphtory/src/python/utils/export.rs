@@ -69,7 +69,7 @@ pub(crate) fn extract_properties<P>(
                 if !prop_time_dict.contains_key(time) {
                     prop_time_dict.insert(*time, empty_dict.clone());
                 }
-                let data_dict = prop_time_dict.get_mut(&time).unwrap();
+                let data_dict = prop_time_dict.get_mut(time).unwrap();
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
     } else if include_property_history {
@@ -127,7 +127,6 @@ pub(crate) fn get_column_names_from_props(
         .collect();
     constant_properties
         .intersection(&temporal_properties)
-        .into_iter()
         .for_each(|name| {
             column_names.push(format!("{}_constant", name));
             column_names.push(format!("{}_temporal", name));
@@ -135,7 +134,6 @@ pub(crate) fn get_column_names_from_props(
         });
     constant_properties
         .symmetric_difference(&temporal_properties)
-        .into_iter()
         .for_each(|name| {
             column_names.push(name.to_string());
         });
@@ -185,7 +183,7 @@ pub(crate) fn create_row(
             // Skip the first column (name)
             let blank_prop = Prop::from("");
             let prop_value = properties_map.get(prop_name).unwrap_or(&blank_prop);
-            let _ = row.push(prop_value.clone()); // Append property value as string
+            row.push(prop_value.clone()); // Append property value as string
         }
 
         if convert_datetime {
@@ -193,10 +191,10 @@ pub(crate) fn create_row(
                 .iter()
                 .map(|val| Prop::DTime(val.dt().unwrap()))
                 .collect_vec();
-            let _ = row.push(Prop::from(update_list));
+            row.push(Prop::from(update_list));
         } else {
             let update_list = Prop::from(history.iter().map(|&val| Prop::from(val)).collect_vec());
-            let _ = row.push(update_list);
+            row.push(update_list);
         }
         vec![row]
     }

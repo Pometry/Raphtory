@@ -163,7 +163,6 @@ impl<G, L: EdgeFilterOps, R: EdgeFilterOps> EdgeFilterOps for EdgeOrFilteredGrap
 
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.filter_edge(edge.clone(), layer_ids)
-            || self.right.filter_edge(edge.clone(), layer_ids)
+        self.left.filter_edge(edge, layer_ids) || self.right.filter_edge(edge, layer_ids)
     }
 }

@@ -118,11 +118,15 @@ impl TColumns {
     }
 
     pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
-        self.t_props_log.get(prop_id).map(|col| col)
+        self.t_props_log.get(prop_id)
     }
 
     pub fn len(&self) -> usize {
         self.num_rows
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.num_rows == 0
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &TPropColumn> {
@@ -220,7 +224,7 @@ impl TPropColumn {
             #[cfg(feature = "arrow")]
             TPropColumn::Array(_) => PropType::Array(Box::new(PropType::Empty)),
             TPropColumn::List(_) => PropType::List(Box::new(PropType::Empty)),
-            TPropColumn::Map(_) => PropType::Map(HashMap::new()),
+            TPropColumn::Map(_) => PropType::Map(HashMap::new().into()),
             TPropColumn::NDTime(_) => PropType::NDTime,
             TPropColumn::DTime(_) => PropType::DTime,
             TPropColumn::Decimal(_) => PropType::Decimal { scale: 0 },
@@ -294,8 +298,8 @@ impl TPropColumn {
     }
 
     fn init_empty_col(&mut self, prop: &Prop) {
-        match self {
-            TPropColumn::Empty(len) => match prop {
+        if let TPropColumn::Empty(len) = self {
+            match prop {
                 Prop::Bool(_) => *self = TPropColumn::Bool(LazyVec::with_len(*len)),
                 Prop::I64(_) => *self = TPropColumn::I64(LazyVec::with_len(*len)),
                 Prop::U32(_) => *self = TPropColumn::U32(LazyVec::with_len(*len)),
@@ -313,8 +317,7 @@ impl TPropColumn {
                 Prop::NDTime(_) => *self = TPropColumn::NDTime(LazyVec::with_len(*len)),
                 Prop::DTime(_) => *self = TPropColumn::DTime(LazyVec::with_len(*len)),
                 Prop::Decimal(_) => *self = TPropColumn::Decimal(LazyVec::with_len(*len)),
-            },
-            _ => {}
+            }
         }
     }
 
@@ -363,8 +366,8 @@ impl TPropColumn {
             TPropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
             TPropColumn::List(col) => col.get_opt(index).map(|prop| Prop::List(prop.clone())),
             TPropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
-            TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(prop.clone())),
-            TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(prop.clone())),
+            TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(*prop)),
+            TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(*prop)),
             TPropColumn::Decimal(col) => col.get_opt(index).map(|prop| Prop::Decimal(prop.clone())),
             TPropColumn::Empty(_) => None,
         }
@@ -519,6 +522,10 @@ impl ReadLockedStorage {
 
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     #[cfg(test)]
@@ -704,6 +711,10 @@ impl NodeStorage {
     #[inline]
     pub fn len(&self) -> usize {
         self.len.load(Ordering::SeqCst)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn next_id(&self) -> VID {

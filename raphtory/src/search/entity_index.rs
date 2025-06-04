@@ -12,7 +12,11 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{borrow::Borrow, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Borrow,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index, IndexReader, IndexWriter, Term,
@@ -38,7 +42,7 @@ impl EntityIndex {
         })
     }
 
-    fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
+    fn load_from_path(path: &Path, is_edge: bool) -> Result<Self, GraphError> {
         let index = Index::open_in_dir(path.join("fields"))?;
 
         register_default_tokenizers(&index);
@@ -94,7 +98,7 @@ impl EntityIndex {
                 }
 
                 let mut schema_builder =
-                    PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
+                    PropertyIndex::schema_builder(prop_name, prop_type.clone());
 
                 let path = if is_static {
                     add_const_schema_fields(&mut schema_builder);
@@ -165,7 +169,7 @@ impl EntityIndex {
         let prop_meta = get_property_meta(graph);
         let properties = prop_keys
             .filter_map(|k| {
-                prop_meta.get_id(&*k).and_then(|prop_id| {
+                prop_meta.get_id(&k).and_then(|prop_id| {
                     prop_meta
                         .get_dtype(prop_id)
                         .map(|prop_type| (k.to_string(), prop_id, prop_type))
@@ -184,7 +188,7 @@ impl EntityIndex {
 
             // Create a new PropertyIndex if it doesn't exist
             if prop_index_guard[prop_id].is_none() {
-                let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type);
+                let mut schema_builder = PropertyIndex::schema_builder(&prop_name, prop_type);
                 add_schema_fields(&mut schema_builder);
                 let schema = schema_builder.build();
                 let prop_index_path = path.as_deref().map(|p| p.join(prop_id.to_string()));

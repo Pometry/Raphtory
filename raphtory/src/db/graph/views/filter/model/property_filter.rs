@@ -77,7 +77,7 @@ pub struct PropertyFilter {
 impl Display for PropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prop_ref_str = match &self.prop_ref {
-            PropertyRef::Property(name) => format!("{}", name),
+            PropertyRef::Property(name) => name.to_string(),
             PropertyRef::ConstantProperty(name) => format!("const({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Latest) => {
@@ -267,7 +267,7 @@ impl PropertyFilter {
                 let prop_value = c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id));
                 self.matches(prop_value.as_ref())
             }
-            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.map_or(false, |prop_id| {
+            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.is_some_and(|prop_id| {
                 props
                     .temporal()
                     .get_by_id(prop_id)

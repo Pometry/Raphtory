@@ -149,7 +149,7 @@ impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOp
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.internal_filter_node(node.clone(), layer_ids)
+        self.left.internal_filter_node(node, layer_ids)
             || self.right.internal_filter_node(node, layer_ids)
     }
 }

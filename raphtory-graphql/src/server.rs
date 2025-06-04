@@ -333,10 +333,6 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
 
 #[cfg(test)]
 mod server_tests {
-    extern crate chrono;
-
-    use std::path::Path;
-
     use crate::server::GraphServer;
     use chrono::prelude::*;
     use raphtory::{

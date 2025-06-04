@@ -79,7 +79,7 @@ impl InternalExplodedEdgeFilterOps for PropertyFilter {
     }
 }
 
-impl<'graph, G> Base for ExplodedEdgePropertyFilteredGraph<G> {
+impl<G> Base for ExplodedEdgePropertyFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {
@@ -128,14 +128,13 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     }
 
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        let res = self.graph.filter_edge_history(eid, t, layer_ids) && {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
             if eid.is_deletion() {
                 self.filter(eid.edge, t.previous(), eid.layer())
             } else {
                 self.filter(eid.edge, t, eid.layer())
             }
-        };
-        res
+        }
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {

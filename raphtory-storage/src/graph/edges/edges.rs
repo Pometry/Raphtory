@@ -57,7 +57,7 @@ impl EdgesStorage {
     pub fn par_iter<'a>(
         &'a self,
         layers: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + Sync + 'a {
         match self {
             EdgesStorage::Mem(storage) => StorageVariants2::Mem(
                 storage

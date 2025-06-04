@@ -64,7 +64,7 @@ impl<G, L, R> Base for NodeAndFilteredGraph<G, L, R> {
 impl<G, L, R> Static for NodeAndFilteredGraph<G, L, R> {}
 impl<G, L, R> Immutable for NodeAndFilteredGraph<G, L, R> {}
 
-impl<'graph, G, L, R> InheritCoreGraphOps for NodeAndFilteredGraph<G, L, R> {}
+impl<G, L, R> InheritCoreGraphOps for NodeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for NodeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for NodeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgeFilterOps for NodeAndFilteredGraph<G, L, R> {}
@@ -181,7 +181,7 @@ impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOp
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.internal_filter_node(node.clone(), layer_ids)
+        self.left.internal_filter_node(node, layer_ids)
             && self.right.internal_filter_node(node, layer_ids)
     }
 }

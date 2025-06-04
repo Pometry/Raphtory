@@ -49,7 +49,7 @@ impl Default for Map {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Mapping {
     map: OnceCell<Map>,
 }

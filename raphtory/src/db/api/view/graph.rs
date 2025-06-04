@@ -549,7 +549,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             })?;
         }
 
-        Ok(self.new_base_graph(g.into()))
+        Ok(self.new_base_graph(g))
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
@@ -878,7 +878,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
     fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk_zip(&path)?;
+                storage.persist_index_to_disk_zip(path)?;
                 Ok(())
             })
     }

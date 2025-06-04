@@ -582,7 +582,7 @@ mod test {
             .temporal()
             .into_iter()
             .map(|(key, t_view)| (key.to_string(), t_view.into_iter().collect::<Vec<_>>()))
-            .filter(|(_, v)| v.len() > 0)
+            .filter(|(_, v)| !v.is_empty())
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -682,26 +682,26 @@ mod test {
         .into_graph();
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            g.nodes().type_filter(["A"]).name().collect_vec(),
             vec!["Comp710070", "Comp844043"]
         );
 
         assert_eq!(
             g.nodes()
-                .type_filter(&Vec::<String>::new())
+                .type_filter(Vec::<String>::new())
                 .name()
                 .collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
-            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            g.nodes().type_filter([""]).name().collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["A"])
+                .type_filter(["A"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -711,7 +711,7 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["A", "B"])
+                .type_filter(["A", "B"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -721,7 +721,7 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["C"])
+                .type_filter(["C"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -731,9 +731,9 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["A"])
+                .type_filter(["A"])
                 .neighbours()
-                .type_filter(&vec!["A"])
+                .type_filter(["A"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -742,9 +742,9 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["A"])
+                .type_filter(["A"])
                 .neighbours()
-                .type_filter(&Vec::<&str>::new())
+                .type_filter(Vec::<&str>::new())
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -754,40 +754,40 @@ mod test {
         let w = g.window(6415659, 7387801);
 
         assert_eq!(
-            w.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            w.nodes().type_filter(["A"]).name().collect_vec(),
             vec!["Comp710070", "Comp844043"]
         );
 
         assert_eq!(
             w.nodes()
-                .type_filter(&Vec::<String>::new())
+                .type_filter(Vec::<String>::new())
                 .name()
                 .collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
-            w.nodes().type_filter(&vec![""]).name().collect_vec(),
+            w.nodes().type_filter([""]).name().collect_vec(),
             Vec::<String>::new()
         );
 
         let l = g.layers(["netflow"]).unwrap();
 
         assert_eq!(
-            l.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            l.nodes().type_filter(["A"]).name().collect_vec(),
             vec!["Comp710070", "Comp844043"]
         );
 
         assert_eq!(
             l.nodes()
-                .type_filter(&Vec::<String>::new())
+                .type_filter(Vec::<String>::new())
                 .name()
                 .collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
-            l.nodes().type_filter(&vec![""]).name().collect_vec(),
+            l.nodes().type_filter([""]).name().collect_vec(),
             Vec::<String>::new()
         );
     }
@@ -819,7 +819,7 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a", "b", "c", "e"])
+                .type_filter(["a", "b", "c", "e"])
                 .name()
                 .collect_vec(),
             vec!["1", "2", "3", "4", "5", "6"]
@@ -827,14 +827,14 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&Vec::<String>::new())
+                .type_filter(Vec::<String>::new())
                 .name()
                 .collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
-            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            g.nodes().type_filter([""]).name().collect_vec(),
             vec!["7", "8", "9"]
         );
 
@@ -844,7 +844,7 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a", "b", "c", "e"])
+                .type_filter(["a", "b", "c", "e"])
                 .name()
                 .collect_vec(),
             vec!["1", "2", "3", "4", "5", "6"]
@@ -852,14 +852,14 @@ mod test {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&Vec::<String>::new())
+                .type_filter(Vec::<String>::new())
                 .name()
                 .collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
-            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            g.nodes().type_filter([""]).name().collect_vec(),
             vec!["7", "8", "9"]
         );
     }
@@ -982,7 +982,6 @@ mod test {
         let (_, actual): (Vec<_>, Vec<_>) = g
             .edges()
             .properties()
-            .into_iter()
             .flat_map(|props| props.temporal().into_iter())
             .flat_map(|(_, view)| view.into_iter())
             .unzip();
@@ -1000,7 +999,7 @@ mod test {
             "18729358881519682914.000000000",
         ]
         .into_iter()
-        .map(|s| BigDecimal::from_str(s).map(|bd| Prop::Decimal(bd)))
+        .map(|s| BigDecimal::from_str(s).map(Prop::Decimal))
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
 

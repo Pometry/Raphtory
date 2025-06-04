@@ -452,6 +452,6 @@ impl<A: Debug> From<IllegalSet<A>> for GraphError {
 
 impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
-        io::Error::new(io::ErrorKind::Other, error)
+        io::Error::other(error)
     }
 }

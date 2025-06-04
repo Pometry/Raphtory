@@ -225,10 +225,10 @@ mod test_utils {
         )
     }
 
-    pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> {
+    pub(crate) fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
         match p_type {
-            PropType::Str => any::<String>().prop_map(|s| Prop::str(s)).boxed(),
-            PropType::I64 => any::<i64>().prop_map(|i| Prop::I64(i)).boxed(),
+            PropType::Str => any::<String>().prop_map(Prop::str).boxed(),
+            PropType::I64 => any::<i64>().prop_map(Prop::I64).boxed(),
             PropType::F64 => any::<f64>().prop_map(Prop::F64).boxed(),
             PropType::U8 => any::<u8>().prop_map(Prop::U8).boxed(),
             PropType::Bool => any::<bool>().prop_map(Prop::Bool).boxed(),
@@ -261,21 +261,22 @@ mod test_utils {
                 .prop_map(|props| Prop::List(props.into()))
                 .boxed(),
             PropType::Map(p_types) => {
-                let prop_types: Vec<BoxedStrategy<(String, Prop)>> = p_types
-                    .clone()
-                    .into_iter()
-                    .map(|(name, p_type)| {
-                        let pt_strat = prop(&p_type)
-                            .prop_map(move |prop| (name.clone(), prop.clone()))
-                            .boxed();
-                        pt_strat
+                let key_val: Vec<_> = p_types
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                let len = key_val.len();
+                let samples = proptest::sample::subsequence(key_val, 0..=len);
+                samples
+                    .prop_flat_map(|key_vals| {
+                        let props: Vec<_> = key_vals
+                            .into_iter()
+                            .map(|(key, val_type)| {
+                                prop(&val_type).prop_map(move |val| (key.clone(), val))
+                            })
+                            .collect();
+                        props.prop_map(Prop::map)
                     })
-                    .collect_vec();
-
-                let props = proptest::sample::select(prop_types).prop_flat_map(|prop| prop);
-
-                proptest::collection::vec(props, 1..10)
-                    .prop_map(|props| Prop::map(props))
                     .boxed()
             }
             PropType::Decimal { scale } => {
@@ -303,7 +304,7 @@ mod test_utils {
 
         leaf.prop_recursive(3, 10, 10, |inner| {
             let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-                .prop_map(|map| PropType::map(map));
+                .prop_map(PropType::map);
             let list = inner
                 .clone()
                 .prop_map(|p_type| PropType::List(Box::new(p_type)));
@@ -624,7 +625,7 @@ mod test_utils {
         g
     }
 
-    pub(crate) fn build_graph<'a>(graph_fix: &GraphFixture) -> Arc<Storage> {
+    pub(crate) fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
         let g = Arc::new(Storage::default());
         for ((src, dst, layer), updates) in graph_fix.edges() {
             for (t, props) in updates.props.t_props.iter() {

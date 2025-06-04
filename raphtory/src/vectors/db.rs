@@ -121,7 +121,7 @@ pub(super) trait EntityDb: Sized {
                     .into_iter()
                     .filter(move |entity| {
                         view.as_ref()
-                            .map_or(true, |view| Self::view_has_entity(entity, view))
+                            .is_none_or(|view| Self::view_has_entity(entity, view))
                     })
                     .map(|entity| entity.id()),
             )),
@@ -258,7 +258,7 @@ impl VectorDb {
         Ok(Self {
             vectors: db,
             env,
-            _tempdir: tempdir.into(),
+            _tempdir: tempdir,
             dimensions,
         })
     }

@@ -181,7 +181,7 @@ impl NodeIndex {
             .get_field(format!("{field_name}_tokenized").as_ref())
     }
 
-    fn create_document<'a>(
+    fn create_document(
         &self,
         node_id: u64,
         node_name: String,
@@ -284,7 +284,7 @@ impl NodeIndex {
         graph: &GraphStorage,
         path: Option<&Path>,
     ) -> Result<NodeIndex, GraphError> {
-        let node_index_path = path.as_deref().map(|p| p.join("nodes"));
+        let node_index_path = path.map(|p| p.join("nodes"));
         let node_index = NodeIndex::new(&node_index_path)?;
 
         // Initialize property indexes and get their writers

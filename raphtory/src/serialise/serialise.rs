@@ -428,8 +428,8 @@ impl InternalStableDecode for TemporalGraph {
             update_meta(
                 const_prop_types,
                 temp_prop_types,
-                &storage.edge_meta.const_prop_meta(),
-                &storage.edge_meta.temporal_prop_meta(),
+                storage.edge_meta.const_prop_meta(),
+                storage.edge_meta.temporal_prop_meta(),
             );
         }
 
@@ -545,8 +545,8 @@ impl InternalStableDecode for TemporalGraph {
             update_meta(
                 const_prop_types,
                 temp_prop_types,
-                &storage.node_meta.const_prop_meta(),
-                &storage.node_meta.temporal_prop_meta(),
+                storage.node_meta.const_prop_meta(),
+                storage.node_meta.temporal_prop_meta(),
             );
         }
 
@@ -591,7 +591,7 @@ impl InternalStableDecode for TemporalGraph {
                 const_prop_types,
                 temp_prop_types,
                 &PropMapper::default(),
-                &storage.graph_meta.temporal_prop_meta(),
+                storage.graph_meta.temporal_prop_meta(),
             );
         }
         Ok(storage)
@@ -622,14 +622,14 @@ fn unify_property_types(
     r_temp: &[PropType],
 ) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
     let const_pt = l_const
-        .into_iter()
+        .iter()
         .zip(r_const)
-        .map(|(l, r)| unify_types(&l, &r, &mut false))
+        .map(|(l, r)| unify_types(l, r, &mut false))
         .collect::<Result<Vec<PropType>, _>>()?;
     let temp_pt = l_temp
-        .into_iter()
+        .iter()
         .zip(r_temp)
-        .map(|(l, r)| unify_types(&l, &r, &mut false))
+        .map(|(l, r)| unify_types(l, r, &mut false))
         .collect::<Result<Vec<PropType>, _>>()?;
     Ok((const_pt, temp_pt))
 }
@@ -735,7 +735,6 @@ mod proto_test {
 
         let actual: HashMap<_, _> = graph
             .const_prop_keys()
-            .into_iter()
             .map(|key| {
                 let props = graph
                     .nodes()
@@ -923,8 +922,8 @@ mod proto_test {
         let pm = graph.graph_meta().temporal_prop_meta();
         check_prop_mapper(pm);
 
-        let mut vec1 = actual.keys().into_iter().collect::<Vec<_>>();
-        let mut vec2 = expected.keys().into_iter().collect::<Vec<_>>();
+        let mut vec1 = actual.keys().collect::<Vec<_>>();
+        let mut vec2 = expected.keys().collect::<Vec<_>>();
         vec1.sort();
         vec2.sort();
         assert_eq!(vec1, vec2);
@@ -1033,7 +1032,7 @@ mod proto_test {
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
-        let deletions = edge.deletions().iter().copied().collect::<Vec<_>>();
+        let deletions = edge.deletions().to_vec();
         assert_eq!(deletions, vec![19]);
     }
 
@@ -1222,7 +1221,7 @@ mod proto_test {
 
         let g1 = Graph::new();
         for t in 0..props.len() {
-            g1.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+            g1.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add constant properties");
         }
 
@@ -1299,7 +1298,6 @@ mod proto_test {
             .get("test")
             .unwrap()
             .values()
-            .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
         assert_eq!(values, ["test", "test", "test"]);
@@ -1317,7 +1315,6 @@ mod proto_test {
             .get("test")
             .unwrap()
             .values()
-            .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
         assert_eq!(values, ["test", "test", "test"]);
@@ -1339,7 +1336,7 @@ mod proto_test {
         assert_metadata_correct(&folder, &g);
 
         for t in 0..props.len() {
-            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+            g.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add constant properties");
         }
         g.write_updates().unwrap();
@@ -1386,7 +1383,7 @@ mod proto_test {
         g.cache(&temp_cache_file).unwrap();
 
         for t in 0..props.len() {
-            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+            g.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add constant properties");
         }
         g.write_updates().unwrap();

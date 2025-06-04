@@ -486,10 +486,10 @@ impl EmbeddingFunction for Py<PyFunction> {
                             .iter()
                             .map(|element| Ok(element.extract::<f32>()?))
                             .collect();
-                        Ok(embedding?)
+                        embedding
                     })
                     .collect();
-                Ok(embeddings?)
+                embeddings
             })
         })
     }

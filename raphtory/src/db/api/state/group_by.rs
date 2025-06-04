@@ -212,7 +212,7 @@ mod tests {
                 assert_eq!(v, v3);
                 assert_eq!(
                     graph.nodes().id().sort_by_values(false),
-                    expected_subgraphs[&v].deref()
+                    expected_subgraphs[v].deref()
                 );
             }
         });

@@ -15,7 +15,7 @@ impl<'py> IntoPyObject<'py> for GID {
     }
 }
 
-impl<'a, 'py> IntoPyObject<'py> for &'a GID {
+impl<'py> IntoPyObject<'py> for &GID {
     type Target = PyAny;
     type Output = Bound<'py, PyAny>;
     type Error = Infallible;

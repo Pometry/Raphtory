@@ -702,7 +702,6 @@ mod test_deletions {
         assert_persistent_materialize_graph_equal(&gw, &gmw);
     }
 
-    ///
     #[test]
     fn test_constant_properties_multiple_layers() {
         let g = PersistentGraph::new();

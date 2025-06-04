@@ -48,19 +48,19 @@ impl SingleLayer for String {
         self.into()
     }
 }
-impl<'a> SingleLayer for &'a str {
+impl SingleLayer for &str {
     fn name(self) -> ArcStr {
         self.into()
     }
 }
 
-impl<'a> SingleLayer for &'a String {
+impl SingleLayer for &String {
     fn name(self) -> ArcStr {
         self.as_str().into()
     }
 }
 
-impl<'a> SingleLayer for &'a ArcStr {
+impl SingleLayer for &ArcStr {
     fn name(self) -> ArcStr {
         self.clone()
     }
@@ -174,6 +174,11 @@ impl Multiple {
     #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

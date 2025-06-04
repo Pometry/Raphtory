@@ -162,13 +162,11 @@ pub struct GlobalState<CS: ComputeState> {
 }
 
 impl<CS: ComputeState> GlobalState<CS> {
-    pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        agg_def: &AccId<A, IN, OUT, ACC>,
-    ) -> OUT
+    pub fn finalize<A, IN, OUT, ACC>(&self, agg_def: &AccId<A, IN, OUT, ACC>) -> OUT
     where
         OUT: StateType + Default,
-        A: 'static,
+        A: StateType + 'static,
+        ACC: Accumulator<A, IN, OUT>,
     {
         // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
         // the value is on the previous ss

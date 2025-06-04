@@ -45,8 +45,8 @@ pub fn load_nodes_from_parquet<
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
-    cols_to_check.extend_from_slice(&properties);
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(constant_properties);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -58,8 +58,8 @@ pub fn load_nodes_from_parquet<
             df_view,
             time,
             id,
-            &properties,
-            &constant_properties,
+            properties,
+            constant_properties,
             shared_constant_properties,
             node_type,
             node_type_col,
@@ -87,8 +87,8 @@ pub fn load_edges_from_parquet<
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend_from_slice(&properties);
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(constant_properties);
 
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
@@ -102,8 +102,8 @@ pub fn load_edges_from_parquet<
             time,
             src,
             dst,
-            &properties,
-            &constant_properties,
+            properties,
+            constant_properties,
             shared_constant_properties,
             layer,
             layer_col,
@@ -127,7 +127,7 @@ pub fn load_node_props_from_parquet<
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(constant_properties);
 
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
@@ -142,7 +142,7 @@ pub fn load_node_props_from_parquet<
             id,
             node_type,
             node_type_col,
-            &constant_properties,
+            constant_properties,
             shared_constant_properties,
             graph,
         )
@@ -169,7 +169,7 @@ pub fn load_edge_props_from_parquet<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(constant_properties);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
@@ -178,7 +178,7 @@ pub fn load_edge_props_from_parquet<
             df_view,
             src,
             dst,
-            &constant_properties,
+            constant_properties,
             shared_const_properties,
             layer,
             layer_col,
@@ -223,8 +223,8 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     constant_properties: &[&str],
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![time];
-    cols_to_check.extend_from_slice(&properties);
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(constant_properties);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
@@ -232,8 +232,8 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
         load_graph_props_from_df(
             df_view,
             time,
-            Some(&properties),
-            Some(&constant_properties),
+            Some(properties),
+            Some(constant_properties),
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -254,13 +254,9 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = chunks.into_iter().map(move |result| {
-        result
-            .map(|r| DFChunk {
-                chunk: r.into_iter().map(|boxed| boxed.clone()).collect_vec(),
-            })
-            .map_err(|e| {
-                GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
-            })
+        result.map(|r| DFChunk { chunk: r.to_vec() }).map_err(|e| {
+            GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
+        })
     });
 
     Ok(DFView {
@@ -313,7 +309,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     } else if parquet_path.is_dir() {
         for entry in fs::read_dir(parquet_path)? {
             let path = entry?.path();
-            if path.extension().map_or(false, |ext| ext == "parquet") {
+            if path.extension().is_some_and(|ext| ext == "parquet") {
                 parquet_files.push(path);
             }
         }
@@ -332,11 +328,10 @@ pub fn read_struct_arrays(
     path: &Path,
     col_names: Option<&[&str]>,
 ) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError> {
-    let readers = get_parquet_file_paths(&path)?
+    let readers = get_parquet_file_paths(path)?
         .into_iter()
         .map(|path| {
-            read_parquet_file(path, col_names.as_deref())
-                .map(|(col_names, reader, _)| (col_names, reader))
+            read_parquet_file(path, col_names).map(|(col_names, reader, _)| (col_names, reader))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -374,7 +369,7 @@ mod test {
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names)).unwrap();
 
-        let expected_names: Vec<String> = vec!["src", "dst", "time", "weight", "marbles"]
+        let expected_names: Vec<String> = ["src", "dst", "time", "weight", "marbles"]
             .iter()
             .map(|s| s.to_string())
             .collect();

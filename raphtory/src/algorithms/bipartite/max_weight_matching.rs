@@ -83,7 +83,7 @@ fn assign_label(
     blossom_base: &[Option<usize>],
     endpoints: &[usize],
     mate: &HashMap<usize, usize>,
-) -> () {
+) {
     let b = in_blossoms[w];
     assert!(labels[w] == Some(0) && labels[b] == Some(0));
     labels[w] = Some(t);
@@ -118,7 +118,6 @@ fn assign_label(
             mate,
         );
     }
-    ()
 }
 
 /// Trace back from vertices v and w to discover either a new blossom
@@ -200,7 +199,7 @@ fn add_blossom(
     blossom_parents: &mut [Option<usize>],
     neighbor_endpoints: &[Vec<usize>],
     mate: &HashMap<usize, usize>,
-) -> () {
+) {
     let (mut v, mut w, _weight) = edges[edge];
     let blossom_b = in_blossoms[base];
     let mut blossom_v = in_blossoms[v];
@@ -317,7 +316,6 @@ fn add_blossom(
             best_edge[blossom] = Some(*edge_index);
         }
     }
-    ()
 }
 
 /// Expand the given top level blossom
@@ -339,7 +337,7 @@ fn expand_blossom(
     blossom_endpoints: &mut Vec<Vec<usize>>,
     allowed_edge: &mut Vec<bool>,
     unused_blossoms: &mut Vec<usize>,
-) -> () {
+) {
     // Convert sub-blossoms into top-level blossoms.
     for s in blossom_children[blossom].clone() {
         blossom_parents[s] = None;
@@ -537,7 +535,6 @@ fn expand_blossom(
     blossom_base[blossom] = None;
     best_edge[blossom] = None;
     unused_blossoms.push(blossom);
-    ()
 }
 
 /// Swap matched/unmatched edges over an alternating path through blossom b

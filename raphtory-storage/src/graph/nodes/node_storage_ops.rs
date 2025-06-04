@@ -105,7 +105,7 @@ impl<'a> NodeStorageOps<'a> for NodePtr<'a> {
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        let eid = NodeStore::find_edge_eid(&self.node, dst, layer_ids)?;
+        let eid = NodeStore::find_edge_eid(self.node, dst, layer_ids)?;
         Some(EdgeRef::new_outgoing(eid, self.node.vid, dst))
     }
 }

@@ -160,10 +160,13 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         let range = match self {
             TCell::Empty => TimeIndexWindow::Empty,
-            TCell::TCell1(t, _) => w
-                .contains(t)
-                .then(|| TimeIndexWindow::All(*self))
-                .unwrap_or(TimeIndexWindow::Empty),
+            TCell::TCell1(t, _) => {
+                if w.contains(t) {
+                    TimeIndexWindow::All(*self)
+                } else {
+                    TimeIndexWindow::Empty
+                }
+            }
             _ => {
                 if let Some(min_val) = self.first() {
                     if let Some(max_val) = self.last() {

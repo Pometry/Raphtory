@@ -556,7 +556,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     Graph: the graph with event semantics applied
-    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+    pub fn event_graph(&self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 

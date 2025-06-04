@@ -47,7 +47,6 @@ pub(crate) fn encode_nodes_tprop(
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
-                            .into_iter()
                             .map(|(t, props)| ParquetTNode {
                                 node: *node,
                                 cols,

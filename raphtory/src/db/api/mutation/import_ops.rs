@@ -206,7 +206,7 @@ impl<
         node: &NodeView<'a, GHH, GH>,
         merge: bool,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
-        import_node_internal(&self, node, node.id(), merge)
+        import_node_internal(self, node, node.id(), merge)
     }
 
     fn import_node_as<
@@ -220,7 +220,7 @@ impl<
         new_id: V,
         merge: bool,
     ) -> Result<NodeView<'static, Self, Self>, GraphError> {
-        import_node_internal(&self, node, new_id, merge)
+        import_node_internal(self, node, new_id, merge)
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
@@ -261,7 +261,7 @@ impl<
         edge: &EdgeView<GHH, GH>,
         merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        import_edge_internal(&self, edge, edge.src().id(), edge.dst().id(), merge)
+        import_edge_internal(self, edge, edge.src().id(), edge.dst().id(), merge)
     }
 
     fn import_edge_as<
@@ -275,7 +275,7 @@ impl<
         new_id: (V, V),
         merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        import_edge_internal(&self, edge, new_id.0, new_id.1, merge)
+        import_edge_internal(self, edge, new_id.0, new_id.1, merge)
     }
 
     fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(

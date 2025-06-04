@@ -110,19 +110,19 @@ impl FilterOperator {
                 | FilterOperator::Lt
                 | FilterOperator::Le
                 | FilterOperator::Gt
-                | FilterOperator::Ge => right.map_or(false, |r| self.operation()(r, l)),
-                FilterOperator::Contains => right.map_or(false, |r| match (l, r) {
+                | FilterOperator::Ge => right.is_some_and(|r| self.operation()(r, l)),
+                FilterOperator::Contains => right.is_some_and(|r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
                     _ => unreachable!(),
                 }),
-                FilterOperator::NotContains => right.map_or(false, |r| match (l, r) {
+                FilterOperator::NotContains => right.is_some_and(|r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => !r.deref().contains(l.deref()),
                     _ => unreachable!(),
                 }),
                 FilterOperator::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
-                } => right.map_or(false, |r| match (l, r) {
+                } => right.is_some_and(|r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => {
                         let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
                         fuzzy_fn(l, r)
@@ -133,7 +133,7 @@ impl FilterOperator {
             },
             PropertyFilterValue::Set(l) => match self {
                 FilterOperator::In | FilterOperator::NotIn => {
-                    right.map_or(false, |r| self.collection_operation()(l, r))
+                    right.is_some_and(|r| self.collection_operation()(l, r))
                 }
                 _ => unreachable!(),
             },
@@ -147,12 +147,12 @@ impl FilterOperator {
                     Some(r) => self.operation()(r, l),
                     None => matches!(self, FilterOperator::Ne),
                 },
-                FilterOperator::Contains => right.map_or(false, |r| r.contains(l)),
-                FilterOperator::NotContains => right.map_or(false, |r| !r.contains(l)),
+                FilterOperator::Contains => right.is_some_and(|r| r.contains(l)),
+                FilterOperator::NotContains => right.is_some_and(|r| !r.contains(l)),
                 FilterOperator::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
-                } => right.map_or(false, |r| {
+                } => right.is_some_and(|r| {
                     let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
                     fuzzy_fn(l, r)
                 }),

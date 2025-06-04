@@ -25,7 +25,7 @@ pub struct NodeNameFilteredGraph<G> {
     filter: Filter,
 }
 
-impl<'graph, G> NodeNameFilteredGraph<G> {
+impl<G> NodeNameFilteredGraph<G> {
     pub(crate) fn new(graph: G, filter: Filter) -> Self {
         Self { graph, filter }
     }
@@ -42,7 +42,7 @@ impl CreateNodeFilter for NodeNameFilter {
     }
 }
 
-impl<'graph, G> Base for NodeNameFilteredGraph<G> {
+impl<G> Base for NodeNameFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {

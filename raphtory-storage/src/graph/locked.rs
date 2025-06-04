@@ -99,6 +99,6 @@ impl<'a> WriteLockedGraph<'a> {
     }
 
     pub fn graph(&self) -> &TemporalGraph {
-        &self.graph
+        self.graph
     }
 }

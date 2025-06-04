@@ -175,7 +175,7 @@ where
             let node = g.core_node(vid);
             node_types_filter
                 .as_ref()
-                .map_or(true, |type_filter| type_filter[node.node_type_id()])
+                .is_none_or(|type_filter| type_filter[node.node_type_id()])
                 && view.filter_node(node.as_ref())
         })
     }
@@ -198,7 +198,7 @@ where
             let node = g.core_node(vid);
             node_types_filter
                 .as_ref()
-                .map_or(true, |type_filter| type_filter[node.node_type_id()])
+                .is_none_or(|type_filter| type_filter[node.node_type_id()])
                 && view.filter_node(node.as_ref())
         })
     }
@@ -285,7 +285,7 @@ where
     ) -> Nodes<'graph, G, GH> {
         let index: Index<_> = nodes
             .into_iter()
-            .filter_map(|n| (&self.graph).node(n).map(|n| n.node))
+            .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
         self.indexed(index)
     }

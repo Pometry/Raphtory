@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
+    sync::Arc,
 };
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -29,7 +30,7 @@ pub enum PropType {
     F64,
     Bool,
     List(Box<PropType>),
-    Map(HashMap<String, PropType>),
+    Map(Arc<HashMap<String, PropType>>),
     NDTime,
     DTime,
     Array(Box<PropType>),
@@ -72,14 +73,11 @@ impl Display for PropType {
 }
 
 impl PropType {
-    pub fn map(fields: impl IntoIterator<Item = (impl AsRef<str>, PropType)>) -> Self {
-        PropType::Map(
-            fields
-                .into_iter()
-                .map(|(k, v)| (k.as_ref().to_owned(), v))
-                .collect(),
-        )
+    pub fn map(fields: impl IntoIterator<Item = (impl Into<String>, PropType)>) -> Self {
+        let map: HashMap<_, _> = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
+        PropType::Map(Arc::from(map))
     }
+
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,
@@ -199,7 +197,7 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
                     *unified = true;
                 }
             }
-            Ok(PropType::Map(merged))
+            Ok(PropType::Map(merged.into()))
         }
         (PropType::Decimal { scale: l_scale }, PropType::Decimal { scale: r_scale })
             if l_scale == r_scale =>
@@ -338,5 +336,15 @@ mod test {
             ]))))
         );
         assert!(unify);
+    }
+
+    #[test]
+    fn size_of_proptype() {
+        let size = size_of::<PropType>();
+        println!("PropType = {size}");
+        let size = size_of::<HashMap<String, PropType>>();
+        println!("Map = {size}");
+        let size = size_of::<PropError>();
+        println!("PropError = {size}")
     }
 }

@@ -146,7 +146,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
             let layer = self.get_layer_name(layer).to_string();
             let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
             let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst }.into())
+            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
         }
     }
 
@@ -171,7 +171,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
             let layer = self.get_layer_name(layer).to_string();
             let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
             let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst }.into())
+            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
         }
     }
 }

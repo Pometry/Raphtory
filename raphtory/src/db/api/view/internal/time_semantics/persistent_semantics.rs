@@ -465,7 +465,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
         if w.end <= w.start {
-            return Either::Left(iter::empty());
+            Either::Left(iter::empty())
         } else {
             Either::Right(
                 edge.filtered_updates_iter(view, layer_ids)
@@ -927,7 +927,6 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         w: Range<i64>,
     ) -> Option<Prop> {
         let w = TimeIndexEntry::range(w);
-        let t = t;
         if w.contains(&t) {
             e.filtered_updates_iter(&view, view.layer_ids())
                 .filter_map(|(layer, _, deletions)| {

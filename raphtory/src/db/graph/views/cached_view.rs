@@ -38,7 +38,7 @@ pub struct CachedView<G> {
 
 impl<G> Static for CachedView<G> {}
 
-impl<'graph, G: Debug + 'graph> Debug for CachedView<G> {
+impl<G: Debug> Debug for CachedView<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MaskedGraph")
             .field("graph", &self.graph as &dyn Debug)
@@ -140,7 +140,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
         if layer_ids.contains(&layer) {
             self.layered_mask
                 .get(layer)
-                .map_or(false, |(_, edges)| edges.contains(eid.edge.as_u64()))
+                .is_some_and(|(_, edges)| edges.contains(eid.edge.as_u64()))
                 && self.graph.filter_edge_history(eid, t, layer_ids)
         } else {
             false
@@ -312,7 +312,7 @@ mod test {
             });
         }
 
-        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 0 ))| {
+        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| !v.is_empty() ))| {
             check(&edge_list);
         })
     }

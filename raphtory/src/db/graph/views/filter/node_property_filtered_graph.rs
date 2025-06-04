@@ -26,7 +26,7 @@ pub struct NodePropertyFilteredGraph<G> {
     filter: PropertyFilter,
 }
 
-impl<'graph, G> NodePropertyFilteredGraph<G> {
+impl<G> NodePropertyFilteredGraph<G> {
     pub(crate) fn new(
         graph: G,
         t_prop_id: Option<usize>,
@@ -57,7 +57,7 @@ impl CreateNodeFilter for PropertyFilter {
     }
 }
 
-impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
+impl<G> Base for NodePropertyFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {

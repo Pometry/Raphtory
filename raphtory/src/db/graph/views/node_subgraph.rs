@@ -32,7 +32,7 @@ pub struct NodeSubgraph<G> {
 
 impl<G> Static for NodeSubgraph<G> {}
 
-impl<'graph, G: Debug + 'graph> Debug for NodeSubgraph<G> {
+impl<G: Debug> Debug for NodeSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeSubgraph")
             .field("graph", &self.graph as &dyn Debug)

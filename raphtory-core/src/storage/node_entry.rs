@@ -23,7 +23,7 @@ pub struct MemRow<'a> {
 
 impl<'a> Debug for MemRow<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.into_iter()).finish()
+        f.debug_list().entries(*self).finish()
     }
 }
 
@@ -104,7 +104,7 @@ impl<'a> NodePtr<'a> {
             .t_props_log
             .iter()
             .enumerate()
-            .filter_map(|(id, col)| (!col.is_empty()).then(|| id))
+            .filter_map(|(id, col)| (!col.is_empty()).then_some(id))
     }
 
     pub fn into_rows(self) -> impl Iterator<Item = (TimeIndexEntry, MemRow<'a>)> {

@@ -34,12 +34,12 @@ impl<'a> DiskNode<'a> {
         self.graph
             .node_properties()
             .temporal_props()
-            .into_iter()
+            .iter()
             .enumerate()
             .flat_map(move |(layer, props)| {
                 let ts = props.timestamps::<TimeIndexEntry>(self.vid);
                 ts.into_iter().zip(0..ts.len()).map(move |(t, row)| {
-                    let row = DiskRow::new(&self.graph, ts, row, layer);
+                    let row = DiskRow::new(self.graph, ts, row, layer);
                     (t, Row::Disk(row))
                 })
             })
@@ -52,12 +52,12 @@ impl<'a> DiskNode<'a> {
         self.graph
             .node_properties()
             .temporal_props()
-            .into_iter()
+            .iter()
             .enumerate()
             .flat_map(move |(layer, props)| {
                 let ts = props.timestamps::<TimeIndexEntry>(self.vid);
                 let ts = ts.range(window.clone());
-                ts.iter().zip(0..ts.len()).map(move |(t, row)| {
+                ts.iter().enumerate().map(move |(row, t)| {
                     let row = DiskRow::new(self.graph, ts, row, layer);
                     (t, Row::Disk(row))
                 })
@@ -68,7 +68,7 @@ impl<'a> DiskNode<'a> {
         self.graph
             .prop_mapping()
             .nodes()
-            .into_iter()
+            .iter()
             .enumerate()
             .filter_map(|(prop_id, &location)| {
                 let (layer, local_prop_id) = location?;
@@ -92,7 +92,7 @@ impl<'a> DiskNode<'a> {
         self.graph
             .prop_mapping()
             .nodes()
-            .into_iter()
+            .iter()
             .enumerate()
             .filter(|(_, exists)| exists.is_some())
             .map(|(id, _)| id)

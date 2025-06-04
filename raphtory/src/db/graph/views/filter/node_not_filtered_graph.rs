@@ -80,6 +80,6 @@ impl<G: InternalNodeFilterOps, T: InternalNodeFilterOps> InternalNodeFilterOps
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_node(node, layer_ids)
-            && !self.filter.internal_filter_node(node.clone(), layer_ids)
+            && !self.filter.internal_filter_node(node, layer_ids)
     }
 }

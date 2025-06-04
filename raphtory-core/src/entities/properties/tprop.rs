@@ -171,7 +171,7 @@ impl TProp {
             TProp::Array(_) => PropType::Array(Box::new(PropType::Empty)),
             TProp::NDTime(_) => PropType::NDTime,
             TProp::List(_) => PropType::List(Box::new(PropType::Empty)),
-            TProp::Map(_) => PropType::Map(HashMap::new()),
+            TProp::Map(_) => PropType::Map(HashMap::new().into()),
             TProp::Decimal(_) => PropType::Decimal { scale: 0 },
         }
     }

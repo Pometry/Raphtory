@@ -613,7 +613,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     PersistentGraph: the graph with persistent semantics applied
-    pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
+    pub fn persistent_graph(&self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 

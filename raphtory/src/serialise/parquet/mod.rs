@@ -167,7 +167,7 @@ pub(crate) fn derive_schema(
         Schema::new(
             default_fields
                 .into_iter()
-                .chain(prop_columns.into_iter())
+                .chain(prop_columns)
                 .collect::<Vec<_>>(),
         )
         .into()
@@ -200,7 +200,7 @@ fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphEr
     Ok(std::fs::read_dir(dir)?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.is_file() && path.extension().map_or(false, |ext| ext == "parquet")))
+        .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "parquet")))
 }
 
 fn collect_prop_columns(
@@ -223,7 +223,7 @@ fn collect_prop_columns(
                 .key_value_metadata()
                 .and_then(|meta| {
                     meta.iter()
-                        .find(|kv| &kv.key == GRAPH_TYPE)
+                        .find(|kv| kv.key == GRAPH_TYPE)
                         .and_then(|kv| kv.value.as_ref())
                         .and_then(|v| match v.as_ref() {
                             EVENT_GRAPH_TYPE => Some(GraphType::EventGraph),
@@ -769,7 +769,7 @@ mod test {
         check_parquet_encoding(g);
     }
 
-    fn check_parquet_encoding<'a>(g: Graph) {
+    fn check_parquet_encoding(g: Graph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();

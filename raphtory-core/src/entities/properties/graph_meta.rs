@@ -15,7 +15,7 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct GraphMeta {
     constant_mapper: PropMapper,
     temporal_mapper: PropMapper,

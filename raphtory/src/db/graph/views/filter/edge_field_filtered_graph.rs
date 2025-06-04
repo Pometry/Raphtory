@@ -31,7 +31,7 @@ pub struct EdgeFieldFilteredGraph<G> {
     filter: Filter,
 }
 
-impl<'graph, G> EdgeFieldFilteredGraph<G> {
+impl<G> EdgeFieldFilteredGraph<G> {
     pub(crate) fn new(graph: G, filter: Filter) -> Self {
         Self { graph, filter }
     }
@@ -48,7 +48,7 @@ impl InternalEdgeFilterOps for EdgeFieldFilter {
     }
 }
 
-impl<'graph, G> Base for EdgeFieldFilteredGraph<G> {
+impl<G> Base for EdgeFieldFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {

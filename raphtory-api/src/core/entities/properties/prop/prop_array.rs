@@ -52,6 +52,13 @@ impl PropArray {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            PropArray::Empty => true,
+            PropArray::Array(arr) => arr.is_empty(),
+        }
+    }
+
     // pub fn dtype(&self) -> PropType {
     //     match self {
     //         PropArray::Empty => PropType::Empty,
@@ -234,11 +241,11 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
             DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, Some("UTC".into()))
         }
         PropType::Array(d_type) => {
-            DataType::List(Field::new("data", arrow_dtype_from_prop_type(&d_type), true).into())
+            DataType::List(Field::new("data", arrow_dtype_from_prop_type(d_type), true).into())
         }
 
         PropType::List(d_type) => {
-            DataType::List(Field::new("data", arrow_dtype_from_prop_type(&d_type), true).into())
+            DataType::List(Field::new("data", arrow_dtype_from_prop_type(d_type), true).into())
         }
         PropType::Map(d_type) => {
             let fields = d_type
@@ -273,7 +280,7 @@ pub fn prop_type_from_arrow_dtype(arrow_dtype: &DataType) -> PropType {
         },
         DataType::List(field) => {
             let d_type = field.data_type();
-            PropType::Array(Box::new(prop_type_from_arrow_dtype(&d_type)))
+            PropType::Array(Box::new(prop_type_from_arrow_dtype(d_type)))
         }
         _ => panic!("{:?} not supported as disk_graph property", arrow_dtype),
     }

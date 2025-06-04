@@ -43,7 +43,7 @@ impl Display for Filter {
                 sorted_values.sort();
                 let values_str = sorted_values
                     .iter()
-                    .map(|v| format!("{}", v))
+                    .map(|v| v.to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
                 write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
@@ -381,11 +381,11 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     }
 
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::is_in(self.property_ref(), values.into_iter())
+        PropertyFilter::is_in(self.property_ref(), values)
     }
 
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::is_not_in(self.property_ref(), values.into_iter())
+        PropertyFilter::is_not_in(self.property_ref(), values)
     }
 
     fn is_none(&self) -> PropertyFilter {

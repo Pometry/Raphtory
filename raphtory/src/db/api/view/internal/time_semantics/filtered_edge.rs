@@ -37,11 +37,10 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             self.time_index
                 .range(w)
                 .iter()
-                .filter(|t| {
+                .find(|t| {
                     self.view
                         .filter_edge_history(self.eid, *t, self.view.layer_ids())
                 })
-                .next()
                 .is_some()
         } else {
             self.time_index.active(w)

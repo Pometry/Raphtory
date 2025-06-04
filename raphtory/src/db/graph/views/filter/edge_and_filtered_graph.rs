@@ -64,7 +64,7 @@ impl<G, L, R> Base for EdgeAndFilteredGraph<G, L, R> {
 impl<G, L, R> Static for EdgeAndFilteredGraph<G, L, R> {}
 impl<G, L, R> Immutable for EdgeAndFilteredGraph<G, L, R> {}
 
-impl<'graph, G, L, R> InheritCoreGraphOps for EdgeAndFilteredGraph<G, L, R> {}
+impl<G, L, R> InheritCoreGraphOps for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeFilterOps for EdgeAndFilteredGraph<G, L, R> {}
@@ -195,7 +195,6 @@ impl<G, L: EdgeFilterOps, R: EdgeFilterOps> EdgeFilterOps for EdgeAndFilteredGra
 
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.filter_edge(edge.clone(), layer_ids)
-            && self.right.filter_edge(edge.clone(), layer_ids)
+        self.left.filter_edge(edge, layer_ids) && self.right.filter_edge(edge, layer_ids)
     }
 }

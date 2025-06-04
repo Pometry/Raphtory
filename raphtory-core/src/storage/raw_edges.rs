@@ -222,7 +222,7 @@ pub struct MutEdge<'a> {
 
 impl<'a> MutEdge<'a> {
     pub fn as_ref(&self) -> MemEdge {
-        MemEdge::new(&self.guard, self.i)
+        MemEdge::new(self.guard, self.i)
     }
     pub fn eid(&self) -> EID {
         self.as_ref().eid()

@@ -216,9 +216,7 @@ impl<
     }
 }
 
-impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord
-    for EdgeView<G1, GH1>
-{
+impl<'graph_1, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord for EdgeView<G1, GH1> {
     fn cmp(&self, other: &EdgeView<G1, GH1>) -> Ordering {
         self.id()
             .cmp(&other.id())

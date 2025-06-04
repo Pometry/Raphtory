@@ -49,17 +49,17 @@ impl AsNodeRef for u64 {
 
 impl AsNodeRef for String {
     fn as_node_ref(&self) -> NodeRef {
-        NodeRef::External(GidRef::Str(&self))
+        NodeRef::External(GidRef::Str(self))
     }
 }
 
-impl<'a> AsNodeRef for &'a str {
+impl AsNodeRef for &str {
     fn as_node_ref(&self) -> NodeRef {
         NodeRef::External(GidRef::Str(self))
     }
 }
 
-impl<'a, V: AsNodeRef> AsNodeRef for &'a V {
+impl<V: AsNodeRef> AsNodeRef for &V {
     fn as_node_ref(&self) -> NodeRef {
         V::as_node_ref(self)
     }

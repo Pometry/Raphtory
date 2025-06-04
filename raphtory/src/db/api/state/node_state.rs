@@ -95,6 +95,10 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         self.index.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.index.is_empty()
+    }
+
     #[inline]
     pub fn contains(&self, key: &K) -> bool {
         self.index.contains(key)

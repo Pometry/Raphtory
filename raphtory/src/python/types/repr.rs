@@ -225,7 +225,7 @@ impl<T: Repr, E: Error> Repr for Result<T, E> {
     }
 }
 
-impl<'a, T: Repr> Repr for &'a [T] {
+impl<T: Repr> Repr for &[T] {
     fn repr(&self) -> String {
         let repr = self.iter().map(|v| v.repr()).join(", ");
         format!("[{}]", repr)
@@ -266,7 +266,7 @@ impl<'a, T: Repr> Repr for LockedView<'a, T> {
     }
 }
 
-impl<'a, R: Repr> Repr for &'a R {
+impl<R: Repr> Repr for &R {
     fn repr(&self) -> String {
         R::repr(self)
     }
@@ -324,7 +324,7 @@ mod repr_tests {
     #[test]
     fn test_int_ref() {
         let v = 1;
-        assert_eq!((&v).repr(), "1")
+        assert_eq!(v.repr(), "1")
     }
 
     #[test]

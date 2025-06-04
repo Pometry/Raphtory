@@ -52,7 +52,7 @@ where
 
             if let Some(max_label) = find_max_label(&label_count) {
                 if max_label != labels[node] {
-                    labels.insert(node.clone(), max_label);
+                    labels.insert(*node, max_label);
                     changed = true;
                 }
             }

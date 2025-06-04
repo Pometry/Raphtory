@@ -286,7 +286,7 @@ impl PyEdges {
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
         let mut edges = self.edges.explode_layers();
-        if explode == true {
+        if explode {
             edges = self.edges.explode_layers().explode();
         }
 
