@@ -304,7 +304,7 @@ impl PropCol for DecimalPropCol {
 struct EmptyCol;
 
 impl PropCol for EmptyCol {
-    fn get(&self, i: usize) -> Option<Prop> {
+    fn get(&self, _i: usize) -> Option<Prop> {
         None
     }
 }
