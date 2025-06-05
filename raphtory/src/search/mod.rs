@@ -411,40 +411,6 @@ mod test_index {
             graph
         }
 
-        fn props(graph: &Graph, index_spec: &IndexSpec) -> Vec<Vec<String>> {
-            let node_const_prop_meta = graph.node_meta().const_prop_meta();
-            let node_temp_prop_meta = graph.node_meta().temporal_prop_meta();
-            let edge_const_prop_meta = graph.edge_meta().const_prop_meta();
-            let edge_temp_prop_meta = graph.edge_meta().temporal_prop_meta();
-            let extract_names = |props: &std::collections::HashSet<usize>, meta: &PropMapper| {
-                let mut names: Vec<String> = props
-                    .iter()
-                    .map(|prop_id| meta.get_name(*prop_id).to_string())
-                    .collect();
-                names.sort();
-                names
-            };
-
-            vec![
-                extract_names(
-                    &index_spec.node_const_props,
-                    graph.node_meta().const_prop_meta(),
-                ),
-                extract_names(
-                    &index_spec.node_temp_props,
-                    graph.node_meta().temporal_prop_meta(),
-                ),
-                extract_names(
-                    &index_spec.edge_const_props,
-                    graph.edge_meta().const_prop_meta(),
-                ),
-                extract_names(
-                    &index_spec.edge_temp_props,
-                    graph.edge_meta().temporal_prop_meta(),
-                ),
-            ]
-        }
-
         #[test]
         fn test_with_all_props_index_spec() {
             let graph = init_graph(Graph::new());
@@ -453,7 +419,7 @@ mod test_index {
                 .with_all_edge_props()
                 .build();
             assert_eq!(
-                props(&graph, &index_spec),
+                index_spec.props(&graph),
                 vec![
                     vec!["x", "y"],
                     vec!["p1", "p2"],
@@ -490,7 +456,7 @@ mod test_index {
                 .unwrap()
                 .build();
             assert_eq!(
-                props(&graph, &index_spec),
+                index_spec.props(&graph),
                 vec![vec!["y"], vec!["p1"], vec!["e_y"], vec!["e_p1"]]
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
@@ -556,7 +522,7 @@ mod test_index {
                 .with_all_edge_props()
                 .build();
             assert_eq!(
-                props(&graph, &index_spec),
+                index_spec.props(&graph),
                 vec![
                     vec!["x"],
                     vec!["p1", "p2"],

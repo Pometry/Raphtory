@@ -32,6 +32,7 @@ use crate::{
             },
         },
     },
+    prelude::Graph,
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::{
@@ -662,6 +663,30 @@ impl IndexSpec {
             edge_const_props: union_props(&existing.edge_const_props, &other.edge_const_props),
             edge_temp_props: union_props(&existing.edge_temp_props, &other.edge_temp_props),
         }
+    }
+
+    pub fn props(&self, graph: &Graph) -> Vec<Vec<String>> {
+        let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
+            let mut names: Vec<String> = props
+                .iter()
+                .map(|prop_id| meta.get_name(*prop_id).to_string())
+                .collect();
+            names.sort();
+            names
+        };
+
+        vec![
+            extract_names(&self.node_const_props, graph.node_meta().const_prop_meta()),
+            extract_names(
+                &self.node_temp_props,
+                graph.node_meta().temporal_prop_meta(),
+            ),
+            extract_names(&self.edge_const_props, graph.edge_meta().const_prop_meta()),
+            extract_names(
+                &self.edge_temp_props,
+                graph.edge_meta().temporal_prop_meta(),
+            ),
+        ]
     }
 }
 
