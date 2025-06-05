@@ -4,7 +4,6 @@ use raphtory_api::core::entities::{
     LayerIds, EID, VID,
 };
 use raphtory_core::entities::edges::edge_store::MemEdge;
-use rayon::prelude::*;
 use std::ops::Range;
 
 #[cfg(feature = "storage")]
@@ -71,22 +70,11 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all_iter!(self, edge => EdgeStorageOps::layer_ids_iter(edge, layer_ids))
     }
 
-    fn layer_ids_par_iter(self, layer_ids: &LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
-        for_all_iter!(self, edge => EdgeStorageOps::layer_ids_par_iter(edge, layer_ids))
-    }
-
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::additions_iter(edge, layer_ids))
-    }
-
-    fn additions_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        for_all_iter!(self, edge => EdgeStorageOps::additions_par_iter(edge, layer_ids))
     }
 
     fn deletions_iter(
@@ -96,25 +84,11 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all_iter!(self, edge => EdgeStorageOps::deletions_iter(edge, layer_ids))
     }
 
-    fn deletions_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        for_all_iter!(self, edge => EdgeStorageOps::deletions_par_iter(edge, layer_ids))
-    }
-
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::updates_iter(edge, layer_ids))
-    }
-
-    fn updates_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
-        for_all_iter!(self, edge => EdgeStorageOps::updates_par_iter(edge, layer_ids))
     }
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {

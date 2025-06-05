@@ -7,7 +7,6 @@ use raphtory_api::core::entities::{
     LayerIds, EID, VID,
 };
 use raphtory_core::{entities::edges::edge_store::MemEdge, storage::raw_edges::EdgeRGuard};
-use rayon::prelude::*;
 use std::ops::Range;
 
 #[cfg(feature = "storage")]
@@ -58,22 +57,11 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn layer_ids_par_iter(self, layer_ids: &LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
-        self.as_ref().layer_ids_par_iter(layer_ids)
-    }
-
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.as_ref().additions_iter(layer_ids)
-    }
-
-    fn additions_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        self.as_ref().additions_par_iter(layer_ids)
     }
 
     fn deletions_iter(
@@ -83,25 +71,11 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().deletions_iter(layer_ids)
     }
 
-    fn deletions_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        self.as_ref().deletions_par_iter(layer_ids)
-    }
-
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         self.as_ref().updates_iter(layer_ids)
-    }
-
-    fn updates_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
-        self.as_ref().updates_par_iter(layer_ids)
     }
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
@@ -122,14 +96,6 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_iter(layer_ids, prop_id)
-    }
-
-    fn temporal_prop_par_iter(
-        self,
-        layer_ids: &LayerIds,
-        prop_id: usize,
-    ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
-        self.as_ref().temporal_prop_par_iter(layer_ids, prop_id)
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {

@@ -102,26 +102,26 @@ pub struct FilteredEdgeTProp<G, P> {
 impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
-    fn iter(
-        self,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-        let view = self.view.clone();
-        let eid = self.eid;
-        self.props
-            .iter()
-            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-    }
+    // fn iter(
+    //     self,
+    // ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    //     let view = self.view.clone();
+    //     let eid = self.eid;
+    //     self.props
+    //         .iter()
+    //         .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+    // }
 
-    fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-        let view = self.view.clone();
-        let eid = self.eid;
-        self.props
-            .iter_window(r)
-            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-    }
+    // fn iter_window(
+    //     self,
+    //     r: Range<TimeIndexEntry>,
+    // ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    //     let view = self.view.clone();
+    //     let eid = self.eid;
+    //     self.props
+    //         .iter_window(r)
+    //         .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+    // }
 
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         if self
@@ -132,6 +132,28 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
         } else {
             None
         }
+    }
+
+    fn iter_inner(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        let view = self.view.clone();
+        let eid = self.eid;
+        self.props
+            .iter_inner(range)
+            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+    }
+
+    fn iter_inner_rev(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        let view = self.view.clone();
+        let eid = self.eid;
+        self.props
+            .iter_inner_rev(range)
+            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
     }
 }
 

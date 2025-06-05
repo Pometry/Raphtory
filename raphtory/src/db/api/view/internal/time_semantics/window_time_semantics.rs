@@ -135,9 +135,20 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         self.semantics
             .node_tprop_iter_window(node, view, prop_id, self.window.clone())
+    }
+
+    #[inline]
+    fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        self.semantics
+            .node_tprop_iter_window_rev(node, view, prop_id, self.window.clone())
     }
 
     #[inline]
@@ -147,9 +158,21 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         view: G,
         prop_id: usize,
         w: Range<i64>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         self.semantics
             .node_tprop_iter_window(node, view, prop_id, w)
+    }
+
+    #[inline]
+    fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        self.semantics
+            .node_tprop_iter_window_rev(node, view, prop_id, w)
     }
 
     #[inline]

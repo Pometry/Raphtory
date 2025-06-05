@@ -247,7 +247,7 @@ impl GraphStorage {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(0..self.unfiltered_num_layers()),
             LayerIds::One(id) => LayerVariants::One(iter::once(*id)),
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(ids.into_iter()),
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(ids.clone().into_iter()),
         }
     }
     //

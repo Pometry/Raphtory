@@ -352,8 +352,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph
-            .temporal_prop_iter_window(id, self.start_bound(), self.end_bound())
-            .rev()
+            .temporal_prop_iter_window_rev(id, self.start_bound(), self.end_bound())
             .into_dyn_boxed()
     }
 
@@ -444,7 +443,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             .has_temporal_prop_window(prop_id, self.start_bound()..self.end_bound())
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         if self.window_is_empty() {
             return iter::empty().into_dyn_dboxed();
         }
@@ -461,8 +460,18 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph.temporal_prop_iter_window(prop_id, start, end)
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.graph
+            .temporal_prop_iter_window_rev(prop_id, start, end)
     }
 
     fn temporal_prop_last_at(

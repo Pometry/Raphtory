@@ -37,17 +37,17 @@ pub struct NodeStore {
     pub node_type: usize,
 
     /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
-    timestamps: NodeTimestamps,
+    timestamps: PropTimestamps,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub struct NodeTimestamps {
+pub struct PropTimestamps {
     // all the timestamps that have been seen by this node
     pub edge_ts: TCell<ELID>,
     pub props_ts: TCell<Option<usize>>,
 }
 
-impl NodeTimestamps {
+impl PropTimestamps {
     pub fn edge_ts(&self) -> &TCell<ELID> {
         &self.edge_ts
     }
@@ -57,9 +57,9 @@ impl NodeTimestamps {
     }
 }
 
-impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
+impl<'a> TimeIndexOps<'a> for &'a PropTimestamps {
     type IndexType = TimeIndexEntry;
-    type RangeType = TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>;
+    type RangeType = TimeIndexWindow<'a, TimeIndexEntry, PropTimestamps>;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -114,7 +114,7 @@ impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
     }
 }
 
-impl<'a> TimeIndexLike<'a> for &'a NodeTimestamps {
+impl<'a> TimeIndexLike<'a> for &'a PropTimestamps {
     fn range_iter(
         self,
         w: Range<Self::IndexType>,
@@ -206,7 +206,7 @@ impl NodeStore {
         &self.global_id
     }
 
-    pub fn timestamps(&self) -> &NodeTimestamps {
+    pub fn timestamps(&self) -> &PropTimestamps {
         &self.timestamps
     }
 

@@ -3,6 +3,7 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
+use arrow_array::{Array as ArrowArray, ArrowPrimitiveType, GenericStringArray, OffsetSizeTrait};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use polars_arrow::{
@@ -13,9 +14,10 @@ use polars_arrow::{
     bitmap::Bitmap,
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
+    types::NativeType,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropList, PropType},
+    entities::properties::prop::{prop_type_from_arrow_dtype, IntoPropList, PropType},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::prelude::*;
@@ -65,6 +67,33 @@ pub(crate) fn combine_properties(
         .zip(dtypes.into_iter())
         .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
         .collect::<Result<Vec<_>, GraphError>>()?;
+
+    Ok(PropCols {
+        prop_ids,
+        cols,
+        len: df.len(),
+    })
+}
+
+pub fn combine_properties_arrow<A: arrow_array::Array, E>(
+    props: &[impl AsRef<str>],
+    indices: &[usize],
+    df: &[A],
+    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, E>,
+) -> Result<PropCols, E> {
+    let dtypes = indices
+        .iter()
+        .map(|idx| prop_type_from_arrow_dtype(df[*idx].data_type()))
+        .collect::<Vec<_>>();
+    let cols = indices
+        .iter()
+        .map(|idx| lift_property_col_arrow_rs(&df[*idx]))
+        .collect::<Vec<_>>();
+    let prop_ids = props
+        .iter()
+        .zip(dtypes.into_iter())
+        .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
+        .collect::<Result<Vec<_>, E>>()?;
 
     Ok(PropCols {
         prop_ids,
@@ -236,14 +265,28 @@ trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 }
 
-impl<A> PropCol for A
-where
-    A: StaticArray,
-    for<'a> A::ValueT<'a>: Into<Prop>,
-{
+impl<T: NativeType + Into<Prop>> PropCol for PrimitiveArray<T> {
     #[inline]
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(self, i).map(|v| v.into())
+    }
+}
+
+impl PropCol for BooleanArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(self, i).map(Prop::Bool)
+    }
+}
+
+impl<I: Offset> PropCol for Utf8Array<I> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        Utf8Array::get(self, i).map(Prop::str)
+    }
+}
+
+impl PropCol for Utf8ViewArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(self, i).map(Prop::str)
     }
 }
 
@@ -298,6 +341,49 @@ struct DecimalPropCol {
 impl PropCol for DecimalPropCol {
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
+    }
+}
+
+impl PropCol for arrow_array::BooleanArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::Bool(self.value(i)))
+        }
+    }
+}
+
+impl<T: ArrowPrimitiveType> PropCol for arrow_array::PrimitiveArray<T>
+where
+    T::Native: Into<Prop>,
+{
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(self.value(i).into())
+        }
+    }
+}
+
+impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::str(self.value(i)))
+        }
+    }
+}
+
+impl PropCol for arrow_array::StringViewArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::str(self.value(i)))
+        }
     }
 }
 
@@ -493,6 +579,90 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
             })
         }
         DataType::Null => Box::new(EmptyCol),
+        unsupported => panic!("Data type not supported: {:?}", unsupported),
+    }
+}
+
+fn lift_property_col_arrow_rs(arr: &dyn arrow_array::Array) -> Box<dyn PropCol> {
+    match arr.data_type() {
+        arrow_schema::DataType::Boolean => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::BooleanArray>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Int32 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Int32Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Int64 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Int64Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt8 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt8Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt16 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt16Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt32 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt32Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::UInt64 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::UInt64Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Float32 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Float32Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Float64 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::Float64Array>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::Utf8 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+        arrow_schema::DataType::LargeUtf8 => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<arrow_array::LargeStringArray>()
+                .unwrap();
+            Box::new(arr.clone())
+        }
+
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }
 }

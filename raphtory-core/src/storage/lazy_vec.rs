@@ -293,7 +293,7 @@ where
         }
     }
 
-    pub(crate) fn get_opt(&self, id: usize) -> Option<&A> {
+    pub fn get_opt(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(_, tuples) => tuples.get(id),
             LazyVec::LazyVecN(_, vec) => vec.get(id),

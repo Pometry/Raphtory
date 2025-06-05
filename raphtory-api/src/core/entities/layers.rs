@@ -150,7 +150,7 @@ impl Multiple {
     }
 
     #[inline]
-    pub fn into_iter(&self) -> impl Iterator<Item = usize> {
+    pub fn into_iter(self) -> impl Iterator<Item = usize> {
         let ids = self.0.clone();
         (0..ids.len()).map(move |i| ids[i])
     }

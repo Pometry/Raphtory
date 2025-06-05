@@ -125,9 +125,8 @@ fn interior_window<'a>(
     w: Range<i64>,
     deletions: &impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
 ) -> Range<TimeIndexEntry> {
-    let start = deletions
-        .range_t(w.start..w.start.saturating_add(1))
-        .last()
+    let last: Option<TimeIndexEntry> = deletions.range_t(w.start..w.start.saturating_add(1)).last();
+    let start = last
         .map(|t| t.next())
         .unwrap_or(TimeIndexEntry::start(w.start));
     start..TimeIndexEntry::start(w.end)
@@ -318,8 +317,17 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         node.tprop(prop_id).iter()
+    }
+
+    fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        node.tprop(prop_id).iter_rev()
     }
 
     fn node_tprop_iter_window<'graph, G: GraphViewOps<'graph>>(
@@ -328,7 +336,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         _view: G,
         prop_id: usize,
         w: Range<i64>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         let prop = node.tprop(prop_id);
         let first = if prop.active_t(w.start..w.start.saturating_add(1)) {
             None
@@ -339,6 +347,23 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         first
             .into_iter()
             .chain(prop.iter_window(TimeIndexEntry::range(w)))
+    }
+
+    fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        let prop = node.tprop(prop_id);
+        let first = if prop.active_t(w.start..w.start.saturating_add(1)) {
+            None
+        } else {
+            prop.last_before(TimeIndexEntry::start(w.start))
+                .map(|(t, v)| (t.max(TimeIndexEntry::start(w.start)), v))
+        };
+        prop.iter_window_rev(TimeIndexEntry::range(w)).chain(first)
     }
 
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
@@ -862,8 +887,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .last()
             .unwrap_or(TimeIndexEntry::MIN);
         e.filtered_temporal_prop_layer(layer_id, prop_id, &view)
-            .iter_window(search_start..t.next())
-            .next_back()
+            .iter_inner_rev(Some(search_start..t.next()))
+            .next()
             .map(|(_, v)| v)
     }
 
@@ -936,8 +961,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                         .map(|t| t.next())
                         .unwrap_or(TimeIndexEntry::MIN);
                     e.filtered_temporal_prop_layer(layer, prop_id, &view)
-                        .iter_window(start..t.next())
-                        .next_back()
+                        .iter_inner_rev(Some(start..t.next()))
+                        .next()
                 })
                 .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
                 .map(|(_, v)| v)
@@ -1001,14 +1026,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 let deletions = e.filtered_deletions(layer, &view);
                 let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
                     .map(|v| (TimeIndexEntry::start(w.start), layer, v));
-                first_prop
-                    .into_iter()
-                    .chain(
-                        props
-                            .iter_window(interior_window(w.clone(), &deletions))
-                            .map(move |(t, v)| (t, layer, v)),
-                    )
-                    .rev()
+                props
+                    .iter_inner_rev(Some(interior_window(w.clone(), &deletions)))
+                    .map(move |(t, v)| (t, layer, v))
+                    .chain(first_prop.into_iter())
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }

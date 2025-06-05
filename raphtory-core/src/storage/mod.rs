@@ -81,7 +81,7 @@ pub struct NodeSlot {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct TColumns {
-    t_props_log: Vec<TPropColumn>,
+    t_props_log: Vec<PropColumn>,
     num_rows: usize,
 }
 
@@ -97,9 +97,9 @@ impl TColumns {
             match self.t_props_log.get_mut(prop_id) {
                 Some(col) => col.push(prop)?,
                 None => {
-                    let col: TPropColumn = TPropColumn::new(self.num_rows, prop);
+                    let col: PropColumn = PropColumn::new(self.num_rows, prop);
                     self.t_props_log
-                        .resize_with(prop_id + 1, || TPropColumn::Empty(id));
+                        .resize_with(prop_id + 1, || PropColumn::Empty(id));
                     self.t_props_log[prop_id] = col;
                 }
             }
@@ -117,7 +117,20 @@ impl TColumns {
         }
     }
 
-    pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
+    pub fn push_null(&mut self) -> usize {
+        let id = self.num_rows;
+        for col in self.t_props_log.iter_mut() {
+            col.push_null();
+        }
+        self.num_rows += 1;
+        id
+    }
+
+    pub fn get(&self, prop_id: usize) -> Option<&PropColumn> {
+        self.t_props_log.get(prop_id)
+    }
+
+    pub fn getx(&self, prop_id: usize) -> Option<&PropColumn> {
         self.t_props_log.get(prop_id)
     }
 
@@ -129,13 +142,17 @@ impl TColumns {
         self.num_rows == 0
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &TPropColumn> {
+    pub fn iter(&self) -> impl Iterator<Item = &PropColumn> {
         self.t_props_log.iter()
+    }
+
+    pub fn num_columns(&self) -> usize {
+        self.t_props_log.len()
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum TPropColumn {
+pub enum PropColumn {
     Empty(usize),
     Bool(LazyVec<bool>),
     U8(LazyVec<u8>),
@@ -195,39 +212,39 @@ pub enum TPropColumnError {
     IllegalPropType(#[from] IllegalPropType),
 }
 
-impl Default for TPropColumn {
+impl Default for PropColumn {
     fn default() -> Self {
-        TPropColumn::Empty(0)
+        PropColumn::Empty(0)
     }
 }
 
-impl TPropColumn {
+impl PropColumn {
     pub(crate) fn new(idx: usize, prop: Prop) -> Self {
-        let mut col = TPropColumn::default();
+        let mut col = PropColumn::default();
         col.set(idx, prop).unwrap();
         col
     }
 
     pub(crate) fn dtype(&self) -> PropType {
         match self {
-            TPropColumn::Empty(_) => PropType::Empty,
-            TPropColumn::Bool(_) => PropType::Bool,
-            TPropColumn::U8(_) => PropType::U8,
-            TPropColumn::U16(_) => PropType::U16,
-            TPropColumn::U32(_) => PropType::U32,
-            TPropColumn::U64(_) => PropType::U64,
-            TPropColumn::I32(_) => PropType::I32,
-            TPropColumn::I64(_) => PropType::I64,
-            TPropColumn::F32(_) => PropType::F32,
-            TPropColumn::F64(_) => PropType::F64,
-            TPropColumn::Str(_) => PropType::Str,
+            PropColumn::Empty(_) => PropType::Empty,
+            PropColumn::Bool(_) => PropType::Bool,
+            PropColumn::U8(_) => PropType::U8,
+            PropColumn::U16(_) => PropType::U16,
+            PropColumn::U32(_) => PropType::U32,
+            PropColumn::U64(_) => PropType::U64,
+            PropColumn::I32(_) => PropType::I32,
+            PropColumn::I64(_) => PropType::I64,
+            PropColumn::F32(_) => PropType::F32,
+            PropColumn::F64(_) => PropType::F64,
+            PropColumn::Str(_) => PropType::Str,
             #[cfg(feature = "arrow")]
-            TPropColumn::Array(_) => PropType::Array(Box::new(PropType::Empty)),
-            TPropColumn::List(_) => PropType::List(Box::new(PropType::Empty)),
-            TPropColumn::Map(_) => PropType::Map(HashMap::new().into()),
-            TPropColumn::NDTime(_) => PropType::NDTime,
-            TPropColumn::DTime(_) => PropType::DTime,
-            TPropColumn::Decimal(_) => PropType::Decimal { scale: 0 },
+            PropColumn::Array(_) => PropType::Array(Box::new(PropType::Empty)),
+            PropColumn::List(_) => PropType::List(Box::new(PropType::Empty)),
+            PropColumn::Map(_) => PropType::Map(HashMap::new().into()),
+            PropColumn::NDTime(_) => PropType::NDTime,
+            PropColumn::DTime(_) => PropType::DTime,
+            PropColumn::Decimal(_) => PropType::Decimal { scale: 0 },
         }
     }
 
@@ -237,26 +254,26 @@ impl TPropColumn {
         }
     }
 
-    pub(crate) fn set(&mut self, index: usize, prop: Prop) -> Result<(), TPropColumnError> {
+    pub fn set(&mut self, index: usize, prop: Prop) -> Result<(), TPropColumnError> {
         self.init_empty_col(&prop);
         match (self, prop) {
-            (TPropColumn::Bool(col), Prop::Bool(v)) => col.set(index, v)?,
-            (TPropColumn::I64(col), Prop::I64(v)) => col.set(index, v)?,
-            (TPropColumn::U32(col), Prop::U32(v)) => col.set(index, v)?,
-            (TPropColumn::U64(col), Prop::U64(v)) => col.set(index, v)?,
-            (TPropColumn::F32(col), Prop::F32(v)) => col.set(index, v)?,
-            (TPropColumn::F64(col), Prop::F64(v)) => col.set(index, v)?,
-            (TPropColumn::Str(col), Prop::Str(v)) => col.set(index, v)?,
+            (PropColumn::Bool(col), Prop::Bool(v)) => col.set(index, v)?,
+            (PropColumn::I64(col), Prop::I64(v)) => col.set(index, v)?,
+            (PropColumn::U32(col), Prop::U32(v)) => col.set(index, v)?,
+            (PropColumn::U64(col), Prop::U64(v)) => col.set(index, v)?,
+            (PropColumn::F32(col), Prop::F32(v)) => col.set(index, v)?,
+            (PropColumn::F64(col), Prop::F64(v)) => col.set(index, v)?,
+            (PropColumn::Str(col), Prop::Str(v)) => col.set(index, v)?,
             #[cfg(feature = "arrow")]
-            (TPropColumn::Array(col), Prop::Array(v)) => col.set(index, v)?,
-            (TPropColumn::U8(col), Prop::U8(v)) => col.set(index, v)?,
-            (TPropColumn::U16(col), Prop::U16(v)) => col.set(index, v)?,
-            (TPropColumn::I32(col), Prop::I32(v)) => col.set(index, v)?,
-            (TPropColumn::List(col), Prop::List(v)) => col.set(index, v)?,
-            (TPropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
-            (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
-            (TPropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
-            (TPropColumn::Decimal(col), Prop::Decimal(v)) => col.set(index, v)?,
+            (PropColumn::Array(col), Prop::Array(v)) => col.set(index, v)?,
+            (PropColumn::U8(col), Prop::U8(v)) => col.set(index, v)?,
+            (PropColumn::U16(col), Prop::U16(v)) => col.set(index, v)?,
+            (PropColumn::I32(col), Prop::I32(v)) => col.set(index, v)?,
+            (PropColumn::List(col), Prop::List(v)) => col.set(index, v)?,
+            (PropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
+            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
+            (PropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
+            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.set(index, v)?,
             (col, prop) => {
                 Err(IllegalPropType {
                     expected: col.dtype(),
@@ -270,23 +287,23 @@ impl TPropColumn {
     pub(crate) fn push(&mut self, prop: Prop) -> Result<(), IllegalPropType> {
         self.init_empty_col(&prop);
         match (self, prop) {
-            (TPropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
-            (TPropColumn::U8(col), Prop::U8(v)) => col.push(Some(v)),
-            (TPropColumn::I64(col), Prop::I64(v)) => col.push(Some(v)),
-            (TPropColumn::U32(col), Prop::U32(v)) => col.push(Some(v)),
-            (TPropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
-            (TPropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
-            (TPropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
-            (TPropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
+            (PropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
+            (PropColumn::U8(col), Prop::U8(v)) => col.push(Some(v)),
+            (PropColumn::I64(col), Prop::I64(v)) => col.push(Some(v)),
+            (PropColumn::U32(col), Prop::U32(v)) => col.push(Some(v)),
+            (PropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
+            (PropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
+            (PropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
+            (PropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
             #[cfg(feature = "arrow")]
-            (TPropColumn::Array(col), Prop::Array(v)) => col.push(Some(v)),
-            (TPropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
-            (TPropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
-            (TPropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
-            (TPropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
-            (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
-            (TPropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
-            (TPropColumn::Decimal(col), Prop::Decimal(v)) => col.push(Some(v)),
+            (PropColumn::Array(col), Prop::Array(v)) => col.push(Some(v)),
+            (PropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
+            (PropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
+            (PropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
+            (PropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
+            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
+            (PropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
+            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.push(Some(v)),
             (col, prop) => {
                 return Err(IllegalPropType {
                     expected: col.dtype(),
@@ -298,53 +315,53 @@ impl TPropColumn {
     }
 
     fn init_empty_col(&mut self, prop: &Prop) {
-        if let TPropColumn::Empty(len) = self {
+        if let PropColumn::Empty(len) = self {
             match prop {
-                Prop::Bool(_) => *self = TPropColumn::Bool(LazyVec::with_len(*len)),
-                Prop::I64(_) => *self = TPropColumn::I64(LazyVec::with_len(*len)),
-                Prop::U32(_) => *self = TPropColumn::U32(LazyVec::with_len(*len)),
-                Prop::U64(_) => *self = TPropColumn::U64(LazyVec::with_len(*len)),
-                Prop::F32(_) => *self = TPropColumn::F32(LazyVec::with_len(*len)),
-                Prop::F64(_) => *self = TPropColumn::F64(LazyVec::with_len(*len)),
-                Prop::Str(_) => *self = TPropColumn::Str(LazyVec::with_len(*len)),
+                Prop::Bool(_) => *self = PropColumn::Bool(LazyVec::with_len(*len)),
+                Prop::I64(_) => *self = PropColumn::I64(LazyVec::with_len(*len)),
+                Prop::U32(_) => *self = PropColumn::U32(LazyVec::with_len(*len)),
+                Prop::U64(_) => *self = PropColumn::U64(LazyVec::with_len(*len)),
+                Prop::F32(_) => *self = PropColumn::F32(LazyVec::with_len(*len)),
+                Prop::F64(_) => *self = PropColumn::F64(LazyVec::with_len(*len)),
+                Prop::Str(_) => *self = PropColumn::Str(LazyVec::with_len(*len)),
                 #[cfg(feature = "arrow")]
-                Prop::Array(_) => *self = TPropColumn::Array(LazyVec::with_len(*len)),
-                Prop::U8(_) => *self = TPropColumn::U8(LazyVec::with_len(*len)),
-                Prop::U16(_) => *self = TPropColumn::U16(LazyVec::with_len(*len)),
-                Prop::I32(_) => *self = TPropColumn::I32(LazyVec::with_len(*len)),
-                Prop::List(_) => *self = TPropColumn::List(LazyVec::with_len(*len)),
-                Prop::Map(_) => *self = TPropColumn::Map(LazyVec::with_len(*len)),
-                Prop::NDTime(_) => *self = TPropColumn::NDTime(LazyVec::with_len(*len)),
-                Prop::DTime(_) => *self = TPropColumn::DTime(LazyVec::with_len(*len)),
-                Prop::Decimal(_) => *self = TPropColumn::Decimal(LazyVec::with_len(*len)),
+                Prop::Array(_) => *self = PropColumn::Array(LazyVec::with_len(*len)),
+                Prop::U8(_) => *self = PropColumn::U8(LazyVec::with_len(*len)),
+                Prop::U16(_) => *self = PropColumn::U16(LazyVec::with_len(*len)),
+                Prop::I32(_) => *self = PropColumn::I32(LazyVec::with_len(*len)),
+                Prop::List(_) => *self = PropColumn::List(LazyVec::with_len(*len)),
+                Prop::Map(_) => *self = PropColumn::Map(LazyVec::with_len(*len)),
+                Prop::NDTime(_) => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
+                Prop::DTime(_) => *self = PropColumn::DTime(LazyVec::with_len(*len)),
+                Prop::Decimal(_) => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
             }
         }
     }
 
     fn is_empty(&self) -> bool {
-        matches!(self, TPropColumn::Empty(_))
+        matches!(self, PropColumn::Empty(_))
     }
 
     pub(crate) fn push_null(&mut self) {
         match self {
-            TPropColumn::Bool(col) => col.push(None),
-            TPropColumn::I64(col) => col.push(None),
-            TPropColumn::U32(col) => col.push(None),
-            TPropColumn::U64(col) => col.push(None),
-            TPropColumn::F32(col) => col.push(None),
-            TPropColumn::F64(col) => col.push(None),
-            TPropColumn::Str(col) => col.push(None),
+            PropColumn::Bool(col) => col.push(None),
+            PropColumn::I64(col) => col.push(None),
+            PropColumn::U32(col) => col.push(None),
+            PropColumn::U64(col) => col.push(None),
+            PropColumn::F32(col) => col.push(None),
+            PropColumn::F64(col) => col.push(None),
+            PropColumn::Str(col) => col.push(None),
             #[cfg(feature = "arrow")]
-            TPropColumn::Array(col) => col.push(None),
-            TPropColumn::U8(col) => col.push(None),
-            TPropColumn::U16(col) => col.push(None),
-            TPropColumn::I32(col) => col.push(None),
-            TPropColumn::List(col) => col.push(None),
-            TPropColumn::Map(col) => col.push(None),
-            TPropColumn::NDTime(col) => col.push(None),
-            TPropColumn::DTime(col) => col.push(None),
-            TPropColumn::Decimal(col) => col.push(None),
-            TPropColumn::Empty(count) => {
+            PropColumn::Array(col) => col.push(None),
+            PropColumn::U8(col) => col.push(None),
+            PropColumn::U16(col) => col.push(None),
+            PropColumn::I32(col) => col.push(None),
+            PropColumn::List(col) => col.push(None),
+            PropColumn::Map(col) => col.push(None),
+            PropColumn::NDTime(col) => col.push(None),
+            PropColumn::DTime(col) => col.push(None),
+            PropColumn::Decimal(col) => col.push(None),
+            PropColumn::Empty(count) => {
                 *count += 1;
             }
         }
@@ -352,47 +369,47 @@ impl TPropColumn {
 
     pub fn get(&self, index: usize) -> Option<Prop> {
         match self {
-            TPropColumn::Bool(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::I64(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::U32(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
+            PropColumn::Bool(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::I64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::U32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
             #[cfg(feature = "arrow")]
-            TPropColumn::Array(col) => col.get_opt(index).map(|prop| Prop::Array(prop.clone())),
-            TPropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            TPropColumn::List(col) => col.get_opt(index).map(|prop| Prop::List(prop.clone())),
-            TPropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
-            TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(*prop)),
-            TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(*prop)),
-            TPropColumn::Decimal(col) => col.get_opt(index).map(|prop| Prop::Decimal(prop.clone())),
-            TPropColumn::Empty(_) => None,
+            PropColumn::Array(col) => col.get_opt(index).map(|prop| Prop::Array(prop.clone())),
+            PropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            PropColumn::List(col) => col.get_opt(index).map(|prop| Prop::List(prop.clone())),
+            PropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
+            PropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(*prop)),
+            PropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(*prop)),
+            PropColumn::Decimal(col) => col.get_opt(index).map(|prop| Prop::Decimal(prop.clone())),
+            PropColumn::Empty(_) => None,
         }
     }
 
     pub(crate) fn len(&self) -> usize {
         match self {
-            TPropColumn::Bool(col) => col.len(),
-            TPropColumn::I64(col) => col.len(),
-            TPropColumn::U32(col) => col.len(),
-            TPropColumn::U64(col) => col.len(),
-            TPropColumn::F32(col) => col.len(),
-            TPropColumn::F64(col) => col.len(),
-            TPropColumn::Str(col) => col.len(),
+            PropColumn::Bool(col) => col.len(),
+            PropColumn::I64(col) => col.len(),
+            PropColumn::U32(col) => col.len(),
+            PropColumn::U64(col) => col.len(),
+            PropColumn::F32(col) => col.len(),
+            PropColumn::F64(col) => col.len(),
+            PropColumn::Str(col) => col.len(),
             #[cfg(feature = "arrow")]
-            TPropColumn::Array(col) => col.len(),
-            TPropColumn::U8(col) => col.len(),
-            TPropColumn::U16(col) => col.len(),
-            TPropColumn::I32(col) => col.len(),
-            TPropColumn::List(col) => col.len(),
-            TPropColumn::Map(col) => col.len(),
-            TPropColumn::NDTime(col) => col.len(),
-            TPropColumn::DTime(col) => col.len(),
-            TPropColumn::Decimal(col) => col.len(),
-            TPropColumn::Empty(count) => *count,
+            PropColumn::Array(col) => col.len(),
+            PropColumn::U8(col) => col.len(),
+            PropColumn::U16(col) => col.len(),
+            PropColumn::I32(col) => col.len(),
+            PropColumn::List(col) => col.len(),
+            PropColumn::Map(col) => col.len(),
+            PropColumn::NDTime(col) => col.len(),
+            PropColumn::DTime(col) => col.len(),
+            PropColumn::Decimal(col) => col.len(),
+            PropColumn::Empty(count) => *count,
         }
     }
 }

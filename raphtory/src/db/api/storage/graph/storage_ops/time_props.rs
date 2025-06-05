@@ -35,7 +35,9 @@ impl TemporalPropertyViewOps for GraphStorage {
             .get_temporal_prop(id)
             .into_iter()
             .flat_map(|prop| {
-                GenLockedIter::from(prop, |prop| prop.deref().iter().rev().into_dyn_boxed())
+                GenLockedIter::from(prop, |prop| {
+                    prop.deref().iter_inner_rev(None).into_dyn_boxed()
+                })
             })
             .into_dyn_boxed()
     }

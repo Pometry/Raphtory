@@ -1,0 +1,50 @@
+[package]
+name = "db4-storage"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition = "2024"
+
+[dependencies]
+raphtory-api.workspace = true
+raphtory = {workspace = true, features = ["arrow", "io"]}
+db4-common = {path = "../db4-common"}
+
+bitvec.workspace = true
+bigdecimal.workspace = true
+polars-arrow.workspace = true
+rustc-hash.workspace = true
+either.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+boxcar.workspace = true
+serde_json.workspace = true
+arrow.workspace = true
+arrow-array.workspace = true
+arrow-csv.workspace = true
+arrow-schema.workspace = true
+parquet.workspace = true
+bytemuck.workspace = true
+rayon.workspace = true
+iter-enum = {workspace = true, features = ["rayon"]}
+
+proptest = {workspace = true, optional = true}
+tempfile = {workspace = true, optional = true}
+itertools = {workspace = true, optional = true}
+chrono = {workspace = true, optional = true}
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+itertools.workspace = true
+chrono.workspace = true
+rayon.workspace = true
+
+[features]
+test-utils = ["proptest", "tempfile", "itertools", "chrono"]
+default = ["test-utils"]

@@ -260,8 +260,8 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         let res = semantics
-            .node_tprop_iter(node.as_ref(), &self.graph, id)
-            .next_back()
+            .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
+            .next()
             .map(|(_, v)| v);
         res
     }
@@ -282,8 +282,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .node_tprop_iter(node.as_ref(), &self.graph, id)
-                .rev()
+                .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()

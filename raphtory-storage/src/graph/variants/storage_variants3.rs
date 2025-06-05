@@ -73,15 +73,18 @@ impl<
         for_all!(self, props => props.last_before(t))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
-        for_all_iter!(self, props => props.iter())
+    fn iter_inner(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        for_all_iter!(self, props => props.iter_inner(range))
     }
 
-    fn iter_window(
+    fn iter_inner_rev(
         self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
-        for_all_iter!(self, props => props.iter_window(r))
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        for_all_iter!(self, props => props.iter_inner_rev(range))
     }
 
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {

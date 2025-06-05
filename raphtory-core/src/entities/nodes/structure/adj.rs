@@ -1,4 +1,5 @@
 use crate::entities::{edges::edge_ref::Dir, nodes::structure::adjset::AdjSet, EID, VID};
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::{
     core::{Direction, DirectionVariants},
@@ -18,7 +19,7 @@ pub enum Adj {
 }
 
 impl Adj {
-    pub(crate) fn get_edge(&self, v: VID, dir: Direction) -> Option<EID> {
+    pub fn get_edge(&self, v: VID, dir: Direction) -> Option<EID> {
         match self {
             Adj::Solo => None,
             Adj::List { out, into } => match dir {
@@ -45,14 +46,14 @@ impl Adj {
         }
     }
 
-    pub(crate) fn add_edge_into(&mut self, v: VID, e: EID) {
+    pub fn add_edge_into(&mut self, v: VID, e: EID) {
         match self {
             Adj::Solo => *self = Self::new_into(v, e),
             Adj::List { into, .. } => into.push(v, e),
         }
     }
 
-    pub(crate) fn add_edge_out(&mut self, v: VID, e: EID) {
+    pub fn add_edge_out(&mut self, v: VID, e: EID) {
         match self {
             Adj::Solo => *self = Self::new_out(v, e),
             Adj::List { out, .. } => out.push(v, e),
@@ -67,6 +68,20 @@ impl Adj {
                 Direction::IN => Box::new(into.iter()),
                 Direction::BOTH => Box::new(out.iter().merge(into.iter())),
             },
+        }
+    }
+
+    pub fn out_iter(&self) -> impl Iterator<Item = (VID, EID)> + Send + Sync + '_ {
+        match self {
+            Adj::Solo => Either::Left(std::iter::empty()),
+            Adj::List { out, .. } => Either::Right(out.iter()),
+        }
+    }
+
+    pub fn inb_iter(&self) -> impl Iterator<Item = (VID, EID)> + Send + Sync + '_ {
+        match self {
+            Adj::Solo => Either::Left(std::iter::empty()),
+            Adj::List { into, .. } => Either::Right(into.iter()),
         }
     }
 

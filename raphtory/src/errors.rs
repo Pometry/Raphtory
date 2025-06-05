@@ -98,6 +98,8 @@ pub enum LoadError {
     NodeIdTypeError { existing: GidType, new: GidType },
     #[error("Fatal load error, graph may be in a dirty state.")]
     FatalError,
+    #[error("Invalid data type {0:?}")]
+    ArrowDataType(arrow_schema::DataType),
 }
 
 #[cfg(feature = "proto")]

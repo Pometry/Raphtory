@@ -11,8 +11,9 @@ use raphtory_api::{
         entities::{properties::tprop::TPropOps, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
     },
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
@@ -75,14 +76,14 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id < self.graph_meta().temporal_prop_meta().len()
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
-                GenLockedDIter::from(prop, |prop| prop.deref().iter().into_dyn_dboxed())
+                GenLockedIter::from(prop, |prop| prop.deref().iter().into_dyn_boxed())
             })
-            .into_dyn_dboxed()
+            .into_dyn_boxed()
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
@@ -97,18 +98,37 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
-                GenLockedDIter::from(prop, |prop| {
+                GenLockedIter::from(prop, |prop| {
                     prop.deref()
                         .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                        .into_dyn_boxed()
                 })
             })
-            .into_dyn_dboxed()
+            .into_dyn_boxed()
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.graph_meta()
+            .get_temporal_prop(prop_id)
+            .into_iter()
+            .flat_map(move |prop| {
+                GenLockedIter::from(prop, |prop| {
+                    prop.deref()
+                        .iter_window_rev(TimeIndexEntry::range(start..end))
+                        .into_dyn_boxed()
+                })
+            })
+            .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(
