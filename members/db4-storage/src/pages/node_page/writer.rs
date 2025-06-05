@@ -1,7 +1,8 @@
 use crate::NodeSegmentOps;
 use crate::segments::node::MemNodeSegment;
 use db4_common::LocalPOS;
-use raphtory::core::{Prop, storage::timeindex::AsTime};
+use raphtory::core::{storage::timeindex::AsTime};
+use raphtory::prelude::Prop;
 use raphtory_api::core::entities::{EID, VID};
 use std::ops::DerefMut;
 use std::sync::atomic::AtomicUsize;

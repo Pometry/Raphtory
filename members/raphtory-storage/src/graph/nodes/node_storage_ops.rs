@@ -54,11 +54,11 @@ pub trait NodeStorageIntoOps: Sized {
 
 impl NodeStorageIntoOps for ArcNodeEntry {
     fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        self.into_edges(&layers, dir)
+        self.into_edges(layers, dir)
     }
 
     fn into_neighbours_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        self.into_neighbours(&layers, dir)
+        self.into_neighbours(layers, dir)
     }
 }
 

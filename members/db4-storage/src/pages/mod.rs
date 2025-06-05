@@ -16,15 +16,8 @@ use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
-use raphtory::{
-    core::{
-        Prop,
-        entities::{EID, VID, properties::props::Meta},
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
-    db::api::mutation::{InputTime, TryIntoInputTime},
-};
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory::{core::{entities::{EID, VID}, storage::timeindex::TimeIndexEntry, utils::time::{InputTime, TryIntoInputTime}}, prelude::Prop};
+use raphtory_api::core::{entities::properties::meta::Meta, storage::dict_mapper::MaybeNew};
 use serde::{Deserialize, Serialize};
 use session::WriteSession;
 

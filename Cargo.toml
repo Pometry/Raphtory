@@ -19,7 +19,7 @@ homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
 rust-version = "1.87.0"
-edition = "2021"
+edition = "2024"
 
 [profile.dev]
 split-debuginfo = "unpacked"
@@ -61,7 +61,7 @@ pyo3-build-config = "=0.23.3"
 pyo3-arrow = "0.6"
 numpy = "0.23.0"
 itertools = "0.13.0"
-rand = "0.8.5"
+rand = "0.9.1"
 rayon = "1.8.1"
 roaring = "0.10.6"
 sorted_vector_map = "0.2.0"
@@ -83,7 +83,7 @@ flate2 = "1.0.28"
 regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
-rand_distr = "0.4.3"
+rand_distr = "0.5.1"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }

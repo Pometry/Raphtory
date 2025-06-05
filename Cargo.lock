@@ -5100,6 +5100,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_distr"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
+dependencies = [
+ "num-traits",
+ "rand 0.9.1",
+]
+
+[[package]]
 name = "rand_xorshift"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5170,8 +5180,8 @@ dependencies = [
  "quad-rand",
  "quickcheck",
  "quickcheck_macros",
- "rand 0.8.5",
- "rand_distr",
+ "rand 0.9.1",
+ "rand_distr 0.5.1",
  "raphtory-api",
  "raphtory-core",
  "raphtory-storage",
@@ -5219,7 +5229,7 @@ dependencies = [
  "pyo3-arrow",
  "quickcheck",
  "quickcheck_macros",
- "rand 0.8.5",
+ "rand 0.9.1",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
@@ -5241,7 +5251,7 @@ dependencies = [
  "fake",
  "itertools 0.13.0",
  "once_cell",
- "rand 0.8.5",
+ "rand 0.9.1",
  "raphtory",
  "raphtory-api",
  "rayon",
@@ -6384,7 +6394,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c56d6ff5591fc332739b3ce7035b57995a3ce29a93ffd6012660e0949c956ea8"
 dependencies = [
  "murmurhash32",
- "rand_distr",
+ "rand_distr 0.4.3",
  "tantivy-common",
 ]
 

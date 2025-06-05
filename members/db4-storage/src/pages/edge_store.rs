@@ -2,21 +2,21 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{
-        Arc,
         atomic::{self, AtomicUsize},
+        Arc,
     },
 };
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
-use crate::segments::edge::MemEdgeSegment;
 use crate::{
-    EdgeSegmentOps,
     pages::locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+    segments::edge::MemEdgeSegment,
+    EdgeSegmentOps,
 };
-use db4_common::{LocalPOS, error::DBV4Error};
+use db4_common::{error::DBV4Error, LocalPOS};
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory::core::{entities::properties::props::Meta, storage::timeindex::TimeIndexEntry};
-use raphtory_api::core::entities::{EID, VID};
+use raphtory::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::entities::{properties::meta::Meta, EID, VID};
 
 const N: usize = 32;
 
@@ -72,7 +72,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
     }
 
     pub fn earliest(&self) -> Option<TimeIndexEntry> {
-        Iterator::min(self.pages.iter().filter_map(|(_, page)| page.earliest())) // see : https://github.com/rust-lang/rust-analyzer/issues/10653
+        Iterator::min(self.pages.iter().filter_map(|(_, page)| page.earliest()))
+        // see : https://github.com/rust-lang/rust-analyzer/issues/10653
     }
 
     pub fn latest(&self) -> Option<TimeIndexEntry> {
