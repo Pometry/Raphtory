@@ -1,0 +1,18 @@
+[package]
+name = "db4-common"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition = "2024"
+
+[dependencies]
+raphtory.workspace = true
+thiserror.workspace = true
+serde_json.workspace = true
+arrow-schema.workspace = true
+parquet.workspace = true
