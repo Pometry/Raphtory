@@ -2,13 +2,11 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
-use itertools::Itertools;
 use lock_api::RwLockReadGuard;
 use parking_lot::{RawRwLock, RwLock};
 use raphtory_api::core::{
     entities::properties::props::{Meta, PropMapper},
     storage::timeindex::TimeIndexEntry,
-    PropType,
 };
 use std::{borrow::Borrow, collections::HashSet, path::PathBuf, sync::Arc};
 use tantivy::{

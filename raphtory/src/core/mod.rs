@@ -31,7 +31,7 @@ use entities::properties::props::validate_prop;
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::{
     cmp::Ordering,
     collections::HashMap,
