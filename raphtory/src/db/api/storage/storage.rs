@@ -158,7 +158,7 @@ impl Storage {
     ) -> Result<&GraphIndex, GraphError> {
         let index = self.index.get_or_try_init(|| {
             let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-            GraphIndex::create(&self.graph, false, cached_graph_path, IndexSpec::default())
+            GraphIndex::create(&self.graph, false, cached_graph_path)
         })?;
         index.update(&self.graph, index_spec.clone())?;
         Ok(index)
@@ -168,9 +168,9 @@ impl Storage {
         &self,
         index_spec: IndexSpec,
     ) -> Result<&GraphIndex, GraphError> {
-        let index = self.index.get_or_try_init(|| {
-            GraphIndex::create(&self.graph, true, None, IndexSpec::default())
-        })?;
+        let index = self
+            .index
+            .get_or_try_init(|| GraphIndex::create(&self.graph, true, None))?;
 
         if index.path.is_some() {
             return Err(GraphError::FailedToCreateIndexInRam);

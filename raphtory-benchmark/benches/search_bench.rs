@@ -24,15 +24,14 @@ use raphtory::{
         },
     },
     prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps,
-        NodeViewOps, PropUnwrap, PropertyFilter,
+        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, IndexMutationOps,
+        NodePropertyFilterOps, NodeViewOps, PropUnwrap, PropertyFilter,
     },
     serialise::StableDecode,
 };
 use raphtory_api::core::PropType;
 use rayon::prelude::*;
 use std::{iter, sync::Arc, time::Instant};
-use raphtory::prelude::IndexMutationOps;
 
 static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
     let data_dir = "/tmp/graphs/raph_social/rf0.1"; // TODO Fix this

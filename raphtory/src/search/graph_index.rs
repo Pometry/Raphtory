@@ -169,7 +169,6 @@ impl GraphIndex {
         graph: &GraphStorage,
         create_in_ram: bool,
         cached_graph_path: Option<&Path>,
-        index_spec: IndexSpec,
     ) -> Result<Self, GraphError> {
         let dir = if !create_in_ram {
             let temp_dir = match cached_graph_path {
@@ -182,6 +181,8 @@ impl GraphIndex {
         } else {
             None
         };
+
+        let index_spec = IndexSpec::default();
 
         let path = GraphIndex::get_node_index_path(&dir);
         let node_index = NodeIndex::new(&path)?;
