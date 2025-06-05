@@ -1,18 +1,12 @@
 [workspace]
 members = [
-    "raphtory",
-    "raphtory-cypher",
-    "raphtory-benchmark",
-    "examples/rust",
-    "examples/netflow",
-    "examples/custom-gql-apis",
+    "members/*",
+    # "examples/rust",
+    # "examples/netflow",
+    # "examples/custom-gql-apis",
     "python",
-    "raphtory-graphql",
-    "raphtory-api",
-    "raphtory-core",
-    "raphtory-storage",
 ]
-default-members = ["raphtory"]
+default-members = ["members/raphtory"]
 resolver = "2"
 
 [workspace.package]
@@ -165,6 +159,10 @@ indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
+
+raphtory ={  version = "0.15.1", path = "members/raphtory", default-features = false}
+raphtory-core ={  version = "0.15.1", path = "members/raphtory-core", default-features = false}
+raphtory-graphql ={  version = "0.15.1", path = "members/raphtory-graphql", default-features = false}
 
 # Make sure that transitive dependencies stick to disk_graph 50
 [patch.crates-io]
