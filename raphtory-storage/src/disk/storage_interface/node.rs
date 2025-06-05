@@ -1,6 +1,6 @@
 use crate::graph::nodes::{
     node_additions::NodeAdditions,
-    node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+    node_storage_ops::NodeStorageOps,
     row::{DiskRow, Row},
 };
 use itertools::Itertools;
@@ -18,10 +18,9 @@ use raphtory_api::{
         storage::timeindex::{TimeIndexEntry, TimeIndexOps},
         Direction, DirectionVariants,
     },
-    iter::{BoxedLIter, IntoDynBoxed},
+    iter::BoxedLIter,
 };
-use raphtory_core::utils::iter::GenLockedIter;
-use std::{borrow::Cow, iter, ops::Range, sync::Arc};
+use std::{borrow::Cow, iter, ops::Range};
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskNode<'a> {
@@ -350,202 +349,6 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                         .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst))
                 })
                 .next(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct DiskOwnedNode {
-    graph: Arc<TemporalGraph>,
-    vid: VID,
-}
-
-impl DiskOwnedNode {
-    pub(crate) fn new(graph: Arc<TemporalGraph>, vid: VID) -> Self {
-        Self { graph, vid }
-    }
-    pub fn as_ref(&self) -> DiskNode {
-        DiskNode {
-            graph: &self.graph,
-            vid: self.vid,
-        }
-    }
-
-    fn out_edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> {
-        match layers {
-            LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => {
-                let iter = GenLockedIter::from(self, |owned_node| {
-                    let layers = owned_node.graph.arc_layers();
-                    (0..layers.len())
-                        .map(move |layer_id| {
-                            let layer = &layers[layer_id];
-                            let eids = layer.nodes_storage().out_edges_iter(owned_node.vid);
-                            let nbrs = layer.nodes_storage().out_neighbours_iter(owned_node.vid);
-                            eids.zip(nbrs).map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid, owned_node.vid, dst)
-                            })
-                        })
-                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
-                        .into_dyn_boxed()
-                });
-                LayerVariants::All(iter)
-            }
-            LayerIds::One(layer_id) => {
-                let iter = GenLockedIter::from(self, |owned_node| {
-                    let layer = owned_node.graph.layer(layer_id);
-                    let eids = layer.nodes_storage().out_edges_iter(owned_node.vid);
-                    let nbrs = layer.nodes_storage().out_neighbours_iter(owned_node.vid);
-                    eids.zip(nbrs)
-                        .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, owned_node.vid, dst))
-                        .into_dyn_boxed()
-                });
-                LayerVariants::One(iter)
-            }
-            LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(GenLockedIter::from(self, |owned_node| {
-                    ids.into_iter()
-                        .map(move |layer_id| {
-                            let layer = owned_node.graph.layer(layer_id);
-                            let eids = layer.nodes_storage().out_edges_iter(owned_node.vid);
-                            let nbrs = layer.nodes_storage().out_neighbours_iter(owned_node.vid);
-                            let src = owned_node.vid;
-                            eids.zip(nbrs)
-                                .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, src, dst))
-                        })
-                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
-                        .into_dyn_boxed()
-                }))
-            }
-        }
-    }
-
-    pub fn in_edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> {
-        match layers {
-            LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => {
-                let iter = GenLockedIter::from(self, |owned_node| {
-                    let layers = owned_node.graph.arc_layers();
-                    (0..layers.len())
-                        .map(move |layer_id| {
-                            let layer = &layers[layer_id];
-                            let eids = layer.nodes_storage().in_edges_iter(owned_node.vid);
-                            let nbrs = layer.nodes_storage().in_neighbours_iter(owned_node.vid);
-                            let dst = owned_node.vid;
-                            eids.zip(nbrs)
-                                .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
-                        })
-                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
-                        .into_dyn_boxed()
-                });
-                LayerVariants::All(iter)
-            }
-            LayerIds::One(layer_id) => {
-                let iter = GenLockedIter::from(self, |owned_node| {
-                    let layer = owned_node.graph.layer(layer_id);
-                    let eids = layer.nodes_storage().in_edges_iter(owned_node.vid);
-                    let nbrs = layer.nodes_storage().in_neighbours_iter(owned_node.vid);
-                    let dst = owned_node.vid;
-                    eids.zip(nbrs)
-                        .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
-                        .into_dyn_boxed()
-                });
-                LayerVariants::One(iter)
-            }
-            LayerIds::Multiple(ids) => {
-                let iter = GenLockedIter::from(self, |owned_node| {
-                    ids.into_iter()
-                        .map(move |layer_id| {
-                            let layer = owned_node.graph.layer(layer_id);
-                            let eids = layer.nodes_storage().in_edges_iter(owned_node.vid);
-                            let nbrs = layer.nodes_storage().in_neighbours_iter(owned_node.vid);
-                            let dst = owned_node.vid;
-                            eids.zip(nbrs)
-                                .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
-                        })
-                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
-                        .dedup_by(|e1, e2| e1.remote() == e2.remote())
-                        .into_dyn_boxed()
-                });
-
-                LayerVariants::Multiple(iter)
-            }
-        }
-    }
-
-    pub fn edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> {
-        self.clone().in_edges(layers.clone()).merge_by(
-            self.out_edges(layers).filter(|e| e.src() != e.dst()),
-            |e1, e2| e1.remote() <= e2.remote(),
-        )
-    }
-}
-
-impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
-    #[inline]
-    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-        self.as_ref().degree(layers, dir)
-    }
-
-    #[inline]
-    fn additions(self) -> NodeAdditions<'a> {
-        self.as_ref().additions()
-    }
-
-    #[inline]
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        self.as_ref().tprop(prop_id)
-    }
-
-    #[inline]
-    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
-        match dir {
-            Direction::OUT => DirectionVariants::Out(self.as_ref().out_edges(layers)),
-            Direction::IN => DirectionVariants::In(self.as_ref().in_edges(layers)),
-            Direction::BOTH => DirectionVariants::Both(self.as_ref().edges(layers)),
-        }
-    }
-
-    #[inline]
-    fn node_type_id(self) -> usize {
-        self.as_ref().node_type_id()
-    }
-
-    fn vid(self) -> VID {
-        self.vid
-    }
-
-    #[inline]
-    fn id(self) -> GidRef<'a> {
-        self.as_ref().id()
-    }
-
-    fn name(self) -> Option<Cow<'a, str>> {
-        self.as_ref().name()
-    }
-
-    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        self.as_ref().find_edge(dst, layer_ids)
-    }
-
-    fn prop(self, prop_id: usize) -> Option<Prop> {
-        self.as_ref().prop(prop_id)
-    }
-
-    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
-        self.as_ref().tprops()
-    }
-}
-
-impl NodeStorageIntoOps for DiskOwnedNode {
-    fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        match dir {
-            Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),
-            Direction::IN => DirectionVariants::In(self.in_edges(layers)),
-            Direction::BOTH => DirectionVariants::Both(self.edges(layers)),
         }
     }
 }

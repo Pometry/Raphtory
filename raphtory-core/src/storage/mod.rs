@@ -536,15 +536,6 @@ impl ReadLockedStorage {
     }
 
     #[inline]
-    pub fn arc_entry(&self, index: VID) -> ArcNodeEntry {
-        let (bucket, offset) = self.resolve(index);
-        ArcNodeEntry {
-            guard: self.locks[bucket].clone(),
-            i: offset,
-        }
-    }
-
-    #[inline]
     pub fn get_entry(&self, index: VID) -> NodePtr {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
@@ -557,16 +548,6 @@ impl ReadLockedStorage {
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
-    }
-
-    #[cfg(test)]
-    pub fn into_iter(self) -> impl Iterator<Item = ArcNodeEntry> {
-        self.locks.into_iter().flat_map(|data| {
-            (0..data.as_ref().len()).map(move |offset| ArcNodeEntry {
-                guard: data.clone(),
-                i: offset,
-            })
-        })
     }
 }
 
@@ -643,17 +624,6 @@ impl NodeStorage {
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         NodeEntry { offset, guard }
-    }
-
-    pub fn entry_arc(&self, index: VID) -> ArcNodeEntry {
-        let index = index.into();
-        let (bucket, offset) = self.resolve(index);
-        let guard = &self.data[bucket].data;
-        let arc_guard = RwLock::read_arc_recursive(guard);
-        ArcNodeEntry {
-            i: offset,
-            guard: Arc::new(arc_guard),
-        }
     }
 
     pub fn entry_mut(&self, index: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
@@ -860,28 +830,6 @@ impl NodeEntry<'_> {
     #[inline]
     pub fn as_ref(&self) -> NodePtr<'_> {
         NodePtr::new(&self.guard[self.offset], &self.guard.t_props_log)
-    }
-}
-
-#[derive(Debug)]
-pub struct ArcNodeEntry {
-    guard: Arc<ArcRwLockReadGuard<NodeSlot>>,
-    i: usize,
-}
-
-impl ArcNodeEntry {
-    #[inline]
-    pub fn get_entry(&self) -> NodePtr<'_> {
-        NodePtr::new(&self.guard[self.i], &self.guard.t_props_log)
-    }
-}
-
-impl Clone for ArcNodeEntry {
-    fn clone(&self) -> Self {
-        Self {
-            guard: self.guard.clone(),
-            i: self.i,
-        }
     }
 }
 
@@ -1109,10 +1057,11 @@ mod test {
             assert_eq!(entry.as_ref().node().vid, VID(i));
         }
 
-        let items_iter = storage.read_lock().into_iter();
+        let items = storage.read_lock();
 
-        let actual = items_iter
-            .map(|s| s.get_entry().node().vid.index())
+        let actual = items
+            .iter()
+            .map(|s| s.node().vid.index())
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![0, 2, 4, 1, 3]);

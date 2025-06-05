@@ -5,7 +5,7 @@ use super::{
 use crate::graph::{
     edges::edges::{EdgesStorage, EdgesStorageRef},
     locked::LockedGraph,
-    nodes::{node_owned_entry::NodeOwnedEntry, nodes::NodesStorage, nodes_ref::NodesStorageEntry},
+    nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
 };
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{
@@ -18,10 +18,7 @@ use thiserror::Error;
 #[cfg(feature = "storage")]
 use crate::disk::{
     storage_interface::{
-        edges::DiskEdges,
-        edges_ref::DiskEdgesRef,
-        node::{DiskNode, DiskOwnedNode},
-        nodes::DiskNodesOwned,
+        edges::DiskEdges, edges_ref::DiskEdgesRef, node::DiskNode, nodes::DiskNodesOwned,
         nodes_ref::DiskNodesRef,
     },
     DiskGraphStorage,
@@ -205,20 +202,6 @@ impl GraphStorage {
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 NodeStorageEntry::Disk(DiskNode::new(&storage.inner, vid))
-            }
-        }
-    }
-
-    #[inline(always)]
-    pub fn owned_node(&self, vid: VID) -> NodeOwnedEntry {
-        match self {
-            GraphStorage::Mem(storage) => NodeOwnedEntry::Mem(storage.nodes.arc_entry(vid)),
-            GraphStorage::Unlocked(storage) => {
-                NodeOwnedEntry::Mem(storage.storage.nodes.entry_arc(vid))
-            }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                NodeOwnedEntry::Disk(DiskOwnedNode::new(storage.inner.clone(), vid))
             }
         }
     }

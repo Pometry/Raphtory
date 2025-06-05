@@ -1,5 +1,4 @@
 use crate::graph::nodes::node_additions::NodeAdditions;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
@@ -8,10 +7,7 @@ use raphtory_api::core::{
     },
     Direction,
 };
-use raphtory_core::{
-    entities::nodes::node_store::NodeStore,
-    storage::{node_entry::NodePtr, ArcNodeEntry},
-};
+use raphtory_core::{entities::nodes::node_store::NodeStore, storage::node_entry::NodePtr};
 use std::borrow::Cow;
 
 pub trait NodeStorageOps<'a>: Sized {
@@ -40,26 +36,6 @@ pub trait NodeStorageOps<'a>: Sized {
     fn name(self) -> Option<Cow<'a, str>>;
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef>;
-}
-
-pub trait NodeStorageIntoOps: Sized {
-    fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef>;
-
-    fn into_neighbours_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        self.into_edges_iter(layers, dir)
-            .map(|e| e.remote())
-            .dedup()
-    }
-}
-
-impl NodeStorageIntoOps for ArcNodeEntry {
-    fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        self.into_edges(&layers, dir)
-    }
-
-    fn into_neighbours_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        self.into_neighbours(&layers, dir)
-    }
 }
 
 impl<'a> NodeStorageOps<'a> for NodePtr<'a> {
