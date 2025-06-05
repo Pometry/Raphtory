@@ -4,7 +4,6 @@ use crate::{
     db::api::storage::graph::tprop_storage_ops::TPropOps,
     prelude::Prop,
 };
-use arrow_ipc::Date;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::DateTime;
 use either::Either;
@@ -14,7 +13,7 @@ use pometry_storage::{
         bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol,
         utf8_view_col::StringViewCol,
     },
-    prelude::{ArrayOps, BaseArrayOps, Chunked},
+    prelude::{ArrayOps, Chunked},
     tprops::{DTTPropColumn, DiskTProp, EmptyTProp, TPropColumn},
 };
 use raphtory_api::{core::storage::timeindex::TimeIndexEntry, iter::IntoDynBoxed};

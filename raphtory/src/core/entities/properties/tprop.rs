@@ -40,7 +40,7 @@ pub enum TProp {
     Decimal(TCell<BigDecimal>),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct TPropCell<'a> {
     t_cell: Option<&'a TCell<Option<usize>>>,
     log: Option<&'a PropColumn>,
