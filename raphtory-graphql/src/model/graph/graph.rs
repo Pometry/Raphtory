@@ -259,7 +259,7 @@ impl GqlGraph {
     }
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.created_async().await
+        self.path.last_opened_async().await
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
