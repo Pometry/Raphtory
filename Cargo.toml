@@ -27,21 +27,26 @@ authors = ["Pometry"]
 rust-version = "1.86.0"
 edition = "2021"
 
+# debug symbols are using a lot of resources
 [profile.dev]
 split-debuginfo = "unpacked"
+debug = false
 
 [profile.release-with-debug]
 inherits = "release"
 debug = true
 
-[profile.no_debug]
+# use this if you really need debug symbols
+[profile.with-debug]
+inherits = "dev"
+debug = true
+
+# for fast one-time builds (e.g., docs/CI)
+[profile.build-fast]
 inherits = "dev"
 debug = false
 incremental = false
 
-[profile.test-ci]
-inherits = "test"
-debug = 0
 
 [workspace.dependencies]
 #[public-storage]
