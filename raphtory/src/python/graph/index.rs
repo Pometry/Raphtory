@@ -168,7 +168,7 @@ impl PyIndexSpecBuilder {
     pub fn build(&self) -> PyIndexSpec {
         PyIndexSpec {
             graph: self.builder.graph.clone().into_dynamic(),
-            spec: self.builder.build(),
+            spec: self.builder.clone().build(),
         }
     }
 }

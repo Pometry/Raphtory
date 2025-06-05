@@ -1,11 +1,14 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import PORT, create_test_graph
+from filters_setup import create_test_graph
 from utils import run_graphql_test, run_graphql_error_test
+
+EVENT_GRAPH = create_test_graph(Graph())
+PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_equal(graph):
     query = """
     query {
@@ -36,7 +39,6 @@ def test_graph_edge_property_filter_equal(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -64,11 +66,10 @@ def test_graph_edge_property_filter_equal_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_equal_no_value_error(graph):
     query = """
     query {
@@ -92,12 +93,11 @@ def test_graph_edge_property_filter_equal_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for Equal operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_equal_type_error(graph):
     query = """
     query {
@@ -121,7 +121,6 @@ def test_graph_edge_property_filter_equal_type_error(graph):
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop5: expected List(I64) but actual type is I64"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -148,12 +147,11 @@ def test_graph_edge_property_filter_equal_type_error_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_not_equal(graph):
     query = """
     query {
@@ -184,7 +182,6 @@ def test_graph_edge_property_filter_not_equal(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -212,11 +209,10 @@ def test_graph_edge_property_filter_not_equal_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_not_equal_no_value_error(graph):
     query = """
     query {
@@ -240,12 +236,11 @@ def test_graph_edge_property_filter_not_equal_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for NotEqual operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_not_equal_type_error(graph):
     query = """
     query {
@@ -270,7 +265,6 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop4: expected Bool but actual type is I64"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -298,12 +292,11 @@ def test_graph_edge_property_filter_not_equal_type_error_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_or_equal(graph):
     query = """
     query {
@@ -334,7 +327,6 @@ def test_graph_edge_property_filter_greater_than_or_equal(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -362,11 +354,10 @@ def test_graph_edge_property_filter_greater_than_or_equal_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_or_equal_no_value_error(graph):
     query = """
     query {
@@ -390,12 +381,11 @@ def test_graph_edge_property_filter_greater_than_or_equal_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for GreaterThanOrEqual operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     query = """
     query {
@@ -420,7 +410,6 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Bool"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -448,12 +437,11 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error_persistent_
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_less_than_or_equal(graph):
     query = """
     query {
@@ -489,7 +477,6 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -517,11 +504,10 @@ def test_graph_edge_property_filter_less_than_or_equal_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_less_than_or_equal_no_value_error(graph):
     query = """
     query {
@@ -545,12 +531,11 @@ def test_graph_edge_property_filter_less_than_or_equal_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for LessThanOrEqual operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
@@ -575,7 +560,6 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -603,12 +587,11 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error_persistent_gra
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_greater_than(graph):
     query = """
     query {
@@ -639,7 +622,6 @@ def test_graph_edge_property_filter_greater_than(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -667,11 +649,10 @@ def test_graph_edge_property_filter_greater_than_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_no_value_error(graph):
     query = """
     query {
@@ -695,12 +676,11 @@ def test_graph_edge_property_filter_greater_than_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for GreaterThan operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_type_error(graph):
     query = """
     query {
@@ -725,7 +705,6 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -753,12 +732,11 @@ def test_graph_edge_property_filter_greater_than_type_error_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_less_than(graph):
     query = """
     query {
@@ -789,7 +767,6 @@ def test_graph_edge_property_filter_less_than(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -817,11 +794,10 @@ def test_graph_edge_property_filter_less_than_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_less_than_no_value_error(graph):
     query = """
     query {
@@ -845,12 +821,11 @@ def test_graph_edge_property_filter_less_than_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for LessThan operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_less_than_type_error(graph):
     query = """
     query {
@@ -875,7 +850,6 @@ def test_graph_edge_property_filter_less_than_type_error(graph):
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -903,12 +877,11 @@ def test_graph_edge_property_filter_less_than_type_error_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_is_none(graph):
     query = """
     query {
@@ -932,7 +905,6 @@ def test_graph_edge_property_filter_is_none(graph):
     }
     """
     expected_output = {"graph": {"edgeFilter": {"edges": {"list": []}}}}
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -959,12 +931,11 @@ def test_graph_edge_property_filter_is_none_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_is_some(graph):
     query = """
     query {
@@ -1000,7 +971,6 @@ def test_graph_edge_property_filter_is_some(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -1027,12 +997,11 @@ def test_graph_edge_property_filter_is_some_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_is_in(graph):
     query = """
     query {
@@ -1068,7 +1037,6 @@ def test_graph_edge_property_filter_is_in(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -1096,12 +1064,11 @@ def test_graph_edge_property_filter_is_in_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_is_empty_list(graph):
     query = """
     query {
@@ -1126,7 +1093,6 @@ def test_graph_edge_property_filter_is_empty_list(graph):
     }
     """
     expected_output = {"graph": {"edgeFilter": {"edges": {"list": []}}}}
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -1154,11 +1120,10 @@ def test_graph_edge_property_filter_is_in_empty_list_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_is_in_no_value_error(graph):
     query = """
     query {
@@ -1182,7 +1147,6 @@ def test_graph_edge_property_filter_is_in_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for IsIn operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -1210,8 +1174,7 @@ def test_graph_edge_property_filter_is_in_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
-    graph = create_test_graph(Graph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, EVENT_GRAPH)
 
 
 def test_graph_edge_property_filter_is_in_type_error_persistent_graph():
@@ -1238,12 +1201,11 @@ def test_graph_edge_property_filter_is_in_type_error_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_is_not_in(graph):
     query = """
     query {
@@ -1274,7 +1236,6 @@ def test_graph_edge_property_filter_is_not_in(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -1302,12 +1263,11 @@ def test_graph_edge_property_filter_is_not_in_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 # Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_graph_edge_property_filter_is_not_in_empty_list(graph):
     query = """
     query {
@@ -1344,7 +1304,6 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
             }
         }
     }
-    graph = create_test_graph(graph())
     run_graphql_test(query, expected_output, graph)
 
 
@@ -1372,11 +1331,10 @@ def test_graph_edge_property_filter_is_not_in_empty_list_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
-@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
     query = """
     query {
@@ -1400,7 +1358,6 @@ def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
     }
     """
     expected_error_message = "Expected a value for IsNotIn operator"
-    graph = create_test_graph(graph())
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -1428,8 +1385,7 @@ def test_graph_edge_property_filter_is_not_in_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property eprop1: expected I64 but actual type is Str"
-    graph = create_test_graph(Graph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, EVENT_GRAPH)
 
 
 def test_graph_edge_property_filter_is_not_in_type_error_persistent_graph():
@@ -1456,8 +1412,7 @@ def test_graph_edge_property_filter_is_not_in_type_error_persistent_graph():
     }
     """
     expected_error_message = "Property filtering not implemented on PersistentGraph yet"
-    graph = create_test_graph(PersistentGraph())
-    run_graphql_error_test(query, expected_error_message, graph)
+    run_graphql_error_test(query, expected_error_message, PERSISTENT_GRAPH)
 
 
 def test_graph_edge_not_property_filter():
@@ -1499,5 +1454,4 @@ def test_graph_edge_not_property_filter():
             }
         }
     }
-    graph = create_test_graph(Graph())
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, EVENT_GRAPH)
