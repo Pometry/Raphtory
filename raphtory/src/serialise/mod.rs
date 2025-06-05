@@ -10,7 +10,8 @@ mod serialise;
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
-
+#[cfg(feature = "storage")]
+use crate::disk_graph::DiskGraphStorage;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
@@ -125,7 +126,7 @@ impl GraphFolder {
         }
     }
 
-    pub fn read_metadata(&self) -> Result<GraphMetadata, io::Error> {
+    pub fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
         match self.try_read_metadata() {
             Ok(data) => Ok(data),
             Err(e) => {
@@ -135,11 +136,22 @@ impl GraphFolder {
                         info!(
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
-                        let graph = MaterializedGraph::decode(self)?;
+                        let graph: MaterializedGraph = if self.is_disk_graph() {
+                            #[cfg(not(feature = "storage"))]
+                            return Err(GraphError::DiskGraphNotFound());
+                            #[cfg(feature = "storage")]
+                            {
+                                DiskGraphStorage::load_from_dir(self.get_graph_path())?
+                                    .into_graph()
+                                    .into()
+                            }
+                        } else {
+                            MaterializedGraph::decode(self)?
+                        };
                         self.write_metadata(&graph)?;
-                        self.try_read_metadata()
+                        Ok(self.try_read_metadata()?)
                     }
-                    _ => Err(e),
+                    _ => Err(e.into()),
                 }
             }
         }
@@ -201,6 +213,11 @@ impl GraphFolder {
         }
         File::create_new(self.root_folder.join(META_FILE_NAME))?;
         Ok(())
+    }
+
+    fn is_disk_graph(&self) -> bool {
+        let path = self.get_graph_path();
+        path.is_dir()
     }
 }
 

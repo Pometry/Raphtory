@@ -149,7 +149,7 @@ pub enum GraphError {
         #[from]
         source: LoadError,
     },
-    #[error("Disk graph not found")]
+    #[error("Storage feature not enabled")]
     DiskGraphNotFound,
 
     #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
