@@ -123,14 +123,11 @@ impl EntityIndex {
         let mut indexes = property_indexes.write();
         let mut writers: Vec<Option<IndexWriter>> = Vec::new();
 
-        let properties: Vec<(String, usize, PropType)> = props
-            .into_iter()
-            .filter_map(|prop_id| {
-                let prop_name = meta.get_name(*prop_id).to_string();
-                meta.get_dtype(*prop_id)
-                    .map(|prop_type| (prop_name, *prop_id, prop_type))
-            })
-            .collect_vec();
+        let properties = props.into_iter().filter_map(|prop_id| {
+            let prop_name = meta.get_name(*prop_id).to_string();
+            meta.get_dtype(*prop_id)
+                .map(|prop_type| (prop_name, *prop_id, prop_type))
+        });
 
         for (prop_name, prop_id, prop_type) in properties {
             // Resize the vector if needed

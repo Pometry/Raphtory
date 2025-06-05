@@ -294,7 +294,7 @@ impl NodeIndex {
         graph: &GraphStorage,
         path: Option<PathBuf>,
         index_spec: &IndexSpec,
-    ) -> Result<NodeIndex, GraphError> {
+    ) -> Result<(), GraphError> {
         // Initialize property indexes and get their writers
         let const_properties_index_path = path.as_deref().map(|p| p.join("const_properties"));
         let mut const_writers = self.entity_index.initialize_node_const_property_indexes(
@@ -334,7 +334,7 @@ impl NodeIndex {
         self.entity_index.reload_temporal_property_indexes()?;
         self.entity_index.reader.reload()?;
 
-        Ok(self.clone())
+        Ok(())
     }
 
     pub(crate) fn add_node_update(

@@ -709,7 +709,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
-    pub fn with_const_node_props<S: Into<ArcStr>>(
+    pub fn with_const_node_props<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
@@ -720,7 +720,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
-    pub fn with_temp_node_props<S: Into<ArcStr>>(
+    pub fn with_temp_node_props<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
@@ -755,7 +755,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
-    pub fn with_const_edge_props<S: Into<ArcStr>>(
+    pub fn with_const_edge_props<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
@@ -766,7 +766,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
-    pub fn with_temp_edge_props<S: Into<ArcStr>>(
+    pub fn with_temp_edge_props<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
@@ -778,49 +778,30 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
     }
 
     fn extract_props(meta: &PropMapper) -> HashSet<usize> {
-        meta.get_keys()
-            .into_iter()
-            .filter_map(|k| {
-                meta.get_id(&*k)
-                    .and_then(|id| meta.get_dtype(id).map(|_| id))
-            })
-            .collect()
+        (0..meta.len()).collect()
     }
 
-    fn extract_named_props<S: Into<ArcStr>>(
+    fn extract_named_props<S: AsRef<str>>(
         meta: &PropMapper,
         keys: impl IntoIterator<Item = S>,
     ) -> Result<HashSet<usize>, GraphError> {
         keys.into_iter()
             .map(|k| {
-                let k: ArcStr = k.into();
-                let key = k.to_string();
+                let s = k.as_ref();
                 let id = meta
-                    .get_id(&*k)
-                    .ok_or_else(|| GraphError::PropertyMissingError(key.clone()))?;
+                    .get_id(s)
+                    .ok_or_else(|| GraphError::PropertyMissingError(s.to_string()))?;
                 Ok(id)
             })
             .collect()
     }
 
-    pub fn build(&self) -> IndexSpec {
+    pub fn build(self) -> IndexSpec {
         IndexSpec {
-            node_const_props: match &self.node_const_props {
-                Some(props) => props.clone(),
-                None => HashSet::new(),
-            },
-            node_temp_props: match &self.node_temp_props {
-                Some(props) => props.clone(),
-                None => HashSet::new(),
-            },
-            edge_const_props: match &self.edge_const_props {
-                Some(props) => props.clone(),
-                None => HashSet::new(),
-            },
-            edge_temp_props: match &self.edge_temp_props {
-                Some(props) => props.clone(),
-                None => HashSet::new(),
-            },
+            node_const_props: self.node_const_props.unwrap_or_default(),
+            node_temp_props: self.node_temp_props.unwrap_or_default(),
+            edge_const_props: self.edge_const_props.unwrap_or_default(),
+            edge_temp_props: self.edge_temp_props.unwrap_or_default(),
         }
     }
 }

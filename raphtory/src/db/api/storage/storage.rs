@@ -160,7 +160,7 @@ impl Storage {
             let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
             GraphIndex::create(&self.graph, false, cached_graph_path)
         })?;
-        index.update(&self.graph, index_spec.clone())?;
+        index.update(&self.graph, index_spec)?;
         Ok(index)
     }
 

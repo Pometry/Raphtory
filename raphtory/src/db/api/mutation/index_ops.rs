@@ -31,11 +31,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
             .with_all_node_props()
             .with_all_edge_props()
             .build();
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index(index_spec)?;
-                Ok(())
-            })
+        self.create_index_with_spec(index_spec)
     }
 
     fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
@@ -51,11 +47,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
             .with_all_node_props()
             .with_all_edge_props()
             .build();
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index_in_ram(index_spec)?;
-                Ok(())
-            })
+        self.create_index_in_ram_with_spec(index_spec)
     }
 
     fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
