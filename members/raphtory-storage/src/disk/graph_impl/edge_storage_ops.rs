@@ -63,35 +63,11 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         }
     }
 
-    fn layer_ids_par_iter(self, layer_ids: &LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
-        match layer_ids {
-            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
-            LayerIds::All => LayerVariants::All(
-                (0..self.internal_num_layers())
-                    .into_par_iter()
-                    .filter(move |&l| self.has_layer_inner(l)),
-            ),
-            LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_par_iter())
-            }
-            LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(ids.par_iter().filter(move |&id| self.has_layer_inner(id)))
-            }
-        }
-    }
-
     fn deletions_iter(
         self,
         _layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         Box::new(iter::empty())
-    }
-
-    fn deletions_par_iter(
-        self,
-        _layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        rayon::iter::empty()
     }
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {

@@ -13,7 +13,6 @@ use raphtory_core::{
     entities::{edges::edge_store::MemEdge, properties::tprop::TProp},
     storage::timeindex::{TimeIndex, TimeIndexWindow},
 };
-use rayon::prelude::*;
 use std::ops::Range;
 
 #[derive(Clone)]
@@ -42,7 +41,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
             TimeIndexRef::Ref(t) => t.active(w),
             TimeIndexRef::Range(t) => t.active(w),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.active(w),
+            TimeIndexRef::External(t) => t.active(w),
         }
     }
 
@@ -51,7 +50,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
             TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
             TimeIndexRef::Range(t) => TimeIndexRef::Range(t.range(w)),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => TimeIndexRef::External(t.range(w)),
+            TimeIndexRef::External(t) => TimeIndexRef::External(t.range(w)),
         }
     }
 
@@ -60,7 +59,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
             TimeIndexRef::Ref(t) => t.first(),
             TimeIndexRef::Range(t) => t.first(),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.first(),
+            TimeIndexRef::External(t) => t.first(),
         }
     }
 
@@ -69,7 +68,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
             TimeIndexRef::Ref(t) => t.last(),
             TimeIndexRef::Range(t) => t.last(),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.last(),
+            TimeIndexRef::External(t) => t.last(),
         }
     }
 
@@ -96,7 +95,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
             TimeIndexRef::Ref(ts) => ts.len(),
             TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(ref t) => t.len(),
+            TimeIndexRef::External(t) => t.len(),
         }
     }
 }

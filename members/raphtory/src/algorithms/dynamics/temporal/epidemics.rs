@@ -10,7 +10,7 @@ use crate::{
     prelude::*,
 };
 use indexmap::IndexSet;
-use rand::{distr::Bernoulli, seq::IteratorRandom, Rng};
+use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
 use raphtory_core::utils::time::ParseTimeError;
 use std::{
@@ -25,7 +25,7 @@ pub struct Probability(f64);
 
 impl Probability {
     pub fn sample<R: Rng + ?Sized>(self, rng: &mut R) -> bool {
-        rng.random_bool(self.0)
+        rng.gen_bool(self.0)
     }
 }
 

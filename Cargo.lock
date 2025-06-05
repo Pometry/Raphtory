@@ -4652,8 +4652,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "pometry-storage"
-version = "0.15.1"
+name = "pometry-storage-private"
+version = "0.12.1"
+dependencies = [
+ "ahash",
+ "bigdecimal",
+ "bincode",
+ "bytemuck",
+ "criterion",
+ "iter-enum",
+ "itertools 0.12.1",
+ "kdam",
+ "memmap2 0.9.5",
+ "once_cell",
+ "parking_lot",
+ "polars-arrow",
+ "polars-parquet",
+ "polars-utils",
+ "pretty_assertions",
+ "proptest",
+ "rand 0.8.5",
+ "raphtory-api",
+ "rayon",
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "tracing-subscriber",
+ "twox-hash 1.6.3",
+]
 
 [[package]]
 name = "portable-atomic"
@@ -5100,16 +5129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_distr"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
-dependencies = [
- "num-traits",
- "rand 0.9.1",
-]
-
-[[package]]
 name = "rand_xorshift"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5168,7 +5187,7 @@ dependencies = [
  "polars-core",
  "polars-io",
  "polars-parquet",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "proptest-derive",
@@ -5180,8 +5199,8 @@ dependencies = [
  "quad-rand",
  "quickcheck",
  "quickcheck_macros",
- "rand 0.9.1",
- "rand_distr 0.5.1",
+ "rand 0.8.5",
+ "rand_distr",
  "raphtory-api",
  "raphtory-core",
  "raphtory-storage",
@@ -5229,7 +5248,7 @@ dependencies = [
  "pyo3-arrow",
  "quickcheck",
  "quickcheck_macros",
- "rand 0.9.1",
+ "rand 0.8.5",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
@@ -5251,7 +5270,7 @@ dependencies = [
  "fake",
  "itertools 0.13.0",
  "once_cell",
- "rand 0.9.1",
+ "rand 0.8.5",
  "raphtory",
  "raphtory-api",
  "rayon",
@@ -5303,7 +5322,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "polars-arrow",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "raphtory",
@@ -5386,7 +5405,7 @@ dependencies = [
  "itertools 0.13.0",
  "num-traits",
  "polars-arrow",
- "pometry-storage",
+ "pometry-storage-private",
  "proptest",
  "raphtory-api",
  "raphtory-core",
@@ -6394,7 +6413,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c56d6ff5591fc332739b3ce7035b57995a3ce29a93ffd6012660e0949c956ea8"
 dependencies = [
  "murmurhash32",
- "rand_distr 0.4.3",
+ "rand_distr",
  "tantivy-common",
 ]
 
@@ -6888,6 +6907,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
+ "rand 0.8.5",
  "static_assertions",
 ]
 
