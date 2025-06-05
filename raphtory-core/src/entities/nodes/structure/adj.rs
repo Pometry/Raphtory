@@ -1,6 +1,9 @@
 use crate::entities::{edges::edge_ref::Dir, nodes::structure::adjset::AdjSet, EID, VID};
 use itertools::Itertools;
-use raphtory_api::{core::Direction, iter::BoxedLIter};
+use raphtory_api::{
+    core::{Direction, DirectionVariants},
+    iter::BoxedLIter,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -68,7 +71,12 @@ impl Adj {
     }
 
     pub fn node_iter(&self, dir: Direction) -> impl Iterator<Item = VID> + Send + '_ {
-        self.iter(dir).map(|(v, _)| v)
+        let iter = self.iter(dir).map(|(v, _)| v);
+        match dir {
+            Direction::OUT => DirectionVariants::Out(iter),
+            Direction::IN => DirectionVariants::In(iter),
+            Direction::BOTH => DirectionVariants::Both(iter.dedup()),
+        }
     }
 
     pub fn degree(&self, dir: Direction) -> usize {

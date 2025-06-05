@@ -1,6 +1,6 @@
 use crate::{
     entities::{
-        edges::edge_ref::{Dir, EdgeRef},
+        edges::edge_ref::EdgeRef,
         nodes::structure::adj::Adj,
         properties::{
             props::{ConstPropError, Props},
@@ -10,24 +10,21 @@ use crate::{
     },
     storage::{
         timeindex::{TimeIndexEntry, TimeIndexWindow},
-        ArcNodeEntry, NodeEntry,
+        NodeEntry,
     },
     utils::iter::GenLockedIter,
 };
 use itertools::Itertools;
 use raphtory_api::{
     core::{
-        entities::{properties::prop::Prop, GidRef, ELID},
+        entities::{properties::prop::Prop, GidRef, LayerVariants, ELID},
         storage::timeindex::{TimeIndexLike, TimeIndexOps},
         Direction,
     },
     iter::BoxedLIter,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    iter,
-    ops::{Deref, Range},
-};
+use std::{iter, ops::Range};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
@@ -373,35 +370,39 @@ impl NodeStore {
 
     // every neighbour apears once in the iterator
     // this is important because it calculates degree
-    pub fn neighbours<'a>(&'a self, layers: &LayerIds, d: Direction) -> BoxedLIter<'a, VID> {
+    pub fn neighbours<'a>(
+        &'a self,
+        layers: &LayerIds,
+        d: Direction,
+    ) -> impl Iterator<Item = VID> + use<'a> {
         match layers {
             LayerIds::All => {
                 let iter = self
                     .layers
                     .iter()
-                    .map(|layer| self.neighbours_from_adj(layer, d))
+                    .map(move |layer| layer.node_iter(d))
                     .kmerge()
                     .dedup();
-                Box::new(iter)
+                LayerVariants::All(iter)
             }
             LayerIds::One(one) => {
                 let iter = self
                     .layers
                     .get(*one)
-                    .map(|layer| self.neighbours_from_adj(layer, d))
-                    .unwrap_or(Box::new(iter::empty()));
-                Box::new(iter)
+                    .into_iter()
+                    .flat_map(move |layer| layer.node_iter(d));
+                LayerVariants::One(iter)
             }
             LayerIds::Multiple(layers) => {
                 let iter = layers
                     .into_iter()
                     .filter_map(|l| self.layers.get(l))
-                    .map(|layer| self.neighbours_from_adj(layer, d))
+                    .map(move |layer| self.neighbours_from_adj(layer, d))
                     .kmerge()
                     .dedup();
-                Box::new(iter)
+                LayerVariants::Multiple(iter)
             }
-            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::None => LayerVariants::None(iter::empty()),
         }
     }
 
