@@ -258,13 +258,37 @@ fn assert_results(
     }
 }
 
+pub fn filter_nodes(graph: &Graph, filter: impl InternalNodeFilterOps) -> Vec<String> {
+    let mut results = graph
+        .filter_nodes(filter)
+        .unwrap()
+        .nodes()
+        .iter()
+        .map(|n| n.name())
+        .collect::<Vec<_>>();
+    results.sort();
+    results
+}
+
 #[cfg(feature = "search")]
 pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
     let mut results = graph
         .search_nodes(filter, 10, 0)
-        .expect("Failed to search for nodes")
+        .expect("Failed to search nodes")
         .into_iter()
         .map(|v| v.name())
+        .collect::<Vec<_>>();
+    results.sort();
+    results
+}
+
+pub fn filter_edges(graph: &Graph, filter: impl InternalEdgeFilterOps) -> Vec<String> {
+    let mut results = graph
+        .filter_edges(filter)
+        .unwrap()
+        .edges()
+        .iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
         .collect::<Vec<_>>();
     results.sort();
     results
@@ -274,7 +298,7 @@ pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
 pub fn search_edges(graph: &Graph, filter: impl AsEdgeFilter) -> Vec<String> {
     let mut results = graph
         .search_edges(filter, 10, 0)
-        .expect("Failed to search for nodes")
+        .expect("Failed to filter edges")
         .into_iter()
         .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
         .collect::<Vec<_>>();

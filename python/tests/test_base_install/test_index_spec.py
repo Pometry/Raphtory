@@ -11,12 +11,12 @@ def init_graph(graph):
         n.add_constant_properties(const_props)
 
     edges = [
-        (1, "pometry", "raphtory", {"e_p1": 3.2, "e_p2": 10.0}, "Football", {"e_x": True}),
-        (1, "raphtory", "pometry", {"e_p1": 4.0, "e_p2": 20.0}, "Baseball", {"e_y": False}),
+        (1, "pometry", "raphtory", {"e_p1": 3.2, "e_p2": 10.0}, {"e_x": True}),
+        (1, "raphtory", "pometry", {"e_p1": 4.0, "e_p2": 20.0}, {"e_y": False}),
     ]
-    for t, src, dst, props, label, const_props in edges:
-        e = graph.add_edge(t, src, dst, props, label)
-        e.add_constant_properties(const_props, label)
+    for t, src, dst, props, const_props in edges:
+        e = graph.add_edge(t, src, dst, props)
+        e.add_constant_properties(const_props)
 
     return graph
 

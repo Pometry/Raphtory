@@ -349,7 +349,7 @@ mod test_index {
             db::{
                 api::view::{internal::CoreGraphOps, IndexSpec, IndexSpecBuilder},
                 graph::{
-                    assertions::{search_edges, search_nodes},
+                    assertions::{filter_edges, filter_nodes, search_edges, search_nodes},
                     views::filter::model::{ComposableFilter, PropertyFilterOps},
                 },
             },
@@ -359,9 +359,7 @@ mod test_index {
             },
             serialise::{GraphFolder, StableEncode},
         };
-        use ahash::HashSet;
-        use itertools::Itertools;
-        use raphtory_api::core::{entities::properties::props::PropMapper, PropType};
+        use raphtory_api::core::entities::properties::props::PropMapper;
 
         fn init_graph(mut graph: Graph) -> Graph {
             let nodes = vec![
@@ -819,6 +817,65 @@ mod test_index {
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let filter = PropertyFilter::property("z").constant().eq(false);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
+        }
+
+        #[test]
+        fn test_const_prop_fallback_when_const_prop_indexed() {
+            let graph = init_graph(Graph::new());
+
+            let spec = IndexSpecBuilder::new(graph.clone())
+                .with_const_node_props(vec!["x"])
+                .unwrap()
+                .with_const_edge_props(vec!["e_y"])
+                .unwrap()
+                .build();
+
+            graph.create_index_in_ram_with_spec(spec).unwrap();
+
+            let f1 = PropertyFilter::property("x").eq(true);
+            assert_eq!(
+                filter_nodes(&graph, f1.clone()),
+                vec!["pometry".to_string()]
+            );
+            assert_eq!(search_nodes(&graph, f1), vec!["pometry".to_string()]);
+
+            let f2 = PropertyFilter::property("e_y").eq(false);
+            assert_eq!(
+                filter_edges(&graph, f2.clone()),
+                vec!["raphtory->pometry".to_string()]
+            );
+            assert_eq!(
+                search_edges(&graph, f2),
+                vec!["raphtory->pometry".to_string()]
+            );
+        }
+
+        #[test]
+        fn test_const_prop_fallback_when_const_prop_not_indexed() {
+            let graph = init_graph(Graph::new());
+
+            let spec = IndexSpecBuilder::new(graph.clone())
+                .with_all_temp_node_props()
+                .with_all_temp_edge_props()
+                .build();
+
+            graph.create_index_in_ram_with_spec(spec).unwrap();
+
+            let f1 = PropertyFilter::property("x").eq(true);
+            assert_eq!(
+                filter_nodes(&graph, f1.clone()),
+                vec!["pometry".to_string()]
+            );
+            assert_eq!(search_nodes(&graph, f1), vec!["pometry".to_string()]);
+            let f2 = PropertyFilter::property("e_y").eq(false);
+            assert_eq!(
+                filter_edges(&graph, f2.clone()),
+                vec!["raphtory->pometry".to_string()]
+            );
+            assert_eq!(
+                search_edges(&graph, f2),
+                vec!["raphtory->pometry".to_string()]
+            );
         }
     }
 }
