@@ -34,6 +34,3 @@ methods.
     :hidden:
 
     user_guide
-
-.. toctree:: data-science
-   :recursive:
