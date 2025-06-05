@@ -4,7 +4,7 @@ use crate::{
 };
 use arrow_array::{Array, ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch};
 use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
-use arrow_schema::{ArrowError, DataType, Field, Schema};
+use arrow_schema::{ArrowError, DataType, Field, Fields, Schema};
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
@@ -252,7 +252,15 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
                 .iter()
                 .map(|(k, v)| Field::new(k.to_string(), arrow_dtype_from_prop_type(v), true))
                 .collect::<Vec<_>>();
-            DataType::Struct(fields.into())
+            if fields.is_empty() {
+                DataType::Struct(Fields::from_iter([Field::new(
+                    "__empty__",
+                    DataType::Null,
+                    true,
+                )]))
+            } else {
+                DataType::Struct(fields.into())
+            }
         }
         // 38 comes from here: https://arrow.apache.org/docs/python/generated/pyarrow.decimal128.html
         PropType::Decimal { scale } => DataType::Decimal128(38, (*scale).try_into().unwrap()),

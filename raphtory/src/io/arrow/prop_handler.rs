@@ -256,18 +256,21 @@ impl PropCol for Wrap<Utf8Array<i32>> {
 
 impl PropCol for Wrap<StructArray> {
     fn get(&self, i: usize) -> Option<Prop> {
-        let fields = self
-            .0
-            .values()
-            .iter()
-            .zip(self.0.fields())
-            .filter_map(|(arr, field)| {
-                let prop = lift_property_col(arr.as_ref()).get(i)?;
-                Some((ArcStr::from(field.name.as_str()), prop))
-            })
-            .collect::<FxHashMap<_, _>>();
-
-        (!fields.is_empty()).then(|| Prop::Map(fields.into()))
+        if self.0.is_valid(i) {
+            let fields = self
+                .0
+                .values()
+                .iter()
+                .zip(self.0.fields())
+                .filter_map(|(arr, field)| {
+                    let prop = lift_property_col(arr.as_ref()).get(i)?;
+                    Some((ArcStr::from(field.name.as_str()), prop))
+                })
+                .collect::<FxHashMap<_, _>>();
+            Some(Prop::Map(fields.into()))
+        } else {
+            None
+        }
     }
 }
 
@@ -314,6 +317,14 @@ struct DecimalPropCol {
 impl PropCol for DecimalPropCol {
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
+    }
+}
+
+struct EmptyCol;
+
+impl PropCol for EmptyCol {
+    fn get(&self, i: usize) -> Option<Prop> {
+        None
     }
 }
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
@@ -467,6 +478,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 scale: *scale as i64,
             })
         }
+        DataType::Null => Box::new(EmptyCol),
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }
 }

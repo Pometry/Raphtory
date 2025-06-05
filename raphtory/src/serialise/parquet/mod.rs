@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use arrow_json::{reader::Decoder, ReaderBuilder};
-use arrow_schema::{DataType, Field, Schema, SchemaRef};
+use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaRef};
 use edges::{encode_edge_cprop, encode_edge_tprop};
 use itertools::Itertools;
 use model::ParquetTEdge;
@@ -892,5 +892,14 @@ mod test {
         let graph = PersistentGraph::new();
         graph.delete_edge(0, 0, 0, Some("a")).unwrap();
         check_parquet_encoding_deletions(graph);
+    }
+
+    #[test]
+    fn test_empty_map() {
+        let graph = Graph::new();
+        graph
+            .add_edge(0, 0, 1, [("test", Prop::map(NO_PROPS))], None)
+            .unwrap();
+        check_parquet_encoding(graph);
     }
 }
