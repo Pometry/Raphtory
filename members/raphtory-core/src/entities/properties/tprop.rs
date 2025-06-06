@@ -278,110 +278,112 @@ impl TProp {
     pub(crate) fn iter_window_inner(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + '_ {
         match self {
-            TProp::Empty => Box::new(iter::empty()),
-            TProp::Str(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Str(value.clone()))),
+            TProp::Empty => TPropVariants::Empty(iter::empty()),
+            TProp::Str(cell) => TPropVariants::Str(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::Str(value.clone())))
             ),
-            TProp::I32(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::I32(*value))),
+            TProp::I32(cell) => TPropVariants::I32(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::I32(*value)))
             ),
-            TProp::I64(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::I64(*value))),
+            TProp::I64(cell) => TPropVariants::I64(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::I64(*value)))
             ),
-            TProp::U8(cell) => {
-                Box::new(cell.iter_window(r).map(|(t, value)| (*t, Prop::U8(*value))))
-            }
-            TProp::U16(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::U16(*value))),
+            TProp::U8(cell) => TPropVariants::U8(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::U8(*value)))
             ),
-            TProp::U32(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::U32(*value))),
+            TProp::U16(cell) => TPropVariants::U16(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::U16(*value)))
             ),
-            TProp::U64(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::U64(*value))),
+            TProp::U32(cell) => TPropVariants::U32(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::U32(*value)))
             ),
-            TProp::F32(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::F32(*value))),
+            TProp::U64(cell) => TPropVariants::U64(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::U64(*value)))
             ),
-            TProp::F64(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::F64(*value))),
+            TProp::F32(cell) => TPropVariants::F32(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::F32(*value)))
             ),
-            TProp::Bool(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Bool(*value))),
+            TProp::F64(cell) => TPropVariants::F64(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::F64(*value)))
             ),
-            TProp::DTime(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::DTime(*value))),
+            TProp::Bool(cell) => TPropVariants::Bool(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::Bool(*value)))
             ),
-            TProp::NDTime(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::NDTime(*value))),
+            TProp::DTime(cell) => TPropVariants::DTime(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::DTime(*value)))
+            ),
+            TProp::NDTime(cell) => TPropVariants::NDTime(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::NDTime(*value)))
             ),
             #[cfg(feature = "arrow")]
-            TProp::Array(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Array(value.clone()))),
+            TProp::Array(cell) => TPropVariants::Array(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::Array(value.clone())))
             ),
-            TProp::List(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            TProp::List(cell) => TPropVariants::List(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::List(value.clone())))
             ),
-            TProp::Map(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Map(value.clone()))),
+            TProp::Map(cell) => TPropVariants::Map(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::Map(value.clone())))
             ),
-            TProp::Decimal(cell) => Box::new(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Decimal(value.clone()))),
+            TProp::Decimal(cell) => TPropVariants::Decimal(
+                cell.iter_window(r).map(|(t, value)| (*t, Prop::Decimal(value.clone())))
             ),
         }
     }
 
-    pub(crate) fn iter_inner(&self) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    pub(crate) fn iter_inner(&self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + '_ {
         match self {
-            TProp::Empty => Box::new(iter::empty()),
-            TProp::Str(cell) => {
-                Box::new(cell.iter().map(|(t, value)| (*t, Prop::Str(value.clone()))))
-            }
-            TProp::I32(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::I32(*value)))),
-            TProp::I64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::I64(*value)))),
-            TProp::U8(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U8(*value)))),
-            TProp::U16(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U16(*value)))),
-            TProp::U32(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U32(*value)))),
-            TProp::U64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U64(*value)))),
-            TProp::F32(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::F32(*value)))),
-            TProp::F64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::F64(*value)))),
-            TProp::Bool(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::Bool(*value)))),
-            TProp::DTime(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::DTime(*value)))),
-            TProp::NDTime(cell) => {
-                Box::new(cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value))))
-            }
+            TProp::Empty => TPropVariants::Empty(iter::empty()),
+            TProp::Str(cell) => TPropVariants::Str(
+                cell.iter().map(|(t, value)| (*t, Prop::Str(value.clone())))
+            ),
+            TProp::I32(cell) => TPropVariants::I32(
+                cell.iter().map(|(t, value)| (*t, Prop::I32(*value)))
+            ),
+            TProp::I64(cell) => TPropVariants::I64(
+                cell.iter().map(|(t, value)| (*t, Prop::I64(*value)))
+            ),
+            TProp::U8(cell) => TPropVariants::U8(
+                cell.iter().map(|(t, value)| (*t, Prop::U8(*value)))
+            ),
+            TProp::U16(cell) => TPropVariants::U16(
+                cell.iter().map(|(t, value)| (*t, Prop::U16(*value)))
+            ),
+            TProp::U32(cell) => TPropVariants::U32(
+                cell.iter().map(|(t, value)| (*t, Prop::U32(*value)))
+            ),
+            TProp::U64(cell) => TPropVariants::U64(
+                cell.iter().map(|(t, value)| (*t, Prop::U64(*value)))
+            ),
+            TProp::F32(cell) => TPropVariants::F32(
+                cell.iter().map(|(t, value)| (*t, Prop::F32(*value)))
+            ),
+            TProp::F64(cell) => TPropVariants::F64(
+                cell.iter().map(|(t, value)| (*t, Prop::F64(*value)))
+            ),
+            TProp::Bool(cell) => TPropVariants::Bool(
+                cell.iter().map(|(t, value)| (*t, Prop::Bool(*value)))
+            ),
+            TProp::DTime(cell) => TPropVariants::DTime(
+                cell.iter().map(|(t, value)| (*t, Prop::DTime(*value)))
+            ),
+            TProp::NDTime(cell) => TPropVariants::NDTime(
+                cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value)))
+            ),
             #[cfg(feature = "arrow")]
-            TProp::Array(cell) => Box::new(
-                cell.iter()
-                    .map(|(t, value)| (*t, Prop::Array(value.clone()))),
+            TProp::Array(cell) => TPropVariants::Array(
+                cell.iter().map(|(t, value)| (*t, Prop::Array(value.clone())))
             ),
-            TProp::List(cell) => Box::new(
-                cell.iter()
-                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            TProp::List(cell) => TPropVariants::List(
+                cell.iter().map(|(t, value)| (*t, Prop::List(value.clone())))
             ),
-            TProp::Map(cell) => {
-                Box::new(cell.iter().map(|(t, value)| (*t, Prop::Map(value.clone()))))
-            }
-            TProp::Decimal(cell) => Box::new(
-                cell.iter()
-                    .map(|(t, value)| (*t, Prop::Decimal(value.clone()))),
+            TProp::Map(cell) => TPropVariants::Map(
+                cell.iter().map(|(t, value)| (*t, Prop::Map(value.clone())))
+            ),
+            TProp::Decimal(cell) => TPropVariants::Decimal(
+                cell.iter().map(|(t, value)| (*t, Prop::Decimal(value.clone())))
             ),
         }
     }
