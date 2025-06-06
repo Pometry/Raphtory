@@ -37,6 +37,7 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), GID::U64(1));
 //! ```
 
+use crate::core::utils::errors::GraphError;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -76,7 +77,6 @@ use std::{
     iter,
     ops::Range,
 };
-use crate::core::utils::errors::GraphError;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]
@@ -315,13 +315,13 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .unwrap()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         if self.window_is_empty() {
             return vec![];
         }
         self.temporal_prop_vec(id)
             .into_iter()
-            .map(|(t, _)| t)
+            .map(|(t, _)| TimeIndexEntry::from(t))
             .collect()
     }
 

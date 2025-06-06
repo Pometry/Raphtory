@@ -56,10 +56,13 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::ArcStr, timeindex::TimeError},
+    utils::hashing::calculate_hash,
+};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
-use raphtory_api::core::storage::timeindex::TimeError;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]

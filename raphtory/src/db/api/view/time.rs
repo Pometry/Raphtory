@@ -3,7 +3,7 @@ use crate::{
         storage::timeindex::AsTime,
         utils::{
             errors::GraphError,
-            time::{error::ParseTimeError, Interval, IntervalSize, IntoTime}
+            time::{error::ParseTimeError, Interval, IntervalSize, IntoTime},
         },
     },
     db::api::view::{
@@ -12,7 +12,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::{GraphType};
+use raphtory_api::GraphType;
 use std::{
     cmp::{max, min},
     marker::PhantomData,

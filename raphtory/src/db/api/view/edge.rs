@@ -16,10 +16,7 @@ use crate::{
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{
-    entities::GID,
-    storage::{arc_str::ArcStr, timeindex::TimeError},
-};
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -255,7 +252,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(
             |g, e| match g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e)) {
                 Some(t) => t.dt().map(|dt| Some(dt)).map_err(GraphError::from),
-                None => Ok(None)
+                None => Ok(None),
             },
         )
     }
@@ -264,7 +261,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(
             |g, e| match g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e)) {
                 Some(t) => t.dt().map(|dt| Some(dt)).map_err(GraphError::from),
-                None => Ok(None)
+                None => Ok(None),
             },
         )
     }

@@ -1608,6 +1608,7 @@ mod test_deletions {
                 .get("test_prop")
                 .unwrap()
                 .history()
+                .iter_t()
                 .collect_vec(),
             [1, 11]
         );
@@ -1618,6 +1619,7 @@ mod test_deletions {
                 .get("test_prop")
                 .unwrap()
                 .history()
+                .iter_t()
                 .collect_vec(),
             [10]
         );

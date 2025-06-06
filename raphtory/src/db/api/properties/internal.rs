@@ -1,14 +1,11 @@
+use crate::core::utils::errors::GraphError;
 use crate::{
     core::{storage::timeindex::AsTime, Prop, PropType},
     db::api::view::{internal::Base, BoxedLIter},
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::{
-    arc_str::ArcStr,
-    timeindex::{TimeIndexEntry},
-};
-use crate::core::utils::errors::GraphError;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
@@ -17,10 +14,9 @@ pub trait TemporalPropertyViewOps {
         self.temporal_values(id).last().cloned()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64>; // TODO: Change this to Vec<TimeIndexEntry> and fix all the errors that come
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry>;
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
-        // TODO: Change too
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         Box::new(self.temporal_history(id).into_iter())
     }
 
@@ -37,7 +33,11 @@ pub trait TemporalPropertyViewOps {
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        let history = self.temporal_history(id);
+        let history = self
+            .temporal_history(id)
+            .iter()
+            .map(|t| t.t())
+            .collect::<Vec<_>>();
         match history.binary_search(&t) {
             Ok(index) => Some(self.temporal_values(id)[index].clone()),
             Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
@@ -107,12 +107,14 @@ where
     }
 
     #[inline]
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         self.base().temporal_history(id)
     }
     #[inline]
     fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
-        self.base().temporal_history_date_time(id).map_err(GraphError::from)
+        self.base()
+            .temporal_history_date_time(id)
+            .map_err(GraphError::from)
     }
 
     #[inline]

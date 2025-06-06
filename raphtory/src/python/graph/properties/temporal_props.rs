@@ -1,3 +1,4 @@
+use crate::core::utils::errors::GraphError;
 use crate::{
     core::{utils::time::IntoTime, Prop, PropUnwrap},
     db::api::{
@@ -9,7 +10,10 @@ use crate::{
         view::internal::{DynamicGraph, Static},
     },
     python::{
-        graph::properties::{PyPropValueList, PyPropValueListList},
+        graph::{
+            history::PyHistory,
+            properties::{PyPropValueList, PyPropValueListList},
+        },
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
@@ -32,7 +36,6 @@ use pyo3::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-use crate::core::utils::errors::GraphError;
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
     fn from(value: P) -> Self {
@@ -129,12 +132,13 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
-    fn histories_date_time(&self) -> Result<HashMap<ArcStr, Vec<(DateTime<Utc>, Prop)>>, GraphError> {
+    fn histories_date_time(
+        &self,
+    ) -> Result<HashMap<ArcStr, Vec<(DateTime<Utc>, Prop)>>, GraphError> {
         self.props
             .iter()
             .map(|(k, v)| {
-                let histories = v.histories_date_time()
-                    .map(|h| h.collect())?;
+                let histories = v.histories_date_time().map(|h| h.collect())?;
                 Ok((k, histories))
             })
             .collect::<Result<HashMap<_, _>, GraphError>>()
@@ -228,7 +232,7 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 #[pymethods]
 impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
-    pub fn history(&self) -> NumpyArray {
+    pub fn history(&self) -> PyHistory {
         // TODO: Change this to history object?
         self.prop.history().collect::<Vec<_>>().into()
     }

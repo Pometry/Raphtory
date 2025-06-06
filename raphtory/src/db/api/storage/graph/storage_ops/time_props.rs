@@ -2,7 +2,7 @@ use super::GraphStorage;
 use crate::{
     core::{
         utils::{errors::GraphError, iter::GenLockedIter},
-        PropType
+        PropType,
     },
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -22,20 +22,20 @@ impl TemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         self.graph_meta()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter_t().map(|(t, _)| t).collect())
+            .map(|prop| prop.iter().map(|(t, _)| t).collect())
             .unwrap_or_default()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         Box::new(
             self.graph_meta()
                 .get_temporal_prop(id)
                 .into_iter()
                 .flat_map(|prop| {
-                    GenLockedIter::from(prop, |prop| Box::new(prop.iter_t().map(|(t, _)| t)))
+                    GenLockedIter::from(prop, |prop| Box::new(prop.iter().map(|(t, _)| t)))
                 }),
         )
     }
@@ -55,16 +55,13 @@ impl TemporalPropertyViewOps for GraphStorage {
         })
     }
 
-    fn temporal_history_date_time(
-        &self,
-        id: usize,
-    ) -> Result<Vec<DateTime<Utc>>, GraphError> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         match self.graph_meta().get_temporal_prop(id) {
             Some(tprop) => tprop
                 .iter_t()
                 .map(|(t, _)| t.dt().map_err(GraphError::from))
                 .collect::<Result<Vec<_>, GraphError>>(),
-            None => Ok(Vec::new())
+            None => Ok(Vec::new()),
         }
     }
 

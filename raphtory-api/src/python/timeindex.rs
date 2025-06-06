@@ -1,7 +1,7 @@
 use crate::core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry};
 use chrono::{DateTime, Utc};
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use pyo3::exceptions::PyException;
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     type Target = PyRaphtoryTime;

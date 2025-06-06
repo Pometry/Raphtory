@@ -14,7 +14,7 @@ use pyo3::PyErr;
 use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
     entities::{properties::PropError, GID, VID},
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::TimeError},
     PropType,
 };
 use std::{
@@ -28,7 +28,6 @@ use tantivy;
 #[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
 use tracing::error;
-use raphtory_api::core::storage::timeindex::TimeError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -288,7 +287,11 @@ pub enum GraphError {
     TimeAPIError,
 
     #[error("Timestamp '{timestamp}' is out of range for DateTime conversion.")]
-    DateTimeConversionError{#[source] source: TimeError, timestamp: i64},
+    DateTimeConversionError {
+        #[source]
+        source: TimeError,
+        timestamp: i64,
+    },
 
     #[error("Illegal set error {0}")]
     IllegalSet(String),
@@ -413,7 +416,10 @@ impl<A: Debug> From<IllegalSet<A>> for GraphError {
 impl From<TimeError> for GraphError {
     fn from(error: TimeError) -> Self {
         match error {
-            TimeError::OutOfRange(timestamp) => Self::DateTimeConversionError{source: error, timestamp},
+            TimeError::OutOfRange(timestamp) => Self::DateTimeConversionError {
+                source: error,
+                timestamp,
+            },
         }
     }
 }

@@ -79,8 +79,16 @@ impl<T: InternalHistoryOps> History<T> {
         self.0.iter()
     }
 
+    pub fn iter_t(&self) -> BoxedLIter<i64> {
+        self.0.iter().map(|t| t.t()).into_dyn_boxed()
+    }
+
     pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter_rev()
+    }
+
+    pub fn iter_rev_t(&self) -> BoxedLIter<i64> {
+        self.0.iter_rev().map(|t| t.t()).into_dyn_boxed()
     }
 
     pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
@@ -221,7 +229,6 @@ impl InternalHistoryOps for CompositeHistory {
 }
 
 // TODO: Change earliest_time and latest_time implementations to use the built in earliest_time and latest_time functions
-// TODO: Might wanna remove NodeView and EdgeView if I'm gonna have the NodeHistory struct above
 // They are probably more efficient. New PR will have iter_rev implementation
 impl<G: TimeSemantics + Send + Sync> InternalHistoryOps for NodeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -271,9 +278,7 @@ impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for E
 impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
     // FIXME: This probably isn't great, also we're defining iter() twice but I'm not getting an error
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.history()
-            .map(|x| TimeIndexEntry::from(x))
-            .into_dyn_boxed()
+        self.props.temporal_history_iter(self.id)
     }
 
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {

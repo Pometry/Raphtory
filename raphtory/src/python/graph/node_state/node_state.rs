@@ -2,7 +2,8 @@ use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::GraphError},
+        utils::errors::GraphError,
+    },
     db::{
         api::{
             state::{
@@ -577,6 +578,19 @@ impl_node_state_ord!(
     "NodeStateOptionListDateTime",
     "Optional[list[datetime]]"
 );
+//
+// type HistoryDateTimeResult<G> = ops::Map<ops::HistoryOp<G>, Result<Vec<DateTime<Utc>>, TimeError>>;
+// impl_lazy_node_state_ord!(
+//     HistoryDateTimeResultView<HistoryDateTimeResult<DynamicGraph>>,
+//     "NodeStateResultListDateTime",
+//     "Result[list[datetime], TimeError]"
+// );
+// impl_one_hop!(HistoryDateTimeResultView<HistoryDateTimeResult>, "HistoryDateTimeResultView");
+// impl_node_state_ord!(
+//     NodeStateResultListDateTime<Result<Vec<DateTime<Utc>>, TimeError>>,
+//     "NodeStateResultListDateTime",
+//     "Result[list[datetime], TimeError]"
+// );
 
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,
