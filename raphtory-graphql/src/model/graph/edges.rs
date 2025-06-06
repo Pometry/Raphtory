@@ -11,11 +11,11 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::view::{internal::OneHopFilter, DynamicGraph},
         graph::edges::Edges,
     },
+    errors::GraphError,
     prelude::{EdgeViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::iter::IntoDynBoxed;
@@ -96,7 +96,7 @@ impl GqlEdges {
                             .ee
                             .rolling(window_duration, Some(step_duration))?,
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlEdgesWindowSet::new(
                     self_clone.ee.rolling(window_duration, None)?,
@@ -104,7 +104,7 @@ impl GqlEdges {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlEdgesWindowSet::new(
                         self_clone
                             .ee

@@ -6,12 +6,12 @@ use crate::{
 use itertools::Itertools;
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::{GraphError, InvalidPathReason},
     db::api::view::MaterializedGraph,
+    errors::{GraphError, InvalidPathReason},
     prelude::CacheOps,
     vectors::{
-        cache::VectorCache, embeddings::openai_embedding, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
@@ -233,18 +233,15 @@ pub(crate) mod data_tests {
         data::Data,
     };
     use itertools::Itertools;
-    use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::*};
+    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
     use std::{collections::HashMap, fs, fs::File, io, path::Path};
 
     #[cfg(feature = "storage")]
-    use raphtory::{
-        db::api::storage::graph::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
-        disk_graph::DiskGraphStorage,
+    use {
+        raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage},
+        std::path::PathBuf,
+        std::{thread, time::Duration},
     };
-    #[cfg(feature = "storage")]
-    use std::path::PathBuf;
-    #[cfg(feature = "storage")]
-    use std::{thread, time::Duration};
 
     #[cfg(feature = "storage")]
     fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {

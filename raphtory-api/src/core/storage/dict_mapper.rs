@@ -48,6 +48,17 @@ impl<Index> MaybeNew<Index> {
     }
 
     #[inline]
+    pub fn try_map<R, E>(
+        self,
+        map_fn: impl FnOnce(Index) -> Result<R, E>,
+    ) -> Result<MaybeNew<R>, E> {
+        match self {
+            MaybeNew::New(inner) => Ok(MaybeNew::New(map_fn(inner)?)),
+            MaybeNew::Existing(inner) => Ok(MaybeNew::Existing(map_fn(inner)?)),
+        }
+    }
+
+    #[inline]
     pub fn as_ref(&self) -> MaybeNew<&Index> {
         match self {
             MaybeNew::New(inner) => MaybeNew::New(inner),
@@ -141,9 +152,10 @@ impl DictMapper {
 
     pub fn get_name(&self, id: usize) -> ArcStr {
         let guard = self.reverse_map.read();
-        guard.get(id).cloned().expect(&format!(
-            "internal ids should always be mapped to a name {id}"
-        ))
+        guard
+            .get(id)
+            .cloned()
+            .expect("internal ids should always be mapped to a name")
     }
 
     pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {

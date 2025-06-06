@@ -66,9 +66,10 @@ harness = false
 name = "proto_decode"
 harness = false
 
-# [[bench]]
-# name = "arrow_algobench"
-# harness = false
+[[bench]]
+name = "arrow_algobench"
+harness = false
+required-features = ["storage"]
 
 [[bench]]
 name = "search_bench"
@@ -81,3 +82,4 @@ harness = false
 
 [features]
 search = ["raphtory/search"]
+storage = ["raphtory/storage"]

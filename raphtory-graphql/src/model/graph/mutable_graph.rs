@@ -5,8 +5,8 @@ use crate::{
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::GraphError,
     db::graph::{edge::EdgeView, node::NodeView},
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
@@ -160,18 +160,16 @@ impl GqlMutableGraph {
                                 .add_node(prop.time, name, prop_iter, None)?;
                         }
                         if let Some(node_type) = node.node_type.as_str() {
-                            self_clone
-                                .get_node_view(name.to_string())?
-                                .set_node_type(node_type)?;
+                            self_clone.get_node_view(name)?.set_node_type(node_type)?;
                         }
                         let constant_props = node.constant_properties.unwrap_or(vec![]);
                         if !constant_props.is_empty() {
                             let prop_iter = as_properties(constant_props)?;
                             self_clone
-                                .get_node_view(name.to_string())?
+                                .get_node_view(name)?
                                 .add_constant_properties(prop_iter)?;
                         }
-                        self_clone.get_node_view(name.to_string())
+                        self_clone.get_node_view(name)
                     })
                     .collect()
             })
@@ -346,9 +344,9 @@ impl GqlMutableGraph {
 }
 
 impl GqlMutableGraph {
-    fn get_node_view(&self, name: String) -> Result<NodeView<GraphWithVectors>, GraphError> {
+    fn get_node_view(&self, name: &str) -> Result<NodeView<'static, GraphWithVectors>, GraphError> {
         self.graph
-            .node(name.clone())
+            .node(name)
             .ok_or_else(|| GraphError::NodeMissingError(GID::Str(name.to_owned())))
     }
 
@@ -369,11 +367,11 @@ impl GqlMutableGraph {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableNode")]
 pub struct GqlMutableNode {
-    node: NodeView<GraphWithVectors>,
+    node: NodeView<'static, GraphWithVectors>,
 }
 
-impl From<NodeView<GraphWithVectors>> for GqlMutableNode {
-    fn from(node: NodeView<GraphWithVectors>) -> Self {
+impl From<NodeView<'static, GraphWithVectors>> for GqlMutableNode {
+    fn from(node: NodeView<'static, GraphWithVectors>) -> Self {
         Self { node }
     }
 }

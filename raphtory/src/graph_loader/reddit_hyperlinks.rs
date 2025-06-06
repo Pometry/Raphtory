@@ -38,7 +38,7 @@
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
-use crate::{core::Prop, db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
+use crate::{db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
 use chrono::*;
 use itertools::Itertools;
 use std::{

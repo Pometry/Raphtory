@@ -1,13 +1,11 @@
+use super::vector_selection::GqlVectorSelection;
+use crate::{embeddings::EmbedQuery, model::blocking};
 use async_graphql::Context;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::GraphResult, db::api::view::MaterializedGraph,
+    db::api::view::MaterializedGraph, errors::GraphResult,
     vectors::vectorised_graph::VectorisedGraph,
 };
-
-use crate::{embeddings::EmbedQuery, model::blocking};
-
-use super::vector_selection::GqlVectorSelection;
 
 #[derive(InputObject)]
 pub(super) struct Window {

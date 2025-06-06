@@ -1,16 +1,3 @@
-use either::Either;
-use itertools::Itertools;
-use std::{collections::HashSet, usize};
-
-use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
-    db::{
-        api::view::{DynamicGraph, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::{EdgeViewOps, NodeViewOps, *},
-};
-
 use super::{
     db::EntityDb,
     entity_ref::EntityRef,
@@ -18,6 +5,18 @@ use super::{
     vectorised_graph::VectorisedGraph,
     Document, DocumentEntity, Embedding,
 };
+use crate::{
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::{
+        api::view::{DynamicGraph, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    errors::GraphResult,
+    prelude::{EdgeViewOps, NodeViewOps, *},
+};
+use either::Either;
+use itertools::Itertools;
+use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
 enum ExpansionPath {
@@ -56,7 +55,7 @@ impl Selected {
         limit: usize,
     ) {
         let selection_set: HashSet<EntityRef> =
-            HashSet::from_iter(self.0.iter().map(|(doc, _)| doc.clone()));
+            HashSet::from_iter(self.0.iter().map(|(doc, _)| *doc));
         let new_docs = extension
             .into_iter()
             .unique_by(|(entity, _)| *entity)
@@ -98,7 +97,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the nodes present in the current selection
-    pub fn nodes(&self) -> Vec<NodeView<G>> {
+    pub fn nodes(&self) -> Vec<NodeView<'static, G>> {
         let g = &self.graph.source_graph;
         self.selected
             .iter()
@@ -351,7 +350,7 @@ impl EntityRef {
         view: &G,
         jump: bool,
     ) -> impl Iterator<Item = EntityRef> {
-        let nodes: Box<dyn Iterator<Item = NodeView<_>>> =
+        let nodes: Box<dyn Iterator<Item = NodeView<'static, _>>> =
             if let Some(node) = self.as_node_view(view) {
                 if jump {
                     let docs = node.neighbours().into_iter();

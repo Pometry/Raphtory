@@ -38,5 +38,5 @@ use minijinja_contrib::filters::datetimeformat as minijinja_datetimeformat;
 pub fn datetimeformat(state: &State, value: Value, kwargs: Kwargs) -> Result<String, Error> {
     let millis = i64::try_from(value)?;
     let seconds: f64 = (millis as f64) / 1000f64;
-    minijinja_datetimeformat(state, Value::from(Value::from(seconds)), kwargs)
+    minijinja_datetimeformat(state, Value::from(seconds), kwargs)
 }

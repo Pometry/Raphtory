@@ -127,7 +127,7 @@ impl ComputeState for ComputeStateVec {
         let zero = vec.zero();
         let inner_vec = vec.current(ss);
         let vec_len = inner_vec.len();
-        let extend_iter = std::iter::repeat(zero).take(extend_to - vec_len);
+        let extend_iter = std::iter::repeat_n(zero, extend_to - vec_len);
         let iter = inner_vec.iter().chain(extend_iter);
         Box::new(iter)
     }

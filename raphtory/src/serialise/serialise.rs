@@ -2,22 +2,12 @@ use super::{proto_ext::PropTypeExt, GraphFolder};
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, LayerIds},
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, LayerIds},
     db::{
-        api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-                storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
-            },
-            view::{internal::CoreGraphOps, MaterializedGraph, StaticGraphViewOps},
-        },
+        api::view::{MaterializedGraph, StaticGraphViewOps},
         graph::views::deletion_graph::PersistentGraph,
     },
+    errors::GraphError,
     prelude::{AdditionOps, Graph},
     serialise::{
         proto::{self, graph_update::*, new_meta::*, new_node::Gid},
@@ -27,12 +17,29 @@ use crate::{
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{properties::props::PropMapper, GidRef, EID, VID},
-    storage::timeindex::TimeIndexEntry,
-    unify_types, Direction, PropType,
+    entities::{
+        properties::{
+            meta::PropMapper,
+            prop::{unify_types, Prop, PropType},
+            tprop::TPropOps,
+        },
+        GidRef, EID, VID,
+    },
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    Direction,
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
+    mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    },
 };
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::{iter, ops::Deref, sync::Arc};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -122,6 +129,7 @@ impl StableEncode for GraphStorage {
             .temporal_props()
             .map(|(key, values)| {
                 values
+                    .deref()
                     .iter()
                     .map(move |(t, v)| (t, (key, v)))
                     .collect::<Vec<_>>()
@@ -420,8 +428,8 @@ impl InternalStableDecode for TemporalGraph {
             update_meta(
                 const_prop_types,
                 temp_prop_types,
-                &storage.edge_meta.const_prop_meta(),
-                &storage.edge_meta.temporal_prop_meta(),
+                storage.edge_meta.const_prop_meta(),
+                storage.edge_meta.temporal_prop_meta(),
             );
         }
 
@@ -451,10 +459,10 @@ impl InternalStableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -462,10 +470,10 @@ impl InternalStableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -537,8 +545,8 @@ impl InternalStableDecode for TemporalGraph {
             update_meta(
                 const_prop_types,
                 temp_prop_types,
-                &storage.node_meta.const_prop_meta(),
-                &storage.node_meta.temporal_prop_meta(),
+                storage.node_meta.const_prop_meta(),
+                storage.node_meta.temporal_prop_meta(),
             );
         }
 
@@ -583,7 +591,7 @@ impl InternalStableDecode for TemporalGraph {
                 const_prop_types,
                 temp_prop_types,
                 &PropMapper::default(),
-                &storage.graph_meta.temporal_prop_meta(),
+                storage.graph_meta.temporal_prop_meta(),
             );
         }
         Ok(storage)
@@ -614,14 +622,14 @@ fn unify_property_types(
     r_temp: &[PropType],
 ) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
     let const_pt = l_const
-        .into_iter()
+        .iter()
         .zip(r_const)
-        .map(|(l, r)| unify_types(&l, &r, &mut false))
+        .map(|(l, r)| unify_types(l, r, &mut false))
         .collect::<Result<Vec<PropType>, _>>()?;
     let temp_pt = l_temp
-        .into_iter()
+        .iter()
         .zip(r_temp)
-        .map(|(l, r)| unify_types(&l, &r, &mut false))
+        .map(|(l, r)| unify_types(l, r, &mut false))
         .collect::<Result<Vec<PropType>, _>>()?;
     Ok((const_pt, temp_pt))
 }
@@ -681,7 +689,7 @@ mod proto_test {
     use super::*;
     use crate::{
         db::{
-            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            api::{mutation::DeletionOps, properties::internal::ConstantPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
@@ -727,7 +735,6 @@ mod proto_test {
 
         let actual: HashMap<_, _> = graph
             .const_prop_keys()
-            .into_iter()
             .map(|key| {
                 let props = graph
                     .nodes()
@@ -915,8 +922,8 @@ mod proto_test {
         let pm = graph.graph_meta().temporal_prop_meta();
         check_prop_mapper(pm);
 
-        let mut vec1 = actual.keys().into_iter().collect::<Vec<_>>();
-        let mut vec2 = expected.keys().into_iter().collect::<Vec<_>>();
+        let mut vec1 = actual.keys().collect::<Vec<_>>();
+        let mut vec2 = expected.keys().collect::<Vec<_>>();
         vec1.sort();
         vec2.sort();
         assert_eq!(vec1, vec2);
@@ -1025,7 +1032,7 @@ mod proto_test {
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
-        let deletions = edge.deletions().iter().copied().collect::<Vec<_>>();
+        let deletions = edge.deletions().to_vec();
         assert_eq!(deletions, vec![19]);
     }
 
@@ -1214,7 +1221,7 @@ mod proto_test {
 
         let g1 = Graph::new();
         for t in 0..props.len() {
-            g1.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+            g1.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add constant properties");
         }
 
@@ -1291,7 +1298,6 @@ mod proto_test {
             .get("test")
             .unwrap()
             .values()
-            .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
         assert_eq!(values, ["test", "test", "test"]);
@@ -1309,7 +1315,6 @@ mod proto_test {
             .get("test")
             .unwrap()
             .values()
-            .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
         assert_eq!(values, ["test", "test", "test"]);
@@ -1331,7 +1336,7 @@ mod proto_test {
         assert_metadata_correct(&folder, &g);
 
         for t in 0..props.len() {
-            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+            g.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add constant properties");
         }
         g.write_updates().unwrap();
@@ -1378,7 +1383,7 @@ mod proto_test {
         g.cache(&temp_cache_file).unwrap();
 
         for t in 0..props.len() {
-            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+            g.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add constant properties");
         }
         g.write_updates().unwrap();

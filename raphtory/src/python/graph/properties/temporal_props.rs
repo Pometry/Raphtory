@@ -1,5 +1,4 @@
 use crate::{
-    core::{utils::time::IntoTime, Prop, PropUnwrap},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -30,7 +29,11 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropUnwrap},
+    storage::arc_str::ArcStr,
+};
+use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
@@ -86,7 +89,7 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 impl PyTemporalProperties {
     /// List the available property keys
     fn keys(&self) -> Vec<ArcStr> {
-        self.props.keys().map(|k| k.clone()).collect()
+        self.props.keys().collect()
     }
 
     /// List the values of the properties
@@ -345,7 +348,7 @@ impl PyTemporalProp {
     ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
     pub fn median(&self) -> Option<(i64, Prop)> {
         let mut sorted: Vec<(i64, Prop)> = self.prop.iter().collect();
-        if !sorted.get(0)?.1.dtype().has_cmp() {
+        if !sorted.first()?.1.dtype().has_cmp() {
             return None;
         }
         sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -488,7 +491,7 @@ impl PyTemporalPropsList {
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().map(|k| k.clone()).collect_vec())
+            .map(|p| p.keys().collect_vec())
             .kmerge()
             .dedup()
             .collect()
@@ -689,7 +692,7 @@ impl PyTemporalPropsListList {
         self.iter()
             .flat_map(
                 |it|             // FIXME: Still have to clone all those strings which sucks
-            it.map(|p| p.keys().map(|k| k.clone()).collect_vec()),
+            it.map(|p| p.keys().collect_vec()),
             )
             .kmerge()
             .dedup()
@@ -849,7 +852,7 @@ impl PyPropHistValueListList {
 
     pub fn median(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|data| compute_median(data)))).into()
+        (move || builder().map(|it| it.map(compute_median))).into()
     }
 
     pub fn max(&self) -> PyPropValueListList {
@@ -890,7 +893,7 @@ impl PyPropHistValueListList {
 
     pub fn mean(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|data| compute_mean(data)))).into()
+        (move || builder().map(|it| it.map(compute_mean))).into()
     }
 }
 
@@ -956,7 +959,7 @@ impl PyPropHistValueList {
 
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
-        (move || builder().map(|data| compute_median(data))).into()
+        (move || builder().map(compute_median)).into()
     }
 
     pub fn average(&self) -> PyPropValueList {
@@ -965,7 +968,7 @@ impl PyPropHistValueList {
 
     pub fn mean(&self) -> PyPropValueList {
         let builder = self.builder.clone();
-        (move || builder().map(|data| compute_mean(data))).into()
+        (move || builder().map(compute_mean)).into()
     }
 
     pub fn count(&self) -> UsizeIterable {
@@ -1138,5 +1141,5 @@ fn compute_generalised_sum<V>(
     if !check(&first_value) {
         return None;
     }
-    iter.try_fold(first_value, |acc, v| op(acc, v))
+    iter.try_fold(first_value, op)
 }

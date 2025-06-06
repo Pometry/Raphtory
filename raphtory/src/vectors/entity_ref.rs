@@ -1,10 +1,13 @@
+use crate::{
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::GraphViewOps,
+};
 use either::Either;
 use raphtory_api::core::entities::GID;
-
-use crate::db::{
-    api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::StaticGraphViewOps},
-    graph::{edge::EdgeView, node::NodeView},
-};
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum EntityRef {
@@ -12,8 +15,8 @@ pub(super) enum EntityRef {
     Edge(u32),
 }
 
-impl<G: StaticGraphViewOps> From<NodeView<G>> for EntityRef {
-    fn from(value: NodeView<G>) -> Self {
+impl<G: StaticGraphViewOps> From<NodeView<'static, G>> for EntityRef {
+    fn from(value: NodeView<'static, G>) -> Self {
         EntityRef::Node(value.into_db_id())
     }
 }
@@ -35,14 +38,17 @@ impl EntityRef {
     pub(super) fn resolve_entity<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-    ) -> Option<Either<NodeView<G>, EdgeView<G>>> {
+    ) -> Option<Either<NodeView<'static, G>, EdgeView<G>>> {
         match self.resolve_entity_gids(graph) {
             Either::Left(node) => Some(Either::Left(graph.node(node)?)),
             Either::Right((src, dst)) => Some(Either::Right(graph.edge(src, dst)?)),
         }
     }
 
-    pub(super) fn as_node_view<G: StaticGraphViewOps>(&self, graph: &G) -> Option<NodeView<G>> {
+    pub(super) fn as_node_view<G: StaticGraphViewOps>(
+        &self,
+        graph: &G,
+    ) -> Option<NodeView<'static, G>> {
         self.resolve_entity(graph)?.left()
     }
 
@@ -77,7 +83,7 @@ pub(super) trait IntoDbId {
     fn into_db_id(self) -> u32;
 }
 
-impl<G: StaticGraphViewOps> IntoDbId for NodeView<G> {
+impl<G: StaticGraphViewOps> IntoDbId for NodeView<'static, G> {
     fn into_db_id(self) -> u32 {
         self.node.index() as u32
     }

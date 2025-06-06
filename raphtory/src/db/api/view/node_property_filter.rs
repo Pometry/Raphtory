@@ -1,13 +1,11 @@
 use crate::{
-    core::utils::errors::GraphError,
-    db::{
-        api::view::internal::OneHopFilter, graph::views::filter::internal::InternalNodeFilterOps,
-    },
+    db::{api::view::internal::OneHopFilter, graph::views::filter::internal::CreateNodeFilter},
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 
 pub trait NodePropertyFilterOps<'graph>: OneHopFilter<'graph> {
-    fn filter_nodes<F: InternalNodeFilterOps>(
+    fn filter_nodes<F: CreateNodeFilter>(
         &self,
         filter: F,
     ) -> Result<Self::Filtered<F::NodeFiltered<'graph, Self::FilteredGraph>>, GraphError> {

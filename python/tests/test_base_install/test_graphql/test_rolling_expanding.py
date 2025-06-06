@@ -558,7 +558,7 @@ def test_nodes():
                                         "degree": 2,
                                         "start": None,
                                         "end": 3,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 2,
                                     }
                                 ]
@@ -570,7 +570,7 @@ def test_nodes():
                                         "degree": 2,
                                         "start": None,
                                         "end": 4,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 3,
                                     }
                                 ]
@@ -582,7 +582,7 @@ def test_nodes():
                                         "degree": 2,
                                         "start": None,
                                         "end": 5,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 4,
                                     }
                                 ]
@@ -594,7 +594,7 @@ def test_nodes():
                                         "degree": 2,
                                         "start": None,
                                         "end": 6,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 4,
                                     }
                                 ]
@@ -609,7 +609,7 @@ def test_nodes():
                                         "degree": 2,
                                         "start": None,
                                         "end": 5,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 4,
                                     }
                                 ]
@@ -621,7 +621,7 @@ def test_nodes():
                                         "degree": 2,
                                         "start": None,
                                         "end": 6,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 4,
                                     }
                                 ]
@@ -937,25 +937,25 @@ def test_edge():
                             {
                                 "start": None,
                                 "end": 3,
-                                "earliestTime": 1,
+                                "earliestTime": 2,
                                 "latestTime": 2,
                             },
                             {
                                 "start": None,
                                 "end": 4,
-                                "earliestTime": 1,
+                                "earliestTime": 2,
                                 "latestTime": 3,
                             },
                             {
                                 "start": None,
                                 "end": 5,
-                                "earliestTime": 1,
+                                "earliestTime": 2,
                                 "latestTime": 3,
                             },
                             {
                                 "start": None,
                                 "end": 6,
-                                "earliestTime": 1,
+                                "earliestTime": 2,
                                 "latestTime": 3,
                             },
                         ],
@@ -964,13 +964,13 @@ def test_edge():
                             {
                                 "start": None,
                                 "end": 5,
-                                "earliestTime": 1,
+                                "earliestTime": 2,
                                 "latestTime": 3,
                             },
                             {
                                 "start": None,
                                 "end": 6,
-                                "earliestTime": 1,
+                                "earliestTime": 2,
                                 "latestTime": 3,
                             },
                         ],
@@ -1125,7 +1125,7 @@ def test_edges():
                                         "id": ["1", "2"],
                                         "start": None,
                                         "end": 3,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 2,
                                     }
                                 ]
@@ -1136,7 +1136,7 @@ def test_edges():
                                         "id": ["1", "2"],
                                         "start": None,
                                         "end": 4,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 3,
                                     }
                                 ]
@@ -1147,7 +1147,7 @@ def test_edges():
                                         "id": ["1", "2"],
                                         "start": None,
                                         "end": 5,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 3,
                                     }
                                 ]
@@ -1158,7 +1158,7 @@ def test_edges():
                                         "id": ["1", "2"],
                                         "start": None,
                                         "end": 6,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 3,
                                     }
                                 ]
@@ -1172,7 +1172,7 @@ def test_edges():
                                         "id": ["1", "2"],
                                         "start": None,
                                         "end": 5,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 3,
                                     }
                                 ]
@@ -1183,7 +1183,7 @@ def test_edges():
                                         "id": ["1", "2"],
                                         "start": None,
                                         "end": 6,
-                                        "earliestTime": 1,
+                                        "earliestTime": 2,
                                         "latestTime": 3,
                                     }
                                 ]

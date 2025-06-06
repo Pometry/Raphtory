@@ -6,8 +6,8 @@ use crate::model::graph::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{api::view::DynamicGraph, graph::path::PathFromNode},
+    errors::GraphError,
     prelude::*,
 };
 use tokio::task::spawn_blocking;
@@ -79,7 +79,7 @@ impl GqlPathFromNode {
                             .nn
                             .rolling(window_duration, Some(step_duration))?,
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlPathFromNodeWindowSet::new(
                     self_clone.nn.rolling(window_duration, None)?,
@@ -87,7 +87,7 @@ impl GqlPathFromNode {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlPathFromNodeWindowSet::new(
                         self_clone
                             .nn

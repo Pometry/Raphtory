@@ -1,5 +1,4 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::StaticGraphViewOps,
         graph::{
@@ -8,6 +7,7 @@ use crate::{
             views::filter::model::{AsEdgeFilter, AsNodeFilter},
         },
     },
+    errors::GraphError,
     search::{
         edge_filter_executor::EdgeFilterExecutor, graph_index::GraphIndex,
         node_filter_executor::NodeFilterExecutor,
@@ -34,7 +34,7 @@ impl<'a> Searcher<'a> {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<G>>, GraphError>
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         G: StaticGraphViewOps,
         F: AsNodeFilter,
@@ -74,7 +74,6 @@ mod search_tests {
     #[cfg(test)]
     mod search_nodes {
         use crate::{
-            core::IntoProp,
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
@@ -83,6 +82,7 @@ mod search_tests {
             },
             prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
         };
+        use raphtory_api::core::entities::properties::prop::IntoProp;
 
         fn fuzzy_search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
             let graph = Graph::new();
@@ -159,7 +159,6 @@ mod search_tests {
     #[cfg(test)]
     mod search_edges {
         use crate::{
-            core::IntoProp,
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
@@ -170,6 +169,7 @@ mod search_tests {
                 AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter,
             },
         };
+        use raphtory_api::core::entities::properties::prop::IntoProp;
 
         fn fuzzy_search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();

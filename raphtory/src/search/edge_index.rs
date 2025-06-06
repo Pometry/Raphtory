@@ -1,12 +1,7 @@
 use crate::{
-    core::{entities::EID, storage::timeindex::TimeIndexEntry, utils::errors::GraphError},
-    db::{
-        api::{
-            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, storage_ops::GraphStorage},
-            view::{internal::core_ops::CoreGraphOps, IndexSpec},
-        },
-        graph::edge::EdgeView,
-    },
+    core::{entities::EID, storage::timeindex::TimeIndexEntry},
+    db::{api::view::IndexSpec, graph::edge::EdgeView},
+    errors::GraphError,
     prelude::*,
     search::{
         entity_index::EntityIndex,
@@ -14,10 +9,15 @@ use crate::{
         resolve_props, TOKENIZER,
     },
 };
+use ahash::HashSet;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    layer_ops::InternalLayerOps,
+};
 use rayon::prelude::ParallelIterator;
 use std::{
-    collections::HashSet,
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
@@ -182,7 +182,7 @@ impl EdgeIndex {
             .get_field(format!("{field_name}_tokenized").as_ref())
     }
 
-    fn create_document<'a>(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
+    fn create_document(&self, edge_id: u64, src: String, dst: String) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.edge_id_field, edge_id);
         document.add_text(self.src_field, src.clone());
@@ -292,7 +292,7 @@ impl EdgeIndex {
                 )?;
 
                 for edge in edge.explode() {
-                    if let Some(time) = edge.time_and_index() {
+                    if let Ok(time) = edge.time_and_index() {
                         let temporal_properties = self.collect_temporal_properties(&edge);
                         self.entity_index.index_edge_temporal_properties(
                             time,
@@ -336,14 +336,17 @@ impl EdgeIndex {
             )?;
 
         let mut writer = self.entity_index.index.writer(100_000_000)?;
-        let locked_g = graph.core_graph();
-        locked_g.edges_par(&graph).try_for_each(|e_ref| {
-            {
-                let e_view = EdgeView::new(graph.clone(), e_ref);
-                self.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
-            }
-            Ok::<(), GraphError>(())
-        })?;
+        let locked_edges = graph.core_edges();
+        locked_edges
+            .par_iter(&graph.layer_ids())
+            .try_for_each(|e| {
+                let e_ref = e.out_ref();
+                {
+                    let e_view = EdgeView::new(graph.clone(), e_ref);
+                    self.index_edge(graph, e_view, &writer, &const_writers, &temporal_writers)?;
+                }
+                Ok::<(), GraphError>(())
+            })?;
 
         // Commit writers
         self.entity_index.commit_writers(&mut const_writers)?;

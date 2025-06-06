@@ -6,7 +6,7 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     python::{
         types::repr::{Repr, StructReprBuilder},
-        utils::{errors::adapt_err_value, PyNodeRef},
+        utils::PyNodeRef,
     },
 };
 use pyo3::{
@@ -14,6 +14,7 @@ use pyo3::{
     types::{PyFloat, PyInt},
 };
 use rand::Rng;
+use raphtory_api::python::error::adapt_err_value;
 
 impl Repr for Infected {
     fn repr(&self) -> String {

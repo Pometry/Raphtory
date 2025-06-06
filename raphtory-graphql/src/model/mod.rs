@@ -4,7 +4,7 @@ use crate::{
     model::{
         graph::{
             graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
-            vectorised_graph::GqlVectorisedGraph,
+            namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -16,13 +16,9 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
-
-use crate::model::graph::namespaces::Namespaces;
-#[cfg(feature = "storage")]
-use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
-    core::utils::errors::{GraphError, InvalidPathReason},
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
+    errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::InternalStableDecode,
 };
@@ -33,6 +29,9 @@ use std::{
     sync::Arc,
 };
 use zip::ZipArchive;
+
+#[cfg(feature = "storage")]
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
 pub(crate) mod graph;
 pub mod plugins;

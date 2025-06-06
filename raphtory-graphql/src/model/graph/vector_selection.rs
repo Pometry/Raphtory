@@ -1,16 +1,15 @@
-use crate::{embeddings::EmbedQuery, model::blocking};
-use async_graphql::Context;
-use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
-use raphtory::{
-    core::utils::errors::GraphResult, db::api::view::MaterializedGraph,
-    vectors::vector_selection::VectorSelection,
-};
-
 use super::{
     document::GqlDocument,
     edge::GqlEdge,
     node::GqlNode,
     vectorised_graph::{IntoWindowTuple, Window},
+};
+use crate::{embeddings::EmbedQuery, model::blocking};
+use async_graphql::Context;
+use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
+use raphtory::{
+    db::api::view::MaterializedGraph, errors::GraphResult,
+    vectors::vector_selection::VectorSelection,
 };
 
 #[derive(InputObject)]

@@ -1,25 +1,22 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::nodes::node_ref::NodeStorageRef,
-            view::{
-                internal::{
-                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, NodeFilterOps, Static,
-                },
-                Base,
+            view::internal::{
+                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
         graph::views::filter::{
-            internal::InternalNodeFilterOps, model::property_filter::PropertyFilter,
+            internal::CreateNodeFilter, model::property_filter::PropertyFilter,
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
@@ -29,7 +26,7 @@ pub struct NodePropertyFilteredGraph<G> {
     filter: PropertyFilter,
 }
 
-impl<'graph, G> NodePropertyFilteredGraph<G> {
+impl<G> NodePropertyFilteredGraph<G> {
     pub(crate) fn new(
         graph: G,
         t_prop_id: Option<usize>,
@@ -45,7 +42,7 @@ impl<'graph, G> NodePropertyFilteredGraph<G> {
     }
 }
 
-impl InternalNodeFilterOps for PropertyFilter {
+impl CreateNodeFilter for PropertyFilter {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodePropertyFilteredGraph<G>;
 
     fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
@@ -60,7 +57,7 @@ impl InternalNodeFilterOps for PropertyFilter {
     }
 }
 
-impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
+impl<G> Base for NodePropertyFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {
@@ -71,7 +68,7 @@ impl<'graph, G> Base for NodePropertyFilteredGraph<G> {
 impl<G> Static for NodePropertyFilteredGraph<G> {}
 impl<G> Immutable for NodePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
@@ -82,25 +79,25 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilteredGraph<G> {
     #[inline]
-    fn nodes_filtered(&self) -> bool {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         false
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         false
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.filter_node(node, layer_ids) {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        if self.graph.internal_filter_node(node, layer_ids) {
             self.filter
                 .matches_node(&self.graph, self.t_prop_id, self.c_prop_id, node)
         } else {

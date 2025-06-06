@@ -12,6 +12,15 @@ impl<K: Ord, V> Default for SVM<K, V> {
     }
 }
 
+impl<A, K: Ord, V> FromIterator<A> for SVM<K, V>
+where
+    SortedVectorMap<K, V>: FromIterator<A>,
+{
+    fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
+        Self(SortedVectorMap::from_iter(iter))
+    }
+}
+
 impl<K: Ord, V> SVM<K, V> {
     pub fn new() -> Self {
         Self(SortedVectorMap::new())
@@ -45,13 +54,13 @@ impl<K: Ord, V> SVM<K, V> {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     #[inline]
     pub fn range(&self, range: Range<K>) -> impl DoubleEndedIterator<Item = (&K, &V)> {
         self.0.range(range)
-    }
-
-    pub fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        Self(SortedVectorMap::from_iter(iter))
     }
 
     pub fn first_key_value(&self) -> Option<(&K, &V)> {

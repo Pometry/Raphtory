@@ -1,15 +1,16 @@
 use crate::{
     core::{
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntervalSize, IntoTime},
+        utils::time::{Interval, IntoTime},
     },
     db::api::view::{
-        internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
+        internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
         time::internal::InternalTimeOps,
     },
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::GraphType;
+use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -414,19 +415,22 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSe
 #[cfg(test)]
 mod time_tests {
     use crate::{
-        core::utils::time::{error::ParseTimeError, TryIntoTime},
+        core::utils::time::TryIntoTime,
         db::{
             api::{
                 mutation::AdditionOps,
                 view::{time::internal::InternalTimeOps, WindowSet},
             },
-            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
+            graph::{
+                graph::{assert_graph_equal, Graph},
+                views::deletion_graph::PersistentGraph,
+            },
         },
         prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
         test_storage,
     };
     use itertools::Itertools;
-    use std::num::ParseIntError;
+    use raphtory_core::utils::time::ParseTimeError;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
@@ -456,16 +460,16 @@ mod time_tests {
         graph.delete_edge(5, 0, 1, None).unwrap();
 
         for time in 2..7 {
-            assert_eq!(graph.at(time), graph.snapshot_at(time));
+            assert_graph_equal(&graph.at(time), &graph.snapshot_at(time));
         }
-        assert_eq!(graph.latest(), graph.snapshot_latest());
+        assert_graph_equal(&graph.latest(), &graph.snapshot_latest());
 
         let graph = graph.event_graph();
 
         for time in 2..7 {
-            assert_eq!(graph.before(time + 1), graph.snapshot_at(time));
+            assert_graph_equal(&graph.before(time + 1), &graph.snapshot_at(time));
         }
-        assert_eq!(graph, graph.snapshot_latest());
+        assert_graph_equal(&graph, &graph.snapshot_latest());
     }
 
     #[test]

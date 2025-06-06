@@ -3,13 +3,14 @@ members = [
     "raphtory",
     "raphtory-cypher",
     "raphtory-benchmark",
-    "pometry-storage",
     "examples/rust",
     "examples/netflow",
     "examples/custom-gql-apis",
     "python",
     "raphtory-graphql",
     "raphtory-api",
+    "raphtory-core",
+    "raphtory-storage",
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -26,16 +27,26 @@ authors = ["Pometry"]
 rust-version = "1.86.0"
 edition = "2021"
 
+# debug symbols are using a lot of resources
 [profile.dev]
 split-debuginfo = "unpacked"
+debug = false
 
 [profile.release-with-debug]
 inherits = "release"
 debug = true
 
-[profile.test-ci]
-inherits = "test"
-debug = 0
+# use this if you really need debug symbols
+[profile.with-debug]
+inherits = "dev"
+debug = true
+
+# for fast one-time builds (e.g., docs/CI)
+[profile.build-fast]
+inherits = "dev"
+debug = false
+incremental = false
+
 
 [workspace.dependencies]
 #[public-storage]
@@ -51,6 +62,7 @@ reqwest = { version = "0.12.8", default-features = false, features = [
     "multipart",
     "json",
 ] }
+iter-enum = { version = "1.2.0", features = ["rayon"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 pyo3 = { version = "=0.23.3", features = ["multiple-pymethods", "chrono"] }
@@ -80,7 +92,6 @@ flate2 = "1.0.28"
 regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
-num-bigint = "0.4.6"
 rand_distr = "0.4.3"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
@@ -109,6 +120,7 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
 proptest = "1.4.0"
+proptest-derive = "0.5.1"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
@@ -152,7 +164,6 @@ arrow-json = { version = "=53.2.0" }
 arrow-buffer = { version = "=53.2.0" }
 arrow-schema = { version = "=53.2.0" }
 arrow-array = { version = "=53.2.0" }
-arrow-data = { version = "=53.2.0" }
 arrow-ipc = { version = "=53.2.0" }
 moka = { version = "0.12.7", features = ["sync"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }

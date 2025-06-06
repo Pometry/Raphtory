@@ -5,11 +5,11 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     algorithms::components::LargestConnectedComponent,
-    core::utils::errors::GraphError,
     db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+        api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
+    errors::GraphError,
     io::parquet_loaders::*,
     prelude::*,
     python::{
@@ -27,6 +27,7 @@ use crate::{
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -173,13 +174,7 @@ impl PyGraph {
     ///     Graph: a view of the persisted graph
     #[cfg(feature = "storage")]
     pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        use crate::db::api::storage::graph::storage_ops::GraphStorage;
-        use std::sync::Arc;
-
-        let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
-        let storage = GraphStorage::Disk(Arc::new(disk_graph));
-        let graph = Graph::from_internal_graph(storage);
-        Ok(graph)
+        self.graph.persist_as_disk_graph(graph_dir)
     }
 
     /// Persist graph to parquet files
@@ -228,7 +223,7 @@ impl PyGraph {
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         let props = properties
             .into_iter()
             .flat_map(|map| {
@@ -269,7 +264,7 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         match secondary_index {
             None => {
                 self.graph
@@ -402,7 +397,7 @@ impl PyGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -426,7 +421,7 @@ impl PyGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 
@@ -572,7 +567,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///   MutableNode: The node object with the specified id, or None if the node does not exist
-    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<Graph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, Graph>> {
         self.graph.node(id)
     }
 
@@ -618,7 +613,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     PersistentGraph: the graph with persistent semantics applied
-    pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
+    pub fn persistent_graph(&self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
