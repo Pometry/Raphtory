@@ -5,3 +5,4 @@ pub mod temporal_rich_club_coefficient;
 pub mod three_node_motifs;
 pub mod triangle_count;
 pub mod triplet_count;
+pub mod triadic_census;

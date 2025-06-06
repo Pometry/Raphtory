@@ -48,6 +48,7 @@ use crate::{
             local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
             local_triangle_count::local_triangle_count as local_triangle_count_rs,
             temporal_rich_club_coefficient::temporal_rich_club_coefficient as temporal_rich_club_rs,
+            triadic_census::labeled_triadic_census as global_triadic_census_rs,
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
@@ -73,6 +74,7 @@ use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
 use std::collections::HashSet;
+use ahash::HashMap;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -551,6 +553,14 @@ pub fn global_temporal_three_node_motif_multi(
     threads: Option<usize>,
 ) -> Vec<[usize; 40]> {
     global_temporal_three_node_motif_general_rs(&graph.graph, deltas, threads)
+}
+#[pyfunction]
+#[pyo3(signature = (graph, use_new_triad_names=false ))]
+pub fn global_triadic_census(
+    graph: &PyGraphView,
+    use_new_triad_names: bool,
+) -> HashMap<String, usize> {
+    global_triadic_census_rs(&graph.graph, use_new_triad_names )
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.

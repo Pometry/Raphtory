@@ -107,7 +107,8 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         louvain,
         fruchterman_reingold,
         cohesive_fruchterman_reingold,
-        max_weight_matching
+        max_weight_matching,
+        global_triadic_census,
     );
 
     add_classes!(&algorithm_module, PyMatching, PyInfected);
