@@ -1133,6 +1133,260 @@ mod graphql_test {
         );
     }
 
+    #[tokio::test]
+    async fn test_paging() {
+        let graph1 = Graph::new();
+        graph1
+            .add_constant_properties([("name", "graph1")])
+            .unwrap();
+        graph1.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph1.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        graph1.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        graph1.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        graph1.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        graph1.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph1.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 4, 6, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+        let graph2 = Graph::new();
+        graph2
+            .add_constant_properties([("name", "graph2")])
+            .unwrap();
+        graph2.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph3 = Graph::new();
+        graph3
+            .add_constant_properties([("name", "graph3")])
+            .unwrap();
+        graph3.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph4 = Graph::new();
+        graph4
+            .add_constant_properties([("name", "graph4")])
+            .unwrap();
+        graph4.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph5 = Graph::new();
+        graph5
+            .add_constant_properties([("name", "graph5")])
+            .unwrap();
+        graph5.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph6 = Graph::new();
+        graph6
+            .add_constant_properties([("name", "graph6")])
+            .unwrap();
+        graph6.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+
+        let graphs = HashMap::from([
+            ("graph1".to_string(), graph1.into()),
+            ("graph2".to_string(), graph2.into()),
+            ("graph3".to_string(), graph3.into()),
+            ("graph4".to_string(), graph4.into()),
+            ("graph5".to_string(), graph5.into()),
+            ("graph6".to_string(), graph6.into()),
+        ]);
+        let tmp_dir = tempdir().unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                nodes {
+                    page(limit: 3, offset: 1) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "page": [
+                            {
+                                "name": "2"
+                            },
+                            {
+                                "name": "3"
+                            },
+                            {
+                                "name": "4"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                nodes {
+                    page(limit: 3, offset: 999) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "page": []
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                nodes {
+                    page(limit: 2, pageIndex: 1) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "page": [
+                            {
+                                "name": "3"
+                            },
+                            {
+                                "name": "4"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                edges {
+                    page(limit: 2, pageIndex: 1, offset: 3) {
+                        id
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "edges": {
+                        "page": [
+                            {
+                                "id": ["5", "6"]
+                            },
+                            {
+                                "id": ["3", "6"]
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                edges {
+                    page(limit: 3, pageIndex: 2) {
+                        id
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "edges": {
+                        "page": [
+                            {
+                                "id": ["3", "6"]
+                            },
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            root {
+                graphs {
+                    page(limit: 4, offset: 3) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "root": {
+                    "graphs": {
+                        "page": [
+                            {
+                                "name": "graph4"
+                            },
+                            {
+                                "name": "graph5"
+                            },
+                            {
+                                "name": "graph6"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+    }
+
     #[cfg(feature = "storage")]
     #[tokio::test]
     async fn test_disk_graph() {
