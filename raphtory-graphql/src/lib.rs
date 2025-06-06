@@ -132,14 +132,18 @@ mod graphql_test {
                           node: {
                                 field: NODE_NAME,
                                 operator: EQUAL,
-                                value: "N1"
+                                value: {
+                                  str: "N1"
+                                }
                             }
                         },
                         {
                           node: {
                             field: NODE_TYPE,
                             operator: NOT_EQUAL,
-                            value: "air_nomads"
+                            value: {
+                              str: "air_nomads"
+                            }
                           }
                         },
                         {

@@ -144,7 +144,7 @@ pub mod prelude {
     };
 
     #[cfg(feature = "search")]
-    pub use crate::db::api::view::SearchableGraphOps;
+    pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
 
 #[cfg(feature = "storage")]

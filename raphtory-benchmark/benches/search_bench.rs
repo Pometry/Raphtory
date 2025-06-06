@@ -24,8 +24,8 @@ use raphtory::{
         },
     },
     prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps,
-        NodeViewOps, PropUnwrap, PropertyFilter,
+        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, IndexMutationOps,
+        NodePropertyFilterOps, NodeViewOps, PropUnwrap, PropertyFilter,
     },
     serialise::StableDecode,
 };

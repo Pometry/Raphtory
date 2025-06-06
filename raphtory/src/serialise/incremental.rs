@@ -1,6 +1,6 @@
 use super::GraphFolder;
 #[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
+use crate::prelude::IndexMutationOps;
 use crate::{
     core::{
         utils::errors::{GraphError, WriteError},
@@ -10,7 +10,7 @@ use crate::{
         api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{Graph, StableDecode},
+    prelude::{AdditionOps, Graph, StableDecode},
     serialise::{
         serialise::{CacheOps, InternalStableDecode, StableEncode},
         ProtoGraph,
@@ -294,7 +294,7 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<G: InternalCache + InternalStableDecode + StableEncode> CacheOps for G {
+impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;

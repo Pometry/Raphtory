@@ -21,7 +21,9 @@ use raphtory::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps, SearchableGraphOps},
+    prelude::{
+        CacheOps, DeletionOps, EdgeViewOps, IndexMutationOps, NodeViewOps, SearchableGraphOps,
+    },
     serialise::GraphFolder,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
