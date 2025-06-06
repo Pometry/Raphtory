@@ -12,7 +12,7 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, DeletionOps, EdgeViewOps, IndexMutationOps, NodeViewOps},
+    prelude::{CacheOps, EdgeViewOps, IndexMutationOps, NodeViewOps},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},

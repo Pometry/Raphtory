@@ -22,6 +22,8 @@ use raphtory::{
     prelude::*,
     serialise::InternalStableDecode,
 };
+#[cfg(feature = "storage")]
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -29,9 +31,6 @@ use std::{
     sync::Arc,
 };
 use zip::ZipArchive;
-
-#[cfg(feature = "storage")]
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
 pub(crate) mod graph;
 pub mod plugins;
@@ -278,20 +277,31 @@ impl Mut {
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,
-        index_spec: IndexSpecInput,
+        index_spec: Option<IndexSpecInput>,
         in_ram: bool,
     ) -> Result<bool> {
         #[cfg(feature = "search")]
         {
             let data = ctx.data_unchecked::<Data>();
             let graph = data.get_graph(path)?.0.graph;
-            let builder = index_spec.to_builder(graph.clone())?;
-            let index_spec = builder.build();
-            if in_ram {
-                graph.create_index_in_ram_with_spec(index_spec)?;
-            } else {
-                graph.create_index_with_spec(index_spec)?;
-            }
+            match index_spec {
+                Some(index_spec) => {
+                    let index_spec = index_spec.to_index_spec(graph.clone())?;
+                    if in_ram {
+                        graph.create_index_in_ram_with_spec(index_spec)
+                    } else {
+                        graph.create_index_with_spec(index_spec)
+                    }
+                }
+                None => {
+                    if in_ram {
+                        graph.create_index_in_ram()
+                    } else {
+                        graph.create_index()
+                    }
+                }
+            };
+
             Ok(true)
         }
         #[cfg(not(feature = "search"))]
