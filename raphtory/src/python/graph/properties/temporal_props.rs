@@ -234,7 +234,7 @@ impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
     pub fn history(&self) -> PyHistory {
         // TODO: Change this to history object?
-        self.prop.history().collect::<Vec<_>>().into()
+        self.prop.history().into()
     }
 
     /// Get the timestamps at which the property was updated
@@ -372,7 +372,9 @@ impl PyTemporalProp {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for PyTemporalProp {
+impl<P: PropertiesOps + Send + Sync + Clone + 'static> From<TemporalPropertyView<P>>
+    for PyTemporalProp
+{
     fn from(value: TemporalPropertyView<P>) -> Self {
         Self {
             prop: TemporalPropertyView {
@@ -424,7 +426,7 @@ impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
     }
 }
 
-impl<P: PropertiesOps> Repr for TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
         format!("TemporalProp({})", iterator_repr(self.iter()))
     }
@@ -442,7 +444,9 @@ impl Repr for PyTemporalProperties {
     }
 }
 
-impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py> for TemporalPropertyView<P> {
+impl<'py, P: PropertiesOps + Send + Sync + Clone + 'static> IntoPyObject<'py>
+    for TemporalPropertyView<P>
+{
     type Target = PyTemporalProp;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -627,7 +631,13 @@ impl PyTemporalPropList {
     #[getter]
     pub fn history(&self) -> I64VecIterable {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.map(|v| v.history().collect_vec()).unwrap_or_default())).into()
+        (move || {
+            builder().map(|p| {
+                p.map(|v| v.history().iter_t().collect_vec())
+                    .unwrap_or_default()
+            })
+        })
+        .into()
     }
 
     pub fn values(&self) -> PyPropHistValueList {
@@ -807,7 +817,12 @@ impl PyTemporalPropListList {
     pub fn history(&self) -> NestedI64VecIterable {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| it.map(|p| p.map(|v| v.history().collect_vec()).unwrap_or_default()))
+            builder().map(|it| {
+                it.map(|p| {
+                    p.map(|v| v.history().iter_t().collect_vec())
+                        .unwrap_or_default()
+                })
+            })
         })
         .into()
     }
