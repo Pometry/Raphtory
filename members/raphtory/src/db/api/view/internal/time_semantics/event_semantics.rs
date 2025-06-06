@@ -133,6 +133,15 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.tprop(prop_id).iter()
     }
 
+    fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        node.tprop(prop_id).iter_rev()
+    }
+
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -141,6 +150,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         node.tprop(prop_id).iter_window(TimeIndexEntry::range(w))
+    }
+
+    fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        node.tprop(prop_id).iter_window_rev(TimeIndexEntry::range(w))
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(

@@ -112,6 +112,25 @@ impl GraphTimeSemanticsOps for GraphStorage {
             .into_dyn_boxed()
     }
 
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.graph_meta()
+            .get_temporal_prop(prop_id)
+            .into_iter()
+            .flat_map(move |prop| {
+                GenLockedIter::from(prop, |prop| {
+                    prop.deref()
+                        .iter_window_rev(TimeIndexEntry::range(start..end))
+                        .into_dyn_boxed()
+                })
+            })
+            .into_dyn_boxed()
+    }
+
     fn temporal_prop_last_at(
         &self,
         prop_id: usize,

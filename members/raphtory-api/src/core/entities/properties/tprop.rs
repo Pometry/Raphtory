@@ -31,11 +31,22 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_inner(None)
     }
+
+    fn iter_rev(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self.iter_inner_rev(None)
+    }
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_inner(Some(r))
+    }
+
+    fn iter_window_rev(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self.iter_inner_rev(Some(r))
     }
 
     fn iter_t(self) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {

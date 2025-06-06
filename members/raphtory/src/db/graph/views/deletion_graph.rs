@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
-        utils::iter::GenLockedDIter,
     },
     db::{
         api::{
@@ -16,9 +15,10 @@ use crate::{
 use raphtory_api::{
     core::entities::{properties::tprop::TPropOps, EID, VID},
     inherit::Base,
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed},
     GraphType,
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
     graph::{
         edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
@@ -197,7 +197,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.0.temporal_prop_iter(prop_id)
     }
 
@@ -213,20 +213,41 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
             let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
                 .map(|v| (TimeIndexEntry::start(start), v));
             first
                 .into_iter()
-                .chain(GenLockedDIter::from(prop, |prop| {
+                .chain(GenLockedIter::from(prop, |prop| {
                     prop.deref()
                         .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                        .into_dyn_boxed()
                 }))
-                .into_dyn_dboxed()
+                .into_dyn_boxed()
         } else {
-            iter::empty().into_dyn_dboxed()
+            iter::empty().into_dyn_boxed()
+        }
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
+            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
+                .map(|v| (TimeIndexEntry::start(start), v));
+            let iter = GenLockedIter::from(prop, |prop| {
+                prop.deref()
+                    .iter_window_rev(TimeIndexEntry::range(start..end))
+                    .into_dyn_boxed()
+            });
+
+            iter.into_iter().chain(first).into_dyn_boxed()
+        } else {
+            iter::empty().into_dyn_boxed()
         }
     }
 

@@ -464,6 +464,16 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         self.graph.temporal_prop_iter_window(prop_id, start, end)
     }
 
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.graph
+            .temporal_prop_iter_window_rev(prop_id, start, end)
+    }
+
     fn temporal_prop_last_at(
         &self,
         prop_id: usize,

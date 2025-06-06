@@ -152,6 +152,16 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
+    fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_rev(node, view, prop_id))
+    }
+
+    #[inline]
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -160,6 +170,17 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_tprop_iter_window(node, view, prop_id, w))
+    }
+
+    #[inline]
+    fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_window_rev(node, view, prop_id, w))
     }
 
     #[inline]
