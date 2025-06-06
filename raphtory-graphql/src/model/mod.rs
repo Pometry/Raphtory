@@ -3,8 +3,8 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
-            namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
+            graph::GqlGraph, index::IndexSpecInput, mutable_graph::GqlMutableGraph,
+            namespace::Namespace, namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -16,7 +16,6 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
-use crate::model::graph::{index::IndexSpecInput, namespaces::Namespaces};
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
