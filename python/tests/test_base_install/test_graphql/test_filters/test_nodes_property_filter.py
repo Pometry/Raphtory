@@ -83,7 +83,9 @@ def test_node_property_filter_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop5: expected List(I64) but actual type is I64"
+    expected_error_message = (
+        "Wrong type for property prop5: expected List(I64) but actual type is I64"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -165,7 +167,9 @@ def test_node_property_filter_not_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop4: expected Bool but actual type is I64"
+    expected_error_message = (
+        "Wrong type for property prop4: expected Bool but actual type is I64"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -245,7 +249,9 @@ def test_node_property_filter_greater_than_or_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Bool"
+    expected_error_message = (
+        "Wrong type for property prop1: expected I64 but actual type is Bool"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -331,7 +337,9 @@ def test_node_property_filter_less_than_or_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
+    expected_error_message = (
+        "Wrong type for property prop1: expected I64 but actual type is Str"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -411,7 +419,9 @@ def test_node_property_filter_greater_than_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
+    expected_error_message = (
+        "Wrong type for property prop1: expected I64 but actual type is Str"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -493,7 +503,9 @@ def test_node_property_filter_less_than_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
+    expected_error_message = (
+        "Wrong type for property prop1: expected I64 but actual type is Str"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -659,7 +671,9 @@ def test_node_property_filter_is_in_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
+    expected_error_message = (
+        "Wrong type for property prop1: expected I64 but actual type is Str"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -776,5 +790,7 @@ def test_node_property_filter_is_not_in_type_error(graph):
       }
     }
     """
-    expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
+    expected_error_message = (
+        "Wrong type for property prop1: expected I64 but actual type is Str"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
