@@ -129,7 +129,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         node.tprop(prop_id).iter()
     }
 
@@ -139,7 +139,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         _view: G,
         prop_id: usize,
         w: Range<i64>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
         node.tprop(prop_id).iter_window(TimeIndexEntry::range(w))
     }
 
@@ -654,7 +654,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
-            .map(|(layer_id, prop)| prop.iter().rev().map(move |(t, v)| (t, layer_id, v)))
+            .map(|(layer_id, prop)| prop.iter_inner_rev(None).map(move |(t, v)| (t, layer_id, v)))
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
@@ -684,8 +684,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(move |(layer_id, prop)| {
-                prop.iter_window(TimeIndexEntry::range(w.clone()))
-                    .rev()
+                prop.iter_inner_rev(Some(TimeIndexEntry::range(w.clone())))
                     .map(move |(t, v)| (t, layer_id, v))
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)

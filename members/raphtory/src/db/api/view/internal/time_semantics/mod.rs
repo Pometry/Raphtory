@@ -17,7 +17,7 @@ use crate::db::api::view::{BoxedLDIter, MaterializedGraph};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry},
-    inherit::Base,
+    inherit::Base, iter::BoxedLIter,
 };
 use std::ops::Range;
 
@@ -62,7 +62,7 @@ pub trait GraphTimeSemanticsOps {
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)>;
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
     /// Check if graph has temporal property with the given id in the window
     ///
     /// # Arguments
@@ -90,7 +90,28 @@ pub trait GraphTimeSemanticsOps {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)>;
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+
+    /// Returns all temporal values of the graph property with the given name
+    /// that fall within the specified time window in reverse order.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    /// * `start` - The start time of the window to consider.
+    /// * `end` - The end time of the window to consider.
+    ///
+    /// Returns:
+    ///
+    /// Iterator of tuples representing the temporal values of the property in reverse order
+    /// that fall within the specified time window, where the first element of each tuple is the timestamp
+    /// and the second element is the property value.
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)>;
 
     /// Returns the value and update time for the temporal graph property at or before a given timestamp
     fn temporal_prop_last_at(
@@ -168,7 +189,7 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     }
 
     #[inline]
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph().temporal_prop_iter(prop_id)
     }
 
@@ -183,7 +204,7 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph().temporal_prop_iter_window(prop_id, start, end)
     }
 
