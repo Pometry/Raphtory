@@ -14,6 +14,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::timeindex::TimeError;
+use crate::db::api::state::ops::LatestTime;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -79,7 +80,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn earliest_date_time(
         &self,
     ) -> Self::ValueType<
-        ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        ops::AsDateTime<ops::EarliestTime<Self::Graph>>,
     >;
 
     /// Get the timestamp for the latest activity of the node
@@ -88,7 +89,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn latest_date_time(
         &self,
     ) -> Self::ValueType<
-        ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        ops::AsDateTime<ops::LatestTime<Self::Graph>>,
     >;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
@@ -212,15 +213,11 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     fn earliest_date_time(
         &self,
     ) -> Self::ValueType<
-        ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        ops::AsDateTime<ops::EarliestTime<Self::Graph>>,
     > {
         let op = ops::EarliestTime {
             graph: self.graph().clone(),
-        }
-        .map(|t| match t {
-            Some(time) => time.dt().map(|dt| Some(dt)),
-            None => Ok(None),
-        });
+        }.dt();
         self.map(op)
     }
 
@@ -236,15 +233,11 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     fn latest_date_time(
         &self,
     ) -> Self::ValueType<
-        ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        ops::AsDateTime<LatestTime<Self::Graph>>,
     > {
         let op = ops::LatestTime {
             graph: self.graph().clone(),
-        }
-        .map(|t| match t {
-            Some(time) => time.dt().map(|dt| Some(dt)),
-            None => Ok(None),
-        });
+        }.dt();
         self.map(op)
     }
 

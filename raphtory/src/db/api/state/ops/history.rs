@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use crate::{
     db::{
         api::{
@@ -10,6 +11,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
+use raphtory_api::core::storage::timeindex::TimeError;
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {
@@ -21,6 +23,12 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         self.graph.node_earliest_time(node).map(|t| t.t())
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> EarliestTime<G> {
+    pub fn dt(self) -> AsDateTime<EarliestTime<G>> {
+        AsDateTime{op: self}
     }
 }
 
@@ -70,6 +78,38 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
         LatestTime {
             graph: filtered_graph,
         }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> LatestTime<G> {
+    pub fn dt(self) -> AsDateTime<LatestTime<G>> {
+        AsDateTime{op: self}
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AsDateTime<Op> {
+    pub(crate) op: Op,
+}
+
+impl<Op: NodeOp<Output=Option<i64>>> NodeOp for AsDateTime<Op> {
+    type Output = Result<Option<DateTime<Utc>>, TimeError>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.op.apply(storage, node).map(|t| t.dt()).transpose()
+    }
+}
+
+impl<'graph, Op: NodeOpFilter<'graph>> NodeOpFilter<'graph> for AsDateTime<Op> {
+    type Graph = Op::Graph;
+    type Filtered<G: GraphViewOps<'graph>> = AsDateTime<Op::Filtered<G>>;
+
+    fn graph(&self) -> &Self::Graph {
+        self.op.graph()
+    }
+
+    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G> {
+        AsDateTime{op: self.op.filtered(graph)}
     }
 }
 
