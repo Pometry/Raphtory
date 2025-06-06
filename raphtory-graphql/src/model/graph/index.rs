@@ -1,7 +1,7 @@
 use dynamic_graphql::{InputObject, OneOfInput, SimpleObject};
 use raphtory::{
-    core::utils::errors::GraphError,
     db::api::view::{BoxableGraphView, IndexSpecBuilder},
+    errors::GraphError,
 };
 
 #[allow(dead_code)]
