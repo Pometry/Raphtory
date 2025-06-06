@@ -13,11 +13,14 @@ use itertools::Itertools;
 use proptest::{collection, prelude::*};
 use raphtory::{
     core::{
-        DECIMAL_MAX, Prop, PropType,
         entities::{VID, graph::logical_to_physical::Mapping},
         storage::timeindex::TimeIndexOps,
     },
-    db::api::storage::graph::tprop_storage_ops::TPropOps,
+    prelude::Prop,
+};
+use raphtory_api::core::entities::properties::{
+    prop::{DECIMAL_MAX, PropType},
+    tprop::TPropOps,
 };
 use rayon::prelude::*;
 
@@ -92,7 +95,7 @@ pub fn check_edges_support<
 
         let mut expected_graph: HashMap<VID, (Vec<VID>, Vec<VID>)> = es
             .iter()
-            .group_by(|(src, _)| *src)
+            .chunk_by(|(src, _)| *src)
             .into_iter()
             .map(|(src, edges)| {
                 let mut out: Vec<_> = edges.map(|(_, dst)| *dst).collect();
@@ -108,7 +111,7 @@ pub fn check_edges_support<
         // now inbounds
         edges_sorted_by_dest
             .iter()
-            .group_by(|(_, dst)| *dst)
+            .chunk_by(|(_, dst)| *dst)
             .into_iter()
             .for_each(|(dst, edges)| {
                 let mut edges: Vec<_> = edges.map(|(src, _)| *src).collect();
@@ -834,7 +837,9 @@ pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> + use<> {
             .boxed(),
         PropType::Map(p_types) => {
             let prop_types: Vec<BoxedStrategy<(String, Prop)>> = p_types
-                .clone()
+                .iter()
+                .map(|(a, b)| (a.clone(), b.clone()))
+                .collect::<Vec<_>>()
                 .into_iter()
                 .map(|(name, p_type)| {
                     let pt_strat = prop(&p_type)

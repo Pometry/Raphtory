@@ -1,16 +1,13 @@
 use bigdecimal::ToPrimitive;
 use polars_arrow::array::{Array, BooleanArray, PrimitiveArray, Utf8ViewArray};
-use raphtory::core::{
-    Prop,
+use raphtory::{core::{
     entities::{
         nodes::node_store::PropTimestamps,
-        properties::{tcell::TCell, tprop::TPropCell},
+        properties::{tcell::TCell, tprop::TPropCell}, ELID,
     },
-    storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
-};
-use raphtory_api::core::PropType;
-use raphtory_api::core::entities::EID;
-use raphtory_api::core::entities::properties::props::PropMapper;
+    storage::{timeindex::TimeIndexEntry, PropColumn, TColumns},
+}, prelude::Prop};
+use raphtory_api::core::entities::properties::{meta::PropMapper, prop::PropType};
 
 pub mod props_meta_writer;
 
@@ -281,7 +278,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn append_edge_ts(&mut self, t: TimeIndexEntry, edge_id: EID) {
+    pub(crate) fn append_edge_ts(&mut self, t: TimeIndexEntry, edge_id: ELID) {
         if self.properties.t_index.len() <= self.row {
             self.properties
                 .t_index

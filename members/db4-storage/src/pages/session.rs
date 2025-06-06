@@ -7,11 +7,12 @@ use crate::segments::edge::MemEdgeSegment;
 use crate::segments::node::MemNodeSegment;
 use crate::{EdgeSegmentOps, NodeSegmentOps};
 use db4_common::error::DBV4Error;
+use raphtory::core::entities::ELID;
 use raphtory::core::{
-    Prop,
     entities::{EID, VID},
     storage::timeindex::AsTime,
 };
+use raphtory::prelude::Prop;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 pub struct WriteSession<
@@ -53,7 +54,7 @@ impl<
         t: T,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        edge: MaybeNew<EID>,
+        edge: MaybeNew<ELID>,
         lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> Result<(), DBV4Error> {
@@ -76,7 +77,7 @@ impl<
 
         let (_, src_pos) = resolve_pos(src, node_max_page_len);
         let (_, dst_pos) = resolve_pos(dst, node_max_page_len);
-        let (_, edge_pos) = resolve_pos(e_id, edge_max_page_len);
+        let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
 
         let exists = Some(!edge.is_new());
         edge_writer.add_edge(t, Some(edge_pos), src, dst, props, lsn, exists)?;
@@ -135,10 +136,10 @@ impl<
 
                 self.node_writers
                     .get_mut_src()
-                    .add_static_outbound_edge(src_pos, dst, edge_id, lsn);
+                    .add_static_outbound_edge(src_pos, dst, edge_id.with_layer(0), lsn);
                 self.node_writers
                     .get_mut_dst()
-                    .add_static_inbound_edge(dst_pos, src, edge_id, lsn);
+                    .add_static_inbound_edge(dst_pos, src, edge_id.with_layer(0), lsn);
 
                 Ok(MaybeNew::New(edge_id))
             }
@@ -151,8 +152,9 @@ impl<
         src: impl Into<VID>,
         dst: impl Into<VID>,
         lsn: u64,
+        layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<MaybeNew<EID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, DBV4Error> {
         let src = src.into();
         let dst = dst.into();
 
@@ -163,6 +165,7 @@ impl<
             let mut edge_writer = self.graph.edge_writer(e_id);
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
             edge_writer.add_edge(t, Some(edge_pos), src, dst, props, lsn, None)?;
+            let e_id = e_id.with_layer(layer);
 
             self.node_writers
                 .get_mut_src()
@@ -176,6 +179,7 @@ impl<
             if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst) {
                 let mut edge_writer = self.graph.edge_writer(e_id);
                 let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
+                let e_id = e_id.with_layer(layer);
 
                 edge_writer.add_edge(t, Some(edge_pos), src, dst, props, lsn, None)?;
                 self.node_writers
@@ -191,6 +195,7 @@ impl<
                 let edge_id = edge_writer.add_edge(t, None, src, dst, props, lsn, None)?;
                 let edge_id =
                     edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
+                let edge_id = edge_id.with_layer(layer);
 
                 self.node_writers
                     .get_mut_src()

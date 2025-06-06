@@ -8,7 +8,7 @@ homepage.workspace = true
 keywords.workspace = true
 authors.workspace = true
 rust-version.workspace = true
-edition.workspace = true
+edition = "2024"
 
 [dependencies]
 raphtory.workspace = true

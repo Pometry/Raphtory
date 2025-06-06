@@ -16,7 +16,7 @@ use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
-use raphtory::{core::{entities::{EID, VID}, storage::timeindex::TimeIndexEntry, utils::time::{InputTime, TryIntoInputTime}}, prelude::Prop};
+use raphtory::{core::{entities::{EID, ELID, VID}, storage::timeindex::{AsTime, TimeIndexEntry}, utils::time::{InputTime, TryIntoInputTime}}, prelude::Prop};
 use raphtory_api::core::{entities::properties::meta::Meta, storage::dict_mapper::MaybeNew};
 use serde::{Deserialize, Serialize};
 use session::WriteSession;
@@ -190,7 +190,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         t: T,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-    ) -> Result<MaybeNew<EID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, DBV4Error> {
         let t = self.as_time_index_entry(t)?;
         self.internal_add_edge(t, src, dst, 0, [])
     }
@@ -202,7 +202,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         dst: impl Into<VID>,
         props: Vec<(PN, Prop)>,
         _lsn: u64,
-    ) -> Result<MaybeNew<EID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, DBV4Error> {
         let t = self.as_time_index_entry(t)?;
         let prop_writer = PropsMetaWriter::temporal(&self.edge_meta, props.into_iter())?;
         self.internal_add_edge(t, src, dst, 0, prop_writer.into_props_temporal()?)
@@ -215,11 +215,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         dst: impl Into<VID>,
         lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<MaybeNew<EID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, DBV4Error> {
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
-        session.internal_add_edge(t, src, dst, lsn, props)
+        session.internal_add_edge(t, src, dst, lsn,  0, props)
     }
 
     /// Adds an edge if it doesn't exist yet, does nothing if the edge is there
@@ -434,7 +434,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let node_writers = acquire_node_writers();
 
         let edge_writer = e_id.map(|e_id| {
-            let (edge_chunk, _) = self.edges.resolve_pos(e_id);
             self.edge_writer(e_id)
         });
 
@@ -497,7 +496,7 @@ mod test {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::panic;
     use proptest::prelude::*;
-    use raphtory::core::{Prop, entities::VID, storage::timeindex::TimeIndexOps};
+    use raphtory::{core::{entities::VID, storage::timeindex::TimeIndexOps}, prelude::Prop};
 
     fn check_edges(
         edges: Vec<(impl Into<VID>, impl Into<VID>)>,

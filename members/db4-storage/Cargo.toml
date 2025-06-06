@@ -8,11 +8,11 @@ homepage.workspace = true
 keywords.workspace = true
 authors.workspace = true
 rust-version.workspace = true
-edition.workspace = true
+edition = "2024"
 
 [dependencies]
 raphtory-api.workspace = true
-raphtory = {workspace = true, features = ["arrow"]}
+raphtory = {workspace = true, features = ["arrow", "io"]}
 db4-common = {path = "../db4-common"}
 
 bitvec.workspace = true
@@ -30,6 +30,7 @@ arrow-csv.workspace = true
 arrow-schema.workspace = true
 parquet.workspace = true
 bytemuck.workspace = true
+iter-enum = {workspace = true, features = ["rayon"]}
 
 proptest = {workspace = true, optional = true}
 tempfile = {workspace = true, optional = true}

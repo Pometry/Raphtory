@@ -1,6 +1,6 @@
 use crate::{
     entities::properties::tcell::TCell,
-    storage::{timeindex::TimeIndexEntry, TPropColumn},
+    storage::{timeindex::TimeIndexEntry, PropColumn},
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -89,14 +89,14 @@ pub enum TPropVariants<
     Decimal(Decimal),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct TPropCell<'a> {
     t_cell: Option<&'a TCell<Option<usize>>>,
-    log: Option<&'a TPropColumn>,
+    log: Option<&'a PropColumn>,
 }
 
 impl<'a> TPropCell<'a> {
-    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
+    pub fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a PropColumn>) -> Self {
         Self {
             t_cell: Some(t_cell),
             log,
@@ -435,7 +435,7 @@ mod tprop_tests {
 
     #[test]
     fn t_prop_cell() {
-        let col = TPropColumn::Bool(LazyVec::from(0, true));
+        let col = PropColumn::Bool(LazyVec::from(0, true));
         assert_eq!(col.get(0), Some(Prop::Bool(true)));
 
         let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), Some(&col));

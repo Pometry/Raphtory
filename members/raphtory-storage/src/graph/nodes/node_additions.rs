@@ -4,7 +4,7 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_core::{
-    entities::nodes::node_store::NodeTimestamps,
+    entities::nodes::node_store::PropTimestamps,
     storage::timeindex::{TimeIndexWindow, TimeIndexWindowVariants},
 };
 use std::{iter, ops::Range};
@@ -14,8 +14,8 @@ use {itertools::Itertools, pometry_storage::timestamps::LayerAdditions};
 
 #[derive(Clone, Debug)]
 pub enum NodeAdditions<'a> {
-    Mem(&'a NodeTimestamps),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>),
+    Mem(&'a PropTimestamps),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, PropTimestamps>),
     #[cfg(feature = "storage")]
     Col(LayerAdditions<'a>),
 }

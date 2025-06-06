@@ -344,7 +344,7 @@ impl<'a> Loader<'a> {
                             eids_exist[row].store(true, atomic::Ordering::Relaxed);
                         } else {
                             let edge_id = EID(max_edge_id.fetch_add(1, atomic::Ordering::Relaxed));
-                            writer.add_outbound_edge(0, src_pos, dst, edge_id, 0);
+                            writer.add_outbound_edge(0, src_pos, dst, edge_id.with_layer(0), 0);// FIXME: when we update this to work with layers use the correct layer
                             eid_col_shared[row].store(edge_id.0, atomic::Ordering::Relaxed);
                             eids_exist[row].store(false, atomic::Ordering::Relaxed);
                         }
@@ -363,7 +363,7 @@ impl<'a> Loader<'a> {
                         let mut writer = locked_page.writer();
                         if !writer.get_inb_edge(dst_pos, src).is_some() {
                             let edge_id = EID(edge_id.0);
-                            writer.add_inbound_edge(0, dst_pos, src, edge_id, 0);
+                            writer.add_inbound_edge(0, dst_pos, src, edge_id.with_layer(0), 0); // FIXME: when we update this to work with layers use the correct layer
                         }
                     }
                 }

@@ -1979,6 +1979,7 @@ dependencies = [
  "chrono",
  "db4-common",
  "either",
+ "iter-enum",
  "itertools 0.13.0",
  "parking_lot",
  "parquet",

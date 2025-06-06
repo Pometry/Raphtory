@@ -9,15 +9,9 @@ use crate::segments::edge::EdgeSegmentView;
 use crate::segments::node::NodeSegmentView;
 use db4_common::{LocalPOS, error::DBV4Error};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory::{
-    core::{
-        Prop,
-        entities::{EID, VID},
-    },
-    db::api::storage::graph::tprop_storage_ops::TPropOps,
-};
-use raphtory_api::core::storage::timeindex::TimeIndexOps;
-use raphtory_api::core::{entities::properties::props::Meta, storage::timeindex::TimeIndexEntry};
+use raphtory::{core::entities::{EID, VID}, prelude::Prop};
+use raphtory_api::core::{entities::properties::{meta::Meta, tprop::TPropOps}, storage::timeindex::TimeIndexOps};
+use raphtory_api::core::{storage::timeindex::TimeIndexEntry};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
 pub mod loaders;
@@ -101,7 +95,7 @@ pub trait EdgeEntryOps<'a> {
 }
 
 pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
-    type Additions: TimeIndexOps;
+    type Additions: TimeIndexOps<'a>;
     type TProps: TPropOps<'a>;
 
     fn edge(self) -> Option<(VID, VID)>;
@@ -188,7 +182,7 @@ pub trait NodeEntryOps<'a> {
 }
 
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
-    type Additions: TimeIndexOps;
+    type Additions: TimeIndexOps<'a>;
 
     type TProps: TPropOps<'a>;
 

@@ -1,11 +1,11 @@
-use crate::NodeSegmentOps;
-use crate::segments::node::MemNodeSegment;
+use crate::{NodeSegmentOps, segments::node::MemNodeSegment};
 use db4_common::LocalPOS;
-use raphtory::core::{storage::timeindex::AsTime};
-use raphtory::prelude::Prop;
+use raphtory::{
+    core::{entities::ELID, storage::timeindex::AsTime},
+    prelude::Prop,
+};
 use raphtory_api::core::entities::{EID, VID};
-use std::ops::DerefMut;
-use std::sync::atomic::AtomicUsize;
+use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 #[derive(Debug)]
 pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
@@ -28,7 +28,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         t: T,
         src_pos: impl Into<LocalPOS>,
         dst: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
         lsn: u64,
     ) {
         self.add_outbound_edge_inner(Some(t), src_pos, dst, e_id, lsn);
@@ -38,7 +38,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         src_pos: LocalPOS,
         dst: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
         lsn: u64,
     ) {
         self.add_outbound_edge_inner::<i64>(None, src_pos, dst, e_id, lsn);
@@ -49,7 +49,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         t: Option<T>,
         src_pos: impl Into<LocalPOS>,
         dst: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
         lsn: u64,
     ) {
         let src_pos = src_pos.into();
@@ -63,8 +63,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             self.global_num_nodes
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
-
-        // self.est_size = self.page.increment_size(size_of::<EID>());
     }
 
     pub fn add_inbound_edge<T: AsTime>(
@@ -72,7 +70,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         t: T,
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
         lsn: u64,
     ) {
         self.add_inbound_edge_inner(Some(t), dst_pos, src, e_id, lsn);
@@ -82,7 +80,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         dst_pos: LocalPOS,
         src: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
         lsn: u64,
     ) {
         self.add_inbound_edge_inner::<i64>(None, dst_pos, src, e_id, lsn);
@@ -93,7 +91,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         t: Option<T>,
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
         lsn: u64,
     ) {
         self.writer.as_mut().set_lsn(lsn);
@@ -106,8 +104,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             self.global_num_nodes
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
-
-        // self.est_size = self.page.increment_size(size_of::<EID>());
     }
 
     pub fn add_props<T: AsTime>(
@@ -133,19 +129,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         // self.est_size = self.page.increment_size(size_of::<(i64, i64)>());
     }
 
-    pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: EID, lsn: u64) {
+    pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID, lsn: u64) {
         self.writer.as_mut().set_lsn(lsn);
         self.writer.update_timestamp(t, pos, e_id);
         // self.est_size = self.page.increment_size(size_of::<(i64, i64)>());
     }
-
-    // pub fn contains_out(&self, pos: LocalPOS, dst: VID) -> bool {
-    //     self.writer.contains_out(pos, dst) || self.page.disk_contains_out(pos, dst)
-    // }
-
-    // pub fn contains_in(&self, pos: LocalPOS, src: VID) -> bool {
-    //     self.writer.contains_in(pos, src) || self.page.disk_contains_in(pos, src)
-    // }
 
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID) -> Option<EID> {
         self.page.get_out_edge(pos, dst, self.writer.deref())

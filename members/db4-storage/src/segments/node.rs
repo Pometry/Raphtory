@@ -1,11 +1,12 @@
 use db4_common::LocalPOS;
 use db4_common::error::DBV4Error;
 use either::Either;
-use raphtory::core::Prop;
 use raphtory::core::entities::nodes::structure::adj::Adj;
-use raphtory::core::entities::properties::props::Meta;
+use raphtory::core::entities::ELID;
 use raphtory::core::storage::timeindex::AsTime;
 use raphtory::core::storage::timeindex::TimeIndexEntry;
+use raphtory::prelude::Prop;
+use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_api::core::Direction;
 use raphtory_api::core::entities::{EID, VID};
 use std::ops::Deref;
@@ -115,17 +116,17 @@ impl MemNodeSegment {
         t: Option<T>,
         src_pos: LocalPOS,
         dst: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
     ) -> bool {
         let dst = dst.into();
         let e_id = e_id.into();
         let add_out = self.inner.reserve_local_row(src_pos).map_either(
             |row| {
-                row.adj.add_edge_out(dst, e_id);
+                row.adj.add_edge_out(dst, e_id.edge);
                 row.row()
             },
             |row| {
-                row.adj.add_edge_out(dst, e_id);
+                row.adj.add_edge_out(dst, e_id.edge);
                 row.row()
             },
         );
@@ -142,7 +143,7 @@ impl MemNodeSegment {
         t: Option<impl AsTime>,
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
-        e_id: impl Into<EID>,
+        e_id: impl Into<ELID>,
     ) -> bool {
         let src = src.into();
         let e_id = e_id.into();
@@ -150,11 +151,11 @@ impl MemNodeSegment {
 
         let add_in = self.inner.reserve_local_row(dst_pos).map_either(
             |row| {
-                row.adj.add_edge_into(src, e_id);
+                row.adj.add_edge_into(src, e_id.edge);
                 row.row()
             },
             |row| {
-                row.adj.add_edge_into(src, e_id);
+                row.adj.add_edge_into(src, e_id.edge);
                 row.row()
             },
         );
@@ -165,14 +166,14 @@ impl MemNodeSegment {
         new_entry
     }
 
-    fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: EID) {
+    fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
         let mut prop_mut_entry = self.inner.properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
 
         prop_mut_entry.append_edge_ts(ts, e_id);
     }
 
-    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: EID) {
+    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) {
         let row = self
             .inner
             .reserve_local_row(node_pos)

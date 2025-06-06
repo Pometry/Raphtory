@@ -7,12 +7,8 @@ use std::{
 };
 
 use db4_common::LocalPOS;
-use raphtory::core::{
-    Prop,
-    entities::properties::props::Meta,
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
-use raphtory_api::core::entities::VID;
+use raphtory::{core::storage::timeindex::{AsTime, TimeIndexEntry}, prelude::Prop};
+use raphtory_api::core::entities::{properties::meta::Meta, VID};
 
 use crate::{EdgeSegmentOps, properties::PropMutEntry};
 
