@@ -10,8 +10,8 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     prelude::CacheOps,
     vectors::{
-        cache::VectorCache, embeddings::openai_embedding, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
@@ -75,10 +75,15 @@ impl Data {
             })
             .build();
 
+        #[cfg(feature = "search")]
+        let create_index = true;
+        #[cfg(not(feature = "search"))]
+        let create_index = false;
+
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
-            create_index: true,
+            create_index,
             embedding_conf: Default::default(),
         }
     }

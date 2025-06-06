@@ -5,6 +5,7 @@ use crate::{
             edge::GqlEdge,
             edges::GqlEdges,
             filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
+            index::IndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
             property::GqlProperties,
@@ -551,6 +552,25 @@ impl GqlGraph {
     ////////////////////////
     // INDEX SEARCH     ////
     ////////////////////////
+    async fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
+        #[cfg(feature = "search")]
+        {
+            let index_spec = self.graph.get_index_spec()?;
+            let props = index_spec.props(&self.graph.0);
+
+            Ok(IndexSpec {
+                node_const_props: props.get(0).cloned().unwrap_or_default(),
+                node_temp_props: props.get(1).cloned().unwrap_or_default(),
+                edge_const_props: props.get(2).cloned().unwrap_or_default(),
+                edge_temp_props: props.get(3).cloned().unwrap_or_default(),
+            })
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
+    }
+
     async fn search_nodes(
         &self,
         filter: NodeFilter,

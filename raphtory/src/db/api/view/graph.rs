@@ -32,7 +32,6 @@ use crate::{
             },
         },
     },
-    prelude::Graph,
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::{
@@ -665,7 +664,10 @@ impl IndexSpec {
         }
     }
 
-    pub fn props(&self, graph: &Graph) -> Vec<Vec<String>> {
+    pub fn props<G: BoxableGraphView + Sized + Clone + 'static>(
+        &self,
+        graph: &G,
+    ) -> Vec<Vec<String>> {
         let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
             let mut names: Vec<String> = props
                 .iter()

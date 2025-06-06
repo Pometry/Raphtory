@@ -165,7 +165,7 @@ impl IntoDynamicOrMutable for PersistentGraph {
 }
 
 #[derive(Clone)]
-pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
+pub struct DynamicGraph(pub Arc<dyn BoxableGraphView>);
 
 impl Debug for DynamicGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

@@ -17,7 +17,7 @@ use dynamic_graphql::{
     Result, Upload,
 };
 
-use crate::model::graph::namespaces::Namespaces;
+use crate::model::graph::{index::IndexSpecInput, namespaces::Namespaces};
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
@@ -274,6 +274,31 @@ impl Mut {
         }
         data.insert_graph(&new_path, new_subgraph).await?;
         Ok(new_path)
+    }
+
+    async fn create_index<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+        index_spec: IndexSpecInput,
+        in_ram: bool,
+    ) -> Result<bool> {
+        #[cfg(feature = "search")]
+        {
+            let data = ctx.data_unchecked::<Data>();
+            let graph = data.get_graph(path)?.0.graph;
+            let builder = index_spec.to_builder(graph.clone())?;
+            let index_spec = builder.build();
+            if in_ram {
+                graph.create_index_in_ram_with_spec(index_spec)?;
+            } else {
+                graph.create_index_with_spec(index_spec)?;
+            }
+            Ok(true)
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
     }
 }
 
