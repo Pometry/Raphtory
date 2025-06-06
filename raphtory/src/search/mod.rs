@@ -403,7 +403,7 @@ mod test_index {
                 .with_all_edge_props()
                 .build();
             assert_eq!(
-                index_spec.props(&graph),
+                index_spec.props(&graph).to_vec(),
                 vec![
                     vec!["x", "y"],
                     vec!["p1", "p2"],
@@ -440,7 +440,7 @@ mod test_index {
                 .unwrap()
                 .build();
             assert_eq!(
-                index_spec.props(&graph),
+                index_spec.props(&graph).to_vec(),
                 vec![vec!["y"], vec!["p1"], vec!["e_y"], vec!["e_p1"]]
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
@@ -506,7 +506,7 @@ mod test_index {
                 .with_all_edge_props()
                 .build();
             assert_eq!(
-                index_spec.props(&graph),
+                index_spec.props(&graph).to_vec(),
                 vec![
                     vec!["x"],
                     vec!["p1", "p2"],

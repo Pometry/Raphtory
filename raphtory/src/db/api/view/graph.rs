@@ -755,7 +755,10 @@ impl IndexSpec {
         }
     }
 
-    pub fn props(&self, graph: &Graph) -> Vec<Vec<String>> {
+    pub fn props<G: BoxableGraphView + Sized + Clone + 'static>(
+        &self,
+        graph: &G,
+    ) -> ResolvedIndexSpec {
         let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
             let mut names: Vec<String> = props
                 .iter()
@@ -765,17 +768,42 @@ impl IndexSpec {
             names
         };
 
-        vec![
-            extract_names(&self.node_const_props, graph.node_meta().const_prop_meta()),
-            extract_names(
+        ResolvedIndexSpec {
+            node_const_props: extract_names(
+                &self.node_const_props,
+                graph.node_meta().const_prop_meta(),
+            ),
+            node_temp_props: extract_names(
                 &self.node_temp_props,
                 graph.node_meta().temporal_prop_meta(),
             ),
-            extract_names(&self.edge_const_props, graph.edge_meta().const_prop_meta()),
-            extract_names(
+            edge_const_props: extract_names(
+                &self.edge_const_props,
+                graph.edge_meta().const_prop_meta(),
+            ),
+            edge_temp_props: extract_names(
                 &self.edge_temp_props,
                 graph.edge_meta().temporal_prop_meta(),
             ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ResolvedIndexSpec {
+    pub node_const_props: Vec<String>,
+    pub node_temp_props: Vec<String>,
+    pub edge_const_props: Vec<String>,
+    pub edge_temp_props: Vec<String>,
+}
+
+impl ResolvedIndexSpec {
+    pub fn to_vec(&self) -> Vec<Vec<String>> {
+        vec![
+            self.node_const_props.clone(),
+            self.node_temp_props.clone(),
+            self.edge_const_props.clone(),
+            self.edge_temp_props.clone(),
         ]
     }
 }
