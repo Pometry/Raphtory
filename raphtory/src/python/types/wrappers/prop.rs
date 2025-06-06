@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::{CreateNodeFilter, InternalEdgeFilterOps, InternalExplodedEdgeFilterOps},
+            internal::{CreateEdgeFilter, CreateNodeFilter, InternalExplodedEdgeFilterOps},
             model::{
                 property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
                 InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
@@ -50,9 +50,9 @@ pub type PropHistItems = Vec<(i64, Prop)>;
 #[derive(Clone)]
 pub struct PyPropertyFilter(PropertyFilter);
 
-impl InternalEdgeFilterOps for PyPropertyFilter {
+impl CreateEdgeFilter for PyPropertyFilter {
     type EdgeFiltered<'graph, G>
-        = <PropertyFilter as InternalEdgeFilterOps>::EdgeFiltered<'graph, G>
+        = <PropertyFilter as CreateEdgeFilter>::EdgeFiltered<'graph, G>
     where
         G: GraphViewOps<'graph>,
         Self: 'graph;
@@ -216,7 +216,7 @@ impl<T: DynInternalNodeFilterOps + ?Sized + 'static> CreateNodeFilter for Arc<T>
     }
 }
 
-impl InternalEdgeFilterOps for PyFilterExpr {
+impl CreateEdgeFilter for PyFilterExpr {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
         = Arc<dyn BoxableGraphView + 'graph>
     where
@@ -241,7 +241,7 @@ pub trait DynInternalEdgeFilterOps: AsEdgeFilter {
     ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
 }
 
-impl<T: InternalEdgeFilterOps + AsEdgeFilter + Clone + 'static> DynInternalEdgeFilterOps for T {
+impl<T: CreateEdgeFilter + AsEdgeFilter + Clone + 'static> DynInternalEdgeFilterOps for T {
     fn create_dyn_edge_filter<'graph>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
@@ -250,7 +250,7 @@ impl<T: InternalEdgeFilterOps + AsEdgeFilter + Clone + 'static> DynInternalEdgeF
     }
 }
 
-impl<T: DynInternalEdgeFilterOps + ?Sized + 'static> InternalEdgeFilterOps for Arc<T> {
+impl<T: DynInternalEdgeFilterOps + ?Sized + 'static> CreateEdgeFilter for Arc<T> {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
         = Arc<dyn BoxableGraphView + 'graph>
     where

@@ -249,7 +249,7 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
 impl<'a, T: EdgeStorageOps<'a>> FilteredEdgeStorageOps<'a> for T {}
 
 pub trait FilteredEdgesStorageOps {
-    fn filtered_edges_par<'a, G: GraphView + 'a>(
+    fn filtered_par_iter<'a, G: GraphView + 'a>(
         &'a self,
         view: G,
         layer_ids: &'a LayerIds,
@@ -257,7 +257,7 @@ pub trait FilteredEdgesStorageOps {
 }
 
 impl FilteredEdgesStorageOps for EdgesStorage {
-    fn filtered_edges_par<'a, G: GraphView + 'a>(
+    fn filtered_par_iter<'a, G: GraphView + 'a>(
         &'a self,
         view: G,
         layer_ids: &'a LayerIds,

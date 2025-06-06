@@ -80,7 +80,7 @@ mod search_tests {
                     AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
                 },
             },
-            prelude::{AdditionOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 
@@ -165,7 +165,9 @@ mod search_tests {
                     AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
                 },
             },
-            prelude::{AdditionOps, EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{
+                AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter,
+            },
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 

@@ -14,8 +14,8 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
-            node::PyNode, views::graph_view::PyGraphView,
+            edge::PyEdge, graph_with_deletions::PyPersistentGraph, index::PyIndexSpec,
+            io::pandas_loaders::*, node::PyNode, views::graph_view::PyGraphView,
         },
         types::iterable::FromIterable,
         utils::{PyNodeRef, PyTime},
@@ -983,5 +983,32 @@ impl PyGraph {
             layer,
             layer_col,
         )
+    }
+
+    /// Create graph index
+    fn create_index(&self) -> Result<(), GraphError> {
+        self.graph.create_index()
+    }
+
+    /// Create graph index with the provided index spec.
+    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
+        self.graph.create_index_with_spec(py_spec.spec.clone())
+    }
+
+    /// Creates a graph index in memory (RAM).
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.graph.create_index_in_ram()
+    }
+
+    /// Creates a graph index in memory (RAM) with the provided index spec.
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
+        self.graph
+            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 }

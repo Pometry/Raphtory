@@ -8,7 +8,7 @@ use crate::{
                 InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, model::Filter, EdgeFieldFilter},
+        graph::views::filter::{internal::CreateEdgeFilter, model::Filter, EdgeFieldFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -37,7 +37,7 @@ impl<G> EdgeFieldFilteredGraph<G> {
     }
 }
 
-impl InternalEdgeFilterOps for EdgeFieldFilter {
+impl CreateEdgeFilter for EdgeFieldFilter {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgeFieldFilteredGraph<G>;
 
     fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(

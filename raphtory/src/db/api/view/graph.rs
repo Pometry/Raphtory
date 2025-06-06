@@ -15,41 +15,41 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
-                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
+                cached_view::CachedView,
+                filter::{
+                    model::{AsEdgeFilter, AsNodeFilter},
+                    node_type_filtered_graph::NodeTypeFilteredGraph,
+                },
+                node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
             },
         },
     },
     errors::GraphError,
     prelude::*,
 };
+use ahash::HashSet;
 use chrono::{DateTime, Utc};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::EID,
+        entities::{properties::meta::PropMapper, EID},
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
     GraphType,
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
-    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
     mutation::{addition_ops::InternalAdditionOps, MutationError},
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    sync::{atomic::Ordering, Arc},
-};
-
-use crate::db::graph::views::filter::model::{AsEdgeFilter, AsNodeFilter};
-use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
-#[cfg(feature = "search")]
-use zip::ZipArchive;
+use std::sync::{atomic::Ordering, Arc};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -139,15 +139,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
 #[cfg(feature = "search")]
 pub trait SearchableGraphOps: Sized {
-    fn create_index(&self) -> Result<(), GraphError>;
-
-    fn create_index_in_ram(&self) -> Result<(), GraphError>;
-
-    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
-
-    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
-
-    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError>;
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
 
     fn search_nodes<F: AsNodeFilter>(
         &self,
@@ -167,101 +159,6 @@ pub trait SearchableGraphOps: Sized {
 }
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
-    // pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
-    //     self,
-    //     view: G,
-    // ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
-    //     match view.node_list() {
-    //         NodeList::List { elems } => {
-    //             return elems
-    //                 .into_iter()
-    //                 .flat_map(move |v| {
-    //                     self.clone()
-    //                         .into_node_edges_iter(v, Direction::OUT, view.clone())
-    //                 })
-    //                 .into_dyn_boxed()
-    //         }
-    //         _ => {}
-    //     }
-    //     let edges = self.owned_edges();
-    //     let nodes = self.owned_nodes();
-    //
-    //     match edges {
-    //         EdgesStorage::Mem(edges) => {
-    //             let iter = (0..edges.len()).map(EID);
-    //             let filtered = match view.filter_state() {
-    //                 FilterState::Neither => {
-    //                     FilterVariants::Neither(iter.map(move |eid| edges.get_mem(eid).out_ref()))
-    //                 }
-    //                 FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
-    //                     let e = EdgeStorageRef::Mem(edges.get_mem(e));
-    //                     (view.filter_edge(e, view.layer_ids())
-    //                         && view.filter_node(nodes.node_entry(e.src()))
-    //                         && view.filter_node(nodes.node_entry(e.dst())))
-    //                     .then(|| e.out_ref())
-    //                 })),
-    //                 FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
-    //                     let e = EdgeStorageRef::Mem(edges.get_mem(e));
-    //                     (view.filter_node(nodes.node_entry(e.src()))
-    //                         && view.filter_node(nodes.node_entry(e.dst())))
-    //                     .then(|| e.out_ref())
-    //                 })),
-    //                 FilterState::Edges | FilterState::BothIndependent => {
-    //                     FilterVariants::Edges(iter.filter_map(move |e| {
-    //                         let e = EdgeStorageRef::Mem(edges.get_mem(e));
-    //                         view.filter_edge(e, view.layer_ids()).then(|| e.out_ref())
-    //                     }))
-    //                 }
-    //             };
-    //             filtered.into_dyn_boxed()
-    //         }
-    //         #[cfg(feature = "storage")]
-    //         EdgesStorage::Disk(edges) => {
-    //             let edges_clone = edges.clone();
-    //             let iter = edges_clone.into_iter_refs(view.layer_ids().clone());
-    //             let filtered = match view.filter_state() {
-    //                 FilterState::Neither => FilterVariants::Neither(iter),
-    //                 FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
-    //                     let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
-    //                     if !view.filter_edge(edge, view.layer_ids()) {
-    //                         return None;
-    //                     }
-    //                     let src = nodes.node_entry(e.src());
-    //                     if !view.filter_node(src) {
-    //                         return None;
-    //                     }
-    //                     let dst = nodes.node_entry(e.dst());
-    //                     if !view.filter_node(dst) {
-    //                         return None;
-    //                     }
-    //                     Some(e)
-    //                 })),
-    //                 FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
-    //                     let src = nodes.node_entry(e.src());
-    //                     if !view.filter_node(src) {
-    //                         return None;
-    //                     }
-    //                     let dst = nodes.node_entry(e.dst());
-    //                     if !view.filter_node(dst) {
-    //                         return None;
-    //                     }
-    //                     Some(e)
-    //                 })),
-    //                 FilterState::Edges | FilterState::BothIndependent => {
-    //                     FilterVariants::Edges(iter.filter_map(move |e| {
-    //                         let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
-    //                         if !view.filter_edge(edge, view.layer_ids()) {
-    //                             return None;
-    //                         }
-    //                         Some(e)
-    //                     }))
-    //                 }
-    //             };
-    //             filtered.into_dyn_boxed()
-    //         }
-    //     }
-    // }
-
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
         let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
@@ -810,76 +707,226 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 }
 
-#[cfg(feature = "search")]
-impl<G: StaticGraphViewOps> SearchableGraphOps for G {
-    fn create_index(&self) -> Result<(), GraphError> {
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index(None)?;
-                Ok(())
-            })
-    }
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct IndexSpec {
+    pub(crate) node_const_props: HashSet<usize>,
+    pub(crate) node_temp_props: HashSet<usize>,
+    pub(crate) edge_const_props: HashSet<usize>,
+    pub(crate) edge_temp_props: HashSet<usize>,
+}
 
-    fn create_index_in_ram(&self) -> Result<(), GraphError> {
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index_in_ram()?;
-                Ok(())
-            })
-    }
-
-    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
-        fn has_index<P: AsRef<Path>>(zip_path: P) -> Result<bool, GraphError> {
-            let file = File::open(&zip_path)?;
-            let mut archive = ZipArchive::new(file)?;
-
-            for i in 0..archive.len() {
-                let entry = archive.by_index(i)?;
-                let entry_path = Path::new(entry.name());
-
-                if let Some(first_component) = entry_path.components().next() {
-                    if first_component.as_os_str() == "index" {
-                        return Ok(true);
-                    }
-                }
-            }
-
-            Ok(false)
+impl IndexSpec {
+    pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
+        fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
+            requested.difference(existing).copied().collect()
         }
 
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                if path.is_file() {
-                    if has_index(path)? {
-                        storage.get_or_create_index(Some(path.clone()))?;
-                    } else {
-                        return Ok(()); // Skip if no index in zip
-                    }
-                } else {
-                    let index_path = path.join("index");
-                    if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.get_or_create_index(Some(path.clone()))?;
-                    }
-                }
+        let node_const_props = diff_props(&existing.node_const_props, &requested.node_const_props);
+        let node_temp_props = diff_props(&existing.node_temp_props, &requested.node_temp_props);
+        let edge_const_props = diff_props(&existing.edge_const_props, &requested.edge_const_props);
+        let edge_temp_props = diff_props(&existing.edge_temp_props, &requested.edge_temp_props);
 
-                Ok(())
+        if node_const_props.is_empty()
+            && node_temp_props.is_empty()
+            && edge_const_props.is_empty()
+            && edge_temp_props.is_empty()
+        {
+            None
+        } else {
+            Some(IndexSpec {
+                node_const_props,
+                node_temp_props,
+                edge_const_props,
+                edge_temp_props,
             })
+        }
     }
 
-    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
-        let path = path.join("index");
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk(&path)?;
-                Ok(())
-            })
+    pub(crate) fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
+        fn union_props(a: &HashSet<usize>, b: &HashSet<usize>) -> HashSet<usize> {
+            a.union(b).copied().collect()
+        }
+
+        IndexSpec {
+            node_const_props: union_props(&existing.node_const_props, &other.node_const_props),
+            node_temp_props: union_props(&existing.node_temp_props, &other.node_temp_props),
+            edge_const_props: union_props(&existing.edge_const_props, &other.edge_const_props),
+            edge_temp_props: union_props(&existing.edge_temp_props, &other.edge_temp_props),
+        }
     }
 
-    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub fn props(&self, graph: &Graph) -> Vec<Vec<String>> {
+        let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
+            let mut names: Vec<String> = props
+                .iter()
+                .map(|prop_id| meta.get_name(*prop_id).to_string())
+                .collect();
+            names.sort();
+            names
+        };
+
+        vec![
+            extract_names(&self.node_const_props, graph.node_meta().const_prop_meta()),
+            extract_names(
+                &self.node_temp_props,
+                graph.node_meta().temporal_prop_meta(),
+            ),
+            extract_names(&self.edge_const_props, graph.edge_meta().const_prop_meta()),
+            extract_names(
+                &self.edge_temp_props,
+                graph.edge_meta().temporal_prop_meta(),
+            ),
+        ]
+    }
+}
+
+#[derive(Clone)]
+pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
+    pub graph: G,
+    node_const_props: Option<HashSet<usize>>,
+    node_temp_props: Option<HashSet<usize>>,
+    edge_const_props: Option<HashSet<usize>>,
+    edge_temp_props: Option<HashSet<usize>>,
+}
+
+impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
+    pub fn new(graph: G) -> Self {
+        Self {
+            graph,
+            node_const_props: None,
+            node_temp_props: None,
+            edge_const_props: None,
+            edge_temp_props: None,
+        }
+    }
+
+    pub fn with_all_node_props(mut self) -> Self {
+        self.node_const_props = Some(Self::extract_props(
+            self.graph.node_meta().const_prop_meta(),
+        ));
+        self.node_temp_props = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_const_node_props(mut self) -> Self {
+        self.node_const_props = Some(Self::extract_props(
+            self.graph.node_meta().const_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_temp_node_props(mut self) -> Self {
+        self.node_temp_props = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_const_node_props<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.node_const_props = Some(Self::extract_named_props(
+            self.graph.node_meta().const_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_temp_node_props<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.node_temp_props = Some(Self::extract_named_props(
+            self.graph.node_meta().temporal_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_all_edge_props(mut self) -> Self {
+        self.edge_const_props = Some(Self::extract_props(
+            self.graph.edge_meta().const_prop_meta(),
+        ));
+        self.edge_temp_props = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_edge_const_props(mut self) -> Self {
+        self.edge_const_props = Some(Self::extract_props(
+            self.graph.edge_meta().const_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_all_temp_edge_props(mut self) -> Self {
+        self.edge_temp_props = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_meta(),
+        ));
+        self
+    }
+
+    pub fn with_const_edge_props<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.edge_const_props = Some(Self::extract_named_props(
+            self.graph.edge_meta().const_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_temp_edge_props<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.edge_temp_props = Some(Self::extract_named_props(
+            self.graph.edge_meta().temporal_prop_meta(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    fn extract_props(meta: &PropMapper) -> HashSet<usize> {
+        (0..meta.len()).collect()
+    }
+
+    fn extract_named_props<S: AsRef<str>>(
+        meta: &PropMapper,
+        keys: impl IntoIterator<Item = S>,
+    ) -> Result<HashSet<usize>, GraphError> {
+        keys.into_iter()
+            .map(|k| {
+                let s = k.as_ref();
+                let id = meta
+                    .get_id(s)
+                    .ok_or_else(|| GraphError::PropertyMissingError(s.to_string()))?;
+                Ok(id)
+            })
+            .collect()
+    }
+
+    pub fn build(self) -> IndexSpec {
+        IndexSpec {
+            node_const_props: self.node_const_props.unwrap_or_default(),
+            node_temp_props: self.node_temp_props.unwrap_or_default(),
+            edge_const_props: self.edge_const_props.unwrap_or_default(),
+            edge_temp_props: self.edge_temp_props.unwrap_or_default(),
+        }
+    }
+}
+
+#[cfg(feature = "search")]
+impl<G: StaticGraphViewOps> SearchableGraphOps for G {
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk_zip(path)?;
-                Ok(())
+                storage.get_index_spec()
             })
     }
 

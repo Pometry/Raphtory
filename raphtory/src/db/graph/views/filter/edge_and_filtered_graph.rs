@@ -8,7 +8,7 @@ use crate::{
                 InheritTimeSemantics, InternalLayerOps, ListOps, NodeList, Static,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, model::AndFilter},
+        graph::views::filter::{internal::CreateEdgeFilter, model::AndFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -31,7 +31,7 @@ pub struct EdgeAndFilteredGraph<G, L, R> {
     layer_ids: LayerIds,
 }
 
-impl<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps for AndFilter<L, R> {
+impl<L: CreateEdgeFilter, R: CreateEdgeFilter> CreateEdgeFilter for AndFilter<L, R> {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
         = EdgeAndFilteredGraph<G, L::EdgeFiltered<'graph, G>, R::EdgeFiltered<'graph, G>>
     where

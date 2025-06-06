@@ -1,7 +1,7 @@
 mod base_time_semantics;
 mod event_semantics;
-pub(crate) mod filtered_edge;
-pub(crate) mod filtered_node;
+pub mod filtered_edge;
+pub mod filtered_node;
 mod persistent_semantics;
 mod time_semantics;
 mod time_semantics_ops;

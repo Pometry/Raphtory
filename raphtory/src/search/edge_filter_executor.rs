@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             views::filter::{
-                internal::InternalEdgeFilterOps,
+                internal::CreateEdgeFilter,
                 model::{
                     edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
                     property_filter::{PropertyRef, Temporal},
@@ -108,7 +108,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         match query {
             Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
             // Fallback to raphtory apis
-            None => Self::raph_filter_edges(graph, filter, offset, limit),
+            None => Self::raph_filter_edges(graph, filter, limit, offset),
         }
     }
 
@@ -137,7 +137,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            None => Self::raph_filter_edges(graph, filter, offset, limit),
+            None => Self::raph_filter_edges(graph, filter, limit, offset),
         }
     }
 
@@ -157,7 +157,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
-            Err(GraphError::PropertyNotFound(prop_name.to_string()))
+            Self::raph_filter_edges(graph, filter, limit, offset)
         }
     }
 
@@ -189,7 +189,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                 collector_fn,
             )
         } else {
-            Err(GraphError::PropertyNotFound(prop_name.to_string()))
+            Self::raph_filter_edges(graph, filter, limit, offset)
         }
     }
 
@@ -249,7 +249,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                 offset,
                 LatestEdgePropertyFilterCollector::new,
             ),
-            _ => Err(GraphError::PropertyNotFound(prop_name.to_string())),
+            _ => Self::raph_filter_edges(graph, filter, limit, offset),
         }
     }
 
@@ -306,7 +306,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                 offset,
             )?,
             None => {
-                Self::raph_filter_edges(graph, &EdgeFieldFilter(filter.clone()), offset, limit)?
+                Self::raph_filter_edges(graph, &EdgeFieldFilter(filter.clone()), limit, offset)?
             }
         };
 
@@ -351,7 +351,7 @@ impl<'a> EdgeFilterExecutor<'a> {
 
                 Ok(combined.into_iter().collect())
             }
-            CompositeEdgeFilter::Not(_) => Self::raph_filter_edges(graph, filter, offset, limit),
+            CompositeEdgeFilter::Not(_) => Self::raph_filter_edges(graph, filter, limit, offset),
         }
     }
 
@@ -410,9 +410,9 @@ impl<'a> EdgeFilterExecutor<'a> {
 
     fn raph_filter_edges<G: StaticGraphViewOps>(
         graph: &G,
-        filter: &(impl InternalEdgeFilterOps + Clone),
-        offset: usize,
+        filter: &(impl CreateEdgeFilter + Clone),
         limit: usize,
+        offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let filtered_edges = graph
             .filter_edges(filter.clone())?

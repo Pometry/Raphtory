@@ -868,28 +868,28 @@ pub(crate) mod test_filters {
         mod test_edge_property_filter_semantics {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
+                    api::view::{EdgeViewOps, StaticGraphViewOps},
+                    graph::{
+                        assertions::{
+                            assert_filter_edges_results, assert_search_edges_results,
+                            TestGraphVariants, TestVariants,
+                        },
+                        views::filter::{
+                            internal::CreateEdgeFilter,
+                            model::{property_filter::PropertyFilter, PropertyFilterOps},
+                            test_filters::IdentityGraphTransformer,
+                        },
+                    },
                 },
-                prelude::{AdditionOps, PropertyAdditionOps},
+                prelude::{
+                    AdditionOps, EdgePropertyFilterOps, Graph, GraphViewOps, NodeViewOps,
+                    PropertyAdditionOps,
+                },
             };
             use raphtory_api::core::entities::properties::prop::Prop;
             use raphtory_storage::mutation::{
                 addition_ops::InternalAdditionOps,
                 property_addition_ops::InternalPropertyAdditionOps,
-            };
-
-            use crate::{
-                db::graph::{
-                    assertions::{
-                        assert_filter_edges_results, assert_search_edges_results,
-                        TestGraphVariants, TestVariants,
-                    },
-                    views::filter::{
-                        model::property_filter::PropertyFilter,
-                        test_filters::IdentityGraphTransformer,
-                    },
-                },
-                prelude::GraphViewOps,
             };
 
             fn init_graph<
@@ -1002,6 +1002,59 @@ pub(crate) mod test_filters {
                     filter.clone(),
                     &expected_results,
                     TestVariants::NonDiskOnly,
+                );
+            }
+
+            #[test]
+            #[ignore]
+            // TODO: Enable test once issue is fixed: https://github.com/Pometry/Raphtory/issues/2109
+            fn test_constant_semantics2() {
+                fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
+                    let mut results = graph
+                        .filter_edges(filter)
+                        .unwrap()
+                        .edges()
+                        .iter()
+                        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                        .collect::<Vec<_>>();
+                    results.sort();
+                    results
+                }
+
+                let graph = init_graph(Graph::new());
+
+                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                assert_eq!(
+                    filter_edges(&graph, filter.clone()),
+                    vec![
+                        "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                        "N15->N1", "N9->N10"
+                    ]
+                );
+
+                let edge = graph
+                    .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], Some("fire_nation"))
+                    .unwrap();
+                edge.add_constant_properties([("z", true)], Some("fire_nation"))
+                    .unwrap();
+                let prop = graph
+                    .edge("shivam", "kapoor")
+                    .unwrap()
+                    .properties()
+                    .constant()
+                    .get("z")
+                    .unwrap();
+                assert_eq!("{\"fire_nation\": true}", prop.to_string());
+
+                let filter2 = PropertyFilter::property("z").constant().eq(true);
+                assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
+
+                assert_eq!(
+                    filter_edges(&graph, filter),
+                    vec![
+                        "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                        "N15->N1", "N9->N10"
+                    ]
                 );
             }
 

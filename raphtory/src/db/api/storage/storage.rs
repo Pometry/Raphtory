@@ -20,7 +20,7 @@ use std::{
 };
 use tracing::info;
 
-use crate::errors::GraphError;
+use crate::{db::api::view::IndexSpec, errors::GraphError};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
     GidRef,
@@ -28,10 +28,7 @@ use raphtory_api::core::entities::{
 use raphtory_core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
+    graph::{locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps},
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
@@ -122,33 +119,45 @@ impl Storage {
 
 #[cfg(feature = "search")]
 impl Storage {
-    pub(crate) fn get_or_create_index(
-        &self,
-        path: Option<PathBuf>,
-    ) -> Result<&GraphIndex, GraphError> {
+    pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
+        let index = self.index.get().ok_or(GraphError::GraphIndexIsMissing)?;
+        Ok(index.index_spec.read().clone())
+    }
+
+    pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
         self.index.get_or_try_init(|| {
-            if let Some(path) = path {
-                Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
-            } else {
-                let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-                Ok::<_, GraphError>(GraphIndex::create_from_graph(
-                    &self.graph,
-                    false,
-                    cache_path,
-                )?)
-            }
+            let index = GraphIndex::load_from_path(&path)?;
+            Ok(index)
         })
     }
 
-    pub(crate) fn get_or_create_index_in_ram(&self) -> Result<&GraphIndex, GraphError> {
+    pub(crate) fn get_or_create_index(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<&GraphIndex, GraphError> {
+        let index = self.index.get_or_try_init(|| {
+            let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+            GraphIndex::create(&self.graph, false, cached_graph_path)
+        })?;
+        index.update(&self.graph, index_spec)?;
+        Ok(index)
+    }
+
+    pub(crate) fn get_or_create_index_in_ram(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<&GraphIndex, GraphError> {
         let index = self
             .index
-            .get_or_try_init(|| GraphIndex::create_from_graph(&self.graph, true, None))?;
+            .get_or_try_init(|| GraphIndex::create(&self.graph, true, None))?;
+
         if index.path.is_some() {
-            Err(GraphError::FailedToCreateIndexInRam)
-        } else {
-            Ok(index)
+            return Err(GraphError::FailedToCreateIndexInRam);
         }
+
+        index.update(&self.graph, index_spec)?;
+
+        Ok(index)
     }
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
@@ -285,9 +294,6 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_node_property(prop, id, &dtype, is_static));
 
-        #[cfg(feature = "search")]
-        self.if_index(|index| index.create_node_property_index(id, prop, &dtype, is_static))?;
-
         Ok(id)
     }
 
@@ -303,9 +309,6 @@ impl InternalAdditionOps for Storage {
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_edge_property(prop, id, &dtype, is_static));
-
-        #[cfg(feature = "search")]
-        self.if_index(|index| index.create_edge_property_index(id, prop, &dtype, is_static))?;
 
         Ok(id)
     }
@@ -344,7 +347,7 @@ impl InternalAdditionOps for Storage {
         });
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_update(&self.graph, id, t, src, dst, layer, props))?;
+        self.if_index(|index| index.add_edge_update(&self.graph, id, t, layer, props))?;
 
         Ok(id)
     }
@@ -363,18 +366,7 @@ impl InternalAdditionOps for Storage {
 
         #[cfg(feature = "search")]
         self.if_index(|index| {
-            let ee = self.graph.edge_entry(edge);
-            let src = ee.src();
-            let dst = ee.dst();
-            index.add_edge_update(
-                &self.graph,
-                MaybeNew::Existing(edge),
-                t,
-                src,
-                dst,
-                layer,
-                props,
-            )
+            index.add_edge_update(&self.graph, MaybeNew::Existing(edge), t, layer, props)
         })?;
 
         Ok(())
@@ -429,7 +421,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_constant_properties(&self.graph, vid, props))?;
+        self.if_index(|index| index.add_node_constant_properties(vid, props))?;
 
         Ok(())
     }
@@ -446,7 +438,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.update_node_constant_properties(&self.graph, vid, props))?;
+        self.if_index(|index| index.update_node_constant_properties(vid, props))?;
 
         Ok(())
     }
@@ -464,7 +456,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_constant_properties(&self.graph, eid, layer, props))?;
+        self.if_index(|index| index.add_edge_constant_properties(eid, layer, props))?;
 
         Ok(())
     }
@@ -482,9 +474,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| {
-            index.update_edge_constant_properties(&self.graph, eid, layer, props)
-        })?;
+        self.if_index(|index| index.update_edge_constant_properties(eid, layer, props))?;
 
         Ok(())
     }

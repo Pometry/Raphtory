@@ -3,12 +3,16 @@ use crate::prelude::Prop;
 mod addition_ops;
 mod deletion_ops;
 mod import_ops;
+#[cfg(feature = "search")]
+pub mod index_ops;
 mod property_addition_ops;
 
 use crate::errors::{into_graph_err, GraphError};
 pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;
+#[cfg(feature = "search")]
+pub use index_ops::IndexMutationOps;
 pub use property_addition_ops::PropertyAdditionOps;
 use raphtory_api::core::{
     entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,

@@ -1,7 +1,5 @@
 import pytest
-
 from raphtory import Graph, PersistentGraph
-
 from utils import run_graphql_test
 
 
@@ -65,7 +63,6 @@ def create_test_graph(g):
         },
     )
     return g
-
 
 EVENT_GRAPH = create_test_graph(Graph())
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())

@@ -738,7 +738,7 @@ mod test_graph_storage {
         use super::*;
         use crate::{
             db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{Graph, NodeViewOps, PropertyFilter},
+            prelude::{Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
         };
 
         #[test]
@@ -764,8 +764,9 @@ mod test_graph_storage {
         use super::*;
         use crate::{
             db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{EdgeViewOps, Graph, NodeViewOps, PropertyFilter},
+            prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
         };
+
         #[test]
         fn test_search_edges_latest() {
             let g = Graph::new();

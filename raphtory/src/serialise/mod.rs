@@ -12,7 +12,7 @@ mod proto {
 }
 
 #[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
+use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
@@ -31,7 +31,7 @@ const META_FILE_NAME: &str = ".raph";
 
 #[derive(Clone, Debug)]
 pub struct GraphFolder {
-    root_folder: PathBuf,
+    pub root_folder: PathBuf,
     prefer_zip_format: bool,
 }
 
