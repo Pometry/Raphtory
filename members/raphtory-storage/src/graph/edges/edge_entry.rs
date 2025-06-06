@@ -7,7 +7,6 @@ use raphtory_api::core::entities::{
     LayerIds, EID, VID,
 };
 use raphtory_core::{entities::edges::edge_store::MemEdge, storage::raw_edges::EdgeRGuard};
-use rayon::prelude::*;
 use std::ops::Range;
 
 #[cfg(feature = "storage")]
