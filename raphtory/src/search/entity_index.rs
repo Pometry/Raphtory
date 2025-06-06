@@ -1,14 +1,21 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    errors::GraphError,
     search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
 };
-use lock_api::RwLockReadGuard;
-use parking_lot::{RawRwLock, RwLock};
+use ahash::HashSet;
+use parking_lot::{RwLock, RwLockReadGuard};
 use raphtory_api::core::{
-    entities::properties::props::{Meta, PropMapper},
+    entities::properties::{
+        meta::{Meta, PropMapper},
+        prop::Prop,
+    },
     storage::timeindex::TimeIndexEntry,
 };
-use std::{borrow::Borrow, collections::HashSet, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Borrow,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index, IndexReader, IndexWriter, Term,
@@ -34,7 +41,7 @@ impl EntityIndex {
         })
     }
 
-    fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
+    fn load_from_path(path: &Path, is_edge: bool) -> Result<Self, GraphError> {
         let index = Index::open_in_dir(path.join("fields"))?;
 
         register_default_tokenizers(&index);
@@ -236,7 +243,7 @@ impl EntityIndex {
     // Filter props for which there already is a property index
     fn filtered_props(
         props: &[(usize, Prop)],
-        indexes: &RwLockReadGuard<RawRwLock, Vec<Option<PropertyIndex>>>,
+        indexes: &RwLockReadGuard<Vec<Option<PropertyIndex>>>,
     ) -> Vec<(usize, Prop)> {
         props
             .iter()

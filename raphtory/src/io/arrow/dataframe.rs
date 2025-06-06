@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::errors::{GraphError, LoadError},
+    errors::{GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use itertools::Itertools;
@@ -35,7 +35,7 @@ where
             .iter()
             .filter(|c| !self.names.contains(&c.to_string()))
             .collect();
-        if non_cols.len() > 0 {
+        if !non_cols.is_empty() {
             return Err(GraphError::ColumnDoesNotExist(non_cols.iter().join(", ")));
         }
 

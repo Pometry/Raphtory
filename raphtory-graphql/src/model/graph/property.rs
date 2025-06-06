@@ -2,13 +2,16 @@ use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, IntoPropMap, Prop},
     db::api::properties::{
         dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
+    errors::GraphError,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::properties::prop::{IntoPropMap, Prop},
+    storage::arc_str::ArcStr,
+};
 use rustc_hash::FxHashMap;
 use serde_json::Number;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};

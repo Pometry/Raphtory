@@ -1,4 +1,4 @@
-use crate::core::utils::errors::GraphError;
+use crate::errors::GraphError;
 use bzip2::read::BzDecoder;
 use flate2; // 1.0
 use flate2::read::GzDecoder;
@@ -309,7 +309,7 @@ mod tests {
     fn test_json_rec(g: Graph, loader: JsonLinesLoader<TestRecord>) {
         loader
             .load_into_graph(&g, |testrec: TestRecord, g: &Graph| {
-                let _ = g.add_node(testrec.time.clone(), testrec.name.clone(), NO_PROPS, None);
+                let _ = g.add_node(testrec.time, testrec.name.clone(), NO_PROPS, None);
                 Ok(())
             })
             .expect("Unable to add node to graph");

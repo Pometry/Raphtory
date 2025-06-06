@@ -153,7 +153,7 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
         } else {
             if let Some(parent) = Path::new(&dest_path).parent() {
                 if !parent.exists() {
-                    create_dir_all(&parent)?;
+                    create_dir_all(parent)?;
                 }
             }
             let mut output_file = File::create(&dest_path)?;

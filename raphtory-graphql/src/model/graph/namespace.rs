@@ -5,7 +5,7 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::core::utils::errors::InvalidPathReason;
+use raphtory::errors::InvalidPathReason;
 use std::path::PathBuf;
 use tokio::task::spawn_blocking;
 use walkdir::WalkDir;

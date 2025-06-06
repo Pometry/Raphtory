@@ -370,30 +370,30 @@ def test_load_from_pandas_with_types():
     assertions2(g)
 
     def assertions3(g):
-        assert g.unique_layers == ["_default", "test_layer"]
+        assert g.unique_layers == ["test_layer"]
         assert set(g.layers(["test_layer"]).edges.src.id) == {1, 2, 3, 4, 5}
         assert g.edges.properties.constant.get("type").collect() == [
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
+            "Edge",
+            "Edge",
+            "Edge",
+            "Edge",
+            "Edge",
         ]
         assert g.edges.properties.constant.get("tag").collect() == [
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
+            "test_tag",
+            "test_tag",
+            "test_tag",
+            "test_tag",
+            "test_tag",
         ]
         assert dict(
             zip(g.edges.id, g.edges.properties.constant.get("marbles_const"))
         ) == {
-            (1, 2): {"test_layer": "red"},
-            (2, 3): {"test_layer": "blue"},
-            (3, 4): {"test_layer": "green"},
-            (4, 5): {"test_layer": "yellow"},
-            (5, 6): {"test_layer": "purple"},
+            (1, 2): "red",
+            (2, 3): "blue",
+            (3, 4): "green",
+            (4, 5): "yellow",
+            (5, 6): "purple",
         }
 
     g = Graph()
@@ -641,7 +641,6 @@ def test_load_from_pandas_with_types():
 
     def assertions_layers_in_df(g):
         assert set(g.unique_layers) == {
-            "_default",
             "layer 1",
             "layer 2",
             "layer 3",
@@ -1117,7 +1116,7 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     g = Graph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
@@ -1131,7 +1130,7 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
     assert dict(
         zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
     ) == {
@@ -1153,7 +1152,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -1174,7 +1172,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -1224,7 +1221,7 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
@@ -1238,7 +1235,7 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
     assert dict(
         zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
     ) == {
@@ -1258,7 +1255,7 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     # CHECK IF JUST LAYER_COL WORKS
     g = PersistentGraph()
@@ -1271,7 +1268,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -1292,7 +1288,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -1319,7 +1314,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",

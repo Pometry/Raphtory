@@ -21,7 +21,7 @@ pub type Embedding = Arc<[f32]>;
 
 #[derive(Debug, Clone)]
 pub enum DocumentEntity<G: StaticGraphViewOps> {
-    Node(NodeView<G>),
+    Node(NodeView<'static, G>),
     Edge(EdgeView<G>),
 }
 
@@ -34,15 +34,14 @@ pub struct Document<G: StaticGraphViewOps> {
 
 #[cfg(test)]
 mod vector_tests {
-    use std::{fs::remove_dir_all, path::PathBuf};
-
     use super::{embeddings::EmbeddingResult, *};
     use crate::{
-        core::Prop,
         prelude::*,
         vectors::{cache::VectorCache, embeddings::openai_embedding, vectorisable::Vectorisable},
     };
     use itertools::Itertools;
+    use raphtory_api::core::entities::properties::prop::Prop;
+    use std::{fs::remove_dir_all, path::PathBuf};
     use template::DocumentTemplate;
     use tokio;
 

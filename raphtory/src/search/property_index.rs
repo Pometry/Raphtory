@@ -1,9 +1,11 @@
 use crate::{
-    core::utils::errors::GraphError,
+    errors::GraphError,
     prelude::*,
     search::{fields, new_index, TOKENIZER},
 };
-use raphtory_api::core::{storage::timeindex::TimeIndexEntry, PropType};
+use raphtory_api::core::{
+    entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
+};
 use std::{fs, path::PathBuf, sync::Arc};
 use tantivy::{
     collector::TopDocs,

@@ -1,13 +1,13 @@
 use raphtory_api::core::storage::arc_str::ArcStr;
 
 use crate::{
-    db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
+    db::api::{properties::internal::ConstantPropertiesOps, view::BoxedLIter},
     prelude::Prop,
 };
 
 use super::GraphStorage;
 
-impl ConstPropertiesOps for GraphStorage {
+impl ConstantPropertiesOps for GraphStorage {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph_meta().get_const_prop_id(name)
     }

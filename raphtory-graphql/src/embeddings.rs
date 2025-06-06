@@ -1,7 +1,6 @@
-use async_graphql::Context;
-use raphtory::{core::utils::errors::GraphResult, vectors::Embedding};
-
 use crate::data::Data;
+use async_graphql::Context;
+use raphtory::{errors::GraphResult, vectors::Embedding};
 
 pub(crate) trait EmbedQuery {
     async fn embed_query(&self, text: String) -> GraphResult<Embedding>;

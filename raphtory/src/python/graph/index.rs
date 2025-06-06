@@ -1,5 +1,4 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::{
             internal::{CoreGraphOps, DynamicGraph},
@@ -7,12 +6,13 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
+    errors::GraphError,
     prelude::SearchableGraphOps,
     python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
 };
+use ahash::HashSet;
 use pyo3::prelude::*;
-use raphtory_api::core::entities::properties::props::PropMapper;
-use std::collections::HashSet;
+use raphtory_api::core::entities::properties::meta::PropMapper;
 
 #[pyclass(name = "IndexSpec", module = "raphtory", frozen)]
 #[derive(Clone)]
@@ -199,7 +199,7 @@ impl PyGraphView {
         filter: PyFilterExpr,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<DynamicGraph>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, DynamicGraph>>, GraphError> {
         let filter = filter.try_as_node_filter()?;
         self.graph.search_nodes(filter, limit, offset)
     }

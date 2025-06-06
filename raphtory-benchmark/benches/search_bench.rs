@@ -5,13 +5,12 @@ use rand::{
     thread_rng, Rng,
 };
 use raphtory::{
-    core::Prop,
     db::{
         api::{
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::CoreGraphOps, SearchableGraphOps},
+            view::SearchableGraphOps,
         },
         graph::{
             edge::EdgeView,
@@ -28,8 +27,9 @@ use raphtory::{
         NodePropertyFilterOps, NodeViewOps, PropUnwrap, PropertyFilter,
     },
     serialise::StableDecode,
+    storage::core_ops::CoreGraphOps,
 };
-use raphtory_api::core::PropType;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use rayon::prelude::*;
 use std::{iter, sync::Arc, time::Instant};
 

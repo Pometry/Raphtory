@@ -1,6 +1,5 @@
 use chrono::DateTime;
 use raphtory::{
-    core::Prop,
     io::csv_loader::CsvLoader,
     prelude::{AdditionOps, Graph, NO_PROPS},
 };

@@ -1,4 +1,3 @@
-use crate::iter::BoxedLIter;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
@@ -23,48 +22,42 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn new(t: i64, s: usize) -> Self;
 }
 
-pub trait TimeIndexLike: TimeIndexOps {
-    fn range_iter(&self, w: Range<Self::IndexType>) -> BoxedLIter<Self::IndexType>;
+pub trait TimeIndexLike<'a>: TimeIndexOps<'a> {
+    fn range_iter(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
+
+    fn range_iter_rev(
+        self,
+        w: Range<Self::IndexType>,
+    ) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
+
+    fn range_count(&self, w: Range<Self::IndexType>) -> usize;
 
     fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
-        self.range_iter(w).next()
+        self.clone().range_iter(w).next()
     }
 
-    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType>;
-}
-
-pub trait TimeIndexIntoOps: Sized {
-    type IndexType: AsTime;
-    type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;
-
-    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType;
-
-    fn into_range_t(self, w: Range<i64>) -> Self::RangeType {
-        self.into_range(Self::IndexType::range(w))
-    }
-
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync;
-
-    fn into_iter_t(self) -> impl Iterator<Item = i64> + Send {
-        self.into_iter().map(|time| time.t())
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.clone().range_iter_rev(w).next()
     }
 }
 
-pub trait TimeIndexOps: Send + Sync {
+pub trait TimeIndexOps<'a>: Sized + Clone + Send + Sync + 'a {
     type IndexType: AsTime;
-    type RangeType<'a>: TimeIndexOps<IndexType = Self::IndexType> + 'a
-    where
-        Self: 'a;
+    type RangeType: TimeIndexOps<'a, IndexType = Self::IndexType> + 'a;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
 
+    #[inline]
     fn active_t(&self, w: Range<i64>) -> bool {
         self.active(Self::IndexType::range(w))
     }
 
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_>;
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType;
 
-    fn range_t(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range_t(&self, w: Range<i64>) -> Self::RangeType {
         self.range(Self::IndexType::range(w))
     }
 
@@ -72,21 +65,60 @@ pub trait TimeIndexOps: Send + Sync {
         self.first().map(|ti| ti.t())
     }
 
-    fn first(&self) -> Option<Self::IndexType>;
+    fn first(&self) -> Option<Self::IndexType> {
+        self.clone().iter().next()
+    }
 
     fn last_t(&self) -> Option<i64> {
         self.last().map(|ti| ti.t())
     }
 
-    fn last(&self) -> Option<Self::IndexType>;
+    fn last(&self) -> Option<Self::IndexType> {
+        self.clone().iter_rev().next()
+    }
 
-    fn iter(&self) -> BoxedLIter<Self::IndexType>;
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
 
-    fn iter_t(&self) -> BoxedLIter<i64> {
-        Box::new(self.iter().map(|time| time.t()))
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a;
+
+    fn iter_t(self) -> impl Iterator<Item = i64> + Send + Sync + 'a {
+        self.iter().map(|time| time.t())
+    }
+
+    fn iter_rev_t(self) -> impl Iterator<Item = i64> + Send + Sync + 'a {
+        self.iter_rev().map(|time| time.t())
     }
 
     fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.clone().iter().next().is_none()
+    }
+}
+
+impl<'a, T: TimeIndexOps<'a> + Clone> TimeIndexOps<'a> for &'a T {
+    type IndexType = T::IndexType;
+    type RangeType = T::RangeType;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        T::active(*self, w)
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        T::range(*self, w)
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        T::iter(self.clone())
+    }
+
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        T::iter_rev(self.clone())
+    }
+
+    fn len(&self) -> usize {
+        T::len(*self)
+    }
 }
 
 impl From<i64> for TimeIndexEntry {

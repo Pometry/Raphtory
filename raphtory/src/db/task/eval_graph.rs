@@ -3,16 +3,14 @@ use crate::{
         entities::nodes::node_ref::AsNodeRef,
         state::compute_state::{ComputeState, ComputeStateVec},
     },
-    db::{
-        api::storage::graph::storage_ops::GraphStorage,
-        task::{
-            edge::eval_edge::EvalEdgeView,
-            node::{eval_node::EvalNodeView, eval_node_state::EVState},
-            task_state::PrevLocalState,
-        },
+    db::task::{
+        edge::eval_edge::EvalEdgeView,
+        node::{eval_node::EvalNodeView, eval_node_state::EVState},
+        task_state::PrevLocalState,
     },
     prelude::GraphViewOps,
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]

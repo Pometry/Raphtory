@@ -11,3 +11,6 @@ repository.workspace = true
 license.workspace = true
 readme.workspace = true
 homepage.workspace = true
+
+[features]
+storage = []

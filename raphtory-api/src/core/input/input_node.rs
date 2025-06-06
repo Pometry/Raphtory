@@ -63,7 +63,7 @@ impl InputNode for u64 {
     }
 }
 
-impl<'a> InputNode for &'a str {
+impl InputNode for &str {
     fn id(&self) -> u64 {
         parse_u64_strict(self).unwrap_or_else(|| hashing::calculate_hash(self))
     }

@@ -50,7 +50,7 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
         force += compute_repulsion(id, scale, old_positions);
         force += compute_attraction(id, scale, old_positions, graph);
 
-        let velocity = velocities.get_mut(&id).unwrap();
+        let velocity = velocities.get_mut(id).unwrap();
 
         *velocity += force * dt;
         *velocity *= cooloff_factor;

@@ -1,7 +1,4 @@
-use crate::{
-    core::utils::errors::LoadError, db::api::mutation::internal::InternalAdditionOps,
-    io::arrow::dataframe::DFChunk,
-};
+use crate::{errors::LoadError, io::arrow::dataframe::DFChunk, prelude::AdditionOps};
 use polars_arrow::{
     array::{Array, PrimitiveArray, StaticArray, Utf8Array},
     datatypes::ArrowDataType,
@@ -151,7 +148,7 @@ impl NodeCol {
 
     pub fn validate(
         &self,
-        graph: &impl InternalAdditionOps,
+        graph: &impl AdditionOps,
         node_missing_error: LoadError,
     ) -> Result<(), LoadError> {
         if let Some(existing) = graph.id_type().filter(|&id_type| id_type != self.0.dtype()) {

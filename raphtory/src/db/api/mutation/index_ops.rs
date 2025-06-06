@@ -1,6 +1,6 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::api::view::{IndexSpec, IndexSpecBuilder},
+    errors::GraphError,
     prelude::AdditionOps,
 };
 use std::{

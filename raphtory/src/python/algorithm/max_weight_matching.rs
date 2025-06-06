@@ -56,7 +56,7 @@ impl PyMatching {
     /// Returns:
     ///     Optional[Node]: The matched source node if it exists
     ///
-    fn src(&self, dst: PyNodeRef) -> Option<NodeView<DynamicGraph>> {
+    fn src(&self, dst: PyNodeRef) -> Option<NodeView<'static, DynamicGraph>> {
         self.inner.src(dst).map(|n| n.cloned())
     }
 
@@ -68,7 +68,7 @@ impl PyMatching {
     /// Returns:
     ///     Optional[Node]: The matched destination node if it exists
     ///
-    fn dst(&self, src: PyNodeRef) -> Option<NodeView<DynamicGraph>> {
+    fn dst(&self, src: PyNodeRef) -> Option<NodeView<'static, DynamicGraph>> {
         self.inner.dst(src).map(|n| n.cloned())
     }
 

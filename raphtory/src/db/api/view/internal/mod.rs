@@ -1,12 +1,7 @@
-#![allow(dead_code)]
-
 mod core_deletion_ops;
-pub mod core_ops;
 mod edge_filter_ops;
 mod filter_ops;
-mod inherit;
 mod into_dynamic;
-mod layer_ops;
 mod list_ops;
 mod materialize;
 mod node_filter_ops;
@@ -15,42 +10,48 @@ pub(crate) mod time_semantics;
 mod wrapped_graph;
 
 use crate::{
-    db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
-    prelude::GraphViewOps,
+    db::{
+        api::{
+            properties::internal::{ConstantPropertiesOps, InheritPropertiesOps, PropertiesOps},
+            storage::storage::Storage,
+        },
+        graph::views::deletion_graph::PersistentGraph,
+    },
+    prelude::{Graph, GraphViewOps},
 };
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
 
-use crate::{
-    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
-    prelude::Graph,
-};
 pub use core_deletion_ops::*;
-pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
-pub use inherit::Base;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
-pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
 pub use one_hop_filter::*;
+pub use raphtory_api::inherit::Base;
+pub use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    layer_ops::{InheritLayerOps, InternalLayerOps},
+};
 pub use time_semantics::*;
+
+pub trait InheritViewOps: Base + Send + Sync {}
 
 /// Marker trait to indicate that an object is a valid graph view
 pub trait BoxableGraphView:
     CoreGraphOps
     + ListOps
     + EdgeFilterOps
-    + NodeFilterOps
+    + InternalNodeFilterOps
     + InternalLayerOps
-    + TimeSemantics
+    + GraphTimeSemanticsOps
     + InternalMaterialize
     + PropertiesOps
-    + ConstPropertiesOps
+    + ConstantPropertiesOps
     + InternalStorageOps
     + NodeHistoryFilter
     + EdgeHistoryFilter
@@ -63,12 +64,12 @@ impl<
         G: CoreGraphOps
             + ListOps
             + EdgeFilterOps
-            + NodeFilterOps
+            + InternalNodeFilterOps
             + InternalLayerOps
-            + TimeSemantics
+            + GraphTimeSemanticsOps
             + InternalMaterialize
             + PropertiesOps
-            + ConstPropertiesOps
+            + ConstantPropertiesOps
             + InternalStorageOps
             + NodeHistoryFilter
             + EdgeHistoryFilter
@@ -78,7 +79,9 @@ impl<
 {
 }
 
-pub trait InheritViewOps: Base + Send + Sync {}
+pub trait GraphView: BoxableGraphView + Sized + Clone {}
+
+impl<T: BoxableGraphView + Sized + Clone> GraphView for T {}
 
 impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
@@ -88,11 +91,7 @@ impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 
-impl<G: InheritViewOps> InheritLayerOps for G {}
-
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
-
-impl<G: InheritViewOps> InheritCoreOps for G {}
 
 impl<G: InheritViewOps> InheritMaterialize for G {}
 
@@ -200,6 +199,10 @@ impl Base for DynamicGraph {
 impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
+
+impl InheritCoreGraphOps for DynamicGraph {}
+
+impl InheritLayerOps for DynamicGraph {}
 
 impl InheritStorageOps for DynamicGraph {}
 

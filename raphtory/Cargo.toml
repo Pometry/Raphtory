@@ -16,17 +16,16 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
-arrow-ipc = { workspace = true }
+raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
+raphtory-storage = { path = "../raphtory-storage", version = "0.15.1" }
+iter-enum = { workspace = true, features = ["rayon"] }
 arrow-array = { workspace = true, features = ["chrono-tz"] }
 arrow-schema = { workspace = true }
-arrow-buffer = { workspace = true }
-arrow-data = { workspace = true }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 num-integer = { workspace = true }
-num-bigint = { workspace = true }
 parking_lot = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -38,7 +37,6 @@ bigdecimal = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-lock_api = { workspace = true }
 dashmap = { workspace = true }
 enum_dispatch = { workspace = true }
 ordered-float = { workspace = true }
@@ -93,7 +91,6 @@ pyo3-arrow = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 roaring = { workspace = true }
-fake = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
 uuid = { workspace = true }
@@ -108,6 +105,7 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
+proptest-derive = { workspace = true }
 polars-core = { workspace = true, features = ["fmt"] }
 polars-io = { workspace = true, features = ["parquet"] }
 indoc = { workspace = true }
@@ -140,11 +138,12 @@ vectors = [
     "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
+    "raphtory-api/template",
     "dep:arroy",
     "dep:heed",
     "dep:sysinfo",
     "dep:moka",
-    "dep:tempfile",          # also used for the storage feature
+    "dep:tempfile", # also used for the storage feature
 ]
 
 # Enables generating the pyo3 python bindings
@@ -161,13 +160,15 @@ python = [
     "polars-arrow?/compute",
     "pyo3-arrow",
     "raphtory-api/python",
+    "raphtory-core/python",
     "kdam/notebook",
 ]
 # storage
 storage = [
     "arrow",
-    "pometry-storage",
+    "pometry-storage/storage",
     "raphtory-api/storage",
+    "raphtory-storage/storage",
     "dep:memmap2",
     "dep:tempfile",
     "polars-arrow?/io_ipc",
@@ -177,6 +178,8 @@ arrow = [
     "dep:polars-arrow",
     "dep:polars-parquet",
     "polars-parquet?/compression",
+    "raphtory-api/arrow",
+    "raphtory-core/arrow"
 ]
 
 proto = [

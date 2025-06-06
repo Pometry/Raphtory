@@ -6,7 +6,7 @@ use crate::{
     GraphServer,
 };
 use pyo3::{exceptions::PyException, PyRefMut, PyResult};
-use raphtory::python::utils::errors::adapt_err_value;
+use raphtory_api::python::error::adapt_err_value;
 
 pub mod running_server;
 pub mod server;

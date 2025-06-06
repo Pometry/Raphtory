@@ -1,5 +1,6 @@
-use crate::{core::utils::errors::GraphError, search::property_index::PropertyIndex};
-use std::{collections::HashSet, fs::create_dir_all, path::PathBuf};
+use crate::{errors::GraphError, search::property_index::PropertyIndex};
+use ahash::HashSet;
+use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -92,35 +93,22 @@ mod test_index {
     #[cfg(feature = "search")]
     mod test_index_io {
         use crate::{
-            core::{utils::errors::GraphError, Prop},
             db::{
-                api::{
-                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                    view::{internal::InternalStorageOps, StaticGraphViewOps},
-                },
-                graph::{
-                    assertions::{
-                        assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
-                    },
-                    views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
-                },
+                api::view::{internal::InternalStorageOps, StaticGraphViewOps},
+                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
-            prelude::{
-                AdditionOps, CacheOps, Graph, GraphViewOps, IndexMutationOps, NodeViewOps,
-                PropertyAdditionOps, PropertyFilter, SearchableGraphOps, StableDecode,
-                StableEncode,
-            },
+            errors::GraphError,
+            prelude::*,
             serialise::GraphFolder,
         };
-        use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
+        use raphtory_api::core::{
+            entities::properties::prop::Prop, storage::arc_str::ArcStr,
+            utils::logging::global_info_logger,
+        };
 
         fn init_graph<G>(graph: G) -> G
         where
-            G: StaticGraphViewOps
-                + AdditionOps
-                + InternalAdditionOps
-                + InternalPropertyAdditionOps
-                + PropertyAdditionOps,
+            G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps,
         {
             graph
                 .add_node(
@@ -345,23 +333,19 @@ mod test_index {
         #[cfg(feature = "search")]
         use crate::prelude::SearchableGraphOps;
         use crate::{
-            core::utils::errors::GraphError,
             db::{
-                api::view::{internal::CoreGraphOps, IndexSpec, IndexSpecBuilder},
+                api::view::{IndexSpec, IndexSpecBuilder},
                 graph::{
                     assertions::{filter_edges, filter_nodes, search_edges, search_nodes},
                     views::filter::model::{ComposableFilter, PropertyFilterOps},
                 },
             },
-            prelude::{
-                AdditionOps, EdgeViewOps, Graph, GraphViewOps, IndexMutationOps, NodeViewOps,
-                PropertyAdditionOps, PropertyFilter, StableDecode,
-            },
+            errors::GraphError,
+            prelude::{AdditionOps, Graph, IndexMutationOps, PropertyFilter, StableDecode},
             serialise::{GraphFolder, StableEncode},
         };
-        use raphtory_api::core::entities::properties::props::PropMapper;
 
-        fn init_graph(mut graph: Graph) -> Graph {
+        fn init_graph(graph: Graph) -> Graph {
             let nodes = vec![
                 (
                     1,

@@ -1,10 +1,8 @@
 use crate::model::schema::{layer_schema::LayerSchema, node_schema::NodeSchema};
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
-use raphtory::{
-    db::api::view::{internal::CoreGraphOps, DynamicGraph},
-    prelude::*,
-};
+use raphtory::{db::api::view::DynamicGraph, prelude::*};
+use raphtory_storage::core_ops::CoreGraphOps;
 
 #[derive(SimpleObject)]
 pub(crate) struct GraphSchema {

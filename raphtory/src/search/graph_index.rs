@@ -2,14 +2,15 @@ use crate::{
     core::{
         entities::{EID, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError,
     },
-    db::api::{storage::graph::storage_ops::GraphStorage, view::IndexSpec},
+    db::api::view::IndexSpec,
+    errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
     fmt::{Debug, Formatter},
@@ -268,7 +269,7 @@ impl GraphIndex {
 
         let mut zip = ZipWriter::new_append(file)?;
 
-        for entry in WalkDir::new(&source_path.path())
+        for entry in WalkDir::new(source_path.path())
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
@@ -367,13 +368,15 @@ impl GraphIndex {
 #[cfg(test)]
 mod graph_index_test {
     use crate::{
-        db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, PropertyFilter},
+        db::graph::views::filter::model::PropertyFilterOps,
+        prelude::{AdditionOps, Graph, GraphViewOps, PropertyFilter},
     };
 
     #[cfg(feature = "search")]
-    use crate::db::graph::assertions::{search_edges, search_nodes};
-    use crate::prelude::IndexMutationOps;
+    use crate::{
+        db::graph::assertions::{search_edges, search_nodes},
+        prelude::IndexMutationOps,
+    };
 
     fn init_nodes_graph(graph: Graph) -> Graph {
         graph
@@ -410,13 +413,13 @@ mod graph_index_test {
 
         assert_eq!(graph.count_nodes(), 3);
 
-        let _ = graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram().unwrap();
     }
 
     #[test]
     fn test_if_adding_nodes_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
-        let _ = graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let graph = init_nodes_graph(graph);
 
@@ -427,7 +430,7 @@ mod graph_index_test {
     fn test_if_adding_edges_to_existing_graph_index_is_ok() {
         let graph = Graph::new();
         // Creates graph index
-        let _ = graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram().unwrap();
 
         let graph = init_edges_graph(graph);
 

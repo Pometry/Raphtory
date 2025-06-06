@@ -1,6 +1,6 @@
 pub mod ast;
-use std::str::ParseBoolError;
 
+use self::ast::*;
 use pest::{
     error::Error,
     iterators::{Pair, Pairs},
@@ -8,9 +8,8 @@ use pest::{
     Parser,
 };
 use pest_derive::Parser;
-use raphtory::core::Direction;
-
-use self::ast::*;
+use raphtory::api::core::Direction;
+use std::str::ParseBoolError;
 
 #[derive(Parser)]
 #[grammar = "parser/cypher.pest"]

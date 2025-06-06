@@ -31,7 +31,8 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
         let dir_str = data_dir.to_str().unwrap();
         let zip_path = data_dir.join("ERC20-stablecoins.zip");
         let zip_str = zip_path.to_str().unwrap();
-        fs::create_dir_all(dir_str).expect(&format!("Failed to create directory {}", dir_str));
+        fs::create_dir_all(dir_str)
+            .unwrap_or_else(|_| panic!("Failed to create directory {}", dir_str));
         fetch_file(zip_str,false,"https://snap.stanford.edu/data/ERC20-stablecoins.zip",600000).expect("Failed to fetch stable coin data: https://snap.stanford.edu/data/ERC20-stablecoins.zip");
         unzip_file(zip_str,dir_str).expect("Failed to unzip stable coin data from https://snap.stanford.edu/data/ERC20-stablecoins.zip");
     }

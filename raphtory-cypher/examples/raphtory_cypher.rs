@@ -13,8 +13,8 @@ mod cypher {
     use clap::Parser;
     use futures::{stream, StreamExt};
     use raphtory::{
-        disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
         logging::{global_info_logger, sysout_debug},
+        prelude::{DiskGraphStorage, ParquetLayerCols},
     };
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};

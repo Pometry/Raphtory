@@ -1,6 +1,6 @@
 use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
-use raphtory::{core::utils::errors::GraphError, serialise::metadata::GraphMetadata};
+use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
 use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]

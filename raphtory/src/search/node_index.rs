@@ -2,15 +2,9 @@ use crate::{
     core::{
         entities::{nodes::node_ref::NodeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
     },
-    db::{
-        api::{
-            properties::internal::TemporalPropertiesRowView,
-            storage::graph::storage_ops::GraphStorage, view::IndexSpec,
-        },
-        graph::node::NodeView,
-    },
+    db::{api::view::IndexSpec, graph::node::NodeView},
+    errors::GraphError,
     prelude::*,
     search::{
         entity_index::EntityIndex,
@@ -18,10 +12,11 @@ use crate::{
         resolve_props, TOKENIZER,
     },
 };
+use ahash::HashSet;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
-    collections::HashSet,
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
@@ -194,7 +189,7 @@ impl NodeIndex {
             .get_field(format!("{field_name}_tokenized").as_ref())
     }
 
-    fn create_document<'a>(
+    fn create_document(
         &self,
         node_id: u64,
         node_name: String,
@@ -255,7 +250,7 @@ impl NodeIndex {
 
     fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<G, GH>,
+        node: NodeView<'graph, G, GH>,
         writer: &IndexWriter,
         const_writers: &[Option<IndexWriter>],
         temporal_writers: &[Option<IndexWriter>],

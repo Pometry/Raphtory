@@ -22,12 +22,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::{
-            GraphError, GraphError::MismatchedIntervalTypes, InvalidPathReason::PathNotParsable,
-        },
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -43,6 +38,7 @@ use raphtory::{
             },
         },
     },
+    errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
 use std::{
@@ -168,7 +164,7 @@ impl GqlGraph {
                             .rolling(window_duration, Some(step_duration))?,
                         self_clone.path.clone(),
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlGraphWindowSet::new(
                     self_clone.graph.rolling(window_duration, None)?,
@@ -177,7 +173,7 @@ impl GqlGraph {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlGraphWindowSet::new(
                         self_clone
                             .graph
@@ -264,7 +260,7 @@ impl GqlGraph {
     }
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.created_async().await
+        self.path.last_opened_async().await
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
@@ -438,7 +434,9 @@ impl GqlGraph {
             .path
             .get_original_path()
             .to_str()
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .ok_or(InvalidPathReason::PathNotParsable(
+                self.path.to_error_path(),
+            ))?
             .to_owned())
     }
 
@@ -450,7 +448,9 @@ impl GqlGraph {
                 .get_original_path()
                 .parent()
                 .and_then(|p| p.to_str().map(|s| s.to_string()))
-                .ok_or(PathNotParsable(self_clone.path.to_error_path()))?
+                .ok_or(InvalidPathReason::PathNotParsable(
+                    self_clone.path.to_error_path(),
+                ))?
                 .to_owned())
         })
         .await

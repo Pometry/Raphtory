@@ -1,14 +1,15 @@
-use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
-    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
-    vectors::{template::DocumentTemplate, utils::find_top_k, Embedding},
-};
-
 use super::{
     cache::VectorCache,
     db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
+};
+use crate::{
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
+    errors::GraphResult,
+    prelude::GraphViewOps,
+    vectors::{template::DocumentTemplate, utils::find_top_k, Embedding},
 };
 
 #[derive(Clone)]

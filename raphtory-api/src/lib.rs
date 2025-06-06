@@ -4,6 +4,7 @@ pub mod core;
 #[cfg(feature = "python")]
 pub mod python;
 
+pub mod inherit;
 pub mod iter;
 
 #[derive(PartialOrd, PartialEq, Debug)]
