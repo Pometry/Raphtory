@@ -1,6 +1,9 @@
 use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        utils::errors::GraphError,
+    },
     db::{
         api::{
             state::{
@@ -556,14 +559,14 @@ impl_node_state_ord!(
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 impl_lazy_node_state_ord!(
-    HistoryView<ops::History<DynamicGraph>>,
+    HistoryView<ops::HistoryOp<DynamicGraph>>,
     "NodeStateListI64",
     "list[int]"
 );
-impl_one_hop!(HistoryView<ops::History>, "HistoryView");
+impl_one_hop!(HistoryView<ops::HistoryOp>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
-type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
+type HistoryDateTime<G> = ops::Map<ops::HistoryOp<G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
     "NodeStateOptionListDateTime",
@@ -575,6 +578,19 @@ impl_node_state_ord!(
     "NodeStateOptionListDateTime",
     "Optional[list[datetime]]"
 );
+//
+// type HistoryDateTimeResult<G> = ops::Map<ops::HistoryOp<G>, Result<Vec<DateTime<Utc>>, TimeError>>;
+// impl_lazy_node_state_ord!(
+//     HistoryDateTimeResultView<HistoryDateTimeResult<DynamicGraph>>,
+//     "NodeStateResultListDateTime",
+//     "Result[list[datetime], TimeError]"
+// );
+// impl_one_hop!(HistoryDateTimeResultView<HistoryDateTimeResult>, "HistoryDateTimeResultView");
+// impl_node_state_ord!(
+//     NodeStateResultListDateTime<Result<Vec<DateTime<Utc>>, TimeError>>,
+//     "NodeStateResultListDateTime",
+//     "Result[list[datetime], TimeError]"
+// );
 
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,

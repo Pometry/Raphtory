@@ -37,6 +37,7 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), GID::U64(1));
 //! ```
 
+use crate::core::utils::errors::GraphError;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -53,8 +54,8 @@ use crate::{
             view::{
                 internal::{
                     Base, CoreGraphOps, EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable,
-                    InheritCoreOps, InheritLayerOps, InheritMaterialize, ListOps, NodeFilterOps,
-                    NodeHistoryFilter, NodeList, Static, TimeSemantics,
+                    InheritCoreOps, InheritLayerOps, InheritMaterialize, InheritStorageOps,
+                    ListOps, NodeFilterOps, NodeHistoryFilter, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },
@@ -76,8 +77,6 @@ use std::{
     iter,
     ops::Range,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]
@@ -316,24 +315,24 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .unwrap()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         if self.window_is_empty() {
             return vec![];
         }
         self.temporal_prop_vec(id)
             .into_iter()
-            .map(|(t, _)| t)
+            .map(|(t, _)| TimeIndexEntry::from(t))
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         if self.window_is_empty() {
-            return Some(vec![]);
+            return Ok(vec![]);
         }
         self.temporal_prop_vec(id)
             .into_iter()
-            .map(|(t, _)| t.dt())
-            .collect()
+            .map(|(t, _)| t.dt().map_err(GraphError::from))
+            .collect::<Result<Vec<_>, GraphError>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
@@ -368,20 +367,22 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G>
 }
 
 impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+    fn node_earliest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         if self.window_is_empty() {
             return None;
         }
         self.graph
             .node_earliest_time_window(v, self.start_bound(), self.end_bound())
+            .map(|t| TimeIndexEntry::from(t))
     }
 
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
+    fn node_latest_time(&self, v: VID) -> Option<TimeIndexEntry> {
         if self.window_is_empty() {
             return None;
         }
         self.graph
             .node_latest_time_window(v, self.start_bound(), self.end_bound())
+            .map(|t| TimeIndexEntry::from(t))
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -1388,9 +1389,12 @@ mod views_test {
 
             let windowed_history = vec![0i64, 1];
 
-            assert_eq!(v.history(), full_history_1);
+            assert_eq!(v.history().collect_timestamps(), full_history_1);
 
-            assert_eq!(v.window(0, 2).history(), windowed_history);
+            assert_eq!(
+                v.window(0, 2).history().collect_timestamps(),
+                windowed_history
+            );
             assert_eq!(e.history(), full_history_1);
             assert_eq!(e.window(0, 2).history(), windowed_history);
 

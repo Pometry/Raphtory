@@ -31,6 +31,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+use raphtory_api::python::timeindex::PyRaphtoryTime;
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -57,6 +58,8 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyRef,
         PyPropertyFilter,
         PyWindowSet,
+        PyHistory,
+        PyRaphtoryTime // TODO: Might wanna remove this later
     );
 
     #[cfg(feature = "storage")]
@@ -150,6 +153,7 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     Ok(vectors_module)
 }
 
+use crate::python::graph::history::PyHistory;
 pub use crate::python::graph::node_state::base_node_state_module;
 use crate::python::{
     algorithm::epidemics::PyInfected, graph::properties::PropertiesView,

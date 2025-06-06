@@ -1,8 +1,9 @@
-use std::ops::Deref;
-
 use super::GraphStorage;
 use crate::{
-    core::{utils::iter::GenLockedIter, PropType},
+    core::{
+        utils::{errors::GraphError, iter::GenLockedIter},
+        PropType,
+    },
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
         storage::graph::tprop_storage_ops::TPropOps,
@@ -10,29 +11,31 @@ use crate::{
     },
     prelude::Prop,
 };
+use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::{
     arc_str::ArcStr,
     timeindex::{AsTime, TimeIndexEntry},
 };
+use std::ops::Deref;
 
 impl TemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         self.graph_meta()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter_t().map(|(t, _)| t).collect())
+            .map(|prop| prop.iter().map(|(t, _)| t).collect())
             .unwrap_or_default()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         Box::new(
             self.graph_meta()
                 .get_temporal_prop(id)
                 .into_iter()
                 .flat_map(|prop| {
-                    GenLockedIter::from(prop, |prop| Box::new(prop.iter_t().map(|(t, _)| t)))
+                    GenLockedIter::from(prop, |prop| Box::new(prop.iter().map(|(t, _)| t)))
                 }),
         )
     }
@@ -52,10 +55,14 @@ impl TemporalPropertyViewOps for GraphStorage {
         })
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<chrono::DateTime<chrono::Utc>>> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .and_then(|prop| prop.iter_t().map(|(t, _)| t.dt()).collect())
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
+        match self.graph_meta().get_temporal_prop(id) {
+            Some(tprop) => tprop
+                .iter_t()
+                .map(|(t, _)| t.dt().map_err(GraphError::from))
+                .collect::<Result<Vec<_>, GraphError>>(),
+            None => Ok(Vec::new()),
+        }
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {

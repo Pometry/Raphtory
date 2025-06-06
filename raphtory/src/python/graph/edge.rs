@@ -221,7 +221,7 @@ impl PyEdge {
     /// Returns:
     ///     List[datetime]
     ///
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.edge.history_date_time()
     }
 
@@ -237,7 +237,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     List[datetime]
-    pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
+    pub fn deletions_data_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.edge.deletions_date_time()
     }
 
@@ -292,7 +292,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the earliest datetime of an edge
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         self.edge.earliest_date_time()
     }
 
@@ -310,7 +310,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the latest datetime of an edge
     #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         self.edge.latest_date_time()
     }
 
@@ -346,7 +346,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the datetime of an exploded edge
     #[getter]
-    pub fn date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn date_time(&self) -> Result<DateTime<Utc>, GraphError> {
         self.edge.date_time()
     }
 }

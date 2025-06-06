@@ -34,7 +34,7 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -376,20 +376,20 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .unwrap()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         self.graph
             .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-            .into_iter()
-            .map(|(t, _)| t.t())
+            // .into_iter()
+            .map(|(t, _)| t)
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.graph
             .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
             .into_iter()
-            .map(|(t, _)| t.dt())
-            .collect()
+            .map(|(t, _)| t.dt().map_err(GraphError::from))
+            .collect::<Result<Vec<_>, GraphError>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
@@ -411,12 +411,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
         )
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         Box::new(
             self.graph
                 .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-                .into_iter()
-                .map(|(t, _)| t.t()),
+                // .into_iter()
+                .map(|(t, _)| t),
         )
     }
 }

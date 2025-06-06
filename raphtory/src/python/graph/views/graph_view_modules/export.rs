@@ -187,7 +187,7 @@ impl PyGraphView {
                 }
             }
             if include_update_history.unwrap_or(true) {
-                properties.set_item("update_history", v.history())?;
+                properties.set_item("update_history", v.history().collect_timestamps())?;
             }
             match v.node_type() {
                 None => {}

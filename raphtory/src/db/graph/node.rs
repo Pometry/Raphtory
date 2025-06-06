@@ -232,29 +232,29 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .map(|(_, v)| v.to_owned())
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
         self.graph
             .temporal_node_prop_hist(self.node, id)
-            .into_iter()
-            .map(|(t, _)| t.t())
+            // .into_iter()
+            .map(|(t, _)| t)
             .collect()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         Box::new(
             self.graph
                 .temporal_node_prop_hist(self.node, id)
-                .into_iter()
-                .map(|(t, _)| t.t()),
+                // .into_iter()
+                .map(|(t, _)| t),
         )
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.graph
             .temporal_node_prop_hist(self.node, id)
             .into_iter()
-            .map(|(t, _)| t.dt())
-            .collect()
+            .map(|(t, _)| t.dt().map_err(GraphError::from))
+            .collect::<Result<Vec<_>, GraphError>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
@@ -275,7 +275,11 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        let history = self.temporal_history(id);
+        let history = self
+            .temporal_history(id)
+            .iter()
+            .map(|t| t.t())
+            .collect::<Vec<_>>();
         match history.binary_search(&t) {
             Ok(index) => Some(self.temporal_values(id)[index].clone()),
             Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),

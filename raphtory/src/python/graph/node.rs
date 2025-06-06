@@ -56,7 +56,11 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::ArcStr, timeindex::TimeError},
+    utils::hashing::calculate_hash,
+};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
 
@@ -176,8 +180,8 @@ impl PyNode {
     /// Returns:
     ///     datetime: The earliest datetime that the node exists as a Datetime.
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.node.earliest_date_time()
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+        self.node.earliest_date_time().map_err(GraphError::from)
     }
 
     /// Returns the latest time that the node exists.
@@ -194,8 +198,8 @@ impl PyNode {
     /// Returns:
     ///     datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.node.latest_date_time()
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+        self.node.latest_date_time().map_err(GraphError::from)
     }
 
     /// The properties of the node
@@ -245,7 +249,7 @@ impl PyNode {
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.node.history();
+        let history = self.node.history().collect_timestamps();
         history.into_pyarray(py)
     }
 
@@ -254,8 +258,8 @@ impl PyNode {
     /// Returns:
     ///     List[datetime]: A list of timestamps of the event history of node.
     ///
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.node.history_date_time()
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+        self.node.history_date_time().map_err(GraphError::from)
     }
 
     /// Check if the node is active, i.e., it's history is not empty
@@ -597,7 +601,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.earliest_date_time()
@@ -621,7 +625,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.latest_date_time()
@@ -632,7 +636,7 @@ impl PyNodes {
     /// Returns:
     ///    HistoryView: a view of the node histories
     ///
-    fn history(&self) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph> {
+    fn history(&self) -> LazyNodeState<'static, ops::HistoryOp<DynamicGraph>, DynamicGraph> {
         self.nodes.history()
     }
 
@@ -654,7 +658,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::History<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
+        ops::Map<ops::HistoryOp<DynamicGraph>, Result<Vec<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.history_date_time()
@@ -758,7 +762,7 @@ impl PyNodes {
                     prop_time_dict,
                     row_header,
                     start_point,
-                    history,
+                    history.collect_timestamps(),
                 )
             })
             .collect();
@@ -868,9 +872,10 @@ impl PyPathFromGraph {
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    // TODO: Change return type to the history object
     fn history(&self) -> NestedI64VecIterable {
         let path = self.path.clone();
-        (move || path.history()).into()
+        (move || path.history().map(|x| x.map(|x| x.collect_timestamps()))).into()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
