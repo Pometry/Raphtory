@@ -145,7 +145,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter(node, view, prop_id))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_rev(node, view, prop_id))
     }
 
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
