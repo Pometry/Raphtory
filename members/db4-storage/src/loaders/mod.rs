@@ -1,5 +1,4 @@
-use crate::pages::GraphStore;
-use crate::{EdgeSegmentOps, NodeSegmentOps};
+use crate::{EdgeSegmentOps, NodeSegmentOps, pages::GraphStore};
 use arrow::buffer::ScalarBuffer;
 use arrow_array::{
     Array, PrimitiveArray, RecordBatch, TimestampMicrosecondArray, TimestampMillisecondArray,
@@ -11,23 +10,26 @@ use bytemuck::checked::cast_slice_mut;
 use db4_common::error::DBV4Error;
 use either::Either;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-use raphtory::atomic_extra::atomic_usize_from_mut_slice;
-use raphtory::core::entities::graph::logical_to_physical::Mapping;
-use raphtory::core::entities::{EID, VID};
-use raphtory::errors::LoadError;
-use raphtory::io::arrow::node_col::NodeCol;
-use raphtory::io::arrow::prop_handler::{combine_properties_arrow, PropCols};
-use raphtory_api::core::entities::properties::prop::PropType;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory::{
+    atomic_extra::atomic_usize_from_mut_slice,
+    core::entities::{EID, VID, graph::logical_to_physical::Mapping},
+    errors::LoadError,
+    io::arrow::{
+        node_col::NodeCol,
+        prop_handler::{PropCols, combine_properties_arrow},
+    },
+};
+use raphtory_api::core::{
+    entities::properties::prop::PropType,
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+};
 use rayon::prelude::*;
-use std::sync::atomic::AtomicBool;
 use std::{
     fs::File,
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{self, AtomicUsize},
+        atomic::{self, AtomicBool, AtomicUsize},
     },
 };
 
@@ -344,7 +346,7 @@ impl<'a> Loader<'a> {
                             eids_exist[row].store(true, atomic::Ordering::Relaxed);
                         } else {
                             let edge_id = EID(max_edge_id.fetch_add(1, atomic::Ordering::Relaxed));
-                            writer.add_outbound_edge(0, src_pos, dst, edge_id.with_layer(0), 0);// FIXME: when we update this to work with layers use the correct layer
+                            writer.add_outbound_edge(0, src_pos, dst, edge_id.with_layer(0), 0); // FIXME: when we update this to work with layers use the correct layer
                             eid_col_shared[row].store(edge_id.0, atomic::Ordering::Relaxed);
                             eids_exist[row].store(false, atomic::Ordering::Relaxed);
                         }
@@ -433,8 +435,7 @@ impl<'a> Loader<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::Layer;
-    use crate::pages::test_utils::check_load_support;
+    use crate::{Layer, pages::test_utils::check_load_support};
     use proptest::{collection::vec, prelude::*};
 
     fn check_load(edges: &[(i64, u64, u64)], max_page_len: usize) {

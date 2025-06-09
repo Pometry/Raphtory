@@ -4,14 +4,20 @@ use std::{
     sync::Arc,
 };
 
-use crate::pages::GraphStore;
-use crate::segments::edge::EdgeSegmentView;
-use crate::segments::node::NodeSegmentView;
+use crate::{
+    pages::GraphStore,
+    segments::{edge::EdgeSegmentView, node::NodeSegmentView},
+};
 use db4_common::{LocalPOS, error::DBV4Error};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory::{core::entities::{EID, VID}, prelude::Prop};
-use raphtory_api::core::{entities::properties::{meta::Meta, tprop::TPropOps}, storage::timeindex::TimeIndexOps};
-use raphtory_api::core::{storage::timeindex::TimeIndexEntry};
+use raphtory::{
+    core::entities::{EID, VID},
+    prelude::Prop,
+};
+use raphtory_api::core::{
+    entities::properties::{meta::Meta, tprop::TPropOps},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
 pub mod loaders;

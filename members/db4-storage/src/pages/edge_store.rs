@@ -2,21 +2,21 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{
-        atomic::{self, AtomicUsize},
         Arc,
+        atomic::{self, AtomicUsize},
     },
 };
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
+    EdgeSegmentOps,
     pages::locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     segments::edge::MemEdgeSegment,
-    EdgeSegmentOps,
 };
-use db4_common::{error::DBV4Error, LocalPOS};
+use db4_common::{LocalPOS, error::DBV4Error};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory::core::storage::timeindex::TimeIndexEntry;
-use raphtory_api::core::entities::{properties::meta::Meta, EID, VID};
+use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
 
 const N: usize = 32;
 

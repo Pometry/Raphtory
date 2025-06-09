@@ -3,7 +3,11 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::{Borrow, BorrowMut}, collections::hash_map::Entry, hash::Hash, ops::DerefMut, sync::Arc
+    borrow::{Borrow, BorrowMut},
+    collections::hash_map::Entry,
+    hash::Hash,
+    ops::DerefMut,
+    sync::Arc,
 };
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -29,12 +33,10 @@ where
 }
 
 impl<Index> MaybeNew<Index> {
-
     #[inline]
     pub fn is_new(&self) -> bool {
         matches!(self, MaybeNew::New(_))
     }
-    
 
     #[inline]
     pub fn inner(self) -> Index {
@@ -174,7 +176,7 @@ impl DictMapper {
         }
     }
 
-        pub fn write(&self) -> WriteLockedDictMapper {
+    pub fn write(&self) -> WriteLockedDictMapper {
         WriteLockedDictMapper {
             map: self.map.write(),
             reverse_map: self.reverse_map.write(),
@@ -212,7 +214,7 @@ impl DictMapper {
         self.map.read().get(name).map(|id| *id)
     }
 
-        /// Explicitly set the id for a key (useful for initialising the map in parallel)
+    /// Explicitly set the id for a key (useful for initialising the map in parallel)
     pub fn set_id(&self, name: impl Into<ArcStr>, id: usize) {
         let mut map = self.map.write();
         let arc_name = name.into();
@@ -263,7 +265,6 @@ impl DictMapper {
         self.reverse_map.read().is_empty()
     }
 }
-
 
 #[cfg(test)]
 mod test {

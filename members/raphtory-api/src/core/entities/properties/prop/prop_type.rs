@@ -118,7 +118,7 @@ impl PropType {
         self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
     }
 
-        // This is the best guess for the size of one row of properties
+    // This is the best guess for the size of one row of properties
     pub fn est_size(&self) -> usize {
         const CONTAINER_SIZE: usize = 8;
         match self {

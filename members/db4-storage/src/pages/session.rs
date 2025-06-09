@@ -3,16 +3,18 @@ use std::ops::DerefMut;
 use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
 };
-use crate::segments::edge::MemEdgeSegment;
-use crate::segments::node::MemNodeSegment;
-use crate::{EdgeSegmentOps, NodeSegmentOps};
-use db4_common::error::DBV4Error;
-use raphtory::core::entities::ELID;
-use raphtory::core::{
-    entities::{EID, VID},
-    storage::timeindex::AsTime,
+use crate::{
+    EdgeSegmentOps, NodeSegmentOps,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
-use raphtory::prelude::Prop;
+use db4_common::error::DBV4Error;
+use raphtory::{
+    core::{
+        entities::{EID, ELID, VID},
+        storage::timeindex::AsTime,
+    },
+    prelude::Prop,
+};
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 pub struct WriteSession<
@@ -134,12 +136,18 @@ impl<
                 let edge_id =
                     edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
-                self.node_writers
-                    .get_mut_src()
-                    .add_static_outbound_edge(src_pos, dst, edge_id.with_layer(0), lsn);
-                self.node_writers
-                    .get_mut_dst()
-                    .add_static_inbound_edge(dst_pos, src, edge_id.with_layer(0), lsn);
+                self.node_writers.get_mut_src().add_static_outbound_edge(
+                    src_pos,
+                    dst,
+                    edge_id.with_layer(0),
+                    lsn,
+                );
+                self.node_writers.get_mut_dst().add_static_inbound_edge(
+                    dst_pos,
+                    src,
+                    edge_id.with_layer(0),
+                    lsn,
+                );
 
                 Ok(MaybeNew::New(edge_id))
             }

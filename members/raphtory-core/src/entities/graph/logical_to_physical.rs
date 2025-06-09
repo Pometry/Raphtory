@@ -55,14 +55,11 @@ pub struct Mapping {
 }
 
 impl Mapping {
-
     pub fn len(&self) -> usize {
-        self.map
-            .get()
-            .map_or(0, |map| match map {
-                Map::U64(map) => map.len(),
-                Map::Str(map) => map.len(),
-            })
+        self.map.get().map_or(0, |map| match map {
+            Map::U64(map) => map.len(),
+            Map::Str(map) => map.len(),
+        })
     }
 
     pub fn dtype(&self) -> Option<GidType> {

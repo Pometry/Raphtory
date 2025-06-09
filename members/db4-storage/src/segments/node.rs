@@ -1,24 +1,23 @@
-use db4_common::LocalPOS;
-use db4_common::error::DBV4Error;
+use db4_common::{LocalPOS, error::DBV4Error};
 use either::Either;
-use raphtory::core::entities::nodes::structure::adj::Adj;
-use raphtory::core::entities::ELID;
-use raphtory::core::storage::timeindex::AsTime;
-use raphtory::core::storage::timeindex::TimeIndexEntry;
-use raphtory::prelude::Prop;
-use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_api::core::Direction;
-use raphtory_api::core::entities::{EID, VID};
-use std::ops::Deref;
-use std::ops::DerefMut;
-use std::sync::Arc;
-use std::sync::atomic;
-use std::sync::atomic::AtomicUsize;
+use raphtory::{
+    core::{
+        entities::{ELID, nodes::structure::adj::Adj},
+        storage::timeindex::{AsTime, TimeIndexEntry},
+    },
+    prelude::Prop,
+};
+use raphtory_api::core::{
+    Direction,
+    entities::{EID, VID, properties::meta::Meta},
+};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, atomic, atomic::AtomicUsize},
+};
 
-use super::HasRow;
-use super::SegmentContainer;
-use crate::NodeSegmentOps;
-use crate::segments::node_entry::MemNodeEntry;
+use super::{HasRow, SegmentContainer};
+use crate::{NodeSegmentOps, segments::node_entry::MemNodeEntry};
 
 #[derive(Debug)]
 pub struct MemNodeSegment {

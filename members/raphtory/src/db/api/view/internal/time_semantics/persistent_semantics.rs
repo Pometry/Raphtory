@@ -125,9 +125,8 @@ fn interior_window<'a>(
     w: Range<i64>,
     deletions: &impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
 ) -> Range<TimeIndexEntry> {
-    let start = deletions
-        .range_t(w.start..w.start.saturating_add(1))
-        .last()
+    let last: Option<TimeIndexEntry> = deletions.range_t(w.start..w.start.saturating_add(1)).last();
+    let start = last
         .map(|t| t.next())
         .unwrap_or(TimeIndexEntry::start(w.start));
     start..TimeIndexEntry::start(w.end)
@@ -322,6 +321,15 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.tprop(prop_id).iter()
     }
 
+    fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        node.tprop(prop_id).iter_rev()
+    }
+
     fn node_tprop_iter_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -339,6 +347,23 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         first
             .into_iter()
             .chain(prop.iter_window(TimeIndexEntry::range(w)))
+    }
+
+    fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        let prop = node.tprop(prop_id);
+        let first = if prop.active_t(w.start..w.start.saturating_add(1)) {
+            None
+        } else {
+            prop.last_before(TimeIndexEntry::start(w.start))
+                .map(|(t, v)| (t.max(TimeIndexEntry::start(w.start)), v))
+        };
+        prop.iter_window_rev(TimeIndexEntry::range(w)).chain(first)
     }
 
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(

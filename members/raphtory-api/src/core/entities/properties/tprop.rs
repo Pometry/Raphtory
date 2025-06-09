@@ -15,7 +15,9 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
     }
 
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        self.clone().iter_inner_rev(Some(TimeIndexEntry::MIN..t)).next()
+        self.clone()
+            .iter_inner_rev(Some(TimeIndexEntry::MIN..t))
+            .next()
     }
 
     fn iter_inner(
@@ -53,10 +55,7 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
         self.iter().map(|(t, v)| (t.t(), v))
     }
 
-    fn iter_window_t(
-        self,
-        r: Range<i64>,
-    ) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
+    fn iter_window_t(self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(TimeIndexEntry::range(r))
             .map(|(t, v)| (t.t(), v))
     }

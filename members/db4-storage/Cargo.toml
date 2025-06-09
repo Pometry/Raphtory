@@ -30,11 +30,11 @@ arrow-csv.workspace = true
 arrow-schema.workspace = true
 parquet.workspace = true
 bytemuck.workspace = true
+rayon.workspace = true
 iter-enum = {workspace = true, features = ["rayon"]}
 
 proptest = {workspace = true, optional = true}
 tempfile = {workspace = true, optional = true}
-rayon = {workspace = true, optional = true}
 itertools = {workspace = true, optional = true}
 chrono = {workspace = true, optional = true}
 
@@ -46,5 +46,5 @@ chrono.workspace = true
 rayon.workspace = true
 
 [features]
-test-utils = ["proptest", "tempfile", "rayon", "itertools", "chrono"]
+test-utils = ["proptest", "tempfile", "itertools", "chrono"]
 default = ["test-utils"]

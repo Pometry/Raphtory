@@ -159,7 +159,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter_window_rev(TimeIndexEntry::range(w))
+        node.tprop(prop_id)
+            .iter_window_rev(TimeIndexEntry::range(w))
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
@@ -673,7 +674,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
-            .map(|(layer_id, prop)| prop.iter_inner_rev(None).map(move |(t, v)| (t, layer_id, v)))
+            .map(|(layer_id, prop)| {
+                prop.iter_inner_rev(None)
+                    .map(move |(t, v)| (t, layer_id, v))
+            })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 

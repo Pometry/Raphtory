@@ -438,7 +438,9 @@ impl ArcNodeEntry {
     }
 
     pub fn into_neighbours(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from((self, layers), |(node, layers)| node.get_entry().node().neighbours(layers, dir))
+        GenLockedIter::from((self, layers), |(node, layers)| {
+            node.get_entry().node().neighbours(layers, dir)
+        })
     }
 
     pub fn into_layers(self) -> LockedLayers {

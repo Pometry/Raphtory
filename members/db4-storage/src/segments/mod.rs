@@ -3,13 +3,16 @@ use std::{collections::hash_map::Entry, fmt::Debug, sync::Arc};
 use bitvec::{order::Msb0, vec::BitVec};
 use db4_common::LocalPOS;
 use either::Either;
-use raphtory::{core::{
-    entities::{
-        nodes::node_store::PropTimestamps,
-        properties::{tcell::TCell, tprop::TPropCell},
+use raphtory::{
+    core::{
+        entities::{
+            nodes::node_store::PropTimestamps,
+            properties::{tcell::TCell, tprop::TPropCell},
+        },
+        storage::timeindex::TimeIndexEntry,
     },
-    storage::timeindex::TimeIndexEntry,
-}, prelude::Prop};
+    prelude::Prop,
+};
 use raphtory_api::core::entities::properties::meta::Meta;
 use rustc_hash::FxHashMap;
 

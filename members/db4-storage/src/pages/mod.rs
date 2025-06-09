@@ -7,16 +7,24 @@ use std::{
     },
 };
 
-use crate::properties::props_meta_writer::PropsMetaWriter;
-use crate::segments::edge::MemEdgeSegment;
-use crate::segments::node::MemNodeSegment;
-use crate::{EdgeSegmentOps, NodeSegmentOps};
+use crate::{
+    EdgeSegmentOps, NodeSegmentOps,
+    properties::props_meta_writer::PropsMetaWriter,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+};
 use db4_common::{LocalPOS, error::DBV4Error};
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
-use raphtory::{core::{entities::{EID, ELID, VID}, storage::timeindex::{AsTime, TimeIndexEntry}, utils::time::{InputTime, TryIntoInputTime}}, prelude::Prop};
+use raphtory::{
+    core::{
+        entities::{EID, ELID, VID},
+        storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::time::{InputTime, TryIntoInputTime},
+    },
+    prelude::Prop,
+};
 use raphtory_api::core::{entities::properties::meta::Meta, storage::dict_mapper::MaybeNew};
 use serde::{Deserialize, Serialize};
 use session::WriteSession;
@@ -219,7 +227,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
-        session.internal_add_edge(t, src, dst, lsn,  0, props)
+        session.internal_add_edge(t, src, dst, lsn, 0, props)
     }
 
     /// Adds an edge if it doesn't exist yet, does nothing if the edge is there
@@ -433,9 +441,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
 
         let node_writers = acquire_node_writers();
 
-        let edge_writer = e_id.map(|e_id| {
-            self.edge_writer(e_id)
-        });
+        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
 
         WriteSession::new(node_writers, edge_writer, self)
     }
@@ -496,7 +502,10 @@ mod test {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::panic;
     use proptest::prelude::*;
-    use raphtory::{core::{entities::VID, storage::timeindex::TimeIndexOps}, prelude::Prop};
+    use raphtory::{
+        core::{entities::VID, storage::timeindex::TimeIndexOps},
+        prelude::Prop,
+    };
 
     fn check_edges(
         edges: Vec<(impl Into<VID>, impl Into<VID>)>,

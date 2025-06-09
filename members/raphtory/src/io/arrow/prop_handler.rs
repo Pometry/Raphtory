@@ -13,7 +13,8 @@ use polars_arrow::{
     },
     bitmap::Bitmap,
     datatypes::{ArrowDataType as DataType, TimeUnit},
-    offset::Offset, types::NativeType,
+    offset::Offset,
+    types::NativeType,
 };
 use raphtory_api::core::{
     entities::properties::prop::{prop_type_from_arrow_dtype, IntoPropList, PropType},

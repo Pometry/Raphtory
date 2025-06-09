@@ -4,7 +4,6 @@ use std::{
 };
 
 use itertools::Itertools;
-use pometry_storage_private::timestamps::TimeStamps;
 use raphtory::{
     core::{
         entities::{nodes::node_store::PropTimestamps, properties::tprop::TPropCell},

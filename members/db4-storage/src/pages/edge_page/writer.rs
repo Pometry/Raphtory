@@ -1,7 +1,6 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
-use crate::EdgeSegmentOps;
-use crate::segments::edge::MemEdgeSegment;
+use crate::{EdgeSegmentOps, segments::edge::MemEdgeSegment};
 use db4_common::{LocalPOS, error::DBV4Error};
 use raphtory::{core::storage::timeindex::AsTime, prelude::Prop};
 use raphtory_api::core::entities::VID;

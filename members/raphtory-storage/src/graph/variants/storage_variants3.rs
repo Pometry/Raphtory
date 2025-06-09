@@ -74,9 +74,9 @@ impl<
     }
 
     fn iter_inner(
-            self,
-            range: Option<Range<TimeIndexEntry>>,
-        ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter_inner(range))
     }
 
