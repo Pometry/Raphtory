@@ -4,7 +4,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
             properties::internal::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
@@ -36,7 +36,9 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
+use raphtory_storage::{
+    core_ops::CoreGraphOps, graph::graph::GraphStorage, mutation::addition_ops::SessionAdditionOps,
+};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -407,7 +409,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_node_property(name, dtype, true)
+                .write_session()
+                .and_then(|s| s.resolve_node_property(name, dtype, true))
                 .map_err(into_graph_err)?
                 .inner())
         })?;
@@ -418,7 +421,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         self.graph
-            .resolve_node_and_type(NodeRef::Internal(self.node), new_type)
+            .write_session()
+            .and_then(|s| s.resolve_node_and_type(NodeRef::Internal(self.node), new_type))
             .map_err(into_graph_err)?;
         Ok(())
     }
@@ -430,7 +434,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_node_property(name, dtype, true)
+                .write_session()
+                .and_then(|s| s.resolve_node_property(name, dtype, true))
                 .map_err(into_graph_err)?
                 .inner())
         })?;
@@ -444,15 +449,15 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         time: T,
         props: C,
     ) -> Result<(), GraphError> {
-        let t = time_from_input(&self.graph, time)?;
+        let session = self.graph.write_session().map_err(|err| err.into())?;
+        let t = time_from_input_session(&session, time)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
+            Ok(session
                 .resolve_node_property(name, dtype, false)
                 .map_err(into_graph_err)?
                 .inner())
         })?;
-        self.graph
+        session
             .internal_add_node(t, self.node, &properties)
             .map_err(into_graph_err)
     }

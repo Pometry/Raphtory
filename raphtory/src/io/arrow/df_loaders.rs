@@ -21,6 +21,7 @@ use raphtory_api::{
         Direction,
     },
 };
+use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
 use std::{collections::HashMap, sync::atomic::Ordering};
 
@@ -77,9 +78,10 @@ pub(crate) fn load_nodes_from_df<
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
 
+    let session = graph.write_session().map_err(into_graph_err)?;
     let shared_constant_properties =
         process_shared_properties(shared_constant_properties, |key, dtype| {
-            graph
+            session
                 .resolve_node_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
@@ -98,13 +100,13 @@ pub(crate) fn load_nodes_from_df<
             .collect::<Vec<_>>()
     });
 
-    let mut start_id = graph
+    let mut start_id = session
         .reserve_event_ids(df_view.num_rows)
         .map_err(into_graph_err)?;
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph
+            session
                 .resolve_node_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
@@ -113,7 +115,7 @@ pub(crate) fn load_nodes_from_df<
             &constant_properties_indices,
             &df,
             |key, dtype| {
-                graph
+                session
                     .resolve_node_property(key, dtype, true)
                     .map_err(into_graph_err)
             },
@@ -246,9 +248,10 @@ pub(crate) fn load_edges_from_df<
     } else {
         None
     };
+    let session = graph.write_session().map_err(into_graph_err)?;
     let shared_constant_properties =
         process_shared_properties(shared_constant_properties, |key, dtype| {
-            graph
+            session
                 .resolve_edge_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
@@ -257,7 +260,7 @@ pub(crate) fn load_edges_from_df<
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
     #[cfg(feature = "python")]
     let _ = pb.update(0);
-    let mut start_idx = graph
+    let mut start_idx = session
         .reserve_event_ids(df_view.num_rows)
         .map_err(into_graph_err)?;
 
@@ -276,7 +279,7 @@ pub(crate) fn load_edges_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph
+            session
                 .resolve_edge_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
@@ -285,7 +288,7 @@ pub(crate) fn load_edges_from_df<
             &constant_properties_indices,
             &df,
             |key, dtype| {
-                graph
+                session
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
             },
@@ -494,7 +497,8 @@ pub(crate) fn load_edge_deletions_from_df<
     let layer_index = layer_index.transpose()?;
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
-    let mut start_idx = graph
+    let session = graph.write_session().map_err(into_graph_err)?;
+    let mut start_idx = session
         .reserve_event_ids(df_view.num_rows)
         .map_err(into_graph_err)?;
 
@@ -547,10 +551,11 @@ pub(crate) fn load_node_props_from_df<
     let node_type_index = node_type_index.transpose()?;
 
     let node_id_index = df_view.get_index(node_id)?;
+    let session = graph.write_session().map_err(into_graph_err)?;
 
     let shared_constant_properties =
         process_shared_properties(shared_constant_properties, |key, dtype| {
-            graph
+            session
                 .resolve_node_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
@@ -576,7 +581,7 @@ pub(crate) fn load_node_props_from_df<
             &constant_properties_indices,
             &df,
             |key, dtype| {
-                graph
+                session
                     .resolve_node_property(key, dtype, true)
                     .map_err(into_graph_err)
             },
@@ -674,9 +679,10 @@ pub(crate) fn load_edges_props_from_df<
     } else {
         None
     };
+    let session = graph.write_session().map_err(into_graph_err)?;
     let shared_constant_properties =
         process_shared_properties(shared_const_properties, |key, dtype| {
-            graph
+            session
                 .resolve_edge_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
@@ -707,7 +713,7 @@ pub(crate) fn load_edges_props_from_df<
             &constant_properties_indices,
             &df,
             |key, dtype| {
-                graph
+                session
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
             },
@@ -844,15 +850,16 @@ pub(crate) fn load_graph_props_from_df<
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
+    let session = graph.write_session().map_err(into_graph_err)?;
 
-    let mut start_id = graph
+    let mut start_id = session
         .reserve_event_ids(df_view.num_rows)
         .map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph
+            session
                 .resolve_graph_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
@@ -861,7 +868,7 @@ pub(crate) fn load_graph_props_from_df<
             &constant_properties_indices,
             &df,
             |key, dtype| {
-                graph
+                session
                     .resolve_graph_property(key, dtype, true)
                     .map_err(into_graph_err)
             },

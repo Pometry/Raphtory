@@ -11,7 +11,10 @@ use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::{
+    graph::graph::GraphStorage,
+    mutation::addition_ops::{SessionAdditionOps, TGWriteSession},
+};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -198,8 +201,194 @@ impl InheritEdgeHistoryFilter for Storage {}
 
 impl InheritViewOps for Storage {}
 
+#[derive(Clone, Copy)]
+pub struct StorageWriteSession<'a> {
+    session: TGWriteSession<'a>,
+    storage: &'a Storage,
+}
+
+impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
+    type Error = GraphError;
+
+    fn next_event_id(&self) -> Result<usize, Self::Error> {
+        Ok(self.session.next_event_id()?)
+    }
+
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
+        Ok(self.session.reserve_event_ids(num_ids)?)
+    }
+
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self.session.resolve_layer(layer)?;
+
+        #[cfg(feature = "proto")]
+        self.storage
+            .if_cache(|cache| cache.resolve_layer(layer, id));
+
+        Ok(id)
+    }
+
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        match id {
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+            NodeRef::External(gid) => {
+                let id = self.session.resolve_node(id)?;
+
+                #[cfg(feature = "proto")]
+                self.storage.if_cache(|cache| cache.resolve_node(id, gid));
+
+                Ok(id)
+            }
+        }
+    }
+
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
+        Ok(self.session.set_node(gid, vid)?)
+    }
+
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        let node_and_type = self.session.resolve_node_and_type(id, node_type)?;
+
+        #[cfg(feature = "proto")]
+        self.storage.if_cache(|cache| {
+            use raphtory_storage::core_ops::CoreGraphOps;
+
+            let (vid, _) = node_and_type.inner();
+            let node_entry = self.storage.core_node(vid.inner());
+            cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
+        });
+
+        Ok(node_and_type)
+    }
+
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self
+            .session
+            .resolve_graph_property(prop, dtype.clone(), is_static)?;
+
+        #[cfg(feature = "proto")]
+        self.storage.if_cache(|cache| {
+            cache.resolve_graph_property(prop, id, dtype, is_static);
+        });
+        Ok(id)
+    }
+
+    fn resolve_node_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self
+            .session
+            .resolve_node_property(prop, dtype.clone(), is_static)?;
+
+        #[cfg(feature = "proto")]
+        self.storage.if_cache(|cache| {
+            cache.resolve_node_property(prop, id, &dtype, is_static);
+        });
+
+        Ok(id)
+    }
+
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self
+            .session
+            .resolve_edge_property(prop, dtype.clone(), is_static)?;
+
+        #[cfg(feature = "proto")]
+        self.storage.if_cache(|cache| {
+            cache.resolve_edge_property(prop, id, &dtype, is_static);
+        });
+
+        Ok(id)
+    }
+
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        self.session.internal_add_node(t, v, props)?;
+
+        #[cfg(feature = "proto")]
+        self.storage
+            .if_cache(|cache| cache.add_node_update(t, v, props));
+
+        #[cfg(feature = "search")]
+        self.storage.if_index(|index| {
+            index.add_node_update(&self.storage.graph, t, MaybeNew::New(v), props)
+        })?;
+
+        Ok(())
+    }
+
+    fn internal_add_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: &[(usize, Prop)],
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, Self::Error> {
+        let id = self.session.internal_add_edge(t, src, dst, props, layer)?;
+        #[cfg(feature = "proto")]
+        self.storage.if_cache(|cache| {
+            cache.resolve_edge(id, src, dst);
+            cache.add_edge_update(t, id.inner(), props, layer);
+        });
+        #[cfg(feature = "search")]
+        self.storage
+            .if_index(|index| index.add_edge_update(&self.storage.graph, id, t, layer, props))?;
+        Ok(id)
+    }
+
+    fn internal_add_edge_update(
+        &self,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: &[(usize, Prop)],
+        layer: usize,
+    ) -> Result<(), Self::Error> {
+        self.session
+            .internal_add_edge_update(t, edge, props, layer)?;
+
+        #[cfg(feature = "proto")]
+        self.storage
+            .if_cache(|cache| cache.add_edge_update(t, edge, props, layer));
+        #[cfg(feature = "search")]
+        self.storage.if_index(|index| {
+            index.add_edge_update(
+                &self.storage.graph,
+                MaybeNew::Existing(edge),
+                t,
+                layer,
+                props,
+            )
+        })?;
+        Ok(())
+    }
+}
+
 impl InternalAdditionOps for Storage {
     type Error = GraphError;
+
+    type WS<'a> = StorageWriteSession<'a>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
         Ok(self.graph.write_lock()?)
@@ -213,163 +402,12 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.write_lock_edges()?)
     }
 
-    fn next_event_id(&self) -> Result<usize, Self::Error> {
-        Ok(self.graph.next_event_id()?)
-    }
-
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        Ok(self.graph.reserve_event_ids(num_ids)?)
-    }
-
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self.graph.resolve_layer(layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_layer(layer, id));
-
-        Ok(id)
-    }
-
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, GraphError> {
-        match id {
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-            NodeRef::External(gid) => {
-                let id = self.graph.resolve_node(id)?;
-
-                #[cfg(feature = "proto")]
-                self.if_cache(|cache| cache.resolve_node(id, gid));
-
-                Ok(id)
-            }
-        }
-    }
-
-    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self.graph.set_node(gid, vid)?)
-    }
-
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
-        let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| {
-            let (vid, _) = node_and_type.inner();
-            let node_entry = self.graph.core_node(vid.inner());
-            cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
-        });
-
-        Ok(node_and_type)
-    }
-
-    fn resolve_graph_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self
-            .graph
-            .resolve_graph_property(prop, dtype.clone(), is_static)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_graph_property(prop, id, dtype, is_static));
-
-        Ok(id)
-    }
-
-    fn resolve_node_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self
-            .graph
-            .resolve_node_property(prop, dtype.clone(), is_static)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_node_property(prop, id, &dtype, is_static));
-
-        Ok(id)
-    }
-
-    fn resolve_edge_property(
-        &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self
-            .graph
-            .resolve_edge_property(prop, dtype.clone(), is_static)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_edge_property(prop, id, &dtype, is_static));
-
-        Ok(id)
-    }
-
-    fn internal_add_node(
-        &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_node(t, v, props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_node_update(t, v, props));
-
-        #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
-
-        Ok(())
-    }
-
-    fn internal_add_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        let id = self.graph.internal_add_edge(t, src, dst, props, layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| {
-            cache.resolve_edge(id, src, dst);
-            cache.add_edge_update(t, id.inner(), props, layer);
-        });
-
-        #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_update(&self.graph, id, t, layer, props))?;
-
-        Ok(id)
-    }
-
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_edge_update(t, edge, props, layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_edge_update(t, edge, props, layer));
-
-        #[cfg(feature = "search")]
-        self.if_index(|index| {
-            index.add_edge_update(&self.graph, MaybeNew::Existing(edge), t, layer, props)
-        })?;
-
-        Ok(())
+    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
+        let session = self.graph.write_session()?;
+        Ok(StorageWriteSession {
+            session,
+            storage: self,
+        })
     }
 }
 

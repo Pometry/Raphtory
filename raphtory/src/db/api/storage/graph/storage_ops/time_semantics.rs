@@ -1,6 +1,6 @@
 use super::GraphStorage;
 use crate::{
-    core::{entities::LayerIds, storage::timeindex::TimeIndexOps, utils::iter::GenLockedDIter},
+    core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
     db::api::view::internal::{
         EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
     },
@@ -11,7 +11,7 @@ use raphtory_api::{
         entities::{properties::tprop::TPropOps, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
     },
-    iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed, IntoDynDBoxed},
+    iter::{BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{

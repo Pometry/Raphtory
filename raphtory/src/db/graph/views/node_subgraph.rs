@@ -153,7 +153,7 @@ mod subgraph_tests {
     use ahash::HashSet;
     use itertools::Itertools;
     use proptest::{proptest, sample::subsequence};
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
     use std::collections::BTreeSet;
 
     #[test]
@@ -652,7 +652,11 @@ mod subgraph_tests {
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let expected = Graph::new();
-        expected.resolve_layer(None).unwrap();
+        expected
+            .write_session()
+            .unwrap()
+            .resolve_layer(None)
+            .unwrap();
         let subgraph = g.subgraph([0]);
         assert_graph_equal(&subgraph, &expected);
     }

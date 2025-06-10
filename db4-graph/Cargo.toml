@@ -1,0 +1,17 @@
+[package]
+name = "db4-graph"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+boxcar.workspace = true
+storage.workspace = true
+raphtory-api.workspace = true

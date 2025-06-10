@@ -68,7 +68,7 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
     inherit::Base,
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::IntoDynDBoxed,
 };
 use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},

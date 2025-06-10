@@ -1,8 +1,8 @@
-use super::time_from_input;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
+            mutation::time_from_input_session,
             properties::internal::TemporalPropertiesOps,
             view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
@@ -18,7 +18,8 @@ use raphtory_api::core::{
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+    addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    deletion_ops::InternalDeletionOps,
     property_addition_ops::InternalPropertyAdditionOps,
 };
 use std::{borrow::Borrow, fmt::Debug};
@@ -331,10 +332,12 @@ fn import_node_internal<
         }
     }
 
+    let session = graph.write_session().map_err(|err| err.into())?;
+
     let node_internal = match node.node_type().as_str() {
-        None => graph.resolve_node(id).map_err(into_graph_err)?.inner(),
+        None => session.resolve_node(id).map_err(into_graph_err)?.inner(),
         Some(node_type) => {
-            let (node_internal, _) = graph
+            let (node_internal, _) = session
                 .resolve_node_and_type(id, node_type)
                 .map_err(into_graph_err)?
                 .inner();
@@ -344,18 +347,18 @@ fn import_node_internal<
     let keys = node.temporal_prop_keys().collect::<Vec<_>>();
 
     for (t, row) in node.rows() {
-        let t = time_from_input(graph, t)?;
+        let t = time_from_input_session(&session, t)?;
 
         let props = row
             .into_iter()
             .zip(&keys)
             .map(|((_, prop), key)| {
-                let prop_id = graph.resolve_node_property(key, prop.dtype(), false);
+                let prop_id = session.resolve_node_property(key, prop.dtype(), false);
                 prop_id.map(|prop_id| (prop_id.inner(), prop))
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(into_graph_err)?;
-        graph
+        session
             .internal_add_node(t, node_internal, &props)
             .map_err(into_graph_err)?;
     }
@@ -393,6 +396,7 @@ fn import_edge_internal<
     }
 
     // Add edges first to ensure associated nodes are present
+    let session = graph.write_session().map_err(|err| err.into())?;
     for ee in edge.explode_layers() {
         let layer_name = ee.layer_name().expect("exploded layers");
 
@@ -407,10 +411,16 @@ fn import_edge_internal<
         }
 
         for (t, _) in edge.deletions_hist() {
-            let ti = time_from_input(graph, t.t())?;
-            let src_node = graph.resolve_node(src_id).map_err(into_graph_err)?.inner();
-            let dst_node = graph.resolve_node(dst_id).map_err(into_graph_err)?.inner();
-            let layer = graph
+            let ti = time_from_input_session(&session, t.t())?;
+            let src_node = session
+                .resolve_node(src_id)
+                .map_err(into_graph_err)?
+                .inner();
+            let dst_node = session
+                .resolve_node(dst_id)
+                .map_err(into_graph_err)?
+                .inner();
+            let layer = session
                 .resolve_layer(Some(&layer_name))
                 .map_err(into_graph_err)?
                 .inner();

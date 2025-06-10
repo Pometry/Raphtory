@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
             view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -18,7 +18,7 @@ use raphtory_api::core::{
     entities::properties::prop::Prop,
     storage::dict_mapper::MaybeNew::{Existing, New},
 };
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -122,27 +122,29 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
+        let session = self.write_session().map_err(|err| err.into())?;
         let ti = time_from_input(self, t)?;
         let properties = props.collect_properties(|name, dtype| {
-            Ok(self
+            Ok(session
                 .resolve_node_property(name, dtype, false)
                 .map_err(into_graph_err)?
                 .inner())
         })?;
         let v_id = match node_type {
-            None => self
+            None => session
                 .resolve_node(v.as_node_ref())
                 .map_err(into_graph_err)?
                 .inner(),
             Some(node_type) => {
-                let (v_id, _) = self
+                let (v_id, _) = session
                     .resolve_node_and_type(v.as_node_ref(), node_type)
                     .map_err(into_graph_err)?
                     .inner();
                 v_id.inner()
             }
         };
-        self.internal_add_node(ti, v_id, &properties)
+        session
+            .internal_add_node(ti, v_id, &properties)
             .map_err(into_graph_err)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
@@ -155,10 +157,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
         let ti = time_from_input(self, t)?;
+        let session = self.write_session().map_err(|err| err.into())?;
         let v_id = match node_type {
-            None => self.resolve_node(v.as_node_ref()).map_err(into_graph_err)?,
+            None => session
+                .resolve_node(v.as_node_ref())
+                .map_err(into_graph_err)?,
             Some(node_type) => {
-                let (v_id, _) = self
+                let (v_id, _) = session
                     .resolve_node_and_type(v.as_node_ref(), node_type)
                     .map_err(into_graph_err)?
                     .inner();
@@ -168,12 +173,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         match v_id {
             New(id) => {
                 let properties = props.collect_properties(|name, dtype| {
-                    Ok(self
+                    Ok(session
                         .resolve_node_property(name, dtype, false)
                         .map_err(into_graph_err)?
                         .inner())
                 })?;
-                self.internal_add_node(ti, id, &properties)
+                session
+                    .internal_add_node(ti, id, &properties)
                     .map_err(into_graph_err)?;
                 Ok(NodeView::new_internal(self.clone(), id))
             }
@@ -192,24 +198,28 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PI,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
-        let ti = time_from_input(self, t)?;
-        let src_id = self
+        let session = self.write_session().map_err(|err| err.into())?;
+        let ti = time_from_input_session(&session, t)?;
+        let src_id = session
             .resolve_node(src.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let dst_id = self
+        let dst_id = session
             .resolve_node(dst.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
+        let layer_id = session
+            .resolve_layer(layer)
+            .map_err(into_graph_err)?
+            .inner();
 
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
+            Ok(session
                 .resolve_edge_property(name, dtype, false)
                 .map_err(into_graph_err)?
                 .inner())
         })?;
-        let eid = self
+        let eid = session
             .internal_add_edge(ti, src_id, dst_id, &properties, layer_id)
             .map_err(into_graph_err)?
             .inner();

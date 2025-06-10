@@ -13,7 +13,7 @@ pub use history_filter::*;
 pub use time_semantics::TimeSemantics;
 pub use time_semantics_ops::*;
 
-use crate::db::api::view::{BoxedLDIter, MaterializedGraph};
+use crate::db::api::view::MaterializedGraph;
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry},

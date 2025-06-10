@@ -604,7 +604,10 @@ mod db_tests {
         utils::logging::global_info_logger,
     };
     use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
-    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
+    use raphtory_storage::{
+        core_ops::CoreGraphOps,
+        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    };
     use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
@@ -4035,7 +4038,11 @@ mod db_tests {
 
         let expected = Graph::new();
         expected.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
-        expected.resolve_layer(Some("a")).unwrap();
+        expected
+            .write_session()
+            .unwrap()
+            .resolve_layer(Some("a"))
+            .unwrap();
         assert_graph_equal(&gw, &expected);
     }
 

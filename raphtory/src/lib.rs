@@ -167,7 +167,7 @@ mod test_utils {
     use proptest::{arbitrary::any, prelude::*};
     use proptest_derive::Arbitrary;
     use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -665,15 +665,20 @@ mod test_utils {
         let g = Arc::new(Storage::default());
         let layers = layers.into();
 
+        let session = g.write_session().unwrap();
         for ((src, dst, layer), updates) in graph_fix.edges() {
             // properties always exist in the graph
             for (_, props) in updates.props.t_props.iter() {
                 for (key, value) in props {
-                    g.resolve_edge_property(key, value.dtype(), false).unwrap();
+                    session
+                        .resolve_edge_property(key, value.dtype(), false)
+                        .unwrap();
                 }
             }
             for (key, value) in updates.props.c_props.iter() {
-                g.resolve_edge_property(key, value.dtype(), true).unwrap();
+                session
+                    .resolve_edge_property(key, value.dtype(), true)
+                    .unwrap();
             }
 
             if layers.contains(layer.unwrap_or("_default")) {

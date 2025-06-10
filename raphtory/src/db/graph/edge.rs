@@ -11,7 +11,9 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{
+                time_from_input, time_from_input_session, CollectProperties, TryIntoInputTime,
+            },
             properties::{
                 internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
@@ -36,7 +38,8 @@ use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
-        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };
@@ -299,7 +302,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
                 None => {
                     if create {
                         self.graph
-                            .resolve_layer(layer)
+                            .write_session()
+                            .and_then(|s| s.resolve_layer(layer))
                             .map_err(into_graph_err)?
                             .inner()
                     } else {
@@ -356,7 +360,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_edge_property(name, dtype, true)
+                .write_session()
+                .and_then(|s| s.resolve_edge_property(name, dtype, true))
                 .map_err(into_graph_err)?
                 .inner())
         })?;
@@ -376,7 +381,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_edge_property(name, dtype, true)
+                .write_session()
+                .and_then(|s| s.resolve_edge_property(name, dtype, true))
                 .map_err(into_graph_err)?
                 .inner())
         })?;
@@ -393,17 +399,18 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let t = time_from_input(&self.graph, time)?;
+        let session = self.graph.write_session().map_err(into_graph_err)?;
+
+        let t = time_from_input_session(&session, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
+            Ok(session
                 .resolve_edge_property(name, dtype, false)
                 .map_err(into_graph_err)?
                 .inner())
         })?;
 
-        self.graph
+        session
             .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)
             .map_err(into_graph_err)?;
         Ok(())

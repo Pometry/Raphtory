@@ -15,7 +15,7 @@ use crate::{
 use raphtory_api::{
     core::entities::{properties::tprop::TPropOps, EID, VID},
     inherit::Base,
-    iter::{BoxedLDIter, BoxedLIter, IntoDynBoxed},
+    iter::{BoxedLIter, IntoDynBoxed},
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
@@ -428,7 +428,7 @@ mod test_deletions {
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest, sample::subsequence};
     use raphtory_api::core::entities::GID;
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
     use std::ops::Range;
 
     #[test]
@@ -611,7 +611,11 @@ mod test_deletions {
 
         let expected = PersistentGraph::new();
         expected.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
-        expected.resolve_layer(Some("a")).unwrap(); // empty layer exists
+        expected
+            .write_session()
+            .unwrap()
+            .resolve_layer(Some("a"))
+            .unwrap(); // empty layer exists
 
         println!("expected: {:?}", expected);
         assert_persistent_materialize_graph_equal(&gw, &expected);
@@ -666,7 +670,11 @@ mod test_deletions {
         g.delete_edge(0, 0, 0, None).unwrap();
         let gw = g.window(0, 0).valid_layers("a");
         let expected_gw = PersistentGraph::new();
-        expected_gw.resolve_layer(Some("a")).unwrap();
+        expected_gw
+            .write_session()
+            .unwrap()
+            .resolve_layer(Some("a"))
+            .unwrap();
         assert_graph_equal(&gw, &expected_gw);
         let gwm = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gwm);

@@ -45,7 +45,10 @@ use raphtory_storage::{
         edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
         nodes::node_storage_ops::NodeStorageOps,
     },
-    mutation::{addition_ops::InternalAdditionOps, MutationError},
+    mutation::{
+        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        MutationError,
+    },
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -302,6 +305,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
         let g = GraphStorage::from(g);
 
+        let g_session = g.write_session()?;
+
         {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
@@ -325,7 +330,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 .inner();
                             new_node.node_store_mut().node_type = new_type_id;
                         }
-                        g.set_node(gid.as_ref(), new_id)?;
+                        g_session.set_node(gid.as_ref(), new_id)?;
 
                         for (t, rows) in node.rows() {
                             let prop_offset = new_node.t_props_log_mut().push(rows)?;

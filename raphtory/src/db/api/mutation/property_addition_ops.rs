@@ -1,10 +1,11 @@
-use super::{time_from_input, CollectProperties};
+use super::CollectProperties;
 use crate::{
-    db::api::mutation::TryIntoInputTime,
+    db::api::mutation::{time_from_input_session, TryIntoInputTime},
     errors::{into_graph_err, GraphError},
 };
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    property_addition_ops::InternalPropertyAdditionOps,
 };
 
 pub trait PropertyAdditionOps:
@@ -33,9 +34,10 @@ impl<
         t: T,
         props: PI,
     ) -> Result<(), GraphError> {
-        let ti = time_from_input(self, t)?;
+        let session = self.write_session().map_err(|err| err.into())?;
+        let ti = time_from_input_session(&session, t)?;
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
-            Ok(self
+            Ok(session
                 .resolve_graph_property(name, dtype, false)
                 .map_err(into_graph_err)?
                 .inner())
@@ -46,8 +48,9 @@ impl<
     }
 
     fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
+        let session = self.write_session().map_err(|err| err.into())?;
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
-            Ok(self
+            Ok(session
                 .resolve_graph_property(name, dtype, true)
                 .map_err(into_graph_err)?
                 .inner())
@@ -61,8 +64,9 @@ impl<
         &self,
         props: PI,
     ) -> Result<(), GraphError> {
+        let session = self.write_session().map_err(|err| err.into())?;
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
-            Ok(self
+            Ok(session
                 .resolve_graph_property(name, dtype, true)
                 .map_err(into_graph_err)?
                 .inner())
