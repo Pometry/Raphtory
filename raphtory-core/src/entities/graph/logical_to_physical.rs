@@ -159,6 +159,30 @@ impl Mapping {
         }
     }
 
+    pub fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), InvalidNodeId> {
+        for gid in gids {
+            let map = self.map.get_or_init(|| match &gid {
+                GidRef::U64(_) => Map::U64(FxDashMap::default()),
+                GidRef::Str(_) => Map::Str(FxDashMap::default()),
+            });
+            match gid {
+                GidRef::U64(id) => {
+                    map.as_u64()
+                        .ok_or_else(|| InvalidNodeId::InvalidNodeIdU64(id))?;
+                }
+                GidRef::Str(id) => {
+                    map.as_str()
+                        .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(id.into()))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     #[inline]
     pub fn get_str(&self, gid: &str) -> Option<VID> {
         let map = self.map.get()?;

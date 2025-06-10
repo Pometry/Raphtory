@@ -384,7 +384,7 @@ impl<'a> Loader<'a> {
 
             let time_col = rb.time();
 
-            edge_writers.iter_mut().try_for_each(|edge_writer| {
+            edge_writers.iter_mut().for_each(|edge_writer| {
                 for (row_idx, ((((&src, &dst), &eid), edge_exists), time)) in src_col_resolved
                     .iter()
                     .zip(&dst_col_resolved)
@@ -408,11 +408,10 @@ impl<'a> Loader<'a> {
                             props.iter_row(row_idx),
                             0,
                             Some(edge_exists),
-                        )?;
+                        );
                     }
                 }
-                Ok::<_, DBV4Error>(())
-            })?;
+            });
 
             src_col_resolved.clear();
             dst_col_resolved.clear();

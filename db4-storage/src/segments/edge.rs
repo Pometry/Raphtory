@@ -145,10 +145,11 @@ impl MemEdgeSegment {
     }
 }
 
-pub struct EdgeSegmentView {
+pub struct EdgeSegmentView<EXT = ()> {
     segment: parking_lot::RwLock<MemEdgeSegment>,
     segment_id: usize,
     num_edges: AtomicUsize,
+    _ext: EXT,
 }
 
 impl EdgeSegmentOps for EdgeSegmentView {
@@ -192,6 +193,7 @@ impl EdgeSegmentOps for EdgeSegmentView {
             segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta)),
             segment_id: page_id,
             num_edges: AtomicUsize::new(0),
+            _ext: (),
         }
     }
 

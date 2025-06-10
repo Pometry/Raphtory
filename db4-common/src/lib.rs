@@ -9,6 +9,7 @@ pub mod error {
         api::core::entities::properties::prop::PropError, core::utils::time::ParseTimeError,
         errors::LoadError,
     };
+    use raphtory_storage::mutation::MutationError;
 
     #[derive(thiserror::Error, Debug)]
     pub enum DBV4Error {
@@ -34,6 +35,8 @@ pub mod error {
             #[from]
             source: ParseTimeError,
         },
+        #[error("Failed to mutate: {0}")]
+        MutationError(#[from] MutationError),
         #[error("Unnamed Failure: {0}")]
         GenericFailure(String),
     }

@@ -653,8 +653,6 @@ mod subgraph_tests {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let expected = Graph::new();
         expected
-            .write_session()
-            .unwrap()
             .resolve_layer(None)
             .unwrap();
         let subgraph = g.subgraph([0]);

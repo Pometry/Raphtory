@@ -1,4 +1,3 @@
-use super::time_from_input;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
@@ -123,7 +122,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
-        let ti = time_from_input(self, t)?;
+        let ti = time_from_input_session(&session, t)?;
         let properties = props.collect_properties(|name, dtype| {
             Ok(session
                 .resolve_node_property(name, dtype, false)
@@ -131,12 +130,12 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 .inner())
         })?;
         let v_id = match node_type {
-            None => session
+            None => self
                 .resolve_node(v.as_node_ref())
                 .map_err(into_graph_err)?
                 .inner(),
             Some(node_type) => {
-                let (v_id, _) = session
+                let (v_id, _) = self
                     .resolve_node_and_type(v.as_node_ref(), node_type)
                     .map_err(into_graph_err)?
                     .inner();
@@ -156,14 +155,14 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
-        let ti = time_from_input(self, t)?;
         let session = self.write_session().map_err(|err| err.into())?;
+        let ti = time_from_input_session(&session, t)?;
         let v_id = match node_type {
-            None => session
+            None => self
                 .resolve_node(v.as_node_ref())
                 .map_err(into_graph_err)?,
             Some(node_type) => {
-                let (v_id, _) = session
+                let (v_id, _) = self
                     .resolve_node_and_type(v.as_node_ref(), node_type)
                     .map_err(into_graph_err)?
                     .inner();
@@ -200,15 +199,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
     ) -> Result<EdgeView<G, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
         let ti = time_from_input_session(&session, t)?;
-        let src_id = session
+        let src_id = self
             .resolve_node(src.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let dst_id = session
+        let dst_id = self
             .resolve_node(dst.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let layer_id = session
+        let layer_id = self
             .resolve_layer(layer)
             .map_err(into_graph_err)?
             .inner();

@@ -12,6 +12,7 @@ edition = "2024"
 
 [dependencies]
 raphtory.workspace = true
+raphtory-storage.workspace = true
 thiserror.workspace = true
 serde_json.workspace = true
 arrow-schema.workspace = true

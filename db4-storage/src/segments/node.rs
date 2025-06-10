@@ -209,10 +209,11 @@ impl MemNodeSegment {
     }
 }
 
-pub struct NodeSegmentView {
+pub struct NodeSegmentView<EXT = ()> {
     inner: parking_lot::RwLock<MemNodeSegment>,
     segment_id: usize,
     num_nodes: AtomicUsize,
+    _ext: EXT,
 }
 
 impl NodeSegmentOps for NodeSegmentView {
@@ -256,6 +257,7 @@ impl NodeSegmentOps for NodeSegmentView {
             inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta)),
             segment_id: page_id,
             num_nodes: AtomicUsize::new(0),
+            _ext: (),
         }
     }
 

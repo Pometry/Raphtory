@@ -332,18 +332,17 @@ fn import_node_internal<
         }
     }
 
-    let session = graph.write_session().map_err(|err| err.into())?;
-
     let node_internal = match node.node_type().as_str() {
-        None => session.resolve_node(id).map_err(into_graph_err)?.inner(),
+        None => graph.resolve_node(id).map_err(into_graph_err)?.inner(),
         Some(node_type) => {
-            let (node_internal, _) = session
+            let (node_internal, _) = graph
                 .resolve_node_and_type(id, node_type)
                 .map_err(into_graph_err)?
                 .inner();
             node_internal.inner()
         }
     };
+    let session = graph.write_session().map_err(|err| err.into())?;
     let keys = node.temporal_prop_keys().collect::<Vec<_>>();
 
     for (t, row) in node.rows() {
@@ -412,15 +411,15 @@ fn import_edge_internal<
 
         for (t, _) in edge.deletions_hist() {
             let ti = time_from_input_session(&session, t.t())?;
-            let src_node = session
+            let src_node = graph
                 .resolve_node(src_id)
                 .map_err(into_graph_err)?
                 .inner();
-            let dst_node = session
+            let dst_node = graph
                 .resolve_node(dst_id)
                 .map_err(into_graph_err)?
                 .inner();
-            let layer = session
+            let layer = graph
                 .resolve_layer(Some(&layer_name))
                 .map_err(into_graph_err)?
                 .inner();

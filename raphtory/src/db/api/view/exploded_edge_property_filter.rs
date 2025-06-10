@@ -44,7 +44,7 @@ mod test {
         },
     };
     use proptest::{arbitrary::any, proptest};
-    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
 
     fn build_filtered_graph(
@@ -68,7 +68,7 @@ mod test {
             }
         }
         if !edges.is_empty() {
-            g.write_session().unwrap().resolve_layer(None).unwrap();
+            g.resolve_layer(None).unwrap();
         }
         g
     }
@@ -79,9 +79,8 @@ mod test {
     ) -> (PersistentGraph, PersistentGraph) {
         let g = PersistentGraph::new();
         let g_filtered = PersistentGraph::new();
-        let session = g_filtered.write_session().unwrap();
         if !edges.iter().all(|(_, v)| v.is_empty()) {
-            session.resolve_layer(None).unwrap();
+            g_filtered.resolve_layer(None).unwrap();
         }
         for ((src, dst), mut updates) in edges {
             let mut keep = false;
@@ -165,7 +164,7 @@ mod test {
             ))
             .unwrap();
         let gf = Graph::new();
-        gf.write_session().unwrap().resolve_layer(None).unwrap();
+        gf.resolve_layer(None).unwrap();
         assert_eq!(filtered.count_nodes(), 0);
         assert_eq!(filtered.count_edges(), 0);
         assert_graph_equal(&filtered, &gf);

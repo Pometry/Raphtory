@@ -1,7 +1,7 @@
 use db4_common::error::DBV4Error;
 use either::Either;
-use raphtory::prelude::Prop;
 use raphtory_api::core::entities::properties::{
+    prop::Prop,
     meta::{LockedPropMapper, Meta, PropMapper},
     prop::unify_types,
 };

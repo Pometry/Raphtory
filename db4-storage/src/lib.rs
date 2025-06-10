@@ -10,12 +10,8 @@ use crate::{
 };
 use db4_common::{LocalPOS, error::DBV4Error};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory::{
-    core::entities::{EID, VID},
-    prelude::Prop,
-};
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, tprop::TPropOps},
+    entities::{ properties::{meta::Meta, tprop::TPropOps, prop::Prop}, VID, EID},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
@@ -24,6 +20,9 @@ pub mod loaders;
 pub mod pages;
 pub mod properties;
 pub mod segments;
+
+pub type NS<P> = NodeSegmentView<P>;
+pub type ES<P> = EdgeSegmentView<P>;
 
 pub type Layer<EXT> = GraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 

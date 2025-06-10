@@ -218,51 +218,8 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
         Ok(self.session.reserve_event_ids(num_ids)?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
-        let id = self.session.resolve_layer(layer)?;
-
-        #[cfg(feature = "proto")]
-        self.storage
-            .if_cache(|cache| cache.resolve_layer(layer, id));
-
-        Ok(id)
-    }
-
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        match id {
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-            NodeRef::External(gid) => {
-                let id = self.session.resolve_node(id)?;
-
-                #[cfg(feature = "proto")]
-                self.storage.if_cache(|cache| cache.resolve_node(id, gid));
-
-                Ok(id)
-            }
-        }
-    }
-
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
         Ok(self.session.set_node(gid, vid)?)
-    }
-
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let node_and_type = self.session.resolve_node_and_type(id, node_type)?;
-
-        #[cfg(feature = "proto")]
-        self.storage.if_cache(|cache| {
-            use raphtory_storage::core_ops::CoreGraphOps;
-
-            let (vid, _) = node_and_type.inner();
-            let node_entry = self.storage.core_node(vid.inner());
-            cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
-        });
-
-        Ok(node_and_type)
     }
 
     fn resolve_graph_property(
@@ -389,6 +346,7 @@ impl InternalAdditionOps for Storage {
     type Error = GraphError;
 
     type WS<'a> = StorageWriteSession<'a>;
+    type AtomicAddEdge<'a> = StorageWriteSession<'a>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
         Ok(self.graph.write_lock()?)
@@ -402,12 +360,81 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.write_lock_edges()?)
     }
 
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self.graph.resolve_layer(layer)?;
+
+        #[cfg(feature = "proto")]
+        self.if_cache(|cache| cache.resolve_layer(layer, id));
+
+        Ok(id)
+    }
+
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        match id {
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+            NodeRef::External(gid) => {
+                let id = self.resolve_node(id)?;
+
+                #[cfg(feature = "proto")]
+                self.if_cache(|cache| cache.resolve_node(id, gid));
+
+                Ok(id)
+            }
+        }
+    }
+
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;
+
+        #[cfg(feature = "proto")]
+        self.if_cache(|cache| {
+            use raphtory_storage::core_ops::CoreGraphOps;
+
+            let (vid, _) = node_and_type.inner();
+            let node_entry = self.core_node(vid.inner());
+            cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
+        });
+
+        Ok(node_and_type)
+    }
+
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         let session = self.graph.write_session()?;
         Ok(StorageWriteSession {
             session,
             storage: self,
         })
+    }
+
+    fn atomic_add_edge(
+        &self,
+        src: VID,
+        dst: VID,
+        e_id: Option<EID>,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        let session = self.graph.atomic_add_edge(src, dst, e_id)?;
+        Ok(StorageWriteSession {
+            session,
+            storage: self,
+        })
+    }
+
+    fn validate_prop<PN: AsRef<str>>(
+        &self,
+        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
+        Ok(self.graph.validate_prop(prop)?)
+    }
+
+    fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), Self::Error> {
+        Ok(self.graph.validate_gids(gids)?)
     }
 }
 

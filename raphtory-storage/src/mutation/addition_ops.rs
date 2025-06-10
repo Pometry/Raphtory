@@ -23,11 +23,44 @@ pub trait InternalAdditionOps {
     type WS<'a>: SessionAdditionOps<Error = Self::Error>
     where
         Self: 'a;
+
+    type AtomicAddEdge<'a>: Send + Sync
+    where
+        Self: 'a;
+
     fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error>;
     fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error>;
     fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error>;
+    /// map layer name to id and allocate a new layer if needed
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
+    /// map external node id to internal id, allocating a new empty node if needed
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
+    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error>;
+
+    /// validate the GidRef is the correct type
+    fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), Self::Error>;
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error>;
+
+    fn atomic_add_edge(
+        &self,
+        src: VID,
+        dst: VID,
+        e_id: Option<EID>,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
+
+    fn validate_prop<PN: AsRef<str>>(
+        &self,
+        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error>;
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -35,17 +68,7 @@ pub trait SessionAdditionOps: Send + Sync {
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, Self::Error>;
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error>;
-    /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
-    /// map external node id to internal id, allocating a new empty node if needed
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error>;
-    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error>;
     /// map property key to internal id, allocating new property if needed
     fn resolve_graph_property(
         &self,
@@ -110,47 +133,8 @@ impl<'a> SessionAdditionOps for TGWriteSession<'a> {
         Ok(self.tg.event_counter.fetch_add(num_ids, Ordering::Relaxed))
     }
 
-    /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
-        let id = self
-            .tg
-            .resolve_layer_inner(layer)
-            .map_err(MutationError::from)?;
-        Ok(id)
-    }
-
-    /// map external node id to internal id, allocating a new empty node if needed
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        Ok(self.tg.resolve_node_inner(id)?)
-    }
-
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
         Ok(self.tg.logical_to_physical.set(gid, vid)?)
-    }
-
-    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let vid = self.resolve_node(id)?;
-        let mut entry = self.tg.storage.get_node_mut(vid.inner());
-        let mut entry_ref = entry.to_mut();
-        let node_store = entry_ref.node_store_mut();
-        if node_store.node_type == 0 {
-            let node_type_id = self.tg.node_meta.get_or_create_node_type_id(node_type);
-            node_store.update_node_type(node_type_id.inner());
-            Ok(MaybeNew::New((vid, node_type_id)))
-        } else {
-            let node_type_id = self
-                .tg
-                .node_meta
-                .get_node_type_id(node_type)
-                .filter(|&node_type| node_type == node_store.node_type)
-                .ok_or(MutationError::NodeTypeError)?;
-            Ok(MaybeNew::Existing((vid, MaybeNew::Existing(node_type_id))))
-        }
     }
 
     /// map property key to internal id, allocating new property if needed
@@ -261,6 +245,7 @@ impl<'a> SessionAdditionOps for TGWriteSession<'a> {
 impl InternalAdditionOps for GraphStorage {
     type Error = MutationError;
     type WS<'b> = TGWriteSession<'b>;
+    type AtomicAddEdge<'a> = TGWriteSession<'a>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
         self.mutable()?.write_lock()
@@ -274,10 +259,52 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.write_lock_edges()
     }
 
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self.mutable()?.resolve_layer_inner(layer)?;
+        Ok(id)
+    }
+
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        Ok(self.mutable()?.resolve_node(id)?)
+    }
+
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        Ok(self.mutable()?.resolve_node_and_type(id, node_type)?)
+    }
+
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         Ok(TGWriteSession {
             tg: self.mutable()?,
         })
+    }
+
+    fn atomic_add_edge(
+        &self,
+        _src: VID,
+        _dst: VID,
+        _e_id: Option<EID>,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        self.write_session()
+    }
+
+    fn validate_prop<PN: AsRef<str>>(
+        &self,
+        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
+        self.mutable()?
+            .validate_prop(prop)
+            .map_err(MutationError::from)
+    }
+
+    fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), Self::Error> {
+        Ok(self.mutable()?.validate_gids(gids)?)
     }
 }
 
@@ -285,6 +312,7 @@ impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
 
     type WS<'b> = TGWriteSession<'b>;
+    type AtomicAddEdge<'a> = TGWriteSession<'a>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
         Ok(WriteLockedGraph::new(self))
@@ -298,8 +326,79 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(self.storage.edges.write_lock())
     }
 
+    /// map layer name to id and allocate a new layer if needed
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self
+            .resolve_layer_inner(layer)
+            .map_err(MutationError::from)?;
+        Ok(id)
+    }
+
+    /// map external node id to internal id, allocating a new empty node if needed
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        Ok(self.resolve_node_inner(id)?)
+    }
+
+    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        let vid = self.resolve_node(id)?;
+        let mut entry = self.storage.get_node_mut(vid.inner());
+        let mut entry_ref = entry.to_mut();
+        let node_store = entry_ref.node_store_mut();
+        if node_store.node_type == 0 {
+            let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
+            node_store.update_node_type(node_type_id.inner());
+            Ok(MaybeNew::New((vid, node_type_id)))
+        } else {
+            let node_type_id = self
+                .node_meta
+                .get_node_type_id(node_type)
+                .filter(|&node_type| node_type == node_store.node_type)
+                .ok_or(MutationError::NodeTypeError)?;
+            Ok(MaybeNew::Existing((vid, MaybeNew::Existing(node_type_id))))
+        }
+    }
+
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         Ok(TGWriteSession { tg: self })
+    }
+
+    fn atomic_add_edge(
+        &self,
+        _src: VID,
+        _dst: VID,
+        _e_id: Option<EID>,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        Ok(TGWriteSession { tg: self })
+    }
+
+    fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), Self::Error> {
+        self.logical_to_physical
+            .validate_gids(gids)
+            .map_err(MutationError::from)
+    }
+
+    fn validate_prop<PN: AsRef<str>>(
+        &self,
+        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
+        let session = self.write_session()?;
+        let properties = prop
+            .map(|(name, prop)| {
+                let dtype = prop.dtype();
+                session
+                    .resolve_node_property(name.as_ref(), dtype, false)
+                    .map(|id| (id.inner(), prop))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(properties)
     }
 }
 
@@ -312,6 +411,12 @@ where
     type Error = <G::Base as InternalAdditionOps>::Error;
     type WS<'a>
         = <G::Base as InternalAdditionOps>::WS<'a>
+    where
+        <G as Base>::Base: 'a,
+        G: 'a;
+
+    type AtomicAddEdge<'a>
+        = <G::Base as InternalAdditionOps>::AtomicAddEdge<'a>
     where
         <G as Base>::Base: 'a,
         G: 'a;
@@ -332,7 +437,52 @@ where
     }
 
     #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        self.base().resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        self.base().resolve_node(id)
+    }
+
+    #[inline]
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        self.base().resolve_node_and_type(id, node_type)
+    }
+
+    #[inline]
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         self.base().write_session()
+    }
+
+    #[inline]
+    fn atomic_add_edge(
+        &self,
+        src: VID,
+        dst: VID,
+        e_id: Option<EID>,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        self.base().atomic_add_edge(src, dst, e_id)
+    }
+
+    #[inline]
+    fn validate_prop<PN: AsRef<str>>(
+        &self,
+        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
+        self.base().validate_prop(prop)
+    }
+
+    #[inline]
+    fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), Self::Error> {
+        self.base().validate_gids(gids)
     }
 }

@@ -123,7 +123,7 @@ mod tests_node_type_filtered_subgraph {
         test_utils::{build_graph, build_graph_strat, make_node_types},
     };
     use proptest::{arbitrary::any, proptest};
-    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::ops::Range;
 
     #[test]
@@ -210,8 +210,6 @@ mod tests_node_type_filtered_subgraph {
         g.node(1).unwrap().set_node_type("test").unwrap();
         let expected = Graph::new();
         expected
-            .write_session()
-            .unwrap()
             .resolve_layer(None)
             .unwrap();
         assert_graph_equal(&g.subgraph_node_types(["test"]), &expected);
@@ -225,8 +223,6 @@ mod tests_node_type_filtered_subgraph {
         let gw = g.window(0, 1);
         let expected = Graph::new();
         expected
-            .write_session()
-            .unwrap()
             .resolve_layer(None)
             .unwrap();
         let sg = gw.subgraph_node_types(["_default"]);

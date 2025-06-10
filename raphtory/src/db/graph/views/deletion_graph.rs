@@ -428,7 +428,7 @@ mod test_deletions {
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest, sample::subsequence};
     use raphtory_api::core::entities::GID;
-    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::ops::Range;
 
     #[test]
@@ -612,8 +612,6 @@ mod test_deletions {
         let expected = PersistentGraph::new();
         expected.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
         expected
-            .write_session()
-            .unwrap()
             .resolve_layer(Some("a"))
             .unwrap(); // empty layer exists
 
@@ -671,8 +669,6 @@ mod test_deletions {
         let gw = g.window(0, 0).valid_layers("a");
         let expected_gw = PersistentGraph::new();
         expected_gw
-            .write_session()
-            .unwrap()
             .resolve_layer(Some("a"))
             .unwrap();
         assert_graph_equal(&gw, &expected_gw);

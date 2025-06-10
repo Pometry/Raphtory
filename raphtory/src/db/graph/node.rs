@@ -421,8 +421,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         self.graph
-            .write_session()
-            .and_then(|s| s.resolve_node_and_type(NodeRef::Internal(self.node), new_type))
+            .resolve_node_and_type(NodeRef::Internal(self.node), new_type)
             .map_err(into_graph_err)?;
         Ok(())
     }

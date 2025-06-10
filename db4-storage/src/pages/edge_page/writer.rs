@@ -35,7 +35,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
         exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
-    ) -> Result<LocalPOS, DBV4Error> {
+    ) -> LocalPOS {
         self.writer.as_mut().set_lsn(lsn);
 
         if exists_hint == Some(false) && edge_pos.is_some() {
@@ -45,9 +45,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos());
         self.writer
             .insert_edge_internal(t, edge_pos, src, dst, props);
-        // self.est_size = self.page.increment_size(size_of::<(VID, VID)>())
-        //     + self.writer.as_ref().t_prop_est_size();
-        Ok(edge_pos)
+        edge_pos
     }
 
     pub fn add_static_edge(

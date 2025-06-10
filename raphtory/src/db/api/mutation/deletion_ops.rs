@@ -11,7 +11,7 @@ use crate::{
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_storage::mutation::{
-    addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    addition_ops::InternalAdditionOps,
     deletion_ops::InternalDeletionOps,
 };
 
@@ -30,15 +30,15 @@ pub trait DeletionOps:
     ) -> Result<EdgeView<Self>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
         let ti = time_from_input_session(&session, t).map_err(into_graph_err)?;
-        let src_id = session
+        let src_id = self
             .resolve_node(src.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let dst_id = session
+        let dst_id = self
             .resolve_node(dst.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let layer = session
+        let layer = self
             .resolve_layer(layer)
             .map_err(into_graph_err)?
             .inner();
