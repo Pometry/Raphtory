@@ -13,7 +13,7 @@ mod proto {
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 #[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::DiskGraphStorage;
+use crate::raphtory_storage::disk::DiskGraphStorage;
 use crate::{
     db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
